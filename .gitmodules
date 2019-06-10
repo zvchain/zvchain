@@ -1,0 +1,6 @@
+[submodule "network/p2p"]
+	path = network/p2p
+	url = https://github.com/zvchain/p2p.git
+[submodule "tvm/ctvm"]
+	path = tvm/ctvm
+	url = https://github.com/zvchain/tvm.git

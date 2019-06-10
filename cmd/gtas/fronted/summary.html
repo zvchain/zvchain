@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>各实例总览</title>
+    <script src="http://libs.baidu.com/jquery/1.8.3/jquery.min.js"></script>
+    <style>
+        input {
+            width: 80%;
+            height: 20px;
+        }
+
+        .bg_red {
+            background-color: #ff4853;
+        }
+
+        table.gridtable {
+            font-family: verdana,arial,sans-serif;
+            font-size:11px;
+            color:#333333;
+            border-width: 1px;
+            border-color: #666666;
+            border-collapse: collapse;
+            width: 90%;
+            margin-left: 5%;
+            margin-bottom: 5%;
+            margin-top: 2%;
+        }
+        table.gridtable th {
+            border-width: 1px;
+            padding: 8px;
+            border-style: solid;
+            border-color: #666666;
+            background-color: #dedede;
+        }
+        table.gridtable td {
+            border-width: 1px;
+            padding: 8px;
+            border-style: solid;
+            border-color: #666666;
+        }
+
+    </style>
+    <script type="application/javascript">
+
+        var statMap =new Map();
+
+        function del_tr(obj) {
+            $(obj).parent().parent().remove();
+            return false
+        }
+
+        function blockHeight(host, tr) {
+            params = {
+                "method": "GTAS_blockHeight",
+                "params": [],
+                "jsonrpc": "2.0",
+                "id": "1"
+            };
+            $.ajax({
+                type: 'POST',
+                url: host,
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                },
+                data: JSON.stringify(params),
+                success: function (rdata) {
+                    if (rdata.result !== undefined){
+                        td = tr.children("td[name='block_height']");
+                        td.text(rdata.result.data);
+                        console.log(rdata.result.data);
+                        block(host, tr, rdata.result.data)
+                    }
+                },
+                error: function () {
+                    td = tr.children("td[name='block_height']");
+                    td.text("块高获取失败")
+                }
+            });
+        }
+        function groupHeight(host, tr) {
+            params = {
+                "method": "GTAS_groupHeight",
+                "params": [],
+                "jsonrpc": "2.0",
+                "id": "1"
+            };
+            $.ajax({
+                type: 'POST',
+                url: host,
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                },
+                data: JSON.stringify(params),
+                success: function (rdata) {
+                    if (rdata.result !== undefined){
+                        td = tr.children("td[name='group_height']");
+                        td.text(rdata.result.data)
+                    }
+                },
+                error: function () {
+                    td = tr.children("td[name='group_height']");
+                    td.text("组高获取失败")
+                }
+            });
+        }
+        function topBlock(host, tr) {
+            params = {
+                "method": "GTAS_getTopBlock",
+                "params": [],
+                "jsonrpc": "2.0",
+                "id": "1"
+            };
+
+            $.ajax({
+                type: 'POST',
+                url: host,
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                },
+                data: JSON.stringify(params),
+                success: function (rdata) {
+                    if (rdata.result !== undefined){
+                        stat = statMap.get(host);
+                        if (stat == null || stat == undefined) {
+                            stat = {total_txs: 0, total_cost: 0}
+                        }
+                        d = rdata.result.data;
+
+                        pre = new Date(d.pre_time).getTime();
+                        cur = new Date(d.cur_time).getTime();
+                        if (d.txs > 0) {
+                            stat.total_cost += (cur - pre)/1000;
+                            stat.total_txs += d.txs
+                        }
+                        statMap.set(host, stat);
+
+                        tps = tr.children("td[name='tps']");
+                        txs = tr.children("td[name='txs']");
+                        h = tr.children("td[name='block_height']");
+                        cost = tr.children("td[name='cost']");
+                        qn = tr.children("td[name='qn']");
+                        aver_tps = tr.children("td[name='aver_tps']");
+                        tx_pool_count = tr.children("td[name='tx_pool_count']");
+                        tx_pool_total = tr.children("td[name='tx_pool_total']");
+                        miner_id = tr.children("td[name='miner_id']");
+
+                        h.text(d.height);
+                        tps.text(d.tps);
+                        txs.text(d.txs);
+                        cost.text(d.elapsed);
+                        qn.text(d.total_qn);
+                        aver = stat.total_txs/ stat.total_cost;
+                        aver_tps.text(aver.toFixed(1));
+                        tx_pool_count.text(d.tx_pool_count);
+                        tx_pool_total.text(d.tx_pool_total);
+                        miner_id.text(d.miner_id)
+                    }
+                },
+                error: function () {
+                    tps = tr.children("td[name='tps']");
+                    txs = tr.children("td[name='txs']");
+                    h = tr.children("td[name='block_height']");
+                    tps.text("块信息获取失败");
+                    txs.text("块信息获取失败");
+                    h.text("块信息获取失败")
+                }
+            });
+        }
+        function request_info(input) {
+            host = $(input).val();
+            if (host == undefined || host == '' || host == 'http://')
+                return;
+            tr = $(input).parent().parent();
+
+            topBlock(host, tr);
+            groupHeight(host, tr)
+        }
+
+        function refresh(obj) {
+            input = $(obj).parent().parent().find("input[name='ipport']");
+            request_info(input)
+        }
+
+        function jump(obj) {
+            host = $(obj).parent().parent().find("input[name='ipport']").val();
+            if (host == undefined || host == '')
+                return false;
+            window.open(host, '_blank');
+        }
+
+        function refreshAll() {
+            $("#t_body").find("tr td input[name='ipport']").each(function () {
+                request_info($(this))
+            })
+        }
+
+        function addTR(host) {
+            if (!host.startsWith("http://")) {
+                host = "http://" + host
+            }
+            tr = "<tr>";
+            tr += "<td><input name='ipport' onkeypress='if(event.keyCode==13) {request_info($(this))}' value='" + host + "'></td>";
+            tr += "<td name='block_height'></td>";
+            tr += "<td name='group_height'></td>";
+            tr += "<td name='tps'></td>";
+            tr += "<td name='txs'></td>";
+            tr += "<td name='cost'></td>";
+            tr += "<td name='qn'></td>";
+            tr += "<td name='aver_tps'></td>";
+            tr += "<td name='tx_pool_count'></td>";
+            tr += "<td name='tx_pool_total'></td>";
+            tr += "<td name='miner_id'></td>";
+            tr += "<td><a href='javascript:void(0);' onclick='refresh($(this))'>刷新</a>&nbsp;<a href='javascript:void(0);' onclick='del_tr($(this))'>删除</a>&nbsp;<a href='javascript:void(0);' onclick='jump($(this))'>查看</a></td>";
+            tr += "</tr>";
+            $("#t_body").append(tr)
+        }
+
+        function tryAddHost() {
+            hosts = $("#HOSTS").val();
+            if (!hosts.startsWith("__")) {
+                hosts.split(",").forEach(function (value) {
+                    addTR(value)
+                })
+            }
+        }
+
+        function highlight() {
+            m = new Map();
+            $("#t_body").find("tr").each(function(){
+                var tdArr = $(this).children();
+                var height = tdArr.eq(1).text();
+                if (height == "" || height.indexOf("失败") != -1) {
+                    return
+                }
+                h = parseInt(height);
+                v=1;
+                if(m.has(h)) {
+                    v = m.get(h);
+                    v+=1
+                }
+                m.set(h, v)
+            });
+
+            maxValueHeight = 0;
+            maxValue = 0;
+            m.forEach(function (value, key, map) {
+                if(value > maxValue) {
+                    maxValueHeight = key;
+                    maxValue = value
+                }
+            });
+
+            $("#t_body").find("tr").each(function(){
+                var tdArr = $(this).children();
+                var height = tdArr.eq(1).text();
+                if (height == "" || height.indexOf("失败") != -1) {
+                    return
+                }
+                h = parseInt(height);
+                delta = h - maxValueHeight;
+                if(delta >= 5 || delta <= -5) {
+                    $(this).addClass("bg_red")
+                } else {
+                    $(this).removeClass("bg_red")
+                }
+            });
+
+        }
+        $(function () {
+
+            $("#add").click(function () {
+                addTR("")
+            });
+
+            tryAddHost();
+            setInterval(refreshAll, 2500);
+            setInterval(highlight, 5000)
+        })
+    </script>
+</head>
+<body>
+    <input type="hidden" id="HOSTS" value="__HOSTS__">
+    <div style="width: 95%; text-align: center;">
+        <span style="margin-top: 10%; width: 200px"><button id="add">添加监控</button></span>
+        <table class="gridtable">
+            <thead>
+                <tr>
+                    <th width="20%">IP端口</th>
+                    <th width="10%">块高</th>
+                    <th width="10%">组高</th>
+                    <th width="10%">tps</th>
+                    <th width="10%">txs</th>
+                    <th width="10%">出块时长</th>
+                    <th width="10%">qn</th>
+                    <th width="10%">aver_tps</th>
+                    <th width="10%">tx_pool_count</th>
+                    <th width="10%">tx_pool_total</th>
+                    <th width="10%">矿工ID</th>
+                    <th width="10%">操作</th>
+                </tr>
+            </thead>
+            <tbody id="t_body">
+
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

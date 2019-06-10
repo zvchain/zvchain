@@ -1,0 +1,43 @@
+#MacOS file info
+.DS_Store
+*/.DS_Store
+
+#Goland IDE data
+.idea/
+*/.idea/
+
+#output of Golang package
+/pkg/
+
+#other ignore files
+*.xml
+src/core/wenqin_test_util.go
+
+src/core/database
+src/core/logs
+src/github.com
+src/golang.org
+src/gopkg.in
+
+*/block/
+*/groupldb/
+*/height/
+*/logs/
+*/state/
+*/tx/
+*/database/
+
+tvm/libtvm.a
+tvm/tvm.h
+main
+
+venv/
+go.sum
+bin/
+network/libp2pcore.a
+network/p2p_api.h
+tvm/libtvm.a
+tvm/tvm.h
+
+deploy
+deploy/*

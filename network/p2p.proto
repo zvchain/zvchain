@@ -1,0 +1,70 @@
+syntax = "proto3";
+package network;
+
+enum MessageType
+{
+    MessageNone = 0;
+    MessagePing = 1;
+	MessagePong = 2;
+	MessageFindnode = 3;
+	MessageNeighbors = 4;
+    MessageData = 5;
+    MessageRelayTest = 6;
+    MessageRelayNode = 7;
+
+};
+enum DataType
+{
+    DataNormal = 0;
+    DataGroup = 1;
+	DataGlobal= 2;
+	DataGlobalRandom= 3;
+};
+message RpcNode  {
+    string Ip = 1;
+    int32 Port = 2;
+    string Id = 3;
+}
+
+message RpcEndPoint  {
+	string Ip = 1;
+    int32 Port = 2;
+}
+
+message MsgPing{
+    int32 Version = 1;
+    RpcEndPoint From = 2;
+    RpcEndPoint To = 3;
+    bytes  NodeId = 4;
+	uint64 Expiration = 5;
+}
+
+message MsgRelay{
+    bytes NodeId=1;
+}
+
+message MsgFindNode {
+    bytes Target = 1;
+    uint64 Expiration = 2;
+}
+
+message MsgNeighbors {
+    repeated RpcNode Nodes = 1;
+    uint64  Expiration = 2;
+}
+
+message MsgData {
+    DataType DataType = 1;
+    string GroupId = 2;
+    uint64 Expiration = 3;
+    uint64 MessageId = 4;
+    bytes BizMessageId = 5;
+    bytes DestNodeId = 6;
+    bytes SrcNodeId = 7;
+    bytes Data = 8;
+    int32 RelayCount = 9;
+    uint32 MessageCode = 10;
+    uint32 MessageInfo = 11;
+}
+
+

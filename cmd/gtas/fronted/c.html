@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="https://mvp.taschain.cn/static/layui/css/layui.css">
+    <style type="text/css">
+        .wallet_tr {word-wrap:break-word; word-break:break-all;}
+    </style>
+    <script src="https://mvp.taschain.cn/static/layui/layui.js" type="application/javascript"></script>
+    <script src="gtas/fronted/js/tas.js" type="application/javascript"></script>
+    <script src="gtas/fronted/js/tas-ext.js" type="application/javascript"></script>
+</head>
+<body>
+<div style="margin: 20px 5%" >
+    <!--<div>
+        <label class="layui-label" id="host"></label>
+        <span class="layui-badge-dot" style="position: relative; top: -2px; left: -2px" id="online_flag"></span>
+        <button class="layui-btn layui-btn-xs" id="change_host">更换host</button>
+    </div>-->
+    <div class="layui-tab" lay-filter="demo" style="margin: 20px 0">
+        <ul class="layui-tab-title">
+            <li class="layui-this">Dashboard</li>
+            <li>新建账户</li>
+            <li>转账演示</li>
+            <li>查询余额</li>
+            <li>投票</li>
+            <li>块链</li>
+            <li>组链</li>
+            <li>查询工作组</li>
+            <li>共识验证</li>
+            <li lay-id="block_detail_tab">块详情</li>
+            <li lay-id="tx_detail_tab">交易详情</li>
+
+        </ul>
+        <div class="layui-tab-content">
+            <div class="layui-tab-item  layui-show">
+                <div class="layui-row layui-col-space10 layui-bg-green">
+                    <div class="layui-col-md2">
+                    </div>
+                    <div class="layui-col-md2" style="font-size: 20px">
+                        <span>当前块高：</span><span id="block_height">0</span>
+                    </div>
+                    <div class="layui-col-md2" style="font-size: 20px">
+                        <span>当前组高：</span><span id="group_height">0</span>
+                    </div>
+                    <div class="layui-col-md2" style="font-size: 20px">
+                        <span>工作组数量：</span><span id="work_group_num">0</span>
+                    </div>
+                    <div class="layui-col-md2" >
+                        <form class="layui-form" action="">
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">刷新</label>
+                                <div id="dashboard_update_div" class="layui-input-block">
+                                    <input type="checkbox" id="dashboard_update_switch" name="switch" checked="true" lay-skin="switch">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <hr/>
+                <label style="text-align: left">节点信息</label>
+                <span style="margin-left: 100px">
+                    <button lay-submit style="width: 100px; height: 30px;" lay-filter="t_form" id="apply_a">申请成为矿工</button>
+                </span>
+
+                <div id="node_info">
+                    <table class="layui-table" id="node_info">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>余额</th>
+                            <th>节点类型</th>
+                            <th>工作组数</th>
+                            <th>有效组数</th>
+                            <th>缓冲区交易数</th>
+                            <th>节点状态</th>
+                        </tr>
+                        </thead>
+                        <tr>
+                            <td id="tb_node_id">2344424232333333333333333333333333333</td>
+                            <td id="tb_node_balance">23233</td>
+                            <td id="tb_node_type">--</td>
+                            <td id="tb_node_wg">--</td>
+                            <td id="tb_node_ag">--</td>
+                            <td id="tb_node_txnum">--</td>
+                            <td id="tb_node_status">--</td>
+                        </tr>
+                    </table>
+                    <table class="layui-table" id="stake_info">
+                        <thead>
+                        <tr>
+                            <th>质押权益</th>
+                            <th>类型</th>
+                            <th>申请高度</th>
+                            <th>取消高度</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="tb_stake_body"></tbody>
+                    </table>
+                </div>
+                <div id="apply_miner_div" style="padding-bottom: 40px; display: none">
+                    <div style="position: absolute">
+                        <label class="layui-form-label">质押权益</label>
+                        <input type="text" id="text_stake" class="layui-input" style="width: 150px;" value="10">
+                    </div>
+                    <div style="float: left; margin-left: 240px" >
+                        <label class="layui-form-label">类型</label>
+                        <input type="radio" style="margin-top: 12px" name="app_type_rd" value="1" checked>重节点
+                        <input type="radio"  style="margin-top: 12px" name="app_type_rd" value="0">轻节点
+                    </div>
+                    <div style="float: left; margin-left: 40px">
+                        <button class="layui-btn" lay-submit lay-filter="t_form" id="submit_apply">申请</button>
+                        <span style="margin-left: 40px" id="submit_result"></span>
+                    </div>
+                </div>
+                <hr/>
+                <div class="layui-row layui-col-space10">
+                    <div class="layui-col-md6">
+                        <label>已连接节点</label>
+                        <table class="layui-table">
+                            <colgroup>
+                                <col width="50%">
+                                <col width="30%">
+                                <col>
+                            </colgroup>
+                            <thead>
+                            <tr>
+                                <th>id</th>
+                                <th>ip地址</th>
+                                <th>端口</th>
+                            </tr>
+                            </thead>
+                            <tbody id="nodes_table">
+
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="layui-col-md6">
+                        <label>缓冲区</label>
+                        <table class="layui-table">
+                            <colgroup>
+                                <col width="33%">
+                                <col width="33%">
+                                <col>
+                            </colgroup>
+                            <thead>
+                            <tr>
+                                <th>source</th>
+                                <th>target</th>
+                                <th>value</th>
+                            </tr>
+                            </thead>
+                            <tbody id="trans_table">
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="layui-tab-item">
+                <button class="layui-btn" id="create_btn">创建账户</button>
+                <table class="layui-table" style="table-layout: fixed">
+                    <colgroup>
+                        <col width="65%">
+                        <col width="20%">
+                        <col>
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th>私钥</th>
+                        <th>钱包地址</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="create_chart">
+
+                    </tbody>
+                </table>
+            </div>
+            <div class="layui-tab-item">
+                <form class="layui-form" action="">
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">private key</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="private_key" id="tx_send_private_key"  autocomplete="off" class="layui-input"
+                                   placeholder="请输入发送方私钥">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">to</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="to"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入接收方地址(len=40)">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">value</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="value"  autocomplete="off" class="layui-input"
+                                   placeholder="请输入金额(正整数)">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">nonce</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="nonce"  autocomplete="off" class="layui-input"
+                                   placeholder="nonce" value="0">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">type</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="type"  autocomplete="off" class="layui-input"
+                                   placeholder="请输入交易类型(正整数,普通转账0,创建合约1，调用合约2,分红交易3)">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">gas</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="gas"  autocomplete="off" class="layui-input"
+                                   placeholder="" value="1">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">gas_price</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="gas_price"  autocomplete="off" class="layui-input"
+                                   placeholder="" value="1">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">data</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="data"  autocomplete="off" class="layui-input"
+                                   placeholder="">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-input-block">
+                            <button class="layui-btn" lay-submit lay-filter="t_form">立即提交</button>
+                            <button type="reset" class="layui-btn layui-btn-primary">重置</button>
+                        </div>
+                    </div>
+                </form>
+                <hr/>
+                Message: &nbsp;<span id="t_message"></span>
+                <hr/>
+                Error: &nbsp; <span id="t_error"></span>
+                <hr/>
+            </div>
+
+            <div class="layui-tab-item">
+
+                <table class="layui-table">
+                    <colgroup>
+                        <col width="50%">
+                        <col width="30%">
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th>地址</th>
+                        <th>余额</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="balance_chart">
+                    <tr>
+                        <td>
+                            <input type="text" name="account"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入查询地址" id="query_input_0">
+                        </td>
+                        <td id="query_balance_0">
+
+                        </td>
+                        <td>
+                            <button class="layui-btn query_btn"  id="query_btn_0">查询</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="text" name="account"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入查询地址" id="query_input_1">
+                        </td>
+                        <td id="query_balance_1">
+
+                        </td>
+                        <td>
+                            <button class="layui-btn query_btn"  id="query_btn_1">查询</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="text" name="account"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入查询地址" id="query_input_2">
+                        </td>
+                        <td id="query_balance_2">
+
+                        </td>
+                        <td>
+                            <button class="layui-btn query_btn" id="query_btn_2">查询</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="text" name="account"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入查询地址" id="query_input_3">
+                        </td>
+                        <td id="query_balance_3">
+
+                        </td>
+                        <td>
+                            <button class="layui-btn query_btn" id="query_btn_3">查询</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="text" name="account"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入查询地址" id="query_input_4">
+                        </td>
+                        <td id="query_balance_4">
+
+                        </td>
+                        <td>
+                            <button class="layui-btn query_btn" id="query_btn_4">查询</button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div style="padding-top: 30px"></div>
+                <hr/>
+                Message: &nbsp;<span id="balance_message"></span>
+                <hr/>
+                Error: &nbsp; <span id="balance_error"></span>
+                <hr/>
+            </div>
+            <!-- 投票部分 -->
+            <div class="layui-tab-item">
+                <form class="layui-form" action="">
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">from</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="from"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入发送方地址(len=40)">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">TemplateName</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="template_name"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="vote_template_1">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">PIndex</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="p_index"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="2">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">PValue</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="p_value"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="999">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">Custom</label>
+                        <div class="layui-input-block">
+                            <input type="radio" name="custom" value="true" title="true">
+                            <input type="radio" name="custom" value="false" title="false" checked>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">Desc</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="desc"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="描述">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">DepositMin</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="deposit_min"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="1">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">TotalDepositMin</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="total_deposit_min"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="2">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">VoterCntMin</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="voter_cnt_min"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="4">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">ApprovalDepositMin</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="approval_deposit_min"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="2">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">ApprovalVoterCntMin</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="approval_voter_cnt_min"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="2">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">DeadlineBlock</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="deadline_block"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="80">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">StatBlock</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="stat_block"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="85">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">EffectBlock</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="effect_block"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="90">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">DepositGap</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="deposit_gap"   autocomplete="off" class="layui-input"
+                                   placeholder="" value="1">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-input-block">
+                            <button class="layui-btn" lay-submit lay-filter="vote_form">立即提交</button>
+                            <button type="reset" class="layui-btn layui-btn-primary">重置</button>
+                        </div>
+                    </div>
+                    <div style="padding-top: 30px"></div>
+                    <hr/>
+                    Message: &nbsp;<span id="vote_message"></span>
+                    <hr/>
+                    Error: &nbsp; <span id="vote_error"></span>
+                    <hr/>
+                </form>
+            </div>
+            <div class="layui-tab-item">
+                <table id="block_detail" lay-filter="block_detail"></table>
+            </div>
+            <div class="layui-tab-item">
+                <table id="group_detail" lay-filter="block_detail"></table>
+            </div>
+            <div class="layui-tab-item">
+                <table class="layui-table">
+                    <tr>
+                        <td width="40%">
+                            <input type="text" name="account"   autocomplete="off" class="layui-input"
+                                   placeholder="根据高度查询工作组信息" id="query_wg_input">
+                        </td>
+                        <td>
+                            <button class="layui-btn query_btn" id="query_wg_btn">查询</button>
+                        </td>
+                    </tr>
+                </table>
+
+                <table id="work_group_detail" lay-filter="block_detail"></table>
+            </div>
+
+            <!-- 共识验证部分 -->
+            <div class="layui-tab-item">
+                <table class="layui-table">
+                    <tr>
+                        <td width="40%">
+                            <input type="text" name="consensus_stat"   autocomplete="off" class="layui-input"
+                                   placeholder="请输入区块高度" id="block_height_input">
+                        </td>
+                        <td>
+                            <button class="layui-btn query_btn" id="block_height_btn">统计</button>
+                        </td>
+                    </tr>
+                </table>
+
+                <label style="text-align: left">节点分红信息</label>
+                <table id="bonus_transaction_detail" lay-filter="bonus_detail"></table>
+
+
+                <label style="text-align: left">截止该块高节点分红汇总信息</label>
+                <table id="bonus_transaction_total_detail" lay-filter="bonus_total_detail"></table>
+
+                <label style="text-align: left">截止该块高节点节点出块汇总信息</label>
+                <table id="cast_block_total_detail" lay-filter="cast_block_total_detail"></table>
+            </div>
+
+            <!-- 块详情 -->
+            <div class="layui-tab-item">
+                <div class="layui-row layui-col-space20">
+                    <div class="layui-col-md2"></div>
+                    <div class="layui-col-md4">
+                        <input type="text" name="account"   autocomplete="off" class="layui-input" placeholder="块hash" id="query_block_hash">
+                    </div>
+                    <div class="layui-col-md1">
+                        <button class="layui-btn query_btn" id="query_block_btn">查询</button>
+                    </div>
+                    <div class="layui-col-md2"></div>
+                </div>
+                <div class="layui-row">
+                    <fieldset class="layui-elem-field">
+                        <legend>最近查询</legend>
+                        <div class="layui-field-box">
+                            <div class="layui-row layui-col-space10" id="recent_query_block">
+
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+                <div class="layui-row" id="block_detail_result">
+                    <div class="layui-row layui-col-space20">
+                        <div class="layui-col-md6">
+                        <fieldset class="layui-elem-field">
+                            <legend>块头详情</legend>
+                            <div class="layui-field-box">
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">高度：</div>
+                                    <div class="layui-col-md1" id="block_detail_height">0</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">hash：</div>
+                                    <div class="layui-col-md4" id="block_hash">--</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">前块hash：</div>
+                                    <div class="layui-col-md4" id="block_pre_hash">--</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">时间戳：</div>
+                                    <div class="layui-col-md4" id="block_ts">0</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">前块时间戳：</div>
+                                    <div class="layui-col-md4" id="block_pre_ts">0</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">提案者：</div>
+                                    <div class="layui-col-md4" id="block_castor">--</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">验证组：</div>
+                                    <div class="layui-col-md4" id="block_group">--</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">交易数：</div>
+                                    <div class="layui-col-md4" id="block_tx_cnt">0</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">QN：</div>
+                                    <div class="layui-col-md4" id="block_qn">0</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">totalQN：</div>
+                                    <div class="layui-col-md4" id="block_total_qn">0</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">前一块totalQN：</div>
+                                    <div class="layui-col-md4" id="block_pre_total_qn">0</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        </div>
+                        <div class="layui-col-md6">
+                        <fieldset class="layui-elem-field">
+                            <legend>本块产生的分红交易</legend>
+                            <div class="layui-field-box">
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">交易hash：</div>
+                                    <div class="layui-col-md4" id="gen_bonus_hash">--</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">每ID奖励：</div>
+                                    <div class="layui-col-md4" id="gen_bouns_value">-</div>
+                                </div>
+                                <div class="layui-row layui-col-space5">
+                                    <div class="layui-col-md2">目标ID列表：</div>
+                                    <div class="layui-col-md4" id="gen_bonus_targets">--</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        </div>
+                    </div>
+                    <div class="layui-row layui-col-space20">
+                        <fieldset class="layui-elem-field">
+                            <legend>奖励情况</legend>
+                            <div class="layui-field-box">
+                                <table id="bonus_balance_table" lay-filter="bonus_balance_table"></table>
+                            </div>
+                        </fieldset>
+                        <fieldset class="layui-elem-field">
+                            <legend>分红交易</legend>
+                            <div class="layui-field-box">
+                                <table id="bonus_table" lay-filter="bonus_table"></table>
+                            </div>
+                        </fieldset>
+                        <fieldset class="layui-elem-field">
+                            <legend>普通交易</legend>
+                            <div class="layui-field-box">
+                                <table id="txs_table" lay-filter="txs_table"></table>
+                            </div>
+                        </fieldset>
+                    </div>
+                </div>
+
+
+            </div>
+
+            <!-- 交易详情 -->
+            <div class="layui-tab-item">
+                <div class="layui-row layui-col-space20">
+                    <div class="layui-col-md2"></div>
+                    <div class="layui-col-md4">
+                        <input type="text" name="account"   autocomplete="off" class="layui-input" placeholder="交易hash" id="query_tx_hash">
+                    </div>
+                    <div class="layui-col-md1">
+                        <button class="layui-btn query_btn" id="query_tx_btn">查询</button>
+                    </div>
+                    <div class="layui-col-md2"></div>
+                </div>
+                <div class="layui-row">
+                    <div class="layui-row" id="tx_detail_result">
+                        <div class="layui-row layui-col-space20">
+                            <div class="layui-col-md12" id="tx_detail_set">
+                                <fieldset class="layui-elem-field" >
+                                    <legend>交易详情</legend>
+                                    <div class="layui-field-box">
+                                        <div class="layui-row layui-col-space5">
+                                            <div class="layui-col-md2">hash：</div>
+                                            <div class="layui-col-md4" id="tx_hash">--</div>
+                                        </div>
+
+                                        <div class="layui-row layui-col-space5">
+                                            <div class="layui-col-md2">发送者：</div>
+                                            <div class="layui-col-md4" id="tx_source">--</div>
+                                        </div>
+                                        <div class="layui-row layui-col-space5">
+                                            <div class="layui-col-md2">接收者：</div>
+                                            <div class="layui-col-md4" id="tx_target">--</div>
+                                        </div>
+                                        <div class="layui-row layui-col-space5">
+                                            <div class="layui-col-md2">价值：</div>
+                                            <div class="layui-col-md4" id="tx_value">0</div>
+                                        </div>
+                                        <div class="layui-row layui-col-space5">
+                                            <div class="layui-col-md2">Data：</div>
+                                            <div class="layui-col-md4" id="tx_data">0</div>
+                                        </div>
+                                    </div>
+                                </fieldset>
+
+
+                            </div>
+                            <div class="layui-col-md12" id="tx_receipt_set">
+                            <fieldset class="layui-elem-field" >
+                                <legend>交易回执</legend>
+                                <div class="layui-field-box">
+                                    <div class="layui-row layui-col-space5">
+                                        <div class="layui-col-md2">状态：</div>
+                                        <div class="layui-col-md4" id="tx_status">--</div>
+                                    </div>
+                                    <div class="layui-row layui-col-space5">
+                                        <div class="layui-col-md2">交易类型：</div>
+                                        <div class="layui-col-md4" id="tx_type">--</div>
+                                    </div>
+                                    <div class="layui-row layui-col-space5">
+                                        <div class="layui-col-md2">消费gas：</div>
+                                        <div class="layui-col-md4" id="tx_cumulativeGasUsed">--</div>
+                                    </div>
+                                    <div class="layui-row layui-col-space5">
+                                        <div class="layui-col-md2">日志：</div>
+                                        <div class="layui-col-md4" id="tx_logs">--</div>
+                                    </div>
+                                    <div class="layui-row layui-col-space5">
+                                        <div class="layui-col-md2">合约地址：</div>
+                                        <div class="layui-col-md4" id="tx_contractAddress">--</div>
+                                    </div>
+
+                                </div>
+                            </fieldset>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--
+<script type="text/html" id="block_detail_view">
+    <a class="layui-btn layui-btn-xs" lay-event="detail">查看</a>
+</script>-->
+
+</body>
+</html>

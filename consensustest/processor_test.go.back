@@ -1,0 +1,80 @@
+//   Copyright (C) 2018 ZVChain
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU General Public License for more details.
+//
+//   You should have received a copy of the GNU General Public License
+//   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+package logical
+
+import (
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/consensus/logical"
+	"github.com/zvchain/zvchain/consensus/mediator"
+	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/middleware"
+	"github.com/zvchain/zvchain/taslog"
+	"testing"
+)
+
+/*
+**  Creator: pxf
+**  Date: 2019/1/17 下午12:37
+**  Description:
+ */
+func initProcessor(conf string) *logical.Processor {
+	common.InitConf(conf)
+	middleware.InitMiddleware()
+	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
+	addr := common.HexToAddress(common.GlobalConf.GetString("gtas", "miner", ""))
+	mdo := model.NewSelfMinerDO(addr)
+	logical.InitConsensus()
+	core.InitCore(false, mediator.NewConsensusHelper(mdo.ID))
+	p := new(logical.Processor)
+	p.Init(mdo, common.GlobalConf)
+	return p
+}
+
+func TestCalcVerifyGroup(t *testing.T) {
+	p := initProcessor("tas3.ini")
+
+	top := p.MainChain.Height()
+	pre := p.MainChain.QueryBlockByHeight(0)
+	t.Log("start, total %v", top)
+	for h := uint64(1); h <= top; h++ {
+		bh := p.MainChain.QueryBlockByHeight(h)
+		if bh == nil {
+			continue
+		}
+		gid := groupsig.DeserializeId(bh.GroupId)
+		expectGid := p.CalcVerifyGroupFromChain(pre, h)
+		pre = bh
+		if !gid.IsEqual(*expectGid) {
+			t.Fatalf("gid not equal, height %v, real gid %v, expect gid %v", h, gid.GetHexString(), expectGid.GetHexString())
+		}
+		t.Logf("height %v ok", h)
+	}
+	t.Log("ok")
+}
+
+func TestProcessor_GenProveHashs(t *testing.T) {
+	p := initProcessor("tas3.ini")
+
+	var id groupsig.ID
+	id.SetHexString("0x9d2961d1b4eb4af2d78cb9e29614756ab658671e453ea1f6ec26b4e918c79d02")
+
+	b := p.MainChain.QueryBlockFloor(7)
+	hash := p.GenVerifyHash(b, id)
+	t.Logf(hash.String())
+
+}
