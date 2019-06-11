@@ -81,12 +81,9 @@ type pendingContainer struct {
 	size       int
 
 	waitingMap map[common.Address]*skip.SkipList //*orderByNonceTx. Map of transactions group by source for waiting
-	lock       sync.RWMutex
 }
 
 func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000{
 		return true
 	}
@@ -125,8 +122,6 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 }
 
 func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	if s.size == 0 {
 		return
 	}
@@ -197,7 +192,6 @@ func newOrderByNonceTx(tx *types.Transaction) *orderByNonceTx {
 
 func newPendingContainer(limit int) *pendingContainer {
 	s := &pendingContainer{
-		lock:       sync.RWMutex{},
 		limit:      limit,
 		size:       0,
 		waitingMap: make(map[common.Address]*skip.SkipList),
@@ -329,22 +323,6 @@ func (c *simpleContainer)getNonceWithCache(cache map[common.Address]uint64, tx *
 // getStateNonce fetches nonce from current state db
 func (c *simpleContainer) getStateNonce(tx *types.Transaction) uint64 {
 	return c.chain.LatestStateDB().GetNonce(*tx.Source)
-}
-
-// skipDeleteByPosition deletes a item from skip by position
-func skipDeleteByPosition(skip *skip.SkipList, position uint64) {
-	if skip == nil {
-		return
-	}
-	skip.Delete(skip.ByPosition(position))
-}
-
-// skipDeleteLast deletes the last item from a skip
-func skipDeleteLast(skip *skip.SkipList) {
-	if skip == nil {
-		return
-	}
-	skipDeleteByPosition(skip, skip.Len()-1)
 }
 
 func skipGetLast(skip *skip.SkipList) datacommon.Comparator {
