@@ -89,7 +89,7 @@ func (t *TvmCli) init() {
 		return
 	}
 	fmt.Println(currentPath)
-	t.db, _ = tasdb.NewLDBDatabase(currentPath+"/db", 0, 0)
+	t.db, _ = tasdb.NewLDBDatabase(currentPath+"/db", nil)
 	t.database = account.NewDatabase(t.db)
 
 	if Exists(currentPath + "/settings.ini") {
