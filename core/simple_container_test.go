@@ -68,7 +68,6 @@ func printQueue(){
 }
 
 func printPending()  {
-	fmt.Printf("[printPending] size = %d \n",container.pending.goodList.Len())
 
 	for _, list := range container.pending.waitingMap {
 		for it := list.IterAtPosition(0); it.Next();{

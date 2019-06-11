@@ -111,6 +111,12 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 			if tx.Nonce > bigNonce + 1{
 				return false
 			}
+			existSource := s.waitingMap[*tx.Source].Get(newOrderByNonceTx(tx))[0]
+			if existSource != nil {
+				s.size --
+				s.waitingMap[*tx.Source].Delete(existSource)
+			}
+
 			s.size ++
 			s.waitingMap[*tx.Source].Insert(newOrderByNonceTx(tx))
 		}
@@ -140,12 +146,12 @@ func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
 		if !f(tx) {
 			break
 		}
-		last := nonceIndex[*tx.Source]+1
+		next := nonceIndex[*tx.Source]+1
 
-		if s.waitingMap[*tx.Source] != nil && s.waitingMap[*tx.Source].Len() > last {
-			nextTx := s.waitingMap[*tx.Source].ByPosition(last).(*orderByNonceTx)
-			//last++
-			nonceIndex[*tx.Source] = last
+		if s.waitingMap[*tx.Source] != nil && s.waitingMap[*tx.Source].Len() > next {
+			nextTx := s.waitingMap[*tx.Source].ByPosition(next).(*orderByNonceTx)
+			//next++
+			nonceIndex[*tx.Source] = next
 			heap.Push(packingList,nextTx.item)
 
 		}
