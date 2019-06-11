@@ -77,12 +77,20 @@ func (mi *SelfMinerDO) Read(p []byte) (n int, err error) {
 	return len(bs), nil
 }
 
-func NewSelfMinerDO(address common.Address) SelfMinerDO {
+func NewSelfMinerDO(prk *common.PrivateKey) SelfMinerDO {
 	var mi SelfMinerDO
-	mi.SecretSeed = base.RandFromString(address.Hex())
+
+	dBytes := prk.PrivKey.D.Bytes()
+	tempBuf := make([]byte, 32)
+	if len(dBytes) < 32 {
+		copy(tempBuf[32-len(dBytes):32], dBytes[:])
+	} else {
+		copy(tempBuf[:], dBytes[len(dBytes)-32:])
+	}
+	mi.SecretSeed = base.RandFromBytes(tempBuf[:])
 	mi.SK = *groupsig.NewSeckeyFromRand(mi.SecretSeed)
 	mi.PK = *groupsig.NewPubkeyFromSeckey(mi.SK)
-	mi.ID = groupsig.DeserializeID(address.Bytes())
+	mi.ID = groupsig.DeserializeID(prk.GetPubKey().GetAddress().Bytes())
 
 	var err error
 	mi.VrfPK, mi.VrfSK, err = base.VRFGenerateKey(&mi)

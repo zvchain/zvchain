@@ -85,8 +85,8 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	tenThousandTasBi := big.NewInt(0).SetUint64(common.TAS2RA(10000))
 
 	//管理员账户
-	stateDB.SetBalance(common.HexToAddress("0xf77fa9ca98c46d534bd3d40c3488ed7a85c314db0fd1e79c6ccc75d79bd680bd"), big.NewInt(0).SetUint64(common.TAS2RA(100000000)))
-	stateDB.SetBalance(common.HexToAddress("0xb055a3ffdc9eeb0c5cf0c1f14507a40bdcbff98c03286b47b673c02d2efe727e"), big.NewInt(0).SetUint64(common.TAS2RA(100000000)))
+	stateDB.SetBalance(common.HexToAddress("0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b"), big.NewInt(0).SetUint64(common.TAS2RA(100000000)))
+	stateDB.SetBalance(common.HexToAddress("0x6d880ddbcfb24180901d1ea709bb027cd86f79936d5ed23ece70bd98f22f2d84"), big.NewInt(0).SetUint64(common.TAS2RA(100000000)))
 
 	//创世账户
 	for _, mem := range genesisInfo.Group.Members {

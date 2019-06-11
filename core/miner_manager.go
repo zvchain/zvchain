@@ -92,7 +92,11 @@ func (mm *MinerManager) GetMinerByID(id []byte, ttype byte, accountdb vm.Account
 	data := accountdb.GetData(db, string(id))
 	if data != nil && len(data) > 0 {
 		var miner types.Miner
-		msgpack.Unmarshal(data, &miner)
+		err := msgpack.Unmarshal(data, &miner)
+		if err != nil{
+			Logger.Errorf("GetMinerByID Unmarshal error,msg= %s",err.Error())
+			return nil
+		}
 		return &miner
 	}
 	return nil
