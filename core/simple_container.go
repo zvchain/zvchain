@@ -17,8 +17,10 @@ package core
 
 import (
 	"container/heap"
+	"fmt"
 	"sync"
 
+	datacommon "github.com/Workiva/go-datastructures/common"
 	"github.com/Workiva/go-datastructures/slice/skip"
 
 	"github.com/zvchain/zvchain/common"
@@ -26,50 +28,47 @@ import (
 )
 
 type simpleContainer struct {
-	limit        int
-	pendingLimit int
-	queueLimit   int
-
-	chain BlockChain
-
-	sortedTxsByPrice *skip.SkipList
-	pending          map[common.Address]*sortedTxsByNonce
-	queue            map[common.Address]*sortedTxsByNonce
-
-	allTxs map[common.Hash]*types.Transaction
+	txsMap     map[common.Hash]*types.Transaction
+	chain      BlockChain
+	pending    *pendingContainer
+	queue      map[common.Hash]*types.Transaction
+	queueLimit int
 
 	lock sync.RWMutex
 }
 
-type nonceHeap []uint64
-
-func (h nonceHeap) Len() int           { return len(h) }
-func (h nonceHeap) Less(i, j int) bool { return h[i] < h[j] }
-func (h nonceHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-
-func (h *nonceHeap) Push(x interface{}) {
-	*h = append(*h, x.(uint64))
+type orderByNonceTx struct {
+	item *types.Transaction
 }
 
-func (h *nonceHeap) Pop() interface{} {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
+//Transactions with same nonce will be treat as equal, because only transactions same source will be insert to same list
+func (tx *orderByNonceTx) Compare(e datacommon.Comparator) int {
+	tx2 := e.(*orderByNonceTx)
+
+	if tx.item.Hash == tx2.item.Hash {
+		return 0
+	}
+
+	if tx.item.Nonce > tx2.item.Nonce {
+		return 1
+	}
+	if tx.item.Nonce < tx2.item.Nonce {
+		return -1
+	}
+	return 0
 }
 
-type willPackedTxs []*types.Transaction
+type priceHeap []*types.Transaction
 
-func (h willPackedTxs) Len() int           { return len(h) }
-func (h willPackedTxs) Less(i, j int) bool { return h[i].GasPrice > h[j].GasPrice }
-func (h willPackedTxs) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h priceHeap) Len() int           { return len(h) }
+func (h priceHeap) Less(i, j int) bool { return h[i].GasPrice > h[j].GasPrice }
+func (h priceHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
-func (h *willPackedTxs) Push(x interface{}) {
+func (h *priceHeap) Push(x interface{}) {
 	*h = append(*h, x.(*types.Transaction))
 }
 
-func (h *willPackedTxs) Pop() interface{} {
+func (h *priceHeap) Pop() interface{} {
 	old := *h
 	n := len(old)
 	x := old[n-1]
@@ -77,23 +76,147 @@ func (h *willPackedTxs) Pop() interface{} {
 	return x
 }
 
-type sortedTxsByNonce struct {
-	items   map[uint64]*types.Transaction
-	indexes *nonceHeap
+type pendingContainer struct {
+	limit      int
+	size       int
+	goodList   *skip.SkipList                    //*orderByPriceTx. List with transactions ready for packing
+	waitingMap map[common.Address]*skip.SkipList //*orderByNonceTx. Map of transactions group by source for waiting
+	lock       sync.RWMutex
 }
 
-func newSimpleContainer(lp, lq int, chain BlockChain) *simpleContainer {
-	c := &simpleContainer{
-		lock:         sync.RWMutex{},
-		limit:        lp + lq,
-		pendingLimit: lp,
-		queueLimit:   lq,
-		chain:        chain,
-		allTxs:       make(map[common.Hash]*types.Transaction),
-		pending:      make(map[common.Address]*sortedTxsByNonce),
-		queue:        make(map[common.Address]*sortedTxsByNonce),
+func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000{
+		return true
+	}
+	if tx.Nonce == stateNonce+1 {
+		if s.waitingMap[*tx.Source] == nil {
+			s.waitingMap[*tx.Source] = skip.New(uint16(16))
+		}
+		existSource := s.waitingMap[*tx.Source].Get(newOrderByNonceTx(tx))[0]
+		if existSource != nil {
+			s.size --
+			s.waitingMap[*tx.Source].Delete(existSource)
+		}
+		s.size ++
+		s.waitingMap[*tx.Source].Insert(newOrderByNonceTx(tx))
+	} else {
+		if s.waitingMap[*tx.Source] == nil {
+			return true
+		}
+		bigNonce := skipGetLast(s.waitingMap[*tx.Source])
+		if bigNonce != nil {
+			bigNonce := bigNonce.(*orderByNonceTx).item.Nonce
+			if tx.Nonce > bigNonce + 1{
+				return false
+			}
+			s.size ++
+			s.waitingMap[*tx.Source].Insert(newOrderByNonceTx(tx))
+		}
+	}
+	return true
+}
 
-		sortedTxsByPrice: skip.New(uint16(16)),
+func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	if s.size == 0 {
+		return
+	}
+	packingList := new(priceHeap)
+	heap.Init(packingList)
+
+	nonceIndex := make(map[common.Address]uint64)
+	for _, list := range s.waitingMap {
+		heap.Push(packingList,list.ByPosition(0).(*orderByNonceTx).item)
+	}
+
+	if packingList.Len() == 0{
+		return
+	}
+	tx := heap.Pop(packingList).(*types.Transaction)
+	for tx != nil {
+		if !f(tx) {
+			break
+		}
+		last := nonceIndex[*tx.Source]+1
+
+		if s.waitingMap[*tx.Source] != nil && s.waitingMap[*tx.Source].Len() > last {
+			nextTx := s.waitingMap[*tx.Source].ByPosition(last).(*orderByNonceTx)
+			//last++
+			nonceIndex[*tx.Source] = last
+			heap.Push(packingList,nextTx.item)
+
+		}
+		if packingList.Len() > 0{
+			tx = heap.Pop(packingList).(*types.Transaction)
+		}else{
+			tx = nil
+		}
+	}
+
+}
+
+
+func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
+	slice := make([]*types.Transaction, 0, s.size)
+	count := 0
+	for _, txSkip := range s.waitingMap {
+		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {
+			slice = append(slice, iter1.Value().(*orderByNonceTx).item)
+			count ++
+			if count >= limit{
+				break
+			}
+		}
+	}
+	return slice
+}
+
+func (s *pendingContainer) remove(tx *types.Transaction) {
+	if s.waitingMap[*tx.Source] != nil {
+		s.waitingMap[*tx.Source].Delete(newOrderByNonceTx(tx))
+		if s.waitingMap[*tx.Source].Len() == 0 {
+			delete(s.waitingMap, *tx.Source)
+		}
+	}
+}
+
+func newOrderByNonceTx(tx *types.Transaction) *orderByNonceTx {
+	s := &orderByNonceTx{
+		item: tx,
+	}
+	return s
+}
+
+//func newOrderByPriceTx(tx *types.Transaction) *orderByPriceTx {
+//	s := &orderByPriceTx{
+//		item: tx,
+//	}
+//	return s
+//}
+
+func newPendingContainer(limit int) *pendingContainer {
+	s := &pendingContainer{
+		lock:       sync.RWMutex{},
+		limit:      limit,
+		size:       0,
+		waitingMap: make(map[common.Address]*skip.SkipList),
+		goodList:   skip.New(uint16(16)),
+		//allItems: make(map[common.Hash]*types.Transaction),
+	}
+	return s
+}
+
+func newSimpleContainer(pendingLimit int, queueLimit int, chain BlockChain) *simpleContainer {
+	c := &simpleContainer{
+		lock:       sync.RWMutex{},
+		chain:      chain,
+		txsMap:     map[common.Hash]*types.Transaction{},
+		pending:    newPendingContainer(pendingLimit),
+		queue:      map[common.Hash]*types.Transaction{},
+		queueLimit: queueLimit,
 	}
 	return c
 }
@@ -101,23 +224,21 @@ func newSimpleContainer(lp, lq int, chain BlockChain) *simpleContainer {
 func (c *simpleContainer) Len() int {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-
-	return len(c.allTxs)
+	return c.pending.size + len(c.queue)
 }
 
 func (c *simpleContainer) contains(key common.Hash) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	_, ok := c.allTxs[key]
-	return ok
+	return c.txsMap[key] != nil
 }
 
 func (c *simpleContainer) get(key common.Hash) *types.Transaction {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	return c.allTxs[key]
+	return c.txsMap[key]
 }
 
 func (c *simpleContainer) asSlice(limit int) []*types.Transaction {
@@ -125,343 +246,117 @@ func (c *simpleContainer) asSlice(limit int) []*types.Transaction {
 	defer c.lock.RUnlock()
 
 	size := limit
-	if len(c.allTxs) < size {
-		size = len(c.allTxs)
+	if c.pending.size < size {
+		size = c.pending.size
 	}
-	txs := make([]*types.Transaction, size)
-	for _, tx := range c.allTxs {
-		txs = append(txs, tx)
-	}
+	txs := c.pending.asSlice(size)
 	return txs
 }
 
-// syncPending for sync available transactions in pending
-func (c *simpleContainer) syncPending(f func(tx *types.Transaction) bool) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
-	for _, txs := range c.pending {
-		for _, tx := range txs.items {
-			if !f(tx) {
-				return
-			}
-		}
-	}
-}
-
-// eachForPack used to pack available transactions in pending, the transaction taken out
-// whose nonce is continuous with the nonce in db, and they are sorted by gas price，the
-// higher the cost, the more the front
 func (c *simpleContainer) eachForPack(f func(tx *types.Transaction) bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
+	c.pending.peek(f)
+	//tx := c.pending.pop()
+	//for tx != nil {
+	//	if !f(tx) {
+	//		break
+	//	}
+	//	tx = c.pending.pop()
+	//}
+}
 
-	var txs willPackedTxs
+func (c *simpleContainer) push(tx *types.Transaction) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	// currentNonce is the largest nonce of each address in the current willPackedTxs
-	currentNonce := make(map[common.Address]uint64)
-
-	for addr, sortedTxs := range c.pending {
-		nonce := uint64((*sortedTxs.indexes)[0])
-		currentNonce[addr] = nonce
-
-		heap.Push(&txs, sortedTxs.items[nonce])
+	if c.txsMap[tx.Hash] != nil {
+		return
+	}
+	stateNonce := c.getStateNonce(tx)
+	if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
+		_ = fmt.Errorf("nonce error:%v %v", tx.Nonce, stateNonce)
+		return
 	}
 
-	for txs.Len() > 0 {
-		maxGasPriceTx := heap.Pop(&txs).(*types.Transaction)
+	success := c.pending.push(tx, stateNonce)
 
-		// Check if there is a transaction that meets the required nonce
-		if tx, ok := c.pending[*maxGasPriceTx.Source].items[currentNonce[*maxGasPriceTx.Source]+1]; ok {
-			heap.Push(&txs, tx)
-			currentNonce[*tx.Source] = tx.Nonce
+	if !success {
+		if len(c.queue) > c.queueLimit {
+			return
 		}
+		c.queue[tx.Hash] = tx
+	}
+	c.txsMap[tx.Hash] = tx
+}
 
-		if !f(maxGasPriceTx) {
-			break
+func (c *simpleContainer) remove(key common.Hash) {
+	if !c.contains(key) {
+		return
+	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	tx := c.txsMap[key]
+	if tx == nil {
+		return
+	}
+
+	delete(c.txsMap, key)
+	c.pending.remove(tx)
+	delete(c.queue, tx.Hash)
+
+}
+
+// promoteQueueToPending tris to move the transactions to the pending list for casting and syncing if possible
+func (c *simpleContainer) promoteQueueToPending() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	nonceCache := make(map[common.Address]uint64)
+	for hash, tx := range c.queue {
+		//TODO: queue should order by nonce
+		stateNonce := c.getNonceWithCache(nonceCache, tx)
+		success := c.pending.push(tx, stateNonce)
+		if success {
+			delete(c.queue, hash)
 		}
 	}
 }
 
-func (c *simpleContainer) getMinGasTxs(count int) []*types.Transaction {
-	txs := make([]*types.Transaction, 0)
-	iter := c.sortedTxsByPrice.IterAtPosition(0)
-	for count > 0 {
-		txs = append(txs, iter.Value().(*types.Transaction))
-		count--
-		iter.Next()
+func (c *simpleContainer)getNonceWithCache(cache map[common.Address]uint64, tx *types.Transaction) uint64 {
+	if cache[*tx.Source] != 0 {
+		return cache[*tx.Source]
 	}
-	return txs
+	nonce := c.chain.LatestStateDB().GetNonce(*tx.Source)
+	cache[*tx.Source] = nonce
+	return nonce
 }
+
+
 
 // getStateNonce fetches nonce from current state db
 func (c *simpleContainer) getStateNonce(tx *types.Transaction) uint64 {
 	return c.chain.LatestStateDB().GetNonce(*tx.Source)
 }
 
-func (c *simpleContainer) push(tx *types.Transaction) {
-
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	if _, exist := c.allTxs[tx.Hash]; exist {
+// skipDeleteByPosition deletes a item from skip by position
+func skipDeleteByPosition(skip *skip.SkipList, position uint64) {
+	if skip == nil {
 		return
 	}
+	skip.Delete(skip.ByPosition(position))
+}
 
-	// Compare nonce from DB
-	if c.chain != nil {
-		lastNonce := c.getStateNonce(tx)
-		if tx.Nonce <= lastNonce || tx.Nonce > lastNonce+1000 {
-			return
-		}
-	}
-
-	if len(c.allTxs)-(c.pendingLimit+c.queueLimit) >= 0 {
-
-		minGasTxs := c.getMinGasTxs(len(c.allTxs) - (c.pendingLimit + c.queueLimit) + 1)
-		contrastTx := minGasTxs[len(minGasTxs)-1]
-
-		if contrastTx.GasPrice >= tx.GasPrice {
-			return
-		}
-
-		for _, minGasTx := range minGasTxs {
-			if pending := c.pending[*minGasTx.Source]; pending != nil && pending.searchInSorted(minGasTx.Nonce) {
-				willEnQueueTxs := pending.removeFromSorted(minGasTx)
-				if willEnQueueTxs != nil {
-					c.enQueue(willEnQueueTxs...)
-				}
-				return
-			}
-
-			if queue := c.queue[*minGasTx.Source]; queue != nil && queue.searchInSorted(minGasTx.Nonce) {
-				queue.removeFromSorted(minGasTx)
-				delete(c.allTxs, minGasTx.Hash)
-				c.sortedTxsByPrice.Delete(minGasTx)
-				return
-			}
-		}
-	}
-
-	if pending := c.pending[*tx.Source]; pending != nil && pending.searchInSorted(tx.Nonce) {
-
-		oldTx := pending.items[tx.Nonce]
-		if oldTx.GasPrice >= tx.GasPrice {
-			return
-		}
-		c.replaceThroughSorted(oldTx, tx, pending)
+// skipDeleteLast deletes the last item from a skip
+func skipDeleteLast(skip *skip.SkipList) {
+	if skip == nil {
 		return
 	}
-
-	if queue := c.queue[*tx.Source]; queue != nil && queue.searchInSorted(tx.Nonce) {
-
-		oldTx := queue.items[tx.Nonce]
-		if oldTx.GasPrice >= tx.GasPrice {
-			return
-		}
-		c.replaceThroughSorted(oldTx, tx, queue)
-		return
-	}
-
-	c.enQueue(tx)
-
+	skipDeleteByPosition(skip, skip.Len()-1)
 }
 
-func (c *simpleContainer) enQueue(newTxs ...*types.Transaction) {
-
-	for _, newTx := range newTxs {
-		addr := *newTx.Source
-		nonce := newTx.Nonce
-
-		if c.queue[*newTx.Source] == nil {
-			c.queue[addr] = newSortedTxsByNonce()
-			heap.Init(c.queue[addr].indexes)
-		}
-		heap.Push(c.queue[addr].indexes, nonce)
-		c.queue[addr].items[nonce] = newTx
-
-		if c.allTxs[newTx.Hash] == nil {
-			c.allTxs[newTx.Hash] = newTx
-			c.sortedTxsByPrice.Insert(newTx)
-		}
-	}
-}
-
-func (c *simpleContainer) enPending(newTxs ...*types.Transaction) {
-
-	for _, newTx := range newTxs {
-		addr := *newTx.Source
-		nonce := newTx.Nonce
-
-		if c.pending[*newTx.Source] == nil {
-			c.pending[addr] = newSortedTxsByNonce()
-			heap.Init(c.pending[addr].indexes)
-		}
-
-		heap.Push(c.pending[addr].indexes, nonce)
-		c.pending[addr].items[nonce] = newTx
-
-		if c.allTxs[newTx.Hash] == nil {
-			c.allTxs[newTx.Hash] = newTx
-			c.sortedTxsByPrice.Insert(newTx)
-		}
-	}
-}
-
-func (s *sortedTxsByNonce) searchInSorted(nonce uint64) bool {
-	if _, exist := s.items[nonce]; exist {
-		return true
-	}
-	return false
-}
-
-func (c *simpleContainer) remove(key common.Hash) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	if c.allTxs[key] == nil {
-		return
-	}
-	tx := c.allTxs[key]
-	delete(c.allTxs, key)
-	c.sortedTxsByPrice.Delete(tx)
-
-	// Remove from pending
-	for _, nonce := range *c.pending[*tx.Source].indexes {
-		for j := 0; j < c.pending[*tx.Source].indexes.Len() && (*c.pending[*tx.Source].indexes)[j] == nonce; j++ {
-
-			delete(c.pending[*tx.Source].items, nonce)
-			heap.Remove(c.pending[*tx.Source].indexes, j)
-		}
-		break
-	}
-
-	if len(c.pending[*tx.Source].items) == 0 {
-		delete(c.pending, *tx.Source)
-	}
-}
-
-func (c *simpleContainer) replaceThroughSorted(old, newTx *types.Transaction, sortedMap *sortedTxsByNonce) {
-
-	delete(c.allTxs, old.Hash)
-	c.sortedTxsByPrice.Delete(old)
-
-	sortedMap.items[old.Nonce] = newTx
-	c.allTxs[newTx.Hash] = newTx
-	c.sortedTxsByPrice.Insert(newTx)
-}
-
-func (c *simpleContainer) getPendingTxsLen() int {
-	var pendingTxsLen int
-	for _, v := range c.pending {
-		pendingTxsLen += v.indexes.Len()
-	}
-	return pendingTxsLen
-}
-
-func (c *simpleContainer) getPendingMaxNonce(addr common.Address) (uint64, bool) {
-
-	var maxNonce uint64
-	if pending := c.pending[addr]; pending != nil {
-		for nonce := range pending.items {
-			if nonce > maxNonce {
-				maxNonce = nonce
-			}
-		}
-		return maxNonce, true
-	}
-	return maxNonce, false
-}
-
-// promoteQueueToPending used to promote available transactions to pending,
-// these transactions must satisfy each nonce is continuous with largest nonce
-// in the pending or the largest nonce in the db
-func (c *simpleContainer) promoteQueueToPending() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	var accounts []common.Address
-	for addr := range c.queue {
-		accounts = append(accounts, addr)
-	}
-
-	ready := make([]*types.Transaction, 0)
-
-	for _, addr := range accounts {
-		if queue := c.queue[addr]; queue != nil && queue.indexes.Len() > 0 {
-
-			next := (*queue.indexes)[0]
-
-			// Find max nonce in pending
-			if maxNonce, exist := c.getPendingMaxNonce(addr); exist {
-				if next != maxNonce+1 {
-					continue
-				}
-			} else {
-				// Find the latest nonce in DB
-				if c.chain != nil {
-					lastNonce := c.getStateNonce(queue.items[next])
-					if next != lastNonce+1 {
-						continue
-					}
-				}
-			}
-
-			for ; queue != nil && queue.indexes.Len() > 0 && (*queue.indexes)[0] == next; next++ {
-				ready = append(ready, queue.items[next])
-				delete(queue.items, next)
-				heap.Pop(queue.indexes)
-			}
-			continue
-		}
-	}
-
-	c.enPending(ready...)
-}
-
-func newSortedTxsByNonce() *sortedTxsByNonce {
-	s := &sortedTxsByNonce{
-		items:   make(map[uint64]*types.Transaction),
-		indexes: new(nonceHeap),
-	}
-	return s
-}
-
-func (s *sortedTxsByNonce) removeFromSorted(tx *types.Transaction) []*types.Transaction {
-
-	nonce := tx.Nonce
-	for i := 0; i < s.indexes.Len(); i++ {
-		if (*s.indexes)[i] == nonce {
-			heap.Remove(s.indexes, i)
-			break
-		}
-	}
-
-	delete(s.items, nonce)
-	return s.filter(func(tx *types.Transaction) bool { return tx.Nonce > nonce })
-}
-
-func (s *sortedTxsByNonce) filter(compare func(*types.Transaction) bool) []*types.Transaction {
-	var removed []*types.Transaction
-	if len(s.items) == 0 && s.indexes.Len() == 0 {
+func skipGetLast(skip *skip.SkipList) datacommon.Comparator {
+	if skip.Len() == 0 {
 		return nil
 	}
-
-	for nonce, tx := range s.items {
-		if compare(tx) {
-			removed = append(removed, tx)
-			// Delete from items
-			delete(s.items, nonce)
-		}
-	}
-	// Update the heap
-	if len(removed) > 0 {
-		*s.indexes = make([]uint64, 0, len(s.items))
-		for nonce := range s.items {
-			*s.indexes = append(*s.indexes, nonce)
-		}
-		// Init the heap
-		heap.Init(s.indexes)
-	}
-	return removed
+	return skip.ByPosition(skip.Len() - 1)
 }

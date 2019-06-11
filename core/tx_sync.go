@@ -303,13 +303,7 @@ func (ts *txSyncer) notifyTxs() bool {
 	})
 
 	if len(txs) < txMaxNotifyPerTime {
-		ts.pool.received.syncPending(func(tx *types.Transaction) bool {
-			if ts.checkTxCanBroadcast(tx.Hash) {
-				txs = append(txs, tx)
-				return len(txs) <= txMaxNotifyPerTime
-			}
-			return true
-		})
+		txs = append(txs,ts.pool.received.asSlice(txMaxNotifyPerTime-len(txs))...)
 	}
 
 	ts.sendSimpleTxKeys(txs)
