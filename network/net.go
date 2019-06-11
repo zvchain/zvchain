@@ -512,7 +512,7 @@ func (nc *NetCore) sendToGroupMember(id string, data []byte, code uint32, member
 	if (p != nil && p.sessionID > 0) || nc.peerManager.natTraversalEnable {
 		go nc.sendToNode(memberID, nil, data, code)
 	} else {
-		node := net.netCore.kad.find(memberID)
+		node := netServerInstance.netCore.kad.find(memberID)
 		if node != nil && node.IP != nil && node.Port > 0 {
 			go nc.sendToNode(memberID, &nnet.UDPAddr{IP: node.IP, Port: int(node.Port)}, data, code)
 		} else {
@@ -944,8 +944,8 @@ func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 		}
 	}
 
-	if net != nil {
-		net.handleMessage(data.Data, fromID.GetHexString(), chainID, protocolVersion)
+	if netServerInstance != nil {
+		netServerInstance.handleMessage(data.Data, fromID.GetHexString(), chainID, protocolVersion)
 	}
 
 }
