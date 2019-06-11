@@ -71,8 +71,12 @@ func (btl *blockTraceLogs) onBlockAddSuccess(message notify.Message) {
 	if v, ok := btl.logs.Get(hash); ok {
 		logs := v.([]*PerformTraceLogger)
 		for _, log := range logs {
-			bs, _ := json.Marshal(log)
-			traceLogger.Infof(string(bs))
+			bs, err := json.Marshal(log)
+			if err!=nil{
+				traceLogger.Errorf("onBlockAddSuccess Marshal log error,error is %v",err)
+			}else{
+				traceLogger.Infof(string(bs))
+			}
 		}
 		btl.logs.Remove(hash)
 	}
