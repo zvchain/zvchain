@@ -185,17 +185,22 @@ func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 			taslog.Flush()
 		}
 		var err error
-		//ao.trie, err = db.OpenStorageTrie(ao.addrHash, ao.data.Root)
-		tempTrie,err := db.OpenStorageTrie(ao.addrHash, ao.data.Root)
+
+		//todo delete
+		if ao.address == common.HeavyDBAddress {
+			_, err2 := db.OpenStorageTrie(ao.addrHash, ao.data.Root)
+			if err2 != nil{
+				getLogger().Infof("access HeavyDBAddress1 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err2, err2.Error(), ao.data.Root,ao)
+				taslog.Flush()
+			}
+		}
+
+		ao.trie, err = db.OpenStorageTrie(ao.addrHash, ao.data.Root)
 		if err != nil {
-			getLogger().Infof("access HeavyDBAddress find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root,ao)
+			getLogger().Infof("access HeavyDBAddress2 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root,ao)
 			taslog.Flush()
-			//ao.trie, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
-			tempTrie,_= db.OpenStorageTrie(ao.addrHash, common.Hash{})
+			ao.trie, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
 			ao.setError(fmt.Errorf("can't create storage trie: %v", err))
-			ao.trie = tempTrie
-		}else {
-			ao.trie = tempTrie
 		}
 	}
 	if ao.trie == nil {
