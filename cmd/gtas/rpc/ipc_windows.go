@@ -17,9 +17,11 @@ package rpc
 
 import (
 	"context"
+	"gopkg.in/natefinch/npipe.v2"
 	"net"
 	"time"
 )
+
 
 // defaultPipeDialTimeout is used if the dialing context has no deadline. It is much smaller than the
 // defaultDialTimeipcListen

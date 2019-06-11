@@ -1,19 +1,20 @@
 package core
 
 import (
-	"common"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb/filter"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"math/rand"
-	"middleware/types"
 	"os"
-	"storage/account"
-	"storage/tasdb"
-	"taslog"
 	"testing"
 	"time"
-	"utility"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
+	"github.com/zvchain/zvchain/storage/tasdb"
+	"github.com/zvchain/zvchain/taslog"
+
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 var (
@@ -120,7 +121,7 @@ func TestTVMExecutor_Execute(t *testing.T) {
 func BenchmarkTVMExecutor_Execute(b *testing.B) {
 	txNum := 5400
 	var state common.Hash
-	var ts = utility.NewTimeStatCtx()
+	var ts = common.NewTimeStatCtx()
 	for i := 0; i < b.N; i++ {
 		adb, err := account.NewAccountDB(state, accountdb)
 		if err != nil {

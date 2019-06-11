@@ -170,7 +170,7 @@ func TestGenesisGroup(t *testing.T) {
 				initingGroup = createInitedGroup(ginfo)
 				p.globalGroups.generator.addInitedGroup(initingGroup)
 			}
-			if initingGroup.receive(msg.SI.GetID(), msg.GroupPK) == INIT_SUCCESS {
+			if initingGroup.receive(msg.SI.GetID(), msg.GroupPK) == InitSuccess {
 				staticGroup := newSGIFromStaticGroupSummary(msg.GroupID, msg.GroupPK, initingGroup)
 				p.globalGroups.AddStaticGroup(staticGroup)
 			}
