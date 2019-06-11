@@ -368,8 +368,12 @@ func LoadPubKeyInfo(key string) []model.PubKeyInfo {
 func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 	pubKey := info.GetDefaultPubKey().GetHexString()
 	common.DefaultLogger.Infof("Miner PubKey: %s;\n", pubKey)
-	js, _ := json.Marshal(PubKeyInfo{pubKey, id})
-	common.DefaultLogger.Infof("pubkey_info json: %s\n", js)
+	js, err := json.Marshal(PubKeyInfo{pubKey, id})
+	if err != nil{
+		common.DefaultLogger.Errorf(err.Error())
+	}else{
+		common.DefaultLogger.Infof("pubkey_info json: %s\n", js)
+	}
 }
 
 func NewGtas() *Gtas {
