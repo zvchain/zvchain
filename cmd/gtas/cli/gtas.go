@@ -299,7 +299,7 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natIP string, natPort uint16,
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
 	fmt.Println("Your Miner Address:", gtas.account.Address)
 
-	minerInfo := model.NewSelfMinerDO(common.HexToAddress(gtas.account.Address))
+	minerInfo := model.NewSelfMinerDO(common.HexToSecKey(gtas.account.Sk))
 
 	err = core.InitCore(light, mediator.NewConsensusHelper(minerInfo.ID))
 	if err != nil {
