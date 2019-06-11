@@ -79,7 +79,7 @@ func (h *priceHeap) Pop() interface{} {
 type pendingContainer struct {
 	limit      int
 	size       int
-	goodList   *skip.SkipList                    //*orderByPriceTx. List with transactions ready for packing
+
 	waitingMap map[common.Address]*skip.SkipList //*orderByNonceTx. Map of transactions group by source for waiting
 	lock       sync.RWMutex
 }
@@ -103,7 +103,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 		s.waitingMap[*tx.Source].Insert(newOrderByNonceTx(tx))
 	} else {
 		if s.waitingMap[*tx.Source] == nil {
-			return true
+			return false
 		}
 		bigNonce := skipGetLast(s.waitingMap[*tx.Source])
 		if bigNonce != nil {
@@ -155,7 +155,6 @@ func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
 			tx = nil
 		}
 	}
-
 }
 
 
@@ -190,21 +189,12 @@ func newOrderByNonceTx(tx *types.Transaction) *orderByNonceTx {
 	return s
 }
 
-//func newOrderByPriceTx(tx *types.Transaction) *orderByPriceTx {
-//	s := &orderByPriceTx{
-//		item: tx,
-//	}
-//	return s
-//}
-
 func newPendingContainer(limit int) *pendingContainer {
 	s := &pendingContainer{
 		lock:       sync.RWMutex{},
 		limit:      limit,
 		size:       0,
 		waitingMap: make(map[common.Address]*skip.SkipList),
-		goodList:   skip.New(uint16(16)),
-		//allItems: make(map[common.Hash]*types.Transaction),
 	}
 	return s
 }
@@ -304,7 +294,6 @@ func (c *simpleContainer) remove(key common.Hash) {
 	delete(c.txsMap, key)
 	c.pending.remove(tx)
 	delete(c.queue, tx.Hash)
-
 }
 
 // promoteQueueToPending tris to move the transactions to the pending list for casting and syncing if possible
@@ -330,8 +319,6 @@ func (c *simpleContainer)getNonceWithCache(cache map[common.Address]uint64, tx *
 	cache[*tx.Source] = nonce
 	return nonce
 }
-
-
 
 // getStateNonce fetches nonce from current state db
 func (c *simpleContainer) getStateNonce(tx *types.Transaction) uint64 {
