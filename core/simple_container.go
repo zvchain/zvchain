@@ -95,6 +95,7 @@ func newSimpleContainer(lp, lq int, chain BlockChain) *simpleContainer {
 
 		sortedTxsByPrice: skip.New(uint16(16)),
 	}
+	c.promoteQueueToPending()
 	return c
 }
 
