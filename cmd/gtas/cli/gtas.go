@@ -18,6 +18,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/consensus/base"
 	"os"
 
 	"github.com/zvchain/zvchain/common"
@@ -299,7 +300,25 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natIP string, natPort uint16,
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
 	fmt.Println("Your Miner Address:", gtas.account.Address)
 
-	minerInfo := model.NewSelfMinerDO(common.HexToSecKey(gtas.account.Sk))
+	//minerInfo := model.NewSelfMinerDO(common.HexToSecKey(gtas.account.Sk))
+	var minerInfo model.SelfMinerDO
+	if gtas.account.Miner != nil {
+		prk := common.HexToSecKey(gtas.account.Sk)
+		dBytes := prk.PrivKey.D.Bytes()
+		tempBuf := make([]byte, 32)
+		if len(dBytes) < 32 {
+			copy(tempBuf[32-len(dBytes):32], dBytes[:])
+		} else {
+			copy(tempBuf[:], dBytes[len(dBytes)-32:])
+		}
+		minerInfo.SecretSeed = base.RandFromBytes(tempBuf[:])
+		minerInfo.SK = *groupsig.NewSeckeyFromHexString(gtas.account.Miner.BSk)
+		minerInfo.PK = *groupsig.NewPubkeyFromHexString(gtas.account.Miner.BPk)
+		minerInfo.ID = *groupsig.NewIDFromString(gtas.account.Address)
+		minerInfo.VrfSK = base.Hex2VRFPrivateKey(gtas.account.Miner.VrfSk)
+		minerInfo.VrfPK = base.Hex2VRFPublicKey(gtas.account.Miner.VrfPk)
+	}
+	//import end.   gtas.account --> minerInfo
 
 	err = core.InitCore(light, mediator.NewConsensusHelper(minerInfo.ID))
 	if err != nil {

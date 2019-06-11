@@ -104,6 +104,16 @@ func (pub *Pubkey) SetHexString(s string) error {
 	return err
 }
 
+// NewPubkeyFromHexString generate the public key from the input hex string
+func NewPubkeyFromHexString(s string) *Pubkey {
+	pub := new(Pubkey)
+	err := pub.SetHexString(s)
+	if err != nil {
+		return nil
+	}
+	return pub
+}
+
 // NewPubkeyFromSeckey generate the public key from the private key
 func NewPubkeyFromSeckey(sec Seckey) *Pubkey {
 	pub := new(Pubkey)

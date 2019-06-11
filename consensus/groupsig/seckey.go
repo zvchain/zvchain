@@ -114,6 +114,16 @@ func (sec *Seckey) SetHexString(s string) error {
 	return sec.setHex(s)
 }
 
+// NewSeckeyFromHexString construct private keys from the input hex string
+func NewSeckeyFromHexString(s string) *Seckey {
+	sec := new(Seckey)
+	err := sec.setHex(s)
+	if err != nil {
+		return nil
+	}
+	return sec
+}
+
 // NewSeckeyFromLittleEndian build private key by a byte slice(Little-Endian)
 func NewSeckeyFromLittleEndian(b []byte) *Seckey {
 	sec := new(Seckey)
