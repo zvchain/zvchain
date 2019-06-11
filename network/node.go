@@ -18,7 +18,7 @@ package network
 import (
 	"errors"
 	"math/rand"
-	nnet "net"
+	"net"
 	"strconv"
 	"time"
 
@@ -72,11 +72,9 @@ func (nid NodeID) Bytes() []byte {
 // Node Kad node struct
 type Node struct {
 	ID      NodeID
-	IP      nnet.IP
+	IP      net.IP
 	Port    int
 	NatType int
-
-	// kad
 
 	sha     []byte
 	addedAt time.Time
@@ -86,7 +84,7 @@ type Node struct {
 }
 
 // NewNode create a new node
-func NewNode(id NodeID, ip nnet.IP, port int) *Node {
+func NewNode(id NodeID, ip net.IP, port int) *Node {
 	if ipv4 := ip.To4(); ipv4 != nil {
 		ip = ipv4
 	}
@@ -98,8 +96,8 @@ func NewNode(id NodeID, ip nnet.IP, port int) *Node {
 	}
 }
 
-func (n *Node) addr() *nnet.UDPAddr {
-	return &nnet.UDPAddr{IP: n.IP, Port: int(n.Port)}
+func (n *Node) addr() *net.UDPAddr {
+	return &net.UDPAddr{IP: n.IP, Port: int(n.Port)}
 }
 
 // Incomplete is address is Incomplete
@@ -212,21 +210,21 @@ func InitSelfNode(config common.ConfManager, isSuper bool, id NodeID) (*Node, er
 		port = getAvailablePort(ip, BasePort)
 	}
 
-	n := Node{ID: id, IP: nnet.ParseIP(ip), Port: port}
+	n := Node{ID: id, IP: net.ParseIP(ip), Port: port}
 	common.DefaultLogger.Info(n.String())
 	return &n, nil
 }
 
 // getLocalIP is get intranet IP
 func getLocalIP() string {
-	addrs, err := nnet.InterfaceAddrs()
+	addrs, err := net.InterfaceAddrs()
 
 	if err != nil {
 	}
 
 	for _, address := range addrs {
 		// Check the IP address to determine whether to loop the address
-		if ipnet, ok := address.(*nnet.IPNet); ok && !ipnet.IP.IsLoopback() {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				return ipnet.IP.String()
 			}
@@ -255,4 +253,19 @@ func getAvailablePort(ip string, port int) int {
 func (n *Node) String() string {
 	str := "Self node net info:\n" + "ID is:" + n.ID.GetHexString() + "\nIP is:" + n.IP.String() + "\nTcp port is:" + strconv.Itoa(n.Port) + "\n"
 	return str
+}
+
+func getIPByAddress(address string) (net.IP,error) {
+
+	IP := net.ParseIP(address)
+	if IP != nil {
+		return IP,nil
+	}
+	IPs ,err:= net.LookupIP(address)
+	if err != nil || len(IPs) == 0{
+		Logger.Errorf("network  address :%v, LookupIP error:%v", address,err.Error())
+		return nil,err
+	}
+
+	return IPs[0],nil
 }

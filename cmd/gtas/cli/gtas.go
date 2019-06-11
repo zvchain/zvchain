@@ -185,9 +185,9 @@ func (gtas *Gtas) Run() {
 
 	// In test mode, P2P NAT is closed
 	testMode := mineCmd.Flag("test", "test mode").Bool()
-	seedIP := mineCmd.Flag("seed", "seed ip").String()
+	seedAddr := mineCmd.Flag("seed", "seed address").String()
 	seedID := mineCmd.Flag("seedid", "seed id").Default("").String()
-	nat := mineCmd.Flag("nat", "nat server address").String()
+	natAddr := mineCmd.Flag("nat", "nat server address").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("0").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
 
@@ -224,13 +224,13 @@ func (gtas *Gtas) Run() {
 		common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
 		BonusLogger = taslog.GetLoggerByIndex(taslog.BonusStatConfig, common.GlobalConf.GetString("instance", "index", ""))
 		types.InitMiddleware()
-
-		if *nat != "" {
-			common.DefaultLogger.Infof("NAT server ip:%s", *nat)
+		
+		if *natAddr != "" {
+			common.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
 		}
 		lightMiner = *light
 		// Light node and heavy node
-		gtas.miner(*rpc, *super, *testMode, addrRPC.String(), *nat, *natPort, *seedIP, *seedID, *portRPC, *light, *apply, *keystore, *enableLogSrv, *chainID)
+		gtas.miner(*rpc, *super, *testMode, addrRPC.String(), *natAddr, *natPort, *seedAddr, *seedID, *portRPC, *light, *apply, *keystore, *enableLogSrv, *chainID)
 	case clearCmd.FullCommand():
 		err := ClearBlock(*light)
 		if err != nil {
@@ -284,7 +284,7 @@ func (gtas *Gtas) checkAddress(keystore, address string) error {
 	return fmt.Errorf("please create a miner account first")
 }
 
-func (gtas *Gtas) fullInit(isSuper, testMode bool, natIP string, natPort uint16, seedIP string, seedID string, light bool, keystore string, enableLog bool, chainID uint16) error {
+func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint16, seedAddr string, seedID string, light bool, keystore string, enableLog bool, chainID uint16) error {
 	var err error
 
 	// Initialization middleware
@@ -309,9 +309,9 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natIP string, natPort uint16,
 
 	netCfg := network.NetworkConfig{IsSuper: isSuper,
 		TestMode:        testMode,
-		NatIP:           natIP,
+		NatAddr:         natAddr,
 		NatPort:         natPort,
-		SeedIP:          seedIP,
+		SeedAddr:        seedAddr,
 		SeedID:          seedID,
 		NodeIDHex:       id,
 		ChainID:         chainID,
