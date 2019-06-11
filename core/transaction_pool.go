@@ -200,7 +200,6 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 	var source *common.Address
 	if tx.Type == types.TransactionTypeBonus {
 		if ok, err := BlockChainImpl.GetConsensusHelper().VerifyBonusTransaction(tx); !ok {
-			fmt.Printf("VerifyBonusTransaction fail,error = %v",err.Error())
 			return err
 		}
 	} else {
