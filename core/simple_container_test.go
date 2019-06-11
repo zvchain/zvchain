@@ -1,5 +1,4 @@
-//   Copyright (C) 2018 TASChain
-//
+//   Copyright (C) 2018 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -19,12 +18,13 @@ package core
 import (
 	"container/heap"
 	"fmt"
-	"reflect"
-	"testing"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"reflect"
+	"testing"
 )
+
+//var container = newSimpleContainer(6, 2)
 
 const (
 	testTxCountPerBlock = 6
@@ -51,9 +51,9 @@ var (
 	tx1  = &types.Transaction{Hash: common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4"), Nonce: 3, GasPrice: 10000, Source: &addr0}
 	tx2  = &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d88d"), Nonce: 1, GasPrice: 20000, Source: &addr1}
 	tx3  = &types.Transaction{Hash: common.HexToHash("d1f1134223133d8ab88897b3ffc68c4797697b4e8603a7fd6a76722e3cc615ae"), Nonce: 1, GasPrice: 17000, Source: &addr2}
-	tx4  = &types.Transaction{Hash: common.HexToHash("b4f213b67242f9439d62549fc128e98efe21b935b4a211b52b9b0b1812a57165"), Nonce: 1, GasPrice: 10000, Source: &addr3}
+	tx4  = &types.Transaction{Hash: common.HexToHash("b4f213b67242f9439d62549fc128e98efe21b935b4a211b52b9b0b1812a57165"), Nonce: 1, GasPrice: 10000, Source: &addr3} //
 	tx5  = &types.Transaction{Hash: common.HexToHash("80aa134ea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7123"), Nonce: 4, GasPrice: 11000, Source: &addr0}
-	tx6  = &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d31a"), Nonce: 2, GasPrice: 21000, Source: &addr1}
+	tx6  = &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d31a"), Nonce: 3, GasPrice: 21000, Source: &addr1}
 	tx7  = &types.Transaction{Hash: common.HexToHash("d1f1134223133d8ab88897b3ffc68c4797697b4e8603a7fd6a76722e3cc617fa"), Nonce: 2, GasPrice: 9000, Source: &addr2}
 	tx8  = &types.Transaction{Hash: common.HexToHash("3761a47f2b6745f1fefff25d529d18bd92ca460892f929b749e3995c4baac2d2"), Nonce: 1, GasPrice: 10000, Source: &addr0}
 	tx9  = &types.Transaction{Hash: common.HexToHash("6d0edf5dc9d37e79d248b0f31796cfed580604b4ca1bcdd5aa696da6765a6054"), Nonce: 2, GasPrice: 9000, Source: &addr0}
@@ -63,109 +63,95 @@ var (
 	tx13 = &types.Transaction{Hash: common.HexToHash("1a375c639553f66d0ae4316bde2fc82a7b04a688ec63df04d63ff7f2b8d467ca"), Nonce: 1, GasPrice: 10000, Source: &addr5}
 	tx14 = &types.Transaction{Hash: common.HexToHash("ca1896f3507580ef6f3c43d76bb097540f9281c5529c968f3e8f7328276ffe11"), Nonce: 1, GasPrice: 21000, Source: &addr1}
 	tx15 = &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a"), Nonce: 1, GasPrice: 10000, Source: &addr5}
-	tx16 = &types.Transaction{Hash: common.HexToHash("f66d0ae4316bde2fc82a7b04a6842909b43e0ead02cf08d0c20433dda1a2e8b3"), Nonce: 2, GasPrice: 20000, Source: &addr0}
+
+	txadd = &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e54"), Nonce: 2, GasPrice: 21000, Source: &addr1}
 )
 
 var txs = []*types.Transaction{
-	tx1, tx2, tx3, tx4, tx5, tx6, tx7, tx8, tx9, tx10, tx11, tx12, tx13, tx14, tx15, tx16,
+	tx1, tx2, tx3, tx4, tx5, tx6, tx7, tx8, tx9, tx10, tx11, tx12, tx13, tx14, tx15,
 }
 
-func Test_simpleContainer_push(t *testing.T) {
+func printQueue() {
+	//for _, tx := range container.queue {
+	//	fmt.Printf("[printQueue]: source = %x, nonce = %d, gas = %d \n",tx.Source, tx.Nonce,tx.GasPrice)
+	//}
+}
 
-	initContext4Test()
-	var container = newSimpleContainer(pendingLimit, queueLimit, BlockChainImpl)
+func printPending() {
+	//fmt.Printf("[printPending] size = %d \n",container.pending.goodList.Len())
 
-	for _, tx := range txs {
-		container.push(tx)
-	}
-
-	t.Run("ByPrice", func(t *testing.T) {
-
-		iter1 := container.sortedTxsByPrice.IterAtPosition(0)
-		for j := 0; iter1.Next() && j < container.Len(); j++ {
-			fmt.Printf("Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%x\n", iter1.Value().(*types.Transaction).Hash, iter1.Value().(*types.Transaction).GasPrice, iter1.Value().(*types.Transaction).Nonce, *iter1.Value().(*types.Transaction).Source)
-		}
-	})
-
-	t.Run("AllTxsMap", func(t *testing.T) {
-
-		for k, v := range container.allTxs {
-			if v != nil {
-				fmt.Printf("Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%x\n", k, v.GasPrice, v.Nonce, v.Source)
-			} else {
-				fmt.Printf("Hash:%x,\t not in txsmap\n", k)
-			}
-		}
-	})
-
-	t.Run("GetFromPendingAll", func(t *testing.T) {
-
-		tmp := make([]*types.Transaction, 0)
-
-		for _, v := range container.pending {
-			for v.indexes.Len() > 0 {
-				tx := v.items[heap.Pop(v.indexes).(uint64)]
-				tmp = append(tmp, tx)
-				fmt.Printf("Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%x\n", tx.Hash, tx.GasPrice, tx.Nonce, *tx.Source)
-			}
-		}
-		for _, tx := range tmp {
-			heap.Push(container.pending[*tx.Source].indexes, tx.Nonce)
-			//fmt.Printf(">>>>>Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%x\n", tx.Hash, tx.GasPrice, tx.Nonce, *tx.Source)
-
-		}
-
-	})
-
-	//t.Run("PopFromPendingAll---------------------------", func(t *testing.T) {
-	//	for _, v := range container.pending {
-	//		for v.indexes.Len() > 0 {
-	//			tx := v.items[heap.Pop(v.indexes).(uint64)]
-	//			fmt.Printf("Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%x\n", tx.Hash, tx.GasPrice, tx.Nonce, *tx.Source)
-	//		}
+	//for _, list := range container.pending.waitingMap {
+	//	for it := list.IterAtPosition(0); it.Next();{
+	//		tx := it.Value().(*orderByNonceTx).item
+	//		fmt.Printf("[printPending map]: source = %x, nonce = %d, gas = %d \n",tx.Source, tx.Nonce,tx.GasPrice)
 	//	}
-	//})
+	//}
 
-	t.Run("GetFromQueue", func(t *testing.T) {
+}
 
-		for _, v1 := range container.queue {
-			for _, v2 := range v1.items {
-				fmt.Printf("Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%x\n", v2.Hash, v2.GasPrice, v2.Nonce, *v2.Source)
-			}
-		}
-	})
+var container *simpleContainer
+
+func execute(t *testing.T, tx types.Transaction) {
+	fmt.Printf("executing transacition : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
+	BlockChainImpl.(*FullBlockChain).latestStateDB.SetNonce(*tx.Source, tx.Nonce)
 }
 
 func Test_simpleContainer_eachForPack(t *testing.T) {
-	initContext4Test()
-	var container = newSimpleContainer(pendingLimit, queueLimit, BlockChainImpl)
+	err := initContext4Test()
+
+	if err != nil {
+		t.Fatalf("failed to initContext4Test")
+	}
+
+	container = newSimpleContainer(pendingLimit, queueLimit, BlockChainImpl)
+
 	for _, tx := range txs {
 		container.push(tx)
 	}
-
 	container.promoteQueueToPending()
 
-	idealTxs := []*types.Transaction{
-		tx14, tx6, tx3, tx10, tx16, tx11,
-	}
+	//for _, tx := range container.asSlice(10) {
+	//	fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n",tx.Source, tx.Nonce,tx.GasPrice)
+	//}
 
+	printPending()
+	printQueue()
+
+	//removeTx(t,tx4)
+	//fmt.Println("----------removeTx(t,tx9)----------")
+
+	packBlocks(t)
+	printPending()
+	printQueue()
+
+}
+
+func packBlocks(t *testing.T) {
+	for {
+		txsFromPending := packBlock(t)
+		if len(txsFromPending) == 0 {
+			break
+		}
+	}
+}
+
+func packBlock(t *testing.T) []*types.Transaction {
 	txsFromPending := make([]*types.Transaction, 0, testTxCountPerBlock)
-
-	t.Run("forEachPending", func(t *testing.T) {
-		container.eachForPack(func(tx *types.Transaction) bool {
-			txsFromPending = append(txsFromPending, tx)
-			BlockChainImpl.(*FullBlockChain).latestStateDB.SetNonce(*tx.Source, tx.Nonce)
-			return len(txsFromPending) < testTxCountPerBlock
-		})
+	fmt.Println("----next round----")
+	txsFromPending = make([]*types.Transaction, 0, testTxCountPerBlock)
+	container.eachForPack(func(tx *types.Transaction) bool {
+		txsFromPending = append(txsFromPending, tx)
+		return len(txsFromPending) < testTxCountPerBlock
 	})
-
 	for _, tx := range txsFromPending {
-		fmt.Printf("Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%x\n", tx.Hash, tx.GasPrice, tx.Nonce, *tx.Source)
+		execute(t, *tx)
+	}
+	container.promoteQueueToPending()
+	for _, tx := range txsFromPending {
+		container.remove(tx.Hash)
 	}
 
-	if !reflect.DeepEqual(idealTxs, txsFromPending) {
-		t.Error("foreach err，txs doesn't match")
-	}
+	return txsFromPending
 
 }
 
@@ -177,7 +163,7 @@ func Test_simpleContainer_promoteQueueToPending(t *testing.T) {
 	t.Run("promoteQueueToPending", func(t *testing.T) {
 
 		idealTxs := []*types.Transaction{
-			tx3, tx4, tx5, tx6, tx7, tx10, tx11, tx13, tx14, tx16,
+			tx3, tx4, tx5, tx7, tx9, tx10, tx11, tx13, tx14,
 		}
 
 		for _, tx := range txs {

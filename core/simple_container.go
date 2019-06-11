@@ -351,14 +351,6 @@ func (c *simpleContainer) replaceThroughSorted(old, newTx *types.Transaction, so
 	c.sortedTxsByPrice.Insert(newTx)
 }
 
-func (c *simpleContainer) getPendingTxsLen() int {
-	var pendingTxsLen int
-	for _, v := range c.pending {
-		pendingTxsLen += v.indexes.Len()
-	}
-	return pendingTxsLen
-}
-
 func (c *simpleContainer) getPendingMaxNonce(addr common.Address) (uint64, bool) {
 
 	var maxNonce uint64
