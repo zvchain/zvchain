@@ -589,7 +589,7 @@ func tempDB() (string, *NodeDatabase) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
 	}
-	diskdb, err := tasdb.NewLDBDatabase(dir, 256, 0)
+	diskdb, err := tasdb.NewLDBDatabase(dir, nil)
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
