@@ -22,6 +22,8 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"reflect"
+	"runtime/debug"
 	"sync"
 
 	"github.com/zvchain/zvchain/taslog"
@@ -173,27 +175,35 @@ func (ao *accountObject) touch() {
 
 func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 	if ao.address == common.HeavyDBAddress {
-		getLogger().Infof("access HeavyDBAddress begin")
+		getLogger().Infof("access HeavyDBAddress begin,root is %x,addr is %p",ao.data.Root,ao)
+		getLogger().Infof("%s",debug.Stack())
 		taslog.Flush()
 	}
 	if ao.trie == nil {
 		if ao.address == common.HeavyDBAddress {
-			getLogger().Infof("access HeavyDBAddress begin find trie is nil,root is %x", ao.data.Root)
+			getLogger().Infof("access HeavyDBAddress begin find trie is nil,root is %x,addr is %p", ao.data.Root,ao)
 			taslog.Flush()
 		}
 		var err error
-		ao.trie, err = db.OpenStorageTrie(ao.addrHash, ao.data.Root)
+		//ao.trie, err = db.OpenStorageTrie(ao.addrHash, ao.data.Root)
+		tempTrie,err := db.OpenStorageTrie(ao.addrHash, ao.data.Root)
 		if err != nil {
-			if ao.address == common.HeavyDBAddress {
-				getLogger().Errorf("access HeavyDBAddress begin find trie is nil and next get has err %v, errorMsg = %s,root is %x", err, err.Error(), ao.data.Root)
-				taslog.Flush()
-			}
-			ao.trie, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
+			getLogger().Infof("access HeavyDBAddress find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root,ao)
+			taslog.Flush()
+			//ao.trie, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
+			tempTrie,_= db.OpenStorageTrie(ao.addrHash, common.Hash{})
 			ao.setError(fmt.Errorf("can't create storage trie: %v", err))
+			ao.trie = tempTrie
+		}else {
+			ao.trie = tempTrie
 		}
 	}
 	if ao.trie == nil {
-		getLogger().Errorf("access HeavyDBAddress over find trie is nil,root is %x", ao.data.Root)
+		getLogger().Infof("access HeavyDBAddress over find trie is nil,root is %x,addr is %p", ao.data.Root,ao)
+		taslog.Flush()
+	}
+	if reflect.ValueOf(ao.trie).IsNil() {
+		getLogger().Infof("access HeavyDBAddress over find trie value is nil,root is %x,addr is %p", ao.data.Root,ao)
 		taslog.Flush()
 	}
 	return ao.trie
