@@ -18,9 +18,9 @@ package account
 import (
 	"bytes"
 	"fmt"
+	"github.com/zvchain/zvchain/storage/rlp"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/storage/serialize"
 	"github.com/zvchain/zvchain/storage/trie"
 )
 
@@ -104,7 +104,7 @@ func (it *NodeIterator) step() error {
 	}
 	// Otherwise we've reached an account node, initiate data iteration
 	var account Account
-	if err := serialize.Decode(bytes.NewReader(it.stateIt.LeafBlob()), &account); err != nil {
+	if err := rlp.Decode(bytes.NewReader(it.stateIt.LeafBlob()), &account); err != nil {
 		return err
 	}
 	dataTrie, err := it.state.db.OpenStorageTrie(common.BytesToHash(it.stateIt.LeafKey()), account.Root)

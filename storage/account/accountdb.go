@@ -17,6 +17,7 @@ package account
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/storage/rlp"
 	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"sort"
@@ -25,7 +26,6 @@ import (
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/storage/serialize"
 	"github.com/zvchain/zvchain/storage/trie"
 	"golang.org/x/crypto/sha3"
 )
@@ -299,7 +299,7 @@ func (adb *AccountDB) Suicide(addr common.Address) bool {
 // updateStateObject writes the given object to the trie.
 func (adb *AccountDB) updateAccountObject(stateObject *accountObject) {
 	addr := stateObject.Address()
-	data, err := serialize.EncodeToBytes(stateObject)
+	data, err := rlp.EncodeToBytes(stateObject.data)
 	if err != nil {
 		panic(fmt.Errorf("can't serialize object at %x: %v", addr[:], err))
 	}
@@ -321,7 +321,7 @@ func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject
 		return nil
 	}
 	var data Account
-	if err := serialize.DecodeBytes(enc, &data); err != nil {
+	if err := rlp.DecodeBytes(enc, &data); err != nil {
 		common.DefaultLogger.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
@@ -535,7 +535,7 @@ func (adb *AccountDB) Commit(deleteEmptyObjects bool) (root common.Hash, err err
 	}
 	root, err = adb.trie.Commit(func(leaf []byte, parent common.Hash) error {
 		var account Account
-		if err := serialize.DecodeBytes(leaf, &account); err != nil {
+		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}
 		if account.Root != emptyData {
