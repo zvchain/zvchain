@@ -160,13 +160,6 @@ func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, txs []*types.Trans
 		return nil, -1
 	}
 
-	block := types.Block{Header: bh, Transactions: txs}
-	executeTxResult, ps := chain.executeTransaction(&block)
-	if !executeTxResult {
-		err = fmt.Errorf("execute transaction fail")
-		return nil, -1
-	}
-
 	return ps, 0
 }
 
@@ -427,7 +420,7 @@ func (chain *FullBlockChain) validateTxRoot(txMerkleTreeRoot common.Hash, txs []
 
 func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *executePostState) {
 	traceLog := monitor.NewPerformTraceLogger("executeTransaction", block.Header.Hash, block.Header.Height)
-	traceLog.SetParent("verifyTxs")
+	traceLog.SetParent("commitBlock")
 	defer traceLog.Log("size=%v", len(block.Transactions))
 
 	cached, _ := chain.verifiedBlocks.Get(block.Header.Hash)
