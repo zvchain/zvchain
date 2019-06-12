@@ -22,7 +22,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/taslog"
 
-	nnet "net"
+	"net"
 
 	"github.com/zvchain/zvchain/middleware/statistics"
 )
@@ -38,9 +38,9 @@ const (
 // NetworkConfig is the network configuration
 type NetworkConfig struct {
 	NodeIDHex       string
-	NatIP           string
+	NatAddr         string
 	NatPort         uint16
-	SeedIP          string
+	SeedAddr        string
 	SeedID          string
 	ChainID         uint16 // Chain id
 	ProtocolVersion uint16 // Protocol version
@@ -48,7 +48,7 @@ type NetworkConfig struct {
 	IsSuper         bool
 }
 
-var net *Server
+var netServerInstance *Server
 
 var Logger taslog.Logger
 
@@ -64,8 +64,8 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		return err
 	}
 
-	if networkConfig.SeedIP == "" {
-		networkConfig.SeedIP = seedDefaultIP
+	if networkConfig.SeedAddr == "" {
+		networkConfig.SeedAddr = seedDefaultIP
 	}
 	if networkConfig.SeedID == "" {
 		networkConfig.SeedID = seedDefaultID
@@ -73,37 +73,53 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 
 	seedPort := seedDefaultPort
 
-	seeds := make([]*Node, 0, 16)
+	seeds := make([]*Node, 0, 1)
 
-	bnNode := NewNode(NewNodeID(networkConfig.SeedID), nnet.ParseIP(networkConfig.SeedIP), seedPort)
+	bnNode := NewNode(NewNodeID(networkConfig.SeedID), net.ParseIP(networkConfig.SeedAddr), seedPort)
 
 	if bnNode.ID != self.ID && !networkConfig.IsSuper {
 		seeds = append(seeds, bnNode)
 	}
-	listenAddr := nnet.UDPAddr{IP: self.IP, Port: self.Port}
+	listenAddr := net.UDPAddr{IP: self.IP, Port: self.Port}
 
 	var natEnable bool
 	if networkConfig.TestMode {
 		natEnable = false
-		listenAddr = nnet.UDPAddr{IP: nnet.ParseIP(networkConfig.SeedIP), Port: self.Port}
+		listenIP, err := getIPByAddress(networkConfig.SeedAddr)
+		if err != nil || listenIP == nil {
+			Logger.Errorf("network SeedAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
+			return err
+		}
+		listenAddr = net.UDPAddr{IP: listenIP, Port: self.Port}
 	} else {
 		natEnable = true
 	}
+	natIP :=""
+	if len(networkConfig.NatAddr) > 0 {
+		IP, err := getIPByAddress(networkConfig.NatAddr)
+		if err != nil || IP == nil {
+			Logger.Errorf("network Lookup NatAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
+			return err
+		}
+		natIP = IP.String()
+	}
+
 	netConfig := NetCoreConfig{ID: self.ID,
-		ListenAddr: &listenAddr, Seeds: seeds,
+		ListenAddr:         &listenAddr,
+		Seeds:              seeds,
 		NatTraversalEnable: natEnable,
-		NatIP:              networkConfig.NatIP,
+		NatIP:              natIP,
 		NatPort:            networkConfig.NatPort,
 		ChainID:            networkConfig.ChainID,
 		ProtocolVersion:    networkConfig.ProtocolVersion}
 
-	var netcore NetCore
-	n, _ := netcore.InitNetCore(netConfig)
+	var netCore NetCore
+	n, _ := netCore.InitNetCore(netConfig)
 
-	net = &Server{Self: self, netCore: n, consensusHandler: consensusHandler}
+	netServerInstance = &Server{Self: self, netCore: n, consensusHandler: consensusHandler}
 	return nil
 }
 
 func GetNetInstance() Network {
-	return net
+	return netServerInstance
 }
