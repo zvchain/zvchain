@@ -234,13 +234,6 @@ func (c *simpleContainer) eachForPack(f func(tx *types.Transaction) bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	c.pending.peek(f)
-	//tx := c.pending.pop()
-	//for tx != nil {
-	//	if !f(tx) {
-	//		break
-	//	}
-	//	tx = c.pending.pop()
-	//}
 }
 
 func (c *simpleContainer) push(tx *types.Transaction) {

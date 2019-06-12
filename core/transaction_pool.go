@@ -247,7 +247,9 @@ func (pool *txPool) add(tx *types.Transaction) bool {
 	if tx.Type == types.TransactionTypeBonus {
 		pool.bonPool.add(tx)
 	} else {
-		pool.received.push(tx)
+		if tx.GasPrice > pool.gasPriceLowerBound {
+			pool.received.push(tx)
+		}
 	}
 	TxSyncer.add(tx)
 
@@ -291,10 +293,8 @@ func (pool *txPool) packTx() []*types.Transaction {
 
 	if accuSize < txAccumulateSizeMaxPerBlock {
 		pool.received.eachForPack(func(tx *types.Transaction) bool {
-			if tx.GasPrice > pool.gasPriceLowerBound {
-				txs = append(txs, tx)
-				accuSize = accuSize + 1
-			}
+			txs = append(txs, tx)
+			accuSize = accuSize + 1
 			return accuSize < txAccumulateSizeMaxPerBlock
 		})
 	}
