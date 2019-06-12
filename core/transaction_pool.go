@@ -293,7 +293,7 @@ func (pool *txPool) packTx() []*types.Transaction {
 		pool.received.eachForPack(func(tx *types.Transaction) bool {
 			if tx.GasPrice > pool.gasPriceLowerBound {
 				txs = append(txs, tx)
-				accuSize += tx.Size()
+				accuSize = accuSize + 1
 			}
 			return accuSize < txAccumulateSizeMaxPerBlock
 		})
