@@ -64,7 +64,13 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 			evictedTxs = append(evictedTxs, transaction.Hash)
 			continue
 		}
-
+		if transaction.Type != types.TransactionTypeBonus {
+			_, err := intrinsicGas(transaction)
+			if err != nil {
+				evictedTxs = append(evictedTxs, transaction.Hash)
+				continue
+			}
+		}
 		switch transaction.Type {
 		case types.TransactionTypeTransfer:
 			success, _, cumulativeGasUsed = executor.executeTransferTx(accountdb, transaction, castor)
