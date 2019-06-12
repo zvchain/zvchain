@@ -303,7 +303,14 @@ func (ts *txSyncer) notifyTxs() bool {
 	})
 
 	if len(txs) < txMaxNotifyPerTime {
-		txs = append(txs,ts.pool.received.asSlice(txMaxNotifyPerTime-len(txs))...)
+		for _, tx := range ts.pool.received.asSlice(maxPendingSize+ maxQueueSize) {
+			if ts.checkTxCanBroadcast(tx.Hash) {
+				txs = append(txs, tx)
+				if len(txs) >= txMaxNotifyPerTime {
+					break
+				}
+			}
+		}
 	}
 
 	ts.sendSimpleTxKeys(txs)
