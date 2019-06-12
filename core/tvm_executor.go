@@ -524,6 +524,8 @@ func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)
 }
+
+// force to transfer gas fee to castor, if balance is less that the fee then transfer the balance value
 func forceTransferFee(db vm.AccountDB, transaction types.Transaction, castor common.Address, fee uint64) {
 	gasFee := new(big.Int).SetUint64(transaction.GasPrice * fee)
 	balance := db.GetBalance(*transaction.Source)
