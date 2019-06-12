@@ -145,10 +145,8 @@ func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
 
 		if s.waitingMap[*tx.Source] != nil && s.waitingMap[*tx.Source].Len() > next {
 			nextTx := s.waitingMap[*tx.Source].ByPosition(next).(*orderByNonceTx)
-			//next++
 			nonceIndex[*tx.Source] = next
 			heap.Push(packingList,nextTx.item)
-
 		}
 		if packingList.Len() > 0{
 			tx = heap.Pop(packingList).(*types.Transaction)

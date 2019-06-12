@@ -222,13 +222,6 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 		src := pk.GetAddress()
 		source = &src
 		tx.Source = source
-
-		//check nonce
-		stateNonce := pool.chain.LatestStateDB().GetNonce(src)
-		if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
-			return fmt.Errorf("nonce error:%v %v", tx.Nonce, stateNonce)
-		}
-
 	}
 
 	return nil
@@ -315,7 +308,7 @@ func (pool *txPool) RemoveFromPool(txs []common.Hash) {
 	for _, tx := range txs {
 		pool.remove(tx)
 	}
-	pool.received.promoteQueueToPending()
+	go pool.received.promoteQueueToPending()
 }
 
 // BackToPool will put the transactions back to pool
