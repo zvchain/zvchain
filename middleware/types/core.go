@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"math/big"
 
-	datacommon "github.com/Workiva/go-datastructures/common"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/time"
 )
@@ -171,32 +169,6 @@ func (tx Transaction) GetValue() uint64           { return tx.Value }
 func (tx Transaction) GetSource() *common.Address { return tx.Source }
 func (tx Transaction) GetTarget() *common.Address { return tx.Target }
 func (tx Transaction) GetHash() common.Hash       { return tx.Hash }
-
-func (tx *Transaction) Compare(e datacommon.Comparator) int {
-	tx2 := e.(*Transaction)
-
-	if tx.Hash != tx2.Hash {
-		if tx.GasPrice > tx2.GasPrice {
-			return 1
-		}
-		if tx.GasPrice < tx2.GasPrice {
-			return -1
-		}
-
-		if tx.GasPrice == tx2.GasPrice {
-			if tx.Nonce > tx2.Nonce {
-				return -1
-			}
-			if tx.Nonce < tx2.Nonce {
-				return 1
-			}
-			return -1
-		}
-
-	}
-	return 0
-
-}
 
 // PriorityTransactions is a transaction array that determines the priority based on gasprice.
 // Gasprice is placed low
