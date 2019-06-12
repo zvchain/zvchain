@@ -97,8 +97,6 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 
 		GroupInsideMachines.GetMachine(m.GHash.Hex(), int(m.MemCnt)).transform(newStateMsg(code, m, sourceID))
 
-	case network.CurrentGroupCastMsg:
-
 	case network.CastVerifyMsg:
 		m, e := unMarshalConsensusCastMessage(body)
 		if e != nil {
