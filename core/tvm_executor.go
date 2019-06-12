@@ -131,6 +131,7 @@ func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, tra
 	amount := new(big.Int).SetUint64(transaction.Value)
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
+		transferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 	gasFee := new(big.Int).SetUint64(transaction.GasPrice * intriGas)
@@ -501,3 +502,12 @@ func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)
 }
+func transferFee(db vm.AccountDB, transaction types.Transaction, castor common.Address, gasFee *big.Int) {
+	balance := db.GetBalance(*transaction.Source)
+	if balance.Cmp(gasFee) < 0 {
+		gasFee = balance
+	}
+	db.SubBalance(*transaction.Source, gasFee)
+	db.AddBalance(castor, gasFee)
+}
+
