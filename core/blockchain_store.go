@@ -73,6 +73,13 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	traceLog.SetParent("addBlockOnChain")
 	defer traceLog.Log("")
 
+	// Execute the transactions. Must be serialized execution
+	executeTxResult, ps := chain.executeTransaction(block)
+	if !executeTxResult {
+		err = fmt.Errorf("execute transaction fail")
+		return
+	}
+
 	bh := block.Header
 	//b := time.Now()
 	headerBytes, err := types.MarshalBlockHeader(bh)
