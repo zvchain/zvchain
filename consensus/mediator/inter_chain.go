@@ -106,8 +106,7 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 		return false, fmt.Errorf("chain does not have this block, block hash=%v", blockHash)
 	}
 
-
-	if model.Param.VerifyBonus / uint64(len(members)) != value {
+	if model.Param.VerifyBonus / uint64(len(targetIds)) != value {
 		return false, fmt.Errorf("invalid verify bonus, value=%v", value)
 	}
 
@@ -116,7 +115,8 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 		return false, common.ErrGroupNil
 	}
 	for _,id := range(targetIds) {
-		if !group.MemberExist(id) {lse, fmt.Errorf("invalid group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
+		if !group.MemberExist(id) {
+			return false, fmt.Errorf("invalid group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
 		}
 	}
 

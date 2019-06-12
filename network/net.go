@@ -72,8 +72,8 @@ type NetCore struct {
 	id               NodeID
 	nid              uint64
 	natType          uint32
-	addpending       chan *pending
-	gotreply         chan reply
+	addPending       chan *pending
+	gotReply         chan reply
 	unhandled        chan *Peer
 	unhandledDataMsg int
 	closing          chan struct{}
@@ -91,7 +91,7 @@ type NetCore struct {
 
 type pending struct {
 	from  NodeID
-	ptype MessageType
+	pType MessageType
 
 	deadline time.Time
 
@@ -102,7 +102,7 @@ type pending struct {
 
 type reply struct {
 	from    NodeID
-	ptype   MessageType
+	pType   MessageType
 	data    interface{}
 	matched chan<- bool
 }
@@ -161,8 +161,8 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 
 	nc.id = cfg.ID
 	nc.closing = make(chan struct{})
-	nc.gotreply = make(chan reply)
-	nc.addpending = make(chan *pending)
+	nc.gotReply = make(chan reply)
+	nc.addPending = make(chan *pending)
 	nc.unhandled = make(chan *Peer, 64)
 	nc.nid = genNetID(cfg.ID)
 	nc.chainID = cfg.ChainID
@@ -181,7 +181,7 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 	nc.messageManager = newMessageManager(nc.id)
 	nc.flowMeter = newFlowMeter("p2p")
 	nc.bufferPool = newBufferPool()
-	realaddr := cfg.ListenAddr
+	realAddr := cfg.ListenAddr
 
 	Logger.Infof("kad id: %v ", nc.id.GetHexString())
 	Logger.Infof("chain id: %v ", nc.chainID)
@@ -193,12 +193,12 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 		Logger.Infof("P2PProxy: %v %v", nc.peerManager.natIP, uint16(nc.peerManager.natPort))
 		P2PProxy(nc.peerManager.natIP, uint16(nc.peerManager.natPort))
 	} else {
-		Logger.Infof("P2PListen: %v %v", realaddr.IP.String(), uint16(realaddr.Port))
-		P2PListen(realaddr.IP.String(), uint16(realaddr.Port))
+		Logger.Infof("P2PListen: %v %v", realAddr.IP.String(), uint16(realAddr.Port))
+		P2PListen(realAddr.IP.String(), uint16(realAddr.Port))
 	}
 
-	nc.ourEndPoint = MakeEndPoint(realaddr, int32(realaddr.Port))
-	kad, err := newKad(nc, cfg.ID, realaddr, cfg.Seeds)
+	nc.ourEndPoint = MakeEndPoint(realAddr, int32(realAddr.Port))
+	kad, err := newKad(nc, cfg.ID, realAddr, cfg.Seeds)
 	if err != nil {
 		return nil, err
 	}
@@ -219,11 +219,11 @@ func (nc *NetCore) buildGroup(id string, members []NodeID) *Group {
 	return nc.groupManager.buildGroup(id, members)
 }
 
-func (nc *NetCore) ping(toid NodeID, toaddr *nnet.UDPAddr) {
+func (nc *NetCore) ping(toID NodeID, toAddr *nnet.UDPAddr) {
 
 	to := MakeEndPoint(&nnet.UDPAddr{}, 0)
-	if toaddr != nil {
-		to = MakeEndPoint(toaddr, 0)
+	if toAddr != nil {
+		to = MakeEndPoint(toAddr, 0)
 	}
 	req := &MsgPing{
 		Version:    Version,
@@ -233,22 +233,22 @@ func (nc *NetCore) ping(toid NodeID, toaddr *nnet.UDPAddr) {
 		ChainId: uint32(nc.chainID),
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	}
-	Logger.Infof("[send ping] id : %v  ip:%v port:%v", toid.GetHexString(), nc.ourEndPoint.Ip, nc.ourEndPoint.Port)
+	Logger.Infof("[send ping] id : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.Ip, nc.ourEndPoint.Port)
 
 	packet, _, err := nc.encodePacket(MessageType_MessagePing, req)
 	if err != nil {
 		return
 	}
 
-	nc.peerManager.write(toid, toaddr, packet, P2PMessageCodeBase+uint32(MessageType_MessagePing), false)
+	nc.peerManager.write(toID, toAddr, packet, P2PMessageCodeBase+uint32(MessageType_MessagePing), false)
 }
 
-func (nc *NetCore) RelayTest(toid NodeID) {
+func (nc *NetCore) RelayTest(toID NodeID) {
 
 	req := &MsgRelay{
-		NodeId: toid[:],
+		NodeId: toID[:],
 	}
-	Logger.Infof("[Relay] test node id : %v", toid.GetHexString())
+	Logger.Infof("[Relay] test node id : %v", toID.GetHexString())
 
 	packet, _, err := nc.encodePacket(MessageType_MessageRelayTest, req)
 	if err != nil {
@@ -258,13 +258,13 @@ func (nc *NetCore) RelayTest(toid NodeID) {
 	nc.peerManager.broadcast(packet, P2PMessageCodeBase+uint32(MessageType_MessagePing))
 }
 
-func (nc *NetCore) findNode(toid NodeID, toaddr *nnet.UDPAddr, target NodeID) ([]*Node, error) {
+func (nc *NetCore) findNode(toID NodeID, toAddr *nnet.UDPAddr, target NodeID) ([]*Node, error) {
 	nodes := make([]*Node, 0, bucketSize)
-	errc := nc.pending(toid, MessageType_MessageNeighbors, func(r interface{}) bool {
+	errc := nc.pending(toID, MessageType_MessageNeighbors, func(r interface{}) bool {
 		nreceived := 0
 		reply := r.(*MsgNeighbors)
 		for _, rn := range reply.Nodes {
-			n, err := nc.nodeFromRPC(toaddr, *rn)
+			n, err := nc.nodeFromRPC(toAddr, *rn)
 			if err != nil {
 				continue
 			}
@@ -275,7 +275,7 @@ func (nc *NetCore) findNode(toid NodeID, toaddr *nnet.UDPAddr, target NodeID) ([
 
 		return nreceived >= bucketSize
 	})
-	nc.sendMessageToNode(toid, toaddr, MessageType_MessageFindnode, &MsgFindNode{
+	nc.sendMessageToNode(toID, toAddr, MessageType_MessageFindnode, &MsgFindNode{
 		Target:     target[:],
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	}, P2PMessageCodeBase+uint32(MessageType_MessageFindnode))
@@ -284,11 +284,11 @@ func (nc *NetCore) findNode(toid NodeID, toaddr *nnet.UDPAddr, target NodeID) ([
 	return nodes, err
 }
 
-func (nc *NetCore) pending(id NodeID, ptype MessageType, callback func(interface{}) bool) <-chan error {
+func (nc *NetCore) pending(id NodeID, pType MessageType, callback func(interface{}) bool) <-chan error {
 	ch := make(chan error, 1)
-	p := &pending{from: id, ptype: ptype, callback: callback, errc: ch}
+	p := &pending{from: id, pType: pType, callback: callback, errc: ch}
 	select {
-	case nc.addpending <- p:
+	case nc.addPending <- p:
 	case <-nc.closing:
 		ch <- errClosed
 	}
@@ -298,7 +298,7 @@ func (nc *NetCore) pending(id NodeID, ptype MessageType, callback func(interface
 func (nc *NetCore) handleReply(from NodeID, ptype MessageType, req interface{}) bool {
 	matched := make(chan bool, 1)
 	select {
-	case nc.gotreply <- reply{from, ptype, req, matched}:
+	case nc.gotReply <- reply{from, ptype, req, matched}:
 		// loop will handle it
 		return <-matched
 	case <-nc.closing:
@@ -368,7 +368,7 @@ func (nc *NetCore) loop() {
 			}
 
 			return
-		case p := <-nc.addpending:
+		case p := <-nc.addPending:
 			p.deadline = time.Now().Add(respTimeout)
 			plist.PushBack(p)
 		case now := <-timeout.C:
@@ -382,11 +382,11 @@ func (nc *NetCore) loop() {
 				}
 			}
 
-		case r := <-nc.gotreply:
+		case r := <-nc.gotReply:
 			var matched bool
 			for el := plist.Front(); el != nil; el = el.Next() {
 				p := el.Value.(*pending)
-				if p.from == r.from && p.ptype == r.ptype {
+				if p.from == r.from && p.pType == r.pType {
 					matched = true
 					if p.callback(r.data) {
 						p.errc <- nil
@@ -413,22 +413,22 @@ func init() {
 
 }
 
-func (nc *NetCore) sendToNode(toid NodeID, toaddr *nnet.UDPAddr, data []byte, code uint32) {
-	packet, _, err := nc.encodeDataPacket(data, DataType_DataNormal, code, "", &toid, nil, -1)
+func (nc *NetCore) sendToNode(toID NodeID, toAddr *nnet.UDPAddr, data []byte, code uint32) {
+	packet, _, err := nc.encodeDataPacket(data, DataType_DataNormal, code, "", &toID, nil, -1)
 	if err != nil {
-		Logger.Debugf("Send encodeDataPacket err :%v ", toid.GetHexString())
+		Logger.Debugf("Send encodeDataPacket err :%v ", toID.GetHexString())
 		return
 	}
-	nc.peerManager.write(toid, toaddr, packet, code, true)
+	nc.peerManager.write(toID, toAddr, packet, code, true)
 	nc.bufferPool.freeBuffer(packet)
 }
 
-func (nc *NetCore) sendMessageToNode(toid NodeID, toaddr *nnet.UDPAddr, ptype MessageType, req proto.Message, code uint32) {
+func (nc *NetCore) sendMessageToNode(toID NodeID, toAddr *nnet.UDPAddr, ptype MessageType, req proto.Message, code uint32) {
 	packet, _, err := nc.encodePacket(ptype, req)
 	if err != nil {
 		return
 	}
-	nc.peerManager.write(toid, toaddr, packet, code, false)
+	nc.peerManager.write(toID, toAddr, packet, code, false)
 	nc.bufferPool.freeBuffer(packet)
 }
 
