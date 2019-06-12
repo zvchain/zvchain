@@ -58,7 +58,7 @@ var (
 
 
 
-	txadd  = &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e54"), Nonce: 2, GasPrice: 21000, Source: &addr1}
+	//txadd  = &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e54"), Nonce: 2, GasPrice: 21000, Source: &addr1}
 )
 
 func printQueue(){

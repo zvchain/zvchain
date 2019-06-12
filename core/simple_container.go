@@ -83,18 +83,25 @@ type pendingContainer struct {
 	waitingMap map[common.Address]*skip.SkipList //*orderByNonceTx. Map of transactions group by source for waiting
 }
 
+// push the transaction into the pending list. tx which returns false will push to the queue
 func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
-	if tx.Nonce == stateNonce+1 {
-		if s.waitingMap[*tx.Source] == nil {
-			s.waitingMap[*tx.Source] = skip.New(uint16(16))
-		}
-		existSource := s.waitingMap[*tx.Source].Get(newOrderByNonceTx(tx))[0]
-		if existSource != nil {
+	var doInsertOrReplace = func() {
+		newTxNode := newOrderByNonceTx(tx)
+		existSource := s.waitingMap[*tx.Source].Get(newTxNode)[0]
+		if existSource != nil && existSource.(*orderByNonceTx).item.GasPrice < tx.GasPrice{
 			s.size --
 			s.waitingMap[*tx.Source].Delete(existSource)
 		}
 		s.size ++
-		s.waitingMap[*tx.Source].Insert(newOrderByNonceTx(tx))
+		s.waitingMap[*tx.Source].Insert(newTxNode)
+	}
+
+	if tx.Nonce == stateNonce+1 {
+		if s.waitingMap[*tx.Source] == nil {
+			s.waitingMap[*tx.Source] = skip.New(uint16(16))
+		}
+
+		doInsertOrReplace()
 	} else {
 		if s.waitingMap[*tx.Source] == nil {
 			return false
@@ -105,14 +112,8 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 			if tx.Nonce > bigNonce + 1{
 				return false
 			}
-			existSource := s.waitingMap[*tx.Source].Get(newOrderByNonceTx(tx))[0]
-			if existSource != nil {
-				s.size --
-				s.waitingMap[*tx.Source].Delete(existSource)
-			}
 
-			s.size ++
-			s.waitingMap[*tx.Source].Insert(newOrderByNonceTx(tx))
+			doInsertOrReplace()
 		}
 	}
 	return true
