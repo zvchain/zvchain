@@ -148,8 +148,8 @@ func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, tra
 
 func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader) (success bool, err *types.TransactionError, cumulativeGasUsed uint64, contractAddress common.Address) {
 	success = false
-	intriGas, err := intrinsicGas(transaction)
-	if err != nil {
+	intriGas, transactionError := intrinsicGas(transaction)
+	if transactionError != nil {
 		return
 	}
 	gasLimit := transaction.GasLimit
@@ -159,17 +159,18 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 		accountdb.SubBalance(*transaction.Source, gasLimitFee)
 		controller := tvm.NewController(accountdb, BlockChainImpl, bh, transaction, intriGas, common.GlobalConf.GetString("tvm", "pylib", "lib"), MinerManagerImpl, GroupChainImpl)
 		snapshot := controller.AccountDB.Snapshot()
-		contractAddress, err = createContract(accountdb, transaction)
-		if err != nil {
-			Logger.Debugf("ContractCreate tx %s execute error:%s ", transaction.Hash.Hex(), err.Message)
+		contractAddress, transactionError = createContract(accountdb, transaction)
+		if transactionError != nil {
+			Logger.Debugf("ContractCreate tx %s execute error:%s ", transaction.Hash.Hex(), transactionError.Message)
 			controller.AccountDB.RevertToSnapshot(snapshot)
 		} else {
 			contract := tvm.LoadContract(contractAddress)
-			errorCode, errorMsg := controller.Deploy(contract)
-			if errorCode != 0 {
-				err = types.NewTransactionError(errorCode, errorMsg)
+			err := controller.Deploy(contract)
+			if err != nil {
+				transactionError = types.NewTransactionError(types.TVMExecutedError, err.Error())
 				controller.AccountDB.RevertToSnapshot(snapshot)
-				Logger.Debugf("Contract deploy failed! Tx hash:%s, contract addr:%s errorCode:%d errorMsg%s", transaction.Hash.Hex(), contractAddress.Hex(), errorCode, errorMsg)
+				Logger.Debugf("Contract deploy failed! Tx hash:%s, contract addr:%s errorCode:%d errorMsg%s",
+					transaction.Hash.Hex(), contractAddress.Hex(), types.TVMExecutedError, err.Error())
 			} else {
 				success = true
 				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", transaction.Hash.Hex(), contractAddress.Hex())
@@ -183,11 +184,11 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 		cumulativeGasUsed = gasLimit - gasLeft
 	} else {
 		success = false
-		err = types.TxErrorBalanceNotEnough
+		transactionError = types.TxErrorBalanceNotEnough
 		Logger.Infof("ContractCreate balance not enough! transaction %s source %s  ", transaction.Hash.Hex(), transaction.Source.Hex())
 	}
 	Logger.Debugf("TVMExecutor Execute ContractCreate Transaction %s,success:%t", transaction.Hash.Hex(), success)
-	return success, err, cumulativeGasUsed, contractAddress
+	return success, transactionError, cumulativeGasUsed, contractAddress
 }
 
 func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader) (success bool, err *types.TransactionError, cumulativeGasUsed uint64, logs []*types.Log) {
