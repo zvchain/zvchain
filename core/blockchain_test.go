@@ -134,8 +134,10 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	//txpool.AddTransaction(genContractTx(1, 20000000, "1", contractAddr.GetHexString(), 3, 0, []byte(`{"FuncName": "Test", "Args": [10.123, "ten", [1, 2], {"key":"value", "key2":"value2"}]}`), nil, 0))
 	fmt.Println(contractAddr.Hex())
 	// 铸块2
-	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("123"), 0, *castor, *groupid)
-
+	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("123"), 1, *castor, *groupid)
+	if block2 == nil {
+		t.Fatalf("fail to cast block")
+	}
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add empty block")
 	}
@@ -455,7 +457,9 @@ func clear() {
 		return
 	}
 	for _, d := range dir {
-		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore")) {
+		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") ||
+			strings.HasPrefix(d.Name(), "groupstore")  ||
+			strings.HasPrefix(d.Name(), "database")) {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
@@ -479,7 +483,7 @@ func clearTicker() {
 
 func initContext4Test() error {
 	clear()
-	common.InitConf("../deploy/daily/tas1.ini")
+	common.InitConf("../consensus/logical/genesis_test_file/tas1.ini")
 
 	network.Logger = taslog.GetLoggerByName("p2p" + common.GlobalConf.GetString("client", "index", ""))
 	err := middleware.InitMiddleware()
