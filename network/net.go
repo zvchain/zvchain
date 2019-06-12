@@ -230,9 +230,10 @@ func (nc *NetCore) ping(toid NodeID, toaddr *nnet.UDPAddr) {
 		From:       &nc.ourEndPoint,
 		To:         &to,
 		NodeId:     nc.id[:],
+		ChainId: uint32(nc.chainID),
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	}
-	Logger.Infof("[send ping ] id : %v  ip:%v port:%v", toid.GetHexString(), nc.ourEndPoint.Ip, nc.ourEndPoint.Port)
+	Logger.Infof("[send ping] id : %v  ip:%v port:%v", toid.GetHexString(), nc.ourEndPoint.Ip, nc.ourEndPoint.Port)
 
 	packet, _, err := nc.encodePacket(MessageType_MessagePing, req)
 	if err != nil {
@@ -761,6 +762,7 @@ func (nc *NetCore) handlePing(req *MsgPing, fromID NodeID) error {
 			p.IP = ip
 			p.Port = port
 		}
+		p.chainID = uint16(req.ChainId)
 	}
 	from := nnet.UDPAddr{IP: nnet.ParseIP(req.From.Ip), Port: int(req.From.Port)}
 
