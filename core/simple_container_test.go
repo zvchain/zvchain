@@ -87,7 +87,7 @@ func execute(t *testing.T, tx types.Transaction){
 
 func Test_simpleContainer_forEach(t *testing.T) {
 	err := initContext4Test()
-
+	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
 	}
@@ -107,11 +107,8 @@ func Test_simpleContainer_forEach(t *testing.T) {
 
 	printPending()
 	printQueue()
-
-	//removeTx(t,tx4)
-	//fmt.Println("----------removeTx(t,tx9)----------")
-
-	packBlocks(t)
+	executed := packBlocks(t)
+	fmt.Println(len(executed))
 	printPending()
 	printQueue()
 
@@ -134,13 +131,16 @@ func Test_simpleContainer_forEach(t *testing.T) {
 //}
 //
 
-func packBlocks(t *testing.T)  {
+func packBlocks(t *testing.T) []*types.Transaction {
+	result := make([]*types.Transaction, 0, testTxCountPerBlock)
 	for {
 		txsFromPending := packBlock(t)
+		result = append(result, txsFromPending...)
 		if len(txsFromPending) == 0 {
 			break
 		}
 	}
+	return result
 }
 
 func packBlock(t *testing.T) []*types.Transaction  {
@@ -162,96 +162,3 @@ func packBlock(t *testing.T) []*types.Transaction  {
 	return txsFromPending
 
 }
-
-func removeTx(t *testing.T, tx *types.Transaction)  {
-	container.remove(tx.Hash)
-}
-
-//
-//func Test_simpleContainer_promoteQueueToPending(t *testing.T) {
-//
-//	Test_simpleContainer_forEach(t)
-//	tmp := make([]*types.Transaction, 0)
-//	t.Run("promoteQueueToPending", func(t *testing.T) {
-//
-//		idealTxs := []*types.Transaction{
-//			tx6, tx9,
-//		}
-//
-//		container.promoteQueueToPending()
-//
-//		for _, v := range container.pending {
-//			for v.indexes.Len() > 0 {
-//				tx := v.items[heap.Pop(v.indexes).(uint64)]
-//				tmp = append(tmp, tx)
-//				//fmt.Printf("Hash:%x,\tGas:%d,\tNonce:%d,\tSource:%s\n", tx.Hash, tx.GasPrice, tx.Nonce, *tx.Source)
-//			}
-//		}
-//		//fmt.Println("lentmp", len(tmp))
-//		for _, tx := range tmp {
-//			heap.Push(container.pending[*tx.Source].indexes, tx.Nonce)
-//		}
-//
-//		count := 0
-//		for _, v1 := range tmp {
-//			for _, v2 := range idealTxs {
-//				if reflect.DeepEqual(v1, v2) {
-//					count++
-//				}
-//			}
-//		}
-//
-//		if count != len(idealTxs) {
-//			t.Error("promote queue to pending err, txs doesn't match")
-//		}
-//	})
-//
-//}
-//
-//func Test_simpleContainer_remove(t *testing.T) {
-//	Test_simpleContainer_push(t)
-//	t.Run("removeTxs", func(t *testing.T) {
-//
-//		idealTxs := []*types.Transaction{
-//			tx10, tx14, tx3, tx7, tx4, tx13,
-//		}
-//
-//		for i := 0; i < len(idealTxs); i++ {
-//			container.remove(idealTxs[i].Hash)
-//		}
-//
-//		if container.getPendingTxsLen() != 0 {
-//			t.Error("remove failure")
-//		}
-//	})
-//}
-//
-//func Test_simpleContainer_contains(t *testing.T) {
-//	Test_simpleContainer_push(t)
-//	t.Run("contains", func(t *testing.T) {
-//
-//		idealTxs := []*types.Transaction{
-//			tx10, tx11,
-//		}
-//
-//		if !container.contains(idealTxs[0].Hash) {
-//			t.Errorf("tx:%s should in map", common.Bytes2Hex(tx10.Hash[:]))
-//		}
-//
-//		if container.contains(idealTxs[1].Hash) {
-//			t.Errorf("tx:%s shouldn't in map", common.Bytes2Hex(tx11.Hash[:]))
-//		}
-//	})
-//}
-//
-//func Test_simpleContainer_get(t *testing.T) {
-//	Test_simpleContainer_push(t)
-//
-//	t.Run("get", func(t *testing.T) {
-//		idealTx := tx10
-//		if !reflect.DeepEqual(idealTx, container.get(idealTx.Hash)) {
-//			t.Errorf("tx:%s can't get the tx in map", common.Bytes2Hex(idealTx.Hash[:]))
-//		}
-//	})
-//
-//}
