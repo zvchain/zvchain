@@ -403,6 +403,8 @@ func (executor *TVMExecutor) executeMinerCancelStakeTx(accountdb *account.Accoun
 			Logger.Debugf("TVMExecutor Execute MinerCancelStake Fail(CancelStake or ReduceStake error) Source %s", transaction.Source.Hex())
 			accountdb.RevertToSnapshot(snapshot)
 		}
+	} else {
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 	}
 	return
 }
