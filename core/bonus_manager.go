@@ -74,7 +74,7 @@ func (bm *BonusManager) GenerateBonus(targetIds []int32, blockHash common.Hash, 
 	return &types.Bonus{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
 }
 
-// ParseBonusTransaction parse a bonus transaction and  returns the group id, group menbers, block hash and transcation value
+// ParseBonusTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
 func (bm *BonusManager) ParseBonusTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, uint64, error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	groupID := make([]byte, common.GroupIDLength)
