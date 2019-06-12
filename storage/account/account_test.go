@@ -205,11 +205,11 @@ func TestGetData(t *testing.T) {
 	s := setUp()
 
 	wg := &sync.WaitGroup{}
-	for a := 0; a < 10000; a++ {
+	for a := 0; a < 100; a++ {
 		addr := common.BytesToAddress(common.IntToByte(a))
 		s.state.SetData(addr, "1", []byte("234444"))
 
-		for i := 0; i < 10000; i++ {
+		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -219,5 +219,4 @@ func TestGetData(t *testing.T) {
 		s.state.Commit(true)
 	}
 	wg.Wait()
-	t.Log("ok")
 }

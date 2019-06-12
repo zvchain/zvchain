@@ -41,15 +41,12 @@ const (
 	ReqSharePiece      uint32 = 11
 	ResponseSharePiece uint32 = 12
 
-	CurrentGroupCastMsg uint32 = 13
-	CastVerifyMsg       uint32 = 14
-	VerifiedCastMsg     uint32 = 15
-	CastRewardSignReq   uint32 = 16
-	CastRewardSignGot   uint32 = 17
-	BlockSignAggr       uint32 = 18
-
-	ReqProposalBlock      uint32 = 19
-	ResponseProposalBlock uint32 = 20
+	CastVerifyMsg         uint32 = 14 // The proposal sends the proposal msg to the verifier
+	VerifiedCastMsg       uint32 = 15 // The verifier sends the verified msg to the verifier group.
+	CastRewardSignReq     uint32 = 16
+	CastRewardSignGot     uint32 = 17
+	ReqProposalBlock      uint32 = 19 // The verifies sends the request to the proposal to get the block
+	ResponseProposalBlock uint32 = 20 // The proposal sends the response to the verifies to deliver the block
 
 	/*********************** chain message code ***********************
 	************************* range from 10000 to 19999 **************
