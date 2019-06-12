@@ -29,7 +29,7 @@ import (
 
 type simpleContainer struct {
 	txsMap     map[common.Hash]*types.Transaction
-	chain      BlockChain
+	chain      *FullBlockChain
 	pending    *pendingContainer
 	queue      map[common.Hash]*types.Transaction
 	queueLimit int
@@ -200,7 +200,7 @@ func newPendingContainer(limit int) *pendingContainer {
 func newSimpleContainer(pendingLimit int, queueLimit int, chain BlockChain) *simpleContainer {
 	c := &simpleContainer{
 		lock:       sync.RWMutex{},
-		chain:      chain,
+		chain:      chain.(*FullBlockChain),
 		txsMap:     map[common.Hash]*types.Transaction{},
 		pending:    newPendingContainer(pendingLimit),
 		queue:      map[common.Hash]*types.Transaction{},
@@ -313,14 +313,14 @@ func (c *simpleContainer)getNonceWithCache(cache map[common.Address]uint64, tx *
 	if cache[*tx.Source] != 0 {
 		return cache[*tx.Source]
 	}
-	nonce := c.chain.LatestStateDB().GetNonce(*tx.Source)
+	nonce := c.chain.latestStateDB.GetNonce(*tx.Source)
 	cache[*tx.Source] = nonce
 	return nonce
 }
 
 // getStateNonce fetches nonce from current state db
 func (c *simpleContainer) getStateNonce(tx *types.Transaction) uint64 {
-	return c.chain.LatestStateDB().GetNonce(*tx.Source)
+	return c.chain.latestStateDB.GetNonce(*tx.Source)
 }
 
 func skipGetLast(skip *skip.SkipList) datacommon.Comparator {
