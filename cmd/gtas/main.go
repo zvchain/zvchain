@@ -16,10 +16,13 @@
 package main
 
 import (
+	"runtime/debug"
+
 	"github.com/zvchain/zvchain/cmd/gtas/cli"
 )
 
 func main() {
+	debug.SetTraceback("all")
 	gtas := cli.NewGtas()
 	gtas.Run()
 }
