@@ -294,7 +294,7 @@ func (pool *txPool) packTx() []*types.Transaction {
 	if accuSize < txAccumulateSizeMaxPerBlock {
 		pool.received.eachForPack(func(tx *types.Transaction) bool {
 			txs = append(txs, tx)
-			accuSize = accuSize + 1
+			accuSize = accuSize + tx.Size()
 			return accuSize < txAccumulateSizeMaxPerBlock
 		})
 	}
