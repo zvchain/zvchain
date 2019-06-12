@@ -80,17 +80,9 @@ func (api *GtasAPI) Balance(account string) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// debug info for siyad start
-	if account == "" && len(walletManager) > 0 {
-		account = walletManager[0].Address
-	}
-	balanceInt := core.BlockChainImpl.GetBalance(common.HexToAddress(account))
-	// debug info for siyad end
-
 	return &Result{
 		Message: fmt.Sprintf("The balance of account: %s is %v TAS", account, balance),
-		Data:    fmt.Sprintf("%v ,balanceInt %d", balance, balanceInt),
+		Data:    fmt.Sprintf("%v", balance),
 	}, nil
 }
 
