@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -134,6 +135,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	//txpool.AddTransaction(genContractTx(1, 20000000, "1", contractAddr.GetHexString(), 3, 0, []byte(`{"FuncName": "Test", "Args": [10.123, "ten", [1, 2], {"key":"value", "key2":"value2"}]}`), nil, 0))
 	fmt.Println(contractAddr.Hex())
 	// 铸块2
+	time.Sleep(time.Second)
 	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("123"), 1, *castor, *groupid)
 	if block2 == nil {
 		t.Fatalf("fail to cast block")
@@ -160,7 +162,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	if nil == blockHeader {
 		t.Fatalf("fail to QueryBlockByHeight, height: %d ", 2)
 	}
-
+	time.Sleep(time.Second)
 	// 铸块3 空块
 	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("125"), 0, *castor, *groupid)
 
@@ -173,6 +175,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("add block3 failed")
 	}
 
+	time.Sleep(time.Second)
 	block4 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("126"), 0, *castor, *groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block4) {
@@ -183,7 +186,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	if nil == blockHeader || 4 != blockHeader.Height || blockHeader.Hash != block4.Header.Hash {
 		t.Fatalf("add block3 failed")
 	}
-
+	time.Sleep(time.Second)
 	block5 := BlockChainImpl.CastBlock(5, common.Hex2Bytes("126"), 0, *castor, *groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block5) {
@@ -248,13 +251,13 @@ func TestBlockChain_GetBlockMessage(t *testing.T) {
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block1) {
 		t.Fatalf("fail to add empty block")
 	}
-
+	time.Sleep(time.Second)
 	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("1256"), 0, *castor, *groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add empty block")
 	}
-
+	time.Sleep(time.Second)
 	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("1257"), 0, *castor, *groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block3) {
@@ -291,9 +294,9 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 	groupid := new([]byte)
 
 	var i uint64
-	for i = 1; i < 2000; i++ {
+	for i = 1; i < 25; i++ {
+		time.Sleep(time.Second)
 		block := BlockChainImpl.CastBlock(i, common.Hex2Bytes(strconv.FormatInt(int64(i), 10)), 0, *castor, *groupid)
-
 		if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
 			t.Fatalf("fail to add empty block")
 		}
@@ -305,7 +308,7 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 		t.Fatalf("error for size:20")
 	}
 
-	for i = BlockChainImpl.Height() - 19; i < 2000; i++ {
+	for i = BlockChainImpl.Height() - 19; i < 25; i++ {
 		lowestLDB := chain.queryBlockHeaderByHeight(i)
 		if nil == lowestLDB {
 			t.Fatalf("fail to get lowest block from ldb,%d", i)
@@ -345,6 +348,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	castor := new([]byte)
 	groupid := new([]byte)
 
+	time.Sleep(time.Second)
 	block0 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, *groupid)
 	// 上链
 
@@ -362,6 +366,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	_, _ = txpool.AddTransaction(genTestTx(123457, "1", "2", 2, 3))
 
 	// 铸块1
+	time.Sleep(time.Second)
 	block := BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 0, *castor, *groupid)
 	if nil == block {
 		t.Fatalf("fail to cast new block")
@@ -374,6 +379,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	}
 
 	// 铸块2
+	time.Sleep(time.Second)
 	block2 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("22"), 0, *castor, *groupid)
 	if nil == block2 {
 		t.Fatalf("fail to cast new block")
@@ -388,6 +394,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	fmt.Printf("state: %d\n", chain.latestBlock.StateTree)
 
 	// 铸块3
+	time.Sleep(time.Second)
 	block3 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("12"), 0, *castor, *groupid)
 	if nil == block3 {
 		t.Fatalf("fail to cast new block")
