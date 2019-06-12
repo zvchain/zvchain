@@ -97,7 +97,7 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 		return false, fmt.Errorf("not enough bytes for bonus signature, sign =%v", signBytes)
 	}
 
-	groupID, members, blockHash, value, err := Proc.MainChain.GetBonusManager().ParseBonusTransaction(tx)
+	groupID, targetIds, blockHash, value, err := Proc.MainChain.GetBonusManager().ParseBonusTransaction(tx)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse bonus transaction, err =%s", err)
 	}
@@ -105,6 +105,7 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	if !Proc.MainChain.HasBlock(blockHash) {
 		return false, fmt.Errorf("chain does not have this block, block hash=%v", blockHash)
 	}
+
 
 	if model.Param.VerifyBonus / uint64(len(members)) != value {
 		return false, fmt.Errorf("invalid verify bonus, value=%v", value)
@@ -114,9 +115,8 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	if group == nil {
 		return false, common.ErrGroupNil
 	}
-	for _,id := range(members) {
-		if !group.MemberExist(id) {
-			return false, fmt.Errorf("invalid group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
+	for _,id := range(targetIds) {
+		if !group.MemberExist(id) {lse, fmt.Errorf("invalid group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
 		}
 	}
 

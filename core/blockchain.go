@@ -279,7 +279,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 
 	ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
 	if !ok {
-		panic("insert genesis block fail, err=%v" + err.Error())
+		panic("insert genesis block fail, err=" + err.Error())
 	}
 
 	Logger.Debugf("GenesisBlock %+v", block.Header)

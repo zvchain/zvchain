@@ -448,7 +448,7 @@ func (executor *TVMExecutor) executeMinerRefundTx(accountdb *account.AccountDB, 
 			} else {
 				Logger.Debugf("TVMExecutor Execute MinerRefund Heavy Fail(Refund height less than abortHeight+10) Hash%s", transaction.Source.Hex())
 			}
-		} else {
+		} else if mexist.Type == types.MinerTypeLight {
 			value, ok := MinerManagerImpl.RefundStake(transaction.Source.Bytes(), mexist, accountdb)
 			if !ok {
 				success = false
@@ -458,6 +458,9 @@ func (executor *TVMExecutor) executeMinerRefundTx(accountdb *account.AccountDB, 
 			accountdb.AddBalance(*transaction.Source, amount)
 			Logger.Debugf("TVMExecutor Execute MinerRefund Light Success %s,Type:%s", transaction.Source.Hex())
 			success = true
+		}else {
+			Logger.Debugf("TVMExecutor Execute MinerRefund Fail(No such miner type) %s", transaction.Source.Hex())
+			return
 		}
 	} else {
 		Logger.Debugf("TVMExecutor Execute MinerRefund Fail(Not Exist Or Not Abort) %s", transaction.Source.Hex())

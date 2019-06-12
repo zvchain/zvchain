@@ -54,6 +54,10 @@ func Hex2VRFPublicKey(hex string) VRFPublicKey {
 	return VRFPublicKey(common.FromHex(hex))
 }
 
+func Hex2VRFPrivateKey(hex string) VRFPrivateKey {
+	return VRFPrivateKey(common.FromHex(hex))
+}
+
 func (vp VRFPrivateKey) GetHexString() string {
 	return common.ToHex(vp)
 }

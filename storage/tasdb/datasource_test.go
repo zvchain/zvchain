@@ -20,7 +20,7 @@ import (
 
 func TestCreateLDB(t *testing.T) {
 	// 创建ldb实例
-	ds, err := NewDataSource("test")
+	ds, err := NewDataSource("test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestLRUMemDatabase(t *testing.T) {
 
 func TestClearLDB(t *testing.T) {
 	// 创建ldb实例
-	ds, err := NewDataSource("test")
+	ds, err := NewDataSource("test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestClearLDB(t *testing.T) {
 }
 
 func TestBatchPutVisiableBeforeWrite(t *testing.T) {
-	ds, err := NewDataSource("test")
+	ds, err := NewDataSource("test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestBatchPutVisiableBeforeWrite(t *testing.T) {
 }
 
 func TestIteratorWithPrefix(t *testing.T) {
-	ds, err := NewDataSource("test")
+	ds, err := NewDataSource("test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestIteratorWithPrefix(t *testing.T) {
 }
 
 func TestIteratorWithPrefix2(t *testing.T) {
-	ds, err := NewDataSource("test")
+	ds, err := NewDataSource("test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestIteratorWithPrefix2(t *testing.T) {
 }
 
 func TestGetAfter(t *testing.T) {
-	ds, err := NewDataSource("test")
+	ds, err := NewDataSource("test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

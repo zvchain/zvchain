@@ -33,15 +33,20 @@ import (
 const confPathPrefix = `genesis_test_file`
 const procNum = 3
 
+var minerInfo = map[string]string{
+	"0xf5a20ed1efcd6f49c076725a490992ebd7775d1075863dad88ad7ae0f8ae5a3e": "0x04266970d0941f145bbb4f20b3d6260ac67b44b9df4783215b3e05b81b1866ea0605c3098f17c4862f276bb57add6f73d728fc66e3200876f76f152cb3e49eff5852b06e555ad9fa0df06d5bd257d7801279742b21667669ad0a46ce98ba76e5ae",
+	"0xe6fc8e413f66fbcf676d05670471f35312d8888fb28b9bfcbdc1dcaa56287aaa": "0x049fd46abe4d9d3b05ae72093ed98352df517dc5c31c7f1e27938f5f1dade10b4b0eb10e6857f615ccef1c1e8ca3b9d92d6ff734ef406b91fa8ad44b229a1d8e0079ea9ef0e1b97619339ee2fd49bf637953fe1df0e51740be28d9a2c7d33b26b5",
+	"0x67a9bcc768bbfc94adaf33fde12076aa544a4495f42833692f5bff373001f214": "0x049e4676e5e24868b25e59713adc3843ec50ebdae1f9c8ea9cbd6a45404df5db00ee3de29bbf4fb1e115ff125b7dee933d378eff3c74bec391725d50f86bfd97fdcebc9cefbc36e00704f9d70edd8efcf1fa6df5ed0b53abcd2ae4af6863bc8acd",
+}
+
 func initProcessor(conf string) *Processor {
 	cm := common.NewConfINIManager(conf)
 	proc := new(Processor)
-	addr := common.HexToAddress(cm.GetString("gtas", "miner", ""))
+	addr := cm.GetString("gtas", "miner", "")
 
 	gstore := fmt.Sprintf("%v/groupstore%v", confPathPrefix, cm.GetString("instance", "index", ""))
 	cm.SetString("consensus", "groupstore", gstore)
-
-	proc.Init(model.NewSelfMinerDO(addr), cm)
+	proc.Init(model.NewSelfMinerDO(common.HexToSecKey(minerInfo[addr])), cm)
 	log.Printf("%v", proc.mi.VrfPK)
 	return proc
 }
@@ -170,7 +175,7 @@ func TestGenesisGroup(t *testing.T) {
 				initingGroup = createInitedGroup(ginfo)
 				p.globalGroups.generator.addInitedGroup(initingGroup)
 			}
-			if initingGroup.receive(msg.SI.GetID(), msg.GroupPK) == INIT_SUCCESS {
+			if initingGroup.receive(msg.SI.GetID(), msg.GroupPK) == InitSuccess {
 				staticGroup := newSGIFromStaticGroupSummary(msg.GroupID, msg.GroupPK, initingGroup)
 				p.globalGroups.AddStaticGroup(staticGroup)
 			}
