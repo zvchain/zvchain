@@ -24,7 +24,7 @@ import (
 //hello world
 func TestTopic_Subscribe(t *testing.T) {
 	topic := &Topic{
-		Id: "test",
+		ID: "test",
 	}
 
 	topic.Subscribe(handler1)
@@ -35,7 +35,7 @@ func TestTopic_Subscribe(t *testing.T) {
 //hello world2
 func TestTopic_UnSubscribe0(t *testing.T) {
 	topic := &Topic{
-		Id: "test",
+		ID: "test",
 	}
 
 	topic.Subscribe(handler1)
@@ -49,7 +49,7 @@ func TestTopic_UnSubscribe0(t *testing.T) {
 //hello world
 func TestTopic_UnSubscribe1(t *testing.T) {
 	topic := &Topic{
-		Id: "test",
+		ID: "test",
 	}
 
 	topic.Subscribe(handler1)
@@ -64,7 +64,7 @@ func TestTopic_UnSubscribe1(t *testing.T) {
 // hello world2
 func TestTopic_UnSubscribe2(t *testing.T) {
 	topic := &Topic{
-		Id: "test",
+		ID: "test",
 	}
 
 	topic.Subscribe(handler1)

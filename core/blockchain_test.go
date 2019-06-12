@@ -479,8 +479,8 @@ func clearTicker() {
 
 func initContext4Test() error {
 	clear()
-	common.InitConf("../deploy/daily/tas1.ini")
-
+	common.DefaultLogger = taslog.GetLoggerByName("default")
+	common.InitConf("../tas_config_all.ini")
 	network.Logger = taslog.GetLoggerByName("p2p" + common.GlobalConf.GetString("client", "index", ""))
 	err := middleware.InitMiddleware()
 	if err != nil {

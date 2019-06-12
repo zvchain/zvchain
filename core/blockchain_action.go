@@ -118,8 +118,8 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	// Curtime setting after txs executed. More accuracy
 	block.Header.CurTime = chain.ts.Now()
 	block.Header.Elapsed = int32(block.Header.CurTime.Since(latestBlock.CurTime))
-	if block.Header.Elapsed <= 0 {
-		Logger.Error("cur time is before pre time:height=%v, curtime=%v, pretime=%v", height, block.Header.CurTime, latestBlock.CurTime)
+	if block.Header.Elapsed < 0 {
+		Logger.Errorf("cur time is before pre time:height=%v, curtime=%v, pretime=%v", height, block.Header.CurTime, latestBlock.CurTime)
 		return nil
 	}
 
