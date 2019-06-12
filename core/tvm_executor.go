@@ -131,7 +131,7 @@ func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, tra
 	amount := new(big.Int).SetUint64(transaction.Value)
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 	gasFee := new(big.Int).SetUint64(transaction.GasPrice * intriGas)
@@ -142,6 +142,7 @@ func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, tra
 		cumulativeGasUsed = gasFee.Uint64()
 		success = true
 	} else {
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		err = types.TxErrorBalanceNotEnough
 	}
 	return success, err, cumulativeGasUsed
@@ -151,7 +152,7 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 	success = false
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 	gasLimit := transaction.GasLimit
@@ -184,7 +185,7 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 
 		cumulativeGasUsed = gasLimit - gasLeft
 	} else {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		success = false
 		err = types.TxErrorBalanceNotEnough
 		Logger.Infof("ContractCreate balance not enough! transaction %s source %s  ", transaction.Hash.Hex(), transaction.Source.Hex())
@@ -198,6 +199,7 @@ func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB,
 	transferAmount := new(big.Int).SetUint64(transaction.Value)
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 	gasLimit := transaction.GasLimit
@@ -228,7 +230,7 @@ func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB,
 		cumulativeGasUsed = gasLimit - gasLeft
 	} else {
 		err = types.TxErrorBalanceNotEnough
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 	}
 	Logger.Debugf("TVMExecutor Execute ContractCall Transaction %s,success:%t", transaction.Hash.Hex(), success)
 	return success, err, cumulativeGasUsed, logs
@@ -267,12 +269,12 @@ func (executor *TVMExecutor) executeMinerApplyTx(accountdb *account.AccountDB, t
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
 		Logger.Debugf("TVMExecutor Execute MinerApply Fail(gas error) Source:%s Height:%d", transaction.Source.Hex(), height)
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 	if transaction.Data == nil {
 		Logger.Debugf("TVMExecutor Execute MinerApply Fail(Tx data is nil) Source:%s Height:%d", transaction.Source.Hex(), height)
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return success
 	}
 
@@ -316,7 +318,7 @@ func (executor *TVMExecutor) executeMinerApplyTx(accountdb *account.AccountDB, t
 			success = true
 		}
 	} else {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute MinerApply Fail(Balance Not Enough) Source:%s Height:%d", transaction.Source.Hex(), height)
 	}
 	return success
@@ -328,12 +330,12 @@ func (executor *TVMExecutor) executeMinerStakeTx(accountdb *account.AccountDB, t
 
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute Miner Stake Fail(gas error) Source:%s Height:%d", transaction.Source.Hex(), height)
 		return
 	}
 	if transaction.Data == nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute Miner Stake Fail(Tx data is nil) Source:%s Height:%d", transaction.Source.Hex(), height)
 		return
 	}
@@ -358,7 +360,7 @@ func (executor *TVMExecutor) executeMinerStakeTx(accountdb *account.AccountDB, t
 			}
 		}
 	} else {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute Miner Stake Fail(Balance Not Enough) Source:%s Height:%d", transaction.Source.Hex(), height)
 	}
 	return success
@@ -370,12 +372,12 @@ func (executor *TVMExecutor) executeMinerCancelStakeTx(accountdb *account.Accoun
 
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 
 	if transaction.Data == nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute MinerCancelStake Fail(Tx data is nil) Source:%s Height:%d", transaction.Source.Hex(), height)
 		return
 	}
@@ -385,7 +387,7 @@ func (executor *TVMExecutor) executeMinerCancelStakeTx(accountdb *account.Accoun
 	var _type, id, value = MinerManagerImpl.Transaction2MinerParams(transaction)
 	mexist := MinerManagerImpl.GetMinerByID(id, _type, accountdb)
 	if mexist == nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute MinerCancelStake Fail(Can not find miner) Source %s", transaction.Source.Hex())
 		return
 	}
@@ -410,7 +412,7 @@ func (executor *TVMExecutor) executeMinerAbortTx(accountdb *account.AccountDB, t
 
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 	txExecuteFee := new(big.Int).SetUint64(transaction.GasPrice * intriGas)
@@ -421,7 +423,7 @@ func (executor *TVMExecutor) executeMinerAbortTx(accountdb *account.AccountDB, t
 			success = MinerManagerImpl.abortMiner(transaction.Source[:], transaction.Data[0], height, accountdb)
 		}
 	} else {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute MinerAbort Fail(Balance Not Enough) Source:%s Height:%d ", transaction.Source.Hex(), height)
 	}
 	Logger.Debugf("TVMExecutor Execute MinerAbort Tx %s,Source:%s, Success:%t", transaction.Hash.Hex(), transaction.Source.Hex(), success)
@@ -432,7 +434,7 @@ func (executor *TVMExecutor) executeMinerRefundTx(accountdb *account.AccountDB, 
 	success = false
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		return
 	}
 
@@ -441,7 +443,7 @@ func (executor *TVMExecutor) executeMinerRefundTx(accountdb *account.AccountDB, 
 		accountdb.SubBalance(*transaction.Source, txExecuteFee)
 		accountdb.AddBalance(castor, txExecuteFee)
 	} else {
-		transferFee(accountdb,*transaction,castor,intriGas)
+		forceTransferFee(accountdb,*transaction,castor,intriGas)
 		Logger.Debugf("TVMExecutor Execute MinerRefund Fail(Balance Not Enough) Hash:%s,Source:%s", transaction.Hash.Hex(), transaction.Source.Hex())
 		return success
 	}
@@ -522,8 +524,8 @@ func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)
 }
-func transferFee(db vm.AccountDB, transaction types.Transaction, castor common.Address, fee uint64) {
-	gasFee := new(big.Int).SetUint64(fee)
+func forceTransferFee(db vm.AccountDB, transaction types.Transaction, castor common.Address, fee uint64) {
+	gasFee := new(big.Int).SetUint64(transaction.GasPrice * fee)
 	balance := db.GetBalance(*transaction.Source)
 	if balance.Cmp(gasFee) < 0 {
 		gasFee = balance
