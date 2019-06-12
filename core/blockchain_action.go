@@ -139,7 +139,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	return block
 }
 
-func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, txs []*types.Transaction) (ps *executePostState, ret int8) {
+func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, txs []*types.Transaction) (ret int8) {
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("verifyTxs", bh.Hash, bh.Height)
@@ -152,15 +152,15 @@ func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, txs []*types.Trans
 	}()
 
 	if !chain.validateTxs(bh, txs) {
-		return nil, -1
+		return -1
 	}
 
 	if !chain.validateTxRoot(bh.TxTree, txs) {
 		err = fmt.Errorf("validate tx root fail")
-		return nil, -1
+		return -1
 	}
 
-	return ps, 0
+	return 0
 }
 
 // AddBlockOnChain add a block on blockchain, there are five cases of return value：
@@ -273,7 +273,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		return
 	}
 
-	ps, verifyResult := chain.verifyTxs(bh, b.Transactions)
+	verifyResult := chain.verifyTxs(bh, b.Transactions)
 	if verifyResult != 0 {
 		Logger.Errorf("Fail to VerifyCastingBlock, reason code:%d \n", verifyResult)
 		ret = types.AddBlockFailed
@@ -308,7 +308,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 
 	// Add directly to the blockchain
 	if bh.PreHash == topBlock.Hash {
-		ok, e := chain.commitBlock(b, ps)
+		ok, e := chain.transitAndCommit(b)
 		if ok {
 			ret = types.AddBlockSucc
 			return
@@ -344,7 +344,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 			return
 		}
 
-		ok, e := chain.commitBlock(b, ps)
+		ok, e := chain.transitAndCommit(b)
 		if ok {
 			ret = types.AddBlockSucc
 			return
@@ -354,6 +354,18 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		err = ErrCommitBlockFail
 		return
 	}
+}
+
+func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err error) {
+	// Execute the transactions. Must be serialized execution
+	executeTxResult, ps := chain.executeTransaction(block)
+	if !executeTxResult {
+		err = fmt.Errorf("execute transaction fail")
+		return
+	}
+
+	// Commit to DB
+	return chain.commitBlock(block, ps)
 }
 
 // validateTxs check tx sign and recover source
