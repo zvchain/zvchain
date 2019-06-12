@@ -107,7 +107,7 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	}
 
 	if model.Param.VerifyBonus / uint64(len(targetIds)) != value {
-		return false, fmt.Errorf("invaild verify bonus, value=%v", value)
+		return false, fmt.Errorf("invalid verify bonus, value=%v", value)
 	}
 
 	group := Proc.GroupChain.GetGroupByID(groupID)
@@ -116,7 +116,7 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	}
 	for _,id := range(targetIds) {
 		if !group.MemberExist(id) {
-			return false, fmt.Errorf("invaild group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
+			return false, fmt.Errorf("invalid group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
 		}
 	}
 
