@@ -84,9 +84,6 @@ type pendingContainer struct {
 }
 
 func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
-	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000{
-		return true
-	}
 	if tx.Nonce == stateNonce+1 {
 		if s.waitingMap[*tx.Source] == nil {
 			s.waitingMap[*tx.Source] = skip.New(uint16(16))
@@ -102,9 +99,9 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 		if s.waitingMap[*tx.Source] == nil {
 			return false
 		}
-		bigNonce := skipGetLast(s.waitingMap[*tx.Source])
-		if bigNonce != nil {
-			bigNonce := bigNonce.(*orderByNonceTx).item.Nonce
+		bigNonceTx := skipGetLast(s.waitingMap[*tx.Source])
+		if bigNonceTx != nil {
+			bigNonce := bigNonceTx.(*orderByNonceTx).item.Nonce
 			if tx.Nonce > bigNonce + 1{
 				return false
 			}
@@ -128,34 +125,26 @@ func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
 	packingList := new(priceHeap)
 	heap.Init(packingList)
 
-	nonceIndex := make(map[common.Address]uint64)
+	noncePositionMap := make(map[common.Address]uint64)
 	for _, list := range s.waitingMap {
 		heap.Push(packingList,list.ByPosition(0).(*orderByNonceTx).item)
 	}
-
-	if packingList.Len() == 0{
-		return
-	}
-	tx := heap.Pop(packingList).(*types.Transaction)
-	for tx != nil {
-		if !f(tx) {
-			break
+	for {
+		if packingList.Len() == 0{
+			return
 		}
-		next := nonceIndex[*tx.Source]+1
-
+		tx := heap.Pop(packingList).(*types.Transaction)
+		if !f(tx) {
+			return
+		}
+		next := noncePositionMap[*tx.Source]+1
 		if s.waitingMap[*tx.Source] != nil && s.waitingMap[*tx.Source].Len() > next {
 			nextTx := s.waitingMap[*tx.Source].ByPosition(next).(*orderByNonceTx)
-			nonceIndex[*tx.Source] = next
+			noncePositionMap[*tx.Source] = next
 			heap.Push(packingList,nextTx.item)
-		}
-		if packingList.Len() > 0{
-			tx = heap.Pop(packingList).(*types.Transaction)
-		}else{
-			tx = nil
 		}
 	}
 }
-
 
 func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
 	slice := make([]*types.Transaction, 0, s.size)
@@ -266,9 +255,18 @@ func (c *simpleContainer) push(tx *types.Transaction) {
 		_ = fmt.Errorf("nonce error:%v %v", tx.Nonce, stateNonce)
 		return
 	}
+	//check balance before push to pool
+	gas, err := intrinsicGas(tx)
+	if err != nil {
+		_ = fmt.Errorf("discard transaction with gas not enough for gas limit")
+		return
+	}
+	if gas > c.chain.latestStateDB.GetBalance(*tx.Source).Uint64() {
+		_ = fmt.Errorf(" discard transaction with balance not enough for gas fee")
+		return
+	}
 
 	success := c.pending.push(tx, stateNonce)
-
 	if !success {
 		if len(c.queue) > c.queueLimit {
 			return
