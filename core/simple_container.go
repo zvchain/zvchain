@@ -191,9 +191,9 @@ func newSimpleContainer(pendingLimit int, queueLimit int, chain BlockChain) *sim
 	c := &simpleContainer{
 		lock:       sync.RWMutex{},
 		chain:      chain.(*FullBlockChain),
-		txsMap:     map[common.Hash]*types.Transaction{},
+		txsMap:     make(map[common.Hash]*types.Transaction),
 		pending:    newPendingContainer(pendingLimit),
-		queue:      map[common.Hash]*types.Transaction{},
+		queue:      make(map[common.Hash]*types.Transaction),
 		queueLimit: queueLimit,
 	}
 	return c
