@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"github.com/zvchain/zvchain/tvm"
@@ -239,12 +238,12 @@ import builtins
 builtins.register = Register()
 `
 
-	errorCode, errorMsg := vm.ExecuteScriptVMSucceed(str)
-	if errorCode == types.Success {
+	err := vm.ExecuteScriptVMSucceed(str)
+	if err == nil {
 		result := vm.ExecuteScriptKindFile(contractCode)
 		fmt.Println(result.Abi)
 	} else {
-		fmt.Println(errorMsg)
+		fmt.Println(err)
 	}
 
 }

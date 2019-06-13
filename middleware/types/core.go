@@ -47,6 +47,8 @@ const (
 
 	SyntaxError  = 1001
 	GasNotEnough = 1002
+	//TODO detail error
+	TVMExecutedError = 1003
 
 	SysError                    = 2001
 	SysCheckABIError            = 2002
