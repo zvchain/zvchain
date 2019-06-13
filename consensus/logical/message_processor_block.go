@@ -511,6 +511,7 @@ func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReq
 		return
 	}
 
+	send, err = p.signCastRewardReq(msg, bh)
 	return
 }
 

@@ -144,13 +144,8 @@ func (sc *SlotContext) IsWaiting() bool {
 // 		2, the verification piece is accepted and the threshold reached
 //		-1, piece denied
 func (sc *SlotContext) AcceptVerifyPiece(signer groupsig.ID, sign groupsig.Signature, randomSign groupsig.Signature) (ret int8, err error) {
-	var (
-		add      bool
-		generate bool
-	)
 
-	add, generate = sc.gSignGenerator.AddWitness(signer, sign)
-
+	add, generate := sc.gSignGenerator.AddWitness(signer, sign)
 	// Has received the member's verification
 	if !add {
 		// ignore

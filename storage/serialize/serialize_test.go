@@ -17,6 +17,7 @@ package serialize
 
 import (
 	"fmt"
+	"io"
 	"math/big"
 	"testing"
 
@@ -25,13 +26,24 @@ import (
 
 type Account struct {
 	Nonce    uint64
-	Balance  *big.Int
+	Balance  big.Int
 	Root     common.Hash
 	CodeHash []byte
+	Amount   *int
+}
+
+type accountWrapper struct {
+	data Account
+}
+
+func (enc *accountWrapper) Encode(w io.Writer) error {
+	return Encode(w, enc.data)
 }
 
 func TestSerialize(t *testing.T) {
-	a := Account{Nonce: 100, Root: common.BytesToHash([]byte{1, 2, 3}), CodeHash: []byte{4, 5, 6}, Balance: new(big.Int)}
+	v := 1000
+	a := Account{Nonce: 100, Root: common.BytesToHash([]byte{1, 2, 3}), CodeHash: []byte{4, 5, 6}, Balance: *new(big.Int).SetInt64(133), Amount: &v}
+	//aw := &accountWrapper{data: a}
 	accountDump(a)
 	byte, err := EncodeToBytes(a)
 	if err != nil {
@@ -47,5 +59,5 @@ func TestSerialize(t *testing.T) {
 }
 
 func accountDump(a Account) {
-	fmt.Printf("Account nounce:%d,Root:%s,CodeHash:%v,Balance:%v\n", a.Nonce, a.Root.Hex(), a.CodeHash, a.Balance.Sign())
+	fmt.Printf("Account nounce:%d,Root:%s,CodeHash:%v,Balance:%v,Amount:%v\n", a.Nonce, a.Root.Hex(), a.CodeHash, a.Balance.String(), *a.Amount)
 }

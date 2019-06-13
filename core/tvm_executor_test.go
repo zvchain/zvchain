@@ -1,19 +1,21 @@
 package core
 
 import (
-	"common"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb/filter"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/zvchain/zvchain/consensus/groupsig"
 	"math/rand"
-	"middleware/types"
 	"os"
-	"storage/account"
-	"storage/tasdb"
-	"taslog"
 	"testing"
 	"time"
-	"utility"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
+	"github.com/zvchain/zvchain/storage/tasdb"
+	"github.com/zvchain/zvchain/taslog"
+
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 var (
@@ -23,7 +25,11 @@ var (
 )
 
 func init() {
-	executor = &TVMExecutor{}
+	executor = &TVMExecutor{
+		bc: &FullBlockChain{
+			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
+		},
+	}
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        100,
 		BlockCacheCapacity:            16 * opt.MiB,
@@ -70,37 +76,14 @@ func genRandomTx() *types.Transaction {
 }
 
 func TestTVMExecutor_Execute(t *testing.T) {
-	executor := &TVMExecutor{}
-	options := &opt.Options{
-		OpenFilesCacheCapacity:        100,
-		BlockCacheCapacity:            16 * opt.MiB,
-		WriteBuffer:                   32 * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
-		CompactionTableSize:           4 * opt.MiB,
-		CompactionTableSizeMultiplier: 2,
-		CompactionTotalSize:           16 * opt.MiB,
-		BlockSize:                     2 * opt.MiB,
-	}
-	ds, err := tasdb.NewDataSource("test_db", options)
-	if err != nil {
-		t.Fatalf("new datasource error:%v", err)
-	}
-
-	statedb, err := ds.NewPrefixDatabase("state")
-	if err != nil {
-		t.Fatalf("Init block chain error! Error:%s", err.Error())
-	}
-	db := account.NewDatabase(statedb)
-
-	adb, err := account.NewAccountDB(common.Hash{}, db)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	txNum := 10
 	txs := make([]*types.Transaction, txNum)
 	for i := 0; i < txNum; i++ {
 		txs[i] = genRandomTx()
+	}
+	adb, err := account.NewAccountDB(common.Hash{}, accountdb)
+	if err != nil {
+		t.Fatal(err)
 	}
 	stateHash, evts, executed, receptes, err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
 	if err != nil {
@@ -120,7 +103,7 @@ func TestTVMExecutor_Execute(t *testing.T) {
 func BenchmarkTVMExecutor_Execute(b *testing.B) {
 	txNum := 5400
 	var state common.Hash
-	var ts = utility.NewTimeStatCtx()
+	var ts = common.NewTimeStatCtx()
 	for i := 0; i < b.N; i++ {
 		adb, err := account.NewAccountDB(state, accountdb)
 		if err != nil {

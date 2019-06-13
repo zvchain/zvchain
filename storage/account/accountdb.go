@@ -17,6 +17,8 @@ package account
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/storage/rlp"
+	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"sort"
 	"sync"
@@ -24,7 +26,6 @@ import (
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/storage/serialize"
 	"github.com/zvchain/zvchain/storage/trie"
 	"golang.org/x/crypto/sha3"
 )
@@ -298,7 +299,7 @@ func (adb *AccountDB) Suicide(addr common.Address) bool {
 // updateStateObject writes the given object to the trie.
 func (adb *AccountDB) updateAccountObject(stateObject *accountObject) {
 	addr := stateObject.Address()
-	data, err := serialize.EncodeToBytes(stateObject)
+	data, err := rlp.EncodeToBytes(stateObject.data)
 	if err != nil {
 		panic(fmt.Errorf("can't serialize object at %x: %v", addr[:], err))
 	}
@@ -320,7 +321,7 @@ func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject
 		return nil
 	}
 	var data Account
-	if err := serialize.DecodeBytes(enc, &data); err != nil {
+	if err := rlp.DecodeBytes(enc, &data); err != nil {
 		common.DefaultLogger.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
@@ -333,6 +334,10 @@ func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject
 func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accountObject) {
 	if obj, ok := adb.accountObjects.Load(addr); ok {
 		obj2 := obj.(*accountObject)
+		if addr == common.HeavyDBAddress {
+			getLogger().Infof("get  HeavyDBAddress obj from memory,root is %x,addr is %p",obj2.data.Root,obj)
+			taslog.Flush()
+		}
 		if obj2.deleted {
 			return nil
 		}
@@ -341,6 +346,10 @@ func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accoun
 
 	obj := adb.getAccountObjectFromTrie(addr)
 	if obj != nil {
+		if addr == common.HeavyDBAddress {
+			getLogger().Infof("get  HeavyDBAddress obj from level db,root is %x,addr is %p",obj.data.Root,obj)
+			taslog.Flush()
+		}
 		adb.setAccountObject(obj)
 	}
 	return obj
@@ -526,7 +535,7 @@ func (adb *AccountDB) Commit(deleteEmptyObjects bool) (root common.Hash, err err
 	}
 	root, err = adb.trie.Commit(func(leaf []byte, parent common.Hash) error {
 		var account Account
-		if err := serialize.DecodeBytes(leaf, &account); err != nil {
+		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}
 		if account.Root != emptyData {

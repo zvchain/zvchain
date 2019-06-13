@@ -41,38 +41,32 @@ const (
 	ReqSharePiece      uint32 = 11
 	ResponseSharePiece uint32 = 12
 
-	CurrentGroupCastMsg uint32 = 13
-	CastVerifyMsg       uint32 = 14
-	VerifiedCastMsg     uint32 = 15
-	CastRewardSignReq   uint32 = 16
-	CastRewardSignGot   uint32 = 17
-	BlockSignAggr       uint32 = 18
-
-	ReqProposalBlock      uint32 = 19
-	ResponseProposalBlock uint32 = 20
+	CastVerifyMsg         uint32 = 14 // The proposal sends the proposal msg to the verifier
+	VerifiedCastMsg       uint32 = 15 // The verifier sends the verified msg to the verifier group.
+	CastRewardSignReq     uint32 = 16
+	CastRewardSignGot     uint32 = 17
+	ReqProposalBlock      uint32 = 19 // The verifies sends the request to the proposal to get the block
+	ResponseProposalBlock uint32 = 20 // The proposal sends the response to the verifies to deliver the block
 
 	/*********************** chain message code ***********************
 	************************* range from 10000 to 19999 **************
 	 */
-
+	//The following four messages are used for block sync
 	BlockInfoNotifyMsg uint32 = 10001
+	ReqBlock           uint32 = 10002
+	BlockResponseMsg   uint32 = 10003
+	NewBlockMsg        uint32 = 10004
 
-	ReqBlock uint32 = 10002
-
-	BlockResponseMsg uint32 = 10003
-
-	NewBlockMsg uint32 = 10004
-
+	//The following three messages are used for group sync
 	GroupChainCountMsg uint32 = 10005
+	ReqGroupMsg        uint32 = 10006
+	GroupMsg           uint32 = 10007
 
-	ReqGroupMsg uint32 = 10006
-
-	GroupMsg uint32 = 10007
-
+	//The following two messages are used for block fork processing
 	ReqChainPieceBlock uint32 = 10008
+	ChainPieceBlock    uint32 = 10009
 
-	ChainPieceBlock uint32 = 10009
-
+	//The following three message are used for tx sync
 	TxSyncNotify   uint32 = 10010
 	TxSyncReq      uint32 = 10011
 	TxSyncResponse uint32 = 10012

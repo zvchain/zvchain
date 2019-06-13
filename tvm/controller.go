@@ -17,6 +17,7 @@ package tvm
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/zvchain/zvchain/common"
@@ -92,24 +93,24 @@ func NewController(accountDB vm.AccountDB,
 }
 
 // Deploy Deploy a contract instance
-func (con *Controller) Deploy(contract *Contract) (int, string) {
+func (con *Controller) Deploy(contract *Contract) error {
 	con.VM = NewTVM(con.Transaction.GetSource(), contract, con.LibPath)
 	defer func() {
 		con.VM.DelTVM()
 	}()
 	con.VM.SetGas(int(con.GasLeft))
 	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue(), Sender: con.Transaction.GetSource().Hex()}
-	errorCodeDeploy, errorDeployMsg := con.VM.Deploy(msg)
+	err := con.VM.Deploy(msg)
 
-	if errorCodeDeploy != 0 {
-		return errorCodeDeploy, errorDeployMsg
+	if err != nil {
+		return err
 	}
-	errorCodeStore, errorStoreMsg := con.VM.storeData()
-	if errorCodeStore != 0 {
-		return errorCodeStore, errorStoreMsg
+	err = con.VM.storeData()
+	if err != nil {
+		return err
 	}
 	con.GasLeft = uint64(con.VM.Gas())
-	return 0, ""
+	return nil
 }
 
 func canTransfer(db vm.AccountDB, addr common.Address, amount *big.Int) bool {
@@ -138,27 +139,29 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: con.Transaction.GetSource().Hex()}
-	errorCode, errorMsg, libLen := con.VM.CreateContractInstance(msg)
-	if errorCode != 0 {
-		return false, nil, types.NewTransactionError(errorCode, errorMsg)
+	libLen, err := con.VM.CreateContractInstance(msg)
+	if err != nil {
+		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		return false, nil, types.TxErrorABIJSON
 	}
-	errorCode, errorMsg = con.VM.checkABI(abi) //checkABI
-	if errorCode != 0 {
-		return false, nil, types.NewTransactionError(errorCode, errorMsg)
+	err = con.VM.checkABI(abi) //checkABI
+	if err != nil {
+		return false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
+			checkABI failed. abi:%s,msg=%s
+		`, abi.FuncName, err.Error()))
 	}
 	con.VM.SetLibLine(libLen)
-	errorCode, errorMsg = con.VM.executABIVMSucceed(abi) //execute
-	if errorCode != 0 {
-		return false, nil, types.NewTransactionError(errorCode, errorMsg)
+	err = con.VM.executABIVMSucceed(abi) //execute
+	if err != nil {
+		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
-	errorCode, errorMsg = con.VM.storeData() //store
-	if errorCode != 0 {
-		return false, nil, types.NewTransactionError(errorCode, errorMsg)
+	err = con.VM.storeData() //store
+	if err != nil {
+		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
 	return true, con.VM.Logs, nil
 }
@@ -180,8 +183,8 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: sender.Hex()}
-	errorCode, _, libLen := con.VM.CreateContractInstance(msg)
-	if errorCode != 0 {
+	libLen, err := con.VM.CreateContractInstance(msg)
+	if err != nil {
 		return nil
 	}
 	abi := ABI{}
@@ -189,8 +192,8 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	if abiJSONError != nil {
 		return nil
 	}
-	errorCode, _ = con.VM.checkABI(abi) //checkABI
-	if errorCode != 0 {
+	err = con.VM.checkABI(abi) //checkABI
+	if err != nil {
 		return nil
 	}
 	con.VM.SetLibLine(libLen)
@@ -198,8 +201,8 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
 		return result
 	}
-	errorCode, _ = con.VM.storeData() //store
-	if errorCode != 0 {
+	err = con.VM.storeData() //store
+	if err != nil {
 		return nil
 	}
 	return result

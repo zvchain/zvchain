@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"github.com/zvchain/zvchain/taslog"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
@@ -198,4 +199,24 @@ func compareStateObjects(so0, so1 *accountObject, t *testing.T) {
 			t.Errorf("Origin storage key %x mismatch: have %v, want none.", k, v)
 		}
 	}
+}
+
+func TestGetData(t *testing.T) {
+	s := setUp()
+
+	wg := &sync.WaitGroup{}
+	for a := 0; a < 100; a++ {
+		addr := common.BytesToAddress(common.IntToByte(a))
+		s.state.SetData(addr, "1", []byte("234444"))
+
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				s.state.GetData(addr, "1")
+			}()
+		}
+		s.state.Commit(true)
+	}
+	wg.Wait()
 }

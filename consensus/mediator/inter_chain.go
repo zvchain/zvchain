@@ -96,19 +96,36 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	if len(signBytes) < common.SignLength {
 		return false, fmt.Errorf("not enough bytes for bonus signature, sign =%v", signBytes)
 	}
-	groupID, _, _, _, err := Proc.MainChain.GetBonusManager().ParseBonusTransaction(tx)
+
+	groupID, targetIds, blockHash, value, err := Proc.MainChain.GetBonusManager().ParseBonusTransaction(tx)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse bonus transaction, err =%s", err)
 	}
+
+	if !Proc.MainChain.HasBlock(blockHash) {
+		return false, fmt.Errorf("chain does not have this block, block hash=%v", blockHash)
+	}
+
+	if model.Param.VerifyBonus / uint64(len(targetIds)) != value {
+		return false, fmt.Errorf("invalid verify bonus, value=%v", value)
+	}
+
 	group := Proc.GroupChain.GetGroupByID(groupID)
 	if group == nil {
 		return false, common.ErrGroupNil
 	}
+	for _,id := range(targetIds) {
+		if !group.MemberExist(id) {
+			return false, fmt.Errorf("invalid group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
+		}
+	}
+
 	gpk := groupsig.DeserializePubkeyBytes(group.PubKey)
 	gsign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
 	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gsign) {
 		return false, fmt.Errorf("verify bonus sign fail, gsign=%v", gsign.GetHexString())
 	}
+
 	return true, nil
 }
 
