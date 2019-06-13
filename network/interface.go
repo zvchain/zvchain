@@ -41,10 +41,11 @@ const (
 	ReqSharePiece      uint32 = 11
 	ResponseSharePiece uint32 = 12
 
+	//the following six messages are used for casting block
 	CastVerifyMsg         uint32 = 14 // The proposal sends the proposal msg to the verifier
 	VerifiedCastMsg       uint32 = 15 // The verifier sends the verified msg to the verifier group.
-	CastRewardSignReq     uint32 = 16
-	CastRewardSignGot     uint32 = 17
+	CastRewardSignReq     uint32 = 16 // Verifier reward: the verifier sends the piece request msg to the other verifiers.
+	CastRewardSignGot     uint32 = 17 // Verifier reward: the verifies sends the piece response msg to the other verifiers.
 	ReqProposalBlock      uint32 = 19 // The verifies sends the request to the proposal to get the block
 	ResponseProposalBlock uint32 = 20 // The proposal sends the response to the verifies to deliver the block
 
