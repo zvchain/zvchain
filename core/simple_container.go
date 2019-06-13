@@ -164,7 +164,8 @@ func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
 
 func (s *pendingContainer) remove(tx *types.Transaction) {
 	if s.waitingMap[*tx.Source] != nil {
-		s.waitingMap[*tx.Source].Delete(newOrderByNonceTx(tx))
+		deleted := s.waitingMap[*tx.Source].Delete(newOrderByNonceTx(tx))
+		s.size = s.size - len(deleted)
 		if s.waitingMap[*tx.Source].Len() == 0 {
 			delete(s.waitingMap, *tx.Source)
 		}
