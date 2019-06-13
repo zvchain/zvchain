@@ -116,6 +116,24 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 			doInsertOrReplace()
 		}
 	}
+
+	//remove lowest price transaction if pending is full
+	var lowPriceTx *types.Transaction
+	if s.size >= s.limit {
+		for _, sourcedMap := range s.waitingMap {
+			lastTx := skipGetLast(sourcedMap).(*orderByNonceTx).item
+			if lowPriceTx == nil {
+				lowPriceTx = lastTx
+			}
+			if lowPriceTx.GasPrice > lastTx.GasPrice {
+				lowPriceTx = lastTx
+			}
+		}
+		if lowPriceTx != nil {
+			s.remove(lowPriceTx)
+		}
+	}
+
 	return true
 }
 
@@ -160,6 +178,17 @@ func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
 		}
 	}
 	return slice
+}
+
+// will break when f(tx) returns false
+func (s *pendingContainer) eachForSync(f func(tx *types.Transaction) bool) {
+	for _, txSkip := range s.waitingMap {
+		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {
+			if !f(iter1.Value().(*orderByNonceTx).item) {
+				return
+			}
+		}
+	}
 }
 
 func (s *pendingContainer) remove(tx *types.Transaction) {
@@ -220,9 +249,10 @@ func (c *simpleContainer) get(key common.Hash) *types.Transaction {
 	return c.txsMap[key]
 }
 
+// asSlice only working for rpc now, does not need the lock
 func (c *simpleContainer) asSlice(limit int) []*types.Transaction {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
+	//c.lock.RLock()
+	//defer c.lock.RUnlock()
 
 	size := limit
 	if c.pending.size < size {
@@ -237,6 +267,13 @@ func (c *simpleContainer) eachForPack(f func(tx *types.Transaction) bool) {
 	defer c.lock.RUnlock()
 	c.pending.peek(f)
 }
+
+func (c *simpleContainer) eachForSync(f func(tx *types.Transaction) bool) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	c.pending.eachForSync(f)
+}
+
 
 func (c *simpleContainer) push(tx *types.Transaction) {
 	c.lock.Lock()
