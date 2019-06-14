@@ -18,6 +18,7 @@ package core
 import (
 	"container/heap"
 	"fmt"
+	"math/big"
 	"sync"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
@@ -293,7 +294,8 @@ func (c *simpleContainer) push(tx *types.Transaction) {
 		_ = fmt.Errorf("discard transaction with gas not enough for gas limit")
 		return
 	}
-	if gas > c.chain.latestStateDB.GetBalance(*tx.Source).Uint64() {
+	gasFee := new(big.Int).SetUint64(tx.GasPrice * gas)
+	if gasFee.Cmp( c.chain.latestStateDB.GetBalance(*tx.Source)) > 0 {
 		_ = fmt.Errorf(" discard transaction with balance not enough for gas fee")
 		return
 	}
