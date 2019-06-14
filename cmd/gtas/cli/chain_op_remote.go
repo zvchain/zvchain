@@ -134,7 +134,7 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 		if err != nil {
 			return opError(err)
 		}
-		tx.Nonce = nonce + 1
+		tx.Nonce = nonce
 	}
 
 	tranx := txRawToTransaction(tx)

@@ -732,7 +732,8 @@ func (api *GtasAPI) Dashboard() (*Result, error) {
 
 func (api *GtasAPI) Nonce(addr string) (*Result, error) {
 	address := common.HexToAddress(addr)
-	nonce := core.BlockChainImpl.GetNonce(address)
+	// user will see the nonce as db nonce +1, so that user can use it directly when send a transaction
+	nonce := core.BlockChainImpl.GetNonce(address) + 1
 	return successResult(nonce)
 }
 
