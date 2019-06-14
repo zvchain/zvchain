@@ -133,13 +133,16 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 
 	// If the block is successfully submitted, the transaction
 	// corresponding to the transaction pool should be deleted
+	removeTxs := make([]common.Hash,0)
 	if block.Transactions != nil {
-		chain.transactionPool.RemoveFromPool(block.GetTransactionHashs())
+		removeTxs = append(removeTxs, block.GetTransactionHashs()...)
 	}
 	// Remove eviction transactions from the transaction pool
 	if ps.evictedTxs != nil {
-		chain.transactionPool.RemoveFromPool(ps.evictedTxs)
+		removeTxs = append(removeTxs, ps.evictedTxs...)
 	}
+	chain.transactionPool.RemoveFromPool(removeTxs)
+
 	ok = true
 	return
 }
