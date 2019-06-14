@@ -88,11 +88,11 @@ func GetLoggerByName(name string) Logger {
 }
 
 func Flush() {
-	lock.Lock()
-	defer lock.Unlock()
-	for _, logger := range logManager {
-		logger.(seelog.LoggerInterface).Flush()
-	}
+	//lock.Lock()
+	//defer lock.Unlock()
+	//for _, logger := range logManager {
+	//	logger.(seelog.LoggerInterface).Flush()
+	//}
 }
 
 func getKey(s string) string {

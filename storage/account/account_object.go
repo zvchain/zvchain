@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"runtime/debug"
 	"sync"
 
 	"github.com/zvchain/zvchain/taslog"
@@ -176,7 +175,6 @@ func (ao *accountObject) touch() {
 func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 	if ao.address == common.HeavyDBAddress {
 		getLogger().Infof("access HeavyDBAddress begin,root is %x,addr is %p",ao.data.Root,ao)
-		getLogger().Infof("%s",debug.Stack())
 		taslog.Flush()
 	}
 	if ao.trie == nil {

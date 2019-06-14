@@ -36,7 +36,8 @@ message MsgPing{
     RpcEndPoint From = 2;
     RpcEndPoint To = 3;
     bytes  NodeId = 4;
-	uint64 Expiration = 5;
+    uint32 chainId = 5;
+	uint64 Expiration = 6;
 }
 
 message MsgRelay{
