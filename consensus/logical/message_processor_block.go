@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
@@ -617,18 +618,15 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 			return
 		}
 
-		pb.maxResponseCount = uint(math.Ceil(float64(group.GetMemberCount()) / 3))
+		pb.maxResponseCount = uint64(math.Ceil(float64(group.GetMemberCount()) / 3))
 	}
 
 	// Only response to limited members of the group in case of network traffic
-	if pb.responseCount >= pb.maxResponseCount {
+	if atomic.AddUint64(&pb.responseCount,1) > pb.maxResponseCount {
 		s = fmt.Sprintf("response count exceed")
 		blog.debug("block proposal response count >= maxResponseCount(%v), not response, hash=%v", pb.maxResponseCount, msg.Hash.ShortS())
 		return
 	}
-
-	pb.responseCount++
-
 	s = fmt.Sprintf("response txs size %v", len(pb.block.Transactions))
 	blog.debug("block proposal response, count=%v, max count=%v, hash=%v", pb.responseCount, pb.maxResponseCount, msg.Hash.ShortS())
 

@@ -39,8 +39,8 @@ type verifyMsgCache struct {
 
 type proposedBlock struct {
 	block            *types.Block
-	responseCount    uint
-	maxResponseCount uint
+	responseCount    uint64
+	maxResponseCount uint64
 }
 
 func newVerifyMsgCache() *verifyMsgCache {
