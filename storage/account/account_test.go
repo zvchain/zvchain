@@ -206,7 +206,7 @@ func TestGetData(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	for a := 0; a < 100; a++ {
-		addr := common.BytesToAddress(common.IntToByte(a))
+		addr := common.BytesToAddress(common.Int32ToByte(int32(a)))
 		s.state.SetData(addr, "1", []byte("234444"))
 
 		for i := 0; i < 100; i++ {

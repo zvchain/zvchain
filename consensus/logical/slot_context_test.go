@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -13,28 +13,28 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package common
+package logical
 
 import (
+	"github.com/zvchain/zvchain/common"
+	"math/rand"
+	"sync"
 	"testing"
 )
 
-func TestByteToInt32(t *testing.T) {
-	i := int32(2222)
-	bs := Int32ToByte(i)
-	t.Log(bs)
+func TestSlotContext_addSignedTxHash_Concurrent(t *testing.T) {
+	sc := &SlotContext{}
 
-	i2 := ByteToInt32(bs)
-	t.Log(i2)
-	if i2 != i {
-		t.Errorf("ByteToInt32 error")
+	wg := sync.WaitGroup{}
+	for i := 0; i < 100000; i++ {
+		wg.Add(1)
+		go func() {
+			bs := common.Int32ToByte(rand.Int31n(1000000000))
+			h := common.BytesToHash(bs)
+			sc.addSignedTxHash(h)
+			wg.Done()
+		}()
 	}
-}
-
-func TestInt32ToByte(t *testing.T) {
-	var i int32 = 100
-	bs := Int32ToByte(i)
-	if len(bs) == 0 {
-		t.Errorf("IntToByte error %v", bs)
-	}
+	wg.Wait()
+	t.Logf("finished, add size %v", sc.signedRewardTxHashs.Size())
 }
