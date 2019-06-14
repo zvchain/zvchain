@@ -231,8 +231,6 @@ func newSimpleContainer(pendingLimit int, queueLimit int, chain BlockChain) *sim
 }
 
 func (c *simpleContainer) Len() int {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
 	return c.pending.size + len(c.queue)
 }
 
