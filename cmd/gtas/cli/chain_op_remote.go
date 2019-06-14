@@ -129,13 +129,15 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 		return opError(fmt.Errorf("address error"))
 	}
 
-	nonce, err := ca.nonce(aci.Address)
-	if err != nil {
-		return opError(err)
+	if tx.Nonce == 0 {
+		nonce, err := ca.nonce(aci.Address)
+		if err != nil {
+			return opError(err)
+		}
+		tx.Nonce = nonce
 	}
+
 	tranx := txRawToTransaction(tx)
-	tranx.Nonce = nonce + 1
-	tx.Nonce = nonce + 1
 	tranx.Hash = tranx.GenHash()
 	sign := privateKey.Sign(tranx.Hash.Bytes())
 	tranx.Sign = sign.Bytes()
@@ -154,6 +156,11 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 // Balance query Balance by address
 func (ca *RemoteChainOpImpl) Balance(addr string) *Result {
 	return ca.request("balance", addr)
+}
+
+// Nonce query Balance by address
+func (ca *RemoteChainOpImpl) Nonce(addr string) *Result {
+	return ca.request("nonce", addr)
 }
 
 // MinerInfo query miner info by address
