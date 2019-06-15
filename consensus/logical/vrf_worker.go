@@ -107,8 +107,8 @@ func vrfThreshold(stake, totalStake uint64) *big.Rat {
 }
 
 func vrfSatisfy(pi base.VRFProve, stake uint64, totalStake uint64) (ok bool, qn uint64) {
-	if totalStake == 0 {
-		stdLogger.Errorf("total stake is 0!")
+	if totalStake == 0 || stake == 0 {
+		stdLogger.Errorf("stake error. stake=%v, totalStake=%v", stake, totalStake)
 		return false, 0
 	}
 	value := base.VRFProof2hash(pi)
