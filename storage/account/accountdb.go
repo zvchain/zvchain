@@ -332,6 +332,8 @@ func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject
 
 // Retrieve a state object given by the address. Returns nil if not found.
 func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accountObject) {
+	adb.lock.Lock()
+	defer adb.lock.Unlock()
 	if obj, ok := adb.accountObjects.Load(addr); ok {
 		obj2 := obj.(*accountObject)
 		if addr == common.HeavyDBAddress {

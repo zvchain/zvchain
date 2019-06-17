@@ -94,7 +94,7 @@ type accountObject struct {
 	trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract code, which gets set when code is loaded
 
-	cachedLock    sync.RWMutex
+	cachedLock    sync.Mutex
 	cachedStorage Storage // Storage cache of original entries to dedup rewrites
 	dirtyStorage  Storage // Storage entries that need to be flushed to disk
 
@@ -214,10 +214,10 @@ func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 
 // GetData retrieves a value from the account storage trie.
 func (ao *accountObject) GetData(db AccountDatabase, key string) []byte {
-	ao.cachedLock.RLock()
+	ao.cachedLock.Lock()
 	// If we have the original value cached, return that
 	value, exists := ao.cachedStorage[key]
-	ao.cachedLock.RUnlock()
+	defer ao.cachedLock.Unlock()
 	if exists {
 		return value
 	}
@@ -229,9 +229,7 @@ func (ao *accountObject) GetData(db AccountDatabase, key string) []byte {
 	}
 
 	if value != nil {
-		ao.cachedLock.Lock()
 		ao.cachedStorage[key] = value
-		ao.cachedLock.Unlock()
 	}
 	return value
 }
