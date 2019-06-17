@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"reflect"
 	"sync"
 
 	"github.com/zvchain/zvchain/taslog"
@@ -203,10 +202,6 @@ func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 	}
 	if ao.trie == nil {
 		getLogger().Infof("access HeavyDBAddress over find trie is nil,root is %x,addr is %p", ao.data.Root,ao)
-		taslog.Flush()
-	}
-	if reflect.ValueOf(ao.trie).IsNil() {
-		getLogger().Infof("access HeavyDBAddress over find trie value is nil,root is %x,addr is %p", ao.data.Root,ao)
 		taslog.Flush()
 	}
 	return ao.trie

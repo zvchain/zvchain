@@ -137,7 +137,12 @@ func (db *storageDB) OpenTrie(root common.Hash) (Trie, error) {
 
 // OpenStorageTrie opens the storage trie of an account.
 func (db *storageDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
-	return trie.NewTrie(root, db.db)
+	trie,err:= trie.NewTrie(root, db.db)
+
+	if err != nil{
+		return nil,err
+	}
+	return trie,nil
 }
 
 // CopyTrie returns an independent copy of the given trie.
