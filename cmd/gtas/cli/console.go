@@ -295,7 +295,7 @@ type sendTxCmd struct {
 	to           string
 	value        float64
 	data         string
-	nonce 	     uint64
+	nonce        uint64
 	contractName string
 	contractPath string
 	txType       int

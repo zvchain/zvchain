@@ -133,7 +133,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 
 	// If the block is successfully submitted, the transaction
 	// corresponding to the transaction pool should be deleted
-	removeTxs := make([]common.Hash,0)
+	removeTxs := make([]common.Hash, 0)
 	if block.Transactions != nil {
 		removeTxs = append(removeTxs, block.GetTransactionHashs()...)
 	}

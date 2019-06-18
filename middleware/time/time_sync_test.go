@@ -34,9 +34,6 @@ func TestNTPQuery(t *testing.T) {
 	tt, _ := ntp.Time("time.asia.apple.com")
 	t.Log(tt, time.Now())
 
-	rsp, _ := ntp.Query("time.pool.aliyun.com")
-	t.Log(rsp.Time, rsp.ClockOffset.String(), time.Now(), time.Now().Add(rsp.ClockOffset))
-
 	rsp, err := ntp.Query("cn.pool.ntp.org")
 	if err != nil {
 		t.Fatal(err)
@@ -78,5 +75,5 @@ func TestTimeUnixSec(t *testing.T) {
 }
 
 func TestTimeStampString(t *testing.T) {
-	fmt.Printf("ts:%v", TimeToTimeStamp(time.Now()))
+	t.Logf("ts:%v", TimeToTimeStamp(time.Now()))
 }

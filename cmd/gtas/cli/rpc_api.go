@@ -19,6 +19,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
@@ -27,9 +30,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 	"github.com/zvchain/zvchain/taslog"
-	"math"
-	"math/big"
-	"strconv"
 )
 
 var BonusLogger taslog.Logger
@@ -135,7 +135,7 @@ func (api *GtasAPI) TransPool() (*Result, error) {
 			Hash:   v.Hash.Hex(),
 			Source: v.Source.Hex(),
 			Target: v.Target.Hex(),
-			Value:  strconv.FormatInt(int64(v.Value), 10),
+			Value:  v.Value.String(),
 		})
 	}
 
@@ -298,17 +298,6 @@ func (api *GtasAPI) GetWorkGroup(height uint64) (*Result, error) {
 		ret = append(ret, gmap)
 	}
 	return successResult(ret)
-}
-
-func (api *GtasAPI) MinerQuery(mtype int32) (*Result, error) {
-	minerInfo := mediator.Proc.GetMinerInfo()
-	address := common.BytesToAddress(minerInfo.ID.Serialize())
-	miner := core.MinerManagerImpl.GetMinerByID(address[:], byte(mtype), nil)
-	js, err := json.Marshal(miner)
-	if err != nil {
-		return &Result{Message: err.Error(), Data: nil}, err
-	}
-	return &Result{Message: address.Hex(), Data: string(js)}, nil
 }
 
 // CastStat cast block statistics
