@@ -155,10 +155,6 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		}()
 	}
 
-	traceLog := monitor.NewPerformTraceLogger("resetTop", block.Hash, block.Height)
-	traceLog.SetParent("addBlockOnChain")
-	defer traceLog.Log("")
-
 	// Add read and write locks, block reading at this time
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
@@ -166,6 +162,9 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	if nil == block {
 		return fmt.Errorf("block is nil")
 	}
+	traceLog := monitor.NewPerformTraceLogger("resetTop", block.Hash, block.Height)
+	traceLog.SetParent("addBlockOnChain")
+	defer traceLog.Log("")
 	if block.Hash == chain.latestBlock.Hash {
 		return nil
 	}
