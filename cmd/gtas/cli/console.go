@@ -125,6 +125,32 @@ func (c *balanceCmd) parse(args []string) bool {
 	return true
 }
 
+type nonceCmd struct {
+	baseCmd
+	addr string
+}
+
+func genNonceCmd() *nonceCmd {
+	c := &nonceCmd{
+		baseCmd: *genbaseCmd("nonce", "get the nonce of the current unlocked account"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "the account address")
+	return c
+}
+
+func (c *nonceCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	if strings.TrimSpace(c.addr) == "" {
+		fmt.Println("please input the address")
+		c.fs.PrintDefaults()
+		return false
+	}
+	return true
+}
+
 type minerInfoCmd struct {
 	baseCmd
 	addr string
@@ -269,6 +295,7 @@ type sendTxCmd struct {
 	to           string
 	value        float64
 	data         string
+	nonce        uint64
 	contractName string
 	contractPath string
 	txType       int
@@ -282,6 +309,7 @@ func genSendTxCmd() *sendTxCmd {
 	c.fs.StringVar(&c.to, "to", "", "the transaction receiver address")
 	c.fs.Float64Var(&c.value, "value", 0.0, "transfer value in tas unit")
 	c.fs.StringVar(&c.data, "data", "", "transaction data")
+	c.fs.Uint64Var(&c.nonce, "nonce", 0, "nonce, optional. will use default nonce on chain if not specified")
 	c.fs.StringVar(&c.contractName, "contractname", "", "the name of the contract.")
 	c.fs.StringVar(&c.contractPath, "contractpath", "", "the path to the contract file.")
 	c.fs.IntVar(&c.txType, "type", 0, "transaction type: 0=general tx, 1=contract create, 2=contract call, 3=bonus, 4=miner apply,5=miner abort, 6=miner refund")
@@ -296,6 +324,7 @@ func (c *sendTxCmd) toTxRaw() *txRawData {
 		Data:     c.data,
 		Gas:      c.gaslimit,
 		Gasprice: c.gasPrice,
+		Nonce:    c.nonce,
 	}
 }
 
@@ -514,6 +543,7 @@ var cmdHelp = genbaseCmd("help", "show help info")
 var cmdAccountList = genbaseCmd("accountlist", "list the account of the keystore")
 var cmdUnlock = genUnlockCmd()
 var cmdBalance = genBalanceCmd()
+var cmdNonce = genNonceCmd()
 var cmdAccountInfo = genbaseCmd("accountinfo", "get the info of the current unlocked account")
 var cmdDelAccount = genbaseCmd("delaccount", "delete the info of the current unlocked account")
 var cmdMinerInfo = genMinerInfoCmd()
@@ -539,6 +569,7 @@ func init() {
 	list = append(list, cmdAccountList)
 	list = append(list, &cmdUnlock.baseCmd)
 	list = append(list, &cmdBalance.baseCmd)
+	list = append(list, &cmdNonce.baseCmd)
 	list = append(list, cmdAccountInfo)
 	list = append(list, cmdDelAccount)
 	list = append(list, &cmdMinerInfo.baseCmd)
@@ -717,6 +748,14 @@ func loop(acm accountOp, chainOp chainOp) {
 					return chainOp.Balance(cmd.addr)
 				})
 			}
+		case cmdNonce.name:
+			cmd := genNonceCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return chainOp.Nonce(cmd.addr)
+				})
+			}
+
 		case cmdMinerInfo.name:
 			cmd := genMinerInfoCmd()
 			if cmd.parse(args) {

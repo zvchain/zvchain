@@ -28,7 +28,8 @@ import (
 )
 
 const (
-	maxTxPoolSize               = 50000
+	maxPendingSize              = 40000
+	maxQueueSize                = 10000
 	bonusTxMaxSize              = 1000
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
@@ -80,7 +81,7 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 		chain:              chain,
 		gasPriceLowerBound: types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "gasprice_lower_bound", 1))),
 	}
-	pool.received = newSimpleContainer(maxTxPoolSize)
+	pool.received = newSimpleContainer(maxPendingSize, maxQueueSize, chain)
 	pool.bonPool = newBonusPool(chain.bonusManager, bonusTxMaxSize)
 	initTxSyncer(chain, pool)
 
@@ -161,7 +162,7 @@ func (pool *txPool) GetTransaction(bonus bool, hash common.Hash) *types.Transact
 
 // GetReceived returns the received transactions in the pool with a limited size
 func (pool *txPool) GetReceived() []*types.Transaction {
-	return pool.received.asSlice(maxTxPoolSize)
+	return pool.received.asSlice(maxPendingSize + maxQueueSize)
 }
 
 // TxNum returns the number of transactions in the pool
@@ -224,16 +225,6 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 		src := pk.GetAddress()
 		source = &src
 		tx.Source = source
-
-		//check nonce
-		stateNonce := pool.chain.LatestStateDB().GetNonce(src)
-		if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
-			return fmt.Errorf("nonce error:%v %v", tx.Nonce, stateNonce)
-		}
-		//
-		//if !pk.Verify(msg, sign) {
-		//	return fmt.Errorf("verify sign fail, hash=%v", tx.Hash.Hex())
-		//}
 	}
 
 	return nil
@@ -259,7 +250,9 @@ func (pool *txPool) add(tx *types.Transaction) bool {
 	if tx.Type == types.TransactionTypeBonus {
 		pool.bonPool.add(tx)
 	} else {
-		pool.received.push(tx)
+		if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) > 0 {
+			pool.received.push(tx)
+		}
 	}
 	TxSyncer.add(tx)
 
@@ -300,18 +293,17 @@ func (pool *txPool) packTx() []*types.Transaction {
 		accuSize += tx.Size()
 		return accuSize < txAccumulateSizeMaxPerBlock
 	})
-	if len(txs) < txAccumulateSizeMaxPerBlock {
-		for _, tx := range pool.received.asSlice(10000) {
+
+	if accuSize < txAccumulateSizeMaxPerBlock {
+		pool.received.eachForPack(func(tx *types.Transaction) bool {
 			// gas price too low
 			if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) < 0 {
-				continue
+				return true
 			}
 			txs = append(txs, tx)
-			accuSize += tx.Size()
-			if accuSize >= txAccumulateSizeMaxPerBlock {
-				break
-			}
-		}
+			accuSize = accuSize + tx.Size()
+			return accuSize < txAccumulateSizeMaxPerBlock
+		})
 	}
 	return txs
 }
@@ -323,6 +315,7 @@ func (pool *txPool) RemoveFromPool(txs []common.Hash) {
 	for _, tx := range txs {
 		pool.remove(tx)
 	}
+	go pool.received.promoteQueueToPending()
 }
 
 // BackToPool will put the transactions back to pool

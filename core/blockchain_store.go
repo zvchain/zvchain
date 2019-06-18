@@ -133,13 +133,16 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 
 	// If the block is successfully submitted, the transaction
 	// corresponding to the transaction pool should be deleted
+	removeTxs := make([]common.Hash, 0)
 	if block.Transactions != nil {
-		chain.transactionPool.RemoveFromPool(block.GetTransactionHashs())
+		removeTxs = append(removeTxs, block.GetTransactionHashs()...)
 	}
 	// Remove eviction transactions from the transaction pool
 	if ps.evictedTxs != nil {
-		chain.transactionPool.RemoveFromPool(ps.evictedTxs)
+		removeTxs = append(removeTxs, ps.evictedTxs...)
 	}
+	chain.transactionPool.RemoveFromPool(removeTxs)
+
 	ok = true
 	return
 }
@@ -152,10 +155,6 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		}()
 	}
 
-	traceLog := monitor.NewPerformTraceLogger("resetTop", block.Hash, block.Height)
-	traceLog.SetParent("addBlockOnChain")
-	defer traceLog.Log("")
-
 	// Add read and write locks, block reading at this time
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
@@ -163,6 +162,9 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	if nil == block {
 		return fmt.Errorf("block is nil")
 	}
+	traceLog := monitor.NewPerformTraceLogger("resetTop", block.Hash, block.Height)
+	traceLog.SetParent("addBlockOnChain")
+	defer traceLog.Log("")
 	if block.Hash == chain.latestBlock.Hash {
 		return nil
 	}

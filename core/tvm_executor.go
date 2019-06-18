@@ -477,7 +477,8 @@ func createContract(accountdb *account.AccountDB, transaction *types.Transaction
 func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err *types.TransactionError) {
 	gas := uint64(float32(len(transaction.Data)+len(transaction.ExtraData)) * CodeBytePrice)
 	gas = TransactionGasCost + gas
-	if transaction.GetGasLimit() < gas {
+	gasBig := types.NewBigInt(gas)
+	if transaction.GasLimit.Cmp(gasBig.Value()) < 0 {
 		return nil, types.TxErrorDeployGasNotEnough
 	}
 	return types.NewBigInt(gas), nil

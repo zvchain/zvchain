@@ -71,24 +71,22 @@ func newTopBlockInfo(topBH *types.BlockHeader) *topBlockInfo {
 // InitBlockSyncer initialize the blockSyncer. Register the ticker for sending and requesting blocks to neighbors timely
 // and also subscribe these events to handle requests from neighbors
 func InitBlockSyncer(chain *FullBlockChain) {
-	bs := &blockSyncer{
+	blockSync = &blockSyncer{
 		candidatePool: make(map[string]*topBlockInfo),
 		chain:         chain,
 		syncingPeers:  make(map[string]uint64),
 	}
-	bs.ticker = bs.chain.ticker
-	bs.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, common.GlobalConf.GetString("instance", "index", ""))
-	bs.ticker.RegisterPeriodicRoutine(tickerSendLocalTop, bs.notifyLocalTopBlockRoutine, sendLocalTopInterval)
-	bs.ticker.StartTickerRoutine(tickerSendLocalTop, false)
+	blockSync.ticker = blockSync.chain.ticker
+	blockSync.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	blockSync.ticker.RegisterPeriodicRoutine(tickerSendLocalTop, blockSync.notifyLocalTopBlockRoutine, sendLocalTopInterval)
+	blockSync.ticker.StartTickerRoutine(tickerSendLocalTop, false)
 
-	bs.ticker.RegisterPeriodicRoutine(tickerSyncNeighbor, bs.trySyncRoutine, syncNeightborsInterval)
-	bs.ticker.StartTickerRoutine(tickerSyncNeighbor, false)
+	blockSync.ticker.RegisterPeriodicRoutine(tickerSyncNeighbor, blockSync.trySyncRoutine, syncNeightborsInterval)
+	blockSync.ticker.StartTickerRoutine(tickerSyncNeighbor, false)
 
-	notify.BUS.Subscribe(notify.BlockInfoNotify, bs.topBlockInfoNotifyHandler)
-	notify.BUS.Subscribe(notify.BlockReq, bs.blockReqHandler)
-	notify.BUS.Subscribe(notify.BlockResponse, bs.blockResponseMsgHandler)
-
-	blockSync = bs
+	notify.BUS.Subscribe(notify.BlockInfoNotify, blockSync.topBlockInfoNotifyHandler)
+	notify.BUS.Subscribe(notify.BlockReq, blockSync.blockReqHandler)
+	notify.BUS.Subscribe(notify.BlockResponse, blockSync.blockResponseMsgHandler)
 
 }
 
@@ -371,6 +369,9 @@ func (bs *blockSyncer) blockReqHandler(msg notify.Message) {
 		return
 	}
 	localHeight := bs.chain.Height()
+	if br.ReqHeight == 0 || br.ReqHeight > localHeight || br.ReqSize > maxReqBlockCount {
+		return
+	}
 
 	bs.logger.Debugf("Rcv block request:reqHeight:%d, reqSize:%v, localHeight:%d", br.ReqHeight, br.ReqSize, localHeight)
 	blocks := bs.chain.BatchGetBlocksAfterHeight(br.ReqHeight, int(br.ReqSize))

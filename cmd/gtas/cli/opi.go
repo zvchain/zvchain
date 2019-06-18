@@ -111,6 +111,8 @@ type chainOp interface {
 	SendRaw(tx *txRawData) *Result
 	// Balance query Balance by address
 	Balance(addr string) *Result
+	// Nonce query Balance by address
+	Nonce(addr string) *Result
 	// MinerInfo query miner info by address
 	MinerInfo(addr string) *Result
 
