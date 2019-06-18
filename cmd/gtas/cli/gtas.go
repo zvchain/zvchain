@@ -225,7 +225,7 @@ func (gtas *Gtas) Run() {
 		common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
 		BonusLogger = taslog.GetLoggerByIndex(taslog.BonusStatConfig, common.GlobalConf.GetString("instance", "index", ""))
 		types.InitMiddleware()
-		
+
 		if *natAddr != "" {
 			common.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
 		}
@@ -388,33 +388,15 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 	pubKey := info.GetDefaultPubKey().GetHexString()
 	common.DefaultLogger.Infof("Miner PubKey: %s;\n", pubKey)
 	js, err := json.Marshal(PubKeyInfo{pubKey, id})
-	if err != nil{
+	if err != nil {
 		common.DefaultLogger.Errorf(err.Error())
-	}else{
+	} else {
 		common.DefaultLogger.Infof("pubkey_info json: %s\n", js)
 	}
 }
 
 func NewGtas() *Gtas {
 	return &Gtas{}
-}
-
-func genTestTx(hash string, price uint64, source string, target string, nonce uint64, value uint64) *types.Transaction {
-
-	sourcebyte := common.BytesToAddress(common.Sha256([]byte(source)))
-	targetbyte := common.BytesToAddress(common.Sha256([]byte(target)))
-
-	data := []byte("This is a transaction")
-	return &types.Transaction{
-		Data:     data,
-		Value:    value,
-		Nonce:    nonce,
-		Source:   &sourcebyte,
-		Target:   &targetbyte,
-		GasPrice: price,
-		GasLimit: 3,
-		Hash:     common.BytesToHash(common.Sha256([]byte(hash))),
-	}
 }
 
 func (gtas *Gtas) autoApplyMiner(mtype int) {

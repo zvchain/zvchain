@@ -75,12 +75,12 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 
 	return &types.Transaction{
 		Data:      []byte(tx.Data),
-		Value:     tx.Value,
+		Value:     types.NewBigInt(tx.Value),
 		Nonce:     tx.Nonce,
 		Target:    target,
 		Type:      int8(tx.TxType),
-		GasLimit:  tx.Gas,
-		GasPrice:  tx.Gasprice,
+		GasLimit:  types.NewBigInt(tx.Gas),
+		GasPrice:  types.NewBigInt(tx.Gasprice),
 		Sign:      sign,
 		ExtraData: []byte(tx.ExtraData),
 	}
@@ -111,6 +111,8 @@ type chainOp interface {
 	SendRaw(tx *txRawData) *Result
 	// Balance query Balance by address
 	Balance(addr string) *Result
+	// Nonce query Balance by address
+	Nonce(addr string) *Result
 	// MinerInfo query miner info by address
 	MinerInfo(addr string) *Result
 

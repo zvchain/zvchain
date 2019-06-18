@@ -301,15 +301,15 @@ func (ts *txSyncer) notifyTxs() bool {
 		}
 		return true
 	})
+
 	if len(txs) < txMaxNotifyPerTime {
-		for _, tx := range ts.pool.received.asSlice(maxTxPoolSize) {
+		ts.pool.received.eachForSync(func(tx *types.Transaction) bool {
 			if ts.checkTxCanBroadcast(tx.Hash) {
 				txs = append(txs, tx)
-				if len(txs) >= txMaxNotifyPerTime {
-					break
-				}
+				return len(txs) < txMaxNotifyPerTime
 			}
-		}
+			return true
+		})
 	}
 
 	ts.sendSimpleTxKeys(txs)
@@ -462,7 +462,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 			txs = append(txs, tx)
 		}
 	}
-	if len(txs) == 0 {
+	if len(txs) == 0 || len(txs) > txMaxNotifyPerTime {
 		return
 	}
 	body, e := types.MarshalTransactions(txs)

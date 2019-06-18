@@ -21,10 +21,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strconv"
-	"time"
 
-	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
@@ -138,7 +135,7 @@ func (api *GtasAPI) TransPool() (*Result, error) {
 			Hash:   v.Hash.Hex(),
 			Source: v.Source.Hex(),
 			Target: v.Target.Hex(),
-			Value:  strconv.FormatInt(int64(v.Value), 10),
+			Value:  v.Value.String(),
 		})
 	}
 
@@ -301,100 +298,6 @@ func (api *GtasAPI) GetWorkGroup(height uint64) (*Result, error) {
 		ret = append(ret, gmap)
 	}
 	return successResult(ret)
-}
-
-// deprecated
-func (api *GtasAPI) MinerApply(sign string, bpk string, vrfpk string, stake uint64, mtype int32) (*Result, error) {
-	id := IDFromSign(sign)
-	address := common.BytesToAddress(id)
-
-	info := core.MinerManagerImpl.GetMinerByID(id, byte(mtype), nil)
-	if info != nil {
-		return failResult("you has applied for this type of miner")
-	}
-
-	//address := common.BytesToAddress(minerInfo.ID.Serialize())
-	nonce := time.Now().UnixNano()
-	pbkBytes := common.FromHex(bpk)
-
-	miner := &types.Miner{
-		ID:           id,
-		PublicKey:    groupsig.DeserializePubkeyBytes(pbkBytes).Serialize(),
-		VrfPublicKey: common.FromHex(vrfpk),
-		Stake:        stake,
-		Type:         byte(mtype),
-	}
-	data, err := msgpack.Marshal(miner)
-	if err != nil {
-		return &Result{Message: err.Error(), Data: nil}, nil
-	}
-	tx := &types.Transaction{
-		Nonce:    uint64(nonce),
-		Data:     data,
-		Source:   &address,
-		Value:    stake,
-		Type:     types.TransactionTypeMinerApply,
-		GasPrice: common.MaxUint64,
-	}
-	tx.Hash = tx.GenHash()
-	ok, err := core.BlockChainImpl.GetTransactionPool().AddTransaction(tx)
-	if !ok {
-		return failResult(err.Error())
-	}
-	return successResult(nil)
-}
-
-func (api *GtasAPI) MinerQuery(mtype int32) (*Result, error) {
-	minerInfo := mediator.Proc.GetMinerInfo()
-	address := common.BytesToAddress(minerInfo.ID.Serialize())
-	miner := core.MinerManagerImpl.GetMinerByID(address[:], byte(mtype), nil)
-	js, err := json.Marshal(miner)
-	if err != nil {
-		return &Result{Message: err.Error(), Data: nil}, err
-	}
-	return &Result{Message: address.Hex(), Data: string(js)}, nil
-}
-
-// deprecated
-func (api *GtasAPI) MinerAbort(sign string, mtype int32) (*Result, error) {
-	id := IDFromSign(sign)
-	address := common.BytesToAddress(id)
-
-	nonce := time.Now().UnixNano()
-	tx := &types.Transaction{
-		Nonce:    uint64(nonce),
-		Data:     []byte{byte(mtype)},
-		Source:   &address,
-		Type:     types.TransactionTypeMinerAbort,
-		GasPrice: common.MaxUint64,
-	}
-	tx.Hash = tx.GenHash()
-	ok, err := core.BlockChainImpl.GetTransactionPool().AddTransaction(tx)
-	if !ok {
-		return failResult(err.Error())
-	}
-	return successResult(nil)
-}
-
-// deprecated
-func (api *GtasAPI) MinerRefund(sign string, mtype int32) (*Result, error) {
-	id := IDFromSign(sign)
-	address := common.BytesToAddress(id)
-
-	nonce := time.Now().UnixNano()
-	tx := &types.Transaction{
-		Nonce:    uint64(nonce),
-		Data:     []byte{byte(mtype)},
-		Source:   &address,
-		Type:     types.TransactionTypeMinerRefund,
-		GasPrice: common.MaxUint64,
-	}
-	tx.Hash = tx.GenHash()
-	ok, err := core.BlockChainImpl.GetTransactionPool().AddTransaction(tx)
-	if !ok {
-		return &Result{Message: err.Error(), Data: nil}, nil
-	}
-	return &Result{Message: "success"}, nil
 }
 
 // CastStat cast block statistics
@@ -732,7 +635,8 @@ func (api *GtasAPI) Dashboard() (*Result, error) {
 
 func (api *GtasAPI) Nonce(addr string) (*Result, error) {
 	address := common.HexToAddress(addr)
-	nonce := core.BlockChainImpl.GetNonce(address)
+	// user will see the nonce as db nonce +1, so that user can use it directly when send a transaction
+	nonce := core.BlockChainImpl.GetNonce(address) + 1
 	return successResult(nonce)
 }
 
