@@ -67,6 +67,8 @@ var (
 	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
 	InitContractError    = 2005
 	InitContractErrorMsg = "contract init error"
+	InputParamError    	 = 2006
+	InputParamErrorMsg   = "input param error"
 )
 
 var (

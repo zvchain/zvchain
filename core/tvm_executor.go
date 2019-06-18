@@ -127,7 +127,10 @@ func (executor *TVMExecutor) validateNonce(accountdb *account.AccountDB, transac
 
 func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address) (success bool, err *types.TransactionError, cumulativeGasUsed uint64) {
 	success = false
-
+	if transaction.Target == nil{
+		err = types.NewTransactionError(types.InputParamError, types.InputParamErrorMsg)
+		return
+	}
 	amount := new(big.Int).SetUint64(transaction.Value)
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
@@ -193,6 +196,10 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 
 func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader) (success bool, err *types.TransactionError, cumulativeGasUsed uint64, logs []*types.Log) {
 	success = false
+	if transaction.Target == nil{
+		err = types.NewTransactionError(types.InputParamError, types.InputParamErrorMsg)
+		return
+	}
 	transferAmount := new(big.Int).SetUint64(transaction.Value)
 	intriGas, err := intrinsicGas(transaction)
 	if err != nil {
