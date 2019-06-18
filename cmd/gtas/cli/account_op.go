@@ -119,12 +119,12 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 	if readyOnly && !dirExists(keystore) {
 		aop, err := newAccountOp(keystore)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		ret := aop.NewAccount(DefaultPassword, true)
 		if !ret.IsSuccess() {
 			fmt.Println(ret.Message)
-			panic(ret.Message)
+			return nil, err
 		}
 		return aop, nil
 	}
@@ -174,7 +174,8 @@ func (am *AccountManager) getFirstMinerAccount() *Account {
 	iter := am.store.NewIterator()
 	for iter.Next() {
 		if ac, err := am.getAccountInfo(string(iter.Key())); err != nil {
-			panic(fmt.Sprintf("getAccountInfo err,addr=%v,err=%v", string(iter.Key()), err.Error()))
+			fmt.Printf("getAccountInfo err,addr=%v,err=%v", string(iter.Key()), err.Error())
+			return nil
 		} else {
 			if ac.Miner != nil {
 				return &ac.Account

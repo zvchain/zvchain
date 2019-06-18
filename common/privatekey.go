@@ -33,7 +33,7 @@ type PrivateKey struct {
 }
 
 // Sign returns the message signature using the private key
-func (pk PrivateKey) Sign(hash []byte) Sign {
+func (pk PrivateKey) Sign(hash []byte) (Sign, error) {
 	var sign Sign
 
 	pribytes := pk.PrivKey.D.Bytes()
@@ -47,10 +47,10 @@ func (pk PrivateKey) Sign(hash []byte) Sign {
 	if err == nil {
 		sign = *BytesToSign(sig)
 	} else {
-		panic(fmt.Sprintf("Sign Failed, reason : %v.\n", err.Error()))
+		fmt.Printf("Sign Failed, reason : %v.\n", err.Error())
 	}
 
-	return sign
+	return sign, err
 }
 
 // GenerateKey creates a Private key by the specified string

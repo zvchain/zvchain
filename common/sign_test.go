@@ -70,7 +70,7 @@ func TestSign(test *testing.T) {
 	pub_buf := pub_k.Bytes()
 	pub_k = *BytesToPublicKey(pub_buf)
 
-	sha3_si := pri_k.Sign(sha3_hash[:])
+	sha3_si, _ := pri_k.Sign(sha3_hash[:])
 	{
 		buf_r := sha3_si.r.Bytes()
 		buf_s := sha3_si.s.Bytes()
@@ -127,7 +127,7 @@ func TestSignBytes(test *testing.T) {
 	pri_k := GenerateKey("")
 
 	sha3_hash := sha3.Sum256(buf)
-	sign := pri_k.Sign(sha3_hash[:])
+	sign, _ := pri_k.Sign(sha3_hash[:])
 
 	h := sign.Hex()
 	fmt.Println(h)
@@ -148,7 +148,7 @@ func TestRecoverPubkey(test *testing.T) {
 	sha3_hash := sha3.Sum256(buf)
 
 	sk := GenerateKey("")
-	sign := sk.Sign(sha3_hash[:])
+	sign, _ := sk.Sign(sha3_hash[:])
 
 	pk, err := sign.RecoverPubkey(sha3_hash[:])
 	if err == nil {
@@ -181,7 +181,7 @@ func BenchmarkVerify(b *testing.B) {
 	sk := GenerateKey("")
 	pk := sk.GetPubKey()
 	sha3_hash := sha3.Sum256(msg)
-	sign := sk.Sign(sha3_hash[:])
+	sign, _ := sk.Sign(sha3_hash[:])
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		pk.Verify(sha3_hash[:], &sign)
@@ -192,7 +192,7 @@ func BenchmarkRecover(b *testing.B) {
 	msg := []byte("This is TASchain achates' testing message")
 	sk := GenerateKey("")
 	sha3_hash := sha3.Sum256(msg)
-	sign := sk.Sign(sha3_hash[:])
+	sign, _ := sk.Sign(sha3_hash[:])
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = sign.RecoverPubkey(sha3_hash[:])
@@ -225,6 +225,6 @@ func TestSignSeckey(t *testing.T) {
 		t.Fatal("seck key error")
 	}
 
-	sign := seck.Sign(HexToHash("0x123").Bytes())
+	sign, _ := seck.Sign(HexToHash("0x123").Bytes())
 	t.Logf(sign.Hex())
 }

@@ -420,6 +420,7 @@ func genTestTx(hash string, price uint64, source string, target string, nonce ui
 func (gtas *Gtas) autoApplyMiner(mtype int) {
 	miner := mediator.Proc.GetMinerInfo()
 	if miner.ID.GetHexString() != gtas.account.Address {
+		// exit if miner's id not match the the account
 		panic(fmt.Errorf("id error %v %v", miner.ID.GetHexString(), gtas.account.Address))
 	}
 
