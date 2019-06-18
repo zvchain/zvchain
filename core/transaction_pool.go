@@ -203,6 +203,11 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 			return err
 		}
 	} else {
+		if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCall{
+			if tx.Target == nil{
+				return fmt.Errorf("target is nil")
+			}
+		}
 		if tx.GasPrice == 0 {
 			return fmt.Errorf("illegal tx gasPrice")
 		}
