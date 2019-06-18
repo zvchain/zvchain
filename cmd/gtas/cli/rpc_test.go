@@ -112,3 +112,28 @@ func resetDb(dbPath string) error {
 
 	return nil
 }
+
+func TestMarshalTxRawData(t *testing.T) {
+	tx := &txRawData{
+		Target:   "0x123",
+		Value:    100000000,
+		Gas:      1304,
+		Gasprice: 2324,
+	}
+	json, err := json.Marshal(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(json))
+
+}
+
+func TestUnmarhsalTxRawData(t *testing.T) {
+	s := `{"target":"0x123","value":23,"gas":99,"gasprice":2324,"tx_type":0,"nonce":0,"data":"","sign":"","extra_data":""}`
+	tx := &txRawData{}
+
+	err := json.Unmarshal([]byte(s), tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

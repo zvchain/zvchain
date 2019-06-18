@@ -16,6 +16,7 @@
 package common
 
 import (
+	"math/big"
 	"testing"
 )
 
@@ -37,4 +38,13 @@ func TestInt32ToByte(t *testing.T) {
 	if len(bs) == 0 {
 		t.Errorf("IntToByte error %v", bs)
 	}
+}
+
+func TestMarshalBigInt(t *testing.T) {
+	bi := new(big.Int).SetInt64(1000000000)
+	bs, err := bi.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bs len ", len(bs), bi, len(bi.Bytes()))
 }

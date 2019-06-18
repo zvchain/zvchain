@@ -17,16 +17,17 @@ package logical
 
 import (
 	"github.com/zvchain/zvchain/common"
+	"gopkg.in/fatih/set.v0"
 	"math/rand"
 	"sync"
 	"testing"
 )
 
 func TestSlotContext_addSignedTxHash_Concurrent(t *testing.T) {
-	sc := &SlotContext{}
+	sc := &SlotContext{signedRewardTxHashs: set.New(set.ThreadSafe)}
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			bs := common.Int32ToByte(rand.Int31n(1000000000))

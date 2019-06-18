@@ -102,13 +102,13 @@ const (
 // Transaction denotes one transaction infos
 type Transaction struct {
 	Data   []byte          `msgpack:"dt,omitempty"` // Data of the transaction, cost gas
-	Value  uint64          `msgpack:"v"`            // The value the sender suppose to transfer
+	Value  *BigInt         `msgpack:"v"`            // The value the sender suppose to transfer
 	Nonce  uint64          `msgpack:"nc"`           // The nonce indicates the transaction sequence related to sender
 	Target *common.Address `msgpack:"tg,omitempty"` // The receiver address
 	Type   int8            `msgpack:"tp"`           // Transaction type
 
-	GasLimit uint64      `msgpack:"gl"`
-	GasPrice uint64      `msgpack:"gp"`
+	GasLimit *BigInt     `msgpack:"gl"`
+	GasPrice *BigInt     `msgpack:"gp"`
 	Hash     common.Hash `msgpack:"h"`
 
 	ExtraData     []byte          `msgpack:"ed"`
@@ -126,14 +126,14 @@ func (tx *Transaction) GenHash() common.Hash {
 	if tx.Data != nil {
 		buffer.Write(tx.Data)
 	}
-	buffer.Write(common.Uint64ToByte(tx.Value))
+	buffer.Write(tx.Value.GetBytesWithSign())
 	buffer.Write(common.Uint64ToByte(tx.Nonce))
 	if tx.Target != nil {
 		buffer.Write(tx.Target.Bytes())
 	}
 	buffer.WriteByte(byte(tx.Type))
-	buffer.Write(common.Uint64ToByte(tx.GasLimit))
-	buffer.Write(common.Uint64ToByte(tx.GasPrice))
+	buffer.Write(tx.GasLimit.GetBytesWithSign())
+	buffer.Write(tx.GasPrice.GetBytesWithSign())
 	if tx.ExtraData != nil {
 		buffer.Write(tx.ExtraData)
 	}
@@ -165,9 +165,33 @@ func (tx *Transaction) Size() int {
 	return txFixSize + len(tx.Data) + len(tx.ExtraData)
 }
 
-func (tx Transaction) GetData() []byte            { return tx.Data }
-func (tx Transaction) GetGasLimit() uint64        { return tx.GasLimit }
-func (tx Transaction) GetValue() uint64           { return tx.Value }
+func (tx *Transaction) IsBonus() bool {
+	return tx.Type == TransactionTypeBonus
+}
+
+// BoundCheck check if the transaction param exceeds the bounds
+func (tx *Transaction) BoundCheck() error {
+	if tx.GasPrice == nil || !tx.GasPrice.IsUint64() {
+		return fmt.Errorf("illegal tx gasPrice:%v", tx.GasPrice)
+	}
+	if tx.GasLimit == nil || !tx.GasLimit.IsUint64() {
+		return fmt.Errorf("illegal tx gasLimit:%v", tx.GasLimit)
+	}
+	if tx.Value == nil || !tx.Value.IsUint64() {
+		return fmt.Errorf("illegal tx value:%v", tx.Value)
+	}
+	return nil
+}
+
+func (tx Transaction) GetData() []byte { return tx.Data }
+
+func (tx Transaction) GetGasLimit() uint64 {
+	return tx.GasLimit.Uint64()
+}
+func (tx Transaction) GetValue() uint64 {
+	return tx.Value.Uint64()
+}
+
 func (tx Transaction) GetSource() *common.Address { return tx.Source }
 func (tx Transaction) GetTarget() *common.Address { return tx.Target }
 func (tx Transaction) GetHash() common.Hash       { return tx.Hash }
@@ -188,7 +212,7 @@ func (pt PriorityTransactions) Less(i, j int) bool {
 	} else if pt[i].Type != TransactionTypeToBeRemoved && pt[j].Type == TransactionTypeToBeRemoved {
 		return false
 	} else {
-		return pt[i].GasPrice < pt[j].GasPrice
+		return pt[i].GasPrice.Cmp(&pt[j].GasPrice.Int) < 0
 	}
 }
 func (pt *PriorityTransactions) Push(x interface{}) {

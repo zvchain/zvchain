@@ -42,14 +42,14 @@ func genTx(source string, target string) *types.Transaction {
 
 	tx := &types.Transaction{
 		Data:          []byte{13, 23},
-		GasPrice:      1,
+		GasPrice:      types.NewBigInt(1),
 		Source:        sourceAddr,
 		Target:        targetAddr,
 		Nonce:         rand.Uint64(),
-		Value:         rand.Uint64(),
+		Value:         types.NewBigInt(rand.Uint64()),
 		ExtraData:     []byte{2, 3, 4},
 		ExtraDataType: 1,
-		GasLimit:      10000000,
+		GasLimit:      types.NewBigInt(10000000),
 		Type:          1,
 	}
 	tx.Hash = tx.GenHash()
@@ -179,11 +179,15 @@ func TestMarshalSign(t *testing.T) {
 func TestMarshalTx(t *testing.T) {
 	tx := genTx("0x123", "0x2343")
 	bs, err := marshalTx(tx)
-	t.Log(tx, tx.Source)
+	t.Logf("%+v, %v", tx, tx.Source)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	tx1, err := unmarshalTx(bs)
+	if err != nil {
+		panic(err)
+		t.Fatal(err)
+	}
 	t.Log(tx1, tx1.Source)
 }

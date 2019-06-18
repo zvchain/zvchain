@@ -94,7 +94,7 @@ func (c *simpleContainer) push(tx *types.Transaction) {
 
 	if c.txs.Len() >= c.limit {
 		for i, oldTx := range c.txs {
-			if tx.GasPrice >= oldTx.GasPrice {
+			if tx.GasPrice.Cmp(oldTx.GasPrice.Value()) >= 0 {
 				delete(c.txsMap, oldTx.Hash)
 				c.txs[i] = tx
 				c.txsMap[tx.Hash] = tx

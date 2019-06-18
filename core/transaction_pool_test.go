@@ -78,12 +78,12 @@ func TestContainer(t *testing.T) {
 	}
 
 	tGet := pool.GetTransaction(false, transaction1.Hash)
-	if tGet.GasPrice != gasePrice1 {
+	if tGet.GasPrice.Uint64() != gasePrice1 {
 		t.Fatalf("gas price is wrong")
 	}
 
 	tGet = pool.GetTransaction(false, transaction2.Hash)
-	if tGet.GasPrice != gasePrice2 {
+	if tGet.GasPrice.Uint64() != gasePrice2 {
 		t.Fatalf("gas price is wrong")
 	}
 

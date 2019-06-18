@@ -79,6 +79,9 @@ func NewController(accountDB vm.AccountDB,
 	if controller == nil {
 		controller = &Controller{}
 	}
+	if transaction.GetGasLimit() < gasUsed {
+		panic(fmt.Sprintf("gasLimit less than gasUsed:%v %v", transaction.GetGasLimit(), gasUsed))
+	}
 	controller.BlockHeader = header
 	controller.Transaction = transaction
 	controller.AccountDB = accountDB
