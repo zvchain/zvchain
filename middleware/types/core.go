@@ -67,6 +67,8 @@ var (
 	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
 	InitContractError    = 2005
 	InitContractErrorMsg = "contract init error"
+	TargetNilError    	 = 2006
+	TargetNilErrorMsg    = "target nil error"
 )
 
 var (
@@ -179,6 +181,11 @@ func (tx *Transaction) BoundCheck() error {
 	}
 	if tx.Value == nil || !tx.Value.IsUint64() {
 		return fmt.Errorf("illegal tx value:%v", tx.Value)
+	}
+	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall{
+		if tx.Target == nil{
+			return fmt.Errorf("param target cannot nil")
+		}
 	}
 	return nil
 }
