@@ -74,9 +74,9 @@ type Gtas struct {
 }
 
 // miner start miner node
-func (gtas *Gtas) miner(rpc, super, testMode bool, rpcAddr, natIP string, natPort uint16, seedIP string, seedID string, rpcPort uint, light bool, apply string, keystore string, enableLog bool, chainID uint16) {
+func (gtas *Gtas) miner(rpc, super, testMode bool, rpcAddr, natIP string, natPort uint16, seedID string, rpcPort uint, light bool, apply string, keystore string, enableLog bool, chainID uint16) {
 	gtas.runtimeInit()
-	err := gtas.fullInit(super, testMode, natIP, natPort, seedIP, seedID, light, keystore, enableLog, chainID)
+	err := gtas.fullInit(super, testMode, natIP, natPort, seedID, light, keystore, enableLog, chainID)
 	if err != nil {
 		fmt.Println(err.Error())
 		common.DefaultLogger.Error(err.Error())
@@ -187,7 +187,6 @@ func (gtas *Gtas) Run() {
 	// In test mode, P2P NAT is closed
 	testMode := mineCmd.Flag("test", "test mode").Bool()
 	seedAddr := mineCmd.Flag("seed", "seed address").String()
-	seedID := mineCmd.Flag("seedid", "seed id").Default("").String()
 	natAddr := mineCmd.Flag("nat", "nat server address").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("0").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
@@ -231,7 +230,7 @@ func (gtas *Gtas) Run() {
 		}
 		lightMiner = *light
 		// Light node and heavy node
-		gtas.miner(*rpc, *super, *testMode, addrRPC.String(), *natAddr, *natPort, *seedAddr, *seedID, *portRPC, *light, *apply, *keystore, *enableLogSrv, *chainID)
+		gtas.miner(*rpc, *super, *testMode, addrRPC.String(), *natAddr, *natPort, *seedAddr, *portRPC, *light, *apply, *keystore, *enableLogSrv, *chainID)
 	case clearCmd.FullCommand():
 		err := ClearBlock(*light)
 		if err != nil {
@@ -285,7 +284,7 @@ func (gtas *Gtas) checkAddress(keystore, address string) error {
 	return fmt.Errorf("please create a miner account first")
 }
 
-func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint16, seedAddr string, seedID string, light bool, keystore string, enableLog bool, chainID uint16) error {
+func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint16, seedAddr string, light bool, keystore string, enableLog bool, chainID uint16) error {
 	var err error
 
 	// Initialization middleware
@@ -331,10 +330,10 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint1
 		NatAddr:         natAddr,
 		NatPort:         natPort,
 		SeedAddr:        seedAddr,
-		SeedID:          seedID,
 		NodeIDHex:       id,
 		ChainID:         chainID,
-		ProtocolVersion: common.ProtocalVersion}
+		ProtocolVersion: common.ProtocalVersion,
+		SeedIDs:core.GroupChainImpl.GenesisMembers()}
 
 	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)
 
