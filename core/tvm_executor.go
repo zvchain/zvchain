@@ -500,13 +500,6 @@ func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int
 func forceTransferFee(db vm.AccountDB, transaction types.Transaction, castor common.Address, gasUsed *types.BigInt) *big.Int{
 	cumulativeGasUsed := gasUsed.Value()
 	gasFee := new(types.BigInt).Mul(gasUsed.Value(), transaction.GasPrice.Value())
-	balance := db.GetBalance(*transaction.Source)
-	// normally this if will never be entered, because all transaction with balance not enough to pay for gasFee will be
-	// rejected when pushing to transaction pool
-	if balance.Cmp(gasFee) < 0 {
-		gasFee = balance
-		cumulativeGasUsed = new(types.BigInt).Div(gasFee,transaction.GasPrice.Value())
-	}
 	db.SubBalance(*transaction.Source, gasFee)
 	db.AddBalance(castor, gasFee)
 	return cumulativeGasUsed
