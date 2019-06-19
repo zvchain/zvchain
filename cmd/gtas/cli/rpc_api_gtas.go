@@ -198,3 +198,11 @@ func (api *rpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	}
 	return successResult(account)
 }
+
+// PledgeDetail query the pledge details of the given account.
+// from: the miner address who launches the pledge, optional.
+// to: the miner address who was pledged, required.
+// All pledge detail will be returned if the from param is empty
+func (api *rpcGtasImpl) PledgeDetail(from, to string) (*Result, error) {
+
+}

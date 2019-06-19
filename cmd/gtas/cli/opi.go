@@ -93,7 +93,7 @@ type accountOp interface {
 
 	Lock(addr string) *Result
 
-	UnLock(addr string, password string) *Result
+	UnLock(addr string, password string, duration uint) *Result
 
 	AccountInfo() *Result
 

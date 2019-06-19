@@ -45,36 +45,35 @@ const (
 	TxErrorCodeDeployGasNotEnough      = 3
 	TxErrorCodeNoCode                  = 4
 
-
 	//TODO detail error
 	TVMExecutedError = 1003
 
-	SysCheckABIError            = 2002
-	SysABIJSONError             = 2003
+	SysCheckABIError = 2002
+	SysABIJSONError  = 2003
 
 	txFixSize = 200 // Fixed size for each transaction
 )
 
 var (
-	NoCodeErr            = 4
-	NoCodeErrorMsg       = "get code from address %s,but no code!"
-	ABIJSONError         = 2003
-	ABIJSONErrorMsg      = "abi json format error"
-	CallMaxDeepError     = 2004
-	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
-	InitContractError    = 2005
-	InitContractErrorMsg = "contract init error"
-	TargetNilError    	 = 2006
-	TargetNilErrorMsg    = "target nil error"
-	InsufficientBalanceForGas   	 = 2007
-	InsufficientBalanceForGasMsg     = "insufficient balance for gas"
+	NoCodeErr                    = 4
+	NoCodeErrorMsg               = "get code from address %s,but no code!"
+	ABIJSONError                 = 2003
+	ABIJSONErrorMsg              = "abi json format error"
+	CallMaxDeepError             = 2004
+	CallMaxDeepErrorMsg          = "call max deep cannot more than 8"
+	InitContractError            = 2005
+	InitContractErrorMsg         = "contract init error"
+	TargetNilError               = 2006
+	TargetNilErrorMsg            = "target nil error"
+	InsufficientBalanceForGas    = 2007
+	InsufficientBalanceForGasMsg = "insufficient balance for gas"
 )
 
 var (
-	TxErrorBalanceNotEnough   = NewTransactionError(TxErrorCodeBalanceNotEnough, "balance not enough")
-	TxErrorDeployGasNotEnough = NewTransactionError(TxErrorCodeDeployGasNotEnough, "gas not enough")
-	TxErrorABIJSON            = NewTransactionError(SysABIJSONError, "abi json format error")
-	TxErrorInsufficientBalanceForGas            = NewTransactionError(InsufficientBalanceForGas, InsufficientBalanceForGasMsg)
+	TxErrorBalanceNotEnough          = NewTransactionError(TxErrorCodeBalanceNotEnough, "balance not enough")
+	TxErrorDeployGasNotEnough        = NewTransactionError(TxErrorCodeDeployGasNotEnough, "gas not enough")
+	TxErrorABIJSON                   = NewTransactionError(SysABIJSONError, "abi json format error")
+	TxErrorInsufficientBalanceForGas = NewTransactionError(InsufficientBalanceForGas, InsufficientBalanceForGasMsg)
 )
 
 type TransactionError struct {
@@ -182,8 +181,8 @@ func (tx *Transaction) BoundCheck() error {
 	if tx.Value == nil || !tx.Value.IsUint64() {
 		return fmt.Errorf("illegal tx value:%v", tx.Value)
 	}
-	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall{
-		if tx.Target == nil{
+	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall {
+		if tx.Target == nil {
 			return fmt.Errorf("param target cannot nil")
 		}
 	}
@@ -453,4 +452,21 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 
 func (bw *BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.PV.Uint64())
+}
+
+// StakeStatus indicates the stake status
+type StakeStatus = int
+
+const (
+	Staked      StakeStatus = iota // Normal status
+	StakeFrozen                    // Frozen status
+)
+
+// StakeDetail expresses the stake detail
+type StakeDetail struct {
+	Source       common.Address
+	Target       common.Address
+	Value        uint64
+	Status       StakeStatus
+	FrozenHeight uint64
 }
