@@ -111,7 +111,8 @@ func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) {
 		return
 	}
 	for _, tx := range txs {
-		pool.tryAddTransaction(tx, from)
+		// this error can be ignored
+		_, _ = pool.tryAddTransaction(tx, from)
 	}
 	notify.BUS.Publish(notify.TxPoolAddTxs, &txPoolAddMessage{txs: txs, txSrc: from})
 }
@@ -241,22 +242,26 @@ func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
 		return false, fmt.Errorf("tx exist in %v", where)
 	}
 
-	pool.add(tx)
+	err := pool.add(tx)
+
+	if err != nil {
+		return false, err
+	}
 
 	return true, nil
 }
 
-func (pool *txPool) add(tx *types.Transaction) bool {
+func (pool *txPool) add(tx *types.Transaction) ( err error) {
 	if tx.Type == types.TransactionTypeBonus {
 		pool.bonPool.add(tx)
 	} else {
 		if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) > 0 {
-			pool.received.push(tx)
+			err = pool.received.push(tx)
 		}
 	}
 	TxSyncer.add(tx)
 
-	return true
+	return err
 }
 
 func (pool *txPool) remove(txHash common.Hash) {
@@ -330,7 +335,8 @@ func (pool *txPool) BackToPool(txs []*types.Transaction) {
 				continue
 			}
 		}
-		pool.add(txRaw)
+		// this error can be ignored
+		_ = pool.add(txRaw)
 	}
 }
 
