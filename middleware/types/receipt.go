@@ -47,11 +47,10 @@ type Receipt struct {
 	ContractAddress common.Address `json:"contractAddress"`
 	Height          uint64         `json:"height"`
 	TxIndex         uint16         `json:"tx_index"`
-	TotalFee		uint64	   	   `json:"totalFee"`
 }
 
-func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64,totalFee uint64) *Receipt {
-	r := &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: cumulativeGasUsed,TotalFee:totalFee}
+func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
+	r := &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: cumulativeGasUsed}
 	if failed {
 		r.Status = ReceiptStatusFailed
 	} else {

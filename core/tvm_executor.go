@@ -60,7 +60,6 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 			contractAddress   common.Address
 			logs              []*types.Log
 			gasUsed           *types.BigInt
-			totalFee		  uint64
 			cumulativeGasUsed uint64
 		)
 
@@ -117,10 +116,9 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				continue
 			}
 		}
-		totalFee = new(types.BigInt).Mul(transaction.GasPrice.Value(), new(big.Int).SetUint64(cumulativeGasUsed)).Uint64()
 		idx := len(transactions)
 		transactions = append(transactions, transaction)
-		receipt := types.NewReceipt(nil, !success, cumulativeGasUsed,totalFee)
+		receipt := types.NewReceipt(nil, !success, cumulativeGasUsed)
 		receipt.Logs = logs
 		receipt.TxHash = transaction.Hash
 		receipt.ContractAddress = contractAddress
