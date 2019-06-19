@@ -18,8 +18,7 @@ package core
 import "github.com/zvchain/zvchain/middleware/types"
 
 // InitCore initialize the peerManagerImpl, BlockChainImpl and GroupChainImpl
-func InitCore(light bool, helper types.ConsensusHelper) error {
-	light = false
+func InitCore(helper types.ConsensusHelper) error {
 	initPeerManager()
 	if nil == BlockChainImpl {
 		err := initBlockChain(helper)

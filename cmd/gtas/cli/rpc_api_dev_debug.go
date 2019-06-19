@@ -171,7 +171,7 @@ func selectNextVerifyGroup(gs map[string]*types.Group, preBH *types.BlockHeader,
 	return groupsig.DeserializeID(gid), qualifiedGs
 }
 
-func (api *GtasAPI) DebugVerifySummary(from, to uint64) (*Result, error) {
+func (api *rpcDevImpl) DebugVerifySummary(from, to uint64) (*Result, error) {
 	if from == 0 {
 		from = 1
 	}
@@ -242,12 +242,12 @@ func (api *GtasAPI) DebugVerifySummary(from, to uint64) (*Result, error) {
 	return successResult(summary)
 }
 
-func (api *GtasAPI) DebugJoinGroupInfo(gid string) (*Result, error) {
+func (api *rpcDevImpl) DebugJoinGroupInfo(gid string) (*Result, error) {
 	jg := mediator.Proc.GetJoinGroupInfo(gid)
 	return successResult(jg)
 }
 
-func (api *GtasAPI) DebugRemoveBlock(h uint64) (*Result, error) {
+func (api *rpcDevImpl) DebugRemoveBlock(h uint64) (*Result, error) {
 	bh := core.BlockChainImpl.QueryBlockHeaderByHeight(h)
 	if bh != nil {
 		b := core.BlockChainImpl.QueryBlockByHash(bh.Hash)
@@ -259,7 +259,7 @@ func (api *GtasAPI) DebugRemoveBlock(h uint64) (*Result, error) {
 	return successResult("not exist")
 }
 
-func (api *GtasAPI) DebugGetTxs(limit int) (*Result, error) {
+func (api *rpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetReceived()
 
 	hashs := make([]string, 0)
@@ -272,7 +272,7 @@ func (api *GtasAPI) DebugGetTxs(limit int) (*Result, error) {
 	return successResult(hashs)
 }
 
-func (api *GtasAPI) DebugGetBonusTxs(limit int) (*Result, error) {
+func (api *rpcDevImpl) DebugGetBonusTxs(limit int) (*Result, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetBonusTxs()
 
 	type bonusTxHash struct {
@@ -293,7 +293,7 @@ func (api *GtasAPI) DebugGetBonusTxs(limit int) (*Result, error) {
 	return successResult(hashs)
 }
 
-func (api *GtasAPI) DebugPrintCheckProve(height, preheight uint64, gids string) (*Result, error) {
+func (api *rpcDevImpl) DebugPrintCheckProve(height, preheight uint64, gids string) (*Result, error) {
 	pre := core.BlockChainImpl.QueryBlockHeaderByHeight(preheight)
 	if pre == nil {
 		return failResult("nil pre block")
@@ -306,7 +306,7 @@ func (api *GtasAPI) DebugPrintCheckProve(height, preheight uint64, gids string) 
 	return successResult(ss)
 }
 
-func (api *GtasAPI) DebugGetRawTx(hash string) (*Result, error) {
+func (api *rpcDevImpl) DebugGetRawTx(hash string) (*Result, error) {
 	tx := core.BlockChainImpl.GetTransactionByHash(false, false, common.HexToHash(hash))
 
 	if tx != nil {
