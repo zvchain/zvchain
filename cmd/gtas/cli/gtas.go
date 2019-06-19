@@ -74,9 +74,9 @@ type Gtas struct {
 }
 
 // miner start miner node
-func (gtas *Gtas) miner(rpc, super, testMode bool, rpcAddr, natIP string, natPort uint16, seedID string, rpcPort uint, light bool, apply string, keystore string, enableLog bool, chainID uint16) {
+func (gtas *Gtas) miner(rpc, super, testMode bool, rpcAddr, natIP string, natPort uint16, seedAddr string, rpcPort uint, light bool, apply string, keystore string, enableLog bool, chainID uint16) {
 	gtas.runtimeInit()
-	err := gtas.fullInit(super, testMode, natIP, natPort, seedID, light, keystore, enableLog, chainID)
+	err := gtas.fullInit(super, testMode, natIP, natPort, seedAddr, light, keystore, enableLog, chainID)
 	if err != nil {
 		fmt.Println(err.Error())
 		common.DefaultLogger.Error(err.Error())
