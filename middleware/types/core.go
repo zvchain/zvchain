@@ -45,15 +45,12 @@ const (
 	TxErrorCodeDeployGasNotEnough      = 3
 	TxErrorCodeNoCode                  = 4
 
-	SyntaxError  = 1001
-	GasNotEnough = 1002
+
 	//TODO detail error
 	TVMExecutedError = 1003
 
-	SysError                    = 2001
 	SysCheckABIError            = 2002
 	SysABIJSONError             = 2003
-	SysContractCallMaxDeepError = 2004
 
 	txFixSize = 200 // Fixed size for each transaction
 )
@@ -69,12 +66,15 @@ var (
 	InitContractErrorMsg = "contract init error"
 	TargetNilError    	 = 2006
 	TargetNilErrorMsg    = "target nil error"
+	InsufficientBalanceForGas   	 = 2007
+	InsufficientBalanceForGasMsg     = "insufficient balance for gas"
 )
 
 var (
 	TxErrorBalanceNotEnough   = NewTransactionError(TxErrorCodeBalanceNotEnough, "balance not enough")
 	TxErrorDeployGasNotEnough = NewTransactionError(TxErrorCodeDeployGasNotEnough, "gas not enough")
 	TxErrorABIJSON            = NewTransactionError(SysABIJSONError, "abi json format error")
+	TxErrorInsufficientBalanceForGas            = NewTransactionError(InsufficientBalanceForGas, InsufficientBalanceForGasMsg)
 )
 
 type TransactionError struct {

@@ -74,12 +74,18 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
+			gasLimitFee := new(types.BigInt).Mul(transaction.GasLimit.Value(), transaction.GasPrice.Value())
+			txErr = checkGasFeeIsEnough(accountdb,*transaction.Source,gasLimitFee)
+			if txErr!= nil{
+				evictedTxs = append(evictedTxs, transaction.Hash)
+				continue
+			}
 			gasUsed = intriGas
 			if !executor.validateNonce(accountdb, transaction) {
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
-			gasLimitFee := new(types.BigInt).Mul(transaction.GasLimit.Value(), transaction.GasPrice.Value())
+
 			if canTransfer(accountdb, *transaction.Source, transaction.Value.Value(), gasLimitFee) {
 				switch transaction.Type {
 				case types.TransactionTypeTransfer:
@@ -467,6 +473,13 @@ func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err *t
 		return nil, types.TxErrorDeployGasNotEnough
 	}
 	return types.NewBigInt(gas), nil
+}
+
+func checkGasFeeIsEnough(db vm.AccountDB,addr common.Address,gasFee *big.Int)*types.TransactionError{
+	if db.GetBalance(addr).Cmp(gasFee) < 0{
+		return types.TxErrorInsufficientBalanceForGas
+	}
+	return nil
 }
 
 func canTransfer(db vm.AccountDB, addr common.Address, amount *big.Int, gasFee *big.Int) bool {
