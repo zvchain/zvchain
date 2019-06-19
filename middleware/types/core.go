@@ -45,15 +45,12 @@ const (
 	TxErrorCodeDeployGasNotEnough      = 3
 	TxErrorCodeNoCode                  = 4
 
-	SyntaxError  = 1001
-	GasNotEnough = 1002
+
 	//TODO detail error
 	TVMExecutedError = 1003
 
-	SysError                    = 2001
 	SysCheckABIError            = 2002
 	SysABIJSONError             = 2003
-	SysContractCallMaxDeepError = 2004
 
 	txFixSize = 200 // Fixed size for each transaction
 )
@@ -67,12 +64,17 @@ var (
 	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
 	InitContractError    = 2005
 	InitContractErrorMsg = "contract init error"
+	TargetNilError    	 = 2006
+	TargetNilErrorMsg    = "target nil error"
+	InsufficientBalanceForGas   	 = 2007
+	InsufficientBalanceForGasMsg     = "insufficient balance for gas"
 )
 
 var (
 	TxErrorBalanceNotEnough   = NewTransactionError(TxErrorCodeBalanceNotEnough, "balance not enough")
 	TxErrorDeployGasNotEnough = NewTransactionError(TxErrorCodeDeployGasNotEnough, "gas not enough")
 	TxErrorABIJSON            = NewTransactionError(SysABIJSONError, "abi json format error")
+	TxErrorInsufficientBalanceForGas            = NewTransactionError(InsufficientBalanceForGas, InsufficientBalanceForGasMsg)
 )
 
 type TransactionError struct {
@@ -179,6 +181,11 @@ func (tx *Transaction) BoundCheck() error {
 	}
 	if tx.Value == nil || !tx.Value.IsUint64() {
 		return fmt.Errorf("illegal tx value:%v", tx.Value)
+	}
+	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall{
+		if tx.Target == nil{
+			return fmt.Errorf("param target cannot nil")
+		}
 	}
 	return nil
 }
