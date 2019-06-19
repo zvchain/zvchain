@@ -76,20 +76,20 @@ func (bm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 	if len(buffer.Bytes())%common.AddressLength != 0 {
 		return nil, nil, errors.New("GenerateReward ExtraData Size Invalid")
 	}
-	transaction.Value = totalValue / uint64(len(targetIds))
+	transaction.Value = types.NewBigInt(totalValue / uint64(len(targetIds)))
 	transaction.Type = types.TransactionTypeReward
-	transaction.GasPrice = common.MaxUint64
+	transaction.GasPrice = types.NewBigInt(0)
 	transaction.Hash = transaction.GenHash()
 	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
 }
 
-// ParseRewardTransaction parse a reward transaction and  returns the group id, targetIds, block hash and transcation value
-func (bm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, uint64, error) {
+// ParseBonusTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
+func (bm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, *types.BigInt, error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	groupID := make([]byte, common.GroupIDLength)
 	addr := make([]byte, common.AddressLength)
 	if n, _ := reader.Read(groupID); n != common.GroupIDLength {
-		return nil, nil, common.Hash{}, 0, errors.New("ParseRewardTransaction Read GroupID Fail")
+		return nil, nil, common.Hash{}, nil, errors.New("ParseRewardTransaction Read GroupID Fail")
 	}
 	ids := make([][]byte, 0)
 	for n, _ := reader.Read(addr); n > 0; n, _ = reader.Read(addr) {

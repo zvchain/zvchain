@@ -399,24 +399,6 @@ func NewGtas() *Gtas {
 	return &Gtas{}
 }
 
-func genTestTx(hash string, price uint64, source string, target string, nonce uint64, value uint64) *types.Transaction {
-
-	sourcebyte := common.BytesToAddress(common.Sha256([]byte(source)))
-	targetbyte := common.BytesToAddress(common.Sha256([]byte(target)))
-
-	data := []byte("This is a transaction")
-	return &types.Transaction{
-		Data:     data,
-		Value:    value,
-		Nonce:    nonce,
-		Source:   &sourcebyte,
-		Target:   &targetbyte,
-		GasPrice: price,
-		GasLimit: 3,
-		Hash:     common.BytesToHash(common.Sha256([]byte(hash))),
-	}
-}
-
 func (gtas *Gtas) autoApplyMiner(mtype int) {
 	miner := mediator.Proc.GetMinerInfo()
 	if miner.ID.GetHexString() != gtas.account.Address {

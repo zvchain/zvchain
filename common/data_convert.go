@@ -41,16 +41,6 @@ func ByteToUInt32(b []byte) uint32 {
 	return x
 }
 
-func IntToByte(i int) []byte {
-	return numberToByte(i)
-}
-
-func ByteToInt(b []byte) int {
-	var x int
-	bytesToNumber(&x, b)
-	return x
-}
-
 func UInt64ToByte(i uint64) []byte {
 	return numberToByte(i)
 }

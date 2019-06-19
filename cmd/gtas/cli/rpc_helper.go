@@ -31,13 +31,13 @@ func convertTransaction(tx *types.Transaction) *Transaction {
 		Source:        tx.Source,
 		Target:        tx.Target,
 		Type:          tx.Type,
-		GasLimit:      tx.GasLimit,
-		GasPrice:      tx.GasPrice,
+		GasLimit:      tx.GasLimit.Uint64(),
+		GasPrice:      tx.GasPrice.Uint64(),
 		Data:          tx.Data,
 		ExtraData:     tx.ExtraData,
 		ExtraDataType: tx.ExtraDataType,
 		Nonce:         tx.Nonce,
-		Value:         common.RA2TAS(tx.Value),
+		Value:         common.RA2TAS(tx.Value.Uint64()),
 	}
 	return trans
 }
@@ -81,7 +81,7 @@ func convertRewardTransaction(tx *types.Transaction) *RewardTransaction {
 		BlockHash: bhash,
 		GroupID:   groupsig.DeserializeID(gid),
 		TargetIDs: targets,
-		Value:     value,
+		Value:     value.Uint64(),
 	}
 }
 
@@ -102,10 +102,6 @@ func genMinerBalance(id groupsig.ID, bh *types.BlockHeader) *MinerRewardBalance 
 	}
 	mb.PreBalance = preDB.GetBalance(id.ToAddress())
 	return mb
-}
-
-func IDFromSign(sign string) []byte {
-	return []byte{}
 }
 
 func sendTransaction(trans *types.Transaction) error {

@@ -16,29 +16,35 @@
 package common
 
 import (
-	"fmt"
+	"math/big"
 	"testing"
 )
 
-func TestByteToInt(t *testing.T) {
-
-	var a uint32
-	a = 16
-	bytes := UInt32ToByte(a)
-	i := ByteToInt(bytes)
-
-	if i == 16 {
-		fmt.Printf("OK")
-	} else {
-		fmt.Errorf("Failed")
-	}
-}
-
-func TestInt64ToByte(t *testing.T) {
+func TestByteToInt32(t *testing.T) {
 	i := int32(2222)
 	bs := Int32ToByte(i)
 	t.Log(bs)
 
 	i2 := ByteToInt32(bs)
 	t.Log(i2)
+	if i2 != i {
+		t.Errorf("ByteToInt32 error")
+	}
+}
+
+func TestInt32ToByte(t *testing.T) {
+	var i int32 = 100
+	bs := Int32ToByte(i)
+	if len(bs) == 0 {
+		t.Errorf("IntToByte error %v", bs)
+	}
+}
+
+func TestMarshalBigInt(t *testing.T) {
+	bi := new(big.Int).SetInt64(1000000000)
+	bs, err := bi.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bs len ", len(bs), bi, len(bi.Bytes()))
 }

@@ -74,11 +74,12 @@ type SlotContext struct {
 
 func createSlotContext(bh *types.BlockHeader, threshold int) *SlotContext {
 	return &SlotContext{
-		BH:             bh,
-		castor:         groupsig.DeserializeID(bh.Castor),
-		slotStatus:     slWaiting,
-		gSignGenerator: model.NewGroupSignGenerator(threshold),
-		rSignGenerator: model.NewGroupSignGenerator(threshold),
+		BH:                  bh,
+		castor:              groupsig.DeserializeID(bh.Castor),
+		slotStatus:          slWaiting,
+		gSignGenerator:      model.NewGroupSignGenerator(threshold),
+		rSignGenerator:      model.NewGroupSignGenerator(threshold),
+		signedRewardTxHashs: set.New(set.ThreadSafe),
 	}
 }
 
@@ -206,23 +207,14 @@ func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bo
 }
 
 func (sc *SlotContext) addSignedTxHash(hash common.Hash) {
-	if sc.signedRewardTxHashs == nil {
-		sc.signedRewardTxHashs = set.New(set.ThreadSafe)
-	}
 	sc.signedRewardTxHashs.Add(hash)
 }
 
 func (sc *SlotContext) hasSignedTxHash(hash common.Hash) bool {
-	if sc.signedRewardTxHashs == nil {
-		return false
-	}
 	return sc.signedRewardTxHashs.Has(hash)
 }
 
 // hasSignedRewardTx means if signed a reward transaction
 func (sc *SlotContext) hasSignedRewardTx() bool {
-	if sc.signedRewardTxHashs == nil {
-		return false
-	}
 	return sc.signedRewardTxHashs.Size() > 0
 }

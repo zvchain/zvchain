@@ -103,7 +103,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 				}
 				for _, id := range ids {
 					if bytes.Equal(id, ms.id) {
-						ms.showMsg("congratulations, you verified block hash %v success, reward %v TAS", blockHash.Hex(), common.RA2TAS(value))
+						ms.showMsg("congratulations, you verified block hash %v success, reward %v TAS", blockHash.Hex(), common.RA2TAS(value.Uint64()))
 						break
 					}
 				}

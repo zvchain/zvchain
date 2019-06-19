@@ -63,13 +63,13 @@ func genRandomTx() *types.Transaction {
 	target := randomAddress()
 	source := randomAddress()
 	tx := &types.Transaction{
-		Value:    1,
+		Value:    types.NewBigInt(1),
 		Nonce:    1,
 		Target:   &target,
 		Source:   &source,
 		Type:     types.TransactionTypeTransfer,
-		GasLimit: 10000,
-		GasPrice: 1000,
+		GasLimit: types.NewBigInt(10000),
+		GasPrice: types.NewBigInt(1000),
 	}
 	tx.Hash = tx.GenHash()
 	return tx
