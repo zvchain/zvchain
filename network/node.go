@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
@@ -29,10 +30,6 @@ const (
 	BasePort = 22000
 
 	SuperBasePort = 1122
-
-	BaseSection = "network"
-
-	PrivateKey = "private_key"
 
 	NodeIDLength = 66
 )
@@ -53,6 +50,10 @@ func (nid NodeID) GetHexString() string {
 }
 
 func NewNodeID(hex string) NodeID {
+
+	if !strings.HasPrefix(hex,"0x") {
+		hex = "0x" + hex
+	}
 	var nid NodeID
 	nid.SetBytes([]byte(hex))
 	return nid

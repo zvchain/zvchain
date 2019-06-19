@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	nnet "net"
+	"net"
 	"time"
 
 	"github.com/zvchain/zvchain/middleware/statistics"
@@ -53,8 +53,6 @@ var (
 	errClosed           = errors.New("socket closed")
 )
 
-const DefaultNatPort = 3200
-const DefaultNatIP = "120.78.127.246"
 
 // Timeouts
 const (
@@ -117,12 +115,12 @@ func genNetID(id NodeID) uint64 {
 }
 
 //nodeFromRPC is RPC node transformation
-func (nc *NetCore) nodeFromRPC(sender *nnet.UDPAddr, rn RpcNode) (*Node, error) {
+func (nc *NetCore) nodeFromRPC(sender *net.UDPAddr, rn RpcNode) (*Node, error) {
 	if rn.Port <= 1024 {
 		return nil, errors.New("low port")
 	}
 
-	n := NewNode(NewNodeID(rn.Id), nnet.ParseIP(rn.Ip), int(rn.Port))
+	n := NewNode(NewNodeID(rn.Id), net.ParseIP(rn.Ip), int(rn.Port))
 
 	err := n.validateComplete()
 	return n, err
@@ -132,7 +130,7 @@ var netCore *NetCore
 
 //NetCoreConfig net core configure
 type NetCoreConfig struct {
-	ListenAddr         *nnet.UDPAddr
+	ListenAddr         *net.UDPAddr
 	ID                 NodeID
 	Seeds              []*Node
 	NatTraversalEnable bool
@@ -144,7 +142,7 @@ type NetCoreConfig struct {
 }
 
 // MakeEndPoint create the node description object
-func MakeEndPoint(addr *nnet.UDPAddr, tcpPort int32) RpcEndPoint {
+func MakeEndPoint(addr *net.UDPAddr, tcpPort int32) RpcEndPoint {
 	ip := addr.IP.To4()
 	if ip == nil {
 		ip = addr.IP.To16()
@@ -171,12 +169,6 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 	nc.peerManager.natTraversalEnable = cfg.NatTraversalEnable
 	nc.peerManager.natIP = cfg.NatIP
 	nc.peerManager.natPort = cfg.NatPort
-	if len(nc.peerManager.natIP) == 0 {
-		nc.peerManager.natIP = DefaultNatIP
-	}
-	if nc.peerManager.natPort == 0 {
-		nc.peerManager.natPort = DefaultNatPort
-	}
 	nc.groupManager = newGroupManager()
 	nc.messageManager = newMessageManager(nc.id)
 	nc.flowMeter = newFlowMeter("p2p")
@@ -187,6 +179,8 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 	Logger.Infof("chain id: %v ", nc.chainID)
 	Logger.Infof("protocol version : %v ", nc.protocolVersion)
 	Logger.Infof("P2PConfig: %v ", nc.nid)
+	Logger.Infof("local addr: %v %v", realAddr.IP.String(), uint16(realAddr.Port))
+	nc.ourEndPoint = MakeEndPoint(realAddr, int32(realAddr.Port))
 	P2PConfig(nc.nid)
 
 	if cfg.NatTraversalEnable {
@@ -197,7 +191,6 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 		P2PListen(realAddr.IP.String(), uint16(realAddr.Port))
 	}
 
-	nc.ourEndPoint = MakeEndPoint(realAddr, int32(realAddr.Port))
 	kad, err := newKad(nc, cfg.ID, realAddr, cfg.Seeds)
 	if err != nil {
 		return nil, err
@@ -219,9 +212,9 @@ func (nc *NetCore) buildGroup(id string, members []NodeID) *Group {
 	return nc.groupManager.buildGroup(id, members)
 }
 
-func (nc *NetCore) ping(toID NodeID, toAddr *nnet.UDPAddr) {
+func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 
-	to := MakeEndPoint(&nnet.UDPAddr{}, 0)
+	to := MakeEndPoint(&net.UDPAddr{}, 0)
 	if toAddr != nil {
 		to = MakeEndPoint(toAddr, 0)
 	}
@@ -258,7 +251,7 @@ func (nc *NetCore) RelayTest(toID NodeID) {
 	nc.peerManager.broadcast(packet, P2PMessageCodeBase+uint32(MessageType_MessagePing))
 }
 
-func (nc *NetCore) findNode(toID NodeID, toAddr *nnet.UDPAddr, target NodeID) ([]*Node, error) {
+func (nc *NetCore) findNode(toID NodeID, toAddr *net.UDPAddr, target NodeID) ([]*Node, error) {
 	nodes := make([]*Node, 0, bucketSize)
 	errc := nc.pending(toID, MessageType_MessageNeighbors, func(r interface{}) bool {
 		nreceived := 0
@@ -413,7 +406,7 @@ func init() {
 
 }
 
-func (nc *NetCore) sendToNode(toID NodeID, toAddr *nnet.UDPAddr, data []byte, code uint32) {
+func (nc *NetCore) sendToNode(toID NodeID, toAddr *net.UDPAddr, data []byte, code uint32) {
 	packet, _, err := nc.encodeDataPacket(data, DataType_DataNormal, code, "", &toID, nil, -1)
 	if err != nil {
 		Logger.Debugf("Send encodeDataPacket err :%v ", toID.GetHexString())
@@ -423,7 +416,7 @@ func (nc *NetCore) sendToNode(toID NodeID, toAddr *nnet.UDPAddr, data []byte, co
 	nc.bufferPool.freeBuffer(packet)
 }
 
-func (nc *NetCore) sendMessageToNode(toID NodeID, toAddr *nnet.UDPAddr, ptype MessageType, req proto.Message, code uint32) {
+func (nc *NetCore) sendMessageToNode(toID NodeID, toAddr *net.UDPAddr, ptype MessageType, req proto.Message, code uint32) {
 	packet, _, err := nc.encodePacket(ptype, req)
 	if err != nil {
 		return
@@ -515,7 +508,7 @@ func (nc *NetCore) sendToGroupMember(id string, data []byte, code uint32, member
 	} else {
 		node := netServerInstance.netCore.kad.find(memberID)
 		if node != nil && node.IP != nil && node.Port > 0 {
-			go nc.sendToNode(memberID, &nnet.UDPAddr{IP: node.IP, Port: int(node.Port)}, data, code)
+			go nc.sendToNode(memberID, &net.UDPAddr{IP: node.IP, Port: int(node.Port)}, data, code)
 		} else {
 
 			packet, _, err := nc.encodeDataPacket(data, DataType_DataGroup, code, id, &memberID, nil, -1)
@@ -552,7 +545,7 @@ func (nc *NetCore) onSendWaited(id uint64, session uint32) {
 
 // OnChecked callback when nat type is checked
 func (nc *NetCore) onChecked(p2pType uint32, privateIP string, publicIP string) {
-	nc.ourEndPoint = MakeEndPoint(&nnet.UDPAddr{IP: nnet.ParseIP(publicIP), Port: 0}, 0)
+	nc.ourEndPoint = MakeEndPoint(&net.UDPAddr{IP: net.ParseIP(publicIP), Port: 0}, 0)
 	nc.natType = p2pType
 	nc.peerManager.onChecked(p2pType, privateIP, publicIP)
 	Logger.Debugf("OnChecked, nat type :%v public ip: %v private ip :%v", p2pType, publicIP, privateIP)
@@ -755,7 +748,7 @@ func (nc *NetCore) handlePing(req *MsgPing, fromID NodeID) error {
 	}
 
 	p := nc.peerManager.peerByID(fromID)
-	ip := nnet.ParseIP(req.From.Ip)
+	ip := net.ParseIP(req.From.Ip)
 	port := int(req.From.Port)
 	if p != nil {
 		if ip != nil && port > 0 {
@@ -764,7 +757,7 @@ func (nc *NetCore) handlePing(req *MsgPing, fromID NodeID) error {
 		}
 		p.chainID = uint16(req.ChainId)
 	}
-	from := nnet.UDPAddr{IP: nnet.ParseIP(req.From.Ip), Port: int(req.From.Port)}
+	from := net.UDPAddr{IP: net.ParseIP(req.From.Ip), Port: int(req.From.Port)}
 
 	Logger.Debugf("ping from:%v id:%v port:%d", fromID.GetHexString(), ip, port)
 
