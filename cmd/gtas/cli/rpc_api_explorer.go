@@ -21,6 +21,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"strings"
 )
 
 // rpcExplorerImpl provides rpc service for blockchain explorer use
@@ -37,6 +38,9 @@ func (api *rpcExplorerImpl) Version() string {
 
 // ExplorerAccount is used in the blockchain browser to query account information
 func (api *rpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(hash)) {
+		return failResult("Wrong param format")
+	}
 	impl := &rpcGtasImpl{}
 	return impl.ViewAccount(hash)
 }

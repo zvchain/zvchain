@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
@@ -247,17 +248,6 @@ func (api *rpcDevImpl) DebugJoinGroupInfo(gid string) (*Result, error) {
 	return successResult(jg)
 }
 
-func (api *rpcDevImpl) DebugRemoveBlock(h uint64) (*Result, error) {
-	bh := core.BlockChainImpl.QueryBlockHeaderByHeight(h)
-	if bh != nil {
-		b := core.BlockChainImpl.QueryBlockByHash(bh.Hash)
-		if b != nil {
-			ret := mediator.Proc.MainChain.Remove(b)
-			return successResult(ret)
-		}
-	}
-	return successResult("not exist")
-}
 
 func (api *rpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetReceived()
@@ -307,6 +297,9 @@ func (api *rpcDevImpl) DebugPrintCheckProve(height, preheight uint64, gids strin
 }
 
 func (api *rpcDevImpl) DebugGetRawTx(hash string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(hash)) {
+		return failResult("Wrong param format")
+	}
 	tx := core.BlockChainImpl.GetTransactionByHash(false, false, common.HexToHash(hash))
 
 	if tx != nil {

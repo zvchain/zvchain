@@ -21,6 +21,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"strings"
 )
 
 // rpcGtasImpl provides rpc service for users to interact with remote nodes
@@ -56,7 +57,14 @@ func (api *rpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
 		return failResult(err.Error())
 	}
-
+	if !validateTxType(txRaw.TxType) {
+		return failResult("Not supported txType")
+	}
+	if txRaw.TxType == types.TransactionTypeTransfer || txRaw.TxType == types.TransactionTypeContractCall {
+		if !validateAddress(strings.TrimSpace(txRaw.Target)) {
+			return failResult("Wrong target address format")
+		}
+	}
 	trans := txRawToTransaction(txRaw)
 
 	trans.Hash = trans.GenHash()
@@ -70,6 +78,9 @@ func (api *rpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 
 // Balance is query balance interface
 func (api *rpcGtasImpl) Balance(account string) (*Result, error) {
+	if !validateAddress(strings.TrimSpace(account)) {
+		return failResult("Wrong account address format")
+	}
 	b := core.BlockChainImpl.GetBalance(common.HexToAddress(account))
 
 	balance := common.RA2TAS(b.Uint64())
@@ -108,6 +119,9 @@ func (api *rpcGtasImpl) GetBlockByHeight(height uint64) (*Result, error) {
 }
 
 func (api *rpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(hash)) {
+		return failResult("Wrong hash format")
+	}
 	b := core.BlockChainImpl.QueryBlockByHash(common.HexToHash(hash))
 	if b == nil {
 		return failResult("height not exists")
@@ -124,6 +138,9 @@ func (api *rpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
 }
 
 func (api *rpcGtasImpl) MinerInfo(addr string) (*Result, error) {
+	if !validateAddress(strings.TrimSpace(addr)) {
+		return failResult("Wrong account address format")
+	}
 	morts := make([]MortGage, 0)
 	id := common.HexToAddress(addr).Bytes()
 	heavyInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeHeavy, nil)
@@ -138,6 +155,9 @@ func (api *rpcGtasImpl) MinerInfo(addr string) (*Result, error) {
 }
 
 func (api *rpcGtasImpl) TransDetail(h string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(h)) {
+		return failResult("Wrong hash format")
+	}
 	tx := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(h))
 
 	if tx != nil {
@@ -148,6 +168,9 @@ func (api *rpcGtasImpl) TransDetail(h string) (*Result, error) {
 }
 
 func (api *rpcGtasImpl) Nonce(addr string) (*Result, error) {
+	if !validateAddress(strings.TrimSpace(addr)) {
+		return failResult("Wrong account address format")
+	}
 	address := common.HexToAddress(addr)
 	// user will see the nonce as db nonce +1, so that user can use it directly when send a transaction
 	nonce := core.BlockChainImpl.GetNonce(address) + 1
@@ -155,6 +178,9 @@ func (api *rpcGtasImpl) Nonce(addr string) (*Result, error) {
 }
 
 func (api *rpcGtasImpl) TxReceipt(h string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(h)) {
+		return failResult("Wrong hash format")
+	}
 	hash := common.HexToHash(h)
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
@@ -169,7 +195,9 @@ func (api *rpcGtasImpl) TxReceipt(h string) (*Result, error) {
 
 // ViewAccount is used for querying account information
 func (api *rpcGtasImpl) ViewAccount(hash string) (*Result, error) {
-
+	if !validateHash(strings.TrimSpace(hash)) {
+		return failResult("Wrong hash format")
+	}
 	accoundDb := core.BlockChainImpl.LatestStateDB()
 	if accoundDb == nil {
 		return nil, nil
@@ -204,5 +232,5 @@ func (api *rpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 // to: the miner address who was pledged, required.
 // All pledge detail will be returned if the from param is empty
 func (api *rpcGtasImpl) PledgeDetail(from, to string) (*Result, error) {
-
+	return &Result{}, nil
 }

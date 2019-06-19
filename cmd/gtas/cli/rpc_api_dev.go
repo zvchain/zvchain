@@ -28,6 +28,7 @@ import (
 	"github.com/zvchain/zvchain/network"
 	"math"
 	"math/big"
+	"strings"
 )
 
 // rpcDevImpl provides api functions for those develop chain features.
@@ -72,6 +73,9 @@ func (api *rpcDevImpl) TransPool() (*Result, error) {
 
 // get transaction by hash
 func (api *rpcDevImpl) GetTransaction(hash string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(hash)) {
+		return failResult("Wrong hash format")
+	}
 	transaction := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(hash))
 	if transaction == nil {
 		return failResult("transaction not exists")
@@ -90,6 +94,9 @@ func (api *rpcDevImpl) GetTransaction(hash string) (*Result, error) {
 }
 
 func (api *rpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
+	if from < to {
+		return failResult("param error")
+	}
 	blocks := make([]*Block, 0)
 	var preBH *types.BlockHeader
 	for h := from; h <= to; h++ {
@@ -299,6 +306,9 @@ func (api *rpcDevImpl) Dashboard() (*Result, error) {
 }
 
 func (api *rpcDevImpl) BlockDetail(h string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(h)) {
+		return failResult("Wrong param format")
+	}
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHash(common.HexToHash(h))
 	if b == nil {
@@ -408,6 +418,9 @@ func (api *rpcDevImpl) BlockDetail(h string) (*Result, error) {
 }
 
 func (api *rpcDevImpl) BlockReceipts(h string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(h)) {
+		return failResult("Wrong param format")
+	}
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHash(common.HexToHash(h))
 	if b == nil {
