@@ -223,7 +223,10 @@ func passwordSha(password string) string {
 
 // NewAccount create a new account by password
 func (am *AccountManager) NewAccount(password string, miner bool) *Result {
-	privateKey := common.GenerateKey("")
+	privateKey, err := common.GenerateKey("")
+	if err != nil {
+		return opError(err)
+	}
 	pubkey := privateKey.GetPubKey()
 	address := pubkey.GetAddress()
 

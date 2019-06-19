@@ -19,6 +19,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
+	"strconv"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
@@ -27,9 +31,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 	"github.com/zvchain/zvchain/taslog"
-	"math"
-	"math/big"
-	"strconv"
 )
 
 var BonusLogger taslog.Logger
@@ -85,7 +86,10 @@ func (api *GtasAPI) Balance(account string) (*Result, error) {
 
 // NewWallet is create a new account interface
 func (api *GtasAPI) NewWallet() (*Result, error) {
-	privKey, addr := walletManager.newWallet()
+	privKey, addr, err := walletManager.newWallet()
+	if err != nil {
+		return failResult(err.Error())
+	}
 	data := make(map[string]string)
 	data["private_key"] = privKey
 	data["address"] = addr

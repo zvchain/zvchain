@@ -27,7 +27,7 @@ import (
 
 func TestPrivateKey(test *testing.T) {
 	fmt.Printf("\nbegin TestPrivateKey...\n")
-	sk := GenerateKey("")
+	sk, _ := GenerateKey("")
 	str := sk.Hex()
 	fmt.Printf("sec key export, len=%v, data=%v.\n", len(str), str)
 	new_sk := HexToSecKey(str)
@@ -38,7 +38,7 @@ func TestPrivateKey(test *testing.T) {
 
 func TestPublickKey(test *testing.T) {
 	fmt.Printf("\nbegin TestPublicKey...\n")
-	sk := GenerateKey("")
+	sk, _ := GenerateKey("")
 	pk := sk.GetPubKey()
 	//buf := pub_k.toBytes()
 	//fmt.Printf("byte buf len of public key = %v.\n", len(buf))
@@ -64,7 +64,7 @@ func TestSign(test *testing.T) {
 	plain_txt := "My name is thiefox."
 	buf := []byte(plain_txt)
 	sha3_hash := sha3.Sum256(buf)
-	pri_k := GenerateKey("")
+	pri_k, _ := GenerateKey("")
 	pub_k := pri_k.GetPubKey()
 
 	pub_buf := pub_k.Bytes()
@@ -83,13 +83,13 @@ func TestSign(test *testing.T) {
 
 func TestEncryptDecrypt(t *testing.T) {
 	fmt.Printf("\nbegin TestEncryptDecrypt...\n")
-	sk1 := GenerateKey("")
+	sk1, _ := GenerateKey("")
 	pk1 := sk1.GetPubKey()
 
 	t.Log(sk1.Hex())
 	t.Log(pk1.Hex())
 
-	sk2 := GenerateKey("")
+	sk2, _ := GenerateKey("")
 
 	message := []byte("Hello, world.")
 	ct, err := Encrypt(rand.Reader, &pk1, message)
@@ -124,7 +124,7 @@ func TestSignBytes(test *testing.T) {
 	plain_txt := "Sign bytes convert."
 	buf := []byte(plain_txt)
 
-	pri_k := GenerateKey("")
+	pri_k, _ := GenerateKey("")
 
 	sha3_hash := sha3.Sum256(buf)
 	sign, _ := pri_k.Sign(sha3_hash[:])
@@ -147,7 +147,7 @@ func TestRecoverPubkey(test *testing.T) {
 	buf := []byte(plain_txt)
 	sha3_hash := sha3.Sum256(buf)
 
-	sk := GenerateKey("")
+	sk, _ := GenerateKey("")
 	sign, _ := sk.Sign(sha3_hash[:])
 
 	pk, err := sign.RecoverPubkey(sha3_hash[:])
@@ -168,7 +168,7 @@ func TestHash(test *testing.T) {
 
 func BenchmarkSign(b *testing.B) {
 	msg := []byte("This is TASchain achates' testing message")
-	sk := GenerateKey("")
+	sk, _ := GenerateKey("")
 	sha3_hash := sha3.Sum256(msg)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -178,7 +178,7 @@ func BenchmarkSign(b *testing.B) {
 
 func BenchmarkVerify(b *testing.B) {
 	msg := []byte("This is TASchain achates' testing message")
-	sk := GenerateKey("")
+	sk, _ := GenerateKey("")
 	pk := sk.GetPubKey()
 	sha3_hash := sha3.Sum256(msg)
 	sign, _ := sk.Sign(sha3_hash[:])
@@ -190,7 +190,7 @@ func BenchmarkVerify(b *testing.B) {
 
 func BenchmarkRecover(b *testing.B) {
 	msg := []byte("This is TASchain achates' testing message")
-	sk := GenerateKey("")
+	sk, _ := GenerateKey("")
 	sha3_hash := sha3.Sum256(msg)
 	sign, _ := sk.Sign(sha3_hash[:])
 	b.ResetTimer()
@@ -200,7 +200,7 @@ func BenchmarkRecover(b *testing.B) {
 }
 
 func TestAccount(test *testing.T) {
-	privateKey := GenerateKey("")
+	privateKey, _ := GenerateKey("")
 	pubkey := privateKey.GetPubKey()
 	address := pubkey.GetAddress()
 	fmt.Printf("sk:%s\n", privateKey.Hex())
@@ -209,13 +209,13 @@ func TestAccount(test *testing.T) {
 
 func TestGenerateKey(t *testing.T) {
 	s := "1111345111111111111111111111111111111111"
-	sk := GenerateKey(s)
+	sk, _ := GenerateKey(s)
 	t.Logf(sk.Hex())
 
-	sk2 := GenerateKey(s)
+	sk2, _ := GenerateKey(s)
 	t.Logf(sk2.Hex())
 
-	sk3 := GenerateKey(s)
+	sk3, _ := GenerateKey(s)
 	t.Logf(sk3.Hex())
 }
 

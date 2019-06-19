@@ -99,7 +99,11 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.mi = &mi
 	p.globalGroups = newGlobalGroups(p.GroupChain)
 	p.joiningGroups = NewJoiningGroups()
-	p.belongGroups = NewBelongGroups(p.genBelongGroupStoreFile(), p.getEncryptPrivateKey())
+	encryptPrivateKey, err := p.getEncryptPrivateKey()
+	if err != nil {
+		return false
+	}
+	p.belongGroups = NewBelongGroups(p.genBelongGroupStoreFile(), encryptPrivateKey)
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()
 	p.proveChecker = newProveChecker(p.MainChain)
@@ -222,10 +226,9 @@ func (p Processor) getGroupPubKey(gid groupsig.ID) groupsig.Pubkey {
 
 }
 
-func (p *Processor) getEncryptPrivateKey() common.PrivateKey {
+func (p *Processor) getEncryptPrivateKey() (common.PrivateKey, error) {
 	seed := p.mi.SK.GetHexString() + p.mi.ID.GetHexString()
-	encryptPrivateKey := common.GenerateKey(seed)
-	return encryptPrivateKey
+	return common.GenerateKey(seed)
 }
 
 func (p *Processor) getDefaultSeckeyInfo() model.SecKeyInfo {

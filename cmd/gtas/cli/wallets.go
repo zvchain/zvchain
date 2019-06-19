@@ -50,10 +50,13 @@ func (ws *wallets) deleteWallet(key string) {
 }
 
 // newWallet create a new wallet and store it in the config file
-func (ws *wallets) newWallet() (privKeyStr, walletAddress string) {
+func (ws *wallets) newWallet() (privKeyStr, walletAddress string, err error) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	priv := common.GenerateKey("")
+	priv, err := common.GenerateKey("")
+	if err != nil {
+		return "", "", err
+	}
 	pub := priv.GetPubKey()
 	address := pub.GetAddress()
 	privKeyStr, walletAddress = pub.Hex(), address.Hex()
