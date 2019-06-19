@@ -44,8 +44,8 @@ func (chain *FullBlockChain) TotalQN() uint64 {
 }
 
 // GetTransactionByHash get a transaction by hash
-func (chain *FullBlockChain) GetTransactionByHash(onlyBonus, needSource bool, h common.Hash) *types.Transaction {
-	tx := chain.transactionPool.GetTransaction(onlyBonus, h)
+func (chain *FullBlockChain) GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *types.Transaction {
+	tx := chain.transactionPool.GetTransaction(onlyReward, h)
 	if tx == nil {
 		chain.rwLock.RLock()
 		defer chain.rwLock.RUnlock()

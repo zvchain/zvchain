@@ -512,12 +512,12 @@ func (helper *ConsensusHelperImpl4Test) VRFProve2Value(prove []byte) *big.Int {
 	return big.NewInt(1)
 }
 
-func (helper *ConsensusHelperImpl4Test) ProposalBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.ProposalBonus)
+func (helper *ConsensusHelperImpl4Test) ProposalReward() *big.Int {
+	return new(big.Int).SetUint64(model.Param.ProposalReward)
 }
 
-func (helper *ConsensusHelperImpl4Test) PackBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.PackBonus)
+func (helper *ConsensusHelperImpl4Test) PackReward() *big.Int {
+	return new(big.Int).SetUint64(model.Param.PackReward)
 }
 
 func (helper *ConsensusHelperImpl4Test) CheckProveRoot(bh *types.BlockHeader) (bool, error) {
@@ -537,7 +537,7 @@ func (helper *ConsensusHelperImpl4Test) CheckGroup(g *types.Group) (ok bool, err
 	return true, nil
 }
 
-func (helper *ConsensusHelperImpl4Test) VerifyBonusTransaction(tx *types.Transaction) (ok bool, err error) {
+func (helper *ConsensusHelperImpl4Test) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err error) {
 	return true, nil
 }
 

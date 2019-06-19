@@ -383,7 +383,7 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 		if tx.Source != nil {
 			continue
 		}
-		poolTx := chain.transactionPool.GetTransaction(tx.Type == types.TransactionTypeBonus, tx.Hash)
+		poolTx := chain.transactionPool.GetTransaction(tx.Type == types.TransactionTypeReward, tx.Hash)
 		if poolTx != nil {
 			if tx.Hash != tx.GenHash() {
 				Logger.Debugf("fail to validate txs: hash diff at %v, expect hash %v", tx.Hash.Hex(), tx.GenHash().Hex())

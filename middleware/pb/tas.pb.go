@@ -2269,7 +2269,7 @@ func (m *ConsensusCreateGroupSignMessage) GetSign() *SignData {
 	return nil
 }
 
-type Bonus struct {
+type Reward struct {
 	TxHash               []byte   `protobuf:"bytes,1,req,name=TxHash" json:"TxHash,omitempty"`
 	TargetIds            []int32  `protobuf:"varint,2,rep,name=TargetIds" json:"TargetIds,omitempty"`
 	BlockHash            []byte   `protobuf:"bytes,3,req,name=BlockHash" json:"BlockHash,omitempty"`
@@ -2281,66 +2281,66 @@ type Bonus struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Bonus) Reset()         { *m = Bonus{} }
-func (m *Bonus) String() string { return proto.CompactTextString(m) }
-func (*Bonus) ProtoMessage()    {}
-func (*Bonus) Descriptor() ([]byte, []int) {
+func (m *Reward) Reset()         { *m = Reward{} }
+func (m *Reward) String() string { return proto.CompactTextString(m) }
+func (*Reward) ProtoMessage()    {}
+func (*Reward) Descriptor() ([]byte, []int) {
 	return fileDescriptor_tas_745120aec9f30a23, []int{39}
 }
-func (m *Bonus) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Bonus.Unmarshal(m, b)
+func (m *Reward) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Reward.Unmarshal(m, b)
 }
-func (m *Bonus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Bonus.Marshal(b, m, deterministic)
+func (m *Reward) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Reward.Marshal(b, m, deterministic)
 }
-func (dst *Bonus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Bonus.Merge(dst, src)
+func (dst *Reward) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Reward.Merge(dst, src)
 }
-func (m *Bonus) XXX_Size() int {
-	return xxx_messageInfo_Bonus.Size(m)
+func (m *Reward) XXX_Size() int {
+	return xxx_messageInfo_Reward.Size(m)
 }
-func (m *Bonus) XXX_DiscardUnknown() {
-	xxx_messageInfo_Bonus.DiscardUnknown(m)
+func (m *Reward) XXX_DiscardUnknown() {
+	xxx_messageInfo_Reward.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Bonus proto.InternalMessageInfo
+var xxx_messageInfo_Reward proto.InternalMessageInfo
 
-func (m *Bonus) GetTxHash() []byte {
+func (m *Reward) GetTxHash() []byte {
 	if m != nil {
 		return m.TxHash
 	}
 	return nil
 }
 
-func (m *Bonus) GetTargetIds() []int32 {
+func (m *Reward) GetTargetIds() []int32 {
 	if m != nil {
 		return m.TargetIds
 	}
 	return nil
 }
 
-func (m *Bonus) GetBlockHash() []byte {
+func (m *Reward) GetBlockHash() []byte {
 	if m != nil {
 		return m.BlockHash
 	}
 	return nil
 }
 
-func (m *Bonus) GetGroupId() []byte {
+func (m *Reward) GetGroupId() []byte {
 	if m != nil {
 		return m.GroupId
 	}
 	return nil
 }
 
-func (m *Bonus) GetSign() []byte {
+func (m *Reward) GetSign() []byte {
 	if m != nil {
 		return m.Sign
 	}
 	return nil
 }
 
-func (m *Bonus) GetTotalValue() uint64 {
+func (m *Reward) GetTotalValue() uint64 {
 	if m != nil && m.TotalValue != nil {
 		return *m.TotalValue
 	}
@@ -2349,7 +2349,7 @@ func (m *Bonus) GetTotalValue() uint64 {
 
 type CastRewardTransSignReqMessage struct {
 	Sign                 *SignData `protobuf:"bytes,1,req,name=Sign" json:"Sign,omitempty"`
-	Reward               *Bonus    `protobuf:"bytes,2,req,name=Reward" json:"Reward,omitempty"`
+	Reward               *Reward   `protobuf:"bytes,2,req,name=Reward" json:"Reward,omitempty"`
 	SignedPieces         [][]byte  `protobuf:"bytes,3,rep,name=SignedPieces" json:"SignedPieces,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
@@ -2387,7 +2387,7 @@ func (m *CastRewardTransSignReqMessage) GetSign() *SignData {
 	return nil
 }
 
-func (m *CastRewardTransSignReqMessage) GetReward() *Bonus {
+func (m *CastRewardTransSignReqMessage) GetReward() *Reward {
 	if m != nil {
 		return m.Reward
 	}
@@ -2949,7 +2949,7 @@ func init() {
 	proto.RegisterType((*ConsensusBlockMessage)(nil), "tas.middleware.pb.ConsensusBlockMessage")
 	proto.RegisterType((*ConsensusCreateGroupRawMessage)(nil), "tas.middleware.pb.ConsensusCreateGroupRawMessage")
 	proto.RegisterType((*ConsensusCreateGroupSignMessage)(nil), "tas.middleware.pb.ConsensusCreateGroupSignMessage")
-	proto.RegisterType((*Bonus)(nil), "tas.middleware.pb.Bonus")
+	proto.RegisterType((*Reward)(nil), "tas.middleware.pb.Reward")
 	proto.RegisterType((*CastRewardTransSignReqMessage)(nil), "tas.middleware.pb.CastRewardTransSignReqMessage")
 	proto.RegisterType((*CastRewardTransSignMessage)(nil), "tas.middleware.pb.CastRewardTransSignMessage")
 	proto.RegisterType((*TopBlockInfo)(nil), "tas.middleware.pb.TopBlockInfo")

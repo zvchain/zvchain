@@ -30,7 +30,7 @@ import (
 const (
 	maxPendingSize              = 40000
 	maxQueueSize                = 10000
-	bonusTxMaxSize              = 1000
+	rewardTxMaxSize             = 1000
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
 	gasLimitMax                 = 500000
@@ -45,7 +45,7 @@ var (
 )
 
 type txPool struct {
-	bonPool   *bonusPool
+	bonPool   *rewardPool
 	received  *simpleContainer
 	asyncAdds *lru.Cache // Asynchronously added, accelerates validated transaction
 	// when add block on chain, does not participate in the broadcast
@@ -80,7 +80,7 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 		gasPriceLowerBound: uint64(common.GlobalConf.GetInt("chain", "gasprice_lower_bound", 1)),
 	}
 	pool.received = newSimpleContainer(maxPendingSize, maxQueueSize, chain)
-	pool.bonPool = newBonusPool(chain.bonusManager, bonusTxMaxSize)
+	pool.bonPool = newRewardPool(chain.rewardManager, rewardTxMaxSize)
 	initTxSyncer(chain, pool)
 
 	return pool
@@ -123,7 +123,7 @@ func (pool *txPool) AsyncAddTxs(txs []*types.Transaction) {
 		if tx.Source != nil {
 			continue
 		}
-		if tx.Type == types.TransactionTypeBonus {
+		if tx.Type == types.TransactionTypeReward {
 			if pool.bonPool.get(tx.Hash) != nil {
 				continue
 			}
@@ -143,9 +143,9 @@ func (pool *txPool) AsyncAddTxs(txs []*types.Transaction) {
 }
 
 // GetTransaction trys to find a transaction from pool by hash and return it
-func (pool *txPool) GetTransaction(bonus bool, hash common.Hash) *types.Transaction {
+func (pool *txPool) GetTransaction(reward bool, hash common.Hash) *types.Transaction {
 	var tx = pool.bonPool.get(hash)
-	if bonus || tx != nil {
+	if reward || tx != nil {
 		return tx
 	}
 	tx = pool.received.get(hash)
@@ -199,8 +199,8 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 	}
 
 	var source *common.Address
-	if tx.Type == types.TransactionTypeBonus {
-		if ok, err := BlockChainImpl.GetConsensusHelper().VerifyBonusTransaction(tx); !ok {
+	if tx.Type == types.TransactionTypeReward {
+		if ok, err := BlockChainImpl.GetConsensusHelper().VerifyRewardTransaction(tx); !ok {
 			return err
 		}
 	} else {
@@ -244,7 +244,7 @@ func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
 }
 
 func (pool *txPool) add(tx *types.Transaction) bool {
-	if tx.Type == types.TransactionTypeBonus {
+	if tx.Type == types.TransactionTypeReward {
 		pool.bonPool.add(tx)
 	} else {
 		if tx.GasPrice > pool.gasPriceLowerBound {
@@ -263,7 +263,7 @@ func (pool *txPool) remove(txHash common.Hash) {
 }
 
 func (pool *txPool) isTransactionExisted(tx *types.Transaction) (exists bool, where int) {
-	if tx.Type == types.TransactionTypeBonus {
+	if tx.Type == types.TransactionTypeReward {
 		if pool.bonPool.contains(tx.Hash) {
 			return true, 1
 		}
@@ -316,7 +316,7 @@ func (pool *txPool) BackToPool(txs []*types.Transaction) {
 	pool.lock.Lock()
 	defer pool.lock.Unlock()
 	for _, txRaw := range txs {
-		if txRaw.Type != types.TransactionTypeBonus && txRaw.Source == nil {
+		if txRaw.Type != types.TransactionTypeReward && txRaw.Source == nil {
 			err := txRaw.RecoverSource()
 			if err != nil {
 				Logger.Errorf("backtopPool recover source fail:tx=%v", txRaw.Hash.Hex())
@@ -327,8 +327,8 @@ func (pool *txPool) BackToPool(txs []*types.Transaction) {
 	}
 }
 
-// GetBonusTxs returns all the bonus transactions in the pool
-func (pool *txPool) GetBonusTxs() []*types.Transaction {
+// GetRewardTxs returns all the reward transactions in the pool
+func (pool *txPool) GetRewardTxs() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
 	pool.bonPool.forEach(func(tx *types.Transaction) bool {
 		txs = append(txs, tx)

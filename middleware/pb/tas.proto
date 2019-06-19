@@ -376,7 +376,7 @@ message ConsensusCreateGroupSignMessage{
 
 }
 
-message Bonus{
+message Reward{
     required	bytes   TxHash = 1;
     repeated	int32   TargetIds = 2;
     required	bytes   BlockHash	= 3;
@@ -387,7 +387,7 @@ message Bonus{
 
 message CastRewardTransSignReqMessage {
 	required SignData Sign = 1;
-	required Bonus Reward = 2;
+	required Reward Reward = 2;
 	repeated bytes SignedPieces = 3;
 }
 

@@ -89,7 +89,7 @@ const (
 	TransactionTypeTransfer         = 0
 	TransactionTypeContractCreate   = 1
 	TransactionTypeContractCall     = 2
-	TransactionTypeBonus            = 3
+	TransactionTypeReward           = 3
 	TransactionTypeMinerApply       = 4
 	TransactionTypeMinerAbort       = 5
 	TransactionTypeMinerRefund      = 6
@@ -147,9 +147,9 @@ func (tx *Transaction) HexSign() string {
 }
 
 // RecoverSource recover source from the sign field.
-// It returns directly if source is not nil or it is a bonus transaction.
+// It returns directly if source is not nil or it is a reward transaction.
 func (tx *Transaction) RecoverSource() error {
-	if tx.Source != nil || tx.Type == TransactionTypeBonus {
+	if tx.Source != nil || tx.Type == TransactionTypeReward {
 		return nil
 	}
 	sign := common.BytesToSign(tx.Sign)
@@ -205,8 +205,8 @@ func (pt *PriorityTransactions) Pop() interface{} {
 	return item
 }
 
-// Bonus is the bonus transaction raw data
-type Bonus struct {
+// Reward is the reward transaction raw data
+type Reward struct {
 	TxHash     common.Hash
 	TargetIds  []int32
 	BlockHash  common.Hash

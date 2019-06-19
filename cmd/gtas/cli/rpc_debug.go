@@ -272,16 +272,16 @@ func (api *GtasAPI) DebugGetTxs(limit int) (*Result, error) {
 	return successResult(hashs)
 }
 
-func (api *GtasAPI) DebugGetBonusTxs(limit int) (*Result, error) {
-	txs := core.BlockChainImpl.GetTransactionPool().GetBonusTxs()
+func (api *GtasAPI) DebugGetRewardTxs(limit int) (*Result, error) {
+	txs := core.BlockChainImpl.GetTransactionPool().GetRewardTxs()
 
-	type bonusTxHash struct {
+	type rewardTxHash struct {
 		TxHash, BlockHash common.Hash
 	}
 
-	hashs := make([]*bonusTxHash, 0)
+	hashs := make([]*rewardTxHash, 0)
 	for _, tx := range txs {
-		btx := &bonusTxHash{
+		btx := &rewardTxHash{
 			TxHash:    tx.Hash,
 			BlockHash: common.BytesToHash(tx.Data),
 		}

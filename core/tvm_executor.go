@@ -72,11 +72,11 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 			success, _, cumulativeGasUsed, contractAddress = executor.executeContractCreateTx(accountdb, transaction, castor, bh)
 		case types.TransactionTypeContractCall:
 			success, _, cumulativeGasUsed, logs = executor.executeContractCallTx(accountdb, transaction, castor, bh)
-		case types.TransactionTypeBonus:
-			success = executor.executeBonusTx(accountdb, transaction, castor)
+		case types.TransactionTypeReward:
+			success = executor.executeRewardTx(accountdb, transaction, castor)
 			if !success {
 				evictedTxs = append(evictedTxs, transaction.Hash)
-				// Failed bonus tx should not be included in block
+				// Failed reward tx should not be included in block
 				continue
 			}
 		case types.TransactionTypeMinerApply:
@@ -107,14 +107,14 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 
 	}
 	//ts.AddStat("executeLoop", time.Since(b))
-	accountdb.AddBalance(castor, executor.bc.GetConsensusHelper().ProposalBonus())
+	accountdb.AddBalance(castor, executor.bc.GetConsensusHelper().ProposalReward())
 
 	state = accountdb.IntermediateRoot(true)
 	return state, evictedTxs, transactions, receipts, nil
 }
 
 func (executor *TVMExecutor) validateNonce(accountdb *account.AccountDB, transaction *types.Transaction) bool {
-	if transaction.Type == types.TransactionTypeBonus || IsTestTransaction(transaction) {
+	if transaction.Type == types.TransactionTypeReward || IsTestTransaction(transaction) {
 		return true
 	}
 	nonce := accountdb.GetNonce(*transaction.Source)
@@ -231,9 +231,9 @@ func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB,
 	return success, err, cumulativeGasUsed, logs
 }
 
-func (executor *TVMExecutor) executeBonusTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address) (success bool) {
+func (executor *TVMExecutor) executeRewardTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address) (success bool) {
 	success = false
-	if executor.bc.GetBonusManager().contain(transaction.Data, accountdb) == false {
+	if executor.bc.GetRewardManager().contain(transaction.Data, accountdb) == false {
 		reader := bytes.NewReader(transaction.ExtraData)
 		groupID := make([]byte, common.GroupIDLength)
 		addr := make([]byte, common.AddressLength)
@@ -244,14 +244,14 @@ func (executor *TVMExecutor) executeBonusTx(accountdb *account.AccountDB, transa
 		}
 		for n, _ := reader.Read(addr); n > 0; n, _ = reader.Read(addr) {
 			if n != common.AddressLength {
-				Logger.Errorf("TVMExecutor Bonus Addr Size:%d Invalid", n)
+				Logger.Errorf("TVMExecutor Reward Addr Size:%d Invalid", n)
 				break
 			}
 			address := common.BytesToAddress(addr)
 			accountdb.AddBalance(address, value)
 		}
-		executor.bc.GetBonusManager().put(transaction.Data, transaction.Hash[:], accountdb)
-		accountdb.AddBalance(castor, executor.bc.GetConsensusHelper().PackBonus())
+		executor.bc.GetRewardManager().put(transaction.Data, transaction.Hash[:], accountdb)
+		accountdb.AddBalance(castor, executor.bc.GetConsensusHelper().PackReward())
 		success = true
 	}
 	return success
@@ -459,7 +459,7 @@ func (executor *TVMExecutor) executeMinerRefundTx(accountdb *account.AccountDB, 
 			accountdb.AddBalance(*transaction.Source, amount)
 			Logger.Debugf("TVMExecutor Execute MinerRefund Light Success %s,Type:%s", transaction.Source.Hex())
 			success = true
-		}else {
+		} else {
 			Logger.Debugf("TVMExecutor Execute MinerRefund Fail(No such miner type) %s", transaction.Source.Hex())
 			return
 		}

@@ -18,6 +18,7 @@ package core
 import (
 	"bytes"
 	"errors"
+	"math/big"
 	"sync"
 
 	"github.com/zvchain/zvchain/common"
@@ -26,22 +27,30 @@ import (
 	"github.com/zvchain/zvchain/storage/vm"
 )
 
-// BonusManager manage the bonus transactions
-type BonusManager struct {
+const initialRewards = 62 * common.TAS
+const halveRewardsPeriod = 30000000
+const initialDaemonNodeRatio = 629
+const initialMinerNodeRatio = 9228
+const adjustRadio = 114
+const adjustRadioPeriod = 10000000
+const ratioMultiple = 10000
+
+// RewardManager manage the reward transactions
+type RewardManager struct {
 	lock sync.RWMutex
 }
 
-func newBonusManager() *BonusManager {
-	manager := &BonusManager{}
+func newRewardManager() *RewardManager {
+	manager := &RewardManager{}
 	return manager
 }
 
-func (bm *BonusManager) blockHasBonusTransaction(blockHashByte []byte) bool {
-	return BlockChainImpl.LatestStateDB().GetData(common.BonusStorageAddress, string(blockHashByte)) != nil
+func (bm *RewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
+	return BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, string(blockHashByte)) != nil
 }
 
-func (bm *BonusManager) GetBonusTransactionByBlockHash(blockHash []byte) *types.Transaction {
-	transactionHash := BlockChainImpl.LatestStateDB().GetData(common.BonusStorageAddress, string(blockHash))
+func (bm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
+	transactionHash := BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, string(blockHash))
 	if transactionHash == nil {
 		return nil
 	}
@@ -49,13 +58,13 @@ func (bm *BonusManager) GetBonusTransactionByBlockHash(blockHash []byte) *types.
 	return transaction
 }
 
-// GenerateBonus generate the bonus transaction for the group who just validate a block
-func (bm *BonusManager) GenerateBonus(targetIds []int32, blockHash common.Hash, groupID []byte, totalValue uint64) (*types.Bonus, *types.Transaction, error) {
+// GenerateReward generate the reward transaction for the group who just validate a block
+func (bm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, groupID []byte, totalValue uint64) (*types.Reward, *types.Transaction, error) {
 	group := GroupChainImpl.getGroupByID(groupID)
 	buffer := &bytes.Buffer{}
 	buffer.Write(groupID)
 	if len(targetIds) == 0 {
-		return nil, nil, errors.New("GenerateBonus targetIds size 0")
+		return nil, nil, errors.New("GenerateReward targetIds size 0")
 	}
 	for i := 0; i < len(targetIds); i++ {
 		index := targetIds[i]
@@ -65,48 +74,69 @@ func (bm *BonusManager) GenerateBonus(targetIds []int32, blockHash common.Hash, 
 	transaction.Data = blockHash.Bytes()
 	transaction.ExtraData = buffer.Bytes()
 	if len(buffer.Bytes())%common.AddressLength != 0 {
-		return nil, nil, errors.New("GenerateBonus ExtraData Size Invalid")
+		return nil, nil, errors.New("GenerateReward ExtraData Size Invalid")
 	}
 	transaction.Value = totalValue / uint64(len(targetIds))
-	transaction.Type = types.TransactionTypeBonus
+	transaction.Type = types.TransactionTypeReward
 	transaction.GasPrice = common.MaxUint64
 	transaction.Hash = transaction.GenHash()
-	return &types.Bonus{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
+	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
 }
 
-// ParseBonusTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
-func (bm *BonusManager) ParseBonusTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, uint64, error) {
+// ParseRewardTransaction parse a reward transaction and  returns the group id, targetIds, block hash and transcation value
+func (bm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, uint64, error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	groupID := make([]byte, common.GroupIDLength)
 	addr := make([]byte, common.AddressLength)
 	if n, _ := reader.Read(groupID); n != common.GroupIDLength {
-		return nil, nil, common.Hash{}, 0, errors.New("ParseBonusTransaction Read GroupID Fail")
+		return nil, nil, common.Hash{}, 0, errors.New("ParseRewardTransaction Read GroupID Fail")
 	}
 	ids := make([][]byte, 0)
 	for n, _ := reader.Read(addr); n > 0; n, _ = reader.Read(addr) {
 		if n != common.AddressLength {
-			Logger.Debugf("ParseBonusTransaction Addr Size:%d Invalid", n)
+			Logger.Debugf("ParseRewardTransaction Addr Size:%d Invalid", n)
 			break
 		}
 		ids = append(ids, addr)
 		addr = make([]byte, common.AddressLength)
 	}
-	blockHash := bm.parseBonusBlockHash(transaction)
+	blockHash := bm.parseRewardBlockHash(transaction)
 	return groupID, ids, blockHash, transaction.Value, nil
 }
 
-func (bm *BonusManager) parseBonusBlockHash(tx *types.Transaction) common.Hash {
+func (bm *RewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {
 	return common.BytesToHash(tx.Data)
 }
 
-func (bm *BonusManager) contain(blockHash []byte, accountdb vm.AccountDB) bool {
-	value := accountdb.GetData(common.BonusStorageAddress, string(blockHash))
+func (bm *RewardManager) contain(blockHash []byte, accountdb vm.AccountDB) bool {
+	value := accountdb.GetData(common.RewardStorageAddress, string(blockHash))
 	if value != nil {
 		return true
 	}
 	return false
 }
 
-func (bm *BonusManager) put(blockHash []byte, transactionHash []byte, accountdb vm.AccountDB) {
-	accountdb.SetData(common.BonusStorageAddress, string(blockHash), transactionHash)
+func (bm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb vm.AccountDB) {
+	accountdb.SetData(common.RewardStorageAddress, string(blockHash), transactionHash)
+}
+
+func (bm *RewardManager) blockRewards(height uint64) uint64 {
+	return initialRewards >> (height / halveRewardsPeriod)
+}
+
+func (bm *RewardManager) NodesRewards(height uint64) (daemonNodesRewards, minerNodesRewards, userNodesRewards *big.Int) {
+	rewards := big.NewInt(0).SetUint64(bm.blockRewards(height))
+	if rewards.Uint64() == 0 {
+		return
+	}
+	daemonNodesRewards = big.NewInt(rewards.Int64())
+	minerNodesRewards = big.NewInt(rewards.Int64())
+	userNodesRewards = big.NewInt(rewards.Int64())
+	adjust := height / adjustRadioPeriod * adjustRadio
+	daemonNodeRatio := initialDaemonNodeRatio + adjust
+	minerNodesRatio := initialMinerNodeRatio - adjust
+	daemonNodesRewards = daemonNodesRewards.Mul(daemonNodesRewards, big.NewInt(0).SetUint64(daemonNodeRatio)).Div(daemonNodesRewards, big.NewInt(ratioMultiple))
+	minerNodesRewards = minerNodesRewards.Mul(minerNodesRewards, big.NewInt(0).SetUint64(minerNodesRatio)).Div(minerNodesRewards, big.NewInt(ratioMultiple))
+	userNodesRewards = userNodesRewards.Sub(userNodesRewards, daemonNodesRewards).Sub(userNodesRewards, minerNodesRewards)
+	return
 }

@@ -47,10 +47,10 @@ const (
 	// slFailed failure in the process of cast block, irreversible
 	slFailed
 
-	// slRewardSignReq indicate bonus transaction signature request has been sent
+	// slRewardSignReq indicate reward transaction signature request has been sent
 	slRewardSignReq
 
-	// slRewardSent indicate bonus transaction has been broadcast
+	// slRewardSent indicate reward transaction has been broadcast
 	slRewardSent
 )
 
@@ -66,10 +66,10 @@ type SlotContext struct {
 	castor groupsig.ID // The proposal miner id
 
 	// Reward related
-	rewardTrans    *types.Transaction        // The bonus transaction related to the block, it should issue after the block broadcast
-	rewardGSignGen *model.GroupSignGenerator // Bonus transaction signature generator
+	rewardTrans    *types.Transaction        // The reward transaction related to the block, it should issue after the block broadcast
+	rewardGSignGen *model.GroupSignGenerator // Reward transaction signature generator
 
-	signedRewardTxHashs set.Interface // Signed bonus transaction hash
+	signedRewardTxHashs set.Interface // Signed reward transaction hash
 }
 
 func createSlotContext(bh *types.BlockHeader, threshold int) *SlotContext {
@@ -178,7 +178,7 @@ func (sc *SlotContext) setRewardTrans(tx *types.Transaction) bool {
 	return false
 }
 
-// AcceptRewardPiece try to accept the signature piece of the bonus transaction consensus
+// AcceptRewardPiece try to accept the signature piece of the reward transaction consensus
 func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bool) {
 	if sc.rewardTrans != nil && sc.rewardTrans.Hash != sd.DataHash {
 		return
@@ -191,12 +191,12 @@ func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bo
 	}
 	accept, recover = sc.rewardGSignGen.AddWitness(sd.GetID(), sd.DataSign)
 	if accept && recover {
-		// Cast block bonus transaction using group signature
+		// Cast block reward transaction using group signature
 		if sc.rewardTrans.Sign == nil {
 			signBytes := sc.rewardGSignGen.GetGroupSign().Serialize()
 			tmpBytes := make([]byte, common.SignLength)
 			// Group signature length = 33, common signature length = 65.
-			// VerifyBonusTransaction() will recover common sig to groupsig
+			// VerifyRewardTransaction() will recover common sig to groupsig
 			copy(tmpBytes[0:len(signBytes)], signBytes)
 			sign := common.BytesToSign(tmpBytes)
 			sc.rewardTrans.Sign = sign.Bytes()

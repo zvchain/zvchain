@@ -127,8 +127,8 @@ func explorerConvertGroup(g *types.Group) map[string]interface{} {
 	return gmap
 }
 
-// ExplorerBlockBonus export bonus transaction by block height
-func (api *GtasAPI) ExplorerBlockBonus(height uint64) (*Result, error) {
+// ExplorerBlockReward export reward transaction by block height
+func (api *GtasAPI) ExplorerBlockReward(height uint64) (*Result, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
@@ -136,22 +136,22 @@ func (api *GtasAPI) ExplorerBlockBonus(height uint64) (*Result, error) {
 	}
 	bh := b.Header
 
-	ret := &ExploreBlockBonus{
+	ret := &ExploreBlockReward{
 		ProposalID: groupsig.DeserializeID(bh.Castor).GetHexString(),
 	}
-	bonusNum := uint64(0)
+	rewardNum := uint64(0)
 	if b.Transactions != nil {
 		for _, tx := range b.Transactions {
-			if tx.Type == types.TransactionTypeBonus {
-				bonusNum++
+			if tx.Type == types.TransactionTypeReward {
+				rewardNum++
 			}
 		}
 	}
-	ret.ProposalBonus = model.Param.ProposalBonus + bonusNum*model.Param.PackBonus
-	if bonusTx := chain.GetBonusManager().GetBonusTransactionByBlockHash(bh.Hash.Bytes()); bonusTx != nil {
-		genBonus := convertBonusTransaction(bonusTx)
-		genBonus.Success = true
-		ret.VerifierBonus = *genBonus
+	ret.ProposalReward = model.Param.ProposalReward + rewardNum*model.Param.PackReward
+	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
+		genReward := convertRewardTransaction(rewardTx)
+		genReward.Success = true
+		ret.VerifierReward = *genReward
 	}
 	return successResult(ret)
 }

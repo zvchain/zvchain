@@ -95,15 +95,15 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 	if b.Transactions != nil && len(b.Transactions) > 0 {
 		for _, tx := range b.Transactions {
 			switch tx.Type {
-			case types.TransactionTypeBonus:
-				_, ids, blockHash, value, err := ms.bchain.GetBonusManager().ParseBonusTransaction(tx)
+			case types.TransactionTypeReward:
+				_, ids, blockHash, value, err := ms.bchain.GetRewardManager().ParseRewardTransaction(tx)
 				if err != nil {
-					ms.showMsg("failed to parse bonus transaction %s", err)
+					ms.showMsg("failed to parse reward transaction %s", err)
 					continue
 				}
 				for _, id := range ids {
 					if bytes.Equal(id, ms.id) {
-						ms.showMsg("congratulations, you verified block hash %v success, bonus %v TAS", blockHash.Hex(), common.RA2TAS(value))
+						ms.showMsg("congratulations, you verified block hash %v success, reward %v TAS", blockHash.Hex(), common.RA2TAS(value))
 						break
 					}
 				}
