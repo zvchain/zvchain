@@ -84,10 +84,10 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 	}
 
 	resp, err := http.Post(ca.base, "application/json", bytes.NewReader(paramBytes))
-	defer resp.Body.Close()
 	if err != nil {
 		return opError(err)
 	}
+	defer resp.Body.Close()
 	responseBytes, err := ioutil.ReadAll(resp.Body)
 	ret := &RPCResObj{}
 	if err := json.Unmarshal(responseBytes, ret); err != nil {
