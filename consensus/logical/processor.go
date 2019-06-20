@@ -192,6 +192,10 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 
 	// Obtain legal ingot group
 	group = p.GetGroup(verifyGid)
+	if group == nil {
+		err = fmt.Errorf("group is nil:groupID=%v", verifyGid)
+		return
+	}
 	if !group.GroupID.IsValid() {
 		err = fmt.Errorf("selectedGroup is not valid, expect gid=%v, real gid=%v", verifyGid.ShortS(), group.GroupID.ShortS())
 		return
@@ -209,7 +213,7 @@ func (p *Processor) getMinerPos(gid groupsig.ID, uid groupsig.ID) int32 {
 // GetGroup get a specific group
 func (p Processor) GetGroup(gid groupsig.ID) *StaticGroupInfo {
 	if g, err := p.globalGroups.GetGroupByID(gid); err != nil {
-		panic("GetSelfGroup failed.")
+		return nil
 	} else {
 		return g
 	}
@@ -219,6 +223,7 @@ func (p Processor) GetGroup(gid groupsig.ID) *StaticGroupInfo {
 // the chain when the processer is initialized)
 func (p Processor) getGroupPubKey(gid groupsig.ID) groupsig.Pubkey {
 	if g, err := p.globalGroups.GetGroupByID(gid); err != nil {
+		// hold it for now
 		panic("GetSelfGroup failed.")
 	} else {
 		return g.GetPubKey()

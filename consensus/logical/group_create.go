@@ -28,7 +28,7 @@ import (
 
 // selectParentGroup determine the parent group randomly and the result is deterministic because of the base BlockHeader
 func (gm *GroupManager) selectParentGroup(baseBH *types.BlockHeader, preGroupID []byte) (*StaticGroupInfo, error) {
-	return gm.processor.globalGroups.getGenesisGroup(), nil
+	return gm.processor.globalGroups.getGenesisGroup()
 }
 
 func (gm *GroupManager) generateCreateGroupContext(baseHeight uint64) (*createGroupBaseContext, error) {

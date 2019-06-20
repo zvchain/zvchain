@@ -238,7 +238,10 @@ func (am *AccountManager) NewAccount(password string, miner bool) *Result {
 	}
 
 	if miner {
-		minerDO := model.NewSelfMinerDO(&privateKey)
+		minerDO, err := model.NewSelfMinerDO(&privateKey)
+		if err != nil {
+			return opError(err)
+		}
 
 		minerRaw := &MinerRaw{
 			BPk:   minerDO.PK.GetHexString(),

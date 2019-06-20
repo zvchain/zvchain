@@ -169,7 +169,7 @@ func (m *stateMachine) setCurrent(node *stateNode) {
 
 func (m *stateMachine) appendNode(node *stateNode) {
 	if node == nil {
-		panic("cannot add nil node to the state machine!")
+		return
 	}
 
 	tail := m.findTail()
@@ -343,5 +343,6 @@ func (stm *stateMachines) GetMachine(id string, cnt int) *stateMachine {
 	if v, ok := stm.machines.Get(id); ok {
 		return v.(*stateMachine)
 	}
+	// this case must not happen
 	panic("get machine fail, id " + id)
 }
