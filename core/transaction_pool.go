@@ -251,7 +251,7 @@ func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
 	return true, nil
 }
 
-func (pool *txPool) add(tx *types.Transaction) ( err error) {
+func (pool *txPool) add(tx *types.Transaction) (err error) {
 	if tx.Type == types.TransactionTypeBonus {
 		pool.bonPool.add(tx)
 	} else {

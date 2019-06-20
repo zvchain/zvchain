@@ -53,7 +53,6 @@ var (
 	errClosed           = errors.New("socket closed")
 )
 
-
 // Timeouts
 const (
 	respTimeout              = 500 * time.Millisecond
@@ -223,7 +222,7 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 		From:       &nc.ourEndPoint,
 		To:         &to,
 		NodeId:     nc.id[:],
-		ChainId: uint32(nc.chainID),
+		ChainId:    uint32(nc.chainID),
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	}
 	Logger.Infof("[send ping] id : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.Ip, nc.ourEndPoint.Port)

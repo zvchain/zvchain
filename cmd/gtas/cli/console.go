@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/types"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -50,6 +51,10 @@ type newAccountCmd struct {
 	miner    bool
 }
 
+func output(msg ...interface{}) {
+	fmt.Println(msg...)
+}
+
 func genNewAccountCmd() *newAccountCmd {
 	c := &newAccountCmd{
 		baseCmd: *genbaseCmd("newaccount", "create account"),
@@ -62,12 +67,16 @@ func genNewAccountCmd() *newAccountCmd {
 func (c *newAccountCmd) parse(args []string) bool {
 	err := c.fs.Parse(args)
 	if err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
-	if strings.TrimSpace(c.password) == "" {
-		fmt.Println("please input the password")
-		c.fs.PrintDefaults()
+	pass := strings.TrimSpace(c.password)
+	if len(pass) == 0 {
+		output("Please input password")
+		return false
+	}
+	if len(pass) > 50 || len(pass) < 3 {
+		output("password length should between 3-50")
 		return false
 	}
 	return true
@@ -75,7 +84,8 @@ func (c *newAccountCmd) parse(args []string) bool {
 
 type unlockCmd struct {
 	baseCmd
-	addr string
+	addr     string
+	duration uint
 }
 
 func genUnlockCmd() *unlockCmd {
@@ -83,17 +93,23 @@ func genUnlockCmd() *unlockCmd {
 		baseCmd: *genbaseCmd("unlock", "unlock the account"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the account address")
+	c.fs.UintVar(&c.duration, "duration", 120, "unlock duration, default 120 secs")
 	return c
 }
 
 func (c *unlockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
-		fmt.Println("please input the address")
+		output("please input the address")
 		c.fs.PrintDefaults()
+		return false
+	}
+
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
 		return false
 	}
 	return true
@@ -114,12 +130,16 @@ func genBalanceCmd() *balanceCmd {
 
 func (c *balanceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
-		fmt.Println("please input the address")
+		output("please input the address")
 		c.fs.PrintDefaults()
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
 		return false
 	}
 	return true
@@ -140,12 +160,16 @@ func genNonceCmd() *nonceCmd {
 
 func (c *nonceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
-		fmt.Println("please input the address")
+		output("please input the address")
 		c.fs.PrintDefaults()
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
 		return false
 	}
 	return true
@@ -166,12 +190,16 @@ func genMinerInfoCmd() *minerInfoCmd {
 
 func (c *minerInfoCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
-		fmt.Println("please input the address")
+		output("please input the address")
 		c.fs.PrintDefaults()
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
 		return false
 	}
 	return true
@@ -194,16 +222,16 @@ func genConnectCmd() *connectCmd {
 
 func (c *connectCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.host) == "" {
-		fmt.Println("please input the host,available testnet hosts are node1.taschain.cn,node2.taschain.cn,node3.taschain.cn,node4.taschain.cn,node5.taschain.cn")
+		output("please input the host,available testnet hosts are node1.taschain.cn,node2.taschain.cn,node3.taschain.cn,node4.taschain.cn,node5.taschain.cn")
 		c.fs.PrintDefaults()
 		return false
 	}
 	if c.port == 0 {
-		fmt.Println("please input the port")
+		output("please input the port")
 		c.fs.PrintDefaults()
 		return false
 	}
@@ -227,12 +255,16 @@ func genTxCmd() *txCmd {
 
 func (c *txCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.hash) == "" {
-		fmt.Println("please input the transaction hash")
+		output("please input the transaction hash")
 		c.fs.PrintDefaults()
+		return false
+	}
+	if !validateHash(c.hash) {
+		output("Wrong hash format")
 		return false
 	}
 	return true
@@ -255,8 +287,14 @@ func genBlockCmd() *blockCmd {
 
 func (c *blockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
+	}
+	if len(c.hash) > 0 {
+		if !validateHash(c.hash) {
+			output("Wrong hash format")
+			return false
+		}
 	}
 	return true
 }
@@ -278,7 +316,7 @@ func genGasBaseCmd(n string, h string) *gasBaseCmd {
 func (c *gasBaseCmd) parseGasPrice() bool {
 	gp, err := common.ParseCoin(c.gasPriceStr)
 	if err != nil {
-		fmt.Println(fmt.Sprintf("%v:%v, correct example: 100RA,100kRA,1mRA,1TAS", err, c.gasPriceStr))
+		output(fmt.Sprintf("%v:%v, correct example: 100RA,100kRA,1mRA,1TAS", err, c.gasPriceStr))
 		return false
 	}
 	c.gasPrice = gp
@@ -286,7 +324,7 @@ func (c *gasBaseCmd) parseGasPrice() bool {
 }
 
 func (c *gasBaseCmd) initBase() {
-	c.fs.Uint64Var(&c.gaslimit, "gaslimit", 1000, "gas limit, default 1000")
+	c.fs.Uint64Var(&c.gaslimit, "gaslimit", 3000, "gas limit, default 3000")
 	c.fs.StringVar(&c.gasPriceStr, "gasprice", "100RA", "gas price, default 100RA")
 }
 
@@ -299,6 +337,7 @@ type sendTxCmd struct {
 	contractName string
 	contractPath string
 	txType       int
+	extraData    string
 }
 
 func genSendTxCmd() *sendTxCmd {
@@ -309,6 +348,7 @@ func genSendTxCmd() *sendTxCmd {
 	c.fs.StringVar(&c.to, "to", "", "the transaction receiver address")
 	c.fs.Float64Var(&c.value, "value", 0.0, "transfer value in tas unit")
 	c.fs.StringVar(&c.data, "data", "", "transaction data")
+	c.fs.StringVar(&c.extraData, "extra", "", "transaction extra data, user defined")
 	c.fs.Uint64Var(&c.nonce, "nonce", 0, "nonce, optional. will use default nonce on chain if not specified")
 	c.fs.StringVar(&c.contractName, "contractname", "", "the name of the contract.")
 	c.fs.StringVar(&c.contractPath, "contractpath", "", "the path to the contract file.")
@@ -318,46 +358,59 @@ func genSendTxCmd() *sendTxCmd {
 
 func (c *sendTxCmd) toTxRaw() *txRawData {
 	return &txRawData{
-		Target:   c.to,
-		Value:    common.Value2RA(c.value),
-		TxType:   c.txType,
-		Data:     c.data,
-		Gas:      c.gaslimit,
-		Gasprice: c.gasPrice,
-		Nonce:    c.nonce,
+		Target:    c.to,
+		Value:     common.Value2RA(c.value),
+		TxType:    c.txType,
+		Data:      c.data,
+		Gas:       c.gaslimit,
+		Gasprice:  c.gasPrice,
+		Nonce:     c.nonce,
+		ExtraData: c.extraData,
 	}
 }
 
 func (c *sendTxCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
-	if strings.TrimSpace(c.to) == "" {
-		fmt.Println("please input the target address")
-		c.fs.PrintDefaults()
+	if !validateTxType(c.txType) {
+		output("Not supported transaction type")
 		return false
 	}
+	if c.txType == types.TransactionTypeTransfer || c.txType == types.TransactionTypeContractCall {
+		if strings.TrimSpace(c.to) == "" {
+			output("please input the target address")
+			c.fs.PrintDefaults()
+			return false
+		} else {
+			if !validateAddress(strings.TrimSpace(c.to)) {
+				output("Wrong address format")
+				return false
+			}
+		}
+	}
+
 	if !c.parseGasPrice() {
 		return false
 	}
 
-	if c.txType == 1 { // Release contract preprocessing
+	if c.txType == types.TransactionTypeContractCreate { // Release contract preprocessing
 		if strings.TrimSpace(c.contractName) == "" { // Contract name is not empty
-			fmt.Println("please input the contractName")
+			output("please input the contractName")
 			c.fs.PrintDefaults()
 			return false
 		}
 
 		if strings.TrimSpace(c.contractPath) == "" { // Contract file path is not empty
-			fmt.Println("please input the contractPath")
+			output("please input the contractPath")
 			c.fs.PrintDefaults()
 			return false
 		}
 
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			fmt.Println("read the "+c.contractPath+"file failed ", err)
+			output("read the "+c.contractPath+"file failed ", err)
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -365,22 +418,22 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		jsonBytes, errMarsh := json.Marshal(contract)
 		if errMarsh != nil {
-			fmt.Println("Marshal contract failed: ", errMarsh)
+			output("Marshal contract failed: ", errMarsh)
 			c.fs.PrintDefaults()
 			return false
 		}
 		c.data = string(jsonBytes)
 
-	} else if c.txType == 2 { // Release contract preprocessing
+	} else if c.txType == types.TransactionTypeContractCall { // Release contract preprocessing
 		if strings.TrimSpace(c.contractPath) == "" { // Contract file path is not empty
-			fmt.Println("please input the contractPath")
+			output("please input the contractPath")
 			c.fs.PrintDefaults()
 			return false
 		}
 
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			fmt.Println("read the "+c.contractPath+"file failed ", err)
+			output("read the "+c.contractPath+"file failed ", err)
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -408,7 +461,11 @@ func genMinerApplyCmd() *minerApplyCmd {
 
 func (c *minerApplyCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
+		return false
+	}
+	if !validateMinerType(c.mtype) {
+		output("Unsupported miner type")
 		return false
 	}
 	return c.parseGasPrice()
@@ -430,7 +487,11 @@ func genMinerAbortCmd() *minerAbortCmd {
 
 func (c *minerAbortCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
+		return false
+	}
+	if !validateMinerType(c.mtype) {
+		output("Unsupported miner type")
 		return false
 	}
 	return c.parseGasPrice()
@@ -454,7 +515,15 @@ func genMinerRefundCmd() *minerRefundCmd {
 
 func (c *minerRefundCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	if !validateMinerType(c.mtype) {
+		output("Unsupported miner type")
 		return false
 	}
 	return c.parseGasPrice()
@@ -480,7 +549,15 @@ func genMinerStakeCmd() *minerStakeCmd {
 
 func (c *minerStakeCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	if !validateMinerType(c.mtype) {
+		output("Unsupported miner type")
 		return false
 	}
 	return c.parseGasPrice()
@@ -506,7 +583,15 @@ func genMinerCancelStakeCmd() *minerCancelStakeCmd {
 
 func (c *minerCancelStakeCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	if !validateMinerType(c.mtype) {
+		output("Unsupported miner type")
 		return false
 	}
 	return c.parseGasPrice()
@@ -527,11 +612,15 @@ func genViewContractCmd() *viewContractCmd {
 
 func (c *viewContractCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		fmt.Println(err.Error())
+		output(err.Error())
 		return false
 	}
 	if c.addr == "" {
-		fmt.Println("please input the contract address")
+		output("please input the contract address")
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
 		return false
 	}
 	return true
@@ -589,9 +678,9 @@ func init() {
 }
 
 func Usage() {
-	fmt.Println("Usage:")
+	output("Usage:")
 	for _, cmd := range list {
-		fmt.Println(" " + cmd.name + ":\t" + cmd.help)
+		output(" " + cmd.name + ":\t" + cmd.help)
 		cmd.fs.PrintDefaults()
 		fmt.Print("\n")
 	}
@@ -622,13 +711,13 @@ func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error 
 func handleCmd(handle func() *Result) {
 	ret := handle()
 	if !ret.IsSuccess() {
-		fmt.Println(ret.Message)
+		output(ret.Message)
 	} else {
 		bs, err := json.MarshalIndent(ret, "", "\t")
 		if err != nil {
-			fmt.Println(err.Error())
+			output(err.Error())
 		} else {
-			fmt.Println(string(bs))
+			output(string(bs))
 		}
 	}
 }
@@ -644,9 +733,9 @@ func unlockLoop(cmd *unlockCmd, acm accountOp) {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		ret := acm.UnLock(cmd.addr, string(bs))
+		ret := acm.UnLock(cmd.addr, string(bs), cmd.duration)
 		if ret.IsSuccess() {
-			fmt.Printf("unlock will last %v secs:%v\n", accountUnLockTime.Seconds(), cmd.addr)
+			fmt.Printf("unlock will last %v secs:%v\n", cmd.duration, cmd.addr)
 			break
 		} else {
 			fmt.Fprintln(os.Stderr, ret.Message)

@@ -491,7 +491,7 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 	Logger.Infof("broadcast random total peer size:%v code:%v", len(pm.peers), code)
 
 	pm.checkPeerSource()
-	availablePeers:= make([]*Peer,0,0)
+	availablePeers := make([]*Peer, 0, 0)
 
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
@@ -518,9 +518,9 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 				continue
 			}
 			nodesHasSend[peerIndex] = true
-			if peerIndex < len(availablePeers){
+			if peerIndex < len(availablePeers) {
 				p := availablePeers[peerIndex]
-				if p !=nil {
+				if p != nil {
 					p.write(packet, code)
 				}
 			}

@@ -34,8 +34,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-const accountUnLockTime = time.Second * 120
-
 var encryptPrivateKey *common.PrivateKey
 var encryptPublicKey *common.PublicKey
 
@@ -71,7 +69,7 @@ func (ai *AccountInfo) unlocked() bool {
 }
 
 func (ai *AccountInfo) resetExpireTime() {
-	ai.UnLockExpire = time.Now().Add(accountUnLockTime)
+	ai.UnLockExpire = time.Now().Add(time.Duration(120) * time.Second)
 }
 
 type Account struct {
@@ -272,7 +270,7 @@ func (am *AccountManager) Lock(addr string) *Result {
 }
 
 // UnLock unlock the account by address and password
-func (am *AccountManager) UnLock(addr string, password string) *Result {
+func (am *AccountManager) UnLock(addr string, password string, duration uint) *Result {
 	aci, err := am.getAccountInfo(addr)
 	if err != nil {
 		return opError(err)
@@ -288,7 +286,7 @@ func (am *AccountManager) UnLock(addr string, password string) *Result {
 	}
 
 	aci.Status = statusUnLocked
-	aci.resetExpireTime()
+	aci.UnLockExpire = time.Now().Add(time.Duration(duration) * time.Second)
 	am.unlockAccount = aci
 
 	return opSuccess(nil)

@@ -29,7 +29,7 @@ func TestCreatePool(t *testing.T) {
 
 	fmt.Printf("received: %d transactions\n", len(pool.GetReceived()))
 
-	transaction := genTestTx(123457, "1", "2", 0, 3)
+	transaction := genTestTx(123457, "1", "2", 1, 3)
 
 	_, err := pool.AddTransaction(transaction)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestCreatePool(t *testing.T) {
 
 	h := common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
-	transaction = genTestTx(12347, "1", "2", 1, 3)
+	transaction = genTestTx(12347, "1", "2", 2, 3)
 
 	_, err = pool.AddTransaction(transaction)
 	if err != nil {
