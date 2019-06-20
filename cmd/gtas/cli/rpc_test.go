@@ -91,7 +91,7 @@ func TestRPC(t *testing.T) {
 			t.Errorf("%s failed: %v", test.method, res.Error.Message)
 			continue
 		}
-		data, _ := json.Marshal(res.Result.Data)
+		data, _ := json.Marshal(res.Result)
 		log.Printf("%s response data: %s", test.method, data)
 	}
 }

@@ -69,7 +69,7 @@ func (ai *AccountInfo) unlocked() bool {
 }
 
 func (ai *AccountInfo) resetExpireTime() {
-	ai.UnLockExpire = time.Now().Add(time.Duration(120) * time.Second)
+	//ai.UnLockExpire = time.Now().Add(time.Duration(120) * time.Second)
 }
 
 type Account struct {
