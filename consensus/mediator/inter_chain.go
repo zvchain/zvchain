@@ -40,16 +40,6 @@ func NewConsensusHelper(id groupsig.ID) types.ConsensusHelper {
 	return &ConsensusHelperImpl{ID: id}
 }
 
-// ProposalReward returns reward for packing one reward transaction
-func (helper *ConsensusHelperImpl) ProposalReward() *big.Int {
-	return new(big.Int).SetUint64(model.Param.ProposalReward)
-}
-
-// PackReward returns reward for packing one reward transaction
-func (helper *ConsensusHelperImpl) PackReward() *big.Int {
-	return new(big.Int).SetUint64(model.Param.PackReward)
-}
-
 // GenerateGenesisInfo generate genesis group and pk info of members
 func (helper *ConsensusHelperImpl) GenerateGenesisInfo() *types.GenesisInfo {
 	return logical.GenerateGenesis()
@@ -110,8 +100,10 @@ func (helper *ConsensusHelperImpl) VerifyRewardTransaction(tx *types.Transaction
 	if !bytes.Equal(groupID, bh.GroupID) {
 		return false, fmt.Errorf("group id not equal to the block verifier groupId")
 	}
-
-	if model.Param.VerifyReward/uint64(len(targetIds)) != value.Uint64() {
+	verifyRewards := Proc.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
+	gasFeeRewards := Proc.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(big.NewInt(0).SetUint64(bh.GasFee))
+	verifyRewards.Add(verifyRewards, gasFeeRewards)
+	if verifyRewards.Uint64()/uint64(len(targetIds)) != value.Uint64() {
 		return false, fmt.Errorf("invalid verify reward, value=%v", value)
 	}
 

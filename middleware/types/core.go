@@ -282,6 +282,7 @@ type BlockHeader struct {
 	StateTree   common.Hash    // State db Merkel root hash
 	ExtraData   []byte
 	Random      []byte // Random number generated during the consensus process
+	GasFee      uint64 // gas fee of transaction executed in block
 }
 
 // GenHash calculates the hash of the block

@@ -27,17 +27,42 @@ import (
 	"github.com/zvchain/zvchain/storage/vm"
 )
 
-const initialRewards = 62 * common.TAS
-const halveRewardsPeriod = 30000000
-const initialDaemonNodeRatio = 629
-const initialMinerNodeRatio = 9228
-const adjustRadio = 114
-const adjustRadioPeriod = 10000000
-const ratioMultiple = 10000
+const (
+	initialRewards     = 62 * common.TAS
+	halveRewardsPeriod = 30000000
+)
+
+const (
+	initialDaemonNodeWeight = 629
+	initialMinerNodeWeight  = 9228
+	userNodeWeight          = 143
+	totalNodeWeight         = 10000
+	adjustWeight            = 114
+	adjustWeightPeriod      = 10000000
+)
+
+const (
+	castorRewardsWeight = 8
+	packedRewardsWeight = 1
+	verifyRewardsWeight = 1
+	totalRewardsWeight  = 10
+)
+
+const (
+	gasFeeCastorRewardsWeight = 9
+	gasFeeVerifyRewardsWeight = 1
+	gasFeeTotalRewardsWeight  = 10
+)
+
+var (
+	userNodeAddress   = common.HexToAddress("0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b")
+	deamonNodeAddress = common.HexToAddress("0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b")
+)
 
 // RewardManager manage the reward transactions
 type RewardManager struct {
-	lock sync.RWMutex
+	noRewards bool
+	lock      sync.RWMutex
 }
 
 func newRewardManager() *RewardManager {
@@ -45,11 +70,11 @@ func newRewardManager() *RewardManager {
 	return manager
 }
 
-func (bm *RewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
+func (rm *RewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
 	return BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, string(blockHashByte)) != nil
 }
 
-func (bm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
+func (rm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
 	transactionHash := BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, string(blockHash))
 	if transactionHash == nil {
 		return nil
@@ -59,7 +84,7 @@ func (bm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *type
 }
 
 // GenerateReward generate the reward transaction for the group who just validate a block
-func (bm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, groupID []byte, totalValue uint64) (*types.Reward, *types.Transaction, error) {
+func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, groupID []byte, totalValue uint64) (*types.Reward, *types.Transaction, error) {
 	group := GroupChainImpl.getGroupByID(groupID)
 	buffer := &bytes.Buffer{}
 	buffer.Write(groupID)
@@ -84,7 +109,7 @@ func (bm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 }
 
 // ParseBonusTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
-func (bm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, *types.BigInt, error) {
+func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, *types.BigInt, error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	groupID := make([]byte, common.GroupIDLength)
 	addr := make([]byte, common.AddressLength)
@@ -100,15 +125,15 @@ func (bm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) 
 		ids = append(ids, addr)
 		addr = make([]byte, common.AddressLength)
 	}
-	blockHash := bm.parseRewardBlockHash(transaction)
+	blockHash := rm.parseRewardBlockHash(transaction)
 	return groupID, ids, blockHash, transaction.Value, nil
 }
 
-func (bm *RewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {
+func (rm *RewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {
 	return common.BytesToHash(tx.Data)
 }
 
-func (bm *RewardManager) contain(blockHash []byte, accountdb vm.AccountDB) bool {
+func (rm *RewardManager) contain(blockHash []byte, accountdb vm.AccountDB) bool {
 	value := accountdb.GetData(common.RewardStorageAddress, string(blockHash))
 	if value != nil {
 		return true
@@ -116,27 +141,84 @@ func (bm *RewardManager) contain(blockHash []byte, accountdb vm.AccountDB) bool 
 	return false
 }
 
-func (bm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb vm.AccountDB) {
+func (rm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb vm.AccountDB) {
 	accountdb.SetData(common.RewardStorageAddress, string(blockHash), transactionHash)
 }
 
-func (bm *RewardManager) blockRewards(height uint64) uint64 {
+func (rm *RewardManager) blockRewards(height uint64) uint64 {
+	if rm.noRewards {
+		return 0
+	}
 	return initialRewards >> (height / halveRewardsPeriod)
 }
 
-func (bm *RewardManager) NodesRewards(height uint64) (daemonNodesRewards, minerNodesRewards, userNodesRewards *big.Int) {
-	rewards := big.NewInt(0).SetUint64(bm.blockRewards(height))
+func (rm *RewardManager) userNodesRewards(height uint64) (userNodesRewards *big.Int) {
+	rewards := big.NewInt(0).SetUint64(rm.blockRewards(height))
+	userNodesRewards = big.NewInt(rewards.Int64())
+	userNodesRewards.Mul(userNodesRewards, big.NewInt(0).SetUint64(userNodeWeight)).
+		Div(userNodesRewards, big.NewInt(totalNodeWeight))
+	return
+}
+
+func (rm *RewardManager) deamonNodesRewards(height uint64) (daemonNodesRewards *big.Int) {
+	rewards := big.NewInt(0).SetUint64(rm.blockRewards(height))
+	daemonNodesRewards = big.NewInt(rewards.Int64())
+	adjust := height / adjustWeightPeriod * adjustWeight
+	daemonNodeWeight := initialDaemonNodeWeight + adjust
+	daemonNodesRewards.Mul(daemonNodesRewards, big.NewInt(0).SetUint64(daemonNodeWeight)).
+		Div(daemonNodesRewards, big.NewInt(totalNodeWeight))
+	return
+}
+
+func (rm *RewardManager) minerNodesRewards(height uint64) (minerNodesRewards *big.Int) {
+	rewards := big.NewInt(0).SetUint64(rm.blockRewards(height))
 	if rewards.Uint64() == 0 {
 		return
 	}
-	daemonNodesRewards = big.NewInt(rewards.Int64())
 	minerNodesRewards = big.NewInt(rewards.Int64())
-	userNodesRewards = big.NewInt(rewards.Int64())
-	adjust := height / adjustRadioPeriod * adjustRadio
-	daemonNodeRatio := initialDaemonNodeRatio + adjust
-	minerNodesRatio := initialMinerNodeRatio - adjust
-	daemonNodesRewards = daemonNodesRewards.Mul(daemonNodesRewards, big.NewInt(0).SetUint64(daemonNodeRatio)).Div(daemonNodesRewards, big.NewInt(ratioMultiple))
-	minerNodesRewards = minerNodesRewards.Mul(minerNodesRewards, big.NewInt(0).SetUint64(minerNodesRatio)).Div(minerNodesRewards, big.NewInt(ratioMultiple))
-	userNodesRewards = userNodesRewards.Sub(userNodesRewards, daemonNodesRewards).Sub(userNodesRewards, minerNodesRewards)
+	adjust := height / adjustWeightPeriod * adjustWeight
+	minerNodesWeight := initialMinerNodeWeight - adjust
+	minerNodesRewards.Mul(minerNodesRewards, big.NewInt(0).SetUint64(minerNodesWeight)).
+		Div(minerNodesRewards, big.NewInt(totalNodeWeight))
 	return
+}
+
+func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
+	if rm.noRewards {
+		return false
+	}
+	return true
+}
+
+func (rm *RewardManager) CalculateCastorRewards(height uint64) *big.Int {
+	minerNodesRewards := rm.minerNodesRewards(height)
+	rewards := big.NewInt(minerNodesRewards.Int64())
+	rewards.Mul(rewards, big.NewInt(totalRewardsWeight)).Div(rewards, big.NewInt(castorRewardsWeight))
+	return rewards
+}
+
+func (rm *RewardManager) CalculatePackedRewards(height uint64) *big.Int {
+	minerNodesRewards := rm.minerNodesRewards(height)
+	rewards := big.NewInt(minerNodesRewards.Int64())
+	rewards.Mul(rewards, big.NewInt(totalRewardsWeight)).Div(rewards, big.NewInt(packedRewardsWeight))
+	return rewards
+}
+
+func (rm *RewardManager) CalculateVerifyRewards(height uint64) *big.Int {
+	minerNodesRewards := rm.minerNodesRewards(height)
+	rewards := big.NewInt(minerNodesRewards.Int64())
+	rewards.Mul(rewards, big.NewInt(totalRewardsWeight)).Div(rewards, big.NewInt(verifyRewardsWeight))
+	return rewards
+}
+
+func (rm *RewardManager) CalculateGasFeeVerifyRewards(gasFee *big.Int) *big.Int {
+	reward := big.NewInt(gasFee.Int64())
+	reward.Mul(reward, big.NewInt(gasFeeVerifyRewardsWeight)).Div(reward, big.NewInt(gasFeeTotalRewardsWeight))
+	return reward
+}
+
+func (rm *RewardManager) CalculateGasFeeCastorRewards(gasFee *big.Int) *big.Int {
+	reward := big.NewInt(gasFee.Int64())
+	reward.Mul(reward, big.NewInt(gasFeeCastorRewardsWeight)).Div(reward, big.NewInt(gasFeeTotalRewardsWeight))
+	return reward
 }

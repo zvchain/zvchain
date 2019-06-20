@@ -244,7 +244,9 @@ type ExplorerAccount struct {
 }
 
 type ExploreBlockReward struct {
-	ProposalID     string            `json:"proposal_id"`
-	ProposalReward uint64            `json:"proposal_reward"`
-	VerifierReward RewardTransaction `json:"verifier_reward"`
+	ProposalID           string            `json:"proposal_id"`
+	ProposalReward       uint64            `json:"proposal_reward"`
+	ProposalGasFeeReward uint64            `json:"proposal_gas_fee_reward"`
+	VerifierReward       RewardTransaction `json:"verifier_reward"`
+	VerifierGasFeeReward uint64            `json:"verifier_gas_fee_reward"`
 }
