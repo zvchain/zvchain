@@ -181,7 +181,6 @@ func (gtas *Gtas) Run() {
 	// In test mode, P2P NAT is closed
 	testMode := mineCmd.Flag("test", "test mode").Bool()
 	seedAddr := mineCmd.Flag("seed", "seed address").String()
-	seedID := mineCmd.Flag("seedid", "seed id").Default("").String()
 	natAddr := mineCmd.Flag("nat", "nat server address").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("0").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
@@ -231,7 +230,6 @@ func (gtas *Gtas) Run() {
 			testMode:      *testMode,
 			natIP:         *natAddr,
 			natPort:       *natPort,
-			seedID:        *seedID,
 			seedIP:        *seedAddr,
 			applyRole:     *apply,
 			keystore:      *keystore,
@@ -341,10 +339,11 @@ func (gtas *Gtas) fullInit() error {
 		NatAddr:         cfg.natIP,
 		NatPort:         cfg.natPort,
 		SeedAddr:        cfg.seedIP,
-		SeedID:          cfg.seedID,
 		NodeIDHex:       id,
 		ChainID:         cfg.chainID,
-		ProtocolVersion: common.ProtocalVersion}
+		ProtocolVersion: common.ProtocalVersion,
+		SeedIDs:         core.GroupChainImpl.GenesisMembers(),
+	}
 
 	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)
 

@@ -24,7 +24,6 @@ type minerConfig struct {
 	natIP         string
 	natPort       uint16
 	seedIP        string
-	seedID        string
 	applyRole     string
 	keystore      string
 	enableMonitor bool
