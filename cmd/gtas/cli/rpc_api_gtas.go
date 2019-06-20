@@ -185,10 +185,10 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
 		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
-		return successResult(&core.ExecutedTransaction{
+		return successResult(convertExecutedTransaction(&core.ExecutedTransaction{
 			Receipt:     rc,
 			Transaction: tx,
-		})
+		}))
 	}
 	return failResult("tx not exist")
 }

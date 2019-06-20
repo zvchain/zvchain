@@ -246,11 +246,10 @@ func (ca *RemoteChainOpImpl) AbortMiner(mtype int, gas, gasprice uint64) *Result
 		return opError(fmt.Errorf("the current account is not a miner account"))
 	}
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerAbort,
-		Data:      string([]byte{byte(mtype)}),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerAbort,
+		Data:     string([]byte{byte(mtype)}),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -271,11 +270,10 @@ func (ca *RemoteChainOpImpl) RefundMiner(mtype int, addrStr string, gas, gaspric
 	addr := common.HexToAddress(addrStr)
 	data = append(data, addr.Bytes()...)
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerRefund,
-		Data:      common.ToHex(data),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerRefund,
+		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -298,11 +296,10 @@ func (ca *RemoteChainOpImpl) MinerStake(mtype int, addrStr string, stakeValue, g
 	data = append(data, addr.Bytes()...)
 	data = append(data, common.Uint64ToByte(stakeValue)...)
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerStake,
-		Data:      common.ToHex(data),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerStake,
+		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -325,18 +322,17 @@ func (ca *RemoteChainOpImpl) MinerCancelStake(mtype int, addrStr string, cancelV
 	data = append(data, addr.Bytes()...)
 	data = append(data, common.Uint64ToByte(cancelValue)...)
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerCancelStake,
-		Data:      common.ToHex(data),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerCancelStake,
+		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
 }
 
 func (ca *RemoteChainOpImpl) ViewContract(addr string) *Result {
-	return ca.request("explorerAccount", addr)
+	return ca.request("viewAccount", addr)
 }
 
 func (ca *RemoteChainOpImpl) TxReceipt(hash string) *Result {
