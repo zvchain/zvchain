@@ -145,6 +145,9 @@ func (bs *blockSyncer) trySyncRoutine() bool {
 }
 
 func (bs *blockSyncer) syncFrom(from string) bool {
+	if bs == nil {
+		return false
+	}
 	topBH := bs.chain.QueryTopBlock()
 	localTopBlock := newTopBlockInfo(topBH)
 
