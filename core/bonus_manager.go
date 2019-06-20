@@ -63,6 +63,7 @@ var (
 type RewardManager struct {
 	noRewards       bool
 	noRewardsHeight uint64
+	tokenLeft       uint64
 	lock            sync.RWMutex
 }
 
@@ -188,6 +189,13 @@ func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
 	if rm.noRewards {
 		return false
 	}
+	rewards := rm.blockRewards(height)
+	if rewards > rm.tokenLeft {
+		rm.noRewards = true
+		rm.noRewardsHeight = height
+		return false
+	}
+	rm.tokenLeft -= rewards
 	return true
 }
 

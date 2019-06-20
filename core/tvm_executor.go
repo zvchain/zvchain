@@ -31,6 +31,9 @@ import (
 const TransactionGasCost uint64 = 1000
 const CodeBytePrice = 0.3814697265625
 const MaxCastBlockTime = time.Second * 3
+const adjustGasPricePeriod = 30000000
+const adjustGasPriceTimes = 3
+const initialMinGasPrice = 200
 
 type TVMExecutor struct {
 	bc BlockChain
@@ -65,6 +68,10 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 
 		if !transaction.IsReward() {
 			if err = transaction.BoundCheck(); err != nil {
+				evictedTxs = append(evictedTxs, transaction.Hash)
+				continue
+			}
+			if invalidGasPrice(transaction.GasPrice.Uint64(), bh.Height) {
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
@@ -453,6 +460,17 @@ func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err *t
 		return nil, types.TxErrorDeployGasNotEnough
 	}
 	return types.NewBigInt(gas), nil
+}
+
+func invalidGasPrice(gasPrice, height uint64) bool {
+	times := height / adjustGasPricePeriod
+	if times > adjustGasPriceTimes {
+		times = adjustGasPriceTimes
+	}
+	if gasPrice < (initialMinGasPrice << times) {
+		return true
+	}
+	return false
 }
 
 func checkGasFeeIsEnough(db vm.AccountDB, addr common.Address, gasFee *big.Int) *types.TransactionError {
