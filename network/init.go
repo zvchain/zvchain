@@ -19,27 +19,30 @@
 package network
 
 import (
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
 	"math"
 	"math/rand"
-	"time"
 	"net"
+	"time"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/taslog"
 
 	"github.com/zvchain/zvchain/middleware/statistics"
 )
 
 // NetworkConfig is the network configuration
 type NetworkConfig struct {
-	NodeIDHex           string
-	NatAddr             string
-	NatPort             uint16
-	SeedAddr            string
-	ChainID             uint16 // Chain id
-	ProtocolVersion     uint16 // Protocol version
-	TestMode            bool
-	IsSuper             bool
-	SeedIDs 			[]string
+	NodeIDHex       string
+	NatAddr         string
+	NatPort         uint16
+	SeedAddr        string
+	ChainID         uint16 // Chain id
+	ProtocolVersion uint16 // Protocol version
+	TestMode        bool
+	IsSuper         bool
+	SeedIDs         []string
+	PK              string
+	SK              string
 }
 
 var netServerInstance *Server
@@ -93,7 +96,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		randomSeeds := genRandomSeeds(networkConfig.SeedIDs)
 		for _, sid := range randomSeeds {
 			bnNode := NewNode(NewNodeID(sid), net.ParseIP(networkConfig.SeedAddr), seedPort)
-			Logger.Errorf("seed id:%v ",sid)
+			Logger.Errorf("seed id:%v ", sid)
 
 			if bnNode.ID != self.ID {
 				seeds = append(seeds, bnNode)
@@ -122,17 +125,16 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 	var netCore NetCore
 	n, _ := netCore.InitNetCore(netConfig)
 
-	netServerInstance = &Server{Self: self, netCore: n, consensusHandler: consensusHandler}
+	netServerInstance = &Server{Self: self, netCore: n, consensusHandler: consensusHandler, config: &networkConfig}
 	return nil
 }
 
-
-func genRandomSeeds(seeds[]string ) []string {
+func genRandomSeeds(seeds []string) []string {
 	nodesSelect := make(map[int]bool)
 
 	totalSize := len(seeds)
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	maxSize := int(math.Ceil(float64(totalSize)/3))
+	maxSize := int(math.Ceil(float64(totalSize) / 3))
 	for i := 0; i < totalSize; i++ {
 		peerIndex := rand.Intn(totalSize)
 		if nodesSelect[peerIndex] == true {
@@ -145,10 +147,10 @@ func genRandomSeeds(seeds[]string ) []string {
 	}
 	seedsRandom := make([]string, 0, 0)
 
-	for key,_ := range(nodesSelect) {
-		seedsRandom = append(seedsRandom,seeds[key])
+	for key, _ := range nodesSelect {
+		seedsRandom = append(seedsRandom, seeds[key])
 	}
-	return  seedsRandom
+	return seedsRandom
 }
 
 func GetNetInstance() Network {

@@ -22,6 +22,7 @@ package network
 #include "p2p_api.h"
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 void OnP2PRecved();
@@ -38,6 +39,7 @@ void OnP2PDisconnected();
 
 void OnP2PSendWaited();
 
+void* OnP2PLoginSign();
 
 void on_p2p_recved(uint64_t id, uint32_t session, char* data, uint32_t size)
 {
@@ -78,6 +80,11 @@ void on_p2p_send_waited(uint32_t session, uint64_t peer_id)
 	OnP2PSendWaited(session, peer_id);
 }
 
+struct p2p_login* on_p2p_login_sign()
+{
+	return (struct p2p_login*)OnP2PLoginSign();
+}
+
 void wrap_p2p_config(uint64_t id)
 {
 	struct p2p_callback callback = { 0 };
@@ -87,6 +94,7 @@ void wrap_p2p_config(uint64_t id)
 	callback.accepted = on_p2p_accepted;
 	callback.connected = on_p2p_connected;
 	callback.disconnected = on_p2p_disconnected;
+	callback.sign = on_p2p_login_sign;
 	p2p_config(id, callback);
 
 }
@@ -94,12 +102,29 @@ void wrap_p2p_config(uint64_t id)
 void wrap_p2p_send_callback()
 {
 	p2p_send_callback(on_p2p_send_waited);
+}
 
+struct p2p_login * wrap_new_p2p_login(uint64_t id, uint64_t cur_time, char* pk, char* sign)
+{
+	struct p2p_login *p_login = (struct p2p_login *)malloc(sizeof(struct p2p_login));
+	p_login->id = id;
+	p_login->cur_time = cur_time;
+	memcpy(p_login->pk, pk, PK_SIZE);
+	memcpy(p_login->sign, sign, SIGN_SIZE);
+	return p_login;
 }
 
 */
 import "C"
-import "unsafe"
+import (
+	"bytes"
+	"fmt"
+	"time"
+	"unsafe"
+
+	"github.com/zvchain/zvchain/common"
+)
+
 
 func P2PConfig(id uint64) {
 	C.wrap_p2p_config(C.uint64_t(id))
@@ -164,4 +189,23 @@ func P2PSend(session uint32, data []byte) {
 		curPos += sendSize
 	}
 
+}
+
+func P2PLoginSign() unsafe.Pointer {
+	privateKey := common.HexToSecKey(netServerInstance.config.SK)
+	pubkey := common.HexToPubKey(netServerInstance.config.PK)
+	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
+		return nil
+	}
+	//source := pubkey.GetAddress()
+	buffer := bytes.Buffer{}
+	curTime := uint64(time.Now().UTC().Unix())
+	data :=common.Uint64ToByte(curTime)
+	buffer.Write(data)
+	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
+
+	sign := privateKey.Sign(hash.Bytes())
+	fmt.Printf("LoginSign end:%v,%v, hash:%v, pk:%v,sign:%v\n",netServerInstance.netCore.nid,common.Bytes2Hex(data),hash.Hex(), common.Bytes2Hex(pubkey.Bytes()),common.Bytes2Hex(sign.Bytes()))
+
+	return (unsafe.Pointer)(C.wrap_new_p2p_login(C.uint64_t(netServerInstance.netCore.nid), C.uint64_t(curTime), (*C.char)(unsafe.Pointer(&pubkey.Bytes()[0])), (*C.char)(unsafe.Pointer(&sign.Bytes()[0]))))
 }

@@ -333,9 +333,13 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint1
 		NodeIDHex:       id,
 		ChainID:         chainID,
 		ProtocolVersion: common.ProtocalVersion,
-		SeedIDs:core.GroupChainImpl.GenesisMembers()}
+		SeedIDs:core.GroupChainImpl.GenesisMembers(),
+		PK:gtas.account.Pk,
+		SK:gtas.account.Sk}
+
 
 	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)
+
 
 	if err != nil {
 		return err

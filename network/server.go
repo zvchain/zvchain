@@ -34,8 +34,10 @@ type Server struct {
 	Self *Node
 
 	netCore *NetCore
+	config 	*NetworkConfig
 
 	consensusHandler MsgHandler
+
 }
 
 func (s *Server) Send(id string, msg Message) error {
