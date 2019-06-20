@@ -96,8 +96,6 @@ type ConsensusParam struct {
 	GroupWaitPongGap    uint64
 	PotentialProposal   int // Potential proposer count
 
-	VerifierStake uint64
-
 	MaxSlotSize int
 }
 
@@ -120,7 +118,6 @@ func InitParam(cc common.SectionConfManager) {
 		GroupWorkGap:        uint64(cc.GetInt("group_cast_qualify_gap", GroupWorkGap)),
 		GroupworkDuration:   uint64(cc.GetInt("group_cast_duration", GroupWorkDuration)),
 		PotentialProposal:   10,
-		VerifierStake:       common.VerifyStake,
 		CreateGroupInterval: uint64(GroupCreateInterval),
 		GroupCreateGap:      uint64(GroupCreateGap),
 		GroupWaitPongGap:    uint64(GroupWaitPongGap),

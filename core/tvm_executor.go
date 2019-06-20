@@ -49,7 +49,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 	transactions := make([]*types.Transaction, 0)
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
-	packedRewardsTransaction := false
+	var packedRewardsBlockHash []common.Hash
 	for _, transaction := range txs {
 		if pack && time.Since(beginTime).Seconds() > float64(MaxCastBlockTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", transaction.Hash.Hex())
@@ -118,7 +118,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				// Failed reward tx should not be included in block
 				continue
 			} else {
-				packedRewardsTransaction = true
+				packedRewardsBlockHash = append(packedRewardsBlockHash, common.BytesToHash(transaction.Data))
 			}
 		}
 		idx := len(transactions)
@@ -139,8 +139,11 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 	//ts.AddStat("executeLoop", time.Since(b))
 	rm := BlockChainImpl.GetRewardManager()
 	castorTotalRewards := rm.CalculateGasFeeCastorRewards(big.NewInt(0).SetUint64(bh.GasFee))
-	if packedRewardsTransaction {
-		castorTotalRewards.Add(castorTotalRewards, rm.CalculatePackedRewards(bh.Height))
+	for _, blockHash := range packedRewardsBlockHash {
+		b := BlockChainImpl.QueryBlockByHash(blockHash)
+		if b != nil {
+			castorTotalRewards.Add(castorTotalRewards, rm.CalculatePackedRewards(b.Header.Height))
+		}
 	}
 	if rm.reduceBlockRewards(bh.Height) {
 		castorRewards := rm.CalculateCastorRewards(bh.Height)
@@ -278,8 +281,8 @@ func (executor *TVMExecutor) executeMinerApplyTx(accountdb *account.AccountDB, t
 	cumulativeGasUsed = gasUsed.Uint64()
 	if mExist != nil {
 		if mExist.Status != types.MinerStatusNormal {
-			if mExist.Type == types.MinerTypeLight && (mExist.Stake+miner.Stake) < common.VerifyStake {
-				Logger.Debugf("TVMExecutor Execute MinerApply Fail((mExist.Stake + miner.Stake) < common.VerifyStake) Source:%s Height:%d", transaction.Source.Hex(), height)
+			if (mExist.Stake + miner.Stake) < MinerManagerImpl.MinStake() {
+				Logger.Debugf("TVMExecutor Execute MinerApply Fail((mExist.Stake + miner.Stake) < MinStake) Source:%s Height:%d", transaction.Source.Hex(), height)
 				return
 			}
 			snapshot := accountdb.Snapshot()
@@ -327,7 +330,7 @@ func (executor *TVMExecutor) executeMinerStakeTx(accountdb *account.AccountDB, t
 		Logger.Debugf("TVMExecutor Execute Miner Stake Fail(Do not exist this Miner) Source:%s Height:%d", transaction.Source.Hex(), height)
 	} else {
 		snapshot := accountdb.Snapshot()
-		if MinerManagerImpl.AddStake(mExist.ID, mExist, value, accountdb) && MinerManagerImpl.AddStakeDetail(transaction.Source[:], mExist, value, accountdb) {
+		if MinerManagerImpl.AddStake(mExist.ID, mExist, value, accountdb, height) && MinerManagerImpl.AddStakeDetail(transaction.Source[:], mExist, value, accountdb) {
 			Logger.Debugf("TVMExecutor Execute MinerUpdate Success Source:%s Height:%d", transaction.Source.Hex(), height)
 			accountdb.SubBalance(*transaction.Source, amount)
 			success = true

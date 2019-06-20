@@ -61,8 +61,9 @@ var (
 
 // RewardManager manage the reward transactions
 type RewardManager struct {
-	noRewards bool
-	lock      sync.RWMutex
+	noRewards       bool
+	noRewardsHeight uint64
+	lock            sync.RWMutex
 }
 
 func newRewardManager() *RewardManager {
@@ -146,7 +147,7 @@ func (rm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb
 }
 
 func (rm *RewardManager) blockRewards(height uint64) uint64 {
-	if rm.noRewards {
+	if rm.noRewards && rm.noRewardsHeight < height {
 		return 0
 	}
 	return initialRewards >> (height / halveRewardsPeriod)

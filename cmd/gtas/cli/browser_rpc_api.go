@@ -20,9 +20,9 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
-	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"math/big"
 )
 
 // ExplorerAccount is used in the blockchain browser to query account information
@@ -139,15 +139,21 @@ func (api *GtasAPI) ExplorerBlockReward(height uint64) (*Result, error) {
 	ret := &ExploreBlockReward{
 		ProposalID: groupsig.DeserializeID(bh.Castor).GetHexString(),
 	}
-	rewardNum := uint64(0)
+	packedReward := uint64(0)
 	if b.Transactions != nil {
 		for _, tx := range b.Transactions {
 			if tx.Type == types.TransactionTypeReward {
-				rewardNum++
+				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
+				status, err := chain.GetTransactionPool().GetTransactionStatus(tx.Hash)
+				if err != nil && block != nil && status == types.ReceiptStatusSuccessful {
+					packedReward += chain.GetRewardManager().CalculatePackedRewards(block.Header.Height).Uint64()
+				}
 			}
 		}
 	}
-	ret.ProposalReward = model.Param.ProposalReward + rewardNum*model.Param.PackReward
+	ret.ProposalReward = chain.GetRewardManager().CalculateCastorRewards(bh.Height).Uint64() + packedReward
+	ret.ProposalGasFeeReward = chain.GetRewardManager().
+		CalculateGasFeeCastorRewards(big.NewInt(0).SetUint64(bh.GasFee)).Uint64()
 	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
 		genReward := convertRewardTransaction(rewardTx)
 		genReward.Success = true

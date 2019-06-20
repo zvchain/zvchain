@@ -25,7 +25,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
-	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -496,7 +495,7 @@ func (api *GtasAPI) BlockDetail(h string) (*Result, error) {
 	trans := make([]Transaction, 0)
 	rewardTxs := make([]RewardTransaction, 0)
 	minerReward := make(map[string]*MinerRewardBalance)
-	uniqueRewardBlockHash := make(map[common.Hash]byte)
+	uniqueRewardBlockHash := make(map[common.Hash]uint64)
 	minerVerifyBlockHash := make(map[string][]common.Hash)
 	blockVerifyReward := make(map[common.Hash]uint64)
 
@@ -544,7 +543,10 @@ func (api *GtasAPI) BlockDetail(h string) (*Result, error) {
 				}
 			}
 			if btx.Success {
-				uniqueRewardBlockHash[btx.BlockHash] = 1
+				block := chain.QueryBlockByHash(btx.BlockHash)
+				if block != nil {
+					uniqueRewardBlockHash[btx.BlockHash] = block.Header.Height
+				}
 			}
 		} else {
 			trans = append(trans, *convertTransaction(tx))
@@ -557,8 +559,15 @@ func (api *GtasAPI) BlockDetail(h string) (*Result, error) {
 		increase := uint64(0)
 		if id == castor {
 			mb.Proposal = true
+			var packedRewards uint64
+			for _, height := range uniqueRewardBlockHash {
+				packedRewards += chain.GetRewardManager().CalculatePackedRewards(height).Uint64()
+			}
 			mb.PackRewardTx = len(uniqueRewardBlockHash)
-			increase += model.Param.ProposalReward + uint64(mb.PackRewardTx)*model.Param.PackReward
+			increase += chain.GetRewardManager().CalculateCastorRewards(bh.Height).Uint64()
+			increase += packedRewards
+			increase += chain.GetRewardManager().CalculateGasFeeCastorRewards(big.NewInt(0).
+				SetUint64(bh.GasFee)).Uint64()
 			mb.Explain = fmt.Sprintf("proposal, pack %v bouns-txs", mb.PackRewardTx)
 		}
 		if hs, ok := minerVerifyBlockHash[id]; ok {

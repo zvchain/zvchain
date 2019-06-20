@@ -44,6 +44,19 @@ var (
 	minerCountDecrease = MinerCountOperation{1}
 )
 
+const (
+	MinMinerStake                 = 500 * common.TAS
+	MaxMinerStakeAdjustPeriod     = 5000000
+	initialMinerNodesAmount       = 200
+	MoreMinerNodesAmountPerPeriod = 12
+)
+
+var tokenRealeased = []uint64{
+	500000000, 900000000, 1300000000, 1700000000, 2100000000, 2500000000, 2900000000, 3100000000, 3300000000,
+	3500000000, 3700000000, 3900000000, 4100000000, 4200000000, 4300000000, 4400000000, 4500000000, 4600000000,
+	4700000000, 4750000000, 4800000000, 4850000000, 4900000000, 4950000000, 5000000000,
+}
+
 type stakeStatus = int
 
 const (
@@ -93,8 +106,8 @@ func (mm *MinerManager) GetMinerByID(id []byte, ttype byte, accountdb vm.Account
 	if data != nil && len(data) > 0 {
 		var miner types.Miner
 		err := msgpack.Unmarshal(data, &miner)
-		if err != nil{
-			Logger.Errorf("GetMinerByID Unmarshal error,msg= %s",err.Error())
+		if err != nil {
+			Logger.Errorf("GetMinerByID Unmarshal error,msg= %s", err.Error())
 			return nil
 		}
 		return &miner
@@ -205,7 +218,7 @@ func (mm *MinerManager) addMiner(id []byte, miner *types.Miner, accountdb vm.Acc
 	if accountdb.GetData(db, string(id)) != nil {
 		return -1
 	}
-	if miner.Stake < common.VerifyStake && miner.Type == types.MinerTypeLight {
+	if miner.Stake < mm.MinStake() || miner.Stake > mm.MaxStake(miner.ApplyHeight) {
 		return -1
 	}
 	mm.updateMinerCount(miner.Type, minerCountIncrease, accountdb)
@@ -230,7 +243,7 @@ func (mm *MinerManager) activateAndAddStakeMiner(miner *types.Miner, accountdb v
 		return false
 	}
 	miner.Stake = dbMiner.Stake + miner.Stake
-	if miner.Stake < common.VerifyStake && miner.Type == types.MinerTypeLight {
+	if miner.Stake < mm.MinStake() || miner.Stake > mm.MaxStake(height) {
 		return false
 	}
 	miner.Status = types.MinerStatusNormal
@@ -379,7 +392,7 @@ func (mm *MinerManager) CancelStake(from []byte, miner *types.Miner, amount uint
 	key := mm.getDetailDBKey(from, miner.ID, miner.Type, Staked)
 	stakedData := accountdb.GetData(dbAddr, string(key))
 	if stakedData == nil || len(stakedData) == 0 {
-		Logger.Debug("MinerManager.CancelStake  false(cannot find stake data)")
+		Logger.Debug("MinerManager.CancelStake false(cannot find stake data)")
 		return false
 	}
 	preStake := common.ByteToUint64(stakedData)
@@ -437,7 +450,7 @@ func (mm *MinerManager) RefundStake(from []byte, miner *types.Miner, accountdb v
 }
 
 // AddStake adds the stake information into database
-func (mm *MinerManager) AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool {
+func (mm *MinerManager) AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool {
 	Logger.Debugf("Miner manager addStake, minerid: %d", miner.ID)
 	db := mm.getMinerDatabase(miner.Type)
 	miner.Stake += amount
@@ -445,9 +458,12 @@ func (mm *MinerManager) AddStake(id []byte, miner *types.Miner, amount uint64, a
 		Logger.Debug("MinerManager.AddStake return false (overflow)")
 		return false
 	}
+	if miner.Stake > mm.MaxStake(height) {
+		Logger.Debug("MinerManager.AddStake return false (miner.Stake > mm.MaxStake)")
+		return false
+	}
 	if miner.Status == types.MinerStatusAbort &&
-		miner.Type == types.MinerTypeLight &&
-		miner.Stake >= common.VerifyStake {
+		miner.Stake >= mm.MinStake() {
 		miner.Status = types.MinerStatusNormal
 		mm.updateMinerCount(miner.Type, minerCountIncrease, accountdb)
 	}
@@ -464,10 +480,8 @@ func (mm *MinerManager) ReduceStake(id []byte, miner *types.Miner, amount uint64
 		return false
 	}
 	miner.Stake -= amount
-	if miner.Status == types.MinerStatusNormal &&
-		miner.Type == types.MinerTypeLight &&
-		miner.Stake < common.VerifyStake {
-		if GroupChainImpl.WhetherMemberInActiveGroup(id, height) {
+	if miner.Status == types.MinerStatusNormal && miner.Stake < mm.MinStake() {
+		if miner.Type == types.MinerTypeLight && GroupChainImpl.WhetherMemberInActiveGroup(id, height) {
 			Logger.Debugf("TVMExecutor Execute MinerRefund Light Fail(Still In Active Group) %s", common.ToHex(id))
 			return false
 		}
@@ -496,6 +510,19 @@ func (mm *MinerManager) Transaction2MinerParams(tx *types.Transaction) (_type by
 		value = common.ByteToUint64(data[common.AddressLength+1:])
 	}
 	return
+}
+
+func (mm *MinerManager) MinStake() uint64 {
+	return MinMinerStake
+}
+
+func (mm *MinerManager) MaxStake(height uint64) uint64 {
+	peroid := height / MaxMinerStakeAdjustPeriod
+	if peroid >= uint64(len(tokenRealeased)) {
+		peroid = uint64(len(tokenRealeased)) - 1
+	}
+	nodeAmount := initialMinerNodesAmount + peroid*MoreMinerNodesAmountPerPeriod
+	return tokenRealeased[peroid] / nodeAmount * common.TAS
 }
 
 func (mi *MinerIterator) Current() (*types.Miner, error) {
