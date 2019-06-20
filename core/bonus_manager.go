@@ -109,7 +109,7 @@ func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
 }
 
-// ParseBonusTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
+// ParseRewardTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
 func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, *types.BigInt, error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	groupID := make([]byte, common.GroupIDLength)

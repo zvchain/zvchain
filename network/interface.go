@@ -41,10 +41,11 @@ const (
 	ReqSharePiece      uint32 = 11
 	ResponseSharePiece uint32 = 12
 
+	//the following six messages are used for casting block
 	CastVerifyMsg         uint32 = 14 // The proposal sends the proposal msg to the verifier
 	VerifiedCastMsg       uint32 = 15 // The verifier sends the verified msg to the verifier group.
-	CastRewardSignReq     uint32 = 16
-	CastRewardSignGot     uint32 = 17
+	CastRewardSignReq     uint32 = 16 // Verifier reward: the verifier sends the piece request msg to the other verifiers.
+	CastRewardSignGot     uint32 = 17 // Verifier reward: the verifies sends the piece response msg to the other verifiers.
 	ReqProposalBlock      uint32 = 19 // The verifies sends the request to the proposal to get the block
 	ResponseProposalBlock uint32 = 20 // The proposal sends the response to the verifies to deliver the block
 
@@ -103,23 +104,14 @@ type Network interface {
 	// send message to the guys which belongs to the same group with the node and they will rely the message to the node
 	SendWithGroupRelay(id string, groupID string, msg Message) error
 
-	//Random broadcast the message to parts nodes in the group which self belongs to
-	RandomSpreadInGroup(groupID string, msg Message) error
-
 	//Broadcast the message among the group which self belongs to
 	SpreadAmongGroup(groupID string, msg Message) error
-
-	//SpreadToRandomGroupMember send message to random memebers which in special group
-	SpreadToRandomGroupMember(groupID string, groupMembers []string, msg Message) error
 
 	//SpreadToGroup Broadcast the message to the group which self do not belong to
 	SpreadToGroup(groupID string, groupMembers []string, msg Message, digest MsgDigest) error
 
 	//TransmitToNeighbor Send message to neighbor nodes
 	TransmitToNeighbor(msg Message) error
-
-	//Relay Send the message to part nodes it connects to and they will also broadcast the message to part of their neighbor util relayCount
-	Relay(msg Message, relayCount int32) error
 
 	//Broadcast Send the message to all nodes it connects to and the node which receive the message also broadcast the message to their neighbor once
 	Broadcast(msg Message) error

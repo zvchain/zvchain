@@ -454,3 +454,20 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 func (bw *BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.PV.Uint64())
 }
+
+// StakeStatus indicates the stake status
+type StakeStatus = int
+
+const (
+	Staked      StakeStatus = iota // Normal status
+	StakeFrozen                    // Frozen status
+)
+
+// StakeDetail expresses the stake detail
+type StakeDetail struct {
+	Source       common.Address
+	Target       common.Address
+	Value        uint64
+	Status       StakeStatus
+	FrozenHeight uint64
+}

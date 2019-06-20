@@ -46,7 +46,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
     function queryBlockDetail(h) {
         $("#query_block_hash").val(h);
         let params = {
-            "method": "GTAS_blockDetail",
+            "method": "Dev_blockDetail",
             "params": [h],
             "jsonrpc": "2.0",
             "id": "1"
@@ -133,7 +133,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
     function queryTxDetail(h) {
         $("#query_tx_hash").val(h);
         let params = {
-            "method": "GTAS_getTransaction",
+            "method": "Dev_getTransaction",
             "params": [h],
             "jsonrpc": "2.0",
             "id": "1"
@@ -170,7 +170,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         });
 
         let params2 = {
-            "method": "GTAS_txReceipt",
+            "method": "Gtas_txReceipt",
             "params": [h],
             "jsonrpc": "2.0",
             "id": "1"

@@ -99,7 +99,8 @@ func Test_simpleContainer_forEach(t *testing.T) {
 	}
 
 	for _, tx := range txs {
-		container.push(tx)
+		// this error can be ignored
+		_ = container.push(tx)
 	}
 	for _, tx := range container.asSlice(10) {
 		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)

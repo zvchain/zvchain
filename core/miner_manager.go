@@ -57,13 +57,6 @@ var tokenRealeased = []uint64{
 	4700000000, 4750000000, 4800000000, 4850000000, 4900000000, 4950000000, 5000000000,
 }
 
-type stakeStatus = int
-
-const (
-	Staked stakeStatus = iota
-	StakeFrozen
-)
-
 type stakeFlagByte = byte
 
 var MinerManagerImpl *MinerManager
@@ -347,7 +340,7 @@ func (mm *MinerManager) getMinerStakeDetailDatabase() common.Address {
 	return common.MinerStakeDetailDBAddress
 }
 
-func (mm *MinerManager) getDetailDBKey(from []byte, minerAddr []byte, _type byte, status stakeStatus) []byte {
+func (mm *MinerManager) getDetailDBKey(from []byte, minerAddr []byte, _type byte, status types.StakeStatus) []byte {
 	var pledgFlagByte = (_type << 4) | byte(status)
 	key := []byte{stakeFlagByte(pledgFlagByte)}
 	key = append(key, minerAddr...)
@@ -368,7 +361,7 @@ func (mm *MinerManager) getDetailDBKey(from []byte, minerAddr []byte, _type byte
 // AddStakeDetail adds the stake detail information into database
 func (mm *MinerManager) AddStakeDetail(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool {
 	dbAddr := mm.getMinerStakeDetailDatabase()
-	key := mm.getDetailDBKey(from, miner.ID, miner.Type, Staked)
+	key := mm.getDetailDBKey(from, miner.ID, miner.Type, types.Staked)
 	detailData := accountdb.GetData(dbAddr, string(key))
 	if detailData == nil || len(detailData) == 0 {
 		Logger.Debugf("MinerManager.AddStakeDetail set new key: %s, value: %s", common.ToHex(key), common.ToHex(common.Uint64ToByte(amount)))
@@ -389,14 +382,14 @@ func (mm *MinerManager) AddStakeDetail(from []byte, miner *types.Miner, amount u
 // CancelStake cancels the stake value and update the database
 func (mm *MinerManager) CancelStake(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool {
 	dbAddr := mm.getMinerStakeDetailDatabase()
-	key := mm.getDetailDBKey(from, miner.ID, miner.Type, Staked)
+	key := mm.getDetailDBKey(from, miner.ID, miner.Type, types.Staked)
 	stakedData := accountdb.GetData(dbAddr, string(key))
 	if stakedData == nil || len(stakedData) == 0 {
 		Logger.Debug("MinerManager.CancelStake false(cannot find stake data)")
 		return false
 	}
 	preStake := common.ByteToUint64(stakedData)
-	frozenKey := mm.getDetailDBKey(from, miner.ID, miner.Type, StakeFrozen)
+	frozenKey := mm.getDetailDBKey(from, miner.ID, miner.Type, types.StakeFrozen)
 	frozenData := accountdb.GetData(dbAddr, string(frozenKey))
 	var preFrozen, newFrozen, newStake uint64
 	if frozenData == nil || len(frozenData) == 0 {
@@ -427,7 +420,7 @@ func (mm *MinerManager) CancelStake(from []byte, miner *types.Miner, amount uint
 // a validator. The owner can refund the stake after several blocks later after cancel stake
 func (mm *MinerManager) GetLatestCancelStakeHeight(from []byte, miner *types.Miner, accountdb vm.AccountDB) uint64 {
 	dbAddr := mm.getMinerStakeDetailDatabase()
-	frozenKey := mm.getDetailDBKey(from, miner.ID, miner.Type, StakeFrozen)
+	frozenKey := mm.getDetailDBKey(from, miner.ID, miner.Type, types.StakeFrozen)
 	frozenData := accountdb.GetData(dbAddr, string(frozenKey))
 	if frozenData == nil || len(frozenData) == 0 {
 		return common.MaxUint64
@@ -438,7 +431,7 @@ func (mm *MinerManager) GetLatestCancelStakeHeight(from []byte, miner *types.Min
 // RefundStake refund the property which was be pledged for a miner or a validator
 func (mm *MinerManager) RefundStake(from []byte, miner *types.Miner, accountdb vm.AccountDB) (uint64, bool) {
 	dbAddr := mm.getMinerStakeDetailDatabase()
-	frozenKey := mm.getDetailDBKey(from, miner.ID, miner.Type, StakeFrozen)
+	frozenKey := mm.getDetailDBKey(from, miner.ID, miner.Type, types.StakeFrozen)
 	frozenData := accountdb.GetData(dbAddr, string(frozenKey))
 	if frozenData == nil || len(frozenData) == 0 {
 		Logger.Debug("MinerManager.RefundStake return false(cannot find frozen data)")
@@ -553,4 +546,42 @@ func (mm *MinerManager) Transaction2Miner(tx *types.Transaction) *types.Miner {
 	var miner types.Miner
 	msgpack.Unmarshal(data, &miner)
 	return &miner
+}
+
+func (mm *MinerManager) getStakeDetailByType(from, to common.Address, typ byte, db vm.AccountDB) []*types.StakeDetail {
+	dbAddr := mm.getMinerStakeDetailDatabase()
+	details := make([]*types.StakeDetail, 0)
+	key := string(mm.getDetailDBKey(from.Bytes(), to.Bytes(), typ, types.Staked))
+	stakedData := db.GetData(dbAddr, key)
+
+	if len(stakedData) > 0 {
+		detail := &types.StakeDetail{
+			Source: from,
+			Target: to,
+			Value:  common.ByteToUint64(stakedData),
+			Status: types.Staked,
+		}
+		details = append(details, detail)
+	}
+	key = string(mm.getDetailDBKey(from.Bytes(), to.Bytes(), typ, types.StakeFrozen))
+	stakedData = db.GetData(dbAddr, key)
+
+	if len(stakedData) > 0 {
+		detail := &types.StakeDetail{
+			Source:       from,
+			Target:       to,
+			Value:        common.ByteToUint64(stakedData[:8]),
+			Status:       types.StakeFrozen,
+			FrozenHeight: common.ByteToUint64(stakedData[8:]),
+		}
+		details = append(details, detail)
+	}
+	return details
+}
+
+// GetStakeDetail returns the stake details of the given address pair
+func (mm *MinerManager) GetStakeDetail(from, to common.Address, db vm.AccountDB) []*types.StakeDetail {
+	details := mm.getStakeDetailByType(from, to, types.MinerTypeHeavy, db)
+	details = append(details, mm.getStakeDetailByType(from, to, types.MinerTypeLight, db)...)
+	return details
 }
