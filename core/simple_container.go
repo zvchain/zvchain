@@ -281,18 +281,18 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
-		err = Logger.Warnf("nonce error:%v %v. hash = %s", tx.Nonce, stateNonce, tx.Hash)
+		err = Logger.Warnf("nonce error:%v %v. hash = %s", tx.Nonce, stateNonce, tx.Hash.Hex())
 		return
 	}
 	//check balance before push to pool
 	_, txErr := intrinsicGas(tx)
 	if txErr != nil {
-		err = Logger.Warnf("discard transaction with gas limit not enough for intrinsic gas . hash = %s", tx.Hash)
+		err = Logger.Warnf("discard transaction with gas limit not enough for intrinsic gas. hash = %s", tx.Hash.Hex())
 		return
 	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	if gasLimitFee.Cmp(c.chain.latestStateDB.GetBalance(*tx.Source)) > 0 {
-		err = Logger.Warnf(" discard transaction with balance not enough for gas limit. hash = %s", tx.Hash)
+		err = Logger.Warnf(" discard transaction with balance not enough for gas limit. hash = %s", tx.Hash.Hex())
 		return
 	}
 
