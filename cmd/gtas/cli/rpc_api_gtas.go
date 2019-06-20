@@ -24,15 +24,15 @@ import (
 	"strings"
 )
 
-// rpcGtasImpl provides rpc service for users to interact with remote nodes
-type rpcGtasImpl struct {
+// RpcGtasImpl provides rpc service for users to interact with remote nodes
+type RpcGtasImpl struct {
 }
 
-func (api *rpcGtasImpl) Namespace() string {
+func (api *RpcGtasImpl) Namespace() string {
 	return "Gtas"
 }
 
-func (api *rpcGtasImpl) Version() string {
+func (api *RpcGtasImpl) Version() string {
 	return "1"
 }
 
@@ -52,7 +52,7 @@ func failResult(err string) (*Result, error) {
 }
 
 // Tx is user transaction interface, used for sending transaction to the node
-func (api *rpcGtasImpl) Tx(txRawjson string) (*Result, error) {
+func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 	var txRaw = new(txRawData)
 	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
 		return failResult(err.Error())
@@ -77,7 +77,7 @@ func (api *rpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 }
 
 // Balance is query balance interface
-func (api *rpcGtasImpl) Balance(account string) (*Result, error) {
+func (api *RpcGtasImpl) Balance(account string) (*Result, error) {
 	if !validateAddress(strings.TrimSpace(account)) {
 		return failResult("Wrong account address format")
 	}
@@ -91,18 +91,18 @@ func (api *rpcGtasImpl) Balance(account string) (*Result, error) {
 }
 
 // BlockHeight query block height
-func (api *rpcGtasImpl) BlockHeight() (*Result, error) {
+func (api *RpcGtasImpl) BlockHeight() (*Result, error) {
 	height := core.BlockChainImpl.QueryTopBlock().Height
 	return successResult(height)
 }
 
 // GroupHeight query group height
-func (api *rpcGtasImpl) GroupHeight() (*Result, error) {
+func (api *RpcGtasImpl) GroupHeight() (*Result, error) {
 	height := core.GroupChainImpl.Height()
 	return successResult(height)
 }
 
-func (api *rpcGtasImpl) GetBlockByHeight(height uint64) (*Result, error) {
+func (api *RpcGtasImpl) GetBlockByHeight(height uint64) (*Result, error) {
 	b := core.BlockChainImpl.QueryBlockByHeight(height)
 	if b == nil {
 		return failResult("height not exists")
@@ -118,7 +118,7 @@ func (api *rpcGtasImpl) GetBlockByHeight(height uint64) (*Result, error) {
 	return successResult(block)
 }
 
-func (api *rpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
+func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
@@ -137,7 +137,7 @@ func (api *rpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
 	return successResult(block)
 }
 
-func (api *rpcGtasImpl) MinerInfo(addr string) (*Result, error) {
+func (api *RpcGtasImpl) MinerInfo(addr string) (*Result, error) {
 	if !validateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
@@ -154,7 +154,7 @@ func (api *rpcGtasImpl) MinerInfo(addr string) (*Result, error) {
 	return successResult(morts)
 }
 
-func (api *rpcGtasImpl) TransDetail(h string) (*Result, error) {
+func (api *RpcGtasImpl) TransDetail(h string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong hash format")
 	}
@@ -167,7 +167,7 @@ func (api *rpcGtasImpl) TransDetail(h string) (*Result, error) {
 	return successResult(nil)
 }
 
-func (api *rpcGtasImpl) Nonce(addr string) (*Result, error) {
+func (api *RpcGtasImpl) Nonce(addr string) (*Result, error) {
 	if !validateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
@@ -177,7 +177,7 @@ func (api *rpcGtasImpl) Nonce(addr string) (*Result, error) {
 	return successResult(nonce)
 }
 
-func (api *rpcGtasImpl) TxReceipt(h string) (*Result, error) {
+func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong hash format")
 	}
@@ -194,7 +194,7 @@ func (api *rpcGtasImpl) TxReceipt(h string) (*Result, error) {
 }
 
 // ViewAccount is used for querying account information
-func (api *rpcGtasImpl) ViewAccount(hash string) (*Result, error) {
+func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
@@ -231,6 +231,6 @@ func (api *rpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 // from: the miner address who launches the pledge, optional.
 // to: the miner address who was pledged, required.
 // All pledge detail will be returned if the from param is empty
-func (api *rpcGtasImpl) PledgeDetail(from, to string) (*Result, error) {
+func (api *RpcGtasImpl) PledgeDetail(from, to string) (*Result, error) {
 	return &Result{}, nil
 }

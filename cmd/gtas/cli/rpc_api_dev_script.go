@@ -21,13 +21,13 @@ import (
 	"github.com/zvchain/zvchain/common"
 )
 
-func (api *rpcDevImpl) ScriptTransferTx(privateKey string, from string, to string, amount uint64, nonce uint64, txType int, gasPrice uint64) (*Result, error) {
+func (api *RpcDevImpl) ScriptTransferTx(privateKey string, from string, to string, amount uint64, nonce uint64, txType int, gasPrice uint64) (*Result, error) {
 	return api.TxUnSafe(privateKey, to, amount, gasPrice, gasPrice, nonce, txType, "")
 }
 
 // TxUnSafe sends a transaction by submitting the privateKey.
 // It is not safe for users, used for testing purpose
-func (api *rpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (*Result, error) {
+func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (*Result, error) {
 	txRaw := &txRawData{
 		Target:   target,
 		Value:    common.TAS2RA(value),

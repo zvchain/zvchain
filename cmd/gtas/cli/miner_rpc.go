@@ -53,13 +53,13 @@ func (gtas *Gtas) initRpcInstances() error {
 	}
 	gtas.rpcInstances = make([]rpcApi, 0)
 	if level >= rpcLevelGtas {
-		gtas.addInstance(&rpcGtasImpl{})
+		gtas.addInstance(&RpcGtasImpl{})
 	}
 	if level >= rpcLevelExplorer {
-		gtas.addInstance(&rpcExplorerImpl{})
+		gtas.addInstance(&RpcExplorerImpl{})
 	}
 	if level >= rpcLevelDev {
-		gtas.addInstance(&rpcDevImpl{})
+		gtas.addInstance(&RpcDevImpl{})
 	}
 	return nil
 }

@@ -24,29 +24,29 @@ import (
 	"strings"
 )
 
-// rpcExplorerImpl provides rpc service for blockchain explorer use
-type rpcExplorerImpl struct {
+// RpcExplorerImpl provides rpc service for blockchain explorer use
+type RpcExplorerImpl struct {
 }
 
-func (api *rpcExplorerImpl) Namespace() string {
+func (api *RpcExplorerImpl) Namespace() string {
 	return "Explorer"
 }
 
-func (api *rpcExplorerImpl) Version() string {
+func (api *RpcExplorerImpl) Version() string {
 	return "1"
 }
 
 // ExplorerAccount is used in the blockchain browser to query account information
-func (api *rpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong param format")
 	}
-	impl := &rpcGtasImpl{}
+	impl := &RpcGtasImpl{}
 	return impl.ViewAccount(hash)
 }
 
 // ExplorerBlockDetail is used in the blockchain browser to query block details
-func (api *rpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
@@ -80,7 +80,7 @@ func (api *rpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) 
 
 // ExplorerGroupsAfter is used in the blockchain browser to
 // query groups after the specified height
-func (api *rpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) {
 	groups := core.GroupChainImpl.GetGroupsAfterHeight(height, common.MaxInt64)
 
 	ret := make([]map[string]interface{}, 0)
@@ -116,7 +116,7 @@ func explorerConvertGroup(g *types.Group) map[string]interface{} {
 }
 
 // ExplorerBlockBonus export bonus transaction by block height
-func (api *rpcExplorerImpl) ExplorerBlockBonus(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockBonus(height uint64) (*Result, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {

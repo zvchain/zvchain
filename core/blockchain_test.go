@@ -488,7 +488,7 @@ func initContext4Test() error {
 	}
 	BlockChainImpl = nil
 	GroupChainImpl = nil
-	_ = InitCore(false, NewConsensusHelper4Test(groupsig.ID{}))
+	_ = InitCore(NewConsensusHelper4Test(groupsig.ID{}))
 	clearTicker()
 	return nil
 }

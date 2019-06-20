@@ -31,21 +31,21 @@ import (
 	"strings"
 )
 
-// rpcDevImpl provides api functions for those develop chain features.
+// RpcDevImpl provides api functions for those develop chain features.
 // It is mainly for debug or test use
-type rpcDevImpl struct {
+type RpcDevImpl struct {
 }
 
-func (api *rpcDevImpl) Namespace() string {
+func (api *RpcDevImpl) Namespace() string {
 	return "Dev"
 }
 
-func (api *rpcDevImpl) Version() string {
+func (api *RpcDevImpl) Version() string {
 	return "1"
 }
 
 // ConnectedNodes query the information of the connected node
-func (api *rpcDevImpl) ConnectedNodes() (*Result, error) {
+func (api *RpcDevImpl) ConnectedNodes() (*Result, error) {
 
 	nodes := network.GetNetInstance().ConnInfo()
 	conns := make([]ConnInfo, 0)
@@ -56,7 +56,7 @@ func (api *rpcDevImpl) ConnectedNodes() (*Result, error) {
 }
 
 // TransPool query buffer transaction information
-func (api *rpcDevImpl) TransPool() (*Result, error) {
+func (api *RpcDevImpl) TransPool() (*Result, error) {
 	transactions := core.BlockChainImpl.GetTransactionPool().GetReceived()
 	transList := make([]Transactions, 0, len(transactions))
 	for _, v := range transactions {
@@ -72,7 +72,7 @@ func (api *rpcDevImpl) TransPool() (*Result, error) {
 }
 
 // get transaction by hash
-func (api *rpcDevImpl) GetTransaction(hash string) (*Result, error) {
+func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
@@ -93,7 +93,7 @@ func (api *rpcDevImpl) GetTransaction(hash string) (*Result, error) {
 	return successResult(detail)
 }
 
-func (api *rpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
+func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
 	if from < to {
 		return failResult("param error")
 	}
@@ -118,7 +118,7 @@ func (api *rpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
 	return successResult(blocks)
 }
 
-func (api *rpcDevImpl) GetTopBlock() (*Result, error) {
+func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 	bh := core.BlockChainImpl.QueryTopBlock()
 	b := core.BlockChainImpl.QueryBlockByHash(bh.Hash)
 	bh = b.Header
@@ -143,7 +143,7 @@ func (api *rpcDevImpl) GetTopBlock() (*Result, error) {
 	return successResult(blockDetail)
 }
 
-func (api *rpcDevImpl) WorkGroupNum(height uint64) (*Result, error) {
+func (api *RpcDevImpl) WorkGroupNum(height uint64) (*Result, error) {
 	groups := mediator.Proc.GetCastQualifiedGroups(height)
 	return successResult(groups)
 }
@@ -171,7 +171,7 @@ func convertGroup(g *types.Group) map[string]interface{} {
 	return gmap
 }
 
-func (api *rpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
 	groups := core.GroupChainImpl.GetGroupsAfterHeight(height, math.MaxInt64)
 
 	ret := make([]map[string]interface{}, 0)
@@ -185,12 +185,12 @@ func (api *rpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
 	return successResult(ret)
 }
 
-func (api *rpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
+func (api *RpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
 	height := core.BlockChainImpl.Height()
 	return api.GetWorkGroup(height)
 }
 
-func (api *rpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
 	groups := mediator.Proc.GetCastQualifiedGroupsFromChain(height)
 	ret := make([]map[string]interface{}, 0)
 	h := height
@@ -204,7 +204,7 @@ func (api *rpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
 }
 
 // CastStat cast block statistics
-func (api *rpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
+func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 	proposerStat := make(map[string]int32)
 	groupStat := make(map[string]int32)
 
@@ -249,7 +249,7 @@ func (api *rpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 	return successResult(ret)
 }
 
-func (api *rpcDevImpl) NodeInfo() (*Result, error) {
+func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 	ni := &NodeInfo{}
 	p := mediator.Proc
 	ni.ID = p.GetMinerID().GetHexString()
@@ -289,7 +289,7 @@ func (api *rpcDevImpl) NodeInfo() (*Result, error) {
 
 }
 
-func (api *rpcDevImpl) Dashboard() (*Result, error) {
+func (api *RpcDevImpl) Dashboard() (*Result, error) {
 	blockHeight := core.BlockChainImpl.Height()
 	groupHeight := core.GroupChainImpl.Height()
 	workNum := len(mediator.Proc.GetCastQualifiedGroups(blockHeight))
@@ -305,7 +305,7 @@ func (api *rpcDevImpl) Dashboard() (*Result, error) {
 	return successResult(dash)
 }
 
-func (api *rpcDevImpl) BlockDetail(h string) (*Result, error) {
+func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong param format")
 	}
@@ -417,7 +417,7 @@ func (api *rpcDevImpl) BlockDetail(h string) (*Result, error) {
 	return successResult(bd)
 }
 
-func (api *rpcDevImpl) BlockReceipts(h string) (*Result, error) {
+func (api *RpcDevImpl) BlockReceipts(h string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong param format")
 	}
@@ -440,7 +440,7 @@ func (api *rpcDevImpl) BlockReceipts(h string) (*Result, error) {
 }
 
 // MonitorBlocks monitoring platform calls block sync
-func (api *rpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
+func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
 	chain := core.BlockChainImpl
 	if begin > end {
 		end = begin
@@ -481,7 +481,7 @@ func (api *rpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
 	return successResult(blocks)
 }
 
-func (api *rpcDevImpl) MonitorNodeInfo() (*Result, error) {
+func (api *RpcDevImpl) MonitorNodeInfo() (*Result, error) {
 	bh := core.BlockChainImpl.Height()
 	gh := core.GroupChainImpl.LastGroup().GroupHeight
 
@@ -504,7 +504,7 @@ func (api *rpcDevImpl) MonitorNodeInfo() (*Result, error) {
 	return successResult(ni)
 }
 
-func (api *rpcDevImpl) MonitorAllMiners() (*Result, error) {
+func (api *RpcDevImpl) MonitorAllMiners() (*Result, error) {
 	miners := mediator.Proc.GetAllMinerDOs()
 	totalStake := uint64(0)
 	maxStake := uint64(0)

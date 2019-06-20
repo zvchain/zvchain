@@ -172,7 +172,7 @@ func selectNextVerifyGroup(gs map[string]*types.Group, preBH *types.BlockHeader,
 	return groupsig.DeserializeID(gid), qualifiedGs
 }
 
-func (api *rpcDevImpl) DebugVerifySummary(from, to uint64) (*Result, error) {
+func (api *RpcDevImpl) DebugVerifySummary(from, to uint64) (*Result, error) {
 	if from == 0 {
 		from = 1
 	}
@@ -243,13 +243,12 @@ func (api *rpcDevImpl) DebugVerifySummary(from, to uint64) (*Result, error) {
 	return successResult(summary)
 }
 
-func (api *rpcDevImpl) DebugJoinGroupInfo(gid string) (*Result, error) {
+func (api *RpcDevImpl) DebugJoinGroupInfo(gid string) (*Result, error) {
 	jg := mediator.Proc.GetJoinGroupInfo(gid)
 	return successResult(jg)
 }
 
-
-func (api *rpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
+func (api *RpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetReceived()
 
 	hashs := make([]string, 0)
@@ -262,7 +261,7 @@ func (api *rpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
 	return successResult(hashs)
 }
 
-func (api *rpcDevImpl) DebugGetBonusTxs(limit int) (*Result, error) {
+func (api *RpcDevImpl) DebugGetBonusTxs(limit int) (*Result, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetBonusTxs()
 
 	type bonusTxHash struct {
@@ -283,7 +282,7 @@ func (api *rpcDevImpl) DebugGetBonusTxs(limit int) (*Result, error) {
 	return successResult(hashs)
 }
 
-func (api *rpcDevImpl) DebugPrintCheckProve(height, preheight uint64, gids string) (*Result, error) {
+func (api *RpcDevImpl) DebugPrintCheckProve(height, preheight uint64, gids string) (*Result, error) {
 	pre := core.BlockChainImpl.QueryBlockHeaderByHeight(preheight)
 	if pre == nil {
 		return failResult("nil pre block")
@@ -296,7 +295,7 @@ func (api *rpcDevImpl) DebugPrintCheckProve(height, preheight uint64, gids strin
 	return successResult(ss)
 }
 
-func (api *rpcDevImpl) DebugGetRawTx(hash string) (*Result, error) {
+func (api *RpcDevImpl) DebugGetRawTx(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong param format")
 	}
