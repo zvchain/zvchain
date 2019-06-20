@@ -404,8 +404,6 @@ func (c *sendTxCmd) parse(args []string) bool {
 		} else {
 			c.extraData = strings.Join(args[posBegin:posEnd], " ")
 		}
-		output(c.extraData)
-		return false
 	}
 	if !validateTxType(c.txType) {
 		output("Not supported transaction type")
