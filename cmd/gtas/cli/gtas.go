@@ -168,7 +168,7 @@ func (gtas *Gtas) Run() {
 	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelNone), 10)).Int()
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
-	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8088").Uint16()
+	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
