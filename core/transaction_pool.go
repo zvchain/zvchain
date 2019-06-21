@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	maxPendingSize              = 40000
-	maxQueueSize                = 10000
+	maxPendingSize              = 40
+	maxQueueSize                = 10
 	bonusTxMaxSize              = 1000
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
