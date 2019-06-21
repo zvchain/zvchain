@@ -18,8 +18,6 @@ package account
 import (
 	"sync"
 
-	"fmt"
-
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -140,13 +138,14 @@ func (db *storageDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
 	return trie.NewTrie(root, db.db)
 }
 
-// CopyTrie returns an independent copy of the given trie.
+// CopyTrie returns an independent copy of the given trie. returns nil if type not supported
 func (db *storageDB) CopyTrie(t Trie) Trie {
 	switch t := t.(type) {
 	case *trie.Trie:
 		newTrie, _ := trie.NewTrie(t.Hash(), db.db)
 		return newTrie
 	default:
-		panic(fmt.Errorf("unknown trie type %T", t))
+		getLogger().Errorf("unknown trie type %T", t)
+		return nil
 	}
 }
