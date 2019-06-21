@@ -145,7 +145,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         $("#balance_message").text("");
         $("#balance_error").text("");
         let params = {
-            "method": "GTAS_balance",
+            "method": "Gtas_balance",
             "params": [$("#query_input_"+count).val()],
             "jsonrpc": "2.0",
             "id": "1"
@@ -168,137 +168,6 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
         });
     });
-
-    // 钱包初始化
-    function init_wallets() {
-        let params = {
-            "method": "GTAS_getWallets",
-            "params": [],
-            "jsonrpc": "2.0",
-            "id": "1"
-        };
-        $.ajax({
-            type: 'POST',
-            url: HOST,
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Content-Type", "application/json");
-            },
-            data: JSON.stringify(params),
-            success: function (rdata) {
-                if (rdata.result !== undefined){
-                    $.each(rdata.result.data, function (i,val) {
-                        let tr = "<tr class='wallet_tr'><td>" + val.private_key + "</td><td>" + val.address
-                            + '</td><td ><button class="layui-btn wallet_del">删除</button></td></tr>';
-                        $("#create_chart").append(tr);
-
-                        $(".wallet_del").click(function () {
-                            let parent = $(this).parents("tr");
-                            del_wallet(parent.children("td:eq(1)").text());
-                            parent.remove();
-                        });
-                    })
-                }
-            },
-        });
-    }
-
-    function del_wallet(key) {
-        let params = {
-            "method": "GTAS_deleteWallet",
-            "params": [key],
-            "jsonrpc": "2.0",
-            "id": "1"
-        };
-        $.ajax({
-            type: 'POST',
-            url: HOST,
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Content-Type", "application/json");
-            },
-            data: JSON.stringify(params),
-            success: function (rdata) {
-
-            },
-        });
-    }
-
-    init_wallets();
-
-
-    // 创建钱包
-    $("#create_btn").click(function () {
-        let params = {
-            "method": "GTAS_newWallet",
-            "params": [],
-            "jsonrpc": "2.0",
-            "id": "1"
-        };
-        $.ajax({
-            type: 'POST',
-            url: HOST,
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Content-Type", "application/json");
-            },
-            data: JSON.stringify(params),
-            success: function (rdata) {
-                let tr = "<tr class='wallet_tr'><td>" + rdata.result.data.private_key + "</td><td>" + rdata.result.data.address
-                    + '</td><td ><button class="layui-btn wallet_del">删除</button></td></tr>';
-                $("#create_chart").append(tr);
-
-                $(".wallet_del").click(function () {
-                    let parent = $(this).parents("tr");
-                    del_wallet(parent.children("td:eq(1)").text());
-                    parent.remove();
-                });
-            },
-        });
-    });
-
-    // 投票表单提交
-    form.on('submit(vote_form)', function (data) {
-        $("#vote_message").text("");
-        $("#vote_error").text("");
-        let from = data.field.from;
-        let vote_param = {};
-        vote_param.template_name = data.field.template_name;
-        vote_param.p_index = parseInt(data.field.p_index);
-        vote_param.p_value = data.field.p_value;
-        vote_param.custom = (data.field.custom === "true");
-        vote_param.desc = data.field.desc;
-        vote_param.deposit_min = parseInt(data.field.deposit_min);
-        vote_param.total_deposit_min = parseInt(data.field.total_deposit_min);
-        vote_param.voter_cnt_min = parseInt(data.field.voter_cnt_min);
-        vote_param.approval_deposit_min = parseInt(data.field.approval_deposit_min);
-        vote_param.approval_voter_cnt_min = parseInt(data.field.approval_voter_cnt_min);
-        vote_param.deadline_block = parseInt(data.field.deadline_block);
-        vote_param.stat_block = parseInt(data.field.stat_block);
-        vote_param.effect_block = parseInt(data.field.effect_block);
-        vote_param.deposit_gap = parseInt(data.field.deposit_gap);
-        let params = {
-            "method": "GTAS_vote",
-            "params": [from, vote_param],
-            "jsonrpc": "2.0",
-            "id": "1"
-        };
-        $.ajax({
-            type: 'POST',
-            url: HOST,
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader("Content-Type", "application/json");
-            },
-            data: JSON.stringify(params),
-            success: function (rdata) {
-                if (rdata.result !== undefined){
-                    $("#vote_message").text(rdata.result.message)
-                }
-                if (rdata.error !== undefined){
-                    $("#vote_error").text(rdata.error.message)
-                }
-            },
-        });
-        return false;
-    });
-
 
     // 交易表单提交
     form.on('submit(t_form)', function(data){
@@ -323,7 +192,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         //func (api *GtasAPI) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (*Result, error) {
 
         let params = {
-            "method": "GTAS_txUnSafe",
+            "method": "Dev_txUnSafe",
             "params": [private_key, to, parseFloat(value), parseInt(gas),parseInt(gas_price), parseInt(nonce), parseInt(t),txdata],
             "jsonrpc": "2.0",
             "id": "1"
@@ -359,7 +228,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             return
         }
         let params = {
-            "method": "GTAS_getBlocks",
+            "method": "Dev_getBlocks",
             "params": [from, to],
             "jsonrpc": "2.0",
             "id": "1"
@@ -396,7 +265,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
     // 同步组信息
     function syncGroup(height) {
         let params = {
-            "method": "GTAS_getGroupsAfter",
+            "method": "Dev_getGroupsAfter",
             "params": [height],
             "jsonrpc": "2.0",
             "id": "1"
@@ -451,7 +320,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
     //查询工作组
     function queryWorkGroup(height) {
         let params = {
-            "method": "GTAS_getWorkGroup",
+            "method": "Dev_getWorkGroup",
             "params": [height],
             "jsonrpc": "2.0",
             "id": "1"
@@ -528,7 +397,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         t = parseInt($("input[name='app_type_rd']:checked").val());
         $("#submit_result").text("");
         let params = {
-            "method": "GTAS_minerApply",
+            "method": "Dev_minerApply",
             "params": [stake, t],
             "jsonrpc": "2.0",
             "id": "1"
@@ -562,7 +431,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
 
     function dashboardLoad() {
         let params = {
-            "method": "GTAS_dashboard",
+            "method": "Dev_dashboard",
             "params": [],
             "jsonrpc": "2.0",
             "id": "1"
@@ -635,9 +504,9 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
                         mtype = 1
                     }
                     if (v.abort_height > 0) {
-                        tr += "<td><a href=\"javascript:void(0);\" name='miner_oper_a' method='GTAS_minerRefund' mtype=" + mtype + ">退款</a></td>"
+                        tr += "<td><a href=\"javascript:void(0);\" name='miner_oper_a' method='Dev_minerRefund' mtype=" + mtype + ">退款</a></td>"
                     } else {
-                        tr += "<td><a href=\"javascript:void(0);\" name='miner_oper_a' method='GTAS_minerAbort' mtype=" + mtype + ">取消</a></td>"
+                        tr += "<td><a href=\"javascript:void(0);\" name='miner_oper_a' method='Dev_minerAbort' mtype=" + mtype + ">取消</a></td>"
                     }
                     tr += "</tr>";
                     $("#tb_stake_body").append(tr)
@@ -675,7 +544,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
 
     function doConsensusStat(height) {
         let params = {
-            "method": "GTAS_castBlockAndBonusStat",
+            "method": "Dev_castBlockAndBonusStat",
             "params": [height],
             "jsonrpc": "2.0",
             "id": "1"

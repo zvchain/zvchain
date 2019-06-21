@@ -89,14 +89,9 @@ func TestTVMExecutor_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("execute error :%v", err)
 	}
-	t.Log(stateHash, evts, len(executed), len(receptes))
-	if len(txs) != len(executed) {
+	t.Log(stateHash, len(executed), len(receptes))
+	if len(txs) != len(executed)+len(evts) {
 		t.Error("executed tx num error")
-	}
-	for i, tx := range txs {
-		if executed[i].Hash != tx.Hash {
-			t.Error("execute tx error")
-		}
 	}
 }
 

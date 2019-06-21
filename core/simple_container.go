@@ -17,7 +17,6 @@ package core
 
 import (
 	"container/heap"
-	"fmt"
 	"sync"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
@@ -272,7 +271,8 @@ func (c *simpleContainer) eachForSync(f func(tx *types.Transaction) bool) {
 	c.pending.eachForSync(f)
 }
 
-func (c *simpleContainer) push(tx *types.Transaction) {
+// push try to push transaction to pool. if error return means the transaction is discarded and the error can be ignored
+func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -281,18 +281,18 @@ func (c *simpleContainer) push(tx *types.Transaction) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
-		_ = fmt.Errorf("nonce error:%v %v", tx.Nonce, stateNonce)
+		err = Logger.Warnf("nonce error:%v %v. hash = %s", tx.Nonce, stateNonce, tx.Hash.Hex())
 		return
 	}
 	//check balance before push to pool
-	gas, err := intrinsicGas(tx)
-	if err != nil {
-		_ = fmt.Errorf("discard transaction with gas not enough for gas limit")
+	_, txErr := intrinsicGas(tx)
+	if txErr != nil {
+		err = Logger.Warnf("discard transaction with gas limit not enough for intrinsic gas. hash = %s", tx.Hash.Hex())
 		return
 	}
-	gasFee := new(types.BigInt).Mul(tx.GasPrice.Value(), gas.Value())
-	if gasFee.Cmp(c.chain.latestStateDB.GetBalance(*tx.Source)) > 0 {
-		_ = fmt.Errorf(" discard transaction with balance not enough for gas fee")
+	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
+	if gasLimitFee.Cmp(c.chain.latestStateDB.GetBalance(*tx.Source)) > 0 {
+		err = Logger.Warnf(" discard transaction with balance not enough for gas limit. hash = %s", tx.Hash.Hex())
 		return
 	}
 
@@ -304,6 +304,7 @@ func (c *simpleContainer) push(tx *types.Transaction) {
 		c.queue[tx.Hash] = tx
 	}
 	c.txsMap[tx.Hash] = tx
+	return
 }
 
 func (c *simpleContainer) remove(key common.Hash) {

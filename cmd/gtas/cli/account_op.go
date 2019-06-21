@@ -74,7 +74,7 @@ func (ai *AccountInfo) unlocked() bool {
 }
 
 func (ai *AccountInfo) resetExpireTime() {
-	ai.UnLockExpire = time.Now().Add(accountUnLockTime)
+	//ai.UnLockExpire = time.Now().Add(time.Duration(120) * time.Second)
 }
 
 type KeyStoreRaw struct {
@@ -301,7 +301,7 @@ func (am *AccountManager) Lock(addr string) *Result {
 }
 
 // UnLock unlock the account by address and password
-func (am *AccountManager) UnLock(addr string, password string) *Result {
+func (am *AccountManager) UnLock(addr string, password string, duration uint) *Result {
 	var aci *AccountInfo
 	if v, ok := am.accounts.Load(addr); ok {
 		aci = v.(*AccountInfo)
@@ -327,7 +327,7 @@ func (am *AccountManager) UnLock(addr string, password string) *Result {
 	}
 
 	aci.Status = statusUnLocked
-	aci.resetExpireTime()
+	aci.UnLockExpire = time.Now().Add(time.Duration(duration) * time.Second)
 	am.unlockAccount = aci
 
 	return opSuccess(nil)

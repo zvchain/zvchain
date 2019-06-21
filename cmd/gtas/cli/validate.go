@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -13,25 +13,28 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package core
+package cli
 
-import "github.com/zvchain/zvchain/middleware/types"
+import (
+	"github.com/zvchain/zvchain/middleware/types"
+	"regexp"
+)
 
-// InitCore initialize the peerManagerImpl, BlockChainImpl and GroupChainImpl
-func InitCore(helper types.ConsensusHelper) error {
-	initPeerManager()
-	if nil == BlockChainImpl {
-		err := initBlockChain(helper)
-		if err != nil {
-			return err
-		}
-	}
+var addrReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
+var hashReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
 
-	if nil == GroupChainImpl && helper != nil {
-		err := initGroupChain(helper.GenerateGenesisInfo(), helper)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+func validateAddress(addr string) bool {
+	return addrReg.MatchString(addr)
+}
+
+func validateHash(hash string) bool {
+	return hashReg.MatchString(hash)
+}
+
+func validateTxType(typ int) bool {
+	return typ != types.TransactionTypeBonus && typ >= types.TransactionTypeTransfer && typ <= types.TransactionTypeMinerStake
+}
+
+func validateMinerType(typ int) bool {
+	return typ == types.MinerTypeLight || typ == types.MinerTypeHeavy
 }

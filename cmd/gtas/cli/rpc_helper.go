@@ -26,20 +26,51 @@ import (
 )
 
 func convertTransaction(tx *types.Transaction) *Transaction {
+	var (
+		gasLimit = uint64(0)
+		gasPrice = uint64(0)
+		value    = uint64(0)
+	)
+	if tx.GasLimit != nil {
+		gasLimit = tx.GasLimit.Uint64()
+	}
+	if tx.GasPrice != nil {
+		gasPrice = tx.GasPrice.Uint64()
+	}
+	if tx.Value != nil {
+		value = tx.Value.Uint64()
+	}
 	trans := &Transaction{
 		Hash:          tx.Hash,
 		Source:        tx.Source,
 		Target:        tx.Target,
 		Type:          tx.Type,
-		GasLimit:      tx.GasLimit.Uint64(),
-		GasPrice:      tx.GasPrice.Uint64(),
+		GasLimit:      gasLimit,
+		GasPrice:      gasPrice,
 		Data:          tx.Data,
-		ExtraData:     tx.ExtraData,
+		ExtraData:     string(tx.ExtraData),
 		ExtraDataType: tx.ExtraDataType,
 		Nonce:         tx.Nonce,
-		Value:         common.RA2TAS(tx.Value.Uint64()),
+		Value:         common.RA2TAS(value),
 	}
 	return trans
+}
+
+func convertExecutedTransaction(executed *core.ExecutedTransaction) *ExecutedTransaction {
+	rec := &Receipt{
+		Status:            executed.Receipt.Status,
+		CumulativeGasUsed: executed.Receipt.CumulativeGasUsed,
+		Logs:              executed.Receipt.Logs,
+		TxHash:            executed.Receipt.TxHash,
+		ContractAddress:   executed.Receipt.ContractAddress,
+		Height:            executed.Receipt.Height,
+		TxIndex:           executed.Receipt.TxIndex,
+	}
+	return &ExecutedTransaction{
+		Receipt:     rec,
+		Transaction: convertTransaction(executed.Transaction),
+	}
+
 }
 
 func convertBlockHeader(b *types.Block) *Block {
