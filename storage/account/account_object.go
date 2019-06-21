@@ -174,12 +174,12 @@ func (ao *accountObject) touch() {
 
 func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 	if ao.address == common.HeavyDBAddress {
-		getLogger().Infof("access HeavyDBAddress begin,root is %x,addr is %p",ao.data.Root,ao)
+		getLogger().Infof("access HeavyDBAddress begin,root is %x,addr is %p", ao.data.Root, ao)
 		taslog.Flush()
 	}
 	if ao.trie == nil {
 		if ao.address == common.HeavyDBAddress {
-			getLogger().Infof("access HeavyDBAddress begin find trie is nil,root is %x,addr is %p", ao.data.Root,ao)
+			getLogger().Infof("access HeavyDBAddress begin find trie is nil,root is %x,addr is %p", ao.data.Root, ao)
 			taslog.Flush()
 		}
 		var err error
@@ -187,42 +187,42 @@ func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 		//todo delete
 		if ao.address == common.HeavyDBAddress {
 			_, err2 := db.OpenStorageTrie(ao.addrHash, ao.data.Root)
-			if err2 != nil{
-				getLogger().Infof("access HeavyDBAddress1 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err2, err2.Error(), ao.data.Root,ao)
+			if err2 != nil {
+				getLogger().Infof("access HeavyDBAddress1 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err2, err2.Error(), ao.data.Root, ao)
 				taslog.Flush()
 			}
 		}
 
 		ao.trie, err = db.OpenStorageTrie(ao.addrHash, ao.data.Root)
 		if err != nil {
-			getLogger().Infof("access HeavyDBAddress2 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root,ao)
+			getLogger().Infof("access HeavyDBAddress2 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root, ao)
 			taslog.Flush()
 			ao.trie, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
 			ao.setError(fmt.Errorf("can't create storage trie: %v", err))
 		}
 	}
 	if ao.trie == nil {
-		getLogger().Infof("access HeavyDBAddress over find trie is nil,root is %x,addr is %p", ao.data.Root,ao)
+		getLogger().Infof("access HeavyDBAddress over find trie is nil,root is %x,addr is %p", ao.data.Root, ao)
 		taslog.Flush()
 	}
 	if reflect.ValueOf(ao.trie).IsNil() {
-		getLogger().Infof("access HeavyDBAddress over find trie value is nil,root is %x,addr is %p", ao.data.Root,ao)
+		getLogger().Infof("access HeavyDBAddress over find trie value is nil,root is %x,addr is %p", ao.data.Root, ao)
 		taslog.Flush()
 	}
 	return ao.trie
 }
 
 // GetData retrieves a value from the account storage trie.
-func (ao *accountObject) GetData(db AccountDatabase, key string) []byte {
+func (ao *accountObject) GetData(db AccountDatabase, key []byte) []byte {
 	ao.cachedLock.RLock()
 	// If we have the original value cached, return that
-	value, exists := ao.cachedStorage[key]
+	value, exists := ao.cachedStorage[string(key)]
 	ao.cachedLock.RUnlock()
 	if exists {
 		return value
 	}
 	// Otherwise load the value from the database
-	value, err := ao.getTrie(db).TryGet([]byte(key))
+	value, err := ao.getTrie(db).TryGet(key)
 	if err != nil {
 		ao.setError(err)
 		return nil
@@ -230,14 +230,14 @@ func (ao *accountObject) GetData(db AccountDatabase, key string) []byte {
 
 	if value != nil {
 		ao.cachedLock.Lock()
-		ao.cachedStorage[key] = value
+		ao.cachedStorage[string(key)] = value
 		ao.cachedLock.Unlock()
 	}
 	return value
 }
 
 // SetData updates a value in account storage.
-func (ao *accountObject) SetData(db AccountDatabase, key string, value []byte) {
+func (ao *accountObject) SetData(db AccountDatabase, key []byte, value []byte) {
 	if ao.address == common.HeavyDBAddress {
 		getLogger().Infof("set data HeavyDBAddress .root is %x", ao.data.Root)
 		taslog.Flush()
@@ -250,15 +250,15 @@ func (ao *accountObject) SetData(db AccountDatabase, key string, value []byte) {
 	ao.setData(key, value)
 }
 
-func (ao *accountObject) RemoveData(db AccountDatabase, key string) {
+func (ao *accountObject) RemoveData(db AccountDatabase, key []byte) {
 	ao.SetData(db, key, nil)
 }
 
-func (ao *accountObject) setData(key string, value []byte) {
+func (ao *accountObject) setData(key []byte, value []byte) {
 	ao.cachedLock.Lock()
-	ao.cachedStorage[key] = value
+	ao.cachedStorage[string(key)] = value
 	ao.cachedLock.Unlock()
-	ao.dirtyStorage[key] = value
+	ao.dirtyStorage[string(key)] = value
 
 	if ao.onDirty != nil {
 		ao.onDirty(ao.Address())

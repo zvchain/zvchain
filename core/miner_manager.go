@@ -514,12 +514,6 @@ func (mi *MinerIterator) Next() bool {
 }
 
 // Transaction2Miner parses a transcation and try to found out the information of miner apply
-func (mm *MinerManager) Transaction2Miner(tx *types.Transaction) *types.Miner {
-	data := common.FromHex(string(tx.Data))
-	var miner types.Miner
-	msgpack.Unmarshal(data, &miner)
-	return &miner
-}
 
 func (mm *MinerManager) getStakeDetailByType(from, to common.Address, typ byte, db vm.AccountDB) []*types.StakeDetail {
 	dbAddr := mm.getMinerStakeDetailDatabase()

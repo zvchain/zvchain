@@ -44,11 +44,11 @@ type AccountDB interface {
 	AddRefund(uint64)
 	GetRefund() uint64
 
-	GetData(common.Address, string) []byte
-	SetData(common.Address, string, []byte)
-	RemoveData(common.Address, string)
-	DataIterator(common.Address, string) *trie.Iterator
-	DataNext(iterator uintptr) string
+	GetData(common.Address, []byte) []byte
+	SetData(common.Address, []byte, []byte)
+	RemoveData(common.Address, []byte)
+	DataIterator(common.Address, []byte) *trie.Iterator
+	//DataNext(iterator uintptr) []byte
 
 	Suicide(common.Address) bool
 	HasSuicided(common.Address) bool
