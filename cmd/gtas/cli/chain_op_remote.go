@@ -65,7 +65,7 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 	}
 
 	param := RPCReqObj{
-		Method:  "GTAS_" + method,
+		Method:  "Gtas_" + method,
 		Params:  params[:],
 		ID:      1,
 		Jsonrpc: "2.0",
@@ -84,10 +84,10 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 	}
 
 	resp, err := http.Post(ca.base, "application/json", bytes.NewReader(paramBytes))
-	defer resp.Body.Close()
 	if err != nil {
 		return opError(err)
 	}
+	defer resp.Body.Close()
 	responseBytes, err := ioutil.ReadAll(resp.Body)
 	ret := &RPCResObj{}
 	if err := json.Unmarshal(responseBytes, ret); err != nil {
@@ -129,13 +129,15 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 		return opError(fmt.Errorf("address error"))
 	}
 
-	nonce, err := ca.nonce(aci.Address)
-	if err != nil {
-		return opError(err)
+	if tx.Nonce == 0 {
+		nonce, err := ca.nonce(aci.Address)
+		if err != nil {
+			return opError(err)
+		}
+		tx.Nonce = nonce
 	}
+
 	tranx := txRawToTransaction(tx)
-	tranx.Nonce = nonce + 1
-	tx.Nonce = nonce + 1
 	tranx.Hash = tranx.GenHash()
 	sign := privateKey.Sign(tranx.Hash.Bytes())
 	tranx.Sign = sign.Bytes()
@@ -154,6 +156,11 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 // Balance query Balance by address
 func (ca *RemoteChainOpImpl) Balance(addr string) *Result {
 	return ca.request("balance", addr)
+}
+
+// Nonce query Balance by address
+func (ca *RemoteChainOpImpl) Nonce(addr string) *Result {
+	return ca.request("nonce", addr)
 }
 
 // MinerInfo query miner info by address
@@ -239,11 +246,10 @@ func (ca *RemoteChainOpImpl) AbortMiner(mtype int, gas, gasprice uint64) *Result
 		return opError(fmt.Errorf("the current account is not a miner account"))
 	}
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerAbort,
-		Data:      string([]byte{byte(mtype)}),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerAbort,
+		Data:     string([]byte{byte(mtype)}),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -264,11 +270,10 @@ func (ca *RemoteChainOpImpl) RefundMiner(mtype int, addrStr string, gas, gaspric
 	addr := common.HexToAddress(addrStr)
 	data = append(data, addr.Bytes()...)
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerRefund,
-		Data:      common.ToHex(data),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerRefund,
+		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -291,11 +296,10 @@ func (ca *RemoteChainOpImpl) MinerStake(mtype int, addrStr string, stakeValue, g
 	data = append(data, addr.Bytes()...)
 	data = append(data, common.Uint64ToByte(stakeValue)...)
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerStake,
-		Data:      common.ToHex(data),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerStake,
+		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -318,18 +322,17 @@ func (ca *RemoteChainOpImpl) MinerCancelStake(mtype int, addrStr string, cancelV
 	data = append(data, addr.Bytes()...)
 	data = append(data, common.Uint64ToByte(cancelValue)...)
 	tx := &txRawData{
-		Gas:       gas,
-		Gasprice:  gasprice,
-		TxType:    types.TransactionTypeMinerCancelStake,
-		Data:      common.ToHex(data),
-		ExtraData: aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeMinerCancelStake,
+		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
 }
 
 func (ca *RemoteChainOpImpl) ViewContract(addr string) *Result {
-	return ca.request("explorerAccount", addr)
+	return ca.request("viewAccount", addr)
 }
 
 func (ca *RemoteChainOpImpl) TxReceipt(hash string) *Result {

@@ -35,9 +35,10 @@ import (
 	"github.com/zvchain/zvchain/storage/tasdb"
 )
 
-func init(){
+func init() {
 	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, "0")
 }
+
 // Used for testing
 func newEmpty() *Trie {
 	db, _ := tasdb.NewMemDatabase()

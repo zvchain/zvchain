@@ -18,13 +18,12 @@ package network
 import (
 	"github.com/golang/protobuf/proto"
 
-	mrand "math/rand"
 	"strconv"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
-	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
+	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/statistics"
 
 	"golang.org/x/crypto/sha3"
@@ -63,18 +62,6 @@ func (s *Server) SendWithGroupRelay(id string, groupID string, msg Message) erro
 	return nil
 }
 
-func (s *Server) RandomSpreadInGroup(groupID string, msg Message) error {
-	bytes, err := marshalMessage(msg)
-	if err != nil {
-		Logger.Errorf("Marshal message error:%s", err.Error())
-		return err
-	}
-
-	s.netCore.groupBroadcast(groupID, bytes, msg.Code, true, 1)
-
-	return nil
-}
-
 func (s *Server) SpreadAmongGroup(groupID string, msg Message) error {
 	bytes, err := marshalMessage(msg)
 	if err != nil {
@@ -84,30 +71,6 @@ func (s *Server) SpreadAmongGroup(groupID string, msg Message) error {
 
 	s.netCore.groupBroadcast(groupID, bytes, msg.Code, true, -1)
 
-	return nil
-}
-
-func (s *Server) SpreadToRandomGroupMember(groupID string, groupMembers []string, msg Message) error {
-	if Logger == nil {
-		return nil
-	}
-	if groupMembers == nil || len(groupMembers) == 0 {
-		Logger.Errorf("group members is empty!")
-		return errGroupEmpty
-	}
-
-	bytes, err := marshalMessage(msg)
-	if err != nil {
-		Logger.Errorf("Marshal message error:%s", err.Error())
-		return err
-	}
-
-	rand := mrand.New(mrand.NewSource(time.Now().Unix()))
-	entranceIndex := rand.Intn(len(groupMembers))
-	entranceNodes := groupMembers[entranceIndex:]
-	Logger.Debugf("SpreadToRandomGroupMember group:%s,groupMembers:%d,index:%d", groupID, len(groupMembers), entranceIndex)
-
-	s.netCore.groupBroadcastWithMembers(groupID, bytes, msg.Code, nil, entranceNodes, 1)
 	return nil
 }
 
@@ -132,18 +95,6 @@ func (s *Server) TransmitToNeighbor(msg Message) error {
 	}
 
 	s.netCore.broadcast(bytes, msg.Code, false, nil, -1)
-
-	return nil
-}
-
-func (s *Server) Relay(msg Message, relayCount int32) error {
-
-	bytes, err := marshalMessage(msg)
-	if err != nil {
-		Logger.Errorf("Marshal message error:%s", err.Error())
-		return err
-	}
-	s.netCore.broadcastRandom(bytes, msg.Code, relayCount)
 
 	return nil
 }
@@ -221,7 +172,8 @@ func newNotifyMessage(message *Message, from string) *notify.DefaultMessage {
 
 func (s *Server) handleMessageInner(message *Message, from string) {
 
-	defer s.netCore.onHandleDataMessageDone(from)
+	s.netCore.onHandleDataMessageStart()
+	defer s.netCore.onHandleDataMessageDone()
 
 	begin := time.Now()
 	code := message.Code

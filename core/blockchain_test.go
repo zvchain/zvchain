@@ -408,12 +408,12 @@ func genTestTx(price uint64, source string, target string, nonce uint64, value u
 	targetbyte := common.BytesToAddress(genHash(target))
 
 	tx := &types.Transaction{
-		GasPrice: price,
-
-		Source: &sourcebyte,
-		Target: &targetbyte,
-		Nonce:  nonce,
-		Value:  value,
+		GasPrice: types.NewBigInt(price),
+		GasLimit: types.NewBigInt(10000),
+		Source:   &sourcebyte,
+		Target:   &targetbyte,
+		Nonce:    nonce,
+		Value:    types.NewBigInt(value),
 	}
 	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(privateKey)
@@ -488,7 +488,7 @@ func initContext4Test() error {
 	}
 	BlockChainImpl = nil
 	GroupChainImpl = nil
-	_ = InitCore(false, NewConsensusHelper4Test(groupsig.ID{}))
+	_ = InitCore(NewConsensusHelper4Test(groupsig.ID{}))
 	clearTicker()
 	return nil
 }

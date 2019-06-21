@@ -21,18 +21,12 @@ package network
 import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/taslog"
-
+	"math"
+	"math/rand"
 	"net"
+	"time"
 
 	"github.com/zvchain/zvchain/middleware/statistics"
-)
-
-const (
-	seedDefaultID = "0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4"
-
-	seedDefaultIP = "47.105.51.161"
-
-	seedDefaultPort = 1122
 )
 
 // NetworkConfig is the network configuration
@@ -41,11 +35,11 @@ type NetworkConfig struct {
 	NatAddr         string
 	NatPort         uint16
 	SeedAddr        string
-	SeedID          string
 	ChainID         uint16 // Chain id
 	ProtocolVersion uint16 // Protocol version
 	TestMode        bool
 	IsSuper         bool
+	SeedIDs         []string
 }
 
 var netServerInstance *Server
@@ -65,21 +59,13 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 	}
 
 	if networkConfig.SeedAddr == "" {
-		networkConfig.SeedAddr = seedDefaultIP
-	}
-	if networkConfig.SeedID == "" {
-		networkConfig.SeedID = seedDefaultID
+		networkConfig.SeedAddr = self.IP.String()
 	}
 
-	seedPort := seedDefaultPort
+	seedPort := SuperBasePort
 
 	seeds := make([]*Node, 0, 1)
 
-	bnNode := NewNode(NewNodeID(networkConfig.SeedID), net.ParseIP(networkConfig.SeedAddr), seedPort)
-
-	if bnNode.ID != self.ID && !networkConfig.IsSuper {
-		seeds = append(seeds, bnNode)
-	}
 	listenAddr := net.UDPAddr{IP: self.IP, Port: self.Port}
 
 	var natEnable bool
@@ -91,10 +77,30 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 			return err
 		}
 		listenAddr = net.UDPAddr{IP: listenIP, Port: self.Port}
+		seedId := ""
+		if len(networkConfig.SeedIDs) > 0 {
+			seedId = networkConfig.SeedIDs[0]
+		}
+
+		if !networkConfig.IsSuper {
+			bnNode := NewNode(NewNodeID(seedId), net.ParseIP(networkConfig.SeedAddr), seedPort)
+			if bnNode.ID != self.ID {
+				seeds = append(seeds, bnNode)
+			}
+		}
 	} else {
 		natEnable = true
+		randomSeeds := genRandomSeeds(networkConfig.SeedIDs)
+		for _, sid := range randomSeeds {
+			bnNode := NewNode(NewNodeID(sid), net.ParseIP(networkConfig.SeedAddr), seedPort)
+			Logger.Errorf("seed id:%v ", sid)
+
+			if bnNode.ID != self.ID {
+				seeds = append(seeds, bnNode)
+			}
+		}
 	}
-	natIP :=""
+	natIP := ""
 	if len(networkConfig.NatAddr) > 0 {
 		IP, err := getIPByAddress(networkConfig.NatAddr)
 		if err != nil || IP == nil {
@@ -118,6 +124,30 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 
 	netServerInstance = &Server{Self: self, netCore: n, consensusHandler: consensusHandler}
 	return nil
+}
+
+func genRandomSeeds(seeds []string) []string {
+	nodesSelect := make(map[int]bool)
+
+	totalSize := len(seeds)
+	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	maxSize := int(math.Ceil(float64(totalSize) / 3))
+	for i := 0; i < totalSize; i++ {
+		peerIndex := rand.Intn(totalSize)
+		if nodesSelect[peerIndex] == true {
+			continue
+		}
+		nodesSelect[peerIndex] = true
+		if len(nodesSelect) >= maxSize {
+			break
+		}
+	}
+	seedsRandom := make([]string, 0, 0)
+
+	for key, _ := range nodesSelect {
+		seedsRandom = append(seedsRandom, seeds[key])
+	}
+	return seedsRandom
 }
 
 func GetNetInstance() Network {

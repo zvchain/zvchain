@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -13,25 +13,29 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package core
+package logical
 
-import "github.com/zvchain/zvchain/middleware/types"
+import (
+	"github.com/zvchain/zvchain/common"
+	"gopkg.in/fatih/set.v0"
+	"math/rand"
+	"sync"
+	"testing"
+)
 
-// InitCore initialize the peerManagerImpl, BlockChainImpl and GroupChainImpl
-func InitCore(helper types.ConsensusHelper) error {
-	initPeerManager()
-	if nil == BlockChainImpl {
-		err := initBlockChain(helper)
-		if err != nil {
-			return err
-		}
+func TestSlotContext_addSignedTxHash_Concurrent(t *testing.T) {
+	sc := &SlotContext{signedRewardTxHashs: set.New(set.ThreadSafe)}
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			bs := common.Int32ToByte(rand.Int31n(1000000000))
+			h := common.BytesToHash(bs)
+			sc.addSignedTxHash(h)
+			wg.Done()
+		}()
 	}
-
-	if nil == GroupChainImpl && helper != nil {
-		err := initGroupChain(helper.GenerateGenesisInfo(), helper)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	wg.Wait()
+	t.Logf("finished, add size %v", sc.signedRewardTxHashs.Size())
 }

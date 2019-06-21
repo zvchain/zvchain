@@ -28,15 +28,18 @@ import (
 )
 
 const (
-	maxTxPoolSize               = 50000
+	maxPendingSize              = 40000
+	maxQueueSize                = 10000
 	bonusTxMaxSize              = 1000
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
-	gasLimitMax                 = 500000
 
-	// Maximum size per transaction
 	txMaxSize = 64000
+	// Maximum size per transaction
 )
+
+// gasLimitMax expresses the max gasLimit of a transaction
+var gasLimitMax = new(types.BigInt).SetUint64(500000)
 
 var (
 	ErrNil  = errors.New("nil transaction")
@@ -52,7 +55,7 @@ type txPool struct {
 	receiptDb          *tasdb.PrefixedDatabase
 	batch              tasdb.Batch
 	chain              BlockChain
-	gasPriceLowerBound uint64
+	gasPriceLowerBound *types.BigInt
 	lock               sync.RWMutex
 }
 
@@ -76,9 +79,9 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 		batch:              chain.batch,
 		asyncAdds:          common.MustNewLRUCache(txCountPerBlock * maxReqBlockCount),
 		chain:              chain,
-		gasPriceLowerBound: uint64(common.GlobalConf.GetInt("chain", "gasprice_lower_bound", 1)),
+		gasPriceLowerBound: types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "gasprice_lower_bound", 1))),
 	}
-	pool.received = newSimpleContainer(maxTxPoolSize)
+	pool.received = newSimpleContainer(maxPendingSize, maxQueueSize, chain)
 	pool.bonPool = newBonusPool(chain.bonusManager, bonusTxMaxSize)
 	initTxSyncer(chain, pool)
 
@@ -108,7 +111,8 @@ func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) {
 		return
 	}
 	for _, tx := range txs {
-		pool.tryAddTransaction(tx, from)
+		// this error can be ignored
+		_, _ = pool.tryAddTransaction(tx, from)
 	}
 	notify.BUS.Publish(notify.TxPoolAddTxs, &txPoolAddMessage{txs: txs, txSrc: from})
 }
@@ -159,7 +163,7 @@ func (pool *txPool) GetTransaction(bonus bool, hash common.Hash) *types.Transact
 
 // GetReceived returns the received transactions in the pool with a limited size
 func (pool *txPool) GetReceived() []*types.Transaction {
-	return pool.received.asSlice(maxTxPoolSize)
+	return pool.received.asSlice(maxPendingSize + maxQueueSize)
 }
 
 // TxNum returns the number of transactions in the pool
@@ -198,22 +202,18 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 	}
 
 	var source *common.Address
-	if tx.Type == types.TransactionTypeBonus {
+	if tx.IsBonus() {
 		if ok, err := BlockChainImpl.GetConsensusHelper().VerifyBonusTransaction(tx); !ok {
 			return err
 		}
 	} else {
-		if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCall{
-			if tx.Target == nil{
-				return fmt.Errorf("target is nil")
-			}
+		if err := tx.BoundCheck(); err != nil {
+			return err
 		}
-		if tx.GasPrice == 0 {
-			return fmt.Errorf("illegal tx gasPrice")
-		}
-		if tx.GasLimit > gasLimitMax {
+		if tx.GasLimit.Cmp(gasLimitMax) > 0 {
 			return fmt.Errorf("gasLimit too  big! max gas limit is 500000 Ra")
 		}
+
 		var sign = common.BytesToSign(tx.Sign)
 		if sign == nil {
 			return fmt.Errorf("BytesToSign fail, sign=%v", tx.Sign)
@@ -226,16 +226,6 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 		src := pk.GetAddress()
 		source = &src
 		tx.Source = source
-
-		//check nonce
-		stateNonce := pool.chain.LatestStateDB().GetNonce(src)
-		if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
-			return fmt.Errorf("nonce error:%v %v", tx.Nonce, stateNonce)
-		}
-		//
-		//if !pk.Verify(msg, sign) {
-		//	return fmt.Errorf("verify sign fail, hash=%v", tx.Hash.Hex())
-		//}
 	}
 
 	return nil
@@ -252,20 +242,26 @@ func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
 		return false, fmt.Errorf("tx exist in %v", where)
 	}
 
-	pool.add(tx)
+	err := pool.add(tx)
+
+	if err != nil {
+		return false, err
+	}
 
 	return true, nil
 }
 
-func (pool *txPool) add(tx *types.Transaction) bool {
+func (pool *txPool) add(tx *types.Transaction) (err error) {
 	if tx.Type == types.TransactionTypeBonus {
 		pool.bonPool.add(tx)
 	} else {
-		pool.received.push(tx)
+		if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) > 0 {
+			err = pool.received.push(tx)
+		}
 	}
 	TxSyncer.add(tx)
 
-	return true
+	return err
 }
 
 func (pool *txPool) remove(txHash common.Hash) {
@@ -302,18 +298,17 @@ func (pool *txPool) packTx() []*types.Transaction {
 		accuSize += tx.Size()
 		return accuSize < txAccumulateSizeMaxPerBlock
 	})
-	if len(txs) < txAccumulateSizeMaxPerBlock {
-		for _, tx := range pool.received.asSlice(10000) {
-			//gas price too low
-			if tx.GasPrice < pool.gasPriceLowerBound {
-				continue
+
+	if accuSize < txAccumulateSizeMaxPerBlock {
+		pool.received.eachForPack(func(tx *types.Transaction) bool {
+			// gas price too low
+			if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) < 0 {
+				return true
 			}
 			txs = append(txs, tx)
-			accuSize += tx.Size()
-			if accuSize >= txAccumulateSizeMaxPerBlock {
-				break
-			}
-		}
+			accuSize = accuSize + tx.Size()
+			return accuSize < txAccumulateSizeMaxPerBlock
+		})
 	}
 	return txs
 }
@@ -325,6 +320,7 @@ func (pool *txPool) RemoveFromPool(txs []common.Hash) {
 	for _, tx := range txs {
 		pool.remove(tx)
 	}
+	go pool.received.promoteQueueToPending()
 }
 
 // BackToPool will put the transactions back to pool
@@ -339,7 +335,8 @@ func (pool *txPool) BackToPool(txs []*types.Transaction) {
 				continue
 			}
 		}
-		pool.add(txRaw)
+		// this error can be ignored
+		_ = pool.add(txRaw)
 	}
 }
 

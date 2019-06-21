@@ -49,10 +49,6 @@ const (
 
 	// Section is default section configuration
 	Section = "gtas"
-	// RemoteHost is default host
-	RemoteHost = "127.0.0.1"
-	// RemotePort is default port
-	RemotePort = 8088
 	// ini configuration file instance section
 	instanceSection = "instance"
 	// The key below the instance section
@@ -65,25 +61,25 @@ const (
 	statisticsSection = "statistics"
 )
 
-var walletManager wallets
-var lightMiner bool
-
 type Gtas struct {
-	inited  bool
-	account Account
+	inited       bool
+	account      Account
+	config       *minerConfig
+	rpcInstances []rpcApi
 }
 
 // miner start miner node
-func (gtas *Gtas) miner(rpc, super, testMode bool, rpcAddr, natIP string, natPort uint16, seedIP string, seedID string, rpcPort uint, light bool, apply string, keystore string, enableLog bool, chainID uint16) {
+func (gtas *Gtas) miner(cfg *minerConfig) {
+	gtas.config = cfg
 	gtas.runtimeInit()
-	err := gtas.fullInit(super, testMode, natIP, natPort, seedIP, seedID, light, keystore, enableLog, chainID)
+	err := gtas.fullInit()
 	if err != nil {
 		fmt.Println(err.Error())
 		common.DefaultLogger.Error(err.Error())
 		return
 	}
-	if rpc {
-		err = StartRPC(rpcAddr, rpcPort)
+	if cfg.rpcEnable() {
+		err = gtas.startRPC()
 		if err != nil {
 			common.DefaultLogger.Errorf(err.Error())
 			return
@@ -95,11 +91,12 @@ func (gtas *Gtas) miner(rpc, super, testMode bool, rpcAddr, natIP string, natPor
 	core.InitGroupSyncer(core.GroupChainImpl, core.BlockChainImpl.(*core.FullBlockChain))
 	core.InitBlockSyncer(core.BlockChainImpl.(*core.FullBlockChain))
 
+	// Auto apply miner role when balance enough
 	var appFun applyFunc
-	if len(apply) > 0 {
-		fmt.Printf("apply role: %v\n", apply)
+	if len(cfg.applyRole) > 0 {
+		fmt.Printf("apply role: %v\n", cfg.applyRole)
 		mtype := types.MinerTypeHeavy
-		if apply == "light" {
+		if cfg.applyRole == "light" {
 			mtype = types.MinerTypeLight
 		}
 		appFun = func() {
@@ -168,26 +165,22 @@ func (gtas *Gtas) Run() {
 	mineCmd := app.Command("miner", "miner start")
 
 	// Rpc analysis
-	rpc := mineCmd.Flag("rpc", "start rpc server").Bool()
-	enableLogSrv := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
-	addrRPC := mineCmd.Flag("rpcaddr", "rpc host").Short('r').Default("0.0.0.0").IP()
-	portRPC := mineCmd.Flag("rpcport", "rpc port").Short('p').Default("8088").Uint()
+	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelNone), 10)).Int()
+	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
+	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
+	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
-		fmt.Println("Welcom to be a tas propose miner!")
+		fmt.Println("Welcome to be a tas propose miner!")
 	} else if *apply == "heavy" {
-		fmt.Println("Welcom to be a tas verify miner!")
+		fmt.Println("Welcome to be a tas verify miner!")
 	}
-
-	// Light discard
-	light := mineCmd.Flag("light", "light node").Bool()
 
 	// In test mode, P2P NAT is closed
 	testMode := mineCmd.Flag("test", "test mode").Bool()
 	seedAddr := mineCmd.Flag("seed", "seed address").String()
-	seedID := mineCmd.Flag("seedid", "seed id").Default("").String()
 	natAddr := mineCmd.Flag("nat", "nat server address").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("0").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
@@ -223,17 +216,31 @@ func (gtas *Gtas) Run() {
 		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
 		common.GlobalConf.SetBool(statisticsSection, "enable", *statisticsEnable)
 		common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
-		BonusLogger = taslog.GetLoggerByIndex(taslog.BonusStatConfig, common.GlobalConf.GetString("instance", "index", ""))
 		types.InitMiddleware()
-		
+
 		if *natAddr != "" {
 			common.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
 		}
-		lightMiner = *light
-		// Light node and heavy node
-		gtas.miner(*rpc, *super, *testMode, addrRPC.String(), *natAddr, *natPort, *seedAddr, *seedID, *portRPC, *light, *apply, *keystore, *enableLogSrv, *chainID)
+
+		cfg := &minerConfig{
+			rpcLevel:      rpcLevel(*rpc),
+			rpcAddr:       addrRPC.String(),
+			rpcPort:       *rpcServicePort,
+			super:         *super,
+			testMode:      *testMode,
+			natIP:         *natAddr,
+			natPort:       *natPort,
+			seedIP:        *seedAddr,
+			applyRole:     *apply,
+			keystore:      *keystore,
+			enableMonitor: *enableMonitor,
+			chainID:       *chainID,
+		}
+
+		// Start miner
+		gtas.miner(cfg)
 	case clearCmd.FullCommand():
-		err := ClearBlock(*light)
+		err := ClearBlock()
 		if err != nil {
 			common.DefaultLogger.Error(err.Error())
 		} else {
@@ -244,8 +251,8 @@ func (gtas *Gtas) Run() {
 }
 
 // ClearBlock delete local blockchain data
-func ClearBlock(light bool) error {
-	err := core.InitCore(light, mediator.NewConsensusHelper(groupsig.ID{}))
+func ClearBlock() error {
+	err := core.InitCore(mediator.NewConsensusHelper(groupsig.ID{}))
 	if err != nil {
 		return err
 	}
@@ -254,7 +261,6 @@ func ClearBlock(light bool) error {
 
 func (gtas *Gtas) simpleInit(configPath string) {
 	common.InitConf(configPath)
-	walletManager = newWallets()
 }
 
 func (gtas *Gtas) checkAddress(keystore, address string) error {
@@ -285,14 +291,16 @@ func (gtas *Gtas) checkAddress(keystore, address string) error {
 	return fmt.Errorf("please create a miner account first")
 }
 
-func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint16, seedAddr string, seedID string, light bool, keystore string, enableLog bool, chainID uint16) error {
+func (gtas *Gtas) fullInit() error {
 	var err error
 
 	// Initialization middleware
 	middleware.InitMiddleware()
 
+	cfg := gtas.config
+
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
-	err = gtas.checkAddress(keystore, addressConfig)
+	err = gtas.checkAddress(cfg.keystore, addressConfig)
 	if err != nil {
 		return err
 	}
@@ -320,21 +328,22 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint1
 	}
 	//import end.   gtas.account --> minerInfo
 
-	err = core.InitCore(light, mediator.NewConsensusHelper(minerInfo.ID))
+	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID))
 	if err != nil {
 		return err
 	}
 	id := minerInfo.ID.GetHexString()
 
-	netCfg := network.NetworkConfig{IsSuper: isSuper,
-		TestMode:        testMode,
-		NatAddr:         natAddr,
-		NatPort:         natPort,
-		SeedAddr:        seedAddr,
-		SeedID:          seedID,
+	netCfg := network.NetworkConfig{IsSuper: cfg.super,
+		TestMode:        cfg.testMode,
+		NatAddr:         cfg.natIP,
+		NatPort:         cfg.natPort,
+		SeedAddr:        cfg.seedIP,
 		NodeIDHex:       id,
-		ChainID:         chainID,
-		ProtocolVersion: common.ProtocalVersion}
+		ChainID:         cfg.chainID,
+		ProtocolVersion: common.ProtocalVersion,
+		SeedIDs:         core.GroupChainImpl.GenesisMembers(),
+	}
 
 	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)
 
@@ -353,7 +362,7 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint1
 	if !ok {
 		return errors.New("consensus module error")
 	}
-	if enableLog || common.GlobalConf.GetBool("gtas", "enable_monitor", false) {
+	if cfg.enableMonitor || common.GlobalConf.GetBool("gtas", "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
 
@@ -362,59 +371,19 @@ func (gtas *Gtas) fullInit(isSuper, testMode bool, natAddr string, natPort uint1
 	return nil
 }
 
-func LoadPubKeyInfo(key string) []model.PubKeyInfo {
-	var infos []PubKeyInfo
-	keys := common.GlobalConf.GetString(Section, key, "")
-	err := json.Unmarshal([]byte(keys), &infos)
-	if err != nil {
-		common.DefaultLogger.Errorf(err.Error())
-		return nil
-	}
-	var pubKeyInfos []model.PubKeyInfo
-	for _, v := range infos {
-		var pub = groupsig.Pubkey{}
-		common.DefaultLogger.Info(v.PubKey)
-		err := pub.SetHexString(v.PubKey)
-		if err != nil {
-			common.DefaultLogger.Errorf(err.Error())
-			return nil
-		}
-		pubKeyInfos = append(pubKeyInfos, model.NewPubKeyInfo(*groupsig.NewIDFromString(v.ID), pub))
-	}
-	return pubKeyInfos
-}
-
 func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 	pubKey := info.GetDefaultPubKey().GetHexString()
 	common.DefaultLogger.Infof("Miner PubKey: %s;\n", pubKey)
 	js, err := json.Marshal(PubKeyInfo{pubKey, id})
-	if err != nil{
+	if err != nil {
 		common.DefaultLogger.Errorf(err.Error())
-	}else{
+	} else {
 		common.DefaultLogger.Infof("pubkey_info json: %s\n", js)
 	}
 }
 
 func NewGtas() *Gtas {
 	return &Gtas{}
-}
-
-func genTestTx(hash string, price uint64, source string, target string, nonce uint64, value uint64) *types.Transaction {
-
-	sourcebyte := common.BytesToAddress(common.Sha256([]byte(source)))
-	targetbyte := common.BytesToAddress(common.Sha256([]byte(target)))
-
-	data := []byte("This is a transaction")
-	return &types.Transaction{
-		Data:     data,
-		Value:    value,
-		Nonce:    nonce,
-		Source:   &sourcebyte,
-		Target:   &targetbyte,
-		GasPrice: price,
-		GasLimit: 3,
-		Hash:     common.BytesToHash(common.Sha256([]byte(hash))),
-	}
 }
 
 func (gtas *Gtas) autoApplyMiner(mtype int) {
@@ -437,7 +406,8 @@ func (gtas *Gtas) autoApplyMiner(mtype int) {
 	}
 
 	nonce := core.BlockChainImpl.GetNonce(miner.ID.ToAddress()) + 1
-	ret, err := GtasAPIImpl.TxUnSafe(gtas.account.Sk, "", 0, 20000, 100, nonce, types.TransactionTypeMinerApply, common.ToHex(data))
+	api := &RpcDevImpl{}
+	ret, err := api.TxUnSafe(gtas.account.Sk, "", 0, 20000, 100, nonce, types.TransactionTypeMinerApply, common.ToHex(data))
 	common.DefaultLogger.Debugf("apply result", ret, err)
 
 }

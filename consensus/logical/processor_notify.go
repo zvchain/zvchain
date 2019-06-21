@@ -78,9 +78,7 @@ func (p *Processor) onBlockAddSuccess(message notify.Message) {
 			if vctx.isWorking() {
 				vctx.markCastSuccess()
 			}
-			if !p.conf.GetBool("consensus", "league", false) {
-				p.reqRewardTransSign(vctx, bh)
-			}
+			p.reqRewardTransSign(vctx, bh)
 		}
 	}
 

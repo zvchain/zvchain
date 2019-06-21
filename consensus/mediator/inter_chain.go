@@ -17,6 +17,7 @@
 package mediator
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -102,11 +103,15 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 		return false, fmt.Errorf("failed to parse bonus transaction, err =%s", err)
 	}
 
-	if !Proc.MainChain.HasBlock(blockHash) {
+	var bh *types.BlockHeader
+	if bh = Proc.MainChain.QueryBlockHeaderByHash(blockHash); bh == nil {
 		return false, fmt.Errorf("chain does not have this block, block hash=%v", blockHash)
 	}
+	if !bytes.Equal(groupID, bh.GroupID) {
+		return false, fmt.Errorf("group id not equal to the block verifier groupId")
+	}
 
-	if model.Param.VerifyBonus / uint64(len(targetIds)) != value {
+	if model.Param.VerifyBonus/uint64(len(targetIds)) != value.Uint64() {
 		return false, fmt.Errorf("invalid verify bonus, value=%v", value)
 	}
 
@@ -114,9 +119,9 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	if group == nil {
 		return false, common.ErrGroupNil
 	}
-	for _,id := range(targetIds) {
+	for _, id := range targetIds {
 		if !group.MemberExist(id) {
-			return false, fmt.Errorf("invalid group member,id=%v",  groupsig.DeserializeID(id).GetHexString())
+			return false, fmt.Errorf("invalid group member,id=%v", groupsig.DeserializeID(id).GetHexString())
 		}
 	}
 
