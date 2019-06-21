@@ -240,12 +240,8 @@ func (chain *GroupChain) AddGroup(group *types.Group) (err error) {
 	return nil
 }
 
-func (chain *GroupChain) genesisMember() map[string]byte {
-	mems := make(map[string]byte)
-	for _, mem := range chain.genesisMembers {
-		mems[mem] = 1
-	}
-	return mems
+func (chain *GroupChain) GenesisMembers() []string {
+	return chain.genesisMembers
 }
 
 // WhetherMemberInActiveGroup checks whether the id belongs any active group

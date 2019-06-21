@@ -26,20 +26,51 @@ import (
 )
 
 func convertTransaction(tx *types.Transaction) *Transaction {
+	var (
+		gasLimit = uint64(0)
+		gasPrice = uint64(0)
+		value    = uint64(0)
+	)
+	if tx.GasLimit != nil {
+		gasLimit = tx.GasLimit.Uint64()
+	}
+	if tx.GasPrice != nil {
+		gasPrice = tx.GasPrice.Uint64()
+	}
+	if tx.Value != nil {
+		value = tx.Value.Uint64()
+	}
 	trans := &Transaction{
 		Hash:          tx.Hash,
 		Source:        tx.Source,
 		Target:        tx.Target,
 		Type:          tx.Type,
-		GasLimit:      tx.GasLimit,
-		GasPrice:      tx.GasPrice,
+		GasLimit:      gasLimit,
+		GasPrice:      gasPrice,
 		Data:          tx.Data,
-		ExtraData:     tx.ExtraData,
+		ExtraData:     string(tx.ExtraData),
 		ExtraDataType: tx.ExtraDataType,
 		Nonce:         tx.Nonce,
-		Value:         common.RA2TAS(tx.Value),
+		Value:         common.RA2TAS(value),
 	}
 	return trans
+}
+
+func convertExecutedTransaction(executed *core.ExecutedTransaction) *ExecutedTransaction {
+	rec := &Receipt{
+		Status:            executed.Receipt.Status,
+		CumulativeGasUsed: executed.Receipt.CumulativeGasUsed,
+		Logs:              executed.Receipt.Logs,
+		TxHash:            executed.Receipt.TxHash,
+		ContractAddress:   executed.Receipt.ContractAddress,
+		Height:            executed.Receipt.Height,
+		TxIndex:           executed.Receipt.TxIndex,
+	}
+	return &ExecutedTransaction{
+		Receipt:     rec,
+		Transaction: convertTransaction(executed.Transaction),
+	}
+
 }
 
 func convertBlockHeader(b *types.Block) *Block {
@@ -81,7 +112,7 @@ func convertBonusTransaction(tx *types.Transaction) *BonusTransaction {
 		BlockHash: bhash,
 		GroupID:   groupsig.DeserializeID(gid),
 		TargetIDs: targets,
-		Value:     value,
+		Value:     value.Uint64(),
 	}
 }
 
@@ -102,10 +133,6 @@ func genMinerBalance(id groupsig.ID, bh *types.BlockHeader) *MinerBonusBalance {
 	}
 	mb.PreBalance = preDB.GetBalance(id.ToAddress())
 	return mb
-}
-
-func IDFromSign(sign string) []byte {
-	return []byte{}
 }
 
 func sendTransaction(trans *types.Transaction) error {

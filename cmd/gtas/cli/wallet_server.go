@@ -66,7 +66,7 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value fl
 		Data:     data,
 	}
 
-	r := ws.aop.UnLock(source, unlockPassword)
+	r := ws.aop.UnLock(source, unlockPassword, 10)
 	if !r.IsSuccess() {
 		return r
 	}

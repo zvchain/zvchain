@@ -463,7 +463,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 			txs = append(txs, tx)
 		}
 	}
-	if len(txs) == 0 {
+	if len(txs) == 0 || len(txs) > txMaxNotifyPerTime {
 		return
 	}
 	body, e := types.MarshalTransactions(txs)

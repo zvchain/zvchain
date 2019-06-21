@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -15,8 +15,21 @@
 
 package cli
 
-// Wallet account struct, contains private key and address
-type wallet struct {
-	PrivateKey string `json:"private_key"`
-	Address    string `json:"address"`
+type minerConfig struct {
+	rpcLevel      rpcLevel
+	rpcAddr       string
+	rpcPort       uint16
+	super         bool
+	testMode      bool
+	natIP         string
+	natPort       uint16
+	seedIP        string
+	applyRole     string
+	keystore      string
+	enableMonitor bool
+	chainID       uint16
+}
+
+func (cfg *minerConfig) rpcEnable() bool {
+	return cfg.rpcLevel > rpcLevelNone
 }

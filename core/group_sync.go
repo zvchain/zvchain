@@ -163,6 +163,9 @@ func (gs *groupSyncer) notifyNeighbor() bool {
 }
 
 func (gs *groupSyncer) sendGroupHeightToNeighbor(gheight uint64) {
+	if gheight == 0 {
+		return
+	}
 	gs.logger.Debugf("Send local group height %d to neighbor!", gheight)
 	body := common.UInt64ToByte(gheight)
 	message := network.Message{Code: network.GroupChainCountMsg, Body: body}

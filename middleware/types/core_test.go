@@ -24,7 +24,7 @@ import (
 )
 
 func TestTransaction(t *testing.T) {
-	transaction := &Transaction{Value: 5000, Nonce: 2, GasLimit: 1000000000, GasPrice: 0, ExtraDataType: 0}
+	transaction := &Transaction{Value: NewBigInt(5000), Nonce: 2, GasLimit: NewBigInt(1000000000), GasPrice: NewBigInt(0), ExtraDataType: 0}
 	addr := common.HexToAddress("0xff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")
 	transaction.Source = &addr
 	fmt.Println(&addr)
@@ -47,7 +47,7 @@ func TestTransactionsMarshalAndUnmarshal(t *testing.T) {
 	src := common.HexToAddress("0x123")
 	sign := common.HexToSign("0xa08da536660b93703b979a65e7059f8ef22d1c3c78c82d0ef09ecdaa587612e131800fb69b141db55a6a16bb6686904ea94e50a20603e6d7b84da15c4a77f73900")
 	tx := &Transaction{
-		Value:  1,
+		Value:  NewBigInt(1),
 		Nonce:  11,
 		Source: &src,
 		Type:   1,

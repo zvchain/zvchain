@@ -16,6 +16,8 @@
 package rpc
 
 import (
+	"github.com/zvchain/zvchain/common"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -38,5 +40,50 @@ func TestNewID(t *testing.T) {
 				t.Fatalf("unexpected byte, want any valid hex char, got %c", id[i])
 			}
 		}
+	}
+}
+
+func TestAddressRegexMatch(t *testing.T) {
+	reg := regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
+	b := reg.MatchString("123")
+	if b {
+		t.Errorf("match error of 123")
+	}
+
+	addr := common.HexToAddress("0x123")
+	b = reg.MatchString(addr.Hex())
+
+	b = reg.MatchString("0x0123000000000000000000000000000000000000000000000000000000000000")
+	if !b {
+		t.Errorf("match error")
+	}
+
+	b = reg.MatchString("0x012300000000000000000000000000000000000000000000000000000000000")
+	if b {
+		t.Errorf("match error: length not enough")
+	}
+	b = reg.MatchString("0x01230000000000000000000000000000000000000000000000000000000000001")
+	if b {
+		t.Errorf("match error: length too long")
+	}
+	b = reg.MatchString("0x012300000000000000000000000000000000000000000000000000000000000I")
+	if b {
+		t.Errorf("match error: wrong letter")
+	}
+	b = reg.MatchString("0123000000000000000000000000000000000000000000000000000000000001")
+	if b {
+		t.Errorf("match error: no prefix")
+	}
+	b = reg.MatchString("a0x0123000000000000000000000000000000000000000000000000000000000000d")
+	if b {
+		t.Errorf("match error: begin error")
+	}
+	b = reg.MatchString("0x0123000000000000000000000000000000000000000000000000000006594Aef")
+	if !b {
+		t.Errorf("match error: right format")
+	}
+	b = reg.MatchString("0x01230000000000G000000000DD00000B00000000000000000000000006594Aef")
+	if b {
+		t.Errorf("match error: wrong letter2")
 	}
 }

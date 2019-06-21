@@ -66,16 +66,29 @@ func TestSnapshot(t *testing.T) {
 	data1 := []byte("value1")
 	data2 := []byte("value2")
 
+	var addr = common.HexToAddress("0x12345")
+
 	// set initial state object value
 	s.state.SetData(stateObjAddr, storageAddr, data1[:])
+	s.state.AddBalance(addr, new(big.Int).SetUint64(10000))
+
+	t.Log(s.state.GetBalance(addr))
 	// get snapshot of current state
 	snapshot := s.state.Snapshot()
 
 	// set new state object value
 	s.state.SetData(stateObjAddr, storageAddr, data2[:])
+	s.state.AddBalance(addr, new(big.Int).SetUint64(200))
+
+	t.Log(s.state.GetBalance(addr))
 	// restore snapshot
 	s.state.RevertToSnapshot(snapshot)
 
+	b := s.state.GetBalance(addr)
+	t.Log(b)
+	if b.Uint64() != 10000 {
+		t.Fatal("balance error")
+	}
 	// get state storage value
 	res := s.state.GetData(stateObjAddr, storageAddr)
 
@@ -206,7 +219,7 @@ func TestGetData(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	for a := 0; a < 100; a++ {
-		addr := common.BytesToAddress(common.IntToByte(a))
+		addr := common.BytesToAddress(common.Int32ToByte(int32(a)))
 		s.state.SetData(addr, "1", []byte("234444"))
 
 		for i := 0; i < 100; i++ {

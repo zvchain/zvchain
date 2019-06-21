@@ -17,8 +17,6 @@ package core
 
 import (
 	"container/heap"
-	"fmt"
-	"math/big"
 	"sync"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
@@ -62,7 +60,7 @@ func (tx *orderByNonceTx) Compare(e datacommon.Comparator) int {
 type priceHeap []*types.Transaction
 
 func (h priceHeap) Len() int           { return len(h) }
-func (h priceHeap) Less(i, j int) bool { return h[i].GasPrice > h[j].GasPrice }
+func (h priceHeap) Less(i, j int) bool { return h[i].GasPrice.Cmp(h[j].GasPrice.Value()) > 0 }
 func (h priceHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
 func (h *priceHeap) Push(x interface{}) {
@@ -78,8 +76,8 @@ func (h *priceHeap) Pop() interface{} {
 }
 
 type pendingContainer struct {
-	limit      int
-	size       int
+	limit int
+	size  int
 
 	waitingMap map[common.Address]*skip.SkipList //*orderByNonceTx. Map of transactions group by source for waiting
 }
@@ -89,11 +87,11 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 	var doInsertOrReplace = func() {
 		newTxNode := newOrderByNonceTx(tx)
 		existSource := s.waitingMap[*tx.Source].Get(newTxNode)[0]
-		if existSource != nil && existSource.(*orderByNonceTx).item.GasPrice < tx.GasPrice{
-			s.size --
+		if existSource != nil && existSource.(*orderByNonceTx).item.GasPrice.Cmp(tx.GasPrice.Value()) < 0 {
+			s.size--
 			s.waitingMap[*tx.Source].Delete(existSource)
 		}
-		s.size ++
+		s.size++
 		s.waitingMap[*tx.Source].Insert(newTxNode)
 	}
 
@@ -110,7 +108,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 		bigNonceTx := skipGetLast(s.waitingMap[*tx.Source])
 		if bigNonceTx != nil {
 			bigNonce := bigNonceTx.(*orderByNonceTx).item.Nonce
-			if tx.Nonce > bigNonce + 1{
+			if tx.Nonce > bigNonce+1 {
 				return false
 			}
 
@@ -126,7 +124,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 			if lowPriceTx == nil {
 				lowPriceTx = lastTx
 			}
-			if lowPriceTx.GasPrice > lastTx.GasPrice {
+			if lowPriceTx.GasPrice.Cmp(lastTx.GasPrice.Value()) > 0 {
 				lowPriceTx = lastTx
 			}
 		}
@@ -138,7 +136,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 	return true
 }
 
-func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
+func (s *pendingContainer) peek(f func(tx *types.Transaction) bool) {
 	if s.size == 0 {
 		return
 	}
@@ -147,21 +145,21 @@ func (s *pendingContainer) peek(f func(tx *types.Transaction) bool)  {
 
 	noncePositionMap := make(map[common.Address]uint64)
 	for _, list := range s.waitingMap {
-		heap.Push(packingList,list.ByPosition(0).(*orderByNonceTx).item)
+		heap.Push(packingList, list.ByPosition(0).(*orderByNonceTx).item)
 	}
 	for {
-		if packingList.Len() == 0{
+		if packingList.Len() == 0 {
 			return
 		}
 		tx := heap.Pop(packingList).(*types.Transaction)
 		if !f(tx) {
 			return
 		}
-		next := noncePositionMap[*tx.Source]+1
+		next := noncePositionMap[*tx.Source] + 1
 		if s.waitingMap[*tx.Source] != nil && s.waitingMap[*tx.Source].Len() > next {
 			nextTx := s.waitingMap[*tx.Source].ByPosition(next).(*orderByNonceTx)
 			noncePositionMap[*tx.Source] = next
-			heap.Push(packingList,nextTx.item)
+			heap.Push(packingList, nextTx.item)
 		}
 	}
 }
@@ -172,8 +170,8 @@ func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
 	for _, txSkip := range s.waitingMap {
 		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {
 			slice = append(slice, iter1.Value().(*orderByNonceTx).item)
-			count ++
-			if count >= limit{
+			count++
+			if count >= limit {
 				break
 			}
 		}
@@ -273,8 +271,8 @@ func (c *simpleContainer) eachForSync(f func(tx *types.Transaction) bool) {
 	c.pending.eachForSync(f)
 }
 
-
-func (c *simpleContainer) push(tx *types.Transaction) {
+// push try to push transaction to pool. if error return means the transaction is discarded and the error can be ignored
+func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -283,18 +281,18 @@ func (c *simpleContainer) push(tx *types.Transaction) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
-		_ = fmt.Errorf("nonce error:%v %v", tx.Nonce, stateNonce)
+		err = Logger.Warnf("nonce error:%v %v. hash = %s", tx.Nonce, stateNonce, tx.Hash.Hex())
 		return
 	}
 	//check balance before push to pool
-	gas, err := intrinsicGas(tx)
-	if err != nil {
-		_ = fmt.Errorf("discard transaction with gas not enough for gas limit")
+	_, txErr := intrinsicGas(tx)
+	if txErr != nil {
+		err = Logger.Warnf("discard transaction with gas limit not enough for intrinsic gas. hash = %s", tx.Hash.Hex())
 		return
 	}
-	gasFee := new(big.Int).SetUint64(tx.GasPrice * gas)
-	if gasFee.Cmp( c.chain.latestStateDB.GetBalance(*tx.Source)) > 0 {
-		_ = fmt.Errorf(" discard transaction with balance not enough for gas fee")
+	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
+	if gasLimitFee.Cmp(c.chain.latestStateDB.GetBalance(*tx.Source)) > 0 {
+		err = Logger.Warnf(" discard transaction with balance not enough for gas limit. hash = %s", tx.Hash.Hex())
 		return
 	}
 
@@ -306,6 +304,7 @@ func (c *simpleContainer) push(tx *types.Transaction) {
 		c.queue[tx.Hash] = tx
 	}
 	c.txsMap[tx.Hash] = tx
+	return
 }
 
 func (c *simpleContainer) remove(key common.Hash) {
@@ -339,7 +338,7 @@ func (c *simpleContainer) promoteQueueToPending() {
 	}
 }
 
-func (c *simpleContainer)getNonceWithCache(cache map[common.Address]uint64, tx *types.Transaction) uint64 {
+func (c *simpleContainer) getNonceWithCache(cache map[common.Address]uint64, tx *types.Transaction) uint64 {
 	if cache[*tx.Source] != 0 {
 		return cache[*tx.Source]
 	}

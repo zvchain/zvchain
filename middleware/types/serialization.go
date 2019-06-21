@@ -30,18 +30,6 @@ func InitMiddleware() {
 	logger = taslog.GetLoggerByIndex(taslog.MiddlewareLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 }
 
-// UnMarshalTransaction deserialize from []byte to *Transaction
-func UnMarshalTransaction(b []byte) (*Transaction, error) {
-	t := new(tas_middleware_pb.Transaction)
-	error := proto.Unmarshal(b, t)
-	if error != nil {
-		logger.Errorf("[handler]Unmarshal transaction error:%s", error.Error())
-		return &Transaction{}, error
-	}
-	transaction := pbToTransaction(t)
-	return transaction, nil
-}
-
 // UnMarshalTransactions deserialize from []byte to *Transaction
 func UnMarshalTransactions(b []byte) ([]*Transaction, error) {
 	ts := new(tas_middleware_pb.TransactionSlice)
@@ -156,9 +144,12 @@ func pbToTransaction(t *tas_middleware_pb.Transaction) *Transaction {
 		t := common.BytesToAddress(t.Target)
 		target = &t
 	}
+	value := new(BigInt).SetBytesWithSign(t.Value)
+	gasLimit := new(BigInt).SetBytesWithSign(t.GasLimit)
+	gasPrice := new(BigInt).SetBytesWithSign(t.GasPrice)
 
-	transaction := &Transaction{Data: t.Data, Value: *t.Value, Nonce: *t.Nonce,
-		Target: target, GasLimit: *t.GasLimit, GasPrice: *t.GasPrice, Hash: common.BytesToHash(t.Hash),
+	transaction := &Transaction{Data: t.Data, Value: value, Nonce: *t.Nonce,
+		Target: target, GasLimit: gasLimit, GasPrice: gasPrice, Hash: common.BytesToHash(t.Hash),
 		ExtraData: t.ExtraData, ExtraDataType: int8(*t.ExtraDataType), Type: int8(*t.Type), Sign: t.Sign}
 	return transaction
 }
@@ -184,10 +175,6 @@ func PbToBlockHeader(h *tas_middleware_pb.BlockHeader) *BlockHeader {
 		Nonce: *h.Nonce, TxTree: common.BytesToHash(h.TxTree), ReceiptTree: common.BytesToHash(h.ReceiptTree), StateTree: common.BytesToHash(h.StateTree),
 		ExtraData: h.ExtraData, TotalQN: *h.TotalQN, Random: h.Random}
 	return &header
-}
-
-func GroupRequestInfoToPB(CurrentTopGroupID []byte, ExistGroupIds [][]byte) *tas_middleware_pb.GroupRequestInfo {
-	return &tas_middleware_pb.GroupRequestInfo{CurrentTopGroupId: CurrentTopGroupID, ExistGroupIds: &tas_middleware_pb.GroupIdSlice{GroupIds: ExistGroupIds}}
 }
 
 func PbToBlock(b *tas_middleware_pb.Block) *Block {
@@ -255,8 +242,8 @@ func transactionToPb(t *Transaction) *tas_middleware_pb.Transaction {
 	}
 	et := int32(t.ExtraDataType)
 	tp := int32(t.Type)
-	transaction := tas_middleware_pb.Transaction{Data: t.Data, Value: &t.Value, Nonce: &t.Nonce,
-		Target: target, GasLimit: &t.GasLimit, GasPrice: &t.GasPrice, Hash: t.Hash.Bytes(),
+	transaction := tas_middleware_pb.Transaction{Data: t.Data, Value: t.Value.GetBytesWithSign(), Nonce: &t.Nonce,
+		Target: target, GasLimit: t.GasLimit.GetBytesWithSign(), GasPrice: t.GasPrice.GetBytesWithSign(), Hash: t.Hash.Bytes(),
 		ExtraData: t.ExtraData, ExtraDataType: &et, Type: &tp, Sign: t.Sign}
 	return &transaction
 }

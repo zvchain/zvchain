@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
@@ -29,10 +30,6 @@ const (
 	BasePort = 22000
 
 	SuperBasePort = 1122
-
-	BaseSection = "network"
-
-	PrivateKey = "private_key"
 
 	NodeIDLength = 66
 )
@@ -53,6 +50,10 @@ func (nid NodeID) GetHexString() string {
 }
 
 func NewNodeID(hex string) NodeID {
+
+	if !strings.HasPrefix(hex, "0x") {
+		hex = "0x" + hex
+	}
 	var nid NodeID
 	nid.SetBytes([]byte(hex))
 	return nid
@@ -255,17 +256,17 @@ func (n *Node) String() string {
 	return str
 }
 
-func getIPByAddress(address string) (net.IP,error) {
+func getIPByAddress(address string) (net.IP, error) {
 
 	IP := net.ParseIP(address)
 	if IP != nil {
-		return IP,nil
+		return IP, nil
 	}
-	IPs ,err:= net.LookupIP(address)
-	if err != nil || len(IPs) == 0{
-		Logger.Errorf("network  address :%v, LookupIP error:%v", address,err.Error())
-		return nil,err
+	IPs, err := net.LookupIP(address)
+	if err != nil || len(IPs) == 0 {
+		Logger.Errorf("network  address :%v, LookupIP error:%v", address, err.Error())
+		return nil, err
 	}
 
-	return IPs[0],nil
+	return IPs[0], nil
 }

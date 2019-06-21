@@ -75,12 +75,12 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 
 	return &types.Transaction{
 		Data:      []byte(tx.Data),
-		Value:     tx.Value,
+		Value:     types.NewBigInt(tx.Value),
 		Nonce:     tx.Nonce,
 		Target:    target,
 		Type:      int8(tx.TxType),
-		GasLimit:  tx.Gas,
-		GasPrice:  tx.Gasprice,
+		GasLimit:  types.NewBigInt(tx.Gas),
+		GasPrice:  types.NewBigInt(tx.Gasprice),
 		Sign:      sign,
 		ExtraData: []byte(tx.ExtraData),
 	}
@@ -93,7 +93,7 @@ type accountOp interface {
 
 	Lock(addr string) *Result
 
-	UnLock(addr string, password string) *Result
+	UnLock(addr string, password string, duration uint) *Result
 
 	AccountInfo() *Result
 

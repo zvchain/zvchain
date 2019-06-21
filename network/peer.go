@@ -19,8 +19,8 @@ import (
 	"bytes"
 	"container/list"
 	"math"
-	mrand "math/rand"
-	nnet "net"
+	"math/rand"
+	"net"
 	"sync"
 	"time"
 )
@@ -194,7 +194,7 @@ type Peer struct {
 	relayID        NodeID
 	relayTestTime  time.Time
 	sessionID      uint32
-	IP             nnet.IP
+	IP             net.IP
 	Port           int
 	sendList       *SendList
 	recvList       *list.List
@@ -328,7 +328,7 @@ func newPeerManager() *PeerManager {
 	return pm
 }
 
-func (pm *PeerManager) write(toid NodeID, toaddr *nnet.UDPAddr, packet *bytes.Buffer, code uint32, relay bool) {
+func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buffer, code uint32, relay bool) {
 
 	netID := genNetID(toid)
 	p := pm.peerByNetID(netID)
@@ -491,7 +491,7 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 	Logger.Infof("broadcast random total peer size:%v code:%v", len(pm.peers), code)
 
 	pm.checkPeerSource()
-	var availablePeers []*Peer
+	availablePeers := make([]*Peer, 0, 0)
 
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
@@ -510,16 +510,20 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 		}
 	} else {
 		nodesHasSend := make(map[int]bool)
-		rand := mrand.New(mrand.NewSource(time.Now().Unix()))
+		r := rand.New(rand.NewSource(time.Now().Unix()))
 
 		for i := 0; i < peerSize && len(nodesHasSend) < maxCount; i++ {
-			peerIndex := rand.Intn(peerSize)
+			peerIndex := r.Intn(peerSize)
 			if nodesHasSend[peerIndex] == true {
 				continue
 			}
 			nodesHasSend[peerIndex] = true
-			p := availablePeers[peerIndex]
-			p.write(packet, code)
+			if peerIndex < len(availablePeers) {
+				p := availablePeers[peerIndex]
+				if p != nil {
+					p.write(packet, code)
+				}
+			}
 		}
 	}
 

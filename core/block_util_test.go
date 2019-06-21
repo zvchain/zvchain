@@ -34,7 +34,7 @@ func getRandomTxs() []*types.Transaction {
 	result := make([]*types.Transaction, 0)
 	var i uint64
 	for i = 0; i < 100; i++ {
-		tx := types.Transaction{Nonce: i, Value: 100 - i}
+		tx := types.Transaction{Nonce: i, Value: types.NewBigInt(100 - i)}
 		result = append(result, &tx)
 	}
 	return result
