@@ -26,6 +26,7 @@ var (
 	ErrPassword    = fmt.Errorf("password error")
 	ErrUnlocked    = fmt.Errorf("please unlock the account first")
 	ErrUnConnected = fmt.Errorf("please connect to one node first")
+	ErrInternal    = fmt.Errorf("Internal error")
 )
 
 type txRawData struct {
