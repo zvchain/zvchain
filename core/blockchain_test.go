@@ -512,14 +512,6 @@ func (helper *ConsensusHelperImpl4Test) VRFProve2Value(prove []byte) *big.Int {
 	return big.NewInt(1)
 }
 
-func (helper *ConsensusHelperImpl4Test) ProposalReward() *big.Int {
-	return new(big.Int).SetUint64(model.Param.ProposalReward)
-}
-
-func (helper *ConsensusHelperImpl4Test) PackReward() *big.Int {
-	return new(big.Int).SetUint64(model.Param.PackReward)
-}
-
 func (helper *ConsensusHelperImpl4Test) CheckProveRoot(bh *types.BlockHeader) (bool, error) {
 	//return Proc.checkProveRoot(bh)
 	return true, nil //上链时不再校验，只在共识时校验（update：2019-04-23）

@@ -141,7 +141,6 @@ class Foundation(object):
         weight = 0
         for i in range(period+1):
             weight = weight + self.first_year_weight // (2 ** (i // 3))
-        print(weight)
         return self.total_token * weight // self.total_weight
 
     @register.public(int)

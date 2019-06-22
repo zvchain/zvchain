@@ -30,6 +30,7 @@ import (
 const (
 	initialRewards     = 62 * common.TAS
 	halveRewardsPeriod = 30000000
+	halveRewardsTimes  = 3
 )
 
 const (

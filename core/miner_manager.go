@@ -45,17 +45,14 @@ var (
 )
 
 const (
-	MinMinerStake                 = 500 * common.TAS
-	MaxMinerStakeAdjustPeriod     = 5000000
-	initialMinerNodesAmount       = 200
-	MoreMinerNodesAmountPerPeriod = 12
+	MinMinerStake             = 500 * common.TAS
+	MaxMinerStakeAdjustPeriod = 5000000
+	initialMinerNodesAmount   = 200
+	MoreMinerNodesPerHalfYear = 12
+	initialTokenReleased      = 500000000
+	tokenReleasedPerHalfYear  = 400000000
+	stakeAdjustTimes          = 24
 )
-
-var tokenRealeased = []uint64{
-	500000000, 900000000, 1300000000, 1700000000, 2100000000, 2500000000, 2900000000, 3100000000, 3300000000,
-	3500000000, 3700000000, 3900000000, 4100000000, 4200000000, 4300000000, 4400000000, 4500000000, 4600000000,
-	4700000000, 4750000000, 4800000000, 4850000000, 4900000000, 4950000000, 5000000000,
-}
 
 type stakeFlagByte = byte
 
@@ -511,11 +508,11 @@ func (mm *MinerManager) MinStake() uint64 {
 
 func (mm *MinerManager) MaxStake(height uint64) uint64 {
 	peroid := height / MaxMinerStakeAdjustPeriod
-	if peroid >= uint64(len(tokenRealeased)) {
-		peroid = uint64(len(tokenRealeased)) - 1
+	if peroid > stakeAdjustTimes {
+		peroid = stakeAdjustTimes
 	}
-	nodeAmount := initialMinerNodesAmount + peroid*MoreMinerNodesAmountPerPeriod
-	return tokenRealeased[peroid] / nodeAmount * common.TAS
+	nodeAmount := initialMinerNodesAmount + peroid*MoreMinerNodesPerHalfYear
+	return mm.tokenReleased(height) / nodeAmount * common.TAS
 }
 
 func (mi *MinerIterator) Current() (*types.Miner, error) {
@@ -584,4 +581,21 @@ func (mm *MinerManager) GetStakeDetail(from, to common.Address, db vm.AccountDB)
 	details := mm.getStakeDetailByType(from, to, types.MinerTypeHeavy, db)
 	details = append(details, mm.getStakeDetailByType(from, to, types.MinerTypeLight, db)...)
 	return details
+}
+
+func (mm *MinerManager) tokenReleased(height uint64) uint64 {
+	adjustTimes := height / MaxMinerStakeAdjustPeriod
+	if adjustTimes > stakeAdjustTimes {
+		adjustTimes = stakeAdjustTimes
+	}
+
+	var released uint64 = initialTokenReleased
+	for i := uint64(0); i < adjustTimes; i++ {
+		halveTimes := i * MaxMinerStakeAdjustPeriod / halveRewardsPeriod
+		if halveTimes > halveRewardsTimes {
+			halveTimes = halveRewardsTimes
+		}
+		released += tokenReleasedPerHalfYear >> halveTimes
+	}
+	return released
 }
