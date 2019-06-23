@@ -261,14 +261,14 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 		ni.Status = "running"
 		morts := make([]MortGage, 0)
 		t := "--"
-		heavyInfo := core.MinerManagerImpl.GetMinerByID(p.GetMinerID().Serialize(), types.MinerTypeHeavy, nil)
+		heavyInfo := core.MinerManagerImpl.GetMinerByID(p.GetMinerID().Serialize(), types.MinerTypeProposal, nil)
 		if heavyInfo != nil {
 			morts = append(morts, *NewMortGageFromMiner(heavyInfo))
 			if heavyInfo.AbortHeight == 0 {
 				t = "proposal role"
 			}
 		}
-		lightInfo := core.MinerManagerImpl.GetMinerByID(p.GetMinerID().Serialize(), types.MinerTypeLight, nil)
+		lightInfo := core.MinerManagerImpl.GetMinerByID(p.GetMinerID().Serialize(), types.MinerTypeVerify, nil)
 		if lightInfo != nil {
 			morts = append(morts, *NewMortGageFromMiner(lightInfo))
 			if lightInfo.AbortHeight == 0 {
@@ -509,7 +509,7 @@ func (api *RpcDevImpl) MonitorAllMiners() (*Result, error) {
 	totalStake := uint64(0)
 	maxStake := uint64(0)
 	for _, m := range miners {
-		if m.AbortHeight == 0 && m.NType == types.MinerTypeHeavy {
+		if m.AbortHeight == 0 && m.NType == types.MinerTypeProposal {
 			totalStake += m.Stake
 			if maxStake < m.Stake {
 				maxStake = m.Stake

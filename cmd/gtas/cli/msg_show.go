@@ -111,7 +111,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
 					miner := core.MinerManagerImpl.Transaction2Miner(tx)
 					role := "proposer"
-					if miner.Type == types.MinerTypeLight {
+					if miner.Type == types.MinerTypeVerify {
 						role = "verifier"
 					}
 					ms.showMsg("congratulations to you on becoming a %v at height %v, start mining", role, b.Header.Height)
@@ -119,7 +119,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 			case types.TransactionTypeMinerAbort:
 				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
 					role := "proposer"
-					if tx.Data[0] == types.MinerTypeLight {
+					if tx.Data[0] == types.MinerTypeVerify {
 						role = "verifier"
 					}
 					ms.showMsg("abort miner role %v success at height %v, stoping mining", role, b.Header.Height)
@@ -127,7 +127,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 			case types.TransactionTypeMinerRefund:
 				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
 					role := "proposer"
-					if tx.Data[0] == types.MinerTypeLight {
+					if tx.Data[0] == types.MinerTypeVerify {
 						role = "verifier"
 					}
 					ms.showMsg("refund miner role %v success at %v", role, b.Header.Height)

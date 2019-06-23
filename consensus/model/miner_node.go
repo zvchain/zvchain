@@ -52,11 +52,11 @@ func (md *MinerDO) CanJoinGroupAt(h uint64) bool {
 }
 
 func (md *MinerDO) IsLight() bool {
-	return md.NType == types.MinerTypeLight
+	return md.NType == types.MinerTypeVerify
 }
 
 func (md *MinerDO) IsWeight() bool {
-	return md.NType == types.MinerTypeHeavy
+	return md.NType == types.MinerTypeProposal
 }
 
 // SelfMinerDO inherited from MinerDO.

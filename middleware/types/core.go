@@ -246,10 +246,15 @@ type Bonus struct {
 }
 
 const (
-	MinerTypeLight    = 0
-	MinerTypeHeavy    = 1
-	MinerStatusNormal = 0
-	MinerStatusAbort  = 1
+	MinerTypeVerify   = 0
+	MinerTypeProposal = 1
+)
+
+const (
+	MinerStatusNormal    = 0 // Miner is activated
+	MinerStatusAbort     = 1 // Miner abort by self
+	MinerStatusForbidden = 2 // Miner forbidden by system
+	MinerStatusLackInfo  = 3 // Miner pk info not completed
 )
 
 // Miner is the miner info including public keys and pledges
@@ -455,7 +460,7 @@ func (bw *BlockWeight) String() string {
 }
 
 // StakeStatus indicates the stake status
-type StakeStatus = int
+type StakeStatus = int8
 
 const (
 	Staked      StakeStatus = iota // Normal status

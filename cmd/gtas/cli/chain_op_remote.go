@@ -188,7 +188,7 @@ func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *Result {
 	return ca.request("getBlockByHeight", h)
 }
 
-// ApplyMiner apply miner(mtype is MinerTypeLight or MinerStatusNormal)
+// ApplyMiner apply miner(mtype is MinerTypeVerify or MinerStatusNormal)
 func (ca *RemoteChainOpImpl) ApplyMiner(mtype int, stake uint64, gas, gasprice uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
@@ -206,7 +206,7 @@ func (ca *RemoteChainOpImpl) ApplyMiner(mtype int, stake uint64, gas, gasprice u
 	bpk.SetHexString(aci.Miner.BPk)
 
 	st := uint64(0)
-	if mtype == types.MinerTypeLight && common.TAS2RA(stake) < common.VerifyStake {
+	if mtype == types.MinerTypeVerify && common.TAS2RA(stake) < common.VerifyStake {
 		fmt.Println("stake of applying verify node must > 100 TAS")
 		return opError(errors.New("stake value error!"))
 	} else {

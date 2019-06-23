@@ -103,7 +103,7 @@ func (mm *MinerManager) GetTotalStake(height uint64) uint64 {
 		return 0
 	}
 
-	iter := mm.minerIterator(types.MinerTypeHeavy, accountDB)
+	iter := mm.minerIterator(types.MinerTypeProposal, accountDB)
 	var total uint64
 	for iter.Next() {
 		miner, _ := iter.Current()
@@ -114,7 +114,7 @@ func (mm *MinerManager) GetTotalStake(height uint64) uint64 {
 		}
 	}
 	if total == 0 {
-		iter = mm.minerIterator(types.MinerTypeHeavy, accountDB)
+		iter = mm.minerIterator(types.MinerTypeProposal, accountDB)
 		for iter.Next() {
 			miner, _ := iter.Current()
 			Logger.Debugf("GetTotalStakeByHeight %+v", miner)
@@ -166,7 +166,7 @@ func (mm *MinerManager) buildVirtualNetRoutine() bool {
 	mm.lock.Lock()
 	defer mm.lock.Unlock()
 	if mm.hasNewHeavyMiner {
-		iterator := mm.minerIterator(types.MinerTypeHeavy, nil)
+		iterator := mm.minerIterator(types.MinerTypeProposal, nil)
 		array := make([]string, 0)
 		for iterator.Next() {
 			miner, _ := iterator.Current()
@@ -183,9 +183,9 @@ func (mm *MinerManager) buildVirtualNetRoutine() bool {
 
 func (mm *MinerManager) getMinerDatabase(minerType byte) common.Address {
 	switch minerType {
-	case types.MinerTypeLight:
+	case types.MinerTypeVerify:
 		return common.LightDBAddress
-	case types.MinerTypeHeavy:
+	case types.MinerTypeProposal:
 		return common.HeavyDBAddress
 	}
 	return common.Address{}
@@ -198,13 +198,13 @@ func (mm *MinerManager) addMiner(id []byte, miner *types.Miner, accountdb vm.Acc
 	if accountdb.GetData(db, string(id)) != nil {
 		return -1
 	}
-	if miner.Stake < common.VerifyStake && miner.Type == types.MinerTypeLight {
+	if miner.Stake < common.VerifyStake && miner.Type == types.MinerTypeVerify {
 		return -1
 	}
 	mm.updateMinerCount(miner.Type, minerCountIncrease, accountdb)
 	data, _ := msgpack.Marshal(miner)
 	accountdb.SetData(db, string(id), data)
-	if miner.Type == types.MinerTypeHeavy {
+	if miner.Type == types.MinerTypeProposal {
 		mm.hasNewHeavyMiner = true
 	}
 	return 1
@@ -223,14 +223,14 @@ func (mm *MinerManager) activateAndAddStakeMiner(miner *types.Miner, accountdb v
 		return false
 	}
 	miner.Stake = dbMiner.Stake + miner.Stake
-	if miner.Stake < common.VerifyStake && miner.Type == types.MinerTypeLight {
+	if miner.Stake < common.VerifyStake && miner.Type == types.MinerTypeVerify {
 		return false
 	}
 	miner.Status = types.MinerStatusNormal
 	miner.ApplyHeight = height
 	data, _ := msgpack.Marshal(miner)
 	accountdb.SetData(db, string(miner.ID), data)
-	if miner.Type == types.MinerTypeHeavy {
+	if miner.Type == types.MinerTypeProposal {
 		mm.hasNewHeavyMiner = true
 	}
 	mm.updateMinerCount(miner.Type, minerCountIncrease, accountdb)
@@ -238,24 +238,24 @@ func (mm *MinerManager) activateAndAddStakeMiner(miner *types.Miner, accountdb v
 }
 
 func (mm *MinerManager) addGenesesMiner(miners []*types.Miner, accountdb vm.AccountDB) {
-	dbh := mm.getMinerDatabase(types.MinerTypeHeavy)
-	dbl := mm.getMinerDatabase(types.MinerTypeLight)
+	dbh := mm.getMinerDatabase(types.MinerTypeProposal)
+	dbl := mm.getMinerDatabase(types.MinerTypeVerify)
 
 	for _, miner := range miners {
 		if accountdb.GetData(dbh, string(miner.ID)) == nil {
-			miner.Type = types.MinerTypeHeavy
+			miner.Type = types.MinerTypeProposal
 			data, _ := msgpack.Marshal(miner)
 			accountdb.SetData(dbh, string(miner.ID), data)
 			mm.AddStakeDetail(miner.ID, miner, miner.Stake, accountdb)
 			mm.heavyMiners = append(mm.heavyMiners, groupsig.DeserializeID(miner.ID).GetHexString())
-			mm.updateMinerCount(types.MinerTypeHeavy, minerCountIncrease, accountdb)
+			mm.updateMinerCount(types.MinerTypeProposal, minerCountIncrease, accountdb)
 		}
 		if accountdb.GetData(dbl, string(miner.ID)) == nil {
-			miner.Type = types.MinerTypeLight
+			miner.Type = types.MinerTypeVerify
 			data, _ := msgpack.Marshal(miner)
 			accountdb.SetData(dbl, string(miner.ID), data)
 			mm.AddStakeDetail(miner.ID, miner, miner.Stake, accountdb)
-			mm.updateMinerCount(types.MinerTypeLight, minerCountIncrease, accountdb)
+			mm.updateMinerCount(types.MinerTypeVerify, minerCountIncrease, accountdb)
 		}
 	}
 	mm.hasNewHeavyMiner = true
@@ -276,7 +276,7 @@ func (mm *MinerManager) abortMiner(id []byte, ttype byte, height uint64, account
 		db := mm.getMinerDatabase(ttype)
 		data, _ := msgpack.Marshal(miner)
 		accountdb.SetData(db, string(id), data)
-		if ttype == types.MinerTypeHeavy {
+		if ttype == types.MinerTypeProposal {
 			mm.hasNewHeavyMiner = true
 		}
 		mm.updateMinerCount(ttype, minerCountDecrease, accountdb)
@@ -297,7 +297,7 @@ func (mm *MinerManager) minerIterator(minerType byte, accountdb vm.AccountDB) *M
 }
 
 func (mm *MinerManager) updateMinerCount(minerType byte, operation MinerCountOperation, accountdb vm.AccountDB) {
-	if minerType == types.MinerTypeHeavy {
+	if minerType == types.MinerTypeProposal {
 		heavyMinerCountByte := accountdb.GetData(common.MinerCountDBAddress, heavyMinerCountKey)
 		heavyMinerCount := common.ByteToUInt64(heavyMinerCountByte)
 		if operation == minerCountIncrease {
@@ -309,7 +309,7 @@ func (mm *MinerManager) updateMinerCount(minerType byte, operation MinerCountOpe
 		return
 	}
 
-	if minerType == types.MinerTypeLight {
+	if minerType == types.MinerTypeVerify {
 		lightMinerCountByte := accountdb.GetData(common.MinerCountDBAddress, lightMinerCountKey)
 		lightMinerCount := common.ByteToUInt64(lightMinerCountByte)
 		if operation == minerCountIncrease {
@@ -336,10 +336,10 @@ func (mm *MinerManager) getDetailDBKey(from []byte, minerAddr []byte, _type byte
 
 	/**
 	 *	key's available values:
-	 *	LightStaked      stakeFlagByte = (types.MinerTypeLight << 4) | byte(Staked)
-	 *	LightStakeFrozen stakeFlagByte = (types.MinerTypeLight << 4) | byte(StakeFrozen)
-	 *	HeavyStaked      stakeFlagByte = (types.MinerTypeHeavy << 4) | byte(Staked)
-	 *	HeavyStakeFrozen stakeFlagByte = (types.MinerTypeHeavy << 4) | byte(StakeFrozen)
+	 *	LightStaked      stakeFlagByte = (types.MinerTypeVerify << 4) | byte(Staked)
+	 *	LightStakeFrozen stakeFlagByte = (types.MinerTypeVerify << 4) | byte(StakeFrozen)
+	 *	HeavyStaked      stakeFlagByte = (types.MinerTypeProposal << 4) | byte(Staked)
+	 *	HeavyStakeFrozen stakeFlagByte = (types.MinerTypeProposal << 4) | byte(StakeFrozen)
 	 */
 
 	return key
@@ -439,7 +439,7 @@ func (mm *MinerManager) AddStake(id []byte, miner *types.Miner, amount uint64, a
 		return false
 	}
 	if miner.Status == types.MinerStatusAbort &&
-		miner.Type == types.MinerTypeLight &&
+		miner.Type == types.MinerTypeVerify &&
 		miner.Stake >= common.VerifyStake {
 		miner.Status = types.MinerStatusNormal
 		mm.updateMinerCount(miner.Type, minerCountIncrease, accountdb)
@@ -458,7 +458,7 @@ func (mm *MinerManager) ReduceStake(id []byte, miner *types.Miner, amount uint64
 	}
 	miner.Stake -= amount
 	if miner.Status == types.MinerStatusNormal &&
-		miner.Type == types.MinerTypeLight &&
+		miner.Type == types.MinerTypeVerify &&
 		miner.Stake < common.VerifyStake {
 		if GroupChainImpl.WhetherMemberInActiveGroup(id, height) {
 			Logger.Debugf("TVMExecutor Execute MinerRefund Light Fail(Still In Active Group) %s", common.ToHex(id))
@@ -548,7 +548,7 @@ func (mm *MinerManager) getStakeDetailByType(from, to common.Address, typ byte, 
 
 // GetStakeDetail returns the stake details of the given address pair
 func (mm *MinerManager) GetStakeDetail(from, to common.Address, db vm.AccountDB) []*types.StakeDetail {
-	details := mm.getStakeDetailByType(from, to, types.MinerTypeHeavy, db)
-	details = append(details, mm.getStakeDetailByType(from, to, types.MinerTypeLight, db)...)
+	details := mm.getStakeDetailByType(from, to, types.MinerTypeProposal, db)
+	details = append(details, mm.getStakeDetailByType(from, to, types.MinerTypeVerify, db)...)
 	return details
 }

@@ -104,7 +104,7 @@ type MortGage struct {
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	t := "proposal node"
-	if miner.Type == types.MinerTypeLight {
+	if miner.Type == types.MinerTypeVerify {
 		t = "verify node"
 	}
 	status := "abort"

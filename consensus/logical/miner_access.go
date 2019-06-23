@@ -58,7 +58,7 @@ func convert2MinerDO(miner *types.Miner) *model.MinerDO {
 }
 
 func (access *MinerPoolReader) getLightMiner(id groupsig.ID) *model.MinerDO {
-	miner := access.minerPool.GetMinerByID(id.Serialize(), types.MinerTypeLight, nil)
+	miner := access.minerPool.GetMinerByID(id.Serialize(), types.MinerTypeVerify, nil)
 	if miner == nil {
 		return nil
 	}
@@ -66,7 +66,7 @@ func (access *MinerPoolReader) getLightMiner(id groupsig.ID) *model.MinerDO {
 }
 
 func (access *MinerPoolReader) getProposeMiner(id groupsig.ID) *model.MinerDO {
-	miner := access.minerPool.GetMinerByID(id.Serialize(), types.MinerTypeHeavy, nil)
+	miner := access.minerPool.GetMinerByID(id.Serialize(), types.MinerTypeProposal, nil)
 	if miner == nil {
 		return nil
 	}
@@ -88,7 +88,7 @@ func (access *MinerPoolReader) getAllMinerDOByType(ntype byte, h uint64) []*mode
 }
 
 func (access *MinerPoolReader) getCanJoinGroupMinersAt(h uint64) []model.MinerDO {
-	miners := access.getAllMinerDOByType(types.MinerTypeLight, h)
+	miners := access.getAllMinerDOByType(types.MinerTypeVerify, h)
 	rets := make([]model.MinerDO, 0)
 	access.blog.debug("all light nodes size %v", len(miners))
 	for _, md := range miners {

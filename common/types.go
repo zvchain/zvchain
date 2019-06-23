@@ -50,13 +50,9 @@ const (
 var DefaultLogger taslog.Logger
 
 var (
-	hashT                     = reflect.TypeOf(Hash{})
-	addressT                  = reflect.TypeOf(Address{})
-	BonusStorageAddress       = BigToAddress(big.NewInt(0))
-	LightDBAddress            = BigToAddress(big.NewInt(1))
-	HeavyDBAddress            = BigToAddress(big.NewInt(2))
-	MinerCountDBAddress       = BigToAddress(big.NewInt(3))
-	MinerStakeDetailDBAddress = BigToAddress(big.NewInt(4))
+	hashT               = reflect.TypeOf(Hash{})
+	addressT            = reflect.TypeOf(Address{})
+	BonusStorageAddress = BigToAddress(big.NewInt(0))
 )
 
 // Address data struct

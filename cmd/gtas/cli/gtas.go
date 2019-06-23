@@ -95,9 +95,9 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 	var appFun applyFunc
 	if len(cfg.applyRole) > 0 {
 		fmt.Printf("apply role: %v\n", cfg.applyRole)
-		mtype := types.MinerTypeHeavy
+		mtype := types.MinerTypeProposal
 		if cfg.applyRole == "light" {
-			mtype = types.MinerTypeLight
+			mtype = types.MinerTypeVerify
 		}
 		appFun = func() {
 			gtas.autoApplyMiner(mtype)

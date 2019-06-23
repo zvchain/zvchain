@@ -36,5 +36,5 @@ func validateTxType(typ int) bool {
 }
 
 func validateMinerType(typ int) bool {
-	return typ == types.MinerTypeLight || typ == types.MinerTypeHeavy
+	return typ == types.MinerTypeVerify || typ == types.MinerTypeProposal
 }

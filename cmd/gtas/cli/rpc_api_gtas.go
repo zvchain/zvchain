@@ -143,11 +143,11 @@ func (api *RpcGtasImpl) MinerInfo(addr string) (*Result, error) {
 	}
 	morts := make([]MortGage, 0)
 	id := common.HexToAddress(addr).Bytes()
-	heavyInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeHeavy, nil)
+	heavyInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeProposal, nil)
 	if heavyInfo != nil {
 		morts = append(morts, *NewMortGageFromMiner(heavyInfo))
 	}
-	lightInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeLight, nil)
+	lightInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeVerify, nil)
 	if lightInfo != nil {
 		morts = append(morts, *NewMortGageFromMiner(lightInfo))
 	}
@@ -282,7 +282,6 @@ func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*R
 		return failResult("query does not have data")
 	}
 }
-
 
 // PledgeDetail query the pledge details of the given account.
 // from: the miner address who launches the pledge, optional.

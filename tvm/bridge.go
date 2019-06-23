@@ -180,7 +180,7 @@ func MinerRefundStake(minerAddr *C.char, _type int) bool {
 	mexist := controller.mm.GetMinerByID(miner.Bytes(), byte(_type), controller.AccountDB)
 	height := controller.BlockHeader.Height
 	if mexist != nil {
-		if mexist.Type == types.MinerTypeHeavy {
+		if mexist.Type == types.MinerTypeProposal {
 			latestCancelPledgeHeight := controller.mm.GetLatestCancelStakeHeight(source.Bytes(), mexist, controller.AccountDB)
 			if height > latestCancelPledgeHeight+10 || (mexist.Status == types.MinerStatusAbort && height > mexist.AbortHeight+10) {
 				value, ok := controller.mm.RefundStake(source.Bytes(), mexist, controller.AccountDB)

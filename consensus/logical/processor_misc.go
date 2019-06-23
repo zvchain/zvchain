@@ -197,10 +197,10 @@ func (p *Processor) GetJoinGroupInfo(gid string) *JoinedGroup {
 func (p *Processor) GetAllMinerDOs() []*model.MinerDO {
 	h := p.MainChain.Height()
 	dos := make([]*model.MinerDO, 0)
-	miners := p.minerReader.getAllMinerDOByType(types.MinerTypeHeavy, h)
+	miners := p.minerReader.getAllMinerDOByType(types.MinerTypeProposal, h)
 	dos = append(dos, miners...)
 
-	miners = p.minerReader.getAllMinerDOByType(types.MinerTypeLight, h)
+	miners = p.minerReader.getAllMinerDOByType(types.MinerTypeVerify, h)
 	dos = append(dos, miners...)
 	return dos
 }
