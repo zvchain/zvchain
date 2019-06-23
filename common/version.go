@@ -33,6 +33,6 @@ const GtasVersion = "0.9.4" // add comments
 
 const ConsensusVersion = 1
 
-const ChainDataVersion = 5
+const ChainDataVersion = 6
 
 const ProtocalVersion = 1
