@@ -267,6 +267,7 @@ func (executor *TVMExecutor) executeMinerApplyTx(accountdb *account.AccountDB, t
 	Logger.Debugf("Execute miner apply tx:%s,source: %v\n", transaction.Hash.Hex(), transaction.Source.Hex())
 	success = false
 	gasFee := new(types.BigInt).Mul(transaction.GasPrice.Value(), gasUsed.Value())
+	cumulativeGasUsed = gasUsed.Uint64()
 	// transfer gasFee to miner
 	transfer(accountdb,*transaction.Source,castor,gasFee)
 
@@ -279,7 +280,10 @@ func (executor *TVMExecutor) executeMinerApplyTx(accountdb *account.AccountDB, t
 	miner.ID = transaction.Source[:]
 	amount := new(big.Int).SetUint64(miner.Stake)
 	mExist := MinerManagerImpl.GetMinerByID(transaction.Source[:], miner.Type, accountdb)
-	cumulativeGasUsed = gasUsed.Uint64()
+	if !canTransfer(accountdb,*transaction.Source,amount,new(big.Int).SetUint64(0)){
+		Logger.Error("execute MinerApply balance not enough!")
+		return
+	}
 	if mExist != nil {
 		if mExist.Status != types.MinerStatusNormal {
 			if mExist.Type == types.MinerTypeLight && (mExist.Stake+miner.Stake) < common.VerifyStake {
@@ -330,6 +334,12 @@ func (executor *TVMExecutor) executeMinerStakeTx(accountdb *account.AccountDB, t
 
 	mExist := MinerManagerImpl.GetMinerByID(id, _type, accountdb)
 	cumulativeGasUsed = gasUsed.Uint64()
+
+	if !canTransfer(accountdb,*transaction.Source,amount,new(big.Int).SetUint64(0)){
+		Logger.Error("execute Miner Stake balance not enough!")
+		return
+	}
+
 	if mExist == nil {
 		success = false
 		Logger.Debugf("TVMExecutor Execute Miner Stake Fail(Do not exist this Miner) Source:%s Height:%d", transaction.Source.Hex(), height)
