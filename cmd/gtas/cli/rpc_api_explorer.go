@@ -20,7 +20,6 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
-	"math/big"
 	"strings"
 )
 
@@ -134,14 +133,14 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
 				status, err := chain.GetTransactionPool().GetTransactionStatus(tx.Hash)
 				if err != nil && block != nil && status == types.ReceiptStatusSuccessful {
-					packedReward += chain.GetRewardManager().CalculatePackedRewards(block.Header.Height).Uint64()
+					packedReward += chain.GetRewardManager().CalculatePackedRewards(block.Header.Height)
 				}
 			}
 		}
 	}
-	ret.ProposalReward = chain.GetRewardManager().CalculateCastorRewards(bh.Height).Uint64() + packedReward
+	ret.ProposalReward = chain.GetRewardManager().CalculateCastorRewards(bh.Height) + packedReward
 	ret.ProposalGasFeeReward = chain.GetRewardManager().
-		CalculateGasFeeCastorRewards(big.NewInt(0).SetUint64(bh.GasFee)).Uint64()
+		CalculateGasFeeCastorRewards(bh.GasFee)
 	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
 		genReward := convertRewardTransaction(rewardTx)
 		genReward.Success = true

@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"math/big"
 	"sync/atomic"
 	"time"
 
@@ -399,10 +398,9 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 	}
 	if !slot.hasSignedTxHash(reward.TxHash) {
 		verifyRewards := p.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
-		gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(big.NewInt(0).SetUint64(bh.GasFee))
-		verifyRewards.Add(verifyRewards, gasFeeRewards)
+		gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
 		genReward, _, err2 := p.MainChain.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.GroupID,
-			verifyRewards.Uint64())
+			gasFeeRewards+verifyRewards)
 		if err2 != nil {
 			err = err2
 			return

@@ -502,16 +502,18 @@ func (mm *MinerManager) Transaction2MinerParams(tx *types.Transaction) (_type by
 	return
 }
 
+// MinerManager shows miner can stake the min value
 func (mm *MinerManager) MinStake() uint64 {
 	return MinMinerStake
 }
 
+// MaxStake shows miner can stake the max value
 func (mm *MinerManager) MaxStake(height uint64) uint64 {
-	peroid := height / MaxMinerStakeAdjustPeriod
-	if peroid > stakeAdjustTimes {
-		peroid = stakeAdjustTimes
+	period := height / MaxMinerStakeAdjustPeriod
+	if period > stakeAdjustTimes {
+		period = stakeAdjustTimes
 	}
-	nodeAmount := initialMinerNodesAmount + peroid*MoreMinerNodesPerHalfYear
+	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerHalfYear
 	return mm.tokenReleased(height) / nodeAmount * common.TAS
 }
 

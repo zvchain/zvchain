@@ -101,9 +101,9 @@ func (helper *ConsensusHelperImpl) VerifyRewardTransaction(tx *types.Transaction
 		return false, fmt.Errorf("group id not equal to the block verifier groupId")
 	}
 	verifyRewards := Proc.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
-	gasFeeRewards := Proc.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(big.NewInt(0).SetUint64(bh.GasFee))
-	verifyRewards.Add(verifyRewards, gasFeeRewards)
-	if verifyRewards.Uint64()/uint64(len(targetIds)) != value.Uint64() {
+	gasFeeRewards := Proc.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
+	verifyRewards += gasFeeRewards
+	if verifyRewards/uint64(len(targetIds)) != value.Uint64() {
 		return false, fmt.Errorf("invalid verify reward, value=%v", value)
 	}
 

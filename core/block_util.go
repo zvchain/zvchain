@@ -100,9 +100,9 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	stateDB.SetBalance(common.HexToAddress("0x6d880ddbcfb24180901d1ea709bb027cd86f79936d5ed23ece70bd98f22f2d84"), big.NewInt(0).SetUint64(common.TAS2RA(100000000)))
 
 	// FoundationContract
-	businessFoundationAddr := setupFoundationContract(stateDB, adminAddr, businessFoundationToken, 0)
+	businessFoundationAddr := setupFoundationContract(stateDB, adminAddr, businessFoundationToken, 1)
 	stateDB.SetBalance(*businessFoundationAddr, big.NewInt(0).SetUint64(businessFoundationToken))
-	teamFoundationAddr := setupFoundationContract(stateDB, adminAddr, teamFoundationToken, 1)
+	teamFoundationAddr := setupFoundationContract(stateDB, adminAddr, teamFoundationToken, 2)
 	stateDB.SetBalance(*teamFoundationAddr, big.NewInt(0).SetUint64(teamFoundationToken))
 	stateDB.SetNonce(common.HexToAddress(adminAddr), 2)
 
@@ -153,10 +153,12 @@ class Foundation(object):
         if account.get_balance(this) < amount:
             return
         self.withdrawed += amount
-        account.transfer(msg.sender, self.admin)
+        account.transfer(self.admin, amount)
 
-    @register.public(str)    
+    @register.public(str)
     def change_admin(self, admin):
+        if msg.sender != self.admin:
+            return
         self.admin = admin
 
 `
@@ -165,7 +167,7 @@ class Foundation(object):
 	addr := common.HexToAddress(adminAddr)
 	transaction.Source = &addr
 	transaction.Value = &types.BigInt{Int: *big.NewInt(0)}
-
+	transaction.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}
 	controller := tvm.NewController(stateDB, nil, nil, transaction, 0, "./py", nil, nil)
 	contract := tvm.Contract{
 		Code:         code,

@@ -390,13 +390,12 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 			mb.Proposal = true
 			var packedRewards uint64
 			for _, height := range uniqueRewardBlockHash {
-				packedRewards += chain.GetRewardManager().CalculatePackedRewards(height).Uint64()
+				packedRewards += chain.GetRewardManager().CalculatePackedRewards(height)
 			}
 			mb.PackRewardTx = len(uniqueRewardBlockHash)
-			increase += chain.GetRewardManager().CalculateCastorRewards(bh.Height).Uint64()
+			increase += chain.GetRewardManager().CalculateCastorRewards(bh.Height)
 			increase += packedRewards
-			increase += chain.GetRewardManager().CalculateGasFeeCastorRewards(big.NewInt(0).
-				SetUint64(bh.GasFee)).Uint64()
+			increase += chain.GetRewardManager().CalculateGasFeeCastorRewards(bh.GasFee)
 			mb.Explain = fmt.Sprintf("proposal, pack %v bouns-txs", mb.PackRewardTx)
 		}
 		if hs, ok := minerVerifyBlockHash[id]; ok {

@@ -145,20 +145,19 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 	}
 	//ts.AddStat("executeLoop", time.Since(b))
 	rm := BlockChainImpl.GetRewardManager()
-	castorTotalRewards := rm.CalculateGasFeeCastorRewards(big.NewInt(0).SetUint64(bh.GasFee))
+	castorTotalRewards := rm.CalculateGasFeeCastorRewards(bh.GasFee)
 	for _, blockHash := range packedRewardsBlockHash {
 		b := BlockChainImpl.QueryBlockByHash(blockHash)
 		if b != nil {
-			castorTotalRewards.Add(castorTotalRewards, rm.CalculatePackedRewards(b.Header.Height))
+			castorTotalRewards += rm.CalculatePackedRewards(b.Header.Height)
 		}
 	}
 	if rm.reduceBlockRewards(bh.Height) {
-		castorRewards := rm.CalculateCastorRewards(bh.Height)
-		castorTotalRewards.Add(castorTotalRewards, castorRewards)
-		accountdb.AddBalance(deamonNodeAddress, rm.deamonNodesRewards(bh.Height))
-		accountdb.AddBalance(userNodeAddress, rm.userNodesRewards(bh.Height))
+		castorTotalRewards += rm.CalculateCastorRewards(bh.Height)
+		accountdb.AddBalance(deamonNodeAddress, big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
+		accountdb.AddBalance(userNodeAddress, big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
 	}
-	accountdb.AddBalance(castor, castorTotalRewards)
+	accountdb.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	state = accountdb.IntermediateRoot(true)
 	return state, evictedTxs, transactions, receipts, nil

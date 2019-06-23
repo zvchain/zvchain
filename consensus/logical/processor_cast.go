@@ -18,7 +18,6 @@ package logical
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
-	"math/big"
 	"strings"
 	"sync"
 
@@ -366,10 +365,10 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 		}
 	}
 	verifyRewards := p.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
-	gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(big.NewInt(0).SetUint64(bh.GasFee))
-	verifyRewards.Add(verifyRewards, gasFeeRewards)
+	gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
+	verifyRewards += gasFeeRewards
 	reward, tx, err := p.MainChain.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.GroupID,
-		verifyRewards.Uint64())
+		verifyRewards)
 	if err != nil {
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return

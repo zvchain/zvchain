@@ -18,7 +18,6 @@ package core
 import (
 	"bytes"
 	"errors"
-	"math/big"
 	"sync"
 
 	"github.com/zvchain/zvchain/common"
@@ -31,6 +30,7 @@ const (
 	initialRewards     = 62 * common.TAS
 	halveRewardsPeriod = 30000000
 	halveRewardsTimes  = 3
+	tokensOfMiners     = 3500000000 * common.TAS
 )
 
 const (
@@ -70,6 +70,7 @@ type RewardManager struct {
 
 func newRewardManager() *RewardManager {
 	manager := &RewardManager{}
+	manager.tokenLeft = tokensOfMiners
 	return manager
 }
 
@@ -149,41 +150,33 @@ func (rm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb
 }
 
 func (rm *RewardManager) blockRewards(height uint64) uint64 {
-	if rm.noRewards && rm.noRewardsHeight < height {
+	if rm.noRewards && rm.noRewardsHeight <= height {
 		return 0
 	}
 	return initialRewards >> (height / halveRewardsPeriod)
 }
 
-func (rm *RewardManager) userNodesRewards(height uint64) (userNodesRewards *big.Int) {
-	rewards := big.NewInt(0).SetUint64(rm.blockRewards(height))
-	userNodesRewards = big.NewInt(rewards.Int64())
-	userNodesRewards.Mul(userNodesRewards, big.NewInt(0).SetUint64(userNodeWeight)).
-		Div(userNodesRewards, big.NewInt(totalNodeWeight))
-	return
+func (rm *RewardManager) userNodesRewards(height uint64) uint64 {
+	rewards := rm.blockRewards(height)
+	return rewards * userNodeWeight / totalNodeWeight
 }
 
-func (rm *RewardManager) deamonNodesRewards(height uint64) (daemonNodesRewards *big.Int) {
-	rewards := big.NewInt(0).SetUint64(rm.blockRewards(height))
-	daemonNodesRewards = big.NewInt(rewards.Int64())
-	adjust := height / adjustWeightPeriod * adjustWeight
-	daemonNodeWeight := initialDaemonNodeWeight + adjust
-	daemonNodesRewards.Mul(daemonNodesRewards, big.NewInt(0).SetUint64(daemonNodeWeight)).
-		Div(daemonNodesRewards, big.NewInt(totalNodeWeight))
-	return
+func (rm *RewardManager) daemonNodesRewards(height uint64) uint64 {
+	rewards := rm.blockRewards(height)
+	daemonNodeWeight := initialDaemonNodeWeight + height/adjustWeightPeriod*adjustWeight
+	return rewards * daemonNodeWeight / totalNodeWeight
 }
 
-func (rm *RewardManager) minerNodesRewards(height uint64) (minerNodesRewards *big.Int) {
-	rewards := big.NewInt(0).SetUint64(rm.blockRewards(height))
-	if rewards.Uint64() == 0 {
-		return
+func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
+	rewards := rm.blockRewards(height)
+	if rewards == 0 {
+		return 0
 	}
-	minerNodesRewards = big.NewInt(rewards.Int64())
-	adjust := height / adjustWeightPeriod * adjustWeight
-	minerNodesWeight := initialMinerNodeWeight - adjust
-	minerNodesRewards.Mul(minerNodesRewards, big.NewInt(0).SetUint64(minerNodesWeight)).
-		Div(minerNodesRewards, big.NewInt(totalNodeWeight))
-	return
+	minerNodesWeight := initialMinerNodeWeight - height/adjustWeightPeriod*adjustWeight
+	if minerNodesWeight > totalNodeWeight {
+		return 0
+	}
+	return rewards * minerNodesWeight / totalNodeWeight
 }
 
 func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
@@ -200,35 +193,30 @@ func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
 	return true
 }
 
-func (rm *RewardManager) CalculateCastorRewards(height uint64) *big.Int {
+// CalculateCastorRewards Calculate castor's rewards in a block
+func (rm *RewardManager) CalculateCastorRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
-	rewards := big.NewInt(minerNodesRewards.Int64())
-	rewards.Mul(rewards, big.NewInt(totalRewardsWeight)).Div(rewards, big.NewInt(castorRewardsWeight))
-	return rewards
+	return minerNodesRewards * castorRewardsWeight / totalRewardsWeight
 }
 
-func (rm *RewardManager) CalculatePackedRewards(height uint64) *big.Int {
+// CalculatePackedRewards Calculate castor's reword that packed a reward transaction
+func (rm *RewardManager) CalculatePackedRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
-	rewards := big.NewInt(minerNodesRewards.Int64())
-	rewards.Mul(rewards, big.NewInt(totalRewardsWeight)).Div(rewards, big.NewInt(packedRewardsWeight))
-	return rewards
+	return minerNodesRewards * packedRewardsWeight / totalRewardsWeight
 }
 
-func (rm *RewardManager) CalculateVerifyRewards(height uint64) *big.Int {
+// CalculateVerifyRewards Calculate verify-node's rewards in a block
+func (rm *RewardManager) CalculateVerifyRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
-	rewards := big.NewInt(minerNodesRewards.Int64())
-	rewards.Mul(rewards, big.NewInt(totalRewardsWeight)).Div(rewards, big.NewInt(verifyRewardsWeight))
-	return rewards
+	return minerNodesRewards * verifyRewardsWeight / totalRewardsWeight
 }
 
-func (rm *RewardManager) CalculateGasFeeVerifyRewards(gasFee *big.Int) *big.Int {
-	reward := big.NewInt(gasFee.Int64())
-	reward.Mul(reward, big.NewInt(gasFeeVerifyRewardsWeight)).Div(reward, big.NewInt(gasFeeTotalRewardsWeight))
-	return reward
+// CalculateGasFeeVerifyRewards Calculate verify-node's gas fee rewards
+func (rm *RewardManager) CalculateGasFeeVerifyRewards(gasFee uint64) uint64 {
+	return gasFee * gasFeeVerifyRewardsWeight / gasFeeTotalRewardsWeight
 }
 
-func (rm *RewardManager) CalculateGasFeeCastorRewards(gasFee *big.Int) *big.Int {
-	reward := big.NewInt(gasFee.Int64())
-	reward.Mul(reward, big.NewInt(gasFeeCastorRewardsWeight)).Div(reward, big.NewInt(gasFeeTotalRewardsWeight))
-	return reward
+// CalculateGasFeeCastorRewards Calculate castor's gas fee rewards
+func (rm *RewardManager) CalculateGasFeeCastorRewards(gasFee uint64) uint64 {
+	return gasFee * gasFeeCastorRewardsWeight / gasFeeTotalRewardsWeight
 }
