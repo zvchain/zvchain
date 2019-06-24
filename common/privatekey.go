@@ -65,7 +65,7 @@ func GenerateKey(s string) (PrivateKey, error) {
 	if err == nil {
 		pk.PrivKey = *_pk
 	} else {
-		_ = DefaultLogger.Errorf("GenKey Failed, reason : %v.\n", err.Error())
+		err = DefaultLogger.Errorf("GenKey Failed, reason : %v.\n", err.Error())
 		return pk, err
 	}
 	return pk, nil

@@ -213,7 +213,8 @@ func (p *Processor) getMinerPos(gid groupsig.ID, uid groupsig.ID) int32 {
 // GetGroup get a specific group
 func (p Processor) GetGroup(gid groupsig.ID) *StaticGroupInfo {
 	if g, err := p.globalGroups.GetGroupByID(gid); err != nil {
-		return nil
+		// this must not happen
+		panic("GetSelfGroup failed.")
 	} else {
 		return g
 	}

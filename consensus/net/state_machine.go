@@ -169,7 +169,8 @@ func (m *stateMachine) setCurrent(node *stateNode) {
 
 func (m *stateMachine) appendNode(node *stateNode) {
 	if node == nil {
-		return
+		// this must not happen
+		panic("cannot add nil node to the state machine!")
 	}
 
 	tail := m.findTail()

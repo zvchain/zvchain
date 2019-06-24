@@ -16,6 +16,7 @@
 package account
 
 import (
+	"fmt"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -145,7 +146,7 @@ func (db *storageDB) CopyTrie(t Trie) Trie {
 		newTrie, _ := trie.NewTrie(t.Hash(), db.db)
 		return newTrie
 	default:
-		getLogger().Errorf("unknown trie type %T", t)
-		return nil
+		// this must not happen
+		panic(fmt.Errorf("unknown trie type %T", t))
 	}
 }
