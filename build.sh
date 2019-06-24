@@ -3,7 +3,7 @@ basepath=$(cd `dirname $0`; pwd)
 output_dir=${basepath}/bin/
 function buildtvm() {
     sh $basepath/tvm/ctvm/buildlib.sh &&
-    cp $basepath/tvm/ctvm/examples/embedding/libtvm.a $basepath/tvm/ &&
+    cp $basepath/tvm/ctvm/examples/zvm/libtvm.a $basepath/tvm/ &&
     cp $basepath/tvm/ctvm/py/tvm.h $basepath/tvm/
     if [ $? -ne 0 ];then
         exit 1
