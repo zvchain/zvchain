@@ -211,7 +211,8 @@ func initBlockChain(helper types.ConsensusHelper) error {
 		if nil == err {
 			chain.latestStateDB = state
 		} else {
-			panic("initBlockChain NewAccountDB fail:" + err.Error())
+			err = Logger.Errorf("initBlockChain NewAccountDB fail::%s", err.Error())
+			return err
 		}
 	} else {
 		chain.insertGenesisBlock()

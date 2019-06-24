@@ -42,9 +42,6 @@ func (pk PublicKey) GetAddress() Address {
 	x = append(x, y...)
 
 	addrBuf := sha3.Sum256(x)
-	if len(addrBuf) != AddressLength {
-		panic("the length is error!")
-	}
 	return BytesToAddress(addrBuf[:])
 }
 

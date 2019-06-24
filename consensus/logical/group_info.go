@@ -99,6 +99,7 @@ func (sgi StaticGroupInfo) GetMinerPos(id groupsig.ID) int {
 		pos = v
 		// Double verification
 		if !sgi.GInfo.Mems[pos].IsEqual(id) {
+			// this case must not happen
 			panic("double check fail!id=" + id.GetHexString())
 		}
 	}
@@ -307,7 +308,11 @@ func (gg *GlobalGroups) getGroupFromCache(id groupsig.ID) (g *StaticGroupInfo, e
 	index, ok := gg.gIndex[id.GetHexString()]
 	if ok {
 		g, err = gg.getGroupByIndex(index)
+		if err != nil {
+			return
+		}
 		if !g.GroupID.IsEqual(id) {
+			// this case must not happen
 			panic("ggIndex error")
 		}
 	}
@@ -487,13 +492,14 @@ func (gg *GlobalGroups) removeGroups(gids []groupsig.ID) {
 	gg.gIndex = indexMap
 }
 
-func (gg *GlobalGroups) getGenesisGroup() *StaticGroupInfo {
+func (gg *GlobalGroups) getGenesisGroup() (*StaticGroupInfo, error) {
 	if gg.GetGroupSize() == 0 {
-		return nil
+		return nil, nil
 	}
 	g := gg.groups[0]
 	if g.GInfo.GI.GHeader.WorkHeight != 0 {
+		// this case must not happen
 		panic("genesis group error")
 	}
-	return g
+	return g, nil
 }

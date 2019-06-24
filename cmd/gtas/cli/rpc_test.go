@@ -61,7 +61,7 @@ func TestRPC(t *testing.T) {
 	tx := &txRawData{Target: "0x8ad32757d4dbcea703ba4b982f6fd08dad84bfcb", Value: 10, Gas: 1000, Gasprice: 10000, TxType: 0, Nonce: nonce}
 	tranx := txRawToTransaction(tx)
 	tranx.Hash = tranx.GenHash()
-	sign := privateKey.Sign(tranx.Hash.Bytes())
+	sign, _ := privateKey.Sign(tranx.Hash.Bytes())
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
