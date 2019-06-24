@@ -222,8 +222,7 @@ func (p *Processor) OnMessageGroupInit(msg *model.ConsensusGroupRawMessage) {
 	tlog := newHashTraceLog("OMGI", gHash, msg.SI.GetID())
 
 	if msg.SI.DataHash != msg.GenHash() || gh.Hash != gh.GenHash() {
-		// hold it for now
-		panic("msg gis hash diff")
+		return
 	}
 
 	// Non-group members do not follow the follow-up process

@@ -16,7 +16,6 @@
 package logical
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -100,7 +99,8 @@ func (sgi StaticGroupInfo) GetMinerPos(id groupsig.ID) int {
 		pos = v
 		// Double verification
 		if !sgi.GInfo.Mems[pos].IsEqual(id) {
-			pos = -1
+			// this case must not happen
+			panic("double check fail!id=" + id.GetHexString())
 		}
 	}
 	return pos
@@ -312,7 +312,8 @@ func (gg *GlobalGroups) getGroupFromCache(id groupsig.ID) (g *StaticGroupInfo, e
 			return
 		}
 		if !g.GroupID.IsEqual(id) {
-			err = errors.New("ggIndex error")
+			// this case must not happen
+			panic("ggIndex error")
 		}
 	}
 	return
@@ -497,7 +498,8 @@ func (gg *GlobalGroups) getGenesisGroup() (*StaticGroupInfo, error) {
 	}
 	g := gg.groups[0]
 	if g.GInfo.GI.GHeader.WorkHeight != 0 {
-		return g, errors.New("genesis group error")
+		// this case must not happen
+		panic("genesis group error")
 	}
 	return g, nil
 }
