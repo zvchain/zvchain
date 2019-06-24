@@ -67,6 +67,7 @@ func (p *Processor) prepareMiner() {
 			needBreak = true
 			genesis := p.GroupChain.GetGroupByHeight(0)
 			if genesis == nil {
+				// hold it for now
 				panic("get genesis group nil")
 			}
 			sgi = newSGIFromCoreGroup(genesis)
@@ -248,9 +249,15 @@ func (p *Processor) checkProveRoot(bh *types.BlockHeader) (bool, error) {
 
 // DebugPrintCheckProves print some message for debug use
 func (p *Processor) DebugPrintCheckProves(preBH *types.BlockHeader, height uint64, gid groupsig.ID) []string {
-
-	group := p.GetGroup(gid)
 	ss := make([]string, 0)
+	group := p.GetGroup(gid)
+	if group == nil {
+		stdLogger.Debugf("failed to get group: groupID=%v", gid)
+		s := fmt.Sprintf("failed to get group: groupID=%v", gid)
+		ss = append(ss, s)
+		return ss
+	}
+
 	for _, id := range group.GetMembers() {
 		h := p.proveChecker.sampleBlockHeight(height, preBH.Random, id)
 		bs := p.MainChain.QueryBlockBytesFloor(h)

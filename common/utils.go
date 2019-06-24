@@ -29,9 +29,11 @@ import (
 
 // MustNewLRUCache creates a new lru cache.
 // Caution: if fail, the function will cause panic
+// developer should promise size > 0 when use this function
 func MustNewLRUCache(size int) *lru.Cache {
 	cache, err := lru.New(size)
 	if err != nil {
+		// this err will only happens if size is native
 		panic(fmt.Errorf("new cache fail:%v", err))
 	}
 	return cache

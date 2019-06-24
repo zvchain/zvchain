@@ -84,6 +84,7 @@ func (p *Processor) BeginGenesisGroupMember() {
 	// join the genesis group if and only if current node belongs to the group
 	jg := p.belongGroups.getJoinedGroup(sgi.GroupID)
 	if jg == nil {
+		// panic is allowed if only called in init function
 		panic("genesisMember find join_group fail")
 	}
 	p.joinGroup(jg)
@@ -112,6 +113,7 @@ func genGenesisStaticGroupInfo(f string) *genesisGroup {
 	if strings.TrimSpace(f) != "" {
 		data, err := ioutil.ReadFile(f)
 		if err != nil {
+			// panic is allowed if only called in init function
 			panic(err)
 		}
 		sgiData = data
@@ -120,6 +122,7 @@ func genGenesisStaticGroupInfo(f string) *genesisGroup {
 	genesis := new(genesisGroup)
 	err := json.Unmarshal(sgiData, genesis)
 	if err != nil {
+		// panic is allowed if only called in init function
 		panic(err)
 	}
 	group := genesis.Group

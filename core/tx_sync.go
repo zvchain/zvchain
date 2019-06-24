@@ -68,6 +68,7 @@ func buildTxSimpleIndexer() *txSimpleIndexer {
 	ds, err := tasdb.NewDataSource(f, options)
 	if err != nil {
 		Logger.Errorf("new datasource error:%v, file=%v", err, f)
+		// panic is allowed if only called in init function
 		panic(fmt.Errorf("new data source error:file=%v, err=%v", f, err.Error()))
 	}
 	db, _ := ds.NewPrefixDatabase("tx")
