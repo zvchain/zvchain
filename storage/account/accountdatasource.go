@@ -139,7 +139,7 @@ func (db *storageDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
 	return trie.NewTrie(root, db.db)
 }
 
-// CopyTrie returns an independent copy of the given trie. returns nil if type not supported
+// CopyTrie returns an independent copy of the given trie.
 func (db *storageDB) CopyTrie(t Trie) Trie {
 	switch t := t.(type) {
 	case *trie.Trie:
