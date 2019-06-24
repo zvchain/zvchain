@@ -71,7 +71,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
-			if invalidGasPrice(transaction.GasPrice.Uint64(), bh.Height) {
+			if invalidGasPrice(&transaction.GasPrice.Int, bh.Height) {
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
@@ -154,7 +154,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 	}
 	if rm.reduceBlockRewards(bh.Height) {
 		castorTotalRewards += rm.CalculateCastorRewards(bh.Height)
-		accountdb.AddBalance(deamonNodeAddress, big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
+		accountdb.AddBalance(daemonNodeAddress, big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
 		accountdb.AddBalance(userNodeAddress, big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
 	}
 	accountdb.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
@@ -461,12 +461,12 @@ func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err *t
 	return types.NewBigInt(gas), nil
 }
 
-func invalidGasPrice(gasPrice, height uint64) bool {
+func invalidGasPrice(gasPrice *big.Int, height uint64) bool {
 	times := height / adjustGasPricePeriod
 	if times > adjustGasPriceTimes {
 		times = adjustGasPriceTimes
 	}
-	if gasPrice < (initialMinGasPrice << times) {
+	if gasPrice.Cmp(big.NewInt(0).SetUint64(initialMinGasPrice<<times)) < 0 {
 		return true
 	}
 	return false

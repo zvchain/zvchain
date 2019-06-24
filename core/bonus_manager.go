@@ -56,8 +56,8 @@ const (
 )
 
 var (
-	userNodeAddress   = common.HexToAddress("0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b")
-	deamonNodeAddress = common.HexToAddress("0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b")
+	userNodeAddress   = common.HexToAddress("0xe30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139")
+	daemonNodeAddress = common.HexToAddress("0xae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122")
 )
 
 // RewardManager manage the reward transactions
