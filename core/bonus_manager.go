@@ -31,6 +31,7 @@ const (
 	halveRewardsPeriod = 30000000
 	halveRewardsTimes  = 3
 	tokensOfMiners     = 3500000000 * common.TAS
+	tokenLeftKey       = "TokenLeft"
 )
 
 const (
@@ -70,7 +71,6 @@ type RewardManager struct {
 
 func newRewardManager() *RewardManager {
 	manager := &RewardManager{}
-	manager.tokenLeft = tokensOfMiners
 	return manager
 }
 
@@ -180,6 +180,14 @@ func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
 }
 
 func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
+	if !rm.noRewards && rm.tokenLeft == 0 {
+		value := BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, tokenLeftKey)
+		if value == nil {
+			rm.tokenLeft = tokensOfMiners
+		} else {
+			rm.tokenLeft = common.ByteToUint64(value)
+		}
+	}
 	if rm.noRewards {
 		return false
 	}
@@ -190,6 +198,7 @@ func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
 		return false
 	}
 	rm.tokenLeft -= rewards
+	BlockChainImpl.LatestStateDB().SetData(common.RewardStorageAddress, tokenLeftKey, common.Uint64ToByte(rm.tokenLeft))
 	return true
 }
 
