@@ -37,7 +37,7 @@ type baseCmd struct {
 	fs   *flag.FlagSet
 }
 
-func genbaseCmd(n string, h string) *baseCmd {
+func genBaseCmd(n string, h string) *baseCmd {
 	return &baseCmd{
 		name: n,
 		help: h,
@@ -57,7 +57,7 @@ func output(msg ...interface{}) {
 
 func genNewAccountCmd() *newAccountCmd {
 	c := &newAccountCmd{
-		baseCmd: *genbaseCmd("newaccount", "create account"),
+		baseCmd: *genBaseCmd("newaccount", "create account"),
 	}
 	c.fs.StringVar(&c.password, "password", "", "password for the account")
 	c.fs.BoolVar(&c.miner, "miner", false, "create the account for miner if set")
@@ -90,7 +90,7 @@ type unlockCmd struct {
 
 func genUnlockCmd() *unlockCmd {
 	c := &unlockCmd{
-		baseCmd: *genbaseCmd("unlock", "unlock the account"),
+		baseCmd: *genBaseCmd("unlock", "unlock the account"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the account address")
 	c.fs.UintVar(&c.duration, "duration", 120, "unlock duration, default 120 secs")
@@ -122,7 +122,7 @@ type balanceCmd struct {
 
 func genBalanceCmd() *balanceCmd {
 	c := &balanceCmd{
-		baseCmd: *genbaseCmd("balance", "get the balance of the current unlocked account"),
+		baseCmd: *genBaseCmd("balance", "get the balance of the current unlocked account"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the account address")
 	return c
@@ -152,7 +152,7 @@ type nonceCmd struct {
 
 func genNonceCmd() *nonceCmd {
 	c := &nonceCmd{
-		baseCmd: *genbaseCmd("nonce", "get the nonce of the current unlocked account"),
+		baseCmd: *genBaseCmd("nonce", "get the nonce of the current unlocked account"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the account address")
 	return c
@@ -182,7 +182,7 @@ type minerInfoCmd struct {
 
 func genMinerInfoCmd() *minerInfoCmd {
 	c := &minerInfoCmd{
-		baseCmd: *genbaseCmd("minerinfo", "get the info of the miner"),
+		baseCmd: *genBaseCmd("minerinfo", "get the info of the miner"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the miner address")
 	return c
@@ -213,7 +213,7 @@ type connectCmd struct {
 
 func genConnectCmd() *connectCmd {
 	c := &connectCmd{
-		baseCmd: *genbaseCmd("connect", "connect to one tas node"),
+		baseCmd: *genBaseCmd("connect", "connect to one tas node"),
 	}
 	c.fs.StringVar(&c.host, "host", "", "the node ip")
 	c.fs.IntVar(&c.port, "port", 8101, "the node port, default is 8101")
@@ -246,7 +246,7 @@ type txCmd struct {
 
 func genTxCmd() *txCmd {
 	c := &txCmd{
-		baseCmd: *genbaseCmd("tx", "get transaction detail"),
+		baseCmd: *genBaseCmd("tx", "get transaction detail"),
 	}
 	c.fs.StringVar(&c.hash, "hash", "", "the hex transaction hash")
 	c.fs.BoolVar(&c.executed, "executed", false, "get executed transaction detail")
@@ -278,7 +278,7 @@ type blockCmd struct {
 
 func genBlockCmd() *blockCmd {
 	c := &blockCmd{
-		baseCmd: *genbaseCmd("block", "get block detail"),
+		baseCmd: *genBaseCmd("block", "get block detail"),
 	}
 	c.fs.StringVar(&c.hash, "hash", "", "the hex block hash")
 	c.fs.Uint64Var(&c.height, "height", 0, "the block height")
@@ -308,7 +308,7 @@ type gasBaseCmd struct {
 
 func genGasBaseCmd(n string, h string) *gasBaseCmd {
 	c := &gasBaseCmd{
-		baseCmd: *genbaseCmd(n, h),
+		baseCmd: *genBaseCmd(n, h),
 	}
 	return c
 }
@@ -373,6 +373,37 @@ func (c *sendTxCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
 		output(err.Error())
 		return false
+	}
+	if c.extraData != "" {
+		begin := false
+		posBegin, posEnd := 0, 0
+		quot := ""
+		for i, arg := range args {
+			if strings.HasSuffix(arg, "-extra") {
+				begin = true
+				posBegin = i + 1
+				if args[posBegin][:1] == "\"" || args[posBegin][:1] == "'" {
+					quot = args[posBegin][:1]
+				}
+				continue
+			}
+			if begin {
+				if quot == "" && strings.HasPrefix(arg, "-") {
+					begin = false
+					posEnd = i
+					break
+				} else if quot != "" && arg[len(arg)-1:] == quot {
+					begin = false
+					posEnd = i + 1
+					break
+				}
+			}
+		}
+		if posEnd == 0 {
+			c.extraData = strings.Join(args[posBegin:], " ")
+		} else {
+			c.extraData = strings.Join(args[posBegin:posEnd], " ")
+		}
 	}
 	if !validateTxType(c.txType) {
 		output("Not supported transaction type")
@@ -518,7 +549,7 @@ func (c *minerRefundCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if c.addr != "" && !validateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -552,7 +583,7 @@ func (c *minerStakeCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if c.addr != "" && !validateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -586,7 +617,7 @@ func (c *minerCancelStakeCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if c.addr != "" && !validateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -604,7 +635,7 @@ type viewContractCmd struct {
 
 func genViewContractCmd() *viewContractCmd {
 	c := &viewContractCmd{
-		baseCmd: *genbaseCmd("viewcontract", "view contract data"),
+		baseCmd: *genBaseCmd("viewcontract", "view contract data"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "address of the contract")
 	return c
@@ -627,18 +658,18 @@ func (c *viewContractCmd) parse(args []string) bool {
 }
 
 var cmdNewAccount = genNewAccountCmd()
-var cmdExit = genbaseCmd("exit", "quit  gtas")
-var cmdHelp = genbaseCmd("help", "show help info")
-var cmdAccountList = genbaseCmd("accountlist", "list the account of the keystore")
+var cmdExit = genBaseCmd("exit", "quit  gtas")
+var cmdHelp = genBaseCmd("help", "show help info")
+var cmdAccountList = genBaseCmd("accountlist", "list the account of the keystore")
 var cmdUnlock = genUnlockCmd()
 var cmdBalance = genBalanceCmd()
 var cmdNonce = genNonceCmd()
-var cmdAccountInfo = genbaseCmd("accountinfo", "get the info of the current unlocked account")
-var cmdDelAccount = genbaseCmd("delaccount", "delete the info of the current unlocked account")
+var cmdAccountInfo = genBaseCmd("accountinfo", "get the info of the current unlocked account")
+var cmdDelAccount = genBaseCmd("delaccount", "delete the info of the current unlocked account")
 var cmdMinerInfo = genMinerInfoCmd()
 var cmdConnect = genConnectCmd()
-var cmdBlockHeight = genbaseCmd("blockheight", "the current block height")
-var cmdGroupHeight = genbaseCmd("groupheight", "the current group height")
+var cmdBlockHeight = genBaseCmd("blockheight", "the current block height")
+var cmdGroupHeight = genBaseCmd("groupheight", "the current group height")
 var cmdTx = genTxCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()

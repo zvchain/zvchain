@@ -212,8 +212,24 @@ type Transaction struct {
 	GasPrice uint64      `json:"gas_price"`
 	Hash     common.Hash `json:"hash"`
 
-	ExtraData     []byte `json:"extra_data"`
+	ExtraData     string `json:"extra_data"`
 	ExtraDataType int8   `json:"extra_data_type"`
+}
+
+type Receipt struct {
+	Status            uint         `json:"status"`
+	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
+	Logs              []*types.Log `json:"logs"`
+
+	TxHash          common.Hash    `json:"transactionHash" gencodec:"required"`
+	ContractAddress common.Address `json:"contractAddress"`
+	Height          uint64         `json:"height"`
+	TxIndex         uint16         `json:"tx_index"`
+}
+
+type ExecutedTransaction struct {
+	Receipt     *Receipt
+	Transaction *Transaction
 }
 
 type RewardTransaction struct {

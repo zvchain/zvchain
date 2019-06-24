@@ -185,10 +185,10 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
 		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
-		return successResult(&core.ExecutedTransaction{
+		return successResult(convertExecutedTransaction(&core.ExecutedTransaction{
 			Receipt:     rc,
 			Transaction: tx,
-		})
+		}))
 	}
 	return failResult("tx not exist")
 }
@@ -225,6 +225,62 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 		}
 	}
 	return successResult(account)
+}
+
+func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*Result, error) {
+	// input check
+	address := common.HexToAddress(addr)
+	if !address.IsValid() {
+		return failResult("address is invalid")
+	}
+
+	const MaxCountQuery = 100
+	if count <= 0 {
+		count = 0
+	} else if count > MaxCountQuery {
+		count = MaxCountQuery
+	}
+
+	chain := core.BlockChainImpl
+	state, err := chain.GetAccountDBByHash(chain.QueryTopBlock().Hash)
+	if err != nil {
+		return failResult(err.Error())
+	}
+
+	var resultData interface{}
+	if count == 0 {
+		value := state.GetData(address, key)
+		if value != nil {
+			tmp := make(map[string]interface{})
+			tmp["value"] = string(value)
+			resultData = tmp
+		}
+	} else {
+		iter := state.DataIterator(address, key)
+		if iter != nil {
+			tmp := make([]map[string]interface{}, 0)
+			for iter.Next() {
+				k := string(iter.Key[:])
+				if !strings.HasPrefix(k, key) {
+					continue
+				}
+				v := string(iter.Value[:])
+				item := make(map[string]interface{}, 0)
+				item["key"] = k
+				item["value"] = v
+				tmp = append(tmp, item)
+				resultData = tmp
+				if len(tmp) >= count {
+					break
+				}
+			}
+		}
+	}
+	if resultData != nil {
+		return successResult(resultData)
+	} else {
+		return failResult("query does not have data")
+	}
 }
 
 // PledgeDetail query the pledge details of the given account.

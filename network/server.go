@@ -172,7 +172,8 @@ func newNotifyMessage(message *Message, from string) *notify.DefaultMessage {
 
 func (s *Server) handleMessageInner(message *Message, from string) {
 
-	defer s.netCore.onHandleDataMessageDone(from)
+	s.netCore.onHandleDataMessageStart()
+	defer s.netCore.onHandleDataMessageDone()
 
 	begin := time.Now()
 	code := message.Code
