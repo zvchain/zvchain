@@ -18,6 +18,7 @@ package common
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"fmt"
 	"io"
 	"math/big"
 	"strings"
@@ -46,7 +47,7 @@ func (pk PrivateKey) Sign(hash []byte) (Sign, error) {
 	if err == nil {
 		sign = *BytesToSign(sig)
 	} else {
-		err = DefaultLogger.Errorf("Sign Failed, reason : %v.\n", err.Error())
+		err = fmt.Errorf("Sign Failed, reason : %v.\n", err.Error())
 	}
 
 	return sign, err
@@ -65,7 +66,7 @@ func GenerateKey(s string) (PrivateKey, error) {
 	if err == nil {
 		pk.PrivKey = *_pk
 	} else {
-		err = DefaultLogger.Errorf("GenKey Failed, reason : %v.\n", err.Error())
+		err = fmt.Errorf("GenKey Failed, reason : %v.\n", err.Error())
 		return pk, err
 	}
 	return pk, nil
