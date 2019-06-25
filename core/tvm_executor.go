@@ -61,6 +61,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 			logs              []*types.Log
 			gasUsed           *types.BigInt
 			cumulativeGasUsed uint64
+			txErr 			  *types.TransactionError
 		)
 
 		if !transaction.IsBonus() {
@@ -88,11 +89,11 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 			if canTransfer(accountdb, *transaction.Source, transaction.Value.Value(), gasLimitFee) {
 				switch transaction.Type {
 				case types.TransactionTypeTransfer:
-					success, _,cumulativeGasUsed = executor.executeTransferTx(accountdb, transaction, castor, gasUsed)
+					success,cumulativeGasUsed = executor.executeTransferTx(accountdb, transaction, castor, gasUsed)
 				case types.TransactionTypeContractCreate:
-					success, _, contractAddress,cumulativeGasUsed = executor.executeContractCreateTx(accountdb, transaction, castor, bh, gasUsed)
+					success, txErr, contractAddress,cumulativeGasUsed = executor.executeContractCreateTx(accountdb, transaction, castor, bh, gasUsed)
 				case types.TransactionTypeContractCall:
-					success, _, logs,cumulativeGasUsed = executor.executeContractCallTx(accountdb, transaction, castor, bh, gasUsed)
+					success, txErr, logs,cumulativeGasUsed = executor.executeContractCallTx(accountdb, transaction, castor, bh, gasUsed)
 				case types.TransactionTypeMinerApply:
 					success,cumulativeGasUsed = executor.executeMinerApplyTx(accountdb, transaction, bh.Height, castor, gasUsed)
 				case types.TransactionTypeMinerAbort:
@@ -150,7 +151,7 @@ func (executor *TVMExecutor) validateNonce(accountdb *account.AccountDB, transac
 	return true
 }
 
-func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, gasUsed *types.BigInt) (success bool, err *types.TransactionError,cumulativeGasUsed uint64) {
+func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, gasUsed *types.BigInt) (success bool, cumulativeGasUsed uint64) {
 	success = false
 	amount := transaction.Value.Value()
 	gasFee := new(types.BigInt).Mul(gasUsed.Value(), transaction.GasPrice.Value())
@@ -160,7 +161,7 @@ func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, tra
 	cumulativeGasUsed = gasUsed.Uint64()
 	success = true
 
-	return success, err,cumulativeGasUsed
+	return success,cumulativeGasUsed
 }
 
 func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader, gasUsed *types.BigInt) (success bool, err *types.TransactionError, contractAddress common.Address,cumulativeGasUsed uint64) {
@@ -468,14 +469,14 @@ func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err *t
 	gas = TransactionGasCost + gas
 	gasBig := types.NewBigInt(gas)
 	if transaction.GasLimit.Cmp(gasBig.Value()) < 0 {
-		return nil, types.TxErrorDeployGasNotEnough
+		return nil, types.TxErrorGasNotEnoughErr
 	}
 	return types.NewBigInt(gas), nil
 }
 
 func checkGasFeeIsEnough(db vm.AccountDB,addr common.Address,gasFee *big.Int)*types.TransactionError{
 	if db.GetBalance(addr).Cmp(gasFee) < 0{
-		return types.TxErrorInsufficientBalanceForGas
+		return types.TxErrorInsufficientBalanceForGasErr
 	}
 	return nil
 }
