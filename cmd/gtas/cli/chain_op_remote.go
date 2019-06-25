@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/core"
 	"io/ioutil"
 	"net/http"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 

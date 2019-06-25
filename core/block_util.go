@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/zvchain/zvchain/tvm"
 	"math/big"
 
 	"github.com/zvchain/zvchain/common"
@@ -27,6 +26,7 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/serialize"
 	"github.com/zvchain/zvchain/storage/trie"
+	"github.com/zvchain/zvchain/tvm"
 )
 
 var testTxAccount = []string{"0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103", "0xcad6d60fa8f6330f293f4f57893db78cf660e80d6a41718c7ad75e76795000d4",
