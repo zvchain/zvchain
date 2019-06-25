@@ -217,18 +217,24 @@ func (am *AccountManager) storeAccount(addr string, ksr *KeyStoreRaw, password s
 	return err
 }
 
-func (am *AccountManager) getFirstMinerAccount() *Account {
-	iter := am.store.NewIterator()
-	for iter.Next() {
-		if ac, err := am.getAccountInfo(string(iter.Key())); err != nil {
-			panic(fmt.Sprintf("getAccountInfo err,addr=%v,err=%v", string(iter.Key()), err.Error()))
-		} else {
-			if ac.Miner != nil {
-				return &ac.Account
-			}
+func (am *AccountManager) checkMinerAccount(addr string, password string) (*AccountInfo, error) {
+	var aci *AccountInfo
+	if v, ok := am.accounts.Load(addr); ok {
+		aci = v.(*AccountInfo)
+		if passwordHash(password) != aci.Password {
+			return nil, ErrPassword
 		}
+	} else {
+		acc, err := am.loadAccount(addr, password)
+		if err != nil {
+			return nil, err
+		}
+		aci = &AccountInfo{
+			Account: *acc,
+		}
+		am.accounts.Store(addr, aci)
 	}
-	return nil
+	return aci, nil
 }
 
 func (am *AccountManager) resetExpireTime(addr string) {
@@ -370,4 +376,29 @@ func (am *AccountManager) DeleteAccount() *Result {
 
 func (am *AccountManager) Close() {
 	am.store.Close()
+}
+
+// NewAccountByImportKey create a new account by the input private key
+func (am *AccountManager) NewAccountByImportKey(key string, password string, miner bool) *Result {
+	kBytes := common.FromHex(key)
+	privateKey := new(common.PrivateKey)
+	if !privateKey.ImportKey(kBytes) {
+		return opError(ErrInternal)
+	}
+
+	account := am.constructAccount(password, privateKey, miner)
+
+	ksr := &KeyStoreRaw{
+		Key:     kBytes,
+		IsMiner: miner,
+	}
+	if err := am.storeAccount(account.Address, ksr, password); err != nil {
+		return opError(err)
+	}
+	aci := &AccountInfo{
+		Account: *account,
+	}
+	am.accounts.Store(account.Address, aci)
+
+	return opSuccess(account.Address)
 }

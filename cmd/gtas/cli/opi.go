@@ -100,6 +100,8 @@ type accountOp interface {
 
 	DeleteAccount() *Result
 
+	NewAccountByImportKey(key string, password string, miner bool) *Result
+
 	Close()
 }
 

@@ -18,7 +18,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/consensus/base"
 	"os"
 
 	"github.com/zvchain/zvchain/common"
@@ -263,7 +262,7 @@ func (gtas *Gtas) simpleInit(configPath string) {
 	common.InitConf(configPath)
 }
 
-func (gtas *Gtas) checkAddress(keystore, address string) error {
+func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 	aop, err := initAccountManager(keystore, true)
 	if err != nil {
 		return err
@@ -272,7 +271,7 @@ func (gtas *Gtas) checkAddress(keystore, address string) error {
 
 	acm := aop.(*AccountManager)
 	if address != "" {
-		aci, err := acm.getAccountInfo(address)
+		aci, err := acm.checkMinerAccount(address, password)
 		if err != nil {
 			return fmt.Errorf("cannot get miner, err:%v", err.Error())
 		}
@@ -281,26 +280,21 @@ func (gtas *Gtas) checkAddress(keystore, address string) error {
 		}
 		gtas.account = aci.Account
 		return nil
-
 	}
-	aci := acm.getFirstMinerAccount()
-	if aci != nil {
-		gtas.account = *aci
-		return nil
-	}
-	return fmt.Errorf("please create a miner account first")
+	return fmt.Errorf("please provide a miner account! ")
 }
 
 func (gtas *Gtas) fullInit() error {
 	var err error
 
-	// Initialization middleware
+	// Initialization middlewarex
 	middleware.InitMiddleware()
 
 	cfg := gtas.config
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
-	err = gtas.checkAddress(cfg.keystore, addressConfig)
+	passwordConfig := common.GlobalConf.GetString(Section, "password", "")
+	err = gtas.checkAddress(cfg.keystore, addressConfig, passwordConfig)
 	if err != nil {
 		return err
 	}
@@ -308,25 +302,11 @@ func (gtas *Gtas) fullInit() error {
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
 	fmt.Println("Your Miner Address:", gtas.account.Address)
 
-	//minerInfo := model.NewSelfMinerDO(common.HexToSecKey(gtas.account.Sk))
-	var minerInfo model.SelfMinerDO
-	if gtas.account.Miner != nil {
-		prk := common.HexToSecKey(gtas.account.Sk)
-		dBytes := prk.PrivKey.D.Bytes()
-		tempBuf := make([]byte, 32)
-		if len(dBytes) < 32 {
-			copy(tempBuf[32-len(dBytes):32], dBytes[:])
-		} else {
-			copy(tempBuf[:], dBytes[len(dBytes)-32:])
-		}
-		minerInfo.SecretSeed = base.RandFromBytes(tempBuf[:])
-		minerInfo.SK = *groupsig.NewSeckeyFromHexString(gtas.account.Miner.BSk)
-		minerInfo.PK = *groupsig.NewPubkeyFromHexString(gtas.account.Miner.BPk)
-		minerInfo.ID = *groupsig.NewIDFromString(gtas.account.Address)
-		minerInfo.VrfSK = base.Hex2VRFPrivateKey(gtas.account.Miner.VrfSk)
-		minerInfo.VrfPK = base.Hex2VRFPublicKey(gtas.account.Miner.VrfPk)
+	sk := new(common.PrivateKey)
+	if !sk.ImportKey(common.FromHex(gtas.account.Sk)) {
+		return ErrInternal
 	}
-	//import end.   gtas.account --> minerInfo
+	minerInfo := model.NewSelfMinerDO(sk)
 
 	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID))
 	if err != nil {
