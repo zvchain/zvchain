@@ -34,8 +34,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-const accountUnLockTime = time.Second * 120
-
 var encryptPrivateKey *common.PrivateKey
 var encryptPublicKey *common.PublicKey
 
@@ -71,7 +69,7 @@ func (ai *AccountInfo) unlocked() bool {
 }
 
 func (ai *AccountInfo) resetExpireTime() {
-	ai.UnLockExpire = time.Now().Add(accountUnLockTime)
+	//ai.UnLockExpire = time.Now().Add(time.Duration(120) * time.Second)
 }
 
 type Account struct {
@@ -119,12 +117,12 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 	if readyOnly && !dirExists(keystore) {
 		aop, err := newAccountOp(keystore)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		ret := aop.NewAccount(DefaultPassword, true)
 		if !ret.IsSuccess() {
 			fmt.Println(ret.Message)
-			panic(ret.Message)
+			return nil, err
 		}
 		return aop, nil
 	}
@@ -174,7 +172,8 @@ func (am *AccountManager) getFirstMinerAccount() *Account {
 	iter := am.store.NewIterator()
 	for iter.Next() {
 		if ac, err := am.getAccountInfo(string(iter.Key())); err != nil {
-			panic(fmt.Sprintf("getAccountInfo err,addr=%v,err=%v", string(iter.Key()), err.Error()))
+			fmt.Printf("getAccountInfo err,addr=%v,err=%v", string(iter.Key()), err.Error())
+			return nil
 		} else {
 			if ac.Miner != nil {
 				return &ac.Account
@@ -222,7 +221,10 @@ func passwordSha(password string) string {
 
 // NewAccount create a new account by password
 func (am *AccountManager) NewAccount(password string, miner bool) *Result {
-	privateKey := common.GenerateKey("")
+	privateKey, err := common.GenerateKey("")
+	if err != nil {
+		return opError(err)
+	}
 	pubkey := privateKey.GetPubKey()
 	address := pubkey.GetAddress()
 
@@ -234,7 +236,10 @@ func (am *AccountManager) NewAccount(password string, miner bool) *Result {
 	}
 
 	if miner {
-		minerDO := model.NewSelfMinerDO(&privateKey)
+		minerDO, err := model.NewSelfMinerDO(&privateKey)
+		if err != nil {
+			return opError(err)
+		}
 
 		minerRaw := &MinerRaw{
 			BPk:   minerDO.PK.GetHexString(),
@@ -272,7 +277,7 @@ func (am *AccountManager) Lock(addr string) *Result {
 }
 
 // UnLock unlock the account by address and password
-func (am *AccountManager) UnLock(addr string, password string) *Result {
+func (am *AccountManager) UnLock(addr string, password string, duration uint) *Result {
 	aci, err := am.getAccountInfo(addr)
 	if err != nil {
 		return opError(err)
@@ -288,7 +293,7 @@ func (am *AccountManager) UnLock(addr string, password string) *Result {
 	}
 
 	aci.Status = statusUnLocked
-	aci.resetExpireTime()
+	aci.UnLockExpire = time.Now().Add(time.Duration(duration) * time.Second)
 	am.unlockAccount = aci
 
 	return opSuccess(nil)

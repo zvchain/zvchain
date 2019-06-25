@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/zvchain/zvchain/middleware/statistics"
@@ -53,7 +54,6 @@ var (
 	errClosed           = errors.New("socket closed")
 )
 
-
 // Timeouts
 const (
 	respTimeout              = 500 * time.Millisecond
@@ -73,7 +73,7 @@ type NetCore struct {
 	addPending       chan *pending
 	gotReply         chan reply
 	unhandled        chan *Peer
-	unhandledDataMsg int
+	unhandledDataMsg int32
 	closing          chan struct{}
 
 	kad            *Kad
@@ -223,7 +223,7 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 		From:       &nc.ourEndPoint,
 		To:         &to,
 		NodeId:     nc.id[:],
-		ChainId: uint32(nc.chainID),
+		ChainId:    uint32(nc.chainID),
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	}
 	Logger.Infof("[send ping] id : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.Ip, nc.ourEndPoint.Port)
@@ -923,12 +923,11 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, fromID NodeID) {
 }
 
 func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
-	if nc.unhandledDataMsg > MaxUnhandledMessageCount {
+	if atomic.LoadInt32(&nc.unhandledDataMsg) > MaxUnhandledMessageCount {
 		Logger.Info("unhandled message too much , drop this message !")
 		return
 	}
 
-	nc.unhandledDataMsg++
 	chainID, protocolVersion := decodeMessageInfo(data.MessageInfo)
 	p := nc.peerManager.peerByID(fromID)
 	if p != nil {
@@ -945,8 +944,12 @@ func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 
 }
 
-func (nc *NetCore) onHandleDataMessageDone(id string) {
-	nc.unhandledDataMsg--
+func (nc *NetCore) onHandleDataMessageStart() {
+	atomic.AddInt32(&nc.unhandledDataMsg,1)
+}
+
+func (nc *NetCore) onHandleDataMessageDone() {
+	atomic.AddInt32(&nc.unhandledDataMsg, -1)
 }
 
 func expired(ts uint64) bool {

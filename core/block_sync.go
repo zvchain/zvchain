@@ -24,6 +24,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/ticker"
+	zvtime "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 	"github.com/zvchain/zvchain/taslog"
@@ -91,10 +92,15 @@ func InitBlockSyncer(chain *FullBlockChain) {
 }
 
 func (bs *blockSyncer) isSyncing() bool {
-	localHeight := bs.chain.Height()
 	bs.lock.RLock()
 	defer bs.lock.RUnlock()
 
+	delta := zvtime.TSInstance.Since(bs.chain.QueryTopBlock().CurTime)
+	// return false if top block's curTime is in the range of recent 50 block's
+	if delta < 3*50 {
+		return false
+	}
+	localHeight := bs.chain.Height()
 	_, candTop := bs.getBestCandidate("")
 	if candTop == nil {
 		return false
@@ -145,6 +151,9 @@ func (bs *blockSyncer) trySyncRoutine() bool {
 }
 
 func (bs *blockSyncer) syncFrom(from string) bool {
+	if bs == nil {
+		return false
+	}
 	topBH := bs.chain.QueryTopBlock()
 	localTopBlock := newTopBlockInfo(topBH)
 

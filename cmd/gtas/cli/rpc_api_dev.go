@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -17,11 +17,12 @@ package cli
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 
+	"github.com/pmylund/sortutil"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
@@ -29,94 +30,23 @@ import (
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 )
 
-var BonusLogger taslog.Logger
-
-func successResult(data interface{}) (*Result, error) {
-	return &Result{
-		Message: "success",
-		Data:    data,
-		Status:  0,
-	}, nil
-}
-func failResult(err string) (*Result, error) {
-	return &Result{
-		Message: err,
-		Data:    nil,
-		Status:  -1,
-	}, nil
+// RpcDevImpl provides api functions for those develop chain features.
+// It is mainly for debug or test use
+type RpcDevImpl struct {
 }
 
-// GtasAPI is a single-method API handler to be returned by test services.
-type GtasAPI struct {
+func (api *RpcDevImpl) Namespace() string {
+	return "Dev"
 }
 
-// Tx is user transaction interface
-func (api *GtasAPI) Tx(txRawjson string) (*Result, error) {
-	var txRaw = new(txRawData)
-	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
-		return failResult(err.Error())
-	}
-
-	trans := txRawToTransaction(txRaw)
-
-	trans.Hash = trans.GenHash()
-
-	if err := sendTransaction(trans); err != nil {
-		return failResult(err.Error())
-	}
-
-	return successResult(trans.Hash.Hex())
+func (api *RpcDevImpl) Version() string {
+	return "1"
 }
 
-// Balance is query balance interface
-func (api *GtasAPI) Balance(account string) (*Result, error) {
-	balance, err := walletManager.getBalance(account)
-	if err != nil {
-		return nil, err
-	}
-	return &Result{
-		Message: fmt.Sprintf("The balance of account: %s is %v TAS", account, balance),
-		Data:    fmt.Sprintf("%v", balance),
-	}, nil
-}
-
-// NewWallet is create a new account interface
-func (api *GtasAPI) NewWallet() (*Result, error) {
-	privKey, addr := walletManager.newWallet()
-	data := make(map[string]string)
-	data["private_key"] = privKey
-	data["address"] = addr
-	return successResult(data)
-}
-
-// GetWallets get the wallets of the current node
-func (api *GtasAPI) GetWallets() (*Result, error) {
-	return successResult(walletManager)
-}
-
-// DeleteWallet delete the address of the specified serial number of the local node
-func (api *GtasAPI) DeleteWallet(key string) (*Result, error) {
-	walletManager.deleteWallet(key)
-	return successResult(walletManager)
-}
-
-// BlockHeight query block height
-func (api *GtasAPI) BlockHeight() (*Result, error) {
-	height := core.BlockChainImpl.QueryTopBlock().Height
-	return successResult(height)
-}
-
-// GroupHeight query group height
-func (api *GtasAPI) GroupHeight() (*Result, error) {
-	height := core.GroupChainImpl.Height()
-	return successResult(height)
-}
-
-// ConnectedNodes query the information of the linked node
-func (api *GtasAPI) ConnectedNodes() (*Result, error) {
+// ConnectedNodes query the information of the connected node
+func (api *RpcDevImpl) ConnectedNodes() (*Result, error) {
 
 	nodes := network.GetNetInstance().ConnInfo()
 	conns := make([]ConnInfo, 0)
@@ -127,7 +57,7 @@ func (api *GtasAPI) ConnectedNodes() (*Result, error) {
 }
 
 // TransPool query buffer transaction information
-func (api *GtasAPI) TransPool() (*Result, error) {
+func (api *RpcDevImpl) TransPool() (*Result, error) {
 	transactions := core.BlockChainImpl.GetTransactionPool().GetReceived()
 	transList := make([]Transactions, 0, len(transactions))
 	for _, v := range transactions {
@@ -143,7 +73,10 @@ func (api *GtasAPI) TransPool() (*Result, error) {
 }
 
 // get transaction by hash
-func (api *GtasAPI) GetTransaction(hash string) (*Result, error) {
+func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(hash)) {
+		return failResult("Wrong hash format")
+	}
 	transaction := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(hash))
 	if transaction == nil {
 		return failResult("transaction not exists")
@@ -161,39 +94,10 @@ func (api *GtasAPI) GetTransaction(hash string) (*Result, error) {
 	return successResult(detail)
 }
 
-func (api *GtasAPI) GetBlockByHeight(height uint64) (*Result, error) {
-	b := core.BlockChainImpl.QueryBlockByHeight(height)
-	if b == nil {
-		return failResult("height not exists")
+func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
+	if from < to {
+		return failResult("param error")
 	}
-	bh := b.Header
-	preBH := core.BlockChainImpl.QueryBlockHeaderByHash(bh.PreHash)
-	block := convertBlockHeader(b)
-	if preBH != nil {
-		block.Qn = bh.TotalQN - preBH.TotalQN
-	} else {
-		block.Qn = bh.TotalQN
-	}
-	return successResult(block)
-}
-
-func (api *GtasAPI) GetBlockByHash(hash string) (*Result, error) {
-	b := core.BlockChainImpl.QueryBlockByHash(common.HexToHash(hash))
-	if b == nil {
-		return failResult("height not exists")
-	}
-	bh := b.Header
-	preBH := core.BlockChainImpl.QueryBlockHeaderByHash(bh.PreHash)
-	block := convertBlockHeader(b)
-	if preBH != nil {
-		block.Qn = bh.TotalQN - preBH.TotalQN
-	} else {
-		block.Qn = bh.TotalQN
-	}
-	return successResult(block)
-}
-
-func (api *GtasAPI) GetBlocks(from uint64, to uint64) (*Result, error) {
 	blocks := make([]*Block, 0)
 	var preBH *types.BlockHeader
 	for h := from; h <= to; h++ {
@@ -215,7 +119,7 @@ func (api *GtasAPI) GetBlocks(from uint64, to uint64) (*Result, error) {
 	return successResult(blocks)
 }
 
-func (api *GtasAPI) GetTopBlock() (*Result, error) {
+func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 	bh := core.BlockChainImpl.QueryTopBlock()
 	b := core.BlockChainImpl.QueryBlockByHash(bh.Hash)
 	bh = b.Header
@@ -240,7 +144,7 @@ func (api *GtasAPI) GetTopBlock() (*Result, error) {
 	return successResult(blockDetail)
 }
 
-func (api *GtasAPI) WorkGroupNum(height uint64) (*Result, error) {
+func (api *RpcDevImpl) WorkGroupNum(height uint64) (*Result, error) {
 	groups := mediator.Proc.GetCastQualifiedGroups(height)
 	return successResult(groups)
 }
@@ -268,7 +172,7 @@ func convertGroup(g *types.Group) map[string]interface{} {
 	return gmap
 }
 
-func (api *GtasAPI) GetGroupsAfter(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
 	groups := core.GroupChainImpl.GetGroupsAfterHeight(height, math.MaxInt64)
 
 	ret := make([]map[string]interface{}, 0)
@@ -282,12 +186,12 @@ func (api *GtasAPI) GetGroupsAfter(height uint64) (*Result, error) {
 	return successResult(ret)
 }
 
-func (api *GtasAPI) GetCurrentWorkGroup() (*Result, error) {
+func (api *RpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
 	height := core.BlockChainImpl.Height()
 	return api.GetWorkGroup(height)
 }
 
-func (api *GtasAPI) GetWorkGroup(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
 	groups := mediator.Proc.GetCastQualifiedGroupsFromChain(height)
 	ret := make([]map[string]interface{}, 0)
 	h := height
@@ -301,7 +205,7 @@ func (api *GtasAPI) GetWorkGroup(height uint64) (*Result, error) {
 }
 
 // CastStat cast block statistics
-func (api *GtasAPI) CastStat(begin uint64, end uint64) (*Result, error) {
+func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 	proposerStat := make(map[string]int32)
 	groupStat := make(map[string]int32)
 
@@ -346,29 +250,12 @@ func (api *GtasAPI) CastStat(begin uint64, end uint64) (*Result, error) {
 	return successResult(ret)
 }
 
-func (api *GtasAPI) MinerInfo(addr string) (*Result, error) {
-	morts := make([]MortGage, 0)
-	id := common.HexToAddress(addr).Bytes()
-	heavyInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeHeavy, nil)
-	if heavyInfo != nil {
-		morts = append(morts, *NewMortGageFromMiner(heavyInfo))
-	}
-	lightInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeLight, nil)
-	if lightInfo != nil {
-		morts = append(morts, *NewMortGageFromMiner(lightInfo))
-	}
-	return successResult(morts)
-}
-
-func (api *GtasAPI) NodeInfo() (*Result, error) {
+func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 	ni := &NodeInfo{}
 	p := mediator.Proc
 	ni.ID = p.GetMinerID().GetHexString()
-	balance, err := walletManager.getBalance(p.GetMinerID().GetHexString())
-	if err != nil {
-		return failResult(err.Error())
-	}
-	ni.Balance = balance
+	balance := core.BlockChainImpl.GetBalance(common.HexToAddress(p.GetMinerID().GetHexString()))
+	ni.Balance = common.RA2TAS(balance.Uint64())
 	if !p.Ready() {
 		ni.Status = "node not ready"
 	} else {
@@ -403,83 +290,26 @@ func (api *GtasAPI) NodeInfo() (*Result, error) {
 
 }
 
-func (api *GtasAPI) PageGetBlocks(page, limit int) (*Result, error) {
-	chain := core.BlockChainImpl
-	total := chain.Height() + 1
-	pageObject := PageObjects{
-		Total: total,
-		Data:  make([]interface{}, 0),
+func (api *RpcDevImpl) Dashboard() (*Result, error) {
+	blockHeight := core.BlockChainImpl.Height()
+	groupHeight := core.GroupChainImpl.Height()
+	workNum := len(mediator.Proc.GetCastQualifiedGroups(blockHeight))
+	nodeResult, _ := api.NodeInfo()
+	consResult, _ := api.ConnectedNodes()
+	dash := &Dashboard{
+		BlockHeight: blockHeight,
+		GroupHeight: groupHeight,
+		WorkGNum:    workNum,
+		NodeInfo:    nodeResult.Data.(*NodeInfo),
+		Conns:       consResult.Data.([]ConnInfo),
 	}
-	if page < 1 {
-		page = 1
-	}
-	i := 0
-	num := uint64((page - 1) * limit)
-	if total < num {
-		return successResult(pageObject)
-	}
-	b := int64(total - num)
-
-	for i < limit && b >= 0 {
-		bh := chain.QueryBlockByHeight(uint64(b))
-		b--
-		if bh == nil {
-			continue
-		}
-		block := convertBlockHeader(bh)
-		pageObject.Data = append(pageObject.Data, block)
-		i++
-	}
-	return successResult(pageObject)
+	return successResult(dash)
 }
 
-func (api *GtasAPI) PageGetGroups(page, limit int) (*Result, error) {
-	chain := core.GroupChainImpl
-	total := chain.Height()
-	pageObject := PageObjects{
-		Total: total,
-		Data:  make([]interface{}, 0),
+func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(h)) {
+		return failResult("Wrong param format")
 	}
-
-	i := 0
-	b := int64(0)
-	if page < 1 {
-		page = 1
-	}
-	num := uint64((page - 1) * limit)
-	if total < num {
-		return successResult(pageObject)
-	}
-	b = int64(total - num)
-
-	for i < limit && b >= 0 {
-		g := chain.GetGroupByHeight(uint64(b))
-		b--
-		if g == nil {
-			continue
-		}
-
-		mems := make([]string, 0)
-		for _, mem := range g.Members {
-			mems = append(mems, groupsig.DeserializeID(mem).ShortS())
-		}
-
-		group := &Group{
-			Height:        uint64(b + 1),
-			ID:            groupsig.DeserializeID(g.ID),
-			PreID:         groupsig.DeserializeID(g.Header.PreGroup),
-			ParentID:      groupsig.DeserializeID(g.Header.Parent),
-			BeginHeight:   g.Header.WorkHeight,
-			DismissHeight: g.Header.DismissHeight,
-			Members:       mems,
-		}
-		pageObject.Data = append(pageObject.Data, group)
-		i++
-	}
-	return successResult(pageObject)
-}
-
-func (api *GtasAPI) BlockDetail(h string) (*Result, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHash(common.HexToHash(h))
 	if b == nil {
@@ -588,7 +418,10 @@ func (api *GtasAPI) BlockDetail(h string) (*Result, error) {
 	return successResult(bd)
 }
 
-func (api *GtasAPI) BlockReceipts(h string) (*Result, error) {
+func (api *RpcDevImpl) BlockReceipts(h string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(h)) {
+		return failResult("Wrong param format")
+	}
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHash(common.HexToHash(h))
 	if b == nil {
@@ -607,58 +440,87 @@ func (api *GtasAPI) BlockReceipts(h string) (*Result, error) {
 	return successResult(br)
 }
 
-func (api *GtasAPI) TransDetail(h string) (*Result, error) {
-	tx := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(h))
-
-	if tx != nil {
-		trans := convertTransaction(tx)
-		return successResult(trans)
-	}
-	return successResult(nil)
-}
-
-func (api *GtasAPI) Dashboard() (*Result, error) {
-	blockHeight := core.BlockChainImpl.Height()
-	groupHeight := core.GroupChainImpl.Height()
-	workNum := len(mediator.Proc.GetCastQualifiedGroups(blockHeight))
-	nodeResult, _ := api.NodeInfo()
-	consResult, _ := api.ConnectedNodes()
-	dash := &Dashboard{
-		BlockHeight: blockHeight,
-		GroupHeight: groupHeight,
-		WorkGNum:    workNum,
-		NodeInfo:    nodeResult.Data.(*NodeInfo),
-		Conns:       consResult.Data.([]ConnInfo),
-	}
-	return successResult(dash)
-}
-
-func (api *GtasAPI) Nonce(addr string) (*Result, error) {
-	address := common.HexToAddress(addr)
-	// user will see the nonce as db nonce +1, so that user can use it directly when send a transaction
-	nonce := core.BlockChainImpl.GetNonce(address) + 1
-	return successResult(nonce)
-}
-
-func (api *GtasAPI) TxReceipt(h string) (*Result, error) {
-	hash := common.HexToHash(h)
-	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
-	if rc != nil {
-		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
-		return successResult(&core.ExecutedTransaction{
-			Receipt:     rc,
-			Transaction: tx,
-		})
-	}
-	return failResult("tx not exist")
-}
-
-func (api *GtasAPI) RPCSyncBlocks(height uint64, limit int, version int) (*Result, error) {
+// MonitorBlocks monitoring platform calls block sync
+func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
 	chain := core.BlockChainImpl
-	v := chain.Version()
-	if version != v {
-		return failResult(fmt.Sprintf("version not support, expect version %v", v))
+	if begin > end {
+		end = begin
 	}
-	blocks := chain.BatchGetBlocksAfterHeight(height, limit)
+	var pre *types.Block
+
+	blocks := make([]*BlockDetail, 0)
+	for h := begin; h <= end; h++ {
+		b := chain.QueryBlockCeil(h)
+		if b == nil {
+			continue
+		}
+		bh := b.Header
+		block := convertBlockHeader(b)
+
+		if pre == nil {
+			pre = chain.QueryBlockByHash(bh.PreHash)
+		}
+		if pre == nil {
+			block.Qn = bh.TotalQN
+		} else {
+			block.Qn = bh.TotalQN - pre.Header.TotalQN
+		}
+
+		trans := make([]Transaction, 0)
+
+		for _, tx := range b.Transactions {
+			trans = append(trans, *convertTransaction(tx))
+		}
+
+		bd := &BlockDetail{
+			Block: *block,
+			Trans: trans,
+		}
+		pre = b
+		blocks = append(blocks, bd)
+	}
 	return successResult(blocks)
+}
+
+func (api *RpcDevImpl) MonitorNodeInfo() (*Result, error) {
+	bh := core.BlockChainImpl.Height()
+	gh := core.GroupChainImpl.LastGroup().GroupHeight
+
+	ni := &NodeInfo{}
+
+	ret, _ := api.NodeInfo()
+	if ret != nil && ret.IsSuccess() {
+		ni = ret.Data.(*NodeInfo)
+	}
+	ni.BlockHeight = bh
+	ni.GroupHeight = gh
+	if ni.MortGages != nil {
+		for _, mg := range ni.MortGages {
+			if mg.Type == "proposal role" {
+				ni.VrfThreshold = mediator.Proc.GetVrfThreshold(common.TAS2RA(mg.Stake))
+				break
+			}
+		}
+	}
+	return successResult(ni)
+}
+
+func (api *RpcDevImpl) MonitorAllMiners() (*Result, error) {
+	miners := mediator.Proc.GetAllMinerDOs()
+	totalStake := uint64(0)
+	maxStake := uint64(0)
+	for _, m := range miners {
+		if m.AbortHeight == 0 && m.NType == types.MinerTypeHeavy {
+			totalStake += m.Stake
+			if maxStake < m.Stake {
+				maxStake = m.Stake
+			}
+		}
+	}
+	sortutil.AscByField(miners, "Stake")
+	data := make(map[string]interface{})
+	data["miners"] = miners
+	data["maxStake"] = maxStake
+	data["totalStake"] = totalStake
+	return successResult(data)
 }

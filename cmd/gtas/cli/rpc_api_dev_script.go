@@ -21,11 +21,13 @@ import (
 	"github.com/zvchain/zvchain/common"
 )
 
-func (api *GtasAPI) ScriptTransferTx(privateKey string, from string, to string, amount uint64, nonce uint64, txType int, gasPrice uint64) (*Result, error) {
+func (api *RpcDevImpl) ScriptTransferTx(privateKey string, from string, to string, amount uint64, nonce uint64, txType int, gasPrice uint64) (*Result, error) {
 	return api.TxUnSafe(privateKey, to, amount, gasPrice, gasPrice, nonce, txType, "")
 }
 
-func (api *GtasAPI) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (*Result, error) {
+// TxUnSafe sends a transaction by submitting the privateKey.
+// It is not safe for users, used for testing purpose
+func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (*Result, error) {
 	txRaw := &txRawData{
 		Target:   target,
 		Value:    common.TAS2RA(value),
@@ -41,7 +43,10 @@ func (api *GtasAPI) TxUnSafe(privateKey, target string, value, gas, gasprice, no
 	}
 	trans := txRawToTransaction(txRaw)
 	trans.Hash = trans.GenHash()
-	sign := sk.Sign(trans.Hash.Bytes())
+	sign, err := sk.Sign(trans.Hash.Bytes())
+	if err != nil {
+		failResult(err.Error())
+	}
 	trans.Sign = sign.Bytes()
 
 	if err := sendTransaction(trans); err != nil {

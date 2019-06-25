@@ -26,6 +26,44 @@ import (
 	"github.com/zvchain/zvchain/common"
 )
 
+// rpcLevel indicate the rpc service function
+type rpcLevel int
+
+const (
+	rpcLevelNone     rpcLevel = iota // Won't start rpc service which is the default value if not set
+	rpcLevelGtas                     // Only enable the core rpc service functions used by miners or dapp developers
+	rpcLevelExplorer                 // Enable both above and explorer related functions
+	rpcLevelDev                      // Enable all functions including functions for debug or developer use
+)
+
+// rpcApi defines rpc service instance interface
+type rpcApi interface {
+	Namespace() string
+	Version() string
+}
+
+func (gtas *Gtas) addInstance(inst rpcApi) {
+	gtas.rpcInstances = append(gtas.rpcInstances, inst)
+}
+
+func (gtas *Gtas) initRpcInstances() error {
+	level := gtas.config.rpcLevel
+	if level < rpcLevelNone || level > rpcLevelDev {
+		return fmt.Errorf("rpc level error:%v", level)
+	}
+	gtas.rpcInstances = make([]rpcApi, 0)
+	if level >= rpcLevelGtas {
+		gtas.addInstance(&RpcGtasImpl{})
+	}
+	if level >= rpcLevelExplorer {
+		gtas.addInstance(&RpcExplorerImpl{})
+	}
+	if level >= rpcLevelDev {
+		gtas.addInstance(&RpcDevImpl{})
+	}
+	return nil
+}
+
 // startHTTP initializes and starts the HTTP RPC endpoint.
 func startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
@@ -58,23 +96,30 @@ func startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string,
 	return nil
 }
 
-var GtasAPIImpl *GtasAPI
-
 // StartRPC RPC function
-func StartRPC(host string, port uint) error {
+func (gtas *Gtas) startRPC() error {
 	var err error
-	GtasAPIImpl = &GtasAPI{}
-	apis := []rpc.API{
-		{Namespace: "GTAS", Version: "1", Service: GtasAPIImpl, Public: true},
+
+	// init api instance
+	if err = gtas.initRpcInstances(); err != nil {
+		return err
 	}
+
+	apis := make([]rpc.API, 0)
+	for _, inst := range gtas.rpcInstances {
+		apis = append(apis, rpc.API{Namespace: inst.Namespace(), Version: inst.Version(), Service: inst, Public: true})
+	}
+	host, port := gtas.config.rpcAddr, gtas.config.rpcPort
+
 	for plus := 0; plus < 40; plus++ {
-		err = startHTTP(fmt.Sprintf("%s:%d", host, port+uint(plus)), apis, []string{}, []string{}, []string{})
+		endpoint := fmt.Sprintf("%s:%d", host, port+uint16(plus))
+		err = startHTTP(endpoint, apis, []string{}, []string{}, []string{})
 		if err == nil {
-			common.DefaultLogger.Errorf("RPC serving on http://%s:%d\n", host, port+uint(plus))
+			common.DefaultLogger.Errorf("RPC serving on %v\n", endpoint)
 			return nil
 		}
 		if strings.Contains(err.Error(), "address already in use") {
-			common.DefaultLogger.Errorf("address: %s:%d already in use\n", host, port+uint(plus))
+			common.DefaultLogger.Errorf("port:%d already in use\n", port+uint16(plus))
 			continue
 		}
 		return err

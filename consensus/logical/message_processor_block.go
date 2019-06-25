@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
@@ -180,6 +181,11 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 		Ext:      fmt.Sprintf("external:qn:%v,totalQN:%v", 0, bh.TotalQN),
 	}
 	group := p.GetGroup(groupsig.DeserializeID(bh.GroupID))
+	var err error
+	if group == nil {
+		err = fmt.Errorf("GetSelfGroup failed")
+		return
+	}
 
 	detalHeight := int(bh.Height - p.MainChain.Height())
 	if common.AbsInt(detalHeight) < 100 && monitor.Instance.IsFirstNInternalNodesInGroup(group.GetMembers(), 3) {
@@ -195,8 +201,6 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 
 	tlog.logStart("%v:height=%v, castor=%v", mtype, bh.Height, castor.ShortS())
 	blog.debug("proc(%v) begin hash=%v, height=%v, sender=%v, castor=%v, groupID=%v", p.getPrefix(), bh.Hash.ShortS(), bh.Height, si.GetID().ShortS(), castor.ShortS(), groupID.ShortS())
-
-	var err error
 
 	defer func() {
 		result := "signed"
@@ -370,7 +374,8 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 	group := p.GetGroup(gid)
 	reward := &msg.Reward
 	if group == nil {
-		panic("group is nil")
+		err = fmt.Errorf("group is nil")
+		return
 	}
 
 	vctx := p.blockContexts.getVctxByHeight(bh.Height)
@@ -547,7 +552,8 @@ func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessag
 	gid := groupsig.DeserializeID(bh.GroupID)
 	group := p.GetGroup(gid)
 	if group == nil {
-		panic("group is nil")
+		err = fmt.Errorf("group is nil")
+		return
 	}
 	pk, ok := p.getMemberSignPubKey(model.NewGroupMinerID(gid, msg.SI.GetID()))
 	if !ok {
@@ -617,18 +623,15 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 			return
 		}
 
-		pb.maxResponseCount = uint(math.Ceil(float64(group.GetMemberCount()) / 3))
+		pb.maxResponseCount = uint64(math.Ceil(float64(group.GetMemberCount()) / 3))
 	}
 
 	// Only response to limited members of the group in case of network traffic
-	if pb.responseCount >= pb.maxResponseCount {
+	if atomic.AddUint64(&pb.responseCount,1) > pb.maxResponseCount {
 		s = fmt.Sprintf("response count exceed")
 		blog.debug("block proposal response count >= maxResponseCount(%v), not response, hash=%v", pb.maxResponseCount, msg.Hash.ShortS())
 		return
 	}
-
-	pb.responseCount++
-
 	s = fmt.Sprintf("response txs size %v", len(pb.block.Transactions))
 	blog.debug("block proposal response, count=%v, max count=%v, hash=%v", pb.responseCount, pb.maxResponseCount, msg.Hash.ShortS())
 

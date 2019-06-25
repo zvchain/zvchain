@@ -16,49 +16,37 @@
 package cli
 
 import (
-	"github.com/pmylund/sortutil"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"strings"
 )
 
+// RpcExplorerImpl provides rpc service for blockchain explorer use
+type RpcExplorerImpl struct {
+}
+
+func (api *RpcExplorerImpl) Namespace() string {
+	return "Explorer"
+}
+
+func (api *RpcExplorerImpl) Version() string {
+	return "1"
+}
+
 // ExplorerAccount is used in the blockchain browser to query account information
-func (api *GtasAPI) ExplorerAccount(hash string) (*Result, error) {
-
-	accoundDb := core.BlockChainImpl.LatestStateDB()
-	if accoundDb == nil {
-		return nil, nil
+func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
+	if !validateHash(strings.TrimSpace(hash)) {
+		return failResult("Wrong param format")
 	}
-	address := common.HexToAddress(hash)
-	if !accoundDb.Exist(address) {
-		return failResult("Account not Exist!")
-	}
-	account := ExplorerAccount{}
-	account.Balance = accoundDb.GetBalance(address)
-	account.Nonce = accoundDb.GetNonce(address)
-	account.CodeHash = accoundDb.GetCodeHash(address).Hex()
-	account.Code = string(accoundDb.GetCode(address)[:])
-	account.Type = 0
-	if len(account.Code) > 0 {
-		account.Type = 1
-		account.StateData = make(map[string]interface{})
-
-		iter := accoundDb.DataIterator(common.HexToAddress(hash), "")
-		for iter.Next() {
-			k := string(iter.Key[:])
-			v := string(iter.Value[:])
-			account.StateData[k] = v
-
-		}
-	}
-	return successResult(account)
+	impl := &RpcGtasImpl{}
+	return impl.ViewAccount(hash)
 }
 
 // ExplorerBlockDetail is used in the blockchain browser to query block details
-func (api *GtasAPI) ExplorerBlockDetail(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
@@ -92,7 +80,7 @@ func (api *GtasAPI) ExplorerBlockDetail(height uint64) (*Result, error) {
 
 // ExplorerGroupsAfter is used in the blockchain browser to
 // query groups after the specified height
-func (api *GtasAPI) ExplorerGroupsAfter(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) {
 	groups := core.GroupChainImpl.GetGroupsAfterHeight(height, common.MaxInt64)
 
 	ret := make([]map[string]interface{}, 0)
@@ -128,7 +116,7 @@ func explorerConvertGroup(g *types.Group) map[string]interface{} {
 }
 
 // ExplorerBlockBonus export bonus transaction by block height
-func (api *GtasAPI) ExplorerBlockBonus(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockBonus(height uint64) (*Result, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
@@ -154,89 +142,4 @@ func (api *GtasAPI) ExplorerBlockBonus(height uint64) (*Result, error) {
 		ret.VerifierBonus = *genBonus
 	}
 	return successResult(ret)
-}
-
-// MonitorBlocks monitoring platform calls block sync
-func (api *GtasAPI) MonitorBlocks(begin, end uint64) (*Result, error) {
-	chain := core.BlockChainImpl
-	if begin > end {
-		end = begin
-	}
-	var pre *types.Block
-
-	blocks := make([]*BlockDetail, 0)
-	for h := begin; h <= end; h++ {
-		b := chain.QueryBlockCeil(h)
-		if b == nil {
-			continue
-		}
-		bh := b.Header
-		block := convertBlockHeader(b)
-
-		if pre == nil {
-			pre = chain.QueryBlockByHash(bh.PreHash)
-		}
-		if pre == nil {
-			block.Qn = bh.TotalQN
-		} else {
-			block.Qn = bh.TotalQN - pre.Header.TotalQN
-		}
-
-		trans := make([]Transaction, 0)
-
-		for _, tx := range b.Transactions {
-			trans = append(trans, *convertTransaction(tx))
-		}
-
-		bd := &BlockDetail{
-			Block: *block,
-			Trans: trans,
-		}
-		pre = b
-		blocks = append(blocks, bd)
-	}
-	return successResult(blocks)
-}
-
-func (api *GtasAPI) MonitorNodeInfo() (*Result, error) {
-	bh := core.BlockChainImpl.Height()
-	gh := core.GroupChainImpl.LastGroup().GroupHeight
-
-	ni := &NodeInfo{}
-
-	ret, _ := api.NodeInfo()
-	if ret != nil && ret.IsSuccess() {
-		ni = ret.Data.(*NodeInfo)
-	}
-	ni.BlockHeight = bh
-	ni.GroupHeight = gh
-	if ni.MortGages != nil {
-		for _, mg := range ni.MortGages {
-			if mg.Type == "proposal role" {
-				ni.VrfThreshold = mediator.Proc.GetVrfThreshold(common.TAS2RA(mg.Stake))
-				break
-			}
-		}
-	}
-	return successResult(ni)
-}
-
-func (api *GtasAPI) MonitorAllMiners() (*Result, error) {
-	miners := mediator.Proc.GetAllMinerDOs()
-	totalStake := uint64(0)
-	maxStake := uint64(0)
-	for _, m := range miners {
-		if m.AbortHeight == 0 && m.NType == types.MinerTypeHeavy {
-			totalStake += m.Stake
-			if maxStake < m.Stake {
-				maxStake = m.Stake
-			}
-		}
-	}
-	sortutil.AscByField(miners, "Stake")
-	data := make(map[string]interface{})
-	data["miners"] = miners
-	data["maxStake"] = maxStake
-	data["totalStake"] = totalStake
-	return successResult(data)
 }

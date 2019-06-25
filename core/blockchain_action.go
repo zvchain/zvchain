@@ -89,7 +89,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 		buffer.WriteString(", block height: ")
 		buffer.WriteString(fmt.Sprintf("%d error:", block.Header.Height))
 		buffer.WriteString(fmt.Sprint(err))
-		//panic(buffer.String())
+
 		Logger.Error(buffer.String())
 		return nil
 	}
