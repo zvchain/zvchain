@@ -43,7 +43,10 @@ func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice,
 	}
 	trans := txRawToTransaction(txRaw)
 	trans.Hash = trans.GenHash()
-	sign := sk.Sign(trans.Hash.Bytes())
+	sign, err := sk.Sign(trans.Hash.Bytes())
+	if err != nil {
+		failResult(err.Error())
+	}
 	trans.Sign = sign.Bytes()
 
 	if err := sendTransaction(trans); err != nil {

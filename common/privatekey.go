@@ -33,7 +33,7 @@ type PrivateKey struct {
 }
 
 // Sign returns the message signature using the private key
-func (pk PrivateKey) Sign(hash []byte) Sign {
+func (pk PrivateKey) Sign(hash []byte) (Sign, error) {
 	var sign Sign
 
 	pribytes := pk.PrivKey.D.Bytes()
@@ -47,14 +47,14 @@ func (pk PrivateKey) Sign(hash []byte) Sign {
 	if err == nil {
 		sign = *BytesToSign(sig)
 	} else {
-		panic(fmt.Sprintf("Sign Failed, reason : %v.\n", err.Error()))
+		err = fmt.Errorf("Sign Failed, reason : %v.\n", err.Error())
 	}
 
-	return sign
+	return sign, err
 }
 
 // GenerateKey creates a Private key by the specified string
-func GenerateKey(s string) PrivateKey {
+func GenerateKey(s string) (PrivateKey, error) {
 	var r io.Reader
 	if len(s) > 0 {
 		r = strings.NewReader(s)
@@ -66,9 +66,10 @@ func GenerateKey(s string) PrivateKey {
 	if err == nil {
 		pk.PrivKey = *_pk
 	} else {
-		panic(fmt.Sprintf("GenKey Failed, reason : %v.\n", err.Error()))
+		err = fmt.Errorf("GenKey Failed, reason : %v.\n", err.Error())
+		return pk, err
 	}
-	return pk
+	return pk, nil
 }
 
 // GetPubKey returns the public key mapped to the private key
@@ -98,6 +99,7 @@ func (pk *PrivateKey) Bytes() []byte {
 	copy(buf[:PubKeyLength], pk.GetPubKey().Bytes())
 	d := pk.PrivKey.D.Bytes()
 	if len(d) > 32 {
+		// this case must not happen
 		panic("privateKey data length error: D length is more than 32!")
 	}
 	copy(buf[SecKeyLength-len(d):SecKeyLength], d)

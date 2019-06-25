@@ -306,7 +306,10 @@ func (gtas *Gtas) fullInit() error {
 	if !sk.ImportKey(common.FromHex(gtas.account.Sk)) {
 		return ErrInternal
 	}
-	minerInfo := model.NewSelfMinerDO(sk)
+	minerInfo, err := model.NewSelfMinerDO(sk)
+	if err != nil {
+		return err
+	}
 
 	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID))
 	if err != nil {
@@ -369,6 +372,7 @@ func NewGtas() *Gtas {
 func (gtas *Gtas) autoApplyMiner(mtype int) {
 	miner := mediator.Proc.GetMinerInfo()
 	if miner.ID.GetHexString() != gtas.account.Address {
+		// exit if miner's id not match the the account
 		panic(fmt.Errorf("id error %v %v", miner.ID.GetHexString(), gtas.account.Address))
 	}
 

@@ -122,6 +122,7 @@ func (p *Processor) onGroupAddSuccess(message notify.Message) {
 		stdLogger.Warnf("group add after can work! gid=%v, gheight=%v, beginHeight=%v, currentHeight=%v", sgi.GroupID.ShortS(), group.GroupHeight, beginHeight, topHeight)
 		pre := p.MainChain.QueryBlockHeaderFloor(beginHeight - 1)
 		if pre == nil {
+			// hold it for now
 			panic(fmt.Sprintf("block nil at height %v", beginHeight-1))
 		}
 		for h := beginHeight; h <= topHeight; {
@@ -130,6 +131,7 @@ func (p *Processor) onGroupAddSuccess(message notify.Message) {
 				break
 			}
 			if bh.PreHash != pre.Hash {
+				// hold it for now
 				panic(fmt.Sprintf("pre error:bh %v, prehash %v, height %v, real pre hash %v height %v", bh.Hash.Hex(), bh.PreHash.Hex(), bh.Height, pre.Hash.Hex(), pre.Height))
 			}
 			gid := p.calcVerifyGroupFromChain(pre, bh.Height)

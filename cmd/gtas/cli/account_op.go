@@ -34,21 +34,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-const accountUnLockTime = time.Second * 120
-
-//  the following block will be removed at next version
-var encryptPrivateKey *common.PrivateKey
-var encryptPublicKey *common.PublicKey
-
-//Generate public and private keys based on passwords
-func init() {
-	encryptPrivateKey = common.HexToSecKey("0x04b851c3551779125a588b2274cfa6d71604fe6ae1f0df82175bcd6e6c2b23d92a69d507023628b59c15355f3cbc0d8f74633618facd28632a0fb3e9cc8851536c4b3f1ea7c7fd3666ce8334301236c2437d9bed14e5a0793b51a9a6e7a4c46e70")
-	pk := encryptPrivateKey.GetPubKey()
-	encryptPublicKey = &pk
-}
-
-// removed block end
-
 const (
 	statusLocked   int8 = 0
 	statusUnLocked      = 1
@@ -127,12 +112,12 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 	if readyOnly && !dirExists(keystore) {
 		aop, err := newAccountOp(keystore)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		ret := aop.NewAccount(DefaultPassword, true)
 		if !ret.IsSuccess() {
 			fmt.Println(ret.Message)
-			panic(ret.Message)
+			return nil, err
 		}
 		return aop, nil
 	}
@@ -144,7 +129,7 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 	return aop, nil
 }
 
-func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) *Account {
+func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) (*Account, error) {
 	account := &Account{
 		Sk:       common.ToHex(sk.ExportKey()),
 		Pk:       sk.GetPubKey().Hex(),
@@ -153,7 +138,10 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 	}
 
 	if bMiner {
-		minerDO := model.NewSelfMinerDO(sk)
+		minerDO, err := model.NewSelfMinerDO(sk)
+		if err != nil {
+			return nil, err
+		}
 
 		minerRaw := &MinerRaw{
 			BPk:   minerDO.PK.GetHexString(),
@@ -163,7 +151,7 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 		}
 		account.Miner = minerRaw
 	}
-	return account
+	return account, nil
 }
 
 func (am *AccountManager) loadAccount(addr string, password string) (*Account, error) {
@@ -193,8 +181,7 @@ func (am *AccountManager) loadAccount(addr string, password string) (*Account, e
 		return nil, ErrInternal
 	}
 
-	account := am.constructAccount(password, secKey, ksr.IsMiner)
-	return account, nil
+	return am.constructAccount(password, secKey, ksr.IsMiner)
 }
 
 func (am *AccountManager) storeAccount(addr string, ksr *KeyStoreRaw, password string) error {
@@ -267,9 +254,14 @@ func passwordHash(password string) string {
 
 // NewAccount create a new account by password
 func (am *AccountManager) NewAccount(password string, miner bool) *Result {
-	privateKey := common.GenerateKey("")
-
-	account := am.constructAccount(password, &privateKey, miner)
+	privateKey, err := common.GenerateKey("")
+	if err != nil {
+		return opError(err)
+	}
+	account, err := am.constructAccount(password, &privateKey, miner)
+	if err != nil {
+		return opError(err)
+	}
 
 	ksr := &KeyStoreRaw{
 		Key:     privateKey.ExportKey(),
@@ -386,7 +378,10 @@ func (am *AccountManager) NewAccountByImportKey(key string, password string, min
 		return opError(ErrInternal)
 	}
 
-	account := am.constructAccount(password, privateKey, miner)
+	account, err := am.constructAccount(password, privateKey, miner)
+	if err != nil {
+		return opError(err)
+	}
 
 	ksr := &KeyStoreRaw{
 		Key:     kBytes,

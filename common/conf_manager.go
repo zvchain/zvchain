@@ -98,10 +98,12 @@ func NewConfINIManager(path string) ConfManager {
 		_, err = os.Create(path)
 		if err != nil {
 			DefaultLogger.Errorf("Failed to init the config manager: ", err)
+			// exit if init config manager failed with io error
 			panic(err)
 		}
 	} else if err != nil {
 		DefaultLogger.Errorf("Failed to init the config manager: ", err)
+		// exit if init config manager failed with io error
 		panic(err)
 	}
 	cs.dict = ini.MustLoad(path)
