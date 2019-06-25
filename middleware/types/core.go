@@ -186,6 +186,11 @@ func (tx *Transaction) BoundCheck() error {
 			return fmt.Errorf("param target cannot nil")
 		}
 	}
+	if tx.Type == TransactionTypeMinerApply || tx.Type == TransactionTypeMinerCancelStake || tx.Type ==TransactionTypeMinerStake {
+		if tx.Data == nil {
+			return fmt.Errorf("param data cannot nil")
+		}
+	}
 	return nil
 }
 

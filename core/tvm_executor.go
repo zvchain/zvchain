@@ -278,11 +278,6 @@ func (executor *TVMExecutor) executeMinerApplyTx(accountdb *account.AccountDB, t
 	// transfer gasFee to miner
 	transfer(accountdb,*transaction.Source,castor,gasFee)
 
-	if transaction.Data == nil {
-		Logger.Debugf("TVMExecutor Execute MinerApply Fail(Tx data is nil) Source:%s Height:%d", transaction.Source.Hex(), height)
-		return
-	}
-
 	var miner = MinerManagerImpl.Transaction2Miner(transaction)
 	miner.ID = transaction.Source[:]
 	amount := new(big.Int).SetUint64(miner.Stake)
@@ -332,11 +327,6 @@ func (executor *TVMExecutor) executeMinerStakeTx(accountdb *account.AccountDB, t
 	// transfer gasFee to miner
 	transfer(accountdb,*transaction.Source,castor,gasFee)
 
-	if transaction.Data == nil {
-		Logger.Debugf("TVMExecutor Execute Miner Stake Fail(Tx data is nil) Source:%s Height:%d", transaction.Source.Hex(), height)
-		return
-	}
-
 	var _type, id, value = MinerManagerImpl.Transaction2MinerParams(transaction)
 	amount := new(big.Int).SetUint64(value)
 
@@ -373,12 +363,6 @@ func (executor *TVMExecutor) executeMinerCancelStakeTx(accountdb *account.Accoun
 	gasFee := new(types.BigInt).Mul(transaction.GasPrice.Value(), gasUsed.Value())
 	// transfer gasFee to miner
 	transfer(accountdb,*transaction.Source,castor,gasFee)
-
-	if transaction.Data == nil {
-		Logger.Debugf("TVMExecutor Execute MinerCancelStake Fail(Tx data is nil) Source:%s Height:%d", transaction.Source.Hex(), height)
-		return
-	}
-
 
 	var _type, id, value = MinerManagerImpl.Transaction2MinerParams(transaction)
 
