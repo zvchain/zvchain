@@ -117,12 +117,7 @@ struct p2p_login * wrap_new_p2p_login(uint64_t id, uint64_t cur_time, char* pk, 
 */
 import "C"
 import (
-	"bytes"
-	"fmt"
-	"time"
 	"unsafe"
-
-	"github.com/zvchain/zvchain/common"
 )
 
 
@@ -192,20 +187,8 @@ func P2PSend(session uint32, data []byte) {
 }
 
 func P2PLoginSign() unsafe.Pointer {
-	privateKey := common.HexToSecKey(netServerInstance.config.SK)
-	pubkey := common.HexToPubKey(netServerInstance.config.PK)
-	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
-		return nil
-	}
-	//source := pubkey.GetAddress()
-	buffer := bytes.Buffer{}
-	curTime := uint64(time.Now().UTC().Unix())
-	data :=common.Uint64ToByte(curTime)
-	buffer.Write(data)
-	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
-
-	sign := privateKey.Sign(hash.Bytes())
-	fmt.Printf("LoginSign end:%v,%v, hash:%v, pk:%v,sign:%v\n",netServerInstance.netCore.nid,common.Bytes2Hex(data),hash.Hex(), common.Bytes2Hex(pubkey.Bytes()),common.Bytes2Hex(sign.Bytes()))
-
-	return (unsafe.Pointer)(C.wrap_new_p2p_login(C.uint64_t(netServerInstance.netCore.nid), C.uint64_t(curTime), (*C.char)(unsafe.Pointer(&pubkey.Bytes()[0])), (*C.char)(unsafe.Pointer(&sign.Bytes()[0]))))
+	
+	pa := genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK)
+	
+	return (unsafe.Pointer)(C.wrap_new_p2p_login(C.uint64_t(netServerInstance.netCore.nid), C.uint64_t(pa.CurTime), (*C.char)(unsafe.Pointer(&pa.PK[0])), (*C.char)(unsafe.Pointer(&pa.Sign[0]))))
 }

@@ -31,7 +31,7 @@ const (
 
 	SuperBasePort = 1122
 
-	NodeIDLength = 66
+	NodeIDLength = 32
 )
 
 type NodeID [NodeIDLength]byte
@@ -46,16 +46,19 @@ func (nid NodeID) IsValid() bool {
 }
 
 func (nid NodeID) GetHexString() string {
-	return string(nid[:])
+	return common.ToHex(nid.Bytes())
 }
 
 func NewNodeID(hex string) NodeID {
+	var nid NodeID
 
+	if len(hex) == 0 {
+		return nid
+	}
 	if !strings.HasPrefix(hex, "0x") {
 		hex = "0x" + hex
 	}
-	var nid NodeID
-	nid.SetBytes([]byte(hex))
+	nid.SetBytes(common.FromHex(hex))
 	return nid
 }
 

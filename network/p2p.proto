@@ -13,6 +13,7 @@ enum MessageType
     MessageRelayNode = 7;
 
 };
+
 enum DataType
 {
     DataNormal = 0;
@@ -20,6 +21,7 @@ enum DataType
 	DataGlobal= 2;
 	DataGlobalRandom= 3;
 };
+
 message RpcNode  {
     string Ip = 1;
     int32 Port = 2;
@@ -35,9 +37,16 @@ message MsgPing{
     int32 Version = 1;
     RpcEndPoint From = 2;
     RpcEndPoint To = 3;
-    bytes  NodeId = 4;
-    uint32 chainId = 5;
-	uint64 Expiration = 6;
+    uint32 chainId = 4;
+	uint64 Expiration = 5;
+    bytes  PK = 6;
+    bytes  Sign = 7;
+    uint64 CurTime = 8;
+}
+
+message MsgPong{
+    int32 Version = 1;
+    bool VerifyResult = 2;
 }
 
 message MsgRelay{
