@@ -47,6 +47,7 @@ type Receipt struct {
 	ContractAddress common.Address `json:"contractAddress"`
 	Height          uint64         `json:"height"`
 	TxIndex         uint16         `json:"tx_index"`
+	ErrorCode		uint16		   `json:"tx_index"`
 }
 
 func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
