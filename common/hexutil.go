@@ -114,6 +114,7 @@ func init() {
 	case 2:
 		bigWordNibbles = 8
 	default:
+		// this case must not happen
 		panic("weird big.Word size")
 	}
 }

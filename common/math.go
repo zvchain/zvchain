@@ -29,6 +29,7 @@ func AbsInt(x int) int {
 		return x
 	}
 	if x == minInt {
+		// this case must not happen
 		panic("absolute overflows int")
 	}
 	return -x

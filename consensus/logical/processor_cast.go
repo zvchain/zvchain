@@ -348,6 +348,10 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 
 	groupID := groupsig.DeserializeID(bh.GroupID)
 	group := p.GetGroup(groupID)
+	if group == nil {
+		_ = fmt.Errorf("group is nil:groupID=%v", groupID)
+		return
+	}
 
 	targetIDIndexs := make([]int32, 0)
 	signs := make([]groupsig.Signature, 0)

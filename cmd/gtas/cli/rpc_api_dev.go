@@ -18,6 +18,10 @@ package cli
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
+	"math/big"
+	"strings"
+
 	"github.com/pmylund/sortutil"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -25,9 +29,6 @@ import (
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"math"
-	"math/big"
-	"strings"
 )
 
 // RpcDevImpl provides api functions for those develop chain features.

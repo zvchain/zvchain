@@ -140,7 +140,10 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 
 	tranx := txRawToTransaction(tx)
 	tranx.Hash = tranx.GenHash()
-	sign := privateKey.Sign(tranx.Hash.Bytes())
+	sign, err := privateKey.Sign(tranx.Hash.Bytes())
+	if err != nil {
+		return opError(err)
+	}
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
