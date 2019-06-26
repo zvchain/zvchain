@@ -70,7 +70,7 @@ type AccountDB struct {
 	validRevisions []revision
 	nextRevisionID int
 
-	lock sync.Mutex
+	lock sync.RWMutex
 }
 
 // Create a new account from a given trie.

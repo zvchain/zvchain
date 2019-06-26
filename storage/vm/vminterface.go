@@ -68,3 +68,12 @@ type ChainReader interface {
 	HasBlock(hash common.Hash) bool
 	HasHeight(height uint64) bool
 }
+
+// MinerOperationMessage generated when operate miner stake info
+type MinerOperationMessage interface {
+	OpType() int8
+	Operator() *common.Address
+	OpTarget() *common.Address
+	Amount() *big.Int // Operated value
+	Payload() []byte  // Data transfer by the message
+}

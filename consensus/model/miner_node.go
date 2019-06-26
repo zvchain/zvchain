@@ -77,15 +77,15 @@ func (mi *SelfMinerDO) Read(p []byte) (n int, err error) {
 	return len(bs), nil
 }
 
-func NewSelfMinerDO(prk *common.PrivateKey) SelfMinerDO {
+func NewSelfMinerDO(prk *common.PrivateKey) (SelfMinerDO, error) {
 	var mi SelfMinerDO
 
-	dBytes := prk.PrivKey.D.Bytes()
+	keyBytes := prk.ExportKey()
 	tempBuf := make([]byte, 32)
-	if len(dBytes) < 32 {
-		copy(tempBuf[32-len(dBytes):32], dBytes[:])
+	if len(keyBytes) < 32 {
+		copy(tempBuf[32-len(keyBytes):32], keyBytes[:])
 	} else {
-		copy(tempBuf[:], dBytes[len(dBytes)-32:])
+		copy(tempBuf[:], keyBytes[len(keyBytes)-32:])
 	}
 	mi.SecretSeed = base.RandFromBytes(tempBuf[:])
 	mi.SK = *groupsig.NewSeckeyFromRand(mi.SecretSeed)
@@ -94,10 +94,7 @@ func NewSelfMinerDO(prk *common.PrivateKey) SelfMinerDO {
 
 	var err error
 	mi.VrfPK, mi.VrfSK, err = base.VRFGenerateKey(&mi)
-	if err != nil {
-		panic("generate vrf key error, err=" + err.Error())
-	}
-	return mi
+	return mi, err
 }
 
 func (mi SelfMinerDO) GetMinerID() groupsig.ID {

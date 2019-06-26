@@ -945,7 +945,7 @@ func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 }
 
 func (nc *NetCore) onHandleDataMessageStart() {
-	atomic.AddInt32(&nc.unhandledDataMsg,1)
+	atomic.AddInt32(&nc.unhandledDataMsg, 1)
 }
 
 func (nc *NetCore) onHandleDataMessageDone() {

@@ -13,24 +13,37 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package cli
+package tvm
 
-type minerConfig struct {
-	rpcLevel      rpcLevel
-	rpcAddr       string
-	rpcPort       uint16
-	super         bool
-	testMode      bool
-	natIP         string
-	natPort       uint16
-	seedIP        string
-	applyRole     string
-	keystore      string
-	enableMonitor bool
-	chainID       uint16
-	password      string
+import (
+	"github.com/zvchain/zvchain/common"
+	"math/big"
+)
+
+type minerOpMsg struct {
+	source  *common.Address
+	target  *common.Address
+	value   *big.Int
+	payload []byte
+	typ     int8
 }
 
-func (cfg *minerConfig) rpcEnable() bool {
-	return cfg.rpcLevel > rpcLevelNone
+func (msg *minerOpMsg) OpType() int8 {
+	return msg.typ
+}
+
+func (msg *minerOpMsg) Operator() *common.Address {
+	return msg.source
+}
+
+func (msg *minerOpMsg) OpTarget() *common.Address {
+	return msg.target
+}
+
+func (msg *minerOpMsg) Amount() *big.Int {
+	return msg.value
+}
+
+func (msg *minerOpMsg) Payload() []byte {
+	return msg.payload
 }

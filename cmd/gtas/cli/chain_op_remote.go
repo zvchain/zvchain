@@ -139,7 +139,10 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 
 	tranx := txRawToTransaction(tx)
 	tranx.Hash = tranx.GenHash()
-	sign := privateKey.Sign(tranx.Hash.Bytes())
+	sign, err := privateKey.Sign(tranx.Hash.Bytes())
+	if err != nil {
+		return opError(err)
+	}
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
@@ -188,7 +191,7 @@ func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *Result {
 	return ca.request("getBlockByHeight", h)
 }
 
-// ApplyMiner apply miner(mtype is MinerTypeVerify or MinerStatusNormal)
+// ApplyMiner apply miner(mtype is MinerTypeVerify or MinerStatusActive)
 func (ca *RemoteChainOpImpl) ApplyMiner(mtype int, stake uint64, gas, gasprice uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
@@ -228,7 +231,7 @@ func (ca *RemoteChainOpImpl) ApplyMiner(mtype int, stake uint64, gas, gasprice u
 	tx := &txRawData{
 		Gas:      gas,
 		Gasprice: gasprice,
-		TxType:   types.TransactionTypeMinerApply,
+		TxType:   types.TransactionTypeStakeAdd,
 		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
@@ -272,7 +275,7 @@ func (ca *RemoteChainOpImpl) RefundMiner(mtype int, addrStr string, gas, gaspric
 	tx := &txRawData{
 		Gas:      gas,
 		Gasprice: gasprice,
-		TxType:   types.TransactionTypeMinerRefund,
+		TxType:   types.TransactionTypeStakeReduce,
 		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
@@ -298,7 +301,7 @@ func (ca *RemoteChainOpImpl) MinerStake(mtype int, addrStr string, stakeValue, g
 	tx := &txRawData{
 		Gas:      gas,
 		Gasprice: gasprice,
-		TxType:   types.TransactionTypeMinerStake,
+		TxType:   types.TransactionTypeStakeRefund,
 		Data:     common.ToHex(data),
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)

@@ -36,11 +36,7 @@ func HashBytes(b ...[]byte) hash.Hash {
 func Data2CommonHash(data []byte) common.Hash {
 	var h common.Hash
 	sha3Hash := sha3.Sum256(data)
-	if len(sha3Hash) == common.HashLength {
-		copy(h[:], sha3Hash[:])
-	} else {
-		panic("Data2Hash failed, size error.")
-	}
+	copy(h[:], sha3Hash[:])
 	return h
 }
 

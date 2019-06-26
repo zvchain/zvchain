@@ -52,7 +52,7 @@ func convert2MinerDO(miner *types.Miner) *model.MinerDO {
 	}
 	if !md.ID.IsValid() {
 		stdLogger.Errorf("invalid id %v, %v", miner.ID, md.ID.GetHexString())
-		panic("id not valid")
+		return nil
 	}
 	return md
 }

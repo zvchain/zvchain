@@ -108,7 +108,7 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 		t = "verify node"
 	}
 	status := "abort"
-	if miner.Status == types.MinerStatusNormal {
+	if miner.Status == types.MinerStatusActive {
 		status = "normal"
 	}
 	mg := &MortGage{

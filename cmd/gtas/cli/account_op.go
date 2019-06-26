@@ -19,7 +19,6 @@
 package cli
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,20 +28,11 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/storage/tasdb"
+	"golang.org/x/crypto/scrypt"
 
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
-
-var encryptPrivateKey *common.PrivateKey
-var encryptPublicKey *common.PublicKey
-
-//Generate public and private keys based on passwords
-func init() {
-	encryptPrivateKey = common.HexToSecKey("0x04b851c3551779125a588b2274cfa6d71604fe6ae1f0df82175bcd6e6c2b23d92a69d507023628b59c15355f3cbc0d8f74633618facd28632a0fb3e9cc8851536c4b3f1ea7c7fd3666ce8334301236c2437d9bed14e5a0793b51a9a6e7a4c46e70")
-	pk := encryptPrivateKey.GetPubKey()
-	encryptPublicKey = &pk
-}
 
 const (
 	statusLocked   int8 = 0
@@ -70,6 +60,11 @@ func (ai *AccountInfo) unlocked() bool {
 
 func (ai *AccountInfo) resetExpireTime() {
 	//ai.UnLockExpire = time.Now().Add(time.Duration(120) * time.Second)
+}
+
+type KeyStoreRaw struct {
+	Key     []byte
+	IsMiner bool
 }
 
 type Account struct {
@@ -117,12 +112,12 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 	if readyOnly && !dirExists(keystore) {
 		aop, err := newAccountOp(keystore)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		ret := aop.NewAccount(DefaultPassword, true)
 		if !ret.IsSuccess() {
 			fmt.Println(ret.Message)
-			panic(ret.Message)
+			return nil, err
 		}
 		return aop, nil
 	}
@@ -134,52 +129,99 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 	return aop, nil
 }
 
-func (am *AccountManager) loadAccount(addr string) (*Account, error) {
+func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) (*Account, error) {
+	account := &Account{
+		Sk:       common.ToHex(sk.ExportKey()),
+		Pk:       sk.GetPubKey().Hex(),
+		Address:  sk.GetPubKey().GetAddress().Hex(),
+		Password: passwordHash(password),
+	}
+
+	if bMiner {
+		minerDO, err := model.NewSelfMinerDO(sk)
+		if err != nil {
+			return nil, err
+		}
+
+		minerRaw := &MinerRaw{
+			BPk:   minerDO.PK.GetHexString(),
+			BSk:   minerDO.SK.GetHexString(),
+			VrfPk: minerDO.VrfPK.GetHexString(),
+			VrfSk: common.ToHex(minerDO.VrfSK[:32]),
+		}
+		account.Miner = minerRaw
+	}
+	return account, nil
+}
+
+func (am *AccountManager) loadAccount(addr string, password string) (*Account, error) {
 	v, err := am.store.Get([]byte(addr))
 	if err != nil {
 		return nil, err
 	}
 
-	bs, err := encryptPrivateKey.Decrypt(rand.Reader, v)
+	salt := common.Sha256([]byte(password))
+	scryptPwd, err := scrypt.Key([]byte(password), salt, 1<<15, 8, 1, 32)
 	if err != nil {
 		return nil, err
 	}
 
-	var acc = new(Account)
-	err = json.Unmarshal(bs, acc)
+	bs, err := common.DecryptWithKey(scryptPwd, v)
 	if err != nil {
 		return nil, err
 	}
-	return acc, nil
+
+	var ksr = new(KeyStoreRaw)
+	if err = json.Unmarshal(bs, ksr); err != nil {
+		return nil, err
+	}
+
+	secKey := new(common.PrivateKey)
+	if !secKey.ImportKey(ksr.Key) {
+		return nil, ErrInternal
+	}
+
+	return am.constructAccount(password, secKey, ksr.IsMiner)
 }
 
-func (am *AccountManager) storeAccount(account *Account) error {
-	bs, err := json.Marshal(account)
+func (am *AccountManager) storeAccount(addr string, ksr *KeyStoreRaw, password string) error {
+	bs, err := json.Marshal(ksr)
 	if err != nil {
 		return err
 	}
 
-	ct, err := common.Encrypt(rand.Reader, encryptPublicKey, bs)
+	salt := common.Sha256([]byte(password))
+	scryptPwd, err := scrypt.Key([]byte(password), salt, 1<<15, 8, 1, 32)
+	if err != nil {
+		return err
+	}
+	ct, err := common.EncryptWithKey(scryptPwd, bs)
 	if err != nil {
 		return err
 	}
 
-	err = am.store.Put([]byte(account.Address), ct)
+	err = am.store.Put([]byte(addr), ct)
 	return err
 }
 
-func (am *AccountManager) getFirstMinerAccount() *Account {
-	iter := am.store.NewIterator()
-	for iter.Next() {
-		if ac, err := am.getAccountInfo(string(iter.Key())); err != nil {
-			panic(fmt.Sprintf("getAccountInfo err,addr=%v,err=%v", string(iter.Key()), err.Error()))
-		} else {
-			if ac.Miner != nil {
-				return &ac.Account
-			}
+func (am *AccountManager) checkMinerAccount(addr string, password string) (*AccountInfo, error) {
+	var aci *AccountInfo
+	if v, ok := am.accounts.Load(addr); ok {
+		aci = v.(*AccountInfo)
+		if passwordHash(password) != aci.Password {
+			return nil, ErrPassword
 		}
+	} else {
+		acc, err := am.loadAccount(addr, password)
+		if err != nil {
+			return nil, err
+		}
+		aci = &AccountInfo{
+			Account: *acc,
+		}
+		am.accounts.Store(addr, aci)
 	}
-	return nil
+	return aci, nil
 }
 
 func (am *AccountManager) resetExpireTime(addr string) {
@@ -194,17 +236,9 @@ func (am *AccountManager) getAccountInfo(addr string) (*AccountInfo, error) {
 	var aci *AccountInfo
 	if v, ok := am.accounts.Load(addr); ok {
 		aci = v.(*AccountInfo)
-	} else {
-		acc, err := am.loadAccount(addr)
-		if err != nil {
-			return nil, err
-		}
-		aci = &AccountInfo{
-			Account: *acc,
-		}
-		am.accounts.Store(addr, aci)
+		return aci, nil
 	}
-	return aci, nil
+	return nil, ErrUnlocked
 }
 
 func (am *AccountManager) currentUnLockedAddr() string {
@@ -214,39 +248,34 @@ func (am *AccountManager) currentUnLockedAddr() string {
 	return ""
 }
 
-func passwordSha(password string) string {
+func passwordHash(password string) string {
 	return common.ToHex(common.Sha256([]byte(password)))
 }
 
 // NewAccount create a new account by password
 func (am *AccountManager) NewAccount(password string, miner bool) *Result {
-	privateKey := common.GenerateKey("")
-	pubkey := privateKey.GetPubKey()
-	address := pubkey.GetAddress()
-
-	account := &Account{
-		Address:  address.Hex(),
-		Pk:       pubkey.Hex(),
-		Sk:       privateKey.Hex(),
-		Password: passwordSha(password),
+	privateKey, err := common.GenerateKey("")
+	if err != nil {
+		return opError(err)
 	}
-
-	if miner {
-		minerDO := model.NewSelfMinerDO(&privateKey)
-
-		minerRaw := &MinerRaw{
-			BPk:   minerDO.PK.GetHexString(),
-			BSk:   minerDO.SK.GetHexString(),
-			VrfPk: minerDO.VrfPK.GetHexString(),
-			VrfSk: minerDO.VrfSK.GetHexString(),
-		}
-		account.Miner = minerRaw
-	}
-	if err := am.storeAccount(account); err != nil {
+	account, err := am.constructAccount(password, &privateKey, miner)
+	if err != nil {
 		return opError(err)
 	}
 
-	return opSuccess(address.Hex())
+	ksr := &KeyStoreRaw{
+		Key:     privateKey.ExportKey(),
+		IsMiner: miner,
+	}
+	if err := am.storeAccount(account.Address, ksr, password); err != nil {
+		return opError(err)
+	}
+	aci := &AccountInfo{
+		Account: *account,
+	}
+	am.accounts.Store(account.Address, aci)
+
+	return opSuccess(account.Address)
 }
 
 // AccountList show account list
@@ -271,13 +300,23 @@ func (am *AccountManager) Lock(addr string) *Result {
 
 // UnLock unlock the account by address and password
 func (am *AccountManager) UnLock(addr string, password string, duration uint) *Result {
-	aci, err := am.getAccountInfo(addr)
-	if err != nil {
-		return opError(err)
+	var aci *AccountInfo
+	if v, ok := am.accounts.Load(addr); ok {
+		aci = v.(*AccountInfo)
+		if passwordHash(password) != aci.Password {
+			return opError(ErrPassword)
+		}
+	} else {
+		acc, err := am.loadAccount(addr, password)
+		if err != nil {
+			return opError(ErrPassword)
+		}
+		aci = &AccountInfo{
+			Account: *acc,
+		}
+		am.accounts.Store(addr, aci)
 	}
-	if aci.Password != passwordSha(password) {
-		return opError(ErrPassword)
-	}
+
 	am.mu.Lock()
 	defer am.mu.Unlock()
 
@@ -329,4 +368,32 @@ func (am *AccountManager) DeleteAccount() *Result {
 
 func (am *AccountManager) Close() {
 	am.store.Close()
+}
+
+// NewAccountByImportKey create a new account by the input private key
+func (am *AccountManager) NewAccountByImportKey(key string, password string, miner bool) *Result {
+	kBytes := common.FromHex(key)
+	privateKey := new(common.PrivateKey)
+	if !privateKey.ImportKey(kBytes) {
+		return opError(ErrInternal)
+	}
+
+	account, err := am.constructAccount(password, privateKey, miner)
+	if err != nil {
+		return opError(err)
+	}
+
+	ksr := &KeyStoreRaw{
+		Key:     kBytes,
+		IsMiner: miner,
+	}
+	if err := am.storeAccount(account.Address, ksr, password); err != nil {
+		return opError(err)
+	}
+	aci := &AccountInfo{
+		Account: *account,
+	}
+	am.accounts.Store(account.Address, aci)
+
+	return opSuccess(account.Address)
 }

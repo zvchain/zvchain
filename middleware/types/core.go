@@ -87,15 +87,16 @@ func NewTransactionError(code int, msg string) *TransactionError {
 
 // Supported transaction types
 const (
-	TransactionTypeTransfer         = 0
-	TransactionTypeContractCreate   = 1
-	TransactionTypeContractCall     = 2
-	TransactionTypeBonus            = 3
-	TransactionTypeMinerApply       = 4
-	TransactionTypeMinerAbort       = 5
-	TransactionTypeMinerRefund      = 6
-	TransactionTypeMinerCancelStake = 7
-	TransactionTypeMinerStake       = 8
+	TransactionTypeTransfer       = 0
+	TransactionTypeContractCreate = 1
+	TransactionTypeContractCall   = 2
+	TransactionTypeBonus          = 3
+
+	// Miner operation related type
+	TransactionTypeStakeAdd    = 4
+	TransactionTypeMinerAbort  = 5
+	TransactionTypeStakeReduce = 6
+	TransactionTypeStakeRefund = 7
 
 	TransactionTypeToBeRemoved = -1
 )
@@ -243,30 +244,6 @@ type Bonus struct {
 	GroupID    []byte
 	Sign       []byte
 	TotalValue uint64
-}
-
-const (
-	MinerTypeVerify   = 0
-	MinerTypeProposal = 1
-)
-
-const (
-	MinerStatusNormal    = 0 // Miner is activated
-	MinerStatusAbort     = 1 // Miner abort by self
-	MinerStatusForbidden = 2 // Miner forbidden by system
-	MinerStatusLackInfo  = 3 // Miner pk info not completed
-)
-
-// Miner is the miner info including public keys and pledges
-type Miner struct {
-	ID           []byte
-	PublicKey    []byte
-	VrfPublicKey []byte
-	ApplyHeight  uint64
-	Stake        uint64
-	AbortHeight  uint64
-	Type         byte
-	Status       byte
 }
 
 // BlockHeader is block header structure
@@ -457,21 +434,4 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 
 func (bw *BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.PV.Uint64())
-}
-
-// StakeStatus indicates the stake status
-type StakeStatus = int8
-
-const (
-	Staked      StakeStatus = iota // Normal status
-	StakeFrozen                    // Frozen status
-)
-
-// StakeDetail expresses the stake detail
-type StakeDetail struct {
-	Source       common.Address
-	Target       common.Address
-	Value        uint64
-	Status       StakeStatus
-	FrozenHeight uint64
 }

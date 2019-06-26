@@ -20,12 +20,17 @@ package tvm
 */
 import "C"
 import (
+	"github.com/zvchain/zvchain/storage/vm"
+	"github.com/zvchain/zvchain/taslog"
 	"math/big"
+	"strconv"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
+
+var logger = taslog.GetLoggerByIndex(taslog.TvmConfig, strconv.FormatInt(int64(common.InstanceIndex), 10))
 
 //export Transfer
 func Transfer(toAddressStr *C.char, value *C.char) {
@@ -130,77 +135,70 @@ func RemoveData(key *C.char) {
 	controller.AccountDB.RemoveData(address, C.GoString(key))
 }
 
+func executeMinerOperation(msg vm.MinerOperationMessage) bool {
+	success, err := controller.mm.ExecuteOperation(controller.AccountDB, msg, controller.BlockHeader.Height)
+	if err != nil {
+		logger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())
+	}
+	return success
+}
+
 //export MinerStake
 func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
-	ss := controller.AccountDB.Snapshot()
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
 	if !ok {
 		return false
 	}
-	source := controller.VM.ContractAddress
-	miner := common.HexToAddress(C.GoString(minerAddr))
-	if canTransfer(controller.AccountDB, *source, value) {
-		mexist := controller.mm.GetMinerByID(miner.Bytes(), byte(_type), controller.AccountDB)
-		if mexist != nil &&
-			controller.mm.AddStake(mexist.ID, mexist, value.Uint64(), controller.AccountDB) &&
-			controller.mm.AddStakeDetail(source.Bytes(), mexist, value.Uint64(), controller.AccountDB) {
-			controller.AccountDB.SubBalance(*source, value)
-			return true
-		}
+	mPks := &types.MinerPks{
+		MType: types.MinerType(byte(_type)),
 	}
-	controller.AccountDB.RevertToSnapshot(ss)
-	return false
+	payload, err := types.EncodePayload(mPks)
+	if err != nil {
+		logger.Errorf("encode payload error:%v", err)
+		return false
+	}
+	target := common.HexToAddress(C.GoString(minerAddr))
+	msg := &minerOpMsg{
+		source:  controller.VM.ContractAddress,
+		target:  &target,
+		value:   value,
+		payload: payload,
+		typ:     types.TransactionTypeStakeAdd,
+	}
+
+	return executeMinerOperation(msg)
+
 }
 
 //export MinerCancelStake
 func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
-	ss := controller.AccountDB.Snapshot()
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
 	if !ok {
 		return false
 	}
-	source := controller.VM.ContractAddress
-	miner := common.HexToAddress(C.GoString(minerAddr))
-	mexist := controller.mm.GetMinerByID(miner.Bytes(), byte(_type), controller.AccountDB)
-	if mexist != nil &&
-		controller.mm.CancelStake(source.Bytes(), mexist, value.Uint64(), controller.AccountDB, controller.BlockHeader.Height) &&
-		controller.mm.ReduceStake(mexist.ID, mexist, value.Uint64(), controller.AccountDB, controller.BlockHeader.Height) {
-		return true
+	payload := []byte{byte(_type)}
+	target := common.HexToAddress(C.GoString(minerAddr))
+	msg := &minerOpMsg{
+		source:  controller.VM.ContractAddress,
+		target:  &target,
+		value:   value,
+		payload: payload,
+		typ:     types.TransactionTypeStakeReduce,
 	}
-	controller.AccountDB.RevertToSnapshot(ss)
-	return false
+
+	return executeMinerOperation(msg)
 }
 
 //export MinerRefundStake
 func MinerRefundStake(minerAddr *C.char, _type int) bool {
-	var success = false
-	ss := controller.AccountDB.Snapshot()
-	source := controller.VM.ContractAddress
-	miner := common.HexToAddress(C.GoString(minerAddr))
-	mexist := controller.mm.GetMinerByID(miner.Bytes(), byte(_type), controller.AccountDB)
-	height := controller.BlockHeader.Height
-	if mexist != nil {
-		if mexist.Type == types.MinerTypeProposal {
-			latestCancelPledgeHeight := controller.mm.GetLatestCancelStakeHeight(source.Bytes(), mexist, controller.AccountDB)
-			if height > latestCancelPledgeHeight+10 || (mexist.Status == types.MinerStatusAbort && height > mexist.AbortHeight+10) {
-				value, ok := controller.mm.RefundStake(source.Bytes(), mexist, controller.AccountDB)
-				if ok {
-					refundValue := big.NewInt(0).SetUint64(value)
-					controller.AccountDB.AddBalance(*source, refundValue)
-					success = true
-				}
-			}
-		} else {
-			value, ok := controller.mm.RefundStake(source.Bytes(), mexist, controller.AccountDB)
-			if ok {
-				refundValue := big.NewInt(0).SetUint64(value)
-				controller.AccountDB.AddBalance(*source, refundValue)
-				success = true
-			}
-		}
+	payload := []byte{byte(_type)}
+	target := common.HexToAddress(C.GoString(minerAddr))
+	msg := &minerOpMsg{
+		source:  controller.VM.ContractAddress,
+		target:  &target,
+		payload: payload,
+		typ:     types.TransactionTypeStakeRefund,
 	}
-	if !success {
-		controller.AccountDB.RevertToSnapshot(ss)
-	}
-	return success
+
+	return executeMinerOperation(msg)
 }

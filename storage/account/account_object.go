@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"reflect"
 	"sync"
 
 	"github.com/zvchain/zvchain/taslog"
@@ -173,41 +172,15 @@ func (ao *accountObject) touch() {
 }
 
 func (ao *accountObject) getTrie(db AccountDatabase) Trie {
-	if ao.address == common.HeavyDBAddress {
-		getLogger().Infof("access HeavyDBAddress begin,root is %x,addr is %p", ao.data.Root, ao)
-		taslog.Flush()
-	}
 	if ao.trie == nil {
-		if ao.address == common.HeavyDBAddress {
-			getLogger().Infof("access HeavyDBAddress begin find trie is nil,root is %x,addr is %p", ao.data.Root, ao)
-			taslog.Flush()
-		}
-		var err error
-
-		//todo delete
-		if ao.address == common.HeavyDBAddress {
-			_, err2 := db.OpenStorageTrie(ao.addrHash, ao.data.Root)
-			if err2 != nil {
-				getLogger().Infof("access HeavyDBAddress1 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err2, err2.Error(), ao.data.Root, ao)
-				taslog.Flush()
-			}
-		}
-
-		ao.trie, err = db.OpenStorageTrie(ao.addrHash, ao.data.Root)
+		tr, err := db.OpenStorageTrie(ao.addrHash, ao.data.Root)
 		if err != nil {
 			getLogger().Infof("access HeavyDBAddress2 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root, ao)
 			taslog.Flush()
-			ao.trie, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
+			tr, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
 			ao.setError(fmt.Errorf("can't create storage trie: %v", err))
 		}
-	}
-	if ao.trie == nil {
-		getLogger().Infof("access HeavyDBAddress over find trie is nil,root is %x,addr is %p", ao.data.Root, ao)
-		taslog.Flush()
-	}
-	if reflect.ValueOf(ao.trie).IsNil() {
-		getLogger().Infof("access HeavyDBAddress over find trie value is nil,root is %x,addr is %p", ao.data.Root, ao)
-		taslog.Flush()
+		ao.trie = tr
 	}
 	return ao.trie
 }
@@ -238,10 +211,6 @@ func (ao *accountObject) GetData(db AccountDatabase, key []byte) []byte {
 
 // SetData updates a value in account storage.
 func (ao *accountObject) SetData(db AccountDatabase, key []byte, value []byte) {
-	if ao.address == common.HeavyDBAddress {
-		getLogger().Infof("set data HeavyDBAddress .root is %x", ao.data.Root)
-		taslog.Flush()
-	}
 	ao.db.transitions = append(ao.db.transitions, storageChange{
 		account:  &ao.address,
 		key:      key,
@@ -286,11 +255,6 @@ func (ao *accountObject) updateTrie(db AccountDatabase) Trie {
 func (ao *accountObject) updateRoot(db AccountDatabase) {
 	ao.updateTrie(db)
 	ao.data.Root = ao.trie.Hash()
-
-	if ao.address == common.HeavyDBAddress {
-		getLogger().Infof("updateRoot HeavyDBAddress .root is %x", ao.data.Root)
-		taslog.Flush()
-	}
 }
 
 // CommitTrie the storage trie of the object to db.
@@ -302,15 +266,6 @@ func (ao *accountObject) CommitTrie(db AccountDatabase) error {
 	}
 	root, err := ao.trie.Commit(nil)
 
-	if ao.address == common.HeavyDBAddress {
-		if err != nil {
-			getLogger().Errorf("commit HeavyDBAddress .root is %x,error is %s", root, err.Error())
-			taslog.Flush()
-		} else {
-			getLogger().Infof("commit HeavyDBAddress .root is %x", root)
-			taslog.Flush()
-		}
-	}
 	if err == nil {
 		ao.data.Root = root
 		//ao.db.db.PushTrie(root, ao.trie)

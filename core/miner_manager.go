@@ -17,6 +17,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -77,6 +78,30 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 	MinerManagerImpl.ticker.StartTickerRoutine("build_virtual_net", false)
 }
 
+// ExecuteOperation execute the miner operation
+func (mm *MinerManager) ExecuteOperation(accountdb vm.AccountDB, msg vm.MinerOperationMessage, height uint64) (success bool, err error) {
+	operation := newOperation(accountdb, msg, height)
+	if operation == nil {
+		err = fmt.Errorf("new operation nil")
+		return
+	}
+
+	if err = operation.Validate(); err != nil {
+		return
+	}
+
+	if err = operation.ParseTransaction(); err != nil {
+		return
+	}
+
+	snapshot := accountdb.Snapshot()
+	if err = operation.Operation(); err != nil {
+		accountdb.RevertToSnapshot(snapshot)
+		return
+	}
+	return true, nil
+}
+
 func (mm *MinerManager) GetMinerByID(id []byte, ttype byte, accountdb vm.AccountDB) *types.Miner {
 	if accountdb == nil {
 		accountdb = BlockChainImpl.LatestStateDB()
@@ -108,7 +133,7 @@ func (mm *MinerManager) GetTotalStake(height uint64) uint64 {
 	for iter.Next() {
 		miner, _ := iter.Current()
 		if height >= miner.ApplyHeight {
-			if miner.Status == types.MinerStatusNormal || height < miner.AbortHeight {
+			if miner.Status == types.MinerStatusActive || height < miner.AbortHeight {
 				total += miner.Stake
 			}
 		}
@@ -226,7 +251,7 @@ func (mm *MinerManager) activateAndAddStakeMiner(miner *types.Miner, accountdb v
 	if miner.Stake < common.VerifyStake && miner.Type == types.MinerTypeVerify {
 		return false
 	}
-	miner.Status = types.MinerStatusNormal
+	miner.Status = types.MinerStatusActive
 	miner.ApplyHeight = height
 	data, _ := msgpack.Marshal(miner)
 	accountdb.SetData(db, string(miner.ID), data)
@@ -269,8 +294,8 @@ func (mm *MinerManager) removeMiner(id []byte, ttype byte, accountdb vm.AccountD
 
 func (mm *MinerManager) abortMiner(id []byte, ttype byte, height uint64, accountdb vm.AccountDB) bool {
 	miner := mm.GetMinerByID(id, ttype, accountdb)
-	if miner != nil && miner.Status == types.MinerStatusNormal {
-		miner.Status = types.MinerStatusAbort
+	if miner != nil && miner.Status == types.MinerStatusActive {
+		miner.Status = types.MinerStatusPrepare
 		miner.AbortHeight = height
 
 		db := mm.getMinerDatabase(ttype)
@@ -438,10 +463,10 @@ func (mm *MinerManager) AddStake(id []byte, miner *types.Miner, amount uint64, a
 		Logger.Debug("MinerManager.AddStake return false (overflow)")
 		return false
 	}
-	if miner.Status == types.MinerStatusAbort &&
+	if miner.Status == types.MinerStatusPrepare &&
 		miner.Type == types.MinerTypeVerify &&
 		miner.Stake >= common.VerifyStake {
-		miner.Status = types.MinerStatusNormal
+		miner.Status = types.MinerStatusActive
 		mm.updateMinerCount(miner.Type, minerCountIncrease, accountdb)
 	}
 	data, _ := msgpack.Marshal(miner)
@@ -457,14 +482,14 @@ func (mm *MinerManager) ReduceStake(id []byte, miner *types.Miner, amount uint64
 		return false
 	}
 	miner.Stake -= amount
-	if miner.Status == types.MinerStatusNormal &&
+	if miner.Status == types.MinerStatusActive &&
 		miner.Type == types.MinerTypeVerify &&
 		miner.Stake < common.VerifyStake {
 		if GroupChainImpl.WhetherMemberInActiveGroup(id, height) {
 			Logger.Debugf("TVMExecutor Execute MinerRefund Light Fail(Still In Active Group) %s", common.ToHex(id))
 			return false
 		}
-		miner.Status = types.MinerStatusAbort
+		miner.Status = types.MinerStatusPrepare
 		miner.AbortHeight = height
 		mm.updateMinerCount(miner.Type, minerCountDecrease, accountdb)
 	}

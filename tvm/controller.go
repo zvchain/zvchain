@@ -54,13 +54,7 @@ type Controller struct {
 
 // MinerManager MinerManager is the interface of the miner manager
 type MinerManager interface {
-	GetMinerByID(id []byte, ttype byte, accountdb vm.AccountDB) *types.Miner
-	GetLatestCancelStakeHeight(from []byte, miner *types.Miner, accountdb vm.AccountDB) uint64
-	RefundStake(from []byte, miner *types.Miner, accountdb vm.AccountDB) (uint64, bool)
-	CancelStake(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
-	ReduceStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
-	AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool
-	AddStakeDetail(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool
+	ExecuteOperation(accountdb vm.AccountDB, msg vm.MinerOperationMessage, height uint64) (success bool, err error)
 }
 
 // GroupChainManager GroupChainManager is the interface of the GroupChain manager

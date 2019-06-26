@@ -26,63 +26,45 @@ import (
 
 var (
 	prefixMiner               = []byte("minfo")
-	prefixStakeFrom           = []byte("from")
-	prefixStakeTo             = []byte("to")
 	prefixPoolProposal        = []byte("p")
 	prefixPoolVerifier        = []byte("v")
 	keyPoolProposalTotalStake = []byte("totalstake")
 )
 
 var (
-	minerPoolAddr             = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of proposal role, and (address,stake) paires of verify roles
-	HeavyDBAddress            = common.BigToAddress(big.NewInt(2))
-	MinerCountDBAddress       = common.BigToAddress(big.NewInt(3))
-	MinerStakeDetailDBAddress = common.BigToAddress(big.NewInt(4))
+	minerPoolAddr = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
 )
 
 type stakeDetail struct {
-	Value  uint64
-	Height uint64
+	Value  uint64 // Stake operation amount
+	Height uint64 // Operation height
 }
 
-func tx2Miner(tx *types.Transaction) (*types.Miner, error) {
-	data := common.FromHex(string(tx.Data))
-	var miner = new(types.Miner)
-	err := msgpack.Unmarshal(data, miner)
-	if err != nil {
-		return nil, err
-	}
-	miner.ID = tx.Target.Bytes()
-	return miner, nil
-}
-
-func getDetailKey(prefix []byte, address common.Address, typ byte, status types.StakeStatus) []byte {
-	buf := bytes.NewBuffer(prefix)
+func getDetailKey(address common.Address, typ types.MinerType, status types.StakeStatus) []byte {
+	buf := bytes.NewBuffer([]byte{})
 	buf.Write(address.Bytes())
-	buf.WriteByte(typ)
+	buf.WriteByte(byte(typ))
 	buf.WriteByte(byte(status))
 	return buf.Bytes()
 }
 
-// mergeMinerInfo merge the new miner info to the old one.
-// The existing public keys and id will be replaced by the new if set
-func mergeMinerInfo(old *types.Miner, nm *types.Miner) *types.Miner {
-	old.Stake += nm.Stake
-	if len(nm.ID) > 0 {
-		old.ID = nm.ID
+func setPks(miner *types.Miner, pks *types.MinerPks) *types.Miner {
+	if len(pks.Pk) > 0 {
+		miner.PublicKey = pks.Pk
 	}
-	if len(nm.PublicKey) > 0 {
-		old.PublicKey = nm.PublicKey
-	}
-	if len(nm.VrfPublicKey) > 0 {
-		old.VrfPublicKey = nm.VrfPublicKey
+	if len(pks.VrfPk) > 0 {
+		miner.VrfPublicKey = pks.VrfPk
 	}
 
-	return old
+	return miner
 }
 
-// checkCanActivate if status can be set to types.MinerStatusNormal
-func checkCanActivate(miner *types.Miner) bool {
+// checkCanActivate if status can be set to types.MinerStatusActive
+func checkCanActivate(miner *types.Miner, height uint64) bool {
+	// pks not completed
+	if !miner.PksCompleted() {
+		return false
+	}
 	// If the verifier stake up to the bound, then activate the miner
 	// todo how to avtivate the miner ? manual or auto ?
 	// todo check miner pks completed
@@ -93,9 +75,17 @@ func checkCanInActivate(miner *types.Miner) bool {
 	return miner.Stake < common.VerifyStake
 }
 
-func getMinerKey(typ byte) []byte {
+func checkUpperBound(miner *types.Miner, height uint64) bool {
+	return true
+}
+
+func checkLowerBound(miner *types.Miner, height uint64) bool {
+	return true
+}
+
+func getMinerKey(typ types.MinerType) []byte {
 	buf := bytes.NewBuffer(prefixMiner)
-	buf.WriteByte(typ)
+	buf.WriteByte(byte(typ))
 	return buf.Bytes()
 }
 
@@ -105,33 +95,51 @@ func getPoolKey(prefix []byte, address common.Address) []byte {
 	return buf.Bytes()
 }
 
-func (op *baseOperation) addToPool(address common.Address, typ byte, stake uint64) {
-	key := []byte{}
-	if typ == types.MinerTypeProposal {
+func (op *baseOperation) opProposalRole() bool {
+	return types.IsProposalRole(op.minerType)
+}
+func (op *baseOperation) opVerifyRole() bool {
+	return types.IsVerifyRole(op.minerType)
+}
+
+func (op *baseOperation) addToPool(address common.Address, addStake uint64) {
+	var key []byte
+	if op.opProposalRole() {
 		key = getPoolKey(prefixPoolProposal, address)
-		totalStakeBytes := op.accountdb.GetData(minerPoolAddr, keyPoolProposalTotalStake)
-		totalStake := uint64(0)
-		if len(totalStakeBytes) > 0 {
-			totalStake = common.ByteToUInt64(totalStakeBytes)
-		}
-		oldStake := uint64(0)
-		oldStakeBytes := op.accountdb.GetData(minerPoolAddr, key)
-		if len(oldStakeBytes) > 0 {
-			oldStake = common.ByteToUInt64(oldStakeBytes)
-		}
-		op.accountdb.SetData(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(stake+totalStake-oldStake))
-	} else if typ == types.MinerTypeVerify {
+		op.addProposalTotalStake(addStake)
+	} else if op.opVerifyRole() {
 		key = getPoolKey(prefixPoolVerifier, address)
 
 	}
-	op.accountdb.SetData(minerPoolAddr, key, common.Uint64ToByte(stake))
+	op.minerPool.SetDataSafe(minerPoolAddr, key, []byte{1})
 }
 
-func (op *baseOperation) removeFromPool(address common.Address, typ byte, stake uint64) {
-	key := []byte{}
-	if typ == types.MinerTypeProposal {
+func (op *baseOperation) addProposalTotalStake(addStake uint64) {
+	totalStakeBytes := op.minerPool.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
+	totalStake := uint64(0)
+	if len(totalStakeBytes) > 0 {
+		totalStake = common.ByteToUInt64(totalStakeBytes)
+	}
+	op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
+}
+
+func (op *baseOperation) subProposalTotalStake(subStake uint64) {
+	totalStakeBytes := op.minerPool.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
+	totalStake := uint64(0)
+	if len(totalStakeBytes) > 0 {
+		totalStake = common.ByteToUInt64(totalStakeBytes)
+	}
+	if totalStake < subStake {
+		panic("total stake less than sub stake")
+	}
+	op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-subStake))
+}
+
+func (op *baseOperation) removeFromPool(address common.Address, stake uint64) {
+	var key []byte
+	if op.opProposalRole() {
 		key = getPoolKey(prefixPoolProposal, address)
-		totalStakeBytes := op.accountdb.GetData(minerPoolAddr, keyPoolProposalTotalStake)
+		totalStakeBytes := op.minerPool.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
 		totalStake := uint64(0)
 		if len(totalStakeBytes) > 0 {
 			totalStake = common.ByteToUInt64(totalStakeBytes)
@@ -139,21 +147,16 @@ func (op *baseOperation) removeFromPool(address common.Address, typ byte, stake 
 		if totalStake < stake {
 			panic(fmt.Errorf("totalStake less than stake: %v %v", totalStake, stake))
 		}
-		oldStake := uint64(0)
-		oldStakeBytes := op.accountdb.GetData(minerPoolAddr, key)
-		if len(oldStakeBytes) > 0 {
-			oldStake = common.ByteToUInt64(oldStakeBytes)
-		}
-		op.accountdb.SetData(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-oldStake))
-	} else if typ == types.MinerTypeVerify {
+		op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-stake))
+	} else if op.opVerifyRole() {
 		key = getPoolKey(prefixPoolVerifier, address)
 
 	}
-	op.accountdb.RemoveData(minerPoolAddr, key)
+	op.minerPool.RemoveDataSafe(minerPoolAddr, key)
 }
 
 func (op *baseOperation) getDetail(address common.Address, detailKey []byte) (*stakeDetail, error) {
-	data := op.accountdb.GetData(address, detailKey)
+	data := op.accountDB.GetData(address, detailKey)
 	if data != nil && len(data) > 0 {
 		var detail stakeDetail
 		err := msgpack.Unmarshal(data, &detail)
@@ -170,16 +173,16 @@ func (op *baseOperation) setDetail(address common.Address, detailKey []byte, sd 
 	if err != nil {
 		return err
 	}
-	op.accountdb.SetData(address, detailKey, bs)
+	op.accountDB.SetData(address, detailKey, bs)
 	return nil
 }
 
 func (op *baseOperation) removeDetail(address common.Address, detailKey []byte) {
-	op.accountdb.RemoveData(address, detailKey)
+	op.accountDB.RemoveData(address, detailKey)
 }
 
-func (op *baseOperation) getMiner(address common.Address, typ byte) (*types.Miner, error) {
-	data := op.accountdb.GetData(address, getMinerKey(typ))
+func (op *baseOperation) getMiner(address common.Address) (*types.Miner, error) {
+	data := op.accountDB.GetData(address, getMinerKey(op.minerType))
 	if data != nil && len(data) > 0 {
 		var miner types.Miner
 		err := msgpack.Unmarshal(data, &miner)
@@ -196,6 +199,6 @@ func (op *baseOperation) setMiner(miner *types.Miner) error {
 	if err != nil {
 		return err
 	}
-	op.accountdb.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
+	op.accountDB.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
 	return nil
 }

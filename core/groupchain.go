@@ -152,6 +152,7 @@ func build(chain *GroupChain, genesisInfo *types.GenesisInfo) {
 		lastGroup.GroupHeight = 0
 		e := chain.commitGroup(lastGroup)
 		if e != nil {
+			// panic is allowed if only called in init function
 			panic("Add genesis group on chain failed:" + e.Error())
 		}
 	}

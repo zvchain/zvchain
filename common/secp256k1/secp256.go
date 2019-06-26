@@ -124,6 +124,7 @@ func RecoverPubkey(msg []byte, sig []byte) ([]byte, error) {
 // The signature should be in [R || S] format.
 func VerifySignature(pubkey, msg, signature []byte) bool {
 	if len(msg) != 32 || len(signature) != 64 || len(pubkey) == 0 {
+		// this function is not used
 		panic("Bad input parameters in VerifySignature!")
 	}
 	sigdata := (*C.uchar)(unsafe.Pointer(&signature[0]))
@@ -162,6 +163,7 @@ func CompressPubkey(x, y *big.Int) []byte {
 		outlen     = C.size_t(len(out))
 	)
 	if C.secp256k1_ext_reencode_pubkey(context, outdata, outlen, pubkeydata, pubkeylen) == 0 {
+		// this function is not used
 		panic("libsecp256k1 error")
 	}
 	return out

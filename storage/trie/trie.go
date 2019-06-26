@@ -112,7 +112,7 @@ func (t *Trie) Get(key []byte) []byte {
 func (t *Trie) TryGet(key []byte) ([]byte, error) {
 	defer func() {
 		if err := recover(); err != nil {
-			if t == nil{
+			if t == nil {
 				common.DefaultLogger.Infof("find trie is nil pantic")
 			}
 			taslog.Flush2()
