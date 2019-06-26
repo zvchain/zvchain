@@ -23,11 +23,11 @@ import (
 	"testing"
 )
 
-func TestTvm(t *testing.T) {
+func _deployContract(contractName string, filePath string) string {
 	tvmCli := NewTvmCli()
-	f, err := os.Open("erc20.py") //读取文件
+	f, err := os.Open(filePath) //读取文件
 	if err != nil {
-		t.Fail()
+		panic("")
 	}
 	defer f.Close()
 	codeStr := ""
@@ -39,19 +39,36 @@ func TestTvm(t *testing.T) {
 			if err == io.EOF {
 				break
 			} else {
-				t.Fail()
-				return
+				panic("")
 			}
 		}
 	}
-	contractAddress := tvmCli.Deploy("Token", codeStr)
+	contractAddress := tvmCli.Deploy(contractName, codeStr)
 	tvmCli.DeleteTvmCli()
+	return contractAddress
+}
 
-	tvmCli = NewTvmCli()
+func TestTvmCallContract(t *testing.T) {
+	contractAddress := _deployContract("Token", "erc20.py")
+
+	tvmCli := NewTvmCli()
 	abiJson := `{
 	"FuncName": "balance_of",
 		"Args": ["0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`
 	tvmCli.Call(contractAddress, abiJson)
+	tvmCli.DeleteTvmCli()
+}
+
+func TestTvmContractCallContract(t *testing.T) {
+	erc20Contract := _deployContract("Token", "erc20.py")
+	routerContract := _deployContract("Router", "router.py")
+
+	tvmCli := NewTvmCli()
+	abiJson := fmt.Sprintf(`{
+  "FuncName": "call_contract",
+  "Args": ["%s","balance_of","0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
+}`, erc20Contract)
+	tvmCli.Call(routerContract, abiJson)
 	tvmCli.DeleteTvmCli()
 }
