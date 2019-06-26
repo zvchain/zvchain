@@ -95,11 +95,11 @@ func convertBlockHeader(b *types.Block) *Block {
 	return block
 }
 
-func convertBonusTransaction(tx *types.Transaction) *BonusTransaction {
-	if tx.Type != types.TransactionTypeBonus {
+func convertRewardTransaction(tx *types.Transaction) *RewardTransaction {
+	if tx.Type != types.TransactionTypeReward {
 		return nil
 	}
-	gid, ids, bhash, value, err := mediator.Proc.MainChain.GetBonusManager().ParseBonusTransaction(tx)
+	gid, ids, bhash, value, err := mediator.Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
 	if err != nil {
 		return nil
 	}
@@ -107,7 +107,7 @@ func convertBonusTransaction(tx *types.Transaction) *BonusTransaction {
 	for i, id := range ids {
 		targets[i] = groupsig.DeserializeID(id)
 	}
-	return &BonusTransaction{
+	return &RewardTransaction{
 		Hash:      tx.Hash,
 		BlockHash: bhash,
 		GroupID:   groupsig.DeserializeID(gid),
@@ -116,8 +116,8 @@ func convertBonusTransaction(tx *types.Transaction) *BonusTransaction {
 	}
 }
 
-func genMinerBalance(id groupsig.ID, bh *types.BlockHeader) *MinerBonusBalance {
-	mb := &MinerBonusBalance{
+func genMinerBalance(id groupsig.ID, bh *types.BlockHeader) *MinerRewardBalance {
+	mb := &MinerRewardBalance{
 		ID: id,
 	}
 	db, err := mediator.Proc.MainChain.GetAccountDBByHash(bh.Hash)

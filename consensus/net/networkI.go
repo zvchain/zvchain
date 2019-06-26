@@ -72,14 +72,14 @@ type MessageProcessor interface {
 	// during the new-group-info consensus process
 	OnMessageCreateGroupSign(msg *model.ConsensusCreateGroupSignMessage)
 
-	// OnMessageCastRewardSignReq handles bonus transaction signature requests
+	// OnMessageCastRewardSignReq handles reward transaction signature requests
 	// It signs the message if and only if the block of the transaction already added on chain,
 	// otherwise the message will be cached util the condition met
 	OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage)
 
-	// OnMessageCastRewardSign receives signed messages for the bonus transaction from group members
+	// OnMessageCastRewardSign receives signed messages for the reward transaction from group members
 	// If threshold signature received and the group signature recovered successfully,
-	// the node will submit the bonus transaction to the pool
+	// the node will submit the reward transaction to the pool
 	OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage)
 
 	// OnMessageCreateGroupPing handles Ping request from parent nodes
@@ -155,10 +155,10 @@ type NetworkServer interface {
 	// ReleaseGroupNet releases the group net in local
 	ReleaseGroupNet(groupIdentifier string)
 
-	// SendCastRewardSignReq sends bonus transaction sign request to other members of the group
+	// SendCastRewardSignReq sends reward transaction sign request to other members of the group
 	SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage)
 
-	// SendCastRewardSign sends signed message of the bonus transaction to the requester by group relaying
+	// SendCastRewardSign sends signed message of the reward transaction to the requester by group relaying
 	SendCastRewardSign(msg *model.CastRewardTransSignMessage)
 
 	// AnswerSignPkMessage sends the group-related public key request to requester

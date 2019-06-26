@@ -153,19 +153,19 @@ func marshalConsensusCreateGroupSignMessage(msg *model.ConsensusCreateGroupSignM
 	return proto.Marshal(&message)
 }
 
-func bonusToPB(bonus *types.Bonus) *tas_middleware_pb.Bonus {
-	return &tas_middleware_pb.Bonus{
-		TxHash:     bonus.TxHash.Bytes(),
-		TargetIds:  bonus.TargetIds,
-		BlockHash:  bonus.BlockHash.Bytes(),
-		GroupId:    bonus.GroupID,
-		Sign:       bonus.Sign,
-		TotalValue: &bonus.TotalValue,
+func rewardToPB(reward *types.Reward) *tas_middleware_pb.Reward {
+	return &tas_middleware_pb.Reward{
+		TxHash:     reward.TxHash.Bytes(),
+		TargetIds:  reward.TargetIds,
+		BlockHash:  reward.BlockHash.Bytes(),
+		GroupId:    reward.GroupID,
+		Sign:       reward.Sign,
+		TotalValue: &reward.TotalValue,
 	}
 }
 
 func marshalCastRewardTransSignReqMessage(msg *model.CastRewardTransSignReqMessage) ([]byte, error) {
-	b := bonusToPB(&msg.Reward)
+	b := rewardToPB(&msg.Reward)
 	si := signDataToPb(&msg.SI)
 	pieces := make([][]byte, 0)
 	for _, sp := range msg.SignedPieces {

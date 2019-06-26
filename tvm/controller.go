@@ -59,7 +59,7 @@ type MinerManager interface {
 	RefundStake(from []byte, miner *types.Miner, accountdb vm.AccountDB) (uint64, bool)
 	CancelStake(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
 	ReduceStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
-	AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool
+	AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
 	AddStakeDetail(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool
 }
 

@@ -35,8 +35,6 @@ const (
 	TAS        = 1000000000
 )
 
-const VerifyStake = 100 * TAS
-
 var (
 	ErrEmptyStr   = fmt.Errorf("empty string")
 	ErrIllegalStr = fmt.Errorf("illegal gasprice string")

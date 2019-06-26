@@ -32,7 +32,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         h = $(this).text();
         queryBlockDetail(h)
     });
-    $(document).on("click", "a[name='bonus_table_hash_row']", function () {
+    $(document).on("click", "a[name='reward_table_hash_row']", function () {
         h = $(this).text();
         queryBlockDetail(h)
     });
@@ -78,22 +78,22 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
                 $("#block_total_qn").text(d.total_qn);
                 $("#block_pre_total_qn").text(d.pre_total_qn);
 
-                gbt = d.gen_bonus_tx;
+                gbt = d.gen_reward_tx;
                 if (gbt != null && gbt != undefined) {
-                    $("#gen_bonus_hash").text(gbt.hash);
+                    $("#gen_reward_hash").text(gbt.hash);
                     $("#gen_bouns_value").text(gbt.value);
-                    target = $("#gen_bonus_targets");
+                    target = $("#gen_reward_targets");
                     target.html('');
                     $.each(gbt.target_ids, function (i, v) {
                         target.append('<div class="layui-row">' + v + '</div>')
                     })
                 } else {
-                    $("#gen_bonus_hash").text('--');
+                    $("#gen_reward_hash").text('--');
                     $("#gen_bouns_value").text('--');
-                    $("#gen_bonus_targets").html('--')
+                    $("#gen_reward_targets").html('--')
                 }
                 table.render({
-                    elem: '#bonus_balance_table' //指定原始表格元素选择器（推荐id选择器）
+                    elem: '#reward_balance_table' //指定原始表格元素选择器（推荐id选择器）
                     ,cols: [[{field:'id',title: '矿工id'}, {field:'explain', title: '奖励类型'},{field:'pre_balance', title: '前块余额'}
                         ,{field:'curr_balance', title: '当前余额'},{field:'expect_balance', title: '期望余额'},{field:'expect_balance', title: '结果', templet: function (d) {
                                 if (d.expect_balance == d.curr_balance) {
@@ -102,15 +102,15 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
                                     return '<span style="color: red;">错误</span>'
                                 }
                             }}]] //设置表头
-                    ,data: d.miner_bonus
+                    ,data: d.miner_reward
                 });
                 table.render({
-                    elem: '#bonus_table' //指定原始表格元素选择器（推荐id选择器）
+                    elem: '#reward_table' //指定原始表格元素选择器（推荐id选择器）
                     ,cols: [[{field:'hash',title: 'hash',templet: '<div><a href="javascript:void(0);" class="layui-table-link" name="tx_hash_row">{{d.hash}}</a></div>' },
-                        {field:'block_hash',title: '块hash', templet: '<div><a href="javascript:void(0);" class="layui-table-link" name="bonus_table_hash_row">{{d.block_hash}}</a></div>'},
+                        {field:'block_hash',title: '块hash', templet: '<div><a href="javascript:void(0);" class="layui-table-link" name="reward_table_hash_row">{{d.block_hash}}</a></div>'},
                         {field:'value', title: '奖励', width:80},{field:'status_report', title: '状态', width:80},{field:'group_id', title: '组id'},
                         {field:'target_ids', title: '目标id列表'}]] //设置表头
-                    ,data: d.body_bonus_txs
+                    ,data: d.body_reward_txs
                 });
 
                 table.render({
