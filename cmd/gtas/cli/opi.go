@@ -26,6 +26,7 @@ var (
 	ErrPassword    = fmt.Errorf("password error")
 	ErrUnlocked    = fmt.Errorf("please unlock the account first")
 	ErrUnConnected = fmt.Errorf("please connect to one node first")
+	ErrInternal    = fmt.Errorf("internal error")
 )
 
 type txRawData struct {
@@ -98,6 +99,8 @@ type accountOp interface {
 	AccountInfo() *Result
 
 	DeleteAccount() *Result
+
+	NewAccountByImportKey(key string, password string, miner bool) *Result
 
 	Close()
 }
