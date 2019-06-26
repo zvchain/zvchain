@@ -217,7 +217,7 @@ type Transaction struct {
 }
 
 type Receipt struct {
-	Status            uint         `json:"status"`
+	Status            int         `json:"status"`
 	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
 	Logs              []*types.Log `json:"logs"`
 

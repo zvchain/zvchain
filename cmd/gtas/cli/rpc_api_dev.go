@@ -338,7 +338,7 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 				common.DefaultLogger.Errorf("getTransactions statue error, hash %v, err %v", tx.Hash.Hex(), err)
 				btx.StatusReport = "get status error" + err.Error()
 			} else {
-				if st == types.ReceiptStatusSuccessful {
+				if st == types.Success {
 					btx.StatusReport = "success"
 					btx.Success = true
 				} else {
