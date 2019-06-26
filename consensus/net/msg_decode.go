@@ -298,8 +298,8 @@ func unMarshalConsensusCreateGroupSignMessage(b []byte) (*model.ConsensusCreateG
 	return &m, nil
 }
 
-func pbToBonus(b *tas_middleware_pb.Bonus) *types.Bonus {
-	return &types.Bonus{
+func pbToReward(b *tas_middleware_pb.Reward) *types.Reward {
+	return &types.Reward{
 		TxHash:     common.BytesToHash(b.TxHash),
 		TargetIds:  b.TargetIds,
 		BlockHash:  common.BytesToHash(b.BlockHash),
@@ -317,7 +317,7 @@ func unMarshalCastRewardReqMessage(b []byte) (*model.CastRewardTransSignReqMessa
 		return nil, e
 	}
 
-	rw := pbToBonus(message.Reward)
+	rw := pbToReward(message.Reward)
 	sign := pbToSignData(message.Sign)
 	base := model.BaseSignedMessage{SI: *sign}
 

@@ -26,7 +26,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
-	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -324,17 +323,17 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 	castor := block.Castor.GetHexString()
 
 	trans := make([]Transaction, 0)
-	bonusTxs := make([]BonusTransaction, 0)
-	minerBonus := make(map[string]*MinerBonusBalance)
-	uniqueBonusBlockHash := make(map[common.Hash]byte)
+	rewardTxs := make([]RewardTransaction, 0)
+	minerReward := make(map[string]*MinerRewardBalance)
+	uniqueRewardBlockHash := make(map[common.Hash]uint64)
 	minerVerifyBlockHash := make(map[string][]common.Hash)
-	blockVerifyBonus := make(map[common.Hash]uint64)
+	blockVerifyReward := make(map[common.Hash]uint64)
 
-	minerBonus[castor] = genMinerBalance(block.Castor, bh)
+	minerReward[castor] = genMinerBalance(block.Castor, bh)
 
 	for _, tx := range b.Transactions {
-		if tx.Type == types.TransactionTypeBonus {
-			btx := *convertBonusTransaction(tx)
+		if tx.Type == types.TransactionTypeReward {
+			btx := *convertRewardTransaction(tx)
 			if st, err := mediator.Proc.MainChain.GetTransactionPool().GetTransactionStatus(tx.Hash); err != nil {
 				common.DefaultLogger.Errorf("getTransactions statue error, hash %v, err %v", tx.Hash.Hex(), err)
 				btx.StatusReport = "get status error" + err.Error()
@@ -346,11 +345,11 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 					btx.StatusReport = "fail"
 				}
 			}
-			bonusTxs = append(bonusTxs, btx)
-			blockVerifyBonus[btx.BlockHash] = btx.Value
+			rewardTxs = append(rewardTxs, btx)
+			blockVerifyReward[btx.BlockHash] = btx.Value
 			for _, tid := range btx.TargetIDs {
-				if _, ok := minerBonus[tid.GetHexString()]; !ok {
-					minerBonus[tid.GetHexString()] = genMinerBalance(tid, bh)
+				if _, ok := minerReward[tid.GetHexString()]; !ok {
+					minerReward[tid.GetHexString()] = genMinerBalance(tid, bh)
 				}
 				if !btx.Success {
 					continue
@@ -374,26 +373,35 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 				}
 			}
 			if btx.Success {
-				uniqueBonusBlockHash[btx.BlockHash] = 1
+				block := chain.QueryBlockByHash(btx.BlockHash)
+				if block != nil {
+					uniqueRewardBlockHash[btx.BlockHash] = block.Header.Height
+				}
 			}
 		} else {
 			trans = append(trans, *convertTransaction(tx))
 		}
 	}
 
-	mbs := make([]*MinerBonusBalance, 0)
-	for id, mb := range minerBonus {
+	mbs := make([]*MinerRewardBalance, 0)
+	for id, mb := range minerReward {
 		mb.Explain = ""
 		increase := uint64(0)
 		if id == castor {
 			mb.Proposal = true
-			mb.PackBonusTx = len(uniqueBonusBlockHash)
-			increase += model.Param.ProposalBonus + uint64(mb.PackBonusTx)*model.Param.PackBonus
-			mb.Explain = fmt.Sprintf("proposal, pack %v bouns-txs", mb.PackBonusTx)
+			var packedRewards uint64
+			for _, height := range uniqueRewardBlockHash {
+				packedRewards += chain.GetRewardManager().CalculatePackedRewards(height)
+			}
+			mb.PackRewardTx = len(uniqueRewardBlockHash)
+			increase += chain.GetRewardManager().CalculateCastorRewards(bh.Height)
+			increase += packedRewards
+			increase += chain.GetRewardManager().CalculateGasFeeCastorRewards(bh.GasFee)
+			mb.Explain = fmt.Sprintf("proposal, pack %v bouns-txs", mb.PackRewardTx)
 		}
 		if hs, ok := minerVerifyBlockHash[id]; ok {
 			for _, h := range hs {
-				increase += blockVerifyBonus[h]
+				increase += blockVerifyReward[h]
 			}
 			mb.VerifyBlock = len(hs)
 			mb.Explain = fmt.Sprintf("%v, verify %v blocks", mb.Explain, mb.VerifyBlock)
@@ -402,18 +410,18 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 		mbs = append(mbs, mb)
 	}
 
-	var genBonus *BonusTransaction
-	if bonusTx := chain.GetBonusManager().GetBonusTransactionByBlockHash(bh.Hash.Bytes()); bonusTx != nil {
-		genBonus = convertBonusTransaction(bonusTx)
+	var genReward *RewardTransaction
+	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
+		genReward = convertRewardTransaction(rewardTx)
 	}
 
 	bd := &BlockDetail{
-		Block:        *block,
-		GenBonusTx:   genBonus,
-		Trans:        trans,
-		BodyBonusTxs: bonusTxs,
-		MinerBonus:   mbs,
-		PreTotalQN:   preBH.TotalQN,
+		Block:         *block,
+		GenRewardTx:   genReward,
+		Trans:         trans,
+		BodyRewardTxs: rewardTxs,
+		MinerReward:   mbs,
+		PreTotalQN:    preBH.TotalQN,
 	}
 	return successResult(bd)
 }

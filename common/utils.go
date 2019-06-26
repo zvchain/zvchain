@@ -16,9 +16,11 @@
 package common
 
 import (
+	"crypto/rand"
 	"fmt"
 
 	lru "github.com/hashicorp/golang-lru"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 /*
@@ -47,4 +49,47 @@ func MustNewLRUCacheWithEvictCB(size int, cb func(k, v interface{})) *lru.Cache 
 		panic(fmt.Errorf("new cache fail:%v", err))
 	}
 	return cache
+}
+
+// EncryptWithKey implements symmetric encryption with the specified key
+// all data in encrypted within the storage using this function
+func EncryptWithKey(Key []byte, Data []byte) (result []byte, err error) {
+	nonce := make([]byte, chacha20poly1305.NonceSize, chacha20poly1305.NonceSize)
+	cipher, err := chacha20poly1305.New(Key)
+	if err != nil {
+		return
+	}
+
+	_, err = rand.Read(nonce)
+	if err != nil {
+		return
+	}
+	Data = cipher.Seal(Data[:0], nonce, Data, nil) // is this okay
+
+	result = append(Data, nonce...) // append nonce
+	return
+}
+
+// DecryptWithKey implements symmetric decryption with the specified key
+// extract 12 byte nonce from the data and deseal the data
+// if key is incorrect, err return not nil
+func DecryptWithKey(Key []byte, Data []byte) (result []byte, err error) {
+
+	// make sure data is at least 28 bytes(includes 16 bytes of AEAD cipher and 12 bytes of nonce)
+	if len(Data) < 28 {
+		err = fmt.Errorf("Invalid data")
+		return
+	}
+
+	dataWithoutNonce := Data[0 : len(Data)-chacha20poly1305.NonceSize]
+
+	nonce := Data[len(Data)-chacha20poly1305.NonceSize:]
+
+	cipher, err := chacha20poly1305.New(Key)
+	if err != nil {
+		return
+	}
+
+	return cipher.Open(result[:0], nonce, dataWithoutNonce, nil)
+
 }

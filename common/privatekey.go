@@ -106,6 +106,27 @@ func (pk *PrivateKey) Bytes() []byte {
 	return buf
 }
 
+// ExportKey returns a byte array representation of the secure key of private key
+func (pk *PrivateKey) ExportKey() []byte {
+	return pk.PrivKey.D.Bytes()
+}
+
+// ImportKey constructs the private key from the input secure key.
+func (pk *PrivateKey) ImportKey(key []byte) bool {
+	var one = new(big.Int).SetInt64(1)
+
+	params := getDefaultCurve().Params()
+	d := new(big.Int).SetBytes(key)
+	if d.Cmp(params.N) >= 0 || d.Cmp(one) < 0 {
+		return false
+	}
+
+	pk.PrivKey.Curve = getDefaultCurve()
+	pk.PrivKey.D = d
+	pk.PrivKey.PublicKey.X, pk.PrivKey.PublicKey.Y = pk.PrivKey.Curve.ScalarBaseMult(key)
+	return true
+}
+
 // BytesToSecKey returns a private key with the byte array imported
 func BytesToSecKey(data []byte) (sk *PrivateKey) {
 	//fmt.Printf("begin bytesToSecKey, len=%v, data=%v.\n", len(data), data)

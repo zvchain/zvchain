@@ -31,14 +31,14 @@ const (
 
 	SuperBasePort = 1122
 
-	NodeIDLength = 66
+	NodeIDLength = 32
 )
 
 type NodeID [NodeIDLength]byte
 
-func (nid NodeID) IsValid() bool {
+func (netID NodeID) IsValid() bool {
 	for i := 0; i < NodeIDLength; i++ {
-		if nid[i] > 0 {
+		if netID[i] > 0 {
 			return true
 		}
 	}
@@ -46,16 +46,19 @@ func (nid NodeID) IsValid() bool {
 }
 
 func (nid NodeID) GetHexString() string {
-	return string(nid[:])
+	return common.ToHex(nid.Bytes())
 }
 
 func NewNodeID(hex string) NodeID {
+	var nid NodeID
 
+	if len(hex) == 0 {
+		return nid
+	}
 	if !strings.HasPrefix(hex, "0x") {
 		hex = "0x" + hex
 	}
-	var nid NodeID
-	nid.SetBytes([]byte(hex))
+	nid.SetBytes(common.FromHex(hex))
 	return nid
 }
 
@@ -85,15 +88,15 @@ type Node struct {
 }
 
 // NewNode create a new node
-func NewNode(id NodeID, ip net.IP, port int) *Node {
-	if ipv4 := ip.To4(); ipv4 != nil {
-		ip = ipv4
+func NewNode(ID NodeID, IP net.IP, port int) *Node {
+	if ipv4 := IP.To4(); ipv4 != nil {
+		IP = ipv4
 	}
 	return &Node{
-		IP:   ip,
+		IP:   IP,
 		Port: port,
-		ID:   id,
-		sha:  makeSha256Hash(id[:]),
+		ID:   ID,
+		sha:  makeSha256Hash(ID[:]),
 	}
 }
 
@@ -202,7 +205,7 @@ func hashAtDistance(a []byte, n int) (b []byte) {
 }
 
 // InitSelfNode initialize local user's node
-func InitSelfNode(config common.ConfManager, isSuper bool, id NodeID) (*Node, error) {
+func InitSelfNode(config common.ConfManager, isSuper bool, ID NodeID) (*Node, error) {
 	ip := getLocalIP()
 	basePort := BasePort
 	port := SuperBasePort
@@ -211,7 +214,7 @@ func InitSelfNode(config common.ConfManager, isSuper bool, id NodeID) (*Node, er
 		port = getAvailablePort(ip, BasePort)
 	}
 
-	n := Node{ID: id, IP: net.ParseIP(ip), Port: port}
+	n := Node{ID: ID, IP: net.ParseIP(ip), Port: port}
 	common.DefaultLogger.Info(n.String())
 	return &n, nil
 }

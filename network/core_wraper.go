@@ -22,6 +22,7 @@ package network
 #include "p2p_api.h"
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 void OnP2PRecved();
@@ -38,6 +39,7 @@ void OnP2PDisconnected();
 
 void OnP2PSendWaited();
 
+void* OnP2PLoginSign();
 
 void on_p2p_recved(uint64_t id, uint32_t session, char* data, uint32_t size)
 {
@@ -78,6 +80,11 @@ void on_p2p_send_waited(uint32_t session, uint64_t peer_id)
 	OnP2PSendWaited(session, peer_id);
 }
 
+struct p2p_login* on_p2p_login_sign()
+{
+	return (struct p2p_login*)OnP2PLoginSign();
+}
+
 void wrap_p2p_config(uint64_t id)
 {
 	struct p2p_callback callback = { 0 };
@@ -87,6 +94,7 @@ void wrap_p2p_config(uint64_t id)
 	callback.accepted = on_p2p_accepted;
 	callback.connected = on_p2p_connected;
 	callback.disconnected = on_p2p_disconnected;
+	callback.sign = on_p2p_login_sign;
 	p2p_config(id, callback);
 
 }
@@ -94,12 +102,24 @@ void wrap_p2p_config(uint64_t id)
 void wrap_p2p_send_callback()
 {
 	p2p_send_callback(on_p2p_send_waited);
+}
 
+struct p2p_login * wrap_new_p2p_login(uint64_t id, uint64_t cur_time, char* pk, char* sign)
+{
+	struct p2p_login *p_login = (struct p2p_login *)malloc(sizeof(struct p2p_login));
+	p_login->id = id;
+	p_login->cur_time = cur_time;
+	memcpy(p_login->pk, pk, PK_SIZE);
+	memcpy(p_login->sign, sign, SIGN_SIZE);
+	return p_login;
 }
 
 */
 import "C"
-import "unsafe"
+import (
+	"unsafe"
+)
+
 
 func P2PConfig(id uint64) {
 	C.wrap_p2p_config(C.uint64_t(id))
@@ -164,4 +184,11 @@ func P2PSend(session uint32, data []byte) {
 		curPos += sendSize
 	}
 
+}
+
+func P2PLoginSign() unsafe.Pointer {
+	
+	pa := genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK,nil)
+	
+	return (unsafe.Pointer)(C.wrap_new_p2p_login(C.uint64_t(netServerInstance.netCore.netID), C.uint64_t(pa.CurTime), (*C.char)(unsafe.Pointer(&pa.PK[0])), (*C.char)(unsafe.Pointer(&pa.Sign[0]))))
 }

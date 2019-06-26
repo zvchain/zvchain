@@ -142,7 +142,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 	if canTransfer(controller.AccountDB, *source, value) {
 		mexist := controller.mm.GetMinerByID(miner.Bytes(), byte(_type), controller.AccountDB)
 		if mexist != nil &&
-			controller.mm.AddStake(mexist.ID, mexist, value.Uint64(), controller.AccountDB) &&
+			controller.mm.AddStake(mexist.ID, mexist, value.Uint64(), controller.AccountDB, controller.BlockHeader.Height) &&
 			controller.mm.AddStakeDetail(source.Bytes(), mexist, value.Uint64(), controller.AccountDB) {
 			controller.AccountDB.SubBalance(*source, value)
 			return true

@@ -28,6 +28,7 @@ type minerConfig struct {
 	keystore      string
 	enableMonitor bool
 	chainID       uint16
+	password      string
 }
 
 func (cfg *minerConfig) rpcEnable() bool {
