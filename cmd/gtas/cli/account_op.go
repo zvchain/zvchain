@@ -415,3 +415,13 @@ func (am *AccountManager) NewAccountByImportKey(key string, password string, min
 
 	return opSuccess(account.Address)
 }
+
+// ExportKey exports the private key of account
+func (am *AccountManager) ExportKey(addr string) *Result {
+	acc, err := am.getAccountInfo(addr)
+	if err != nil {
+		return opError(err)
+	}
+	sk := common.HexToSecKey(acc.Sk)
+	return opSuccess(common.ToHex(sk.ExportKey()))
+}
