@@ -68,7 +68,11 @@ func (pa *PeerAuthContext) Verify() (bool,string){
 
 func genPeerAuthContext(PK string ,SK string, toID *NodeID) *PeerAuthContext{
 
-	privateKey := common.HexToSecKey(SK)
+	kBytes := common.FromHex(SK)
+	privateKey := new(common.PrivateKey)
+	if !privateKey.ImportKey(kBytes) {
+		return nil
+	}
 	pubkey := common.HexToPubKey(PK)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
 		return nil
