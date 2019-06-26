@@ -49,17 +49,11 @@ type Controller struct {
 	VMStack     []*TVM
 	GasLeft     uint64
 	mm          MinerManager
-	gcm         GroupChainManager
 }
 
 // MinerManager MinerManager is the interface of the miner manager
 type MinerManager interface {
 	ExecuteOperation(accountdb vm.AccountDB, msg vm.MinerOperationMessage, height uint64) (success bool, err error)
-}
-
-// GroupChainManager GroupChainManager is the interface of the GroupChain manager
-type GroupChainManager interface {
-	WhetherMemberInActiveGroup(id []byte, currentHeight uint64) bool
 }
 
 // NewController New a TVM controller
@@ -69,7 +63,7 @@ func NewController(accountDB vm.AccountDB,
 	transaction ControllerTransactionInterface,
 	gasUsed uint64,
 	libPath string,
-	manager MinerManager, chainManager GroupChainManager) *Controller {
+	manager MinerManager) *Controller {
 	if controller == nil {
 		controller = &Controller{}
 	}
@@ -85,7 +79,6 @@ func NewController(accountDB vm.AccountDB,
 	controller.VMStack = make([]*TVM, 0)
 	controller.GasLeft = transaction.GetGasLimit() - gasUsed
 	controller.mm = manager
-	controller.gcm = chainManager
 	return controller
 }
 
