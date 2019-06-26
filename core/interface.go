@@ -106,6 +106,7 @@ type BlockChain interface {
 
 	// ResetTop reset the current top block with parameter bh
 	ResetTop(bh *types.BlockHeader)
+
 }
 
 // ExecutedTransaction contains the transaction and its receipt
@@ -163,6 +164,9 @@ type TransactionPool interface {
 	saveReceipts(blockHash common.Hash, receipts types.Receipts) error
 
 	deleteReceipts(txs []common.Hash) error
+
+	//check transaction hash exist in local
+	IsTransactionExisted(hash common.Hash) (exists bool, where int)
 }
 
 // GroupInfoI is a group management interface
