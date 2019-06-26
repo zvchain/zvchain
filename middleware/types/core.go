@@ -40,9 +40,9 @@ const (
 )
 const (
 	Success                            = 0
-	TxErrorCodeBalanceNotEnough        = 1
+	TxErrorBalanceNotEnough        	   = 1
 	TxErrorCodeContractAddressConflict = 2
-	TxErrorCodeDeployGasNotEnough      = 3
+	TxFailed 						   = 3
 	TxErrorCodeNoCode                  = 4
 
 	//TODO detail error
@@ -65,15 +65,12 @@ var (
 	InitContractErrorMsg         = "contract init error"
 	TargetNilError               = 2006
 	TargetNilErrorMsg            = "target nil error"
-	InsufficientBalanceForGas    = 2007
-	InsufficientBalanceForGasMsg = "insufficient balance for gas"
 )
 
 var (
-	TxErrorBalanceNotEnough          = NewTransactionError(TxErrorCodeBalanceNotEnough, "balance not enough")
-	TxErrorDeployGasNotEnough        = NewTransactionError(TxErrorCodeDeployGasNotEnough, "gas not enough")
-	TxErrorABIJSON                   = NewTransactionError(SysABIJSONError, "abi json format error")
-	TxErrorInsufficientBalanceForGas = NewTransactionError(InsufficientBalanceForGas, InsufficientBalanceForGasMsg)
+	TxErrorBalanceNotEnoughErr          = NewTransactionError(TxErrorBalanceNotEnough, "balance not enough")
+	TxErrorABIJSONErr                   = NewTransactionError(SysABIJSONError, "abi json format error")
+	TxErrorFailedErr                    = NewTransactionError(TxFailed, "failed")
 )
 
 type TransactionError struct {
@@ -184,6 +181,11 @@ func (tx *Transaction) BoundCheck() error {
 	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall {
 		if tx.Target == nil {
 			return fmt.Errorf("param target cannot nil")
+		}
+	}
+	if tx.Type == TransactionTypeMinerApply || tx.Type == TransactionTypeMinerCancelStake || tx.Type ==TransactionTypeMinerStake {
+		if tx.Data == nil {
+			return fmt.Errorf("param data cannot nil")
 		}
 	}
 	return nil

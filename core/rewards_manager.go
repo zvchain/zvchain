@@ -176,7 +176,7 @@ func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
 
 func (rm *RewardManager) reduceBlockRewards(height uint64, accountDB *account.AccountDB) bool {
 	if !rm.noRewards && rm.tokenLeft == 0 {
-		value := BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, tokenLeftKey)
+		value := accountDB.GetData(common.RewardStorageAddress, tokenLeftKey)
 		if value == nil {
 			rm.tokenLeft = tokensOfMiners
 		} else {

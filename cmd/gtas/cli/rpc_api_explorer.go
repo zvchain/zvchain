@@ -132,7 +132,7 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 			if tx.Type == types.TransactionTypeReward {
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
 				status, err := chain.GetTransactionPool().GetTransactionStatus(tx.Hash)
-				if err != nil && block != nil && status == types.ReceiptStatusSuccessful {
+				if err != nil && block != nil && status == types.Success {
 					packedReward += chain.GetRewardManager().CalculatePackedRewards(block.Header.Height)
 				}
 			}

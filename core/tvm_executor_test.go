@@ -85,7 +85,7 @@ func TestTVMExecutor_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stateHash, evts, executed, receptes, err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
+	stateHash, evts, executed, receptes, _,err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
 	if err != nil {
 		t.Fatalf("execute error :%v", err)
 	}
