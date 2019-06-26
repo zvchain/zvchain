@@ -84,7 +84,7 @@ func (ms *msgShower) showHeightRoutine() bool {
 
 func (ms *msgShower) txSuccess(tx common.Hash) bool {
 	receipt := ms.bchain.GetTransactionPool().GetReceipt(tx)
-	return receipt != nil && receipt.Status == types.ReceiptStatusSuccessful
+	return receipt != nil && receipt.Status == types.Success
 }
 
 func (ms *msgShower) onBlockAddSuccess(message notify.Message) {

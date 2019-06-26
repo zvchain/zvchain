@@ -42,7 +42,7 @@ const (
 	Success                            = 0
 	TxErrorBalanceNotEnough        	   = 1
 	TxErrorCodeContractAddressConflict = 2
-	TxErrorGasNotEnough      		   = 3
+	TxFailed 						   = 3
 	TxErrorCodeNoCode                  = 4
 
 	//TODO detail error
@@ -65,15 +65,12 @@ var (
 	InitContractErrorMsg         = "contract init error"
 	TargetNilError               = 2006
 	TargetNilErrorMsg            = "target nil error"
-	InsufficientBalanceForGas    = 2007
-	InsufficientBalanceForGasMsg = "insufficient balance for gas"
 )
 
 var (
 	TxErrorBalanceNotEnoughErr          = NewTransactionError(TxErrorBalanceNotEnough, "balance not enough")
-	TxErrorGasNotEnoughErr        		= NewTransactionError(TxErrorGasNotEnough, "gas not enough")
 	TxErrorABIJSONErr                   = NewTransactionError(SysABIJSONError, "abi json format error")
-	TxErrorInsufficientBalanceForGasErr = NewTransactionError(InsufficientBalanceForGas, InsufficientBalanceForGasMsg)
+	TxErrorFailedErr                    = NewTransactionError(TxFailed, "failed")
 )
 
 type TransactionError struct {

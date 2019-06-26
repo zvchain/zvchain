@@ -56,13 +56,12 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 			break
 		}
 		var (
-			success           = false
 			contractAddress   common.Address
 			logs              []*types.Log
 			gasUsed           *types.BigInt
 			cumulativeGasUsed uint64
-			errorCode 		  = types.Success
 			executeError      *types.TransactionError
+			status int 		  =types.Success
 		)
 
 		if !transaction.IsBonus() {
@@ -70,14 +69,14 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
-			intriGas, txErr := intrinsicGas(transaction)
-			if txErr != nil {
+			intriGas, err := intrinsicGas(transaction)
+			if err != nil {
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
 			gasLimitFee := new(types.BigInt).Mul(transaction.GasLimit.Value(), transaction.GasPrice.Value())
-			txErr = checkGasFeeIsEnough(accountdb,*transaction.Source,gasLimitFee)
-			if txErr!= nil{
+			err = checkGasFeeIsEnough(accountdb,*transaction.Source,gasLimitFee)
+			if err!= nil{
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
@@ -90,44 +89,43 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 			if canTransfer(accountdb, *transaction.Source, transaction.Value.Value(), gasLimitFee) {
 				switch transaction.Type {
 				case types.TransactionTypeTransfer:
-					success,cumulativeGasUsed = executor.executeTransferTx(accountdb, transaction, castor, gasUsed)
+					cumulativeGasUsed = executor.executeTransferTx(accountdb, transaction, castor, gasUsed)
 				case types.TransactionTypeContractCreate:
-					success, executeError, contractAddress,cumulativeGasUsed = executor.executeContractCreateTx(accountdb, transaction, castor, bh, gasUsed)
+					 executeError, contractAddress,cumulativeGasUsed = executor.executeContractCreateTx(accountdb, transaction, castor, bh, gasUsed)
 				case types.TransactionTypeContractCall:
-					success, executeError, logs,cumulativeGasUsed = executor.executeContractCallTx(accountdb, transaction, castor, bh, gasUsed)
+					 executeError, logs,cumulativeGasUsed = executor.executeContractCallTx(accountdb, transaction, castor, bh, gasUsed)
 				case types.TransactionTypeMinerApply:
-					success,executeError,cumulativeGasUsed = executor.executeMinerApplyTx(accountdb, transaction, bh.Height, castor, gasUsed)
+					_,executeError,cumulativeGasUsed = executor.executeMinerApplyTx(accountdb, transaction, bh.Height, castor, gasUsed)
 				case types.TransactionTypeMinerAbort:
-					success,cumulativeGasUsed = executor.executeMinerAbortTx(accountdb, transaction, bh.Height, castor, gasUsed)
+					_,cumulativeGasUsed = executor.executeMinerAbortTx(accountdb, transaction, bh.Height, castor, gasUsed)
 				case types.TransactionTypeMinerRefund:
-					success,cumulativeGasUsed = executor.executeMinerRefundTx(accountdb, transaction, bh.Height, castor, gasUsed)
+					_,cumulativeGasUsed = executor.executeMinerRefundTx(accountdb, transaction, bh.Height, castor, gasUsed)
 				case types.TransactionTypeMinerCancelStake:
-					success,cumulativeGasUsed = executor.executeMinerCancelStakeTx(accountdb, transaction, bh.Height, castor, gasUsed)
+					_,cumulativeGasUsed = executor.executeMinerCancelStakeTx(accountdb, transaction, bh.Height, castor, gasUsed)
 				case types.TransactionTypeMinerStake:
-					success,executeError,cumulativeGasUsed = executor.executeMinerStakeTx(accountdb, transaction, bh.Height, castor, gasUsed)
+					_,executeError,cumulativeGasUsed = executor.executeMinerStakeTx(accountdb, transaction, bh.Height, castor, gasUsed)
 				}
 			} else {
-				success = false;
+
 				cumulativeGasUsed = forceTransferFee(accountdb,*transaction,castor,intriGas).Uint64()
 				executeError = types.TxErrorBalanceNotEnoughErr
 			}
 		} else {
-			success = executor.executeBonusTx(accountdb, transaction, castor)
-			if !success {
+			executeError = executor.executeBonusTx(accountdb, transaction, castor)
+			if executeError!=nil {
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				// Failed bonus tx should not be included in block
 				continue
 			}
 		}
 		if executeError != nil{
-			errorCode = executeError.Code
+			status = executeError.Code
 		}
 		idx := len(transactions)
 		transactions = append(transactions, transaction)
-		receipt := types.NewReceipt(nil, !success, cumulativeGasUsed)
+		receipt := types.NewReceipt(nil, status, cumulativeGasUsed)
 		receipt.Logs = logs
 		receipt.TxHash = transaction.Hash
-		receipt.ErrorCode = uint16(errorCode)
 		receipt.ContractAddress = contractAddress
 		receipt.TxIndex = uint16(idx)
 		receipt.Height = bh.Height
@@ -157,22 +155,18 @@ func (executor *TVMExecutor) validateNonce(accountdb *account.AccountDB, transac
 	return true
 }
 
-func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, gasUsed *types.BigInt) (success bool, cumulativeGasUsed uint64) {
-	success = false
+func (executor *TVMExecutor) executeTransferTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, gasUsed *types.BigInt) (cumulativeGasUsed uint64) {
 	amount := transaction.Value.Value()
 	gasFee := new(types.BigInt).Mul(gasUsed.Value(), transaction.GasPrice.Value())
 	transfer(accountdb, *transaction.Source, *transaction.Target, amount)
 	accountdb.SubBalance(*transaction.Source, gasFee)
 	accountdb.AddBalance(castor, gasFee)
 	cumulativeGasUsed = gasUsed.Uint64()
-	success = true
 
-	return success,cumulativeGasUsed
+	return cumulativeGasUsed
 }
 
-func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader, gasUsed *types.BigInt) (success bool, err *types.TransactionError, contractAddress common.Address,cumulativeGasUsed uint64) {
-	success = false
-
+func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader, gasUsed *types.BigInt) (err *types.TransactionError, contractAddress common.Address,cumulativeGasUsed uint64) {
 	var txErr *types.TransactionError
 
 	gasLimit := transaction.GasLimit
@@ -194,7 +188,6 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 			Logger.Debugf("Contract deploy failed! Tx hash:%s, contract addr:%s errorCode:%d errorMsg%s",
 				transaction.Hash.Hex(), contractAddress.Hex(), types.TVMExecutedError, err.Error())
 		} else {
-			success = true
 			Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", transaction.Hash.Hex(), contractAddress.Hex())
 		}
 	}
@@ -206,12 +199,11 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 	accountdb.AddBalance(*transaction.Source, returnFee)
 	accountdb.AddBalance(castor, allFee)
 
-	Logger.Debugf("TVMExecutor Execute ContractCreate Transaction %s,success:%t", transaction.Hash.Hex(), success)
-	return success, txErr, contractAddress,cumulativeGasUsed
+	Logger.Debugf("TVMExecutor Execute ContractCreate Transaction %s,success:%t", transaction.Hash.Hex())
+	return txErr, contractAddress,cumulativeGasUsed
 }
 
-func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader, gasUsed *types.BigInt) (success bool, err *types.TransactionError, logs []*types.Log,cumulativeGasUsed uint64) {
-	success = false
+func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address, bh *types.BlockHeader, gasUsed *types.BigInt) (err *types.TransactionError, logs []*types.Log,cumulativeGasUsed uint64) {
 	transferAmount := transaction.Value.Value()
 
 	gasLimit := transaction.GasLimit
@@ -225,11 +217,10 @@ func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB,
 
 	} else {
 		snapshot := controller.AccountDB.Snapshot()
-		success, logs, err = controller.ExecuteABI(transaction.Source, contract, string(transaction.Data))
-		if !success {
+		_, logs, err = controller.ExecuteABI(transaction.Source, contract, string(transaction.Data))
+		if err != nil {
 			controller.AccountDB.RevertToSnapshot(snapshot)
 		} else {
-			success = true
 			transfer(accountdb, *transaction.Source, *contract.ContractAddress, transferAmount)
 		}
 	}
@@ -241,19 +232,18 @@ func (executor *TVMExecutor) executeContractCallTx(accountdb *account.AccountDB,
 	accountdb.AddBalance(*transaction.Source, returnFee)
 	accountdb.AddBalance(castor, allFee)
 
-	Logger.Debugf("TVMExecutor Execute ContractCall Transaction %s,success:%t", transaction.Hash.Hex(), success)
-	return success, err, logs,cumulativeGasUsed
+	Logger.Debugf("TVMExecutor Execute ContractCall Transaction %s,success:%t", transaction.Hash.Hex(),err!=nil)
+	return  err, logs,cumulativeGasUsed
 }
 
-func (executor *TVMExecutor) executeBonusTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address) (success bool) {
-	success = false
+func (executor *TVMExecutor) executeBonusTx(accountdb *account.AccountDB, transaction *types.Transaction, castor common.Address) (err *types.TransactionError) {
 	if executor.bc.GetBonusManager().contain(transaction.Data, accountdb) == false {
 		reader := bytes.NewReader(transaction.ExtraData)
 		groupID := make([]byte, common.GroupIDLength)
 		addr := make([]byte, common.AddressLength)
 		if n, _ := reader.Read(groupID); n != common.GroupIDLength {
 			Logger.Errorf("TVMExecutor Read GroupID Fail")
-			return success
+			return types.TxErrorFailedErr
 		}
 		for n, _ := reader.Read(addr); n > 0; n, _ = reader.Read(addr) {
 			if n != common.AddressLength {
@@ -265,9 +255,8 @@ func (executor *TVMExecutor) executeBonusTx(accountdb *account.AccountDB, transa
 		}
 		executor.bc.GetBonusManager().put(transaction.Data, transaction.Hash[:], accountdb)
 		accountdb.AddBalance(castor, executor.bc.GetConsensusHelper().PackBonus())
-		success = true
 	}
-	return success
+	return err
 }
 
 func (executor *TVMExecutor) executeMinerApplyTx(accountdb *account.AccountDB, transaction *types.Transaction, height uint64, castor common.Address, gasUsed *types.BigInt) (success bool,err *types.TransactionError,cumulativeGasUsed uint64) {
@@ -466,19 +455,19 @@ func createContract(accountdb *account.AccountDB, transaction *types.Transaction
 }
 
 // intrinsicGas means transaction consumption intrinsic gas
-func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err *types.TransactionError) {
+func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err error) {
 	gas := uint64(float32(len(transaction.Data)+len(transaction.ExtraData)) * CodeBytePrice)
 	gas = TransactionGasCost + gas
 	gasBig := types.NewBigInt(gas)
 	if transaction.GasLimit.Cmp(gasBig.Value()) < 0 {
-		return nil, types.TxErrorGasNotEnoughErr
+		return nil, fmt.Errorf("gas not enough")
 	}
 	return types.NewBigInt(gas), nil
 }
 
-func checkGasFeeIsEnough(db vm.AccountDB,addr common.Address,gasFee *big.Int)*types.TransactionError{
+func checkGasFeeIsEnough(db vm.AccountDB,addr common.Address,gasFee *big.Int)error{
 	if db.GetBalance(addr).Cmp(gasFee) < 0{
-		return types.TxErrorInsufficientBalanceForGasErr
+		return  fmt.Errorf("gas not enough")
 	}
 	return nil
 }
