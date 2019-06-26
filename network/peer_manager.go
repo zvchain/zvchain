@@ -175,10 +175,9 @@ func (pm *PeerManager) checkPeers() {
 			Logger.Infof("[PeerManager] [checkPeers] peer id:%v netid:%v ip:%v port:%v session:%v bytes recv:%v ,bytes send:%v disconnect count:%v send wait count:%v ping count:%d isAuthSucceed:%v",
 				p.ID.GetHexString(),nid, p.IP, p.Port, p.sessionID, p.bytesReceived, p.bytesSend, p.disconnectCount, p.sendWaitCount,p.pingCount,p.isAuthSucceed)
 
-			//if time.Since(p.connectTime) > time.Second * 60  {
-			//	p.disconnect()
-			//}
-			if !p.RemoteVerifyResult && p.sessionID > 0 && p.ID.IsValid(){
+			if p.connectTime.Unix() > 0 && time.Since(p.connectTime) > time.Second * 60 {
+				p.disconnect()
+			} else if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid(){
 				go netServerInstance.netCore.ping(p.ID,nil)
 			}
 		}

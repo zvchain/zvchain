@@ -188,7 +188,7 @@ func P2PSend(session uint32, data []byte) {
 
 func P2PLoginSign() unsafe.Pointer {
 	
-	pa := genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK)
+	pa := genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK,nil)
 	
-	return (unsafe.Pointer)(C.wrap_new_p2p_login(C.uint64_t(netServerInstance.netCore.nid), C.uint64_t(pa.CurTime), (*C.char)(unsafe.Pointer(&pa.PK[0])), (*C.char)(unsafe.Pointer(&pa.Sign[0]))))
+	return (unsafe.Pointer)(C.wrap_new_p2p_login(C.uint64_t(netServerInstance.netCore.netID), C.uint64_t(pa.CurTime), (*C.char)(unsafe.Pointer(&pa.PK[0])), (*C.char)(unsafe.Pointer(&pa.Sign[0]))))
 }

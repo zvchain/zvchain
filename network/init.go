@@ -76,7 +76,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		natEnable = false
 		listenIP, err := getIPByAddress(networkConfig.SeedAddr)
 		if err != nil || listenIP == nil {
-			Logger.Errorf("network SeedAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
+			Logger.Errorf("Network SeedAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
 			return err
 		}
 		listenAddr = net.UDPAddr{IP: listenIP, Port: self.Port}
@@ -84,6 +84,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		if len(networkConfig.SeedIDs) > 0 {
 			seedId = networkConfig.SeedIDs[0]
 		}
+		Logger.Errorf("Seed ID:%v ", seedId)
 
 		if !networkConfig.IsSuper {
 			bnNode := NewNode(NewNodeID(seedId), net.ParseIP(networkConfig.SeedAddr), seedPort)
@@ -96,7 +97,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		randomSeeds :=  genRandomSeeds(networkConfig.SeedIDs)
 		for _, sid := range randomSeeds {
 			bnNode := NewNode(NewNodeID(sid), net.ParseIP(networkConfig.SeedAddr), seedPort)
-			Logger.Errorf("seed id:%v ", sid)
+			Logger.Errorf("Seed ID:%v ", sid)
 
 			if bnNode.ID != self.ID {
 				seeds = append(seeds, bnNode)
@@ -107,7 +108,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 	if len(networkConfig.NatAddr) > 0 {
 		IP, err := getIPByAddress(networkConfig.NatAddr)
 		if err != nil || IP == nil {
-			Logger.Errorf("network Lookup NatAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
+			Logger.Errorf("Network Lookup NatAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
 			return err
 		}
 		natIP = IP.String()

@@ -4,11 +4,11 @@ import "testing"
 import 	"github.com/zvchain/zvchain/common"
 
 func TestPeerAuth(t *testing.T) {
-	SK := common.GenerateKey("")
+	SK,_ := common.GenerateKey("")
 	PK := SK.GetPubKey()
 	ID := PK.GetAddress()
 
-	content := genPeerAuthContext(PK.Hex(),SK.Hex())
+	content := genPeerAuthContext(PK.Hex(),SK.Hex(),nil)
 
 	result,verifyID := content.Verify()
 	if !result || verifyID != ID.Hex() {

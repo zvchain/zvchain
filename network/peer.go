@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"container/list"
 	"github.com/zvchain/zvchain/common"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -45,13 +46,19 @@ func (pa *PeerAuthContext) Verify() (bool,string){
 	if pubkey == nil  {
 		return false,""
 	}
+
+	if math.Abs(float64(time.Since(time.Unix(int64(pa.CurTime),0)))) > float64(time.Minute *5) {
+		return false,""
+	}
 	buffer := bytes.Buffer{}
 	source := pubkey.GetAddress()
 	data :=common.Uint64ToByte(pa.CurTime)
 	buffer.Write(data)
+	if netServerInstance != nil {
+		buffer.Write(netServerInstance.netCore.ID.Bytes())
+	}
+
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
-
-
 	sign := common.BytesToSign(pa.Sign)
 
 	result:= pubkey.Verify(hash.Bytes(),sign)
@@ -59,27 +66,29 @@ func (pa *PeerAuthContext) Verify() (bool,string){
 	return  result,source.Hex()
 }
 
-func genPeerAuthContext(PK string ,SK string) *PeerAuthContext{
+func genPeerAuthContext(PK string ,SK string, toID *NodeID) *PeerAuthContext{
 
 	privateKey := common.HexToSecKey(SK)
 	pubkey := common.HexToPubKey(PK)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
 		return nil
 	}
-
 	buffer := bytes.Buffer{}
 	curTime := uint64(time.Now().UTC().Unix())
 	data :=common.Uint64ToByte(curTime)
 	buffer.Write(data)
+	if toID != nil {
+		buffer.Write(toID.Bytes())
+	}
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
 
 	sign,err := privateKey.Sign(hash.Bytes())
 	if err != nil {
 		return  nil
 	}
+
 	return &PeerAuthContext{PK:pubkey.Bytes(),Sign:sign.Bytes(),CurTime:curTime}
 }
-
 
 // Peer is node connection object
 type Peer struct {
@@ -108,8 +117,8 @@ type Peer struct {
 	connectTime 		time.Time
 	authContext 		*PeerAuthContext
 	remoteAuthContext 	*PeerAuthContext
-	VerifyResult 		bool
-	RemoteVerifyResult 	bool
+	verifyResult 		bool
+	remoteVerifyResult 	bool
 	isAuthSucceed 		bool
  }
 
@@ -170,14 +179,14 @@ func (p *Peer) resetData() {
 func (p *Peer) setRemoteVerifyResult(result bool) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	p.RemoteVerifyResult = result
+	p.remoteVerifyResult = result
 
 	p.verifyUpdate()
 }
 
 func (p *Peer) verifyUpdate() {
 
-	if !p.isAuthSucceed  && p.VerifyResult && p.RemoteVerifyResult  {
+	if !p.isAuthSucceed  && p.verifyResult && p.remoteVerifyResult  {
 		p.isAuthSucceed = true
 	}
 }
@@ -202,11 +211,9 @@ func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted b
 		p.sessionID = session
 	}
 	p.connectTime =  time.Now()
-	p.authContext = genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK)
 
-	if p.ID.IsValid() {
-		netCore.ping(p.ID, nil)
-	}
+
+	netCore.ping(p.ID, nil)
 
 	p.sendList.pendingSend = 0
 	p.sendList.autoSend(p)
@@ -222,10 +229,10 @@ func (p *Peer) verify(pac *PeerAuthContext) bool{
 	p.remoteAuthContext =  pac
 	verifyResult,verifyID := p.remoteAuthContext.Verify()
 
-	p.VerifyResult =  verifyResult
+	p.verifyResult =  verifyResult
 	p.ID = NewNodeID(verifyID)
 	p.verifyUpdate()
-	return p.VerifyResult
+	return p.verifyResult
 }
 
 
