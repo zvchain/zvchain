@@ -40,16 +40,6 @@ func NewConsensusHelper(id groupsig.ID) types.ConsensusHelper {
 	return &ConsensusHelperImpl{ID: id}
 }
 
-// ProposalBonus returns bonus for packing one bonus transaction
-func (helper *ConsensusHelperImpl) ProposalBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.ProposalBonus)
-}
-
-// PackBonus returns bonus for packing one bonus transaction
-func (helper *ConsensusHelperImpl) PackBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.PackBonus)
-}
-
 // GenerateGenesisInfo generate genesis group and pk info of members
 func (helper *ConsensusHelperImpl) GenerateGenesisInfo() *types.GenesisInfo {
 	return logical.GenerateGenesis()
@@ -91,16 +81,16 @@ func (helper *ConsensusHelperImpl) CheckGroup(g *types.Group) (ok bool, err erro
 	return Proc.VerifyGroup(g)
 }
 
-// VerifyBonusTransaction verify bonus transaction
-func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction) (ok bool, err error) {
+// VerifyRewardTransaction verify reward transaction
+func (helper *ConsensusHelperImpl) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err error) {
 	signBytes := tx.Sign
 	if len(signBytes) < common.SignLength {
-		return false, fmt.Errorf("not enough bytes for bonus signature, sign =%v", signBytes)
+		return false, fmt.Errorf("not enough bytes for reward signature, sign =%v", signBytes)
 	}
 
-	groupID, targetIds, blockHash, value, err := Proc.MainChain.GetBonusManager().ParseBonusTransaction(tx)
+	groupID, targetIds, blockHash, value, err := Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse bonus transaction, err =%s", err)
+		return false, fmt.Errorf("failed to parse reward transaction, err =%s", err)
 	}
 
 	var bh *types.BlockHeader
@@ -110,9 +100,11 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	if !bytes.Equal(groupID, bh.GroupID) {
 		return false, fmt.Errorf("group id not equal to the block verifier groupId")
 	}
-
-	if model.Param.VerifyBonus/uint64(len(targetIds)) != value.Uint64() {
-		return false, fmt.Errorf("invalid verify bonus, value=%v", value)
+	verifyRewards := Proc.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
+	gasFeeRewards := Proc.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
+	verifyRewards += gasFeeRewards
+	if verifyRewards/uint64(len(targetIds)) != value.Uint64() {
+		return false, fmt.Errorf("invalid verify reward, value=%v", value)
 	}
 
 	group := Proc.GroupChain.GetGroupByID(groupID)
@@ -128,7 +120,7 @@ func (helper *ConsensusHelperImpl) VerifyBonusTransaction(tx *types.Transaction)
 	gpk := groupsig.DeserializePubkeyBytes(group.PubKey)
 	gsign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
 	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gsign) {
-		return false, fmt.Errorf("verify bonus sign fail, gsign=%v", gsign.GetHexString())
+		return false, fmt.Errorf("verify reward sign fail, gsign=%v", gsign.GetHexString())
 	}
 
 	return true, nil

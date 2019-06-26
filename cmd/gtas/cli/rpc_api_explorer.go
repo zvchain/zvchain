@@ -18,7 +18,6 @@ package cli
 import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"strings"
@@ -115,8 +114,8 @@ func explorerConvertGroup(g *types.Group) map[string]interface{} {
 	return gmap
 }
 
-// ExplorerBlockBonus export bonus transaction by block height
-func (api *RpcExplorerImpl) ExplorerBlockBonus(height uint64) (*Result, error) {
+// ExplorerBlockReward export reward transaction by block height
+func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
@@ -124,22 +123,28 @@ func (api *RpcExplorerImpl) ExplorerBlockBonus(height uint64) (*Result, error) {
 	}
 	bh := b.Header
 
-	ret := &ExploreBlockBonus{
+	ret := &ExploreBlockReward{
 		ProposalID: groupsig.DeserializeID(bh.Castor).GetHexString(),
 	}
-	bonusNum := uint64(0)
+	packedReward := uint64(0)
 	if b.Transactions != nil {
 		for _, tx := range b.Transactions {
-			if tx.Type == types.TransactionTypeBonus {
-				bonusNum++
+			if tx.Type == types.TransactionTypeReward {
+				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
+				status, err := chain.GetTransactionPool().GetTransactionStatus(tx.Hash)
+				if err != nil && block != nil && status == types.ReceiptStatusSuccessful {
+					packedReward += chain.GetRewardManager().CalculatePackedRewards(block.Header.Height)
+				}
 			}
 		}
 	}
-	ret.ProposalBonus = model.Param.ProposalBonus + bonusNum*model.Param.PackBonus
-	if bonusTx := chain.GetBonusManager().GetBonusTransactionByBlockHash(bh.Hash.Bytes()); bonusTx != nil {
-		genBonus := convertBonusTransaction(bonusTx)
-		genBonus.Success = true
-		ret.VerifierBonus = *genBonus
+	ret.ProposalReward = chain.GetRewardManager().CalculateCastorRewards(bh.Height) + packedReward
+	ret.ProposalGasFeeReward = chain.GetRewardManager().
+		CalculateGasFeeCastorRewards(bh.GasFee)
+	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
+		genReward := convertRewardTransaction(rewardTx)
+		genReward.Success = true
+		ret.VerifierReward = *genReward
 	}
 	return successResult(ret)
 }

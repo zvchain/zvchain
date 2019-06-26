@@ -401,14 +401,16 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 		return
 	}
 	if !slot.hasSignedTxHash(reward.TxHash) {
-
-		genBonus, _, err2 := p.MainChain.GetBonusManager().GenerateBonus(reward.TargetIds, bh.Hash, bh.GroupID, model.Param.VerifyBonus)
+		verifyRewards := p.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
+		gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
+		genReward, _, err2 := p.MainChain.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.GroupID,
+			gasFeeRewards+verifyRewards)
 		if err2 != nil {
 			err = err2
 			return
 		}
-		if genBonus.TxHash != reward.TxHash {
-			err = fmt.Errorf("bonus txHash diff %v %v", genBonus.TxHash.ShortS(), reward.TxHash.ShortS())
+		if genReward.TxHash != reward.TxHash {
+			err = fmt.Errorf("reward txHash diff %v %v", genReward.TxHash.ShortS(), reward.TxHash.ShortS())
 			return
 		}
 
@@ -485,7 +487,7 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 	return
 }
 
-// OnMessageCastRewardSignReq handles bonus transaction signature requests
+// OnMessageCastRewardSignReq handles reward transaction signature requests
 // It signs the message if and only if the block of the transaction already added on chain,
 // otherwise the message will be cached util the condition met
 func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
@@ -520,8 +522,8 @@ func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReq
 	return
 }
 
-// OnMessageCastRewardSign receives signed messages for the bonus transaction from group members
-// If threshold signature received and the group signature recovered successfully, the node will submit the bonus transaction to the pool
+// OnMessageCastRewardSign receives signed messages for the reward transaction from group members
+// If threshold signature received and the group signature recovered successfully, the node will submit the reward transaction to the pool
 func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) {
 	mtype := "OMCRS"
 	blog := newBizLog(mtype)
@@ -537,11 +539,11 @@ func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessag
 	)
 
 	defer func() {
-		tlog.logEnd("bonus send:%v, ret:%v", send, err)
+		tlog.logEnd("reward send:%v, ret:%v", send, err)
 		blog.debug("blockHash=%v, send=%v, result=%v", msg.BlockHash.ShortS(), send, err)
 	}()
 
-	// If the block related to the bonus transaction is not on the chain, then drop the messages
+	// If the block related to the reward transaction is not on the chain, then drop the messages
 	// This could happened after one fork process
 	bh := p.getBlockHeaderByHash(msg.BlockHash)
 	if bh == nil {
@@ -581,7 +583,7 @@ func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessag
 	accept, recover := slot.AcceptRewardPiece(&msg.SI)
 	blog.debug("slot acceptRewardPiece %v %v status %v", accept, recover, slot.GetSlotStatus())
 
-	// Add the bonus transaction to pool if the signature is accepted and the group signature is recovered
+	// Add the reward transaction to pool if the signature is accepted and the group signature is recovered
 	if accept && recover && slot.statusTransform(slRewardSignReq, slRewardSent) {
 		_, err2 := p.MainChain.GetTransactionPool().AddTransaction(slot.rewardTrans)
 		send = true
@@ -627,7 +629,7 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	}
 
 	// Only response to limited members of the group in case of network traffic
-	if atomic.AddUint64(&pb.responseCount,1) > pb.maxResponseCount {
+	if atomic.AddUint64(&pb.responseCount, 1) > pb.maxResponseCount {
 		s = fmt.Sprintf("response count exceed")
 		blog.debug("block proposal response count >= maxResponseCount(%v), not response, hash=%v", pb.maxResponseCount, msg.Hash.ShortS())
 		return
