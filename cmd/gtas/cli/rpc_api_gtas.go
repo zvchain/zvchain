@@ -283,7 +283,6 @@ func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*R
 	}
 }
 
-
 // PledgeDetail query the pledge details of the given account.
 // from: the miner address who launches the pledge, optional.
 // to: the miner address who was pledged, required.

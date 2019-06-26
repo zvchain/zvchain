@@ -87,7 +87,7 @@ const (
 	TransactionTypeTransfer         = 0
 	TransactionTypeContractCreate   = 1
 	TransactionTypeContractCall     = 2
-	TransactionTypeBonus            = 3
+	TransactionTypeReward           = 3
 	TransactionTypeMinerApply       = 4
 	TransactionTypeMinerAbort       = 5
 	TransactionTypeMinerRefund      = 6
@@ -145,9 +145,9 @@ func (tx *Transaction) HexSign() string {
 }
 
 // RecoverSource recover source from the sign field.
-// It returns directly if source is not nil or it is a bonus transaction.
+// It returns directly if source is not nil or it is a reward transaction.
 func (tx *Transaction) RecoverSource() error {
-	if tx.Source != nil || tx.Type == TransactionTypeBonus {
+	if tx.Source != nil || tx.Type == TransactionTypeReward {
 		return nil
 	}
 	sign := common.BytesToSign(tx.Sign)
@@ -163,8 +163,8 @@ func (tx *Transaction) Size() int {
 	return txFixSize + len(tx.Data) + len(tx.ExtraData)
 }
 
-func (tx *Transaction) IsBonus() bool {
-	return tx.Type == TransactionTypeBonus
+func (tx *Transaction) IsReward() bool {
+	return tx.Type == TransactionTypeReward
 }
 
 // BoundCheck check if the transaction param exceeds the bounds
@@ -237,8 +237,8 @@ func (pt *PriorityTransactions) Pop() interface{} {
 	return item
 }
 
-// Bonus is the bonus transaction raw data
-type Bonus struct {
+// Reward is the reward transaction raw data
+type Reward struct {
 	TxHash     common.Hash
 	TargetIds  []int32
 	BlockHash  common.Hash
@@ -284,6 +284,7 @@ type BlockHeader struct {
 	StateTree   common.Hash    // State db Merkel root hash
 	ExtraData   []byte
 	Random      []byte // Random number generated during the consensus process
+	GasFee      uint64 // gas fee of transaction executed in block
 }
 
 // GenHash calculates the hash of the block
@@ -311,6 +312,7 @@ func (bh *BlockHeader) GenHash() common.Hash {
 	buf.Write(bh.TxTree.Bytes())
 	buf.Write(bh.ReceiptTree.Bytes())
 	buf.Write(bh.StateTree.Bytes())
+	buf.Write(common.Uint64ToByte(bh.GasFee))
 	if bh.ExtraData != nil {
 		buf.Write(bh.ExtraData)
 	}

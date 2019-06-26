@@ -73,27 +73,27 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         ,limit:200
     });
 
-    let bonus_info_table =  table.render({
-        elem : '#bonus_transaction_detail',
+    let reward_info_table =  table.render({
+        elem : '#reward_transaction_detail',
         cols : [[
             {field:'block_height', title:'块高'},
             {field:'block_hash', title:'块Hash'},
-            {field:'bonus_tx_hash', title:'分红交易Hash'},
+            {field:'reward_tx_hash', title:'分红交易Hash'},
             {field:'group_id', title:'验证组ID'},
             {field:'caster_id', title:'出块人ID'},
             {field:'members', title:'分红者列表'},
-            {field:'bonus_value', title:'每人分红金额'}
+            {field:'reward_value', title:'每人分红金额'}
         ]],
         page : true,
         limit : 15
     });
 
-    let bonus_stat_table =  table.render({
-        elem : '#bonus_transaction_total_detail',
+    let reward_stat_table =  table.render({
+        elem : '#reward_transaction_total_detail',
         cols : [[
             {field:'member_id', title:'轻节点ID'},
-            {field:'bonus_num', title:'验证次数'},
-            {field:'total_bonus_value', title:'分红总额'}
+            {field:'reward_num', title:'验证次数'},
+            {field:'total_reward_value', title:'分红总额'}
         ]],
         page : true,
         limit : 15
@@ -544,7 +544,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
 
     function doConsensusStat(height) {
         let params = {
-            "method": "Dev_castBlockAndBonusStat",
+            "method": "Dev_castBlockAndRewardStat",
             "params": [height],
             "jsonrpc": "2.0",
             "id": "1"
@@ -558,7 +558,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             data: JSON.stringify(params),
             success: function (rdata) {
                 if (rdata.result !== undefined && rdata.result != null && rdata.result.message == 'success') {
-                    renderBonusInfo(rdata.result.data)
+                    renderRewardInfo(rdata.result.data)
                 }
             },
             error: function (err) {
@@ -567,20 +567,20 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         });
     }
 
-    function renderBonusInfo(data) {
-        var bonuses = [];
-        bonuses.push(data.bonus_info_at_height);
+    function renderRewardInfo(data) {
+        var rewardes = [];
+        rewardes.push(data.reward_info_at_height);
 
-        bonus_info_table.reload({
-            data: bonuses
+        reward_info_table.reload({
+            data: rewardes
         });
 
-        var bonusStat = [];
-        for (i=0,len=data.bonuses.length; i < len; i++) {
-            bonusStat.push(data.bonuses[i]);
+        var rewardStat = [];
+        for (i=0,len=data.rewardes.length; i < len; i++) {
+            rewardStat.push(data.rewardes[i]);
         }
-        bonus_stat_table.reload({
-            data: bonusStat
+        reward_stat_table.reload({
+            data: rewardStat
         });
 
         var castBlockStat = [];

@@ -27,6 +27,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
@@ -139,7 +140,10 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 
 	tranx := txRawToTransaction(tx)
 	tranx.Hash = tranx.GenHash()
-	sign := privateKey.Sign(tranx.Hash.Bytes())
+	sign, err := privateKey.Sign(tranx.Hash.Bytes())
+	if err != nil {
+		return opError(err)
+	}
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
@@ -206,8 +210,8 @@ func (ca *RemoteChainOpImpl) ApplyMiner(mtype int, stake uint64, gas, gasprice u
 	bpk.SetHexString(aci.Miner.BPk)
 
 	st := uint64(0)
-	if mtype == types.MinerTypeLight && common.TAS2RA(stake) < common.VerifyStake {
-		fmt.Println("stake of applying verify node must > 100 TAS")
+	if common.TAS2RA(stake) < core.MinMinerStake {
+		fmt.Println("stake of applying verify node must >= 500 TAS")
 		return opError(errors.New("stake value error!"))
 	} else {
 		st = common.TAS2RA(stake)

@@ -88,7 +88,10 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value fl
 
 	tranx := txRawToTransaction(txRaw)
 	tranx.Hash = tranx.GenHash()
-	sign := privateKey.Sign(tranx.Hash.Bytes())
+	sign, err := privateKey.Sign(tranx.Hash.Bytes())
+	if err != nil {
+		return opError(err)
+	}
 	tranx.Sign = sign.Bytes()
 	txRaw.Sign = sign.Hex()
 	return opSuccess(txRaw)

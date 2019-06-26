@@ -672,3 +672,36 @@ func TestAddress(t *testing.T) {
 	id3.UnmarshalJSON(json)
 	t.Log(id3.GetHexString())
 }
+
+func TestDoubleAggregate(t *testing.T) {
+	fmt.Printf(" TestDoubleAggregate begin \n")
+	msg := []byte("this is a test")
+	sks := make([]Seckey, 2)
+	pks := make([]Pubkey, 2)
+	sigs := make([]Signature, 2)
+
+	sks[0] = *NewSeckeyFromRand(base.NewRand())
+	pks[0] = *NewPubkeyFromSeckey(sks[0])
+	sigs[0] = Sign(sks[0], msg)
+	if !VerifySig(pks[0], msg, sigs[0]) {
+		fmt.Printf(" verify failure for 0-th user \n")
+	}
+	sks[1] = *NewSeckeyFromRand(base.NewRand())
+	pks[1] = *NewPubkeyFromSeckey(sks[1])
+	sigs[1] = Sign(sks[1], msg)
+	if !VerifySig(pks[1], msg, sigs[1]) {
+		fmt.Printf(" verify failure for 1-th user \n")
+	}
+	apk := *AggregatePubkeys(pks)
+	aSig := AggregateSigs(sigs)
+	if !VerifySig(apk, msg, aSig) {
+		fmt.Printf(" verify failure for aggregation \n")
+	}
+	if !VerifySig(pks[0], msg, aSig) {
+		fmt.Printf(" verify failure for badcase 0 \n")
+	}
+	if !VerifySig(pks[1], msg, aSig) {
+		fmt.Printf(" verify failure for badcase 1 \n")
+	}
+	fmt.Printf(" TestDoubleAggregate end \n")
+}

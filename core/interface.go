@@ -72,7 +72,7 @@ type BlockChain interface {
 	BatchGetBlocksAfterHeight(height uint64, limit int) []*types.Block
 
 	// GetTransactionByHash get a transaction by hash
-	GetTransactionByHash(onlyBonus, needSource bool, h common.Hash) *types.Transaction
+	GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *types.Transaction
 
 	// GetTransactionPool return the transaction pool waiting for the block
 	GetTransactionPool() TransactionPool
@@ -89,8 +89,8 @@ type BlockChain interface {
 	// Close the open levelDb files
 	Close()
 
-	// GetBonusManager returns the bonus manager
-	GetBonusManager() *BonusManager
+	// GetRewardManager returns the reward manager
+	GetRewardManager() *RewardManager
 
 	// GetAccountDBByHash returns account database with specified block hash
 	GetAccountDBByHash(hash common.Hash) (vm.AccountDB, error)
@@ -134,7 +134,7 @@ type TransactionPool interface {
 	AsyncAddTxs(txs []*types.Transaction)
 
 	// GetTransaction trys to find a transaction from pool by hash and return it
-	GetTransaction(bonus bool, hash common.Hash) *types.Transaction
+	GetTransaction(reward bool, hash common.Hash) *types.Transaction
 
 	// GetTransactionStatus returns the execute result status by hash
 	GetTransactionStatus(hash common.Hash) (int, error)
@@ -145,8 +145,8 @@ type TransactionPool interface {
 	// GetReceived returns the received transactions in the pool with a limited size
 	GetReceived() []*types.Transaction
 
-	// GetBonusTxs returns all the bonus transactions in the pool
-	GetBonusTxs() []*types.Transaction
+	// GetRewardTxs returns all the reward transactions in the pool
+	GetRewardTxs() []*types.Transaction
 
 	// TxNum returns the number of transactions in the pool
 	TxNum() uint64

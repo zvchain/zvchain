@@ -59,6 +59,9 @@ type VRFProve []byte //ProveSize = 81 in bytes
 func ECVRFProve(pk PublicKey, sk PrivateKey, m []byte) (pi VRFProve, err error) {
 	x := expandSecret(sk)
 	h := ECVRFHashToCurve(m, pk)
+	if h == nil {
+		return nil, errors.New("ECVRFHashToCurve: couldn't make a point on curve")
+	}
 	r := ECP2OS(GeScalarMult(h, x))
 
 	kp, ks, err := GenerateKey(nil) // use GenerateKey to generate a random
@@ -103,6 +106,9 @@ func ECVRFVerify(pk PublicKey, pi VRFProve, m []byte) (bool, error) {
 	edwards25519.GeDoubleScalarMultVartime(&u, c, P, s)
 
 	h := ECVRFHashToCurve(m, pk)
+	if h == nil {
+		return false, errors.New("ECVRFHashToCurve: couldn't make a point on curve")
+	}
 
 	// v = gamma^c * h^s
 	//	fmt.Printf("c, r, s, h\n%s%s%s%s\n", hex.Dump(c[:]), hex.Dump(ECP2OS(r)), hex.Dump(s[:]), hex.Dump(ECP2OS(h)))
@@ -171,7 +177,7 @@ func ECVRFHashToCurve(m []byte, pk PublicKey) *edwards25519.ExtendedGroupElement
 			return P
 		}
 	}
-	panic("ECVRFHashToCurve: couldn't make a point on curve")
+	return nil
 }
 
 func OS2ECP(os []byte, sign byte) *edwards25519.ExtendedGroupElement {

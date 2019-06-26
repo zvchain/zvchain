@@ -21,26 +21,26 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-type bonusPool struct {
-	bm             *BonusManager
+type rewardPool struct {
+	bm             *RewardManager
 	pool           *lru.Cache // Is an LRU cache that stores the mapping of transaction hashes to transaction pointer
 	blockHashIndex *lru.Cache // Is an LRU cache that stores the mapping of block hashes to slice of transaction pointer
 }
 
-func newBonusPool(pm *BonusManager, size int) *bonusPool {
-	return &bonusPool{
+func newRewardPool(pm *RewardManager, size int) *rewardPool {
+	return &rewardPool{
 		pool:           common.MustNewLRUCache(size),
 		blockHashIndex: common.MustNewLRUCache(size),
 		bm:             pm,
 	}
 }
 
-func (bp *bonusPool) add(tx *types.Transaction) bool {
+func (bp *rewardPool) add(tx *types.Transaction) bool {
 	if bp.pool.Contains(tx.Hash) {
 		return false
 	}
 	bp.pool.Add(tx.Hash, tx)
-	blockHash := bp.bm.parseBonusBlockHash(tx)
+	blockHash := bp.bm.parseRewardBlockHash(tx)
 
 	var txs []*types.Transaction
 	if v, ok := bp.blockHashIndex.Get(blockHash); ok {
@@ -53,16 +53,16 @@ func (bp *bonusPool) add(tx *types.Transaction) bool {
 	return true
 }
 
-func (bp *bonusPool) remove(txHash common.Hash) {
+func (bp *rewardPool) remove(txHash common.Hash) {
 	tx, _ := bp.pool.Get(txHash)
 	if tx != nil {
 		bp.pool.Remove(txHash)
-		bhash := bp.bm.parseBonusBlockHash(tx.(*types.Transaction))
+		bhash := bp.bm.parseRewardBlockHash(tx.(*types.Transaction))
 		bp.removeByBlockHash(bhash)
 	}
 }
 
-func (bp *bonusPool) removeByBlockHash(blockHash common.Hash) int {
+func (bp *rewardPool) removeByBlockHash(blockHash common.Hash) int {
 	txs, _ := bp.blockHashIndex.Get(blockHash)
 	cnt := 0
 	if txs != nil {
@@ -75,26 +75,26 @@ func (bp *bonusPool) removeByBlockHash(blockHash common.Hash) int {
 	return cnt
 }
 
-func (bp *bonusPool) get(hash common.Hash) *types.Transaction {
+func (bp *rewardPool) get(hash common.Hash) *types.Transaction {
 	if v, ok := bp.pool.Get(hash); ok {
 		return v.(*types.Transaction)
 	}
 	return nil
 }
 
-func (bp *bonusPool) len() int {
+func (bp *rewardPool) len() int {
 	return bp.pool.Len()
 }
 
-func (bp *bonusPool) contains(hash common.Hash) bool {
+func (bp *rewardPool) contains(hash common.Hash) bool {
 	return bp.pool.Contains(hash)
 }
 
-func (bp *bonusPool) hasBonus(blockHashByte []byte) bool {
-	return bp.bm.blockHasBonusTransaction(blockHashByte)
+func (bp *rewardPool) hasReward(blockHashByte []byte) bool {
+	return bp.bm.blockHasRewardTransaction(blockHashByte)
 }
 
-func (bp *bonusPool) forEach(f func(tx *types.Transaction) bool) {
+func (bp *rewardPool) forEach(f func(tx *types.Transaction) bool) {
 	for _, k := range bp.pool.Keys() {
 		v, _ := bp.pool.Peek(k)
 		if v != nil {
