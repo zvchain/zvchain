@@ -460,8 +460,13 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 		}
 
 		bhSign := groupsig.DeserializeSign(bh.Signature)
-		if !gSignGener.GetGroupSign().IsEqual(*bhSign) {
-			err = fmt.Errorf("recovered sign differ from bh sign, recover %v, bh %v", gSignGener.GetGroupSign().ShortS(), bhSign.ShortS())
+		aggSign := slot.GetAggregatedSign()
+		if aggSign == nil {
+			err = fmt.Errorf("obtain the Aggregated signature fail")
+			return
+		}
+		if !aggSign.IsEqual(*bhSign) {
+			err = fmt.Errorf("aggregated sign differ from bh sign, aggregated %v, bh %v", aggSign.ShortS(), bhSign.ShortS())
 			return
 		}
 
@@ -674,7 +679,13 @@ func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBl
 		return
 	}
 	block := types.Block{Header: slot.BH, Transactions: msg.Transactions}
-	err := p.onBlockSignAggregation(&block, slot.gSignGenerator.GetGroupSign(), slot.rSignGenerator.GetGroupSign())
+	aggSign := slot.GetAggregatedSign()
+	if aggSign == nil {
+		blog.warn("aggregated signature is nil")
+		s = "aggregated signature is nil"
+		return
+	}
+	err := p.onBlockSignAggregation(&block, *aggSign, slot.rSignGenerator.GetGroupSign())
 	if err != nil {
 		blog.error("onBlockSignAggregation fail: %v", err)
 		slot.setSlotStatus(slFailed)

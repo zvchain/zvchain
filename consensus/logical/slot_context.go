@@ -63,7 +63,8 @@ type SlotContext struct {
 	rSignGenerator *model.GroupSignGenerator // Random number signature generator
 	slotStatus     int32                     // The current status
 
-	castor groupsig.ID // The proposal miner id
+	castor groupsig.ID        // The proposal miner id
+	pSign  groupsig.Signature // The proposer signature
 
 	// Reward related
 	rewardTrans    *types.Transaction        // The bonus transaction related to the block, it should issue after the block broadcast
@@ -76,6 +77,7 @@ func createSlotContext(bh *types.BlockHeader, threshold int) *SlotContext {
 	return &SlotContext{
 		BH:                  bh,
 		castor:              groupsig.DeserializeID(bh.Castor),
+		pSign:               *groupsig.DeserializeSign(bh.Signature),
 		slotStatus:          slWaiting,
 		gSignGenerator:      model.NewGroupSignGenerator(threshold),
 		rSignGenerator:      model.NewGroupSignGenerator(threshold),
@@ -217,4 +219,15 @@ func (sc *SlotContext) hasSignedTxHash(hash common.Hash) bool {
 // hasSignedRewardTx means if signed a reward transaction
 func (sc *SlotContext) hasSignedRewardTx() bool {
 	return sc.signedRewardTxHashs.Size() > 0
+}
+
+// GetAggregatedSign returns the aggregated signature of proposer and verifier-group
+func (sc *SlotContext) GetAggregatedSign() *groupsig.Signature {
+	gSign := sc.gSignGenerator.GetGroupSign()
+	if sc.pSign.IsValid() && gSign.IsValid() {
+		signArray := [2]groupsig.Signature{sc.pSign, gSign}
+		aggSign := groupsig.AggregateSigs(signArray[:])
+		return &aggSign
+	}
+	return nil
 }
