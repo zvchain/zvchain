@@ -59,7 +59,7 @@ type MinerManager interface {
 	RefundStake(from []byte, miner *types.Miner, accountdb vm.AccountDB) (uint64, bool)
 	CancelStake(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
 	ReduceStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
-	AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool
+	AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
 	AddStakeDetail(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool
 }
 
@@ -138,7 +138,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 		if canTransfer(con.AccountDB, *sender, amount) {
 			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
 		} else {
-			return false, nil, types.TxErrorBalanceNotEnough
+			return false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: con.Transaction.GetSource().Hex()}
@@ -149,7 +149,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
-		return false, nil, types.TxErrorABIJSON
+		return false, nil, types.TxErrorABIJSONErr
 	}
 	err = con.VM.checkABI(abi) //checkABI
 	if err != nil {

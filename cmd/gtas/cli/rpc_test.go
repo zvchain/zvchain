@@ -41,6 +41,7 @@ var cfg = &minerConfig{
 	keystore:      "keystore",
 	enableMonitor: false,
 	chainID:       1,
+	password:		"123",
 }
 
 func TestRPC(t *testing.T) {
@@ -48,7 +49,15 @@ func TestRPC(t *testing.T) {
 	gtas.config = cfg
 	gtas.simpleInit("tas.ini")
 	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
-	err := gtas.fullInit()
+
+
+	aop, err := newAccountOp("keystore")
+	account := aop.NewAccount("123",true)
+	aop.store.Close()
+	addr:= account.Data.(string)
+	common.GlobalConf.SetString(Section,"miner",addr)
+
+	err = gtas.fullInit()
 	if err != nil {
 		t.Error(err)
 	}

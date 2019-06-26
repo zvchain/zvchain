@@ -250,15 +250,15 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"cmd": &bintree{nil, map[string]*bintree{
-		"gtas": &bintree{nil, map[string]*bintree{
-			"fronted": &bintree{nil, map[string]*bintree{
-				"c.html": &bintree{cmdGtasFrontedCHtml, map[string]*bintree{}},
-				"js": &bintree{nil, map[string]*bintree{
-					"tas-ext.js": &bintree{cmdGtasFrontedJsTasExtJs, map[string]*bintree{}},
-					"tas.js":     &bintree{cmdGtasFrontedJsTasJs, map[string]*bintree{}},
+	"cmd": {nil, map[string]*bintree{
+		"gtas": {nil, map[string]*bintree{
+			"fronted": {nil, map[string]*bintree{
+				"c.html": {cmdGtasFrontedCHtml, map[string]*bintree{}},
+				"js": {nil, map[string]*bintree{
+					"tas-ext.js": {cmdGtasFrontedJsTasExtJs, map[string]*bintree{}},
+					"tas.js":     {cmdGtasFrontedJsTasJs, map[string]*bintree{}},
 				}},
-				"summary.html": &bintree{cmdGtasFrontedSummaryHtml, map[string]*bintree{}},
+				"summary.html": {cmdGtasFrontedSummaryHtml, map[string]*bintree{}},
 			}},
 		}},
 	}},

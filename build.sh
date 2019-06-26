@@ -33,6 +33,8 @@ function buildp2p() {
         exit 1
     fi
 }
+
+git submodule sync
 git submodule update --init
 if [[ $1x = "gtas"x ]]; then
     echo building gtas ...

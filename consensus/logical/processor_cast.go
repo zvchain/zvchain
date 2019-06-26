@@ -320,11 +320,11 @@ func (p *Processor) blockProposal() {
 
 }
 
-// reqRewardTransSign generates a bonus transaction based on the signature pieces received locally,
+// reqRewardTransSign generates a reward transaction based on the signature pieces received locally,
 // and broadcast it to other members of the group for signature.
 //
-// After the block verification consensus, the group should issue a corresponding bonus transaction consensus
-// to make sure that 51% of the verified-member can get the bonus
+// After the block verification consensus, the group should issue a corresponding reward transaction consensus
+// to make sure that 51% of the verified-member can get the reward
 func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeader) {
 	blog := newBizLog("reqRewardTransSign")
 	blog.debug("start, bh=%v", p.blockPreview(bh))
@@ -369,20 +369,23 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 			}
 		}
 	}
-
-	bonus, tx, err := p.MainChain.GetBonusManager().GenerateBonus(targetIDIndexs, bh.Hash, bh.GroupID, model.Param.VerifyBonus)
+	verifyRewards := p.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
+	gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
+	verifyRewards += gasFeeRewards
+	reward, tx, err := p.MainChain.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.GroupID,
+		verifyRewards)
 	if err != nil {
-		err = fmt.Errorf("failed to generate bonus %s", err)
+		err = fmt.Errorf("failed to generate reward %s", err)
 		return
 	}
-	blog.debug("generate bonus txHash=%v, targetIds=%v, height=%v", bonus.TxHash.ShortS(), bonus.TargetIds, bh.Height)
+	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash.ShortS(), reward.TargetIds, bh.Height)
 
 	tlog := newHashTraceLog("REWARD_REQ", bh.Hash, p.GetMinerID())
-	tlog.log("txHash=%v, targetIds=%v", bonus.TxHash.ShortS(), strings.Join(idHexs, ","))
+	tlog.log("txHash=%v, targetIds=%v", reward.TxHash.ShortS(), strings.Join(idHexs, ","))
 
 	if slot.setRewardTrans(tx) {
 		msg := &model.CastRewardTransSignReqMessage{
-			Reward:       *bonus,
+			Reward:       *reward,
 			SignedPieces: signs,
 		}
 		ski := model.NewSecKeyInfo(p.GetMinerID(), p.getSignKey(groupID))

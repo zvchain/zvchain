@@ -79,7 +79,16 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	//	print("hehe")
 	//`
 	// 交易1
-	_, err = txpool.AddTransaction(genTestTx(12345, "100", "2", 0, 1))
+	tx:= genTestTx(12345, "100", "2", 0, 1)
+	var sign = common.BytesToSign(tx.Sign)
+	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
+	src := pk.GetAddress()
+	BlockChainImpl.LatestStateDB().AddBalance(src,new(big.Int).SetUint64(111111111111111111))
+	if err != nil {
+		t.Fatalf("error")
+	}
+	_, err = txpool.AddTransaction(tx)
+
 	if err != nil {
 		t.Fatalf("fail to AddTransaction")
 	}
@@ -137,7 +146,12 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 
 	//交易3
-	_, err = txpool.AddTransaction(genTestTx(1, "1", "2", 2, 10))
+	transaction:=genTestTx(1111, "1", "2", 2, 10)
+	sign = common.BytesToSign(transaction.Sign)
+	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
+	src = pk.GetAddress()
+	BlockChainImpl.LatestStateDB().AddBalance(src,new(big.Int).SetUint64(111111111222))
+	_, err = txpool.AddTransaction(transaction)
 	if err != nil {
 		t.Fatalf("fail to AddTransaction")
 	}
@@ -523,14 +537,6 @@ func (helper *ConsensusHelperImpl4Test) VRFProve2Value(prove []byte) *big.Int {
 	return big.NewInt(1)
 }
 
-func (helper *ConsensusHelperImpl4Test) ProposalBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.ProposalBonus)
-}
-
-func (helper *ConsensusHelperImpl4Test) PackBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.PackBonus)
-}
-
 func (helper *ConsensusHelperImpl4Test) CheckProveRoot(bh *types.BlockHeader) (bool, error) {
 	//return Proc.checkProveRoot(bh)
 	return true, nil //上链时不再校验，只在共识时校验（update：2019-04-23）
@@ -548,7 +554,7 @@ func (helper *ConsensusHelperImpl4Test) CheckGroup(g *types.Group) (ok bool, err
 	return true, nil
 }
 
-func (helper *ConsensusHelperImpl4Test) VerifyBonusTransaction(tx *types.Transaction) (ok bool, err error) {
+func (helper *ConsensusHelperImpl4Test) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err error) {
 	return true, nil
 }
 
