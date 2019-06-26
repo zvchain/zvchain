@@ -73,7 +73,7 @@ func (ms *msgShower) showHeightRoutine() bool {
 
 	if ms.apply != nil && !ms.applied {
 		balance := core.BlockChainImpl.GetBalance(common.BytesToAddress(ms.id))
-		if balance.Int64() > core.MinMinerStake {
+		if balance.Int64() >= core.MinMinerStake {
 			ms.showMsg("Balance enough! auto apply miner")
 			ms.apply()
 			ms.applied = true

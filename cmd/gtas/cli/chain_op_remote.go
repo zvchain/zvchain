@@ -210,8 +210,8 @@ func (ca *RemoteChainOpImpl) ApplyMiner(mtype int, stake uint64, gas, gasprice u
 	bpk.SetHexString(aci.Miner.BPk)
 
 	st := uint64(0)
-	if mtype == types.MinerTypeLight && common.TAS2RA(stake) < core.MinMinerStake {
-		fmt.Println("stake of applying verify node must > 500 TAS")
+	if common.TAS2RA(stake) < core.MinMinerStake {
+		fmt.Println("stake of applying verify node must >= 500 TAS")
 		return opError(errors.New("stake value error!"))
 	} else {
 		st = common.TAS2RA(stake)
