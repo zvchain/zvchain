@@ -28,7 +28,7 @@ const GroupBaseConnectNodeCount = 2
 
 // Group network is Ring topology network with several accelerate links,to implement group broadcast
 type Group struct {
-	id               string
+	ID               string
 	members          []NodeID
 	needConnectNodes []NodeID // the nodes group network need connect
 	mutex            sync.Mutex
@@ -48,18 +48,18 @@ func (g *Group) Swap(i, j int) {
 	g.members[i], g.members[j] = g.members[j], g.members[i]
 }
 
-func newGroup(id string, members []NodeID) *Group {
+func newGroup(ID string, members []NodeID) *Group {
 
-	g := &Group{id: id, members: members, needConnectNodes: make([]NodeID, 0), resolvingNodes: make(map[NodeID]time.Time)}
+	g := &Group{ID: ID, members: members, needConnectNodes: make([]NodeID, 0), resolvingNodes: make(map[NodeID]time.Time)}
 
-	Logger.Infof("new group id：%v", id)
+	Logger.Infof("new group ID：%v", ID)
 	g.genConnectNodes()
 	return g
 }
 
 func (g *Group) rebuildGroup(members []NodeID) {
 
-	Logger.Infof("rebuild group id：%v", g.id)
+	Logger.Infof("rebuild group ID：%v", g.ID)
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
@@ -78,7 +78,7 @@ func (g *Group) genConnectNodes() {
 	peerSize := len(g.members)
 	g.curIndex = 0
 	for i := 0; i < len(g.members); i++ {
-		if g.members[i] == netCore.id {
+		if g.members[i] == netCore.ID {
 			g.curIndex = i
 			break
 		}
@@ -86,7 +86,7 @@ func (g *Group) genConnectNodes() {
 
 	Logger.Debugf("[genConnectNodes] curIndex: %v", g.curIndex)
 	for i := 0; i < len(g.members); i++ {
-		Logger.Debugf("[genConnectNodes] members id: %v", g.members[i].GetHexString())
+		Logger.Debugf("[genConnectNodes] members ID: %v", g.members[i].GetHexString())
 	}
 
 	connectCount := GroupBaseConnectNodeCount
@@ -119,7 +119,7 @@ func (g *Group) genConnectNodes() {
 	}
 
 	for i := 0; i < len(g.needConnectNodes); i++ {
-		Logger.Debugf("[genConnectNodes] needConnectNodes id: %v", g.needConnectNodes[i].GetHexString())
+		Logger.Debugf("[genConnectNodes] needConnectNodes ID: %v", g.needConnectNodes[i].GetHexString())
 	}
 
 }
@@ -141,57 +141,57 @@ func (g *Group) doRefresh() {
 	memberSize := len(g.needConnectNodes)
 
 	for i := 0; i < memberSize; i++ {
-		id := g.needConnectNodes[i]
-		if id == netCore.id {
+		ID := g.needConnectNodes[i]
+		if ID == netCore.ID {
 			continue
 		}
 
-		p := netCore.peerManager.peerByID(id)
+		p := netCore.peerManager.peerByID(ID)
 		if p != nil {
 			continue
 		}
-		node := netCore.kad.find(id)
+		node := netCore.kad.find(ID)
 		if node != nil && node.IP != nil && node.Port > 0 {
-			Logger.Debugf("Group doRefresh node found in KAD id：%v ip: %v  port:%v", id.GetHexString(), node.IP, node.Port)
+			Logger.Debugf("Group doRefresh node found in KAD ID：%v ip: %v  port:%v", ID.GetHexString(), node.IP, node.Port)
 			go netCore.ping(node.ID, &nnet.UDPAddr{IP: node.IP, Port: int(node.Port)})
 		} else {
-			go netCore.ping(id, nil)
+			go netCore.ping(ID, nil)
 
-			Logger.Debugf("Group doRefresh node can not find in KAD ,resolve ....  id：%v ", id.GetHexString())
-			g.resolve(id)
+			Logger.Debugf("Group doRefresh node can not find in KAD ,resolve ....  ID：%v ", ID.GetHexString())
+			g.resolve(ID)
 		}
 	}
 }
 
-func (g *Group) resolve(id NodeID) {
+func (g *Group) resolve(ID NodeID) {
 	resolveTimeout := 3 * time.Minute
-	t, ok := g.resolvingNodes[id]
+	t, ok := g.resolvingNodes[ID]
 	if ok && time.Since(t) < resolveTimeout {
 		return
 	}
-	g.resolvingNodes[id] = time.Now()
-	go netCore.kad.resolve(id)
+	g.resolvingNodes[ID] = time.Now()
+	go netCore.kad.resolve(ID)
 }
 
 func (g *Group) send(packet *bytes.Buffer, code uint32) {
-	Logger.Debugf("Group Send id：%v ", g.id)
+	Logger.Debugf("Group Send ID：%v ", g.ID)
 
 	for i := 0; i < len(g.needConnectNodes); i++ {
-		id := g.needConnectNodes[i]
-		if id == netCore.id {
+		ID := g.needConnectNodes[i]
+		if ID == netCore.ID {
 			continue
 		}
-		p := netCore.peerManager.peerByID(id)
+		p := netCore.peerManager.peerByID(ID)
 		if p != nil {
-			netCore.peerManager.write(id, &nnet.UDPAddr{IP: p.IP, Port: int(p.Port)}, packet, code, false)
+			netCore.peerManager.write(ID, &nnet.UDPAddr{IP: p.IP, Port: int(p.Port)}, packet, code, false)
 		} else {
-			node := netCore.kad.find(id)
+			node := netCore.kad.find(ID)
 			if node != nil && node.IP != nil && node.Port > 0 {
-				Logger.Debugf("SendGroup node not connected ,but in KAD : id：%v ip: %v  port:%v", id.GetHexString(), node.IP, node.Port)
+				Logger.Debugf("SendGroup node not connected ,but in KAD : ID：%v ip: %v  port:%v", ID.GetHexString(), node.IP, node.Port)
 				netCore.peerManager.write(node.ID, &nnet.UDPAddr{IP: node.IP, Port: int(node.Port)}, packet, code, false)
 			} else {
-				Logger.Debugf("SendGroup node not connected and not in KAD : id：%v", id.GetHexString())
-				netCore.peerManager.write(id, nil, packet, code, false)
+				Logger.Debugf("SendGroup node not connected and not in KAD : ID：%v", ID.GetHexString())
+				netCore.peerManager.write(ID, nil, packet, code, false)
 			}
 		}
 	}
@@ -218,7 +218,7 @@ func (gm *GroupManager) buildGroup(ID string, members []NodeID) *Group {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 
-	Logger.Infof("build group, id:%v, count:%v", ID, len(members))
+	Logger.Infof("build group, ID:%v, count:%v", ID, len(members))
 
 	g, isExist := gm.groups[ID]
 	if !isExist {
@@ -232,13 +232,13 @@ func (gm *GroupManager) buildGroup(ID string, members []NodeID) *Group {
 }
 
 //RemoveGroup remove the group
-func (gm *GroupManager) removeGroup(id string) {
+func (gm *GroupManager) removeGroup(ID string) {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 
-	Logger.Debugf("remove group, id:%v.", id)
+	Logger.Debugf("remove group, ID:%v.", ID)
 
-	delete(gm.groups, id)
+	delete(gm.groups, ID)
 }
 
 func (gm *GroupManager) doRefresh() {
@@ -250,10 +250,10 @@ func (gm *GroupManager) doRefresh() {
 	}
 }
 
-func (gm *GroupManager) groupBroadcast(id string, packet *bytes.Buffer, code uint32) {
-	Logger.Infof("group broadcast, id:%v code:%v", id, code)
+func (gm *GroupManager) groupBroadcast(ID string, packet *bytes.Buffer, code uint32) {
+	Logger.Infof("group broadcast, ID:%v code:%v", ID, code)
 	gm.mutex.RLock()
-	g := gm.groups[id]
+	g := gm.groups[ID]
 	if g == nil {
 		Logger.Infof("group not found.")
 		gm.mutex.RUnlock()

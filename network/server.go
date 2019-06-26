@@ -33,8 +33,10 @@ type Server struct {
 	Self *Node
 
 	netCore *NetCore
+	config 	*NetworkConfig
 
 	consensusHandler MsgHandler
+
 }
 
 func (s *Server) Send(id string, msg Message) error {
@@ -114,7 +116,7 @@ func (s *Server) ConnInfo() []Conn {
 	result := make([]Conn, 0)
 	peers := s.netCore.peerManager.peers
 	for _, p := range peers {
-		if p.sessionID > 0 && p.IP != nil && p.Port > 0 {
+		if p.sessionID > 0 && p.IP != nil && p.Port > 0 && p.isAuthSucceed{
 			c := Conn{ID: p.ID.GetHexString(), IP: p.IP.String(), Port: strconv.Itoa(p.Port)}
 			result = append(result, c)
 		}

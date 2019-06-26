@@ -13,6 +13,7 @@ enum MessageType
     MessageRelayNode = 7;
 
 };
+
 enum DataType
 {
     DataNormal = 0;
@@ -20,14 +21,15 @@ enum DataType
 	DataGlobal= 2;
 	DataGlobalRandom= 3;
 };
+
 message RpcNode  {
-    string Ip = 1;
+    string IP = 1;
     int32 Port = 2;
-    string Id = 3;
+    string ID = 3;
 }
 
 message RpcEndPoint  {
-	string Ip = 1;
+	string IP = 1;
     int32 Port = 2;
 }
 
@@ -35,13 +37,20 @@ message MsgPing{
     int32 Version = 1;
     RpcEndPoint From = 2;
     RpcEndPoint To = 3;
-    bytes  NodeId = 4;
-    uint32 chainId = 5;
-	uint64 Expiration = 6;
+    uint32 chainID = 4;
+	uint64 Expiration = 5;
+    bytes  PK = 6;
+    bytes  Sign = 7;
+    uint64 CurTime = 8;
+}
+
+message MsgPong{
+    int32 Version = 1;
+    bool VerifyResult = 2;
 }
 
 message MsgRelay{
-    bytes NodeId=1;
+    bytes NodeID=1;
 }
 
 message MsgFindNode {
@@ -56,12 +65,12 @@ message MsgNeighbors {
 
 message MsgData {
     DataType DataType = 1;
-    string GroupId = 2;
+    string GroupID = 2;
     uint64 Expiration = 3;
-    uint64 MessageId = 4;
-    bytes BizMessageId = 5;
-    bytes DestNodeId = 6;
-    bytes SrcNodeId = 7;
+    uint64 MessageID = 4;
+    bytes BizMessageID = 5;
+    bytes DestNodeID = 6;
+    bytes SrcNodeID = 7;
     bytes Data = 8;
     int32 RelayCount = 9;
     uint32 MessageCode = 10;
