@@ -108,6 +108,8 @@ message BlockHeader{
 
      optional bytes Random = 16;
 
+     optional uint64 GasFee = 17;
+
 //     optional bytes ProveRoot = 18;
 
 }

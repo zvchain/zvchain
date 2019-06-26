@@ -310,6 +310,7 @@ func (bh *BlockHeader) GenHash() common.Hash {
 	buf.Write(bh.TxTree.Bytes())
 	buf.Write(bh.ReceiptTree.Bytes())
 	buf.Write(bh.StateTree.Bytes())
+	buf.Write(common.Uint64ToByte(bh.GasFee))
 	if bh.ExtraData != nil {
 		buf.Write(bh.ExtraData)
 	}

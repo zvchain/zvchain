@@ -21,44 +21,39 @@ import (
 	"sync"
 
 	"github.com/zvchain/zvchain/common"
-
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/vm"
 )
 
 const (
-	initialRewards     = 62 * common.TAS
-	halveRewardsPeriod = 30000000
-	halveRewardsTimes  = 3
-	tokensOfMiners     = 3500000000 * common.TAS
-	tokenLeftKey       = "TokenLeft"
+	initialRewards     = 62 * common.TAS         // the initial rewards of one block released
+	halveRewardsPeriod = 30000000                // the period of halve block rewards
+	halveRewardsTimes  = 3                       // the times of halve block rewards
+	tokensOfMiners     = 3500000000 * common.TAS // total amount of tokens belonging to miners
+	tokenLeftKey       = "TokenLeft"             // the key of token left stored in statedb
 )
 
 const (
-	initialDaemonNodeWeight = 629
-	initialMinerNodeWeight  = 9228
-	userNodeWeight          = 143
-	totalNodeWeight         = 10000
-	adjustWeight            = 114
-	adjustWeightPeriod      = 10000000
+	initialDaemonNodeWeight = 629      // initial daemon node weight of rewards
+	initialMinerNodeWeight  = 9228     // initial miner node weight of rewards
+	userNodeWeight          = 143      // initial user node weight of rewards
+	totalNodeWeight         = 10000    // total weight of rewards
+	adjustWeight            = 114      // weight of adjusted per period
+	adjustWeightPeriod      = 10000000 // the period of adjusting weight
 )
 
 const (
-	castorRewardsWeight = 8
-	packedRewardsWeight = 1
-	verifyRewardsWeight = 1
-	totalRewardsWeight  = 10
+	castorRewardsWeight = 8  // rewards weight of castor miner node
+	packedRewardsWeight = 1  // rewards weight of miner packed reward-tx
+	verifyRewardsWeight = 1  // rewards weight of verify miner node
+	totalRewardsWeight  = 10 //total rewards weight
 )
 
 const (
-	gasFeeCastorRewardsWeight = 9
-	gasFeeVerifyRewardsWeight = 1
-	gasFeeTotalRewardsWeight  = 10
-)
-
-var (
-	userNodeAddress   = common.HexToAddress("0xe30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139")
-	daemonNodeAddress = common.HexToAddress("0xae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122")
+	gasFeeCastorRewardsWeight = 9  // gas fee rewards weight of castor role
+	gasFeeVerifyRewardsWeight = 1  // gas fee rewards weight of verify role
+	gasFeeTotalRewardsWeight  = 10 // total rewards weight of gas fee
 )
 
 // RewardManager manage the reward transactions
@@ -179,7 +174,7 @@ func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
 	return rewards * minerNodesWeight / totalNodeWeight
 }
 
-func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
+func (rm *RewardManager) reduceBlockRewards(height uint64, accountDB *account.AccountDB) bool {
 	if !rm.noRewards && rm.tokenLeft == 0 {
 		value := BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, tokenLeftKey)
 		if value == nil {
@@ -198,7 +193,7 @@ func (rm *RewardManager) reduceBlockRewards(height uint64) bool {
 		return false
 	}
 	rm.tokenLeft -= rewards
-	BlockChainImpl.LatestStateDB().SetData(common.RewardStorageAddress, tokenLeftKey, common.Uint64ToByte(rm.tokenLeft))
+	accountDB.SetData(common.RewardStorageAddress, tokenLeftKey, common.Uint64ToByte(rm.tokenLeft))
 	return true
 }
 

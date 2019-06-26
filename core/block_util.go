@@ -35,13 +35,15 @@ var testTxAccount = []string{"0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba560957263
 	"0x5d9b2132ec1d2011f488648a8dc24f9b29ca40933ca89d8d19367280dff59a03", "0x5afb7e2617f1dd729ea3557096021e2f4eaa1a9c8fe48d8132b1f6cf13338a8f",
 	"0x30c049d276610da3355f6c11de8623ec6b40fd2a73bb5d647df2ae83c30244bc", "0xa2b7bc555ca535745a7a9c55f9face88fc286a8b316352afc457ffafb40a7478"}
 
-const adminAddr = "0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b"
-const miningPoolAddr = "0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031c"
-const circulatesAddr = "0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031d"
-const teamFoundationToken = 750000000 * common.TAS
-const businessFoundationToken = 250000000 * common.TAS
-const miningPoolToken = 425000000 * common.TAS
-const circulatesToken = 75000000 * common.TAS
+const adminAddr = "0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b"         // address of admin who can control foundation contract
+const miningPoolAddr = "0x6d880ddbcfb24180901d1ea709bb027cd86f79936d5ed23ece70bd98f22f2d84"    // address of mining pool in pre-distribution
+const circulatesAddr = "0xebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3"    // address of circulates in pre-distribution
+const userNodeAddress = "0xe30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139"   //address of official reserved user node address
+const daemonNodeAddress = "0xae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122" //address of official reserved daemon node address
+const teamFoundationToken = 750000000 * common.TAS                                             // amount of tokens that belong to team
+const businessFoundationToken = 250000000 * common.TAS                                         // amount of tokens that belongs to business
+const miningPoolToken = 425000000 * common.TAS                                                 // amount of tokens that belongs to mining pool
+const circulatesToken = 75000000 * common.TAS                                                  // amount of tokens that belongs to circulates
 
 // IsTestTransaction is used for performance testing. We will not check the nonce if a transaction is sent from
 // a testing account.
@@ -93,11 +95,7 @@ func calcReceiptsTree(receipts types.Receipts) common.Hash {
 }
 
 func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisInfo) {
-	tenThousandTasBi := big.NewInt(0).SetUint64(common.TAS2RA(10000))
-
-	//管理员账户
-	stateDB.SetBalance(common.HexToAddress(adminAddr), big.NewInt(0).SetUint64(common.TAS2RA(100000000)))
-	stateDB.SetBalance(common.HexToAddress("0x6d880ddbcfb24180901d1ea709bb027cd86f79936d5ed23ece70bd98f22f2d84"), big.NewInt(0).SetUint64(common.TAS2RA(100000000)))
+	tenThousandTasToken := big.NewInt(0).SetUint64(common.TAS2RA(10000))
 
 	// FoundationContract
 	businessFoundationAddr := setupFoundationContract(stateDB, adminAddr, businessFoundationToken, 1)
@@ -110,59 +108,15 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	stateDB.SetBalance(common.HexToAddress(miningPoolAddr), big.NewInt(0).SetUint64(miningPoolToken))
 	stateDB.SetBalance(common.HexToAddress(circulatesAddr), big.NewInt(0).SetUint64(circulatesToken))
 
-	//创世账户
+	// genesis
 	for _, mem := range genesisInfo.Group.Members {
 		addr := common.BytesToAddress(mem)
-		stateDB.SetBalance(addr, tenThousandTasBi)
-	}
-
-	// 交易脚本账户
-	for _, acc := range testTxAccount {
-		stateDB.SetBalance(common.HexToAddress(acc), tenThousandTasBi)
+		stateDB.SetBalance(addr, tenThousandTasToken)
 	}
 }
 
 func setupFoundationContract(stateDB *account.AccountDB, adminAddr string, totalToken, nonce uint64) *common.Address {
-	code := `
-import block
-import account
-class Foundation(object):
-    def __init__(self):
-        self.admin = "%s"
-        self.total_token = %d
-        self.withdrawed = 0
-        self.first_year_weight = 64
-        self.total_weight = 360
-
-    def calculate_released(self):
-        period = block.number() // 10000000
-        if period > 11:
-            period = 11
-        weight = 0
-        for i in range(period+1):
-            weight = weight + self.first_year_weight // (2 ** (i // 3))
-        return self.total_token * weight // self.total_weight
-
-    @register.public(int)
-    def withdraw(self, amount):
-        if msg.sender != self.admin:
-            return
-        can_withdraw = self.calculate_released() - self.withdrawed
-        if amount > can_withdraw:
-            return
-        if account.get_balance(this) < amount:
-            return
-        self.withdrawed += amount
-        account.transfer(self.admin, amount)
-
-    @register.public(str)
-    def change_admin(self, admin):
-        if msg.sender != self.admin:
-            return
-        self.admin = admin
-
-`
-	code = fmt.Sprintf(code, adminAddr, totalToken)
+	code := fmt.Sprintf(foundation_contract, adminAddr, totalToken)
 	transaction := types.Transaction{}
 	addr := common.HexToAddress(adminAddr)
 	transaction.Source = &addr

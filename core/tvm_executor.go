@@ -46,13 +46,14 @@ func NewTVMExecutor(bc BlockChain) *TVMExecutor {
 }
 
 // Execute executes all types transactions and returns the receipts
-func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed []*types.Transaction, recps []*types.Receipt, err error) {
+func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed []*types.Transaction, recps []*types.Receipt, gasFee uint64, err error) {
 	beginTime := time.Now()
 	receipts := make([]*types.Receipt, 0)
 	transactions := make([]*types.Transaction, 0)
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
-	var packedRewardsBlockHash []common.Hash
+	rm := BlockChainImpl.GetRewardManager()
+	var castorTotalRewards uint64
 	for _, transaction := range txs {
 		if pack && time.Since(beginTime).Seconds() > float64(MaxCastBlockTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", transaction.Hash.Hex())
@@ -71,7 +72,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
-			if invalidGasPrice(&transaction.GasPrice.Int, bh.Height) {
+			if !validGasPrice(&transaction.GasPrice.Int, bh.Height) {
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				continue
 			}
@@ -114,18 +115,22 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				success = false
 				cumulativeGasUsed = intriGas.Uint64()
 			}
-			gasFee := big.NewInt(0)
-			gasFee = gasFee.Mul(gasFee.SetUint64(cumulativeGasUsed), transaction.GasPrice.Value())
-			accountdb.SubBalance(*transaction.Source, gasFee)
-			bh.GasFee += gasFee.Uint64()
+			fee := big.NewInt(0)
+			fee = fee.Mul(fee.SetUint64(cumulativeGasUsed), transaction.GasPrice.Value())
+			accountdb.SubBalance(*transaction.Source, fee)
+			gasFee += fee.Uint64()
 		} else {
 			success = executor.executeRewardTx(accountdb, transaction, castor)
-			if !success {
+			Logger.Debugf("executed rewards tx, success: %t", success)
+			if success {
+				b := BlockChainImpl.QueryBlockByHash(common.BytesToHash(transaction.Data))
+				if b != nil {
+					castorTotalRewards += rm.CalculatePackedRewards(b.Header.Height)
+				}
+			} else {
 				evictedTxs = append(evictedTxs, transaction.Hash)
 				// Failed reward tx should not be included in block
 				continue
-			} else {
-				packedRewardsBlockHash = append(packedRewardsBlockHash, common.BytesToHash(transaction.Data))
 			}
 		}
 		idx := len(transactions)
@@ -144,23 +149,18 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 
 	}
 	//ts.AddStat("executeLoop", time.Since(b))
-	rm := BlockChainImpl.GetRewardManager()
-	castorTotalRewards := rm.CalculateGasFeeCastorRewards(bh.GasFee)
-	for _, blockHash := range packedRewardsBlockHash {
-		b := BlockChainImpl.QueryBlockByHash(blockHash)
-		if b != nil {
-			castorTotalRewards += rm.CalculatePackedRewards(b.Header.Height)
-		}
-	}
-	if rm.reduceBlockRewards(bh.Height) {
+	castorTotalRewards += rm.CalculateGasFeeCastorRewards(gasFee)
+	if rm.reduceBlockRewards(bh.Height, accountdb) {
 		castorTotalRewards += rm.CalculateCastorRewards(bh.Height)
-		accountdb.AddBalance(daemonNodeAddress, big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
-		accountdb.AddBalance(userNodeAddress, big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
+		accountdb.AddBalance(common.HexToAddress(daemonNodeAddress),
+			big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
+		accountdb.AddBalance(common.HexToAddress(userNodeAddress),
+			big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
 	}
 	accountdb.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	state = accountdb.IntermediateRoot(true)
-	return state, evictedTxs, transactions, receipts, nil
+	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
 
 func (executor *TVMExecutor) validateNonce(accountdb *account.AccountDB, transaction *types.Transaction) bool {
@@ -461,15 +461,15 @@ func intrinsicGas(transaction *types.Transaction) (gasUsed *types.BigInt, err *t
 	return types.NewBigInt(gas), nil
 }
 
-func invalidGasPrice(gasPrice *big.Int, height uint64) bool {
+func validGasPrice(gasPrice *big.Int, height uint64) bool {
 	times := height / adjustGasPricePeriod
 	if times > adjustGasPriceTimes {
 		times = adjustGasPriceTimes
 	}
 	if gasPrice.Cmp(big.NewInt(0).SetUint64(initialMinGasPrice<<times)) < 0 {
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 func checkGasFeeIsEnough(db vm.AccountDB, addr common.Address, gasFee *big.Int) *types.TransactionError {

@@ -106,10 +106,11 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	exeTraceLog := monitor.NewPerformTraceLogger("Execute", common.Hash{}, height)
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
-	statehash, evitTxs, transactions, receipts, err := chain.executor.Execute(state, block.Header, txs, true, nil)
+	statehash, evitTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
 	exeTraceLog.SetEnd()
 
 	block.Transactions = transactions
+	block.Header.GasFee = gasFee
 	block.Header.TxTree = calcTxTree(block.Transactions)
 
 	block.Header.StateTree = common.BytesToHash(statehash.Bytes())
@@ -453,7 +454,11 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 		return false, nil
 	}
 
-	statehash, evitTxs, _, receipts, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
+	statehash, evitTxs, _, receipts, gasFee, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
+	if gasFee != block.Header.GasFee {
+		Logger.Errorf("Fail to verify GasFee, fee1: %d, fee1: %d", gasFee, block.Header.GasFee)
+		return false, nil
+	}
 	if statehash != block.Header.StateTree {
 		Logger.Errorf("Fail to verify statetrexecute transaction failee, hash1:%s hash2:%s", statehash.Hex(), block.Header.StateTree.Hex())
 		return false, nil

@@ -28,8 +28,7 @@ func TestRewardManager_CalculateGasFeeCastorRewards(t *testing.T) {
 
 func TestRewardManager_Rewards(t *testing.T) {
 	rm := newRewardManager()
-	for i := uint64(0); i < 150000000; i++ {
-		rm.reduceBlockRewards(i)
+	for i := uint64(0); i < 120000000; i++ {
 		blockRewards := rm.blockRewards(i)
 		userNodeRewards := rm.userNodesRewards(i)
 		correctUserNodeRewards := blockRewards * userNodeWeight / totalNodeWeight

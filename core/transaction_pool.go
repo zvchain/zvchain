@@ -42,8 +42,9 @@ const (
 var gasLimitMax = new(types.BigInt).SetUint64(500000)
 
 var (
-	ErrNil  = errors.New("nil transaction")
-	ErrHash = errors.New("invalid transaction hash")
+	ErrNil      = errors.New("nil transaction")
+	ErrHash     = errors.New("invalid transaction hash")
+	ErrGasPrice = errors.New("gas price is too low")
 )
 
 type txPool struct {
@@ -179,6 +180,10 @@ func (pool *txPool) PackForCast() []*types.Transaction {
 
 // RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction
 func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
+	height := BlockChainImpl.Height()
+	if !tx.IsReward() && !validGasPrice(&tx.GasPrice.Int, height) {
+		return ErrGasPrice
+	}
 	if !tx.Hash.IsValid() {
 		return ErrHash
 	}

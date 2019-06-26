@@ -45,13 +45,13 @@ var (
 )
 
 const (
-	MinMinerStake             = 500 * common.TAS
-	MaxMinerStakeAdjustPeriod = 5000000
-	initialMinerNodesAmount   = 200
-	MoreMinerNodesPerHalfYear = 12
-	initialTokenReleased      = 500000000
-	tokenReleasedPerHalfYear  = 400000000
-	stakeAdjustTimes          = 24
+	MinMinerStake             = 500 * common.TAS // minimal token of miner can stake
+	MaxMinerStakeAdjustPeriod = 5000000          // maximal token of miner can stake
+	initialMinerNodesAmount   = 200              // The number initial of miner nodes envisioned
+	MoreMinerNodesPerHalfYear = 12               // The number of increasing nodes per half year
+	initialTokenReleased      = 500000000        // The initial amount of tokens released
+	tokenReleasedPerHalfYear  = 400000000        //  The amount of tokens released per half year
+	stakeAdjustTimes          = 24               // stake adjust times
 )
 
 type stakeFlagByte = byte
