@@ -657,6 +657,50 @@ func (c *viewContractCmd) parse(args []string) bool {
 	return true
 }
 
+type importKeyCmd struct {
+	baseCmd
+	key      string
+	password string
+	miner    bool
+}
+
+func genImportKeyCmd() *importKeyCmd {
+	c := &importKeyCmd{
+		baseCmd: *genBaseCmd("importkey", "import private key"),
+	}
+	c.fs.StringVar(&c.key, "privatekey", "", "private key imported for the account")
+	c.fs.StringVar(&c.password, "password", "", "password for the account")
+	c.fs.BoolVar(&c.miner, "miner", false, "create the account for miner if set")
+	return c
+}
+
+func (c *importKeyCmd) parse(args []string) bool {
+	err := c.fs.Parse(args)
+	if err != nil {
+		output(err.Error())
+		return false
+	}
+	key := strings.TrimSpace(c.key)
+	if len(key) == 0 {
+		output("Please input private key")
+		return false
+	}
+	if !validateKey(key) {
+		output("Private key is invalid")
+		return false
+	}
+	pass := strings.TrimSpace(c.password)
+	if len(pass) == 0 {
+		output("Please input password")
+		return false
+	}
+	if len(pass) > 50 || len(pass) < 3 {
+		output("password length should between 3-50")
+		return false
+	}
+	return true
+}
+
 var cmdNewAccount = genNewAccountCmd()
 var cmdExit = genBaseCmd("exit", "quit  gtas")
 var cmdHelp = genBaseCmd("help", "show help info")
@@ -680,6 +724,8 @@ var cmdMinerRefund = genMinerRefundCmd()
 var cmdMinerStake = genMinerStakeCmd()
 var cmdMinerCancelStake = genMinerCancelStakeCmd()
 var cmdViewContract = genViewContractCmd()
+
+var cmdImportKey = genImportKeyCmd()
 
 var list = make([]*baseCmd, 0)
 
@@ -705,6 +751,7 @@ func init() {
 	list = append(list, &cmdViewContract.baseCmd)
 	list = append(list, &cmdMinerCancelStake.baseCmd)
 	list = append(list, &cmdMinerStake.baseCmd)
+	list = append(list, &cmdImportKey.baseCmd)
 	list = append(list, cmdExit)
 }
 
@@ -958,6 +1005,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return chainOp.ViewContract(cmd.addr)
+				})
+			}
+		case cmdImportKey.name:
+			cmd := genImportKeyCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return acm.NewAccountByImportKey(cmd.key, cmd.password, cmd.miner)
 				})
 			}
 		default:

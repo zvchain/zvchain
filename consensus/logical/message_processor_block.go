@@ -627,7 +627,7 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	}
 
 	// Only response to limited members of the group in case of network traffic
-	if atomic.AddUint64(&pb.responseCount,1) > pb.maxResponseCount {
+	if atomic.AddUint64(&pb.responseCount, 1) > pb.maxResponseCount {
 		s = fmt.Sprintf("response count exceed")
 		blog.debug("block proposal response count >= maxResponseCount(%v), not response, hash=%v", pb.maxResponseCount, msg.Hash.ShortS())
 		return
