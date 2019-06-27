@@ -28,6 +28,7 @@ func init() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
+			rewardManager:   newRewardManager(),
 		},
 	}
 	options := &opt.Options{
@@ -85,7 +86,7 @@ func TestTVMExecutor_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stateHash, evts, executed, receptes, _,err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
+	stateHash, evts, executed, receptes, _, err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
 	if err != nil {
 		t.Fatalf("execute error :%v", err)
 	}
