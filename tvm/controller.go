@@ -18,10 +18,11 @@ package tvm
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/vm"
-	"math/big"
 )
 
 // HasLoadPyLibPath HasLoadPyLibPath is the flag that whether load python lib
@@ -101,7 +102,7 @@ func (con *Controller) Deploy(contract *Contract) error {
 		con.VM.DelTVM()
 	}()
 	con.VM.SetGas(int(con.GasLeft))
-	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue(), Sender: con.Transaction.GetSource().Hex()}
+	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue()}
 	err := con.VM.Deploy(msg)
 
 	if err != nil {
@@ -140,7 +141,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 			return false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
-	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: con.Transaction.GetSource().Hex()}
+	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
 	libLen,result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
@@ -186,7 +187,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 			return nil, false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
-	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: sender.Hex()}
+	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
 	libLen, executeResult, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return nil, false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())

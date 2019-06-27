@@ -120,13 +120,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-type CallTask struct {
-	Sender       *common.Address
-	ContractAddr *common.Address
-	FuncName     string
-	Params       string
-}
-
 type ExecuteResult struct {
 	ResultType int
 	ErrorCode  int
@@ -163,7 +156,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		return result
 	}
 
-	msg := Msg{Data: []byte{}, Value: 0, Sender: conAddr.Hex()}
+	msg := Msg{Data: []byte{}, Value: 0}
 	_, executeResult, err := controller.VM.CreateContractInstance(msg)
 	if err != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
@@ -188,7 +181,6 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = err.Error()
 		return result
 	}
-
 	return controller.VM.executeABIKindEval(abi)
 }
 
@@ -346,7 +338,6 @@ func (tvm *TVM) storeData() error {
 type Msg struct {
 	Data   []byte
 	Value  uint64
-	Sender string
 }
 
 // CreateContractInstance Create contract instance
@@ -455,12 +446,12 @@ func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *Execut
 }
 
 func (tvm *TVM) loadMsg(msg Msg) error {
-	script := pycodeLoadMsg(msg.Sender, msg.Value, tvm.ContractAddress.Hex())
+	script := pycodeLoadMsg(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
 func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
-	script := pycodeLoadMsgWhenCall(msg.Sender, msg.Value, tvm.ContractAddress.Hex())
+	script := pycodeLoadMsgWhenCall(msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
@@ -473,8 +464,6 @@ func (tvm *TVM) Deploy(msg Msg) error {
 	script, libLen := pycodeContractDeploy(tvm.Code, tvm.ContractName)
 	tvm.SetLibLine(libLen)
 	err = tvm.ExecuteScriptVMSucceed(script)
-	fmt.Println("DEPLOY")
-	C.tvm_gas_report()
 	return err
 }
 
