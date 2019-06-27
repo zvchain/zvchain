@@ -16,7 +16,6 @@
 package core
 
 import (
-	"math/big"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -262,7 +261,7 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
 	bnm := notify.AsDefault(msg)
 
-	blockInfo, e := bs.unMarshalTopBlockInfo(bnm.Body())
+	blockHeader, e := bs.unMarshalTopBlockInfo(bnm.Body())
 	if e != nil {
 		bs.logger.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
 		return
@@ -271,7 +270,7 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
 	source := bnm.Source()
 	peerManagerImpl.heardFromPeer(source)
 
-	bs.addCandidatePool(source, blockInfo)
+	bs.addCandidatePool(source, newTopBlockInfo(blockHeader))
 }
 
 func (bs *blockSyncer) syncTimeoutRoutineName(id string) string {
