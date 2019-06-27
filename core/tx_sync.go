@@ -18,7 +18,6 @@ package core
 import (
 	"bytes"
 
-	"sync"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -55,7 +54,6 @@ type txSyncer struct {
 var TxSyncer *txSyncer
 
 type peerTxsHashs struct {
-	lock    sync.RWMutex
 	txHashs *lru.Cache
 }
 
@@ -66,36 +64,26 @@ func newPeerTxsKeys() *peerTxsHashs {
 }
 
 func (ptk *peerTxsHashs) addTxHashs(hashs []common.Hash) {
-	ptk.lock.Lock()
-	defer ptk.lock.Unlock()
 	for _, k := range hashs {
 		ptk.txHashs.Add(k, 1)
 	}
 }
 
 func (ptk *peerTxsHashs) removeHashs(hashs []common.Hash) {
-	ptk.lock.Lock()
-	defer ptk.lock.Unlock()
 	for _, k := range hashs {
 		ptk.txHashs.Remove(k)
 	}
 }
 
 func (ptk *peerTxsHashs) reset() {
-	ptk.lock.Lock()
-	defer ptk.lock.Unlock()
 	ptk.txHashs = common.MustNewLRUCache(txPeerMaxLimit)
 }
 
 func (ptk *peerTxsHashs) hasHash(k common.Hash) bool {
-	ptk.lock.RLock()
-	defer ptk.lock.RUnlock()
 	return ptk.txHashs.Contains(k)
 }
 
 func (ptk *peerTxsHashs) forEach(f func(k common.Hash) bool) {
-	ptk.lock.RLock()
-	defer ptk.lock.RUnlock()
 	for _, k := range ptk.txHashs.Keys() {
 		if !f(k.(common.Hash)) {
 			break
@@ -231,13 +219,13 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) {
 	reader := bytes.NewReader(nm.Body())
 	var (
 		hashs = make([]common.Hash, 0)
-		buf   = make([]byte, 32)
+		buf   = make([]byte, len(common.Hash{}))
 		count = 0
 	)
 
 	for {
 		n, _ := reader.Read(buf)
-		if n != 32 {
+		if n != len(common.Hash{}) {
 			break
 		}
 		if count > txMaxReceiveLimit {
@@ -250,7 +238,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) {
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
 	accepts := make([]common.Hash, 0)
 	for _, k := range hashs {
-		if exist, _ := BlockChainImpl.GetTransactionPool().IsTransactionExisted(k); !exist {
+		if exist, _ := ts.pool.IsTransactionExisted(k); !exist {
 			accepts = append(accepts, k)
 		}
 	}
@@ -322,12 +310,12 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 	reader := bytes.NewReader(nm.Body())
 	var (
 		hashs = make([]common.Hash, 0)
-		buf   = make([]byte, 32)
+		buf   = make([]byte, len(common.Hash{}))
 		count = 0
 	)
 	for {
 		n, _ := reader.Read(buf)
-		if n != 32 {
+		if n != len(common.Hash{}) {
 			break
 		}
 		if count > txPeerMaxLimit {
