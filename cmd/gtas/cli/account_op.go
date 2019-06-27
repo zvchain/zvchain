@@ -205,20 +205,22 @@ func (am *AccountManager) storeAccount(addr string, ksr *KeyStoreRaw, password s
 	return err
 }
 
-func (am *AccountManager) getFirstMinerAccount() *Account {
+func (am *AccountManager) getFirstMinerAccount(password string) *Account {
 	iter := am.store.NewIterator()
-	var count = 0
 	for iter.Next() {
-		count = count + 1
-		if ac, err := am.getAccountInfo(string(iter.Key())); err != nil {
-			panic(fmt.Sprintf("getAccountInfo err,addr=%v,err=%v", string(iter.Key()), err.Error()))
+		addr := string(iter.Key())
+		if v, ok := am.accounts.Load(addr); ok {
+			aci := v.(*AccountInfo)
+			if passwordHash(password) == aci.Password && aci.Miner != nil {
+				return &aci.Account
+			}
 		} else {
-			if ac.Miner != nil {
-				return &ac.Account
+			acc, err := am.loadAccount(addr, password)
+			if err == nil && acc.Miner != nil {
+				return acc
 			}
 		}
 	}
-	fmt.Printf("account number =%v\n", count)
 	return nil
 }
 
