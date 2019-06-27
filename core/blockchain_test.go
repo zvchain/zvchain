@@ -470,7 +470,6 @@ func clear() {
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
 		GroupChainImpl.Close()
-		TxSyncer.Close()
 		taslog.Close()
 		BlockChainImpl = nil
 	}
