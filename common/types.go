@@ -126,6 +126,13 @@ func (a Address) IsValid() bool {
 	return len(a.Bytes()) > 0
 }
 
+func (a *Address) String() string {
+	if a == nil {
+		return "nil"
+	}
+	return a.Hex()
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Hash data struct (256-bits)
 type Hash [HashLength]byte

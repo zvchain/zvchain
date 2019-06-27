@@ -681,6 +681,35 @@ func (c *importKeyCmd) parse(args []string) bool {
 	return true
 }
 
+type exportKeyCmd struct {
+	baseCmd
+	addr string
+}
+
+func genExportKeyCmd() *exportKeyCmd {
+	c := &exportKeyCmd{
+		baseCmd: *genBaseCmd("exportkey", "export private key"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "address of the account")
+	return c
+}
+
+func (c *exportKeyCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if c.addr == "" {
+		output("please input the account address")
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return true
+}
+
 var cmdNewAccount = genNewAccountCmd()
 var cmdExit = genBaseCmd("exit", "quit  gtas")
 var cmdHelp = genBaseCmd("help", "show help info")
@@ -705,6 +734,7 @@ var cmdStakeReduce = genStakeReduceCmd()
 var cmdViewContract = genViewContractCmd()
 
 var cmdImportKey = genImportKeyCmd()
+var cmdExportKey = genExportKeyCmd()
 
 var list = make([]*baseCmd, 0)
 
@@ -730,6 +760,7 @@ func init() {
 	list = append(list, &cmdViewContract.baseCmd)
 	list = append(list, &cmdStakeReduce.baseCmd)
 	list = append(list, &cmdImportKey.baseCmd)
+	list = append(list, &cmdExportKey.baseCmd)
 	list = append(list, cmdExit)
 }
 
@@ -983,6 +1014,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return acm.NewAccountByImportKey(cmd.key, cmd.password, cmd.miner)
+				})
+			}
+		case cmdExportKey.name:
+			cmd := genExportKeyCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return acm.ExportKey(cmd.addr)
 				})
 			}
 		default:

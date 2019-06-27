@@ -32,16 +32,6 @@ const (
 	heavyMinerNetTriggerInterval = 30
 )
 
-const (
-	MinMinerStake             = 500 * common.TAS // minimal token of miner can stake
-	MaxMinerStakeAdjustPeriod = 5000000          // maximal token of miner can stake
-	initialMinerNodesAmount   = 200              // The number initial of miner nodes envisioned
-	MoreMinerNodesPerHalfYear = 12               // The number of increasing nodes per half year
-	initialTokenReleased      = 500000000        // The initial amount of tokens released
-	tokenReleasedPerHalfYear  = 400000000        //  The amount of tokens released per half year
-	stakeAdjustTimes          = 24               // stake adjust times
-)
-
 var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
@@ -153,22 +143,78 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	return miners
 }
 
-func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Address) []*types.StakeDetail {
-	result := make([]*types.StakeDetail, 0)
-
+func (mm *MinerManager) getStakeDetail(address, source common.Address, status types.StakeStatus, mType types.MinerType) *types.StakeDetail {
 	db := BlockChainImpl.LatestStateDB()
-	key := getDetailKey(address, types.MinerTypeVerify, types.Staked)
+	key := getDetailKey(address, mType, status)
 	detail, err := getDetail(db, address, key)
 	if err != nil {
 		Logger.Errorf("get detail error:", err)
 	}
 	if detail != nil {
+		return &types.StakeDetail{
+			Source:       source,
+			Target:       address,
+			Value:        detail.Value,
+			UpdateHeight: detail.Height,
+			Status:       status,
+			MType:        mType,
+		}
+	}
+	return nil
+}
+
+// GetStakeDetails returns all the stake details of the given address pairs
+func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Address) []*types.StakeDetail {
+	result := make([]*types.StakeDetail, 0)
+
+	detail := mm.getStakeDetail(address, source, types.Staked, types.MinerTypeVerify)
+	if detail != nil {
 		result = append(result, detail)
 	}
-	getDetailKey(address, types.MinerTypeVerify, types.StakeFrozen)
-	getDetailKey(address, types.MinerTypeProposal, types.Staked)
-	getDetailKey(address, types.MinerTypeProposal, types.StakeFrozen)
+	detail = mm.getStakeDetail(address, source, types.StakeFrozen, types.MinerTypeVerify)
+	if detail != nil {
+		result = append(result, detail)
+	}
+	detail = mm.getStakeDetail(address, source, types.Staked, types.MinerTypeProposal)
+	if detail != nil {
+		result = append(result, detail)
+	}
+	detail = mm.getStakeDetail(address, source, types.StakeFrozen, types.MinerTypeProposal)
+	if detail != nil {
+		result = append(result, detail)
+	}
+	return result
+}
 
+// GetAllStakeDetails returns all stake details of the given account
+func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]*types.StakeDetail {
+	iter := BlockChainImpl.LatestStateDB().DataIterator(address, prefixDetail)
+	ret := make(map[string][]*types.StakeDetail)
+	for iter.Next() {
+		addr, mt, st := parseDetailKey(iter.Key)
+		sd, err := parseDetail(iter.Value)
+		if err != nil {
+			Logger.Errorf("parse detail error:%v", err)
+		}
+		detail := &types.StakeDetail{
+			Source:       addr,
+			Target:       address,
+			Value:        sd.Value,
+			UpdateHeight: sd.Height,
+			Status:       st,
+			MType:        mt,
+		}
+		var (
+			ds []*types.StakeDetail
+			ok bool
+		)
+		if ds, ok = ret[addr.Hex()]; !ok {
+			ds = make([]*types.StakeDetail, 0)
+		}
+		ds = append(ds, detail)
+		ret[addr.Hex()] = ds
+	}
+	return ret
 }
 
 func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
@@ -261,36 +307,4 @@ func (mm *MinerManager) addGenesesMiner(miners []*types.Miner, accountDB vm.Acco
 			panic(fmt.Errorf("add genesis miner error:%v", err))
 		}
 	}
-}
-
-// MinerManager shows miner can stake the min value
-func (mm *MinerManager) MinStake() uint64 {
-	return MinMinerStake
-}
-
-// MaxStake shows miner can stake the max value
-func (mm *MinerManager) MaxStake(height uint64) uint64 {
-	period := height / MaxMinerStakeAdjustPeriod
-	if period > stakeAdjustTimes {
-		period = stakeAdjustTimes
-	}
-	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerHalfYear
-	return mm.tokenReleased(height) / nodeAmount * common.TAS
-}
-
-func (mm *MinerManager) tokenReleased(height uint64) uint64 {
-	adjustTimes := height / MaxMinerStakeAdjustPeriod
-	if adjustTimes > stakeAdjustTimes {
-		adjustTimes = stakeAdjustTimes
-	}
-
-	var released uint64 = initialTokenReleased
-	for i := uint64(0); i < adjustTimes; i++ {
-		halveTimes := i * MaxMinerStakeAdjustPeriod / halveRewardsPeriod
-		if halveTimes > halveRewardsTimes {
-			halveTimes = halveRewardsTimes
-		}
-		released += tokenReleasedPerHalfYear >> halveTimes
-	}
-	return released
 }

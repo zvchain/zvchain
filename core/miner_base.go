@@ -27,10 +27,53 @@ import (
 
 var (
 	prefixMiner               = []byte("minfo")
+	prefixDetail              = []byte("dt")
 	prefixPoolProposal        = []byte("p")
 	prefixPoolVerifier        = []byte("v")
 	keyPoolProposalTotalStake = []byte("totalstake")
 )
+
+const (
+	MinMinerStake             = 500 * common.TAS // minimal token of miner can stake
+	MaxMinerStakeAdjustPeriod = 5000000          // maximal token of miner can stake
+	initialMinerNodesAmount   = 200              // The number initial of miner nodes envisioned
+	MoreMinerNodesPerHalfYear = 12               // The number of increasing nodes per half year
+	initialTokenReleased      = 500000000        // The initial amount of tokens released
+	tokenReleasedPerHalfYear  = 400000000        //  The amount of tokens released per half year
+	stakeAdjustTimes          = 24               // stake adjust times
+)
+
+// minimumStake shows miner can stake the min value
+func minimumStake() uint64 {
+	return MinMinerStake
+}
+
+// maximumStake shows miner can stake the max value
+func maximumStake(height uint64) uint64 {
+	period := height / MaxMinerStakeAdjustPeriod
+	if period > stakeAdjustTimes {
+		period = stakeAdjustTimes
+	}
+	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerHalfYear
+	return tokenReleased(height) / nodeAmount * common.TAS
+}
+
+func tokenReleased(height uint64) uint64 {
+	adjustTimes := height / MaxMinerStakeAdjustPeriod
+	if adjustTimes > stakeAdjustTimes {
+		adjustTimes = stakeAdjustTimes
+	}
+
+	var released uint64 = initialTokenReleased
+	for i := uint64(0); i < adjustTimes; i++ {
+		halveTimes := i * MaxMinerStakeAdjustPeriod / halveRewardsPeriod
+		if halveTimes > halveRewardsTimes {
+			halveTimes = halveRewardsTimes
+		}
+		released += tokenReleasedPerHalfYear >> halveTimes
+	}
+	return released
+}
 
 // Special account address
 // Need to access by AccountDBTS for concurrent situations
@@ -46,10 +89,30 @@ type stakeDetail struct {
 
 func getDetailKey(address common.Address, typ types.MinerType, status types.StakeStatus) []byte {
 	buf := bytes.NewBuffer([]byte{})
+	buf.Write(prefixDetail)
 	buf.Write(address.Bytes())
 	buf.WriteByte(byte(typ))
 	buf.WriteByte(byte(status))
 	return buf.Bytes()
+}
+
+func parseDetailKey(key []byte) (common.Address, types.MinerType, types.StakeStatus) {
+	reader := bytes.NewReader(key)
+
+	addrBytes := make([]byte, len(common.Address{}))
+	_, err := reader.Read(addrBytes)
+	if err != nil {
+		panic(fmt.Errorf("parse detail key error:%v", err))
+	}
+	mtByte, err := reader.ReadByte()
+	if err != nil {
+		panic(fmt.Errorf("parse detail key error:%v", err))
+	}
+	stByte, err := reader.ReadByte()
+	if err != nil {
+		panic(fmt.Errorf("parse detail key error:%v", err))
+	}
+	return common.BytesToAddress(addrBytes), types.MinerType(mtByte), types.StakeStatus(stByte)
 }
 
 func setPks(miner *types.Miner, pks *types.MinerPks) *types.Miner {
@@ -69,18 +132,16 @@ func checkCanActivate(miner *types.Miner, height uint64) bool {
 	if !miner.PksCompleted() {
 		return false
 	}
-	// If the verifier stake up to the bound, then activate the miner
-	// todo how to avtivate the miner ? manual or auto ?
-	// todo check miner pks completed
-	return miner.Stake >= common.VerifyStake
+	// If the stake up to the lower bound, then activate the miner
+	return checkLowerBound(miner, height)
 }
 
 func checkUpperBound(miner *types.Miner, height uint64) bool {
-	return true
+	return miner.Stake < maximumStake(height)
 }
 
 func checkLowerBound(miner *types.Miner, height uint64) bool {
-	return true
+	return miner.Stake >= minimumStake()
 }
 
 func getMinerKey(typ types.MinerType) []byte {
@@ -108,15 +169,19 @@ func getMiner(db vm.AccountDB, address common.Address, mType types.MinerType) (*
 	return nil, nil
 }
 
+func parseDetail(value []byte) (*stakeDetail, error) {
+	var detail stakeDetail
+	err := msgpack.Unmarshal(value, &detail)
+	if err != nil {
+		return nil, err
+	}
+	return &detail, nil
+}
+
 func getDetail(db vm.AccountDB, address common.Address, detailKey []byte) (*stakeDetail, error) {
 	data := db.GetData(address, detailKey)
 	if data != nil && len(data) > 0 {
-		var detail stakeDetail
-		err := msgpack.Unmarshal(data, &detail)
-		if err != nil {
-			return nil, err
-		}
-		return &detail, nil
+		return parseDetail(data)
 	}
 	return nil, nil
 }

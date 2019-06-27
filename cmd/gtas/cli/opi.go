@@ -102,6 +102,8 @@ type accountOp interface {
 
 	NewAccountByImportKey(key string, password string, miner bool) *Result
 
+	ExportKey(addr string) *Result
+
 	Close()
 }
 

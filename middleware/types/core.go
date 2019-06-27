@@ -40,9 +40,9 @@ const (
 )
 const (
 	Success                            = 0
-	TxErrorCodeBalanceNotEnough        = 1
+	TxErrorBalanceNotEnough            = 1
 	TxErrorCodeContractAddressConflict = 2
-	TxErrorCodeDeployGasNotEnough      = 3
+	TxFailed                           = 3
 	TxErrorCodeNoCode                  = 4
 
 	//TODO detail error
@@ -55,25 +55,22 @@ const (
 )
 
 var (
-	NoCodeErr                    = 4
-	NoCodeErrorMsg               = "get code from address %s,but no code!"
-	ABIJSONError                 = 2003
-	ABIJSONErrorMsg              = "abi json format error"
-	CallMaxDeepError             = 2004
-	CallMaxDeepErrorMsg          = "call max deep cannot more than 8"
-	InitContractError            = 2005
-	InitContractErrorMsg         = "contract init error"
-	TargetNilError               = 2006
-	TargetNilErrorMsg            = "target nil error"
-	InsufficientBalanceForGas    = 2007
-	InsufficientBalanceForGasMsg = "insufficient balance for gas"
+	NoCodeErr            = 4
+	NoCodeErrorMsg       = "get code from address %s,but no code!"
+	ABIJSONError         = 2003
+	ABIJSONErrorMsg      = "abi json format error"
+	CallMaxDeepError     = 2004
+	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
+	InitContractError    = 2005
+	InitContractErrorMsg = "contract init error"
+	TargetNilError       = 2006
+	TargetNilErrorMsg    = "target nil error"
 )
 
 var (
-	TxErrorBalanceNotEnough          = NewTransactionError(TxErrorCodeBalanceNotEnough, "balance not enough")
-	TxErrorDeployGasNotEnough        = NewTransactionError(TxErrorCodeDeployGasNotEnough, "gas not enough")
-	TxErrorABIJSON                   = NewTransactionError(SysABIJSONError, "abi json format error")
-	TxErrorInsufficientBalanceForGas = NewTransactionError(InsufficientBalanceForGas, InsufficientBalanceForGasMsg)
+	TxErrorBalanceNotEnoughErr = NewTransactionError(TxErrorBalanceNotEnough, "balance not enough")
+	TxErrorABIJSONErr          = NewTransactionError(SysABIJSONError, "abi json format error")
+	TxErrorFailedErr           = NewTransactionError(TxFailed, "failed")
 )
 
 type TransactionError struct {
@@ -117,6 +114,18 @@ type Transaction struct {
 	ExtraDataType int8            `msgpack:"et,omitempty"`
 	Sign          []byte          `msgpack:"si"`  // The Sign of the sender
 	Source        *common.Address `msgpack:"src"` // Sender address, recovered from sign
+}
+
+func (tx *Transaction) GetNonce() uint64 {
+	return tx.Nonce
+}
+
+func (tx *Transaction) GetSign() []byte {
+	return tx.Sign
+}
+
+func (tx *Transaction) GetType() int8 {
+	return tx.Type
 }
 
 // GenHash generate unique hash of the transaction. source,sign is out of the hash calculation range
@@ -185,6 +194,11 @@ func (tx *Transaction) BoundCheck() error {
 	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall {
 		if tx.Target == nil {
 			return fmt.Errorf("param target cannot nil")
+		}
+	}
+	if tx.Type == TransactionTypeMinerApply || tx.Type == TransactionTypeMinerCancelStake || tx.Type == TransactionTypeMinerStake {
+		if tx.Data == nil {
+			return fmt.Errorf("param data cannot nil")
 		}
 	}
 	return nil

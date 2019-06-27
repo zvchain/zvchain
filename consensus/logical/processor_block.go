@@ -156,9 +156,16 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		err = err2
 		return
 	}
+
 	gpk := group.GroupPK
-	sig := groupsig.DeserializeSign(bh.Signature)
-	b := groupsig.VerifySig(gpk, bh.Hash.Bytes(), *sig)
+	pPubkey := p.getProposerPubKeyInBlock(bh)
+	if pPubkey == nil {
+		err = fmt.Errorf("getProposerPubKeyInBlock fail in VerifyBlock")
+		return
+	}
+	pubArray := [2]groupsig.Pubkey{*pPubkey, gpk}
+	aggSign := groupsig.DeserializeSign(bh.Signature)
+	b := groupsig.VerifyAggregateSig(pubArray[:], bh.Hash.Bytes(), *aggSign)
 	if !b {
 		err = fmt.Errorf("signature verify fail")
 		return
@@ -182,8 +189,14 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 
 	gid := groupsig.DeserializeID(bh.GroupID)
 	gpk := p.getGroupPubKey(gid)
-	sig := groupsig.DeserializeSign(bh.Signature)
-	b := groupsig.VerifySig(gpk, bh.Hash.Bytes(), *sig)
+	ppk := p.getProposerPubKeyInBlock(bh)
+	if ppk == nil {
+		err = fmt.Errorf("getProposerPubKeyInBlock fail in VerifyBlockHeader")
+		return
+	}
+	pkArray := [2]groupsig.Pubkey{*ppk, gpk}
+	aggSign := groupsig.DeserializeSign(bh.Signature)
+	b := groupsig.VerifyAggregateSig(pkArray[:], bh.Hash.Bytes(), *aggSign)
 	if !b {
 		err = fmt.Errorf("signature verify fail")
 		return

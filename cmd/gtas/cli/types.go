@@ -121,6 +121,18 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	return mg
 }
 
+type StakeDetail struct {
+	Value        uint64 `json:"value"`
+	UpdateHeight uint64 `json:"update_height"`
+	MType        string `json:"m_type"`
+	Status       string `json:"status"`
+}
+
+type MinerStakeDetails struct {
+	Overview []*MortGage               `json:"overview"`
+	Details  map[string][]*StakeDetail `json:"details,omitempty"`
+}
+
 type NodeInfo struct {
 	ID           string     `json:"id"`
 	Balance      float64    `json:"balance"`
@@ -217,7 +229,7 @@ type Transaction struct {
 }
 
 type Receipt struct {
-	Status            uint         `json:"status"`
+	Status            int          `json:"status"`
 	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
 	Logs              []*types.Log `json:"logs"`
 

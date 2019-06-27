@@ -137,7 +137,7 @@ type TransactionPool interface {
 	GetTransaction(reward bool, hash common.Hash) *types.Transaction
 
 	// GetTransactionStatus returns the execute result status by hash
-	GetTransactionStatus(hash common.Hash) (uint, error)
+	GetTransactionStatus(hash common.Hash) (int, error)
 
 	// GetReceipt returns the transaction's recipe by hash
 	GetReceipt(hash common.Hash) *types.Receipt
@@ -163,6 +163,9 @@ type TransactionPool interface {
 	saveReceipts(blockHash common.Hash, receipts types.Receipts) error
 
 	deleteReceipts(txs []common.Hash) error
+
+	//check transaction hash exist in local
+	IsTransactionExisted(hash common.Hash) (exists bool, where int)
 }
 
 // GroupInfoI is a group management interface

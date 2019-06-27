@@ -264,6 +264,7 @@ func (p *Processor) blockProposal() {
 		blog.error("MainChain::CastingBlock failed, height=%v", height)
 		return
 	}
+	block.Header.Signature = groupsig.Sign(p.mi.SK, block.Header.Hash.Bytes()).Serialize() //proposer sign block after cast
 	bh := block.Header
 
 	traceLogger.SetHash(bh.Hash)

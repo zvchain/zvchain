@@ -112,6 +112,7 @@ func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 	transaction.Value = types.NewBigInt(totalValue / uint64(len(targetIds)))
 	transaction.Type = types.TransactionTypeReward
 	transaction.GasPrice = types.NewBigInt(0)
+	transaction.GasLimit = types.NewBigInt(0)
 	transaction.Hash = transaction.GenHash()
 	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
 }

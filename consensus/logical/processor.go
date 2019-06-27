@@ -232,6 +232,16 @@ func (p Processor) getGroupPubKey(gid groupsig.ID) groupsig.Pubkey {
 
 }
 
+// getProposerPubKey get the public key of proposer miner in the specified block
+func (p Processor) getProposerPubKeyInBlock(bh *types.BlockHeader) *groupsig.Pubkey {
+	castor := groupsig.DeserializeID(bh.Castor)
+	castorMO := p.minerReader.getProposeMiner(castor)
+	if castorMO != nil {
+		return &castorMO.PK
+	}
+	return nil
+}
+
 func (p *Processor) getEncryptPrivateKey() (common.PrivateKey, error) {
 	seed := p.mi.SK.GetHexString() + p.mi.ID.GetHexString()
 	return common.GenerateKey(seed)

@@ -21,6 +21,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/account"
@@ -246,4 +247,33 @@ builtins.register = Register()
 		fmt.Println(err)
 	}
 
+}
+
+func (t *TvmCli) QueryData(address string, key string, count int) {
+	stateHash := t.settings.GetString("root", "StateHash", "")
+	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
+
+	hexAddr := common.HexToAddress(address)
+	if count == 0 {
+		value := state.GetData(hexAddr, key)
+		if value != nil {
+			fmt.Println("key:", key, "value:", string(value))
+		}
+	} else {
+		iter := state.DataIterator(hexAddr, key)
+		if iter != nil {
+			tmp := make([]map[string]interface{}, 0)
+			for iter.Next() {
+				k := string(iter.Key[:])
+				if !strings.HasPrefix(k, key) {
+					continue
+				}
+				v := string(iter.Value[:])
+				fmt.Println("key:", k, "value:", v)
+				if len(tmp) >= count {
+					break
+				}
+			}
+		}
+	}
 }

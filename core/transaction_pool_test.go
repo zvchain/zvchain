@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
@@ -31,7 +32,12 @@ func TestCreatePool(t *testing.T) {
 
 	transaction := genTestTx(123457, "1", "2", 1, 3)
 
-	_, err := pool.AddTransaction(transaction)
+	sign := common.BytesToSign(transaction.Sign)
+	pk, err := sign.RecoverPubkey(transaction.Hash.Bytes())
+	src := pk.GetAddress()
+	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111222))
+
+	_, err = pool.AddTransaction(transaction)
 	if err != nil {
 		t.Fatalf("fail to AddTransaction")
 	}
@@ -66,7 +72,16 @@ func TestContainer(t *testing.T) {
 	var gasePrice2 uint64 = 12345
 
 	transaction1 := genTestTx(gasePrice1, "1", "2", 0, 3)
-	_, err := pool.AddTransaction(transaction1)
+
+	var sign = common.BytesToSign(transaction1.Sign)
+	pk, err := sign.RecoverPubkey(transaction1.Hash.Bytes())
+	if err != nil {
+		t.Fatalf("error")
+	}
+	src := pk.GetAddress()
+	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111111111111))
+
+	_, err = pool.AddTransaction(transaction1)
 	if err != nil {
 		t.Fatalf("fail to AddTransaction ")
 	}
@@ -99,8 +114,16 @@ func TestMaxTxsPerBlock(t *testing.T) {
 	pool := chain.GetTransactionPool()
 
 	for i := 0; i < 100000; i++ {
-		transaction := genTestTx(11, "1", "2", uint64(i+1), 3)
-		_, err := pool.AddTransaction(transaction)
+		transaction := genTestTx(1111, "1", "2", uint64(i+1), 3)
+		var sign = common.BytesToSign(transaction.Sign)
+		pk, err := sign.RecoverPubkey(transaction.Hash.Bytes())
+		src := pk.GetAddress()
+
+		if i == 0 {
+			BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111111111111))
+		}
+
+		_, err = pool.AddTransaction(transaction)
 		if err != nil {
 			t.Fatalf("fail to AddTransaction ")
 		}

@@ -16,7 +16,6 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"unsafe"
 
@@ -30,15 +29,9 @@ var (
 	receiptStatusSuccessful = []byte{0x01}
 )
 
-const (
-	ReceiptStatusFailed = uint(0)
-
-	ReceiptStatusSuccessful = uint(1)
-)
-
 type Receipt struct {
 	PostState         []byte `json:"-"`
-	Status            uint   `json:"status"`
+	Status            int    `json:"status"`
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
 	Bloom             Bloom  `json:"-"`
 	Logs              []*Log `json:"logs"`
@@ -49,28 +42,9 @@ type Receipt struct {
 	TxIndex         uint16         `json:"tx_index"`
 }
 
-func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
-	r := &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: cumulativeGasUsed}
-	if failed {
-		r.Status = ReceiptStatusFailed
-	} else {
-		r.Status = ReceiptStatusSuccessful
-	}
+func NewReceipt(root []byte, status int, cumulativeGasUsed uint64) *Receipt {
+	r := &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: cumulativeGasUsed, Status: status}
 	return r
-}
-
-func (r *Receipt) setStatus(postStateOrStatus []byte) error {
-	switch {
-	case bytes.Equal(postStateOrStatus, receiptStatusSuccessful):
-		r.Status = ReceiptStatusSuccessful
-	case bytes.Equal(postStateOrStatus, receiptStatusFailed):
-		r.Status = ReceiptStatusFailed
-	case len(postStateOrStatus) == len(common.Hash{}):
-		r.PostState = postStateOrStatus
-	default:
-		return fmt.Errorf("invalid receipt status %x", postStateOrStatus)
-	}
-	return nil
 }
 
 func (r *Receipt) Size() common.StorageSize {

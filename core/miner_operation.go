@@ -23,21 +23,17 @@ import (
 	"math/big"
 )
 
-// mOperation define some functions on miner operation
-type mOperation interface {
-	ParseTransaction() error // Parse the input transaction
-	Validate() error         // Validate the input args
-	Operation() error        // Do the operation
-}
-
-type opChecker interface {
-	CanOp() error
-}
-
 const (
 	oneDayBlocks = 86400 / 3
 	twoDayBlocks = 2 * oneDayBlocks
 )
+
+// mOperation define some functions on miner operation
+type mOperation interface {
+	Validate() error         // Validate the input args
+	ParseTransaction() error // Parse the input transaction
+	Operation() error        // Do the operation
+}
 
 func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) mOperation {
 	baseOp := newBaseOperation(db, msg, height)
@@ -93,8 +89,8 @@ func (op *stakeAddOp) Validate() error {
 	if op.msg.Amount() == nil {
 		return fmt.Errorf("amount is nil")
 	}
-	if !canTransfer(op.accountDB, *op.msg.Operator(), op.msg.Amount()) {
-		return fmt.Errorf("balance not enough")
+	if !op.msg.Amount().IsUint64() {
+		return fmt.Errorf("amount type not uint64")
 	}
 	return nil
 }
@@ -180,8 +176,12 @@ func (op *stakeAddOp) Operation() error {
 		return err
 	}
 
+	amount := new(big.Int).SetUint64(op.value)
+	if !canTransfer(op.accountDB, op.addSource, amount) {
+		return fmt.Errorf("balance not enough")
+	}
 	// Sub the balance of source account
-	op.accountDB.SubBalance(op.addSource, new(big.Int).SetUint64(op.value))
+	op.accountDB.SubBalance(op.addSource, amount)
 
 	return nil
 
@@ -260,6 +260,9 @@ func (op *stakeReduceOp) Validate() error {
 	}
 	if op.msg.Amount() == nil {
 		return fmt.Errorf("amount is nil")
+	}
+	if !op.msg.Amount().IsUint64() {
+		return fmt.Errorf("amount type not uint64")
 	}
 	return nil
 }

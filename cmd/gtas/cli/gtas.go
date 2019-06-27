@@ -282,7 +282,12 @@ func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 		gtas.account = aci.Account
 		return nil
 	}
-	return fmt.Errorf("please provide a miner account! ")
+	acc := acm.getFirstMinerAccount(password)
+	if acc != nil {
+		gtas.account = *acc
+		return nil
+	}
+	return fmt.Errorf("please provide a miner account and correct password! ")
 }
 
 func (gtas *Gtas) fullInit() error {
@@ -302,10 +307,7 @@ func (gtas *Gtas) fullInit() error {
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
 	fmt.Println("Your Miner Address:", gtas.account.Address)
 
-	sk := new(common.PrivateKey)
-	if !sk.ImportKey(common.FromHex(gtas.account.Sk)) {
-		return ErrInternal
-	}
+	sk := common.HexToSecKey(gtas.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
 	if err != nil {
 		return err
@@ -326,6 +328,8 @@ func (gtas *Gtas) fullInit() error {
 		ChainID:         cfg.chainID,
 		ProtocolVersion: common.ProtocalVersion,
 		SeedIDs:         core.GroupChainImpl.GenesisMembers(),
+		PK:              gtas.account.Pk,
+		SK:              gtas.account.Sk,
 	}
 
 	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)
