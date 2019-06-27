@@ -105,8 +105,7 @@ func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
   "Args": ["%s","set_name","test"]
 }`, receiverContract)
 	tvmCli.Call(routerContract, abiJson)
-
-	//TODO error receiver msg sender
+	
 	//TODO error set_name does not save
 	tvmCli.QueryData(routerContract, "name", 0)
 	tvmCli.QueryData(receiverContract, "name", 0)
