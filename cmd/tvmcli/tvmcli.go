@@ -177,7 +177,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	//fmt.Println(contract.Code)
 	sender := common.HexToAddress(DefaultAccounts[0])
 	controller.VM.SetGas(500000)
-	executeResult := controller.ExecuteAbiEval(&sender, contract, abiJSON)
+	executeResult, _, _, _ := controller.ExecuteAbiEval(&sender, contract, abiJSON)
 	fmt.Println("gas: ", 500000-controller.VM.Gas())
 
 	if executeResult == nil {
