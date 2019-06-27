@@ -424,6 +424,12 @@ type BlockWeight struct {
 	PV      *big.Int // Converted from ProveValue field of BlockHeader
 }
 
+
+type CandidateBlockHeader struct {
+	BW    *BlockWeight
+	BH	  *BlockHeader
+}
+
 type PvFunc func(pvBytes []byte) *big.Int
 
 var DefaultPVFunc PvFunc
@@ -444,6 +450,12 @@ func (bw *BlockWeight) Cmp(bw2 *BlockWeight) int {
 		return -1
 	}
 	return bw.PV.Cmp(bw2.PV)
+}
+
+
+func NewCandidateBlockHeader(bh *BlockHeader)*CandidateBlockHeader{
+	bw := NewBlockWeight(bh)
+	return &CandidateBlockHeader{BW:bw,BH:bh}
 }
 
 func NewBlockWeight(bh *BlockHeader) *BlockWeight {

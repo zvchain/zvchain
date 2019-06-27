@@ -47,7 +47,7 @@ var blockSync *blockSyncer
 type blockSyncer struct {
 	chain *FullBlockChain
 
-	candidatePool map[string]*topBlockInfo
+	candidatePool map[string]*types.CandidateBlockHeader
 	syncingPeers  map[string]uint64
 
 	ticker *ticker.GlobalTicker
@@ -72,7 +72,7 @@ func newTopBlockInfo(topBH *types.BlockHeader) *topBlockInfo {
 // and also subscribe these events to handle requests from neighbors
 func InitBlockSyncer(chain *FullBlockChain) {
 	blockSync = &blockSyncer{
-		candidatePool: make(map[string]*topBlockInfo),
+		candidatePool: make(map[string]*types.CandidateBlockHeader),
 		chain:         chain,
 		syncingPeers:  make(map[string]uint64),
 	}
@@ -104,11 +104,12 @@ func (bs *blockSyncer) isSyncing() bool {
 	if candTop == nil {
 		return false
 	}
-	return candTop.Height > localHeight+50
+	return candTop.BH.Height > localHeight+50
 }
 
-func (bs *blockSyncer) getBestCandidate(candidateID string) (string, *topBlockInfo) {
-	if candidateID == "" {
+func (bs *blockSyncer) getBestCandidate(candidateID string) (string, *types.CandidateBlockHeader) {
+	var temp = candidateID
+	if temp == "" {
 		for id := range bs.candidatePool {
 			if peerManagerImpl.isEvil(id) {
 				bs.logger.Debugf("peer meter evil id:%+v", peerManagerImpl.getOrAddPeer(id))
@@ -118,25 +119,36 @@ func (bs *blockSyncer) getBestCandidate(candidateID string) (string, *topBlockIn
 		if len(bs.candidatePool) == 0 {
 			return "", nil
 		}
-		var maxWeightBlock *topBlockInfo
+		var maxWeightBlock *types.CandidateBlockHeader
 
 		for id, top := range bs.candidatePool {
-			if maxWeightBlock == nil || top.MoreWeight(&maxWeightBlock.BlockWeight) {
+			if maxWeightBlock == nil || top.BW.MoreWeight(maxWeightBlock.BW) {
 				maxWeightBlock = top
-				candidateID = id
+				temp = id
 			}
 		}
-
 	}
-	maxTop := bs.candidatePool[candidateID]
+	if temp == ""{
+		return "", nil
+	}
+	maxTop := bs.candidatePool[temp]
 	if maxTop == nil {
 		return "", nil
 	}
+	if candidateID == ""{
+		_,err:= BlockChainImpl.GetConsensusHelper().VerifyBlockHeader(maxTop.BH)
+		if err != nil{
+			delete(bs.candidatePool, temp)
+			bs.logger.Debugf("getBestCandidate verify blockHeader error!,peer is %v",temp)
+			return bs.getBestCandidate(candidateID)
+		}
+	}
 
-	return candidateID, maxTop
+
+	return temp, maxTop
 }
 
-func (bs *blockSyncer) getPeerTopBlock(id string) *topBlockInfo {
+func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	bs.lock.RLock()
 	defer bs.lock.RUnlock()
 	tb, ok := bs.candidatePool[id]
@@ -170,26 +182,26 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 		bs.logger.Debugf("Get no candidate for sync!")
 		return false
 	}
-	bs.logger.Debugf("candidate info: id %v, top %v %v %v", candidate, candidateTop.Hash.Hex(), candidateTop.Height, candidateTop.TotalQN)
+	bs.logger.Debugf("candidate info: id %v, top %v %v %v", candidate, candidateTop.BH.Hash.Hex(), candidateTop.BH.Height, candidateTop.BH.TotalQN)
 
-	if localTopBlock.MoreWeight(&candidateTop.BlockWeight) {
-		bs.logger.Debugf("local top more weight: local:%v %v %v, candidate: %v %v %v", localTopBlock.Height, localTopBlock.Hash.Hex(), localTopBlock.BlockWeight, candidateTop.Height, candidateTop.Hash.Hex(), candidateTop.BlockWeight)
+	if localTopBlock.MoreWeight(candidateTop.BW) {
+		bs.logger.Debugf("local top more weight: local:%v %v %v, candidate: %v %v %v", localTopBlock.Height, localTopBlock.Hash.Hex(), localTopBlock.BlockWeight, candidateTop.BH.Height, candidateTop.BH.Hash.Hex(), candidateTop.BW)
 		return false
 	}
-	if bs.chain.HasBlock(candidateTop.Hash) {
-		bs.logger.Debugf("local has block %v, won't sync", candidateTop.Hash.Hex())
+	if bs.chain.HasBlock(candidateTop.BH.Hash) {
+		bs.logger.Debugf("local has block %v, won't sync", candidateTop.BH.Hash.Hex())
 		return false
 	}
 	beginHeight := uint64(0)
 	localHeight := bs.chain.Height()
-	if candidateTop.Height <= localHeight {
-		beginHeight = candidateTop.Height
+	if candidateTop.BH.Height <= localHeight {
+		beginHeight = candidateTop.BH.Height
 	} else {
 		beginHeight = localHeight + 1
 	}
 
-	bs.logger.Debugf("beginHeight %v, candidateHeight %v", beginHeight, candidateTop.Height)
-	if beginHeight > candidateTop.Height {
+	bs.logger.Debugf("beginHeight %v, candidateHeight %v", beginHeight, candidateTop.BH.Height)
+	if beginHeight > candidateTop.BH.Height {
 		return false
 	}
 
@@ -202,7 +214,7 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 
 	candInfo := &SyncCandidateInfo{
 		Candidate:       candidate,
-		CandidateHeight: candidateTop.Height,
+		CandidateHeight: candidateTop.BH.Height,
 		ReqHeight:       beginHeight,
 	}
 
@@ -270,7 +282,7 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
 	source := bnm.Source()
 	peerManagerImpl.heardFromPeer(source)
 
-	bs.addCandidatePool(source, newTopBlockInfo(blockHeader))
+	bs.addCandidatePool(source, blockHeader)
 }
 
 func (bs *blockSyncer) syncTimeoutRoutineName(id string) string {
@@ -324,8 +336,8 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 		localTop := newTopBlockInfo(bs.chain.QueryTopBlock())
 
 		// First compare weights
-		if peerTop != nil && localTop.MoreWeight(&peerTop.BlockWeight) {
-			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.Hash.Hex(), peerTop.Height, peerTop.TotalQN)
+		if peerTop != nil && localTop.MoreWeight(peerTop.BW) {
+			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
 			return
 		}
 
@@ -342,7 +354,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 
 		// The weight is still low, continue to synchronize (must add blocks
 		// is successful, otherwise it will cause an infinite loop)
-		if allSuccess && peerTop != nil && peerTop.MoreWeight(&localTop.BlockWeight) {
+		if allSuccess && peerTop != nil && peerTop.BW.MoreWeight(&localTop.BlockWeight) {
 			bs.syncComplete(source, false)
 			complete = true
 			go bs.trySyncRoutine()
@@ -350,18 +362,19 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 	}
 }
 
-func (bs *blockSyncer) addCandidatePool(source string, topBlockInfo *topBlockInfo) {
+func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader) {
 	bs.lock.Lock()
 	defer bs.lock.Unlock()
 
+	cbh := types.NewCandidateBlockHeader(header)
 	if len(bs.candidatePool) < blockSyncCandidatePoolSize {
-		bs.candidatePool[source] = topBlockInfo
+		bs.candidatePool[source] = cbh
 		return
 	}
 	for id, tbi := range bs.candidatePool {
-		if topBlockInfo.MoreWeight(&tbi.BlockWeight) {
+		if cbh.BW.MoreWeight(tbi.BW) {
 			delete(bs.candidatePool, id)
-			bs.candidatePool[source] = topBlockInfo
+			bs.candidatePool[source] = cbh
 		}
 	}
 }
@@ -406,7 +419,7 @@ func marshalBlockMsgResponse(bmr *blockResponseMessage) ([]byte, error) {
 func (bs *blockSyncer) candidatePoolDump() {
 	bs.logger.Debugf("Candidate Pool Dump:")
 	for id, topBlockInfo := range bs.candidatePool {
-		bs.logger.Debugf("Candidate id:%s,totalQn:%d, pv:%v, height:%d,topHash:%s", id, topBlockInfo.TotalQN, topBlockInfo.PV, topBlockInfo.Height, topBlockInfo.Hash.Hex())
+		bs.logger.Debugf("Candidate id:%s,totalQn:%d, pv:%v, height:%d,topHash:%s", id, topBlockInfo.BH.TotalQN, topBlockInfo.BW.PV, topBlockInfo.BH.Height, topBlockInfo.BH.Hash.Hex())
 	}
 }
 

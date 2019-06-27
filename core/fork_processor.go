@@ -82,8 +82,8 @@ func initForkProcessor(chain *FullBlockChain) *forkProcessor {
 func (fp *forkProcessor) targetTop(id string, bh *types.BlockHeader) *topBlockInfo {
 	targetTop := blockSync.getPeerTopBlock(id)
 	tb := newTopBlockInfo(bh)
-	if targetTop != nil && targetTop.MoreWeight(&tb.BlockWeight) {
-		return targetTop
+	if targetTop != nil && targetTop.BW.MoreWeight(&tb.BlockWeight) {
+		return newTopBlockInfo(targetTop.BH)
 	}
 	return tb
 }
