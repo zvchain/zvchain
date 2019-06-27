@@ -16,24 +16,37 @@
 package logical
 
 import (
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-// MinerPoolReader provides some functions for access to the miner pool
-type MinerPoolReader struct {
-	minerPool       *core.MinerManager
-	blog            *bizLog
-	totalStakeCache uint64
+type minerPool interface {
+	// GetLatestMiner returns the latest miner info of the given address and miner type
+	GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner
+
+	// GetMiner returns the miner info of the given address and miner type at the given height
+	GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner
+
+	// GetProposalTotalStake returns the total stake value of all proposals at the given height
+	GetProposalTotalStake(height uint64) uint64
+
+	// GetAllMinerAddress returns all miner addresses of the the specified type at the given height
+	GetAllMiners(mType types.MinerType, height uint64) []*types.Miner
 }
 
-func newMinerPoolReader(mp *core.MinerManager) *MinerPoolReader {
+// MinerPoolReader provides some functions for access to the miner pool
+type MinerPoolReader struct {
+	mPool minerPool
+	blog  *bizLog
+}
+
+func newMinerPoolReader(mp minerPool) *MinerPoolReader {
 	return &MinerPoolReader{
-		minerPool: mp,
-		blog:      newBizLog("MinerPoolReader"),
+		mPool: mp,
+		blog:  newBizLog("MinerPoolReader"),
 	}
 }
 
@@ -48,7 +61,7 @@ func convert2MinerDO(miner *types.Miner) *model.MinerDO {
 		Stake:       miner.Stake,
 		NType:       miner.Type,
 		ApplyHeight: miner.ApplyHeight,
-		AbortHeight: miner.AbortHeight,
+		Status:      miner.Status,
 	}
 	if !md.ID.IsValid() {
 		stdLogger.Errorf("invalid id %v, %v", miner.ID, md.ID.GetHexString())
@@ -57,32 +70,39 @@ func convert2MinerDO(miner *types.Miner) *model.MinerDO {
 	return md
 }
 
-func (access *MinerPoolReader) getLightMiner(id groupsig.ID) *model.MinerDO {
-	miner := access.minerPool.GetMinerByID(id.Serialize(), types.MinerTypeVerify, nil)
+func (access *MinerPoolReader) getLatestLightMiner(id groupsig.ID) *model.MinerDO {
+	miner := access.mPool.GetLatestMiner(id.ToAddress(), types.MinerTypeVerify)
 	if miner == nil {
 		return nil
 	}
 	return convert2MinerDO(miner)
 }
 
-func (access *MinerPoolReader) getProposeMiner(id groupsig.ID) *model.MinerDO {
-	miner := access.minerPool.GetMinerByID(id.Serialize(), types.MinerTypeProposal, nil)
+func (access *MinerPoolReader) getLatestProposeMiner(id groupsig.ID) *model.MinerDO {
+	miner := access.mPool.GetLatestMiner(id.ToAddress(), types.MinerTypeProposal)
 	if miner == nil {
 		return nil
 	}
 	return convert2MinerDO(miner)
 }
 
-func (access *MinerPoolReader) getAllMinerDOByType(ntype byte, h uint64) []*model.MinerDO {
-	iter := access.minerPool.MinerIterator(ntype, h)
+func (access *MinerPoolReader) getProposeMinerByHeight(id groupsig.ID, height uint64) *model.MinerDO {
+	miner := access.mPool.GetMiner(id.ToAddress(), types.MinerTypeProposal, height)
+	if miner == nil {
+		return nil
+	}
+	return convert2MinerDO(miner)
+}
+
+func (access *MinerPoolReader) getAllMinerDOByType(minerType types.MinerType, h uint64) []*model.MinerDO {
+	miners := access.mPool.GetAllMiners(minerType, h)
+	if miners == nil {
+		return []*model.MinerDO{}
+	}
 	mds := make([]*model.MinerDO, 0)
-	for iter.Next() {
-		if curr, err := iter.Current(); err != nil {
-			continue
-		} else {
-			md := convert2MinerDO(curr)
-			mds = append(mds, md)
-		}
+	for _, m := range miners {
+		md := convert2MinerDO(m)
+		mds = append(mds, md)
 	}
 	return mds
 }
@@ -99,11 +119,7 @@ func (access *MinerPoolReader) getCanJoinGroupMinersAt(h uint64) []model.MinerDO
 	return rets
 }
 
-func (access *MinerPoolReader) getTotalStake(h uint64, cache bool) uint64 {
-	if cache && access.totalStakeCache > 0 {
-		return access.totalStakeCache
-	}
-	st := access.minerPool.GetTotalStake(h)
-	access.totalStakeCache = st
+func (access *MinerPoolReader) getTotalStake(h uint64) uint64 {
+	st := access.mPool.GetProposalTotalStake(h)
 	return st
 }

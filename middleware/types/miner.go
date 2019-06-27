@@ -74,6 +74,14 @@ func (m *Miner) UpdateStatus(status MinerStatus, height uint64) {
 	m.Status = status
 }
 
+func (m *Miner) IsProposalRole() bool {
+	return IsProposalRole(m.Type)
+}
+
+func (m *Miner) IsVerifyRole() bool {
+	return IsVerifyRole(m.Type)
+}
+
 // StakeStatus indicates the stake status
 type StakeStatus = byte
 
@@ -88,7 +96,7 @@ type StakeDetail struct {
 	Target       common.Address
 	Value        uint64
 	Status       StakeStatus
-	FrozenHeight uint64
+	UpdateHeight uint64
 }
 
 type MinerPks struct {

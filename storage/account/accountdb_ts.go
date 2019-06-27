@@ -15,14 +15,11 @@
 
 package account
 
-import "github.com/zvchain/zvchain/common"
-
-// AccountDBTS is a thread-safe interface for accessing account
-type AccountDBTS interface {
-	GetDataSafe(address common.Address, key []byte) []byte
-	SetDataSafe(address common.Address, key, val []byte)
-	RemoveDataSafe(address common.Address, key []byte)
-}
+import (
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/storage/trie"
+	"github.com/zvchain/zvchain/storage/vm"
+)
 
 func (adb *AccountDB) GetDataSafe(address common.Address, key []byte) []byte {
 	adb.lock.RLock()
@@ -40,4 +37,14 @@ func (adb *AccountDB) RemoveDataSafe(address common.Address, key []byte) {
 	adb.lock.RLock()
 	defer adb.lock.RUnlock()
 	adb.RemoveData(address, key)
+}
+
+func (adb *AccountDB) DataIteratorSafe(address common.Address, prefix []byte) *trie.Iterator {
+	adb.lock.RLock()
+	defer adb.lock.RUnlock()
+	return adb.DataIterator(address, prefix)
+}
+
+func (adb *AccountDB) AsAccountDBTS() vm.AccountDBTS {
+	return adb
 }

@@ -145,16 +145,16 @@ func (p Processor) GetMinerInfo() *model.MinerDO {
 // isCastLegal check if the block header is legal
 func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHeader) (ok bool, group *StaticGroupInfo, err error) {
 	castor := groupsig.DeserializeID(bh.Castor)
-	minerDO := p.minerReader.getProposeMiner(castor)
+	minerDO := p.minerReader.getProposeMinerByHeight(castor, preHeader.Height)
 	if minerDO == nil {
 		err = fmt.Errorf("minerDO is nil, id=%v", castor.ShortS())
 		return
 	}
 	if !minerDO.CanCastAt(bh.Height) {
-		err = fmt.Errorf("miner can't cast at height, id=%v, height=%v(%v-%v)", castor.ShortS(), bh.Height, minerDO.ApplyHeight, minerDO.AbortHeight)
+		err = fmt.Errorf("miner can't cast at height, id=%v, height=%v, status=%v", castor.ShortS(), bh.Height, minerDO.Status)
 		return
 	}
-	totalStake := p.minerReader.getTotalStake(preHeader.Height, false)
+	totalStake := p.minerReader.getTotalStake(preHeader.Height)
 	if ok2, err2 := vrfVerifyBlock(bh, preHeader, minerDO, totalStake); !ok2 {
 		err = fmt.Errorf("vrf verify block fail, err=%v", err2)
 		return

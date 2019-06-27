@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 )
@@ -39,23 +38,6 @@ const (
 	oneDayBlocks = 86400 / 3
 	twoDayBlocks = 2 * oneDayBlocks
 )
-
-type baseOperation struct {
-	accountDB vm.AccountDB
-	msg       vm.MinerOperationMessage
-	height    uint64
-	minerType types.MinerType
-	minerPool account.AccountDBTS
-}
-
-func newBaseOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) *baseOperation {
-	return &baseOperation{
-		accountDB: db,
-		msg:       msg,
-		height:    height,
-		minerPool: db.(*account.AccountDB),
-	}
-}
 
 func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) mOperation {
 	baseOp := newBaseOperation(db, msg, height)
@@ -230,6 +212,9 @@ func (op *minerAbortOp) Operation() error {
 	if err != nil {
 		return err
 	}
+	if miner == nil {
+		return fmt.Errorf("no miner info")
+	}
 	if miner.IsPrepare() {
 		return fmt.Errorf("already in prepare status")
 	}
@@ -301,7 +286,9 @@ func (op *stakeReduceOp) Operation() error {
 	if err != nil {
 		return err
 	}
-
+	if miner == nil {
+		return fmt.Errorf("no miner info")
+	}
 	if miner.Stake < op.value {
 		return fmt.Errorf("miner stake not enough:%v %v", miner.Stake, op.value)
 	}

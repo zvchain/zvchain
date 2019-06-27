@@ -60,11 +60,15 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 	if !validateTxType(txRaw.TxType) {
 		return failResult("Not supported txType")
 	}
-	if txRaw.TxType == types.TransactionTypeTransfer || txRaw.TxType == types.TransactionTypeContractCall {
+
+	// Check the address for the specified tx types
+	switch txRaw.TxType {
+	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
 		if !validateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}
 	}
+
 	trans := txRawToTransaction(txRaw)
 
 	trans.Hash = trans.GenHash()
@@ -137,19 +141,27 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
 	return successResult(block)
 }
 
-func (api *RpcGtasImpl) MinerInfo(addr string) (*Result, error) {
+func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	if !validateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	morts := make([]MortGage, 0)
-	id := common.HexToAddress(addr).Bytes()
-	heavyInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeProposal, nil)
-	if heavyInfo != nil {
-		morts = append(morts, *NewMortGageFromMiner(heavyInfo))
+	if detail != "" && detail != "all" && !validateAddress(strings.TrimSpace(detail)) {
+		return failResult("Wrong detail address format")
 	}
-	lightInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeVerify, nil)
-	if lightInfo != nil {
-		morts = append(morts, *NewMortGageFromMiner(lightInfo))
+
+	morts := make([]MortGage, 0)
+	address := common.HexToAddress(addr)
+	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	if proposalInfo != nil {
+		morts = append(morts, *NewMortGageFromMiner(proposalInfo))
+	}
+	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
+	if verifierInfo != nil {
+		morts = append(morts, *NewMortGageFromMiner(verifierInfo))
+	}
+	// Get details
+	if detail != "" {
+
 	}
 	return successResult(morts)
 }
@@ -216,7 +228,7 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 		account.Type = 1
 		account.StateData = make(map[string]interface{})
 
-		iter := accoundDb.DataIterator(common.HexToAddress(hash), "")
+		iter := accoundDb.DataIterator(common.HexToAddress(hash), []byte{})
 		for iter.Next() {
 			k := string(iter.Key[:])
 			v := string(iter.Value[:])
@@ -249,14 +261,14 @@ func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*R
 
 	var resultData interface{}
 	if count == 0 {
-		value := state.GetData(address, key)
+		value := state.GetData(address, []byte(key))
 		if value != nil {
 			tmp := make(map[string]interface{})
 			tmp["value"] = string(value)
 			resultData = tmp
 		}
 	} else {
-		iter := state.DataIterator(address, key)
+		iter := state.DataIterator(address, []byte(key))
 		if iter != nil {
 			tmp := make([]map[string]interface{}, 0)
 			for iter.Next() {

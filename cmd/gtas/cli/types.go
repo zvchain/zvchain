@@ -97,24 +97,24 @@ type CastStat struct {
 type MortGage struct {
 	Stake       uint64 `json:"stake"`
 	ApplyHeight uint64 `json:"apply_height"`
-	AbortHeight uint64 `json:"abort_height"`
 	Type        string `json:"type"`
 	Status      string `json:"status"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	t := "proposal node"
-	if miner.Type == types.MinerTypeVerify {
+	if miner.IsVerifyRole() {
 		t = "verify node"
 	}
-	status := "abort"
-	if miner.Status == types.MinerStatusActive {
+	status := "prepared"
+	if miner.IsActive() {
 		status = "normal"
+	} else if miner.IsFrozen() {
+		status = "frozen"
 	}
 	mg := &MortGage{
 		Stake:       uint64(common.RA2TAS(miner.Stake)),
 		ApplyHeight: miner.ApplyHeight,
-		AbortHeight: miner.AbortHeight,
 		Type:        t,
 		Status:      status,
 	}
@@ -161,11 +161,11 @@ type Block struct {
 
 type BlockDetail struct {
 	Block
-	GenBonusTx   *BonusTransaction    `json:"gen_bonus_tx"`
-	Trans        []Transaction        `json:"trans"`
-	BodyBonusTxs []BonusTransaction   `json:"body_bonus_txs"`
-	MinerBonus   []*MinerBonusBalance `json:"miner_bonus"`
-	PreTotalQN   uint64               `json:"pre_total_qn"`
+	GenRewardTx   *RewardTransaction    `json:"gen_reward_tx"`
+	Trans         []Transaction         `json:"trans"`
+	BodyRewardTxs []RewardTransaction   `json:"body_reward_txs"`
+	MinerReward   []*MinerRewardBalance `json:"miner_reward"`
+	PreTotalQN    uint64                `json:"pre_total_qn"`
 }
 
 type BlockReceipt struct {
@@ -189,11 +189,11 @@ type Group struct {
 	Members       []string    `json:"members"`
 }
 
-type MinerBonusBalance struct {
+type MinerRewardBalance struct {
 	ID            groupsig.ID `json:"id"`
-	Proposal      bool        `json:"proposal"`      // Is there a proposal
-	PackBonusTx   int         `json:"pack_bonus_tx"` // The counts of packed bonus transaction
-	VerifyBlock   int         `json:"verify_block"`  // Number of blocks verified
+	Proposal      bool        `json:"proposal"`       // Is there a proposal
+	PackRewardTx  int         `json:"pack_reward_tx"` // The counts of packed reward transaction
+	VerifyBlock   int         `json:"verify_block"`   // Number of blocks verified
 	PreBalance    *big.Int    `json:"pre_balance"`
 	CurrBalance   *big.Int    `json:"curr_balance"`
 	ExpectBalance *big.Int    `json:"expect_balance"`
@@ -232,7 +232,7 @@ type ExecutedTransaction struct {
 	Transaction *Transaction
 }
 
-type BonusTransaction struct {
+type RewardTransaction struct {
 	Hash         common.Hash   `json:"hash"`
 	BlockHash    common.Hash   `json:"block_hash"`
 	GroupID      groupsig.ID   `json:"group_id"`
@@ -259,8 +259,10 @@ type ExplorerAccount struct {
 	StateData map[string]interface{} `json:"state_data"`
 }
 
-type ExploreBlockBonus struct {
-	ProposalID    string           `json:"proposal_id"`
-	ProposalBonus uint64           `json:"proposal_bonus"`
-	VerifierBonus BonusTransaction `json:"verifier_bonus"`
+type ExploreBlockReward struct {
+	ProposalID           string            `json:"proposal_id"`
+	ProposalReward       uint64            `json:"proposal_reward"`
+	ProposalGasFeeReward uint64            `json:"proposal_gas_fee_reward"`
+	VerifierReward       RewardTransaction `json:"verifier_reward"`
+	VerifierGasFeeReward uint64            `json:"verifier_gas_fee_reward"`
 }

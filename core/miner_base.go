@@ -21,6 +21,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 )
 
@@ -31,8 +32,11 @@ var (
 	keyPoolProposalTotalStake = []byte("totalstake")
 )
 
+// Special account address
+// Need to access by AccountDBTS for concurrent situations
 var (
-	minerPoolAddr = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
+	minerPoolAddr   = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
+	rewardStoreAddr = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
 )
 
 type stakeDetail struct {
@@ -71,10 +75,6 @@ func checkCanActivate(miner *types.Miner, height uint64) bool {
 	return miner.Stake >= common.VerifyStake
 }
 
-func checkCanInActivate(miner *types.Miner) bool {
-	return miner.Stake < common.VerifyStake
-}
-
 func checkUpperBound(miner *types.Miner, height uint64) bool {
 	return true
 }
@@ -95,6 +95,58 @@ func getPoolKey(prefix []byte, address common.Address) []byte {
 	return buf.Bytes()
 }
 
+func getMiner(db vm.AccountDB, address common.Address, mType types.MinerType) (*types.Miner, error) {
+	data := db.GetData(address, getMinerKey(mType))
+	if data != nil && len(data) > 0 {
+		var miner types.Miner
+		err := msgpack.Unmarshal(data, &miner)
+		if err != nil {
+			return nil, err
+		}
+		return &miner, nil
+	}
+	return nil, nil
+}
+
+func getDetail(db vm.AccountDB, address common.Address, detailKey []byte) (*stakeDetail, error) {
+	data := db.GetData(address, detailKey)
+	if data != nil && len(data) > 0 {
+		var detail stakeDetail
+		err := msgpack.Unmarshal(data, &detail)
+		if err != nil {
+			return nil, err
+		}
+		return &detail, nil
+	}
+	return nil, nil
+}
+
+func getProposalTotalStake(db vm.AccountDBTS) uint64 {
+	totalStakeBytes := db.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
+	totalStake := uint64(0)
+	if len(totalStakeBytes) > 0 {
+		totalStake = common.ByteToUInt64(totalStakeBytes)
+	}
+	return totalStake
+}
+
+type baseOperation struct {
+	minerType types.MinerType
+	accountDB vm.AccountDB
+	minerPool vm.AccountDBTS
+	msg       vm.MinerOperationMessage
+	height    uint64
+}
+
+func newBaseOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) *baseOperation {
+	return &baseOperation{
+		accountDB: db,
+		minerPool: db.AsAccountDBTS(),
+		msg:       msg,
+		height:    height,
+	}
+}
+
 func (op *baseOperation) opProposalRole() bool {
 	return types.IsProposalRole(op.minerType)
 }
@@ -107,6 +159,7 @@ func (op *baseOperation) addToPool(address common.Address, addStake uint64) {
 	if op.opProposalRole() {
 		key = getPoolKey(prefixPoolProposal, address)
 		op.addProposalTotalStake(addStake)
+		MinerManagerImpl.proposalAddCh <- address
 	} else if op.opVerifyRole() {
 		key = getPoolKey(prefixPoolVerifier, address)
 
@@ -115,20 +168,12 @@ func (op *baseOperation) addToPool(address common.Address, addStake uint64) {
 }
 
 func (op *baseOperation) addProposalTotalStake(addStake uint64) {
-	totalStakeBytes := op.minerPool.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
-	totalStake := uint64(0)
-	if len(totalStakeBytes) > 0 {
-		totalStake = common.ByteToUInt64(totalStakeBytes)
-	}
+	totalStake := getProposalTotalStake(op.minerPool)
 	op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
 }
 
 func (op *baseOperation) subProposalTotalStake(subStake uint64) {
-	totalStakeBytes := op.minerPool.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
-	totalStake := uint64(0)
-	if len(totalStakeBytes) > 0 {
-		totalStake = common.ByteToUInt64(totalStakeBytes)
-	}
+	totalStake := getProposalTotalStake(op.minerPool)
 	if totalStake < subStake {
 		panic("total stake less than sub stake")
 	}
@@ -148,6 +193,7 @@ func (op *baseOperation) removeFromPool(address common.Address, stake uint64) {
 			panic(fmt.Errorf("totalStake less than stake: %v %v", totalStake, stake))
 		}
 		op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-stake))
+		MinerManagerImpl.proposalRemoveCh <- address
 	} else if op.opVerifyRole() {
 		key = getPoolKey(prefixPoolVerifier, address)
 
@@ -156,16 +202,7 @@ func (op *baseOperation) removeFromPool(address common.Address, stake uint64) {
 }
 
 func (op *baseOperation) getDetail(address common.Address, detailKey []byte) (*stakeDetail, error) {
-	data := op.accountDB.GetData(address, detailKey)
-	if data != nil && len(data) > 0 {
-		var detail stakeDetail
-		err := msgpack.Unmarshal(data, &detail)
-		if err != nil {
-			return nil, err
-		}
-		return &detail, nil
-	}
-	return nil, fmt.Errorf("no data")
+	return getDetail(op.accountDB, address, detailKey)
 }
 
 func (op *baseOperation) setDetail(address common.Address, detailKey []byte, sd *stakeDetail) error {
@@ -182,16 +219,7 @@ func (op *baseOperation) removeDetail(address common.Address, detailKey []byte) 
 }
 
 func (op *baseOperation) getMiner(address common.Address) (*types.Miner, error) {
-	data := op.accountDB.GetData(address, getMinerKey(op.minerType))
-	if data != nil && len(data) > 0 {
-		var miner types.Miner
-		err := msgpack.Unmarshal(data, &miner)
-		if err != nil {
-			return nil, err
-		}
-		return &miner, nil
-	}
-	return nil, fmt.Errorf("no data")
+	return getMiner(op.accountDB, address, op.minerType)
 }
 
 func (op *baseOperation) setMiner(miner *types.Miner) error {

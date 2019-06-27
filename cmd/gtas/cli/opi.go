@@ -117,21 +117,19 @@ type chainOp interface {
 	// Nonce query Balance by address
 	Nonce(addr string) *Result
 	// MinerInfo query miner info by address
-	MinerInfo(addr string) *Result
+	MinerInfo(addr string, detail string) *Result
 
 	BlockHeight() *Result
 
 	GroupHeight() *Result
 
-	ApplyMiner(mtype int, stake uint64, gas, gasprice uint64) *Result
+	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *Result
 
-	AbortMiner(mtype int, gas, gasprice uint64) *Result
+	MinerAbort(mtype int, gas, gasprice uint64) *Result
 
-	RefundMiner(mtype int, addrStr string, gas, gasprice uint64) *Result
+	StakeRefund(target string, mtype int, gas, gasprice uint64) *Result
 
-	MinerStake(mtype int, addrStr string, refundValue, gas, gasprice uint64) *Result
-
-	MinerCancelStake(mtype int, addrStr string, refundValue, gas, gasprice uint64) *Result
+	StakeReduce(target string, mtype int, value, gas, gasprice uint64) *Result
 
 	TxInfo(hash string) *Result
 

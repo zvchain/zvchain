@@ -35,12 +35,6 @@ type ConsensusHelper interface {
 	// convert the vrf prove to big int
 	VRFProve2Value(prove []byte) *big.Int
 
-	// bonus for proposal a block
-	ProposalBonus() *big.Int
-
-	// bonus for packing one bonus transaction
-	PackBonus() *big.Int
-
 	// calculate the blockheader's qn
 	// it needs to be equal to the blockheader's totalQN - preHeader's totalQN
 	CalculateQN(bh *BlockHeader) uint64
@@ -58,8 +52,8 @@ type ConsensusHelper interface {
 	// check group legality
 	CheckGroup(g *Group) (bool, error)
 
-	// verify bonus transaction
-	VerifyBonusTransaction(tx *Transaction) (bool, error)
+	// verify reward transaction
+	VerifyRewardTransaction(tx *Transaction) (bool, error)
 
 	// estimate pre block's height
 	EstimatePreHeight(bh *BlockHeader) uint64

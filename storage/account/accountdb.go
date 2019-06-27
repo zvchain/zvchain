@@ -354,7 +354,7 @@ func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accoun
 }
 
 func (adb *AccountDB) setAccountObject(object *accountObject) {
-	adb.accountObjects.Store(object.Address(), object)
+	adb.accountObjects.LoadOrStore(object.Address(), object)
 }
 
 func (adb *AccountDB) getOrNewAccountObject(addr common.Address) *accountObject {

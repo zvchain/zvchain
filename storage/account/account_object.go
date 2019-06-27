@@ -350,7 +350,7 @@ func (ao *accountObject) DataIterator(db AccountDatabase, prefix []byte) *trie.I
 	if ao.trie == nil {
 		ao.getTrie(db)
 	}
-	return trie.NewIterator(ao.trie.NodeIterator([]byte(prefix)))
+	return trie.NewIterator(ao.trie.NodeIterator(prefix))
 }
 
 // SetCode set a value in contract storage.

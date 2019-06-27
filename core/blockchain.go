@@ -58,7 +58,7 @@ type BlockChainConfig struct {
 	block       string
 	blockHeight string
 	state       string
-	bonus       string
+	reward      string
 	tx          string
 	receipt     string
 }
@@ -96,7 +96,7 @@ type FullBlockChain struct {
 
 	consensusHelper types.ConsensusHelper
 
-	bonusManager *BonusManager
+	rewardManager *RewardManager
 
 	forkProcessor *forkProcessor
 	config        *BlockChainConfig
@@ -116,7 +116,7 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		state: "st",
 
-		bonus: "nu",
+		reward: "nu",
 
 		tx:      "tx",
 		receipt: "rc",
@@ -188,7 +188,7 @@ func initBlockChain(helper types.ConsensusHelper) error {
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	chain.bonusManager = newBonusManager()
+	chain.rewardManager = newRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
 
@@ -265,14 +265,10 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 
 	miners := make([]*types.Miner, 0)
 	for i, member := range genesisInfo.Group.Members {
-		miner := &types.Miner{ID: member, PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: common.TAS2RA(100)}
+		miner := &types.Miner{ID: member, PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: MinMinerStake}
 		miners = append(miners, miner)
 	}
 	MinerManagerImpl.addGenesesMiner(miners, stateDB)
-	stateDB.SetNonce(common.BonusStorageAddress, 1)
-	stateDB.SetNonce(common.HeavyDBAddress, 1)
-	stateDB.SetNonce(common.LightDBAddress, 1)
-	stateDB.SetNonce(common.MinerStakeDetailDBAddress, 1)
 
 	root, _ := stateDB.Commit(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
@@ -321,9 +317,9 @@ func (chain *FullBlockChain) Close() {
 	chain.stateDb.Close()
 }
 
-// GetBonusManager returns the bonus manager
-func (chain *FullBlockChain) GetBonusManager() *BonusManager {
-	return chain.bonusManager
+// GetRewardManager returns the reward manager
+func (chain *FullBlockChain) GetRewardManager() *RewardManager {
+	return chain.rewardManager
 }
 
 // GetConsensusHelper returns consensus helper reference

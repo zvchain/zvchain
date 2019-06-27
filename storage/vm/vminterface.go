@@ -26,6 +26,14 @@ import (
 	"github.com/zvchain/zvchain/storage/trie"
 )
 
+// AccountDBTS is a thread-safe interface for accessing account
+type AccountDBTS interface {
+	GetDataSafe(address common.Address, key []byte) []byte
+	SetDataSafe(address common.Address, key, val []byte)
+	RemoveDataSafe(address common.Address, key []byte)
+	DataIteratorSafe(address common.Address, prefix []byte) *trie.Iterator
+}
+
 type AccountDB interface {
 	CreateAccount(common.Address)
 
@@ -58,6 +66,8 @@ type AccountDB interface {
 
 	RevertToSnapshot(int)
 	Snapshot() int
+
+	AsAccountDBTS() AccountDBTS
 }
 
 type ChainReader interface {
