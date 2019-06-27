@@ -33,6 +33,7 @@ const (
 	PeerSourceGroup  PeerSource = 2
 )
 
+<<<<<<< HEAD
 type SendPriorityType uint32
 
 const (
@@ -160,7 +161,6 @@ func (sendList *SendList) autoSend(peer *Peer) {
 		if sendList.curQuota >= sendList.totalQuota {
 			sendList.resetQuota()
 		}
-
 	}
 }
 
@@ -201,7 +201,9 @@ type Peer struct {
 	connectTimeout uint64
 	mutex          sync.RWMutex
 	connecting     bool
+
 	isPinged       bool
+
 	source         PeerSource
 
 	bytesReceived   int
@@ -307,8 +309,13 @@ type PeerManager struct {
 
 func newPeerManager() *PeerManager {
 
+<<<<<<< HEAD
 	pm := &PeerManager{
 		peers: make(map[uint64]*Peer),
+=======
+	if !p.isAuthSucceed && p.verifyResult && p.remoteVerifyResult {
+		p.isAuthSucceed = true
+>>>>>>> 5247e09... Merge pull request #57 from zvchain/dev_crypto
 	}
 	priorityTable = map[uint32]SendPriorityType{
 		BlockInfoNotifyMsg: SendPriorityHigh,
@@ -378,6 +385,7 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 	}
 }
 
+<<<<<<< HEAD
 // newConnection handling callbacks for successful connections
 func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, isAccepted bool) {
 
@@ -391,6 +399,15 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 		p.sessionID = session
 	}
 	p.connecting = false
+=======
+func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted bool) {
+	p.resetData()
+	p.connecting = false
+	if session > p.sessionID {
+		p.sessionID = session
+	}
+	p.connectTime = time.Now()
+>>>>>>> 5247e09... Merge pull request #57 from zvchain/dev_crypto
 
 	if len(p.ID.GetHexString()) > 0 && !p.isPinged {
 		netCore.ping(p.ID, nil)
@@ -410,6 +427,7 @@ func (pm *PeerManager) onSendWaited(id uint64, session uint32) {
 	}
 }
 
+<<<<<<< HEAD
 // onDisconnected handles callbacks for disconnected connections
 func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32) {
 	p := pm.peerByNetID(id)
@@ -445,6 +463,28 @@ func (pm *PeerManager) disconnect(id NodeID) {
 func (pm *PeerManager) onChecked(p2pType uint32, privateIP string, publicIP string) {
 
 }
+=======
+func (p *Peer) verify(pac *PeerAuthContext) bool {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.isAuthSucceed {
+		return true
+	}
+	p.remoteAuthContext = pac
+	verifyResult, verifyID := p.remoteAuthContext.Verify()
+
+	p.verifyResult = verifyResult
+	p.ID = NewNodeID(verifyID)
+	p.verifyUpdate()
+	return p.verifyResult
+}
+
+func (p *Peer) write(packet *bytes.Buffer, code uint32) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	b := netCore.bufferPool.getBuffer(packet.Len())
+	b.Write(packet.Bytes())
+>>>>>>> 5247e09... Merge pull request #57 from zvchain/dev_crypto
 
 func (pm *PeerManager) checkPeers() {
 	pm.mutex.RLock()
@@ -485,6 +525,7 @@ func (pm *PeerManager) checkPeerSource() {
 	}
 }
 
+<<<<<<< HEAD
 func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
@@ -492,6 +533,11 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 
 	pm.checkPeerSource()
 	availablePeers := make([]*Peer, 0, 0)
+=======
+func (p *Peer) disconnect() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+>>>>>>> 5247e09... Merge pull request #57 from zvchain/dev_crypto
 
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
@@ -529,6 +575,7 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 
 	return
 }
+<<<<<<< HEAD
 
 func (pm *PeerManager) peerByID(id NodeID) *Peer {
 	netID := genNetID(id)
@@ -553,3 +600,5 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) {
 	pm.peers[netID] = peer
 
 }
+=======
+>>>>>>> 5247e09... Merge pull request #57 from zvchain/dev_crypto
