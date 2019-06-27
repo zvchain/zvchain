@@ -48,26 +48,9 @@ func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) 
 	case types.TransactionTypeStakeRefund:
 		operation = &stakeRefundOp{baseOperation: baseOp}
 	default:
-		operation = &unSupportedOp{typ: msg.OpType()}
+		operation = &unSupported{typ: msg.OpType()}
 	}
 	return operation
-}
-
-// unSupportedOp encounters an unknown type
-type unSupportedOp struct {
-	typ int8
-}
-
-func (op *unSupportedOp) ParseTransaction() error {
-	return fmt.Errorf("unSupported miner operation type %v", op.typ)
-}
-
-func (op *unSupportedOp) Validate() error {
-	return fmt.Errorf("unSupported miner operation type %v", op.typ)
-}
-
-func (op *unSupportedOp) Operation() error {
-	return fmt.Errorf("unSupported miner operation type %v", op.typ)
 }
 
 // stakeAddOp is for the stake add operation, miner can add stake for himself or others

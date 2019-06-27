@@ -38,15 +38,16 @@ const (
 )
 
 var (
-	errGasPriceTooLow = fmt.Errorf("gas price too low")
-	errGasTooLow		= fmt.Errorf("gas too low")
+	errGasPriceTooLow   = fmt.Errorf("gas price too low")
+	errGasTooLow        = fmt.Errorf("gas too low")
 	errBalanceNotEnough = fmt.Errorf("balance not enough")
-	errNonceError		= fmt.Errorf("nonce error")
+	errNonceError       = fmt.Errorf("nonce error")
 )
 
 type transitionStatus int
+
 const (
-	tsSuccess				transitionStatus = iota
+	tsSuccess transitionStatus = iota
 	tsOperationFail
 	tsBalanceNotEnough
 	tsAbiError
@@ -57,45 +58,62 @@ const (
 type stateTransition interface {
 	Validate() error         // Validate the input args
 	ParseTransaction() error // Parse the input transaction
-	Transition() *result       // Do the transition
+	Transition() *result     // Do the transition
 }
 
 func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
 	base := newTransitionContext(db, tx, bh)
+	switch tx.Type {
+	case types.TransactionTypeTransfer:
+		return &txTransfer{transitionContext: base}
+	case types.TransactionTypeContractCreate:
+		return &contractCreator{transitionContext: base}
+	case types.TransactionTypeContractCall:
+		return &contractCaller{transitionContext: base}
+	case types.TransactionTypeReward:
+		return &rewardExecutor{transitionContext: base}
+	case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
+		return &minerStakeOperator{transitionContext: base}
+	default:
+		return &unSupported{typ: tx.Type}
+	}
 	return nil
 }
 
 type transitionContext struct {
 	// Input
-	accountDB 	vm.AccountDB
-	bh 			*types.BlockHeader
-	tx 			*types.Transaction
-	source 		common.Address
+	accountDB vm.AccountDB
+	bh        *types.BlockHeader
+	tx        *types.Transaction
+	source    common.Address
 
 	// Output
 	intrinsicGasUsed *big.Int
 }
 
 type result struct {
-	cumulativeGas *big.Int
-	transitionStatus 		transitionStatus
-	err 		error
-	logs 		[]*types.Log
-	contractAddress common.Address
+	cumulativeGas    *big.Int
+	transitionStatus transitionStatus
+	err              error
+	logs             []*types.Log   // Generated when calls contract
+	contractAddress  common.Address // Generated when creates contract
+	packRewardFee    uint64         // Generated when executes reward transaction
 }
+
 func newResult() *result {
 	return &result{
 		transitionStatus: tsSuccess,
+		packRewardFee:    0,
 	}
 }
 
-func (r *result) setError(err error, status transitionStatus)  {
-    r.err = err
-    r.transitionStatus = status
+func (r *result) setError(err error, status transitionStatus) {
+	r.err = err
+	r.transitionStatus = status
 }
 
 func newTransitionContext(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) *transitionContext {
-	return &transitionContext{accountDB: db, tx:tx, source:*tx.Source, bh:bh}
+	return &transitionContext{accountDB: db, tx: tx, source: *tx.Source, bh: bh}
 }
 
 func (ctx *transitionContext) checkNormTx() error {
@@ -130,10 +148,31 @@ func (ctx *transitionContext) checkNormTx() error {
 	return nil
 }
 
+// unSupported encounters an unknown type
+type unSupported struct {
+	typ int8
+}
+
+func (op *unSupported) Operation() error {
+	return fmt.Errorf("unSupported tx type %v", op.typ)
+}
+
+func (op *unSupported) ParseTransaction() error {
+	return fmt.Errorf("unSupported tx type %v", op.typ)
+}
+
+func (op *unSupported) Validate() error {
+	return fmt.Errorf("unSupported tx type %v", op.typ)
+}
+
+func (op *unSupported) Transition() *result {
+	return nil
+}
+
 type txTransfer struct {
 	*transitionContext
 	target common.Address
-	value 	*big.Int
+	value  *big.Int
 }
 
 func (ss *txTransfer) Validate() error {
@@ -292,7 +331,8 @@ func (ss *contractCaller) Transition() *result {
 
 type rewardExecutor struct {
 	*transitionContext
-	blockHash common.Hash
+	blockHash   common.Hash
+	blockHeight uint64
 }
 
 func (ss *rewardExecutor) Validate() error {
@@ -308,8 +348,10 @@ func (ss *rewardExecutor) Validate() error {
 func (ss *rewardExecutor) ParseTransaction() error {
 	rm := BlockChainImpl.GetRewardManager()
 	ss.blockHash = rm.parseRewardBlockHash(ss.tx)
-	if !BlockChainImpl.HasBlock(ss.blockHash) {
+	if bh := BlockChainImpl.QueryBlockHeaderByHash(ss.blockHash); bh == nil {
 		return fmt.Errorf("block not exist：%v", ss.blockHash.Hex())
+	} else {
+		ss.blockHeight = bh.Height
 	}
 	if rm.contain(ss.blockHash.Bytes(), ss.accountDB) {
 		return fmt.Errorf("reward transaction already executed:%v", ss.blockHash.Hex())
@@ -337,6 +379,7 @@ func (ss *rewardExecutor) Transition() *result {
 		ss.accountDB.AddBalance(address, ss.tx.Value.Value())
 	}
 	ret.cumulativeGas = new(big.Int)
+	ret.packRewardFee = BlockChainImpl.GetRewardManager().CalculatePackedRewards(ss.blockHeight)
 	BlockChainImpl.GetRewardManager().put(ss.blockHash.Bytes(), ss.tx.Hash.Bytes(), ss.accountDB)
 	return ret
 }
@@ -364,11 +407,13 @@ func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *typ
 	}
 
 	// pre consume the gas limit for the normal transaction types
-	if !tx.IsReward() {
+	if tx.Source != nil {
 		gasLimitFee := new(big.Int).Mul(tx.GasLimit.Value(), tx.GasPrice.Value())
 		accountDB.SubBalance(*tx.Source, gasLimitFee)
 	}
 
+	// Create the snapshot, and the stateDB will roll back to the the snapshot if error occurs
+	// during transaction process
 	snapshot := accountDB.Snapshot()
 	ret := ss.Transition()
 	if ret.err != nil {
@@ -377,9 +422,9 @@ func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *typ
 	}
 
 	// refund the gas left
-	if tx.GasLimit.Uint64()-ret.cumulativeGas > 0 {
-		refund := new(big.Int).Sub(tx.GasLimit.Value(), new(big.Int).SetUint64(ret.cumulativeGas))
-		accountDB.AddBalance(*tx.Source, refund)
+	if tx.Source != nil && tx.GasLimit.Cmp(ret.cumulativeGas) > 0 {
+		refund := new(big.Int).Sub(tx.GasLimit.Value(), ret.cumulativeGas)
+		accountDB.AddBalance(*tx.Source, refund.Mul(refund, tx.GasPrice.Value()))
 	}
 	return ret, nil
 }
@@ -393,119 +438,51 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager()
 	var castorTotalRewards uint64
+
 	for _, tx := range txs {
 		if pack && time.Since(beginTime).Seconds() > float64(MaxCastBlockTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", tx.Hash.Hex())
 			break
 		}
 
+		// Apply transaction
 		ret, err := applyStateTransition(accountdb, tx, bh)
 		if err != nil {
 			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
+			// transaction will be remove from pool when error happens
 			evictedTxs = append(evictedTxs, tx.Hash)
 			continue
 		}
 
-		fee := big.NewInt(0)
-		fee := big.NewInt(0).Mul(, transaction.GasPrice.Value())
-		accountdb.SubBalance(*transaction.Source, fee)
+		// Accumulate gas fee
+		fee := big.NewInt(0).Mul(ret.cumulativeGas, tx.GasPrice.Value())
 		gasFee += fee.Uint64()
+		// Accumulate rewards for packing one reward-transaction
+		castorTotalRewards += ret.packRewardFee
 
-		var (
-			contractAddress   common.Address
-			logs              []*types.Log
-			gasUsed           *types.BigInt
-			cumulativeGasUsed uint64
-			executeError      *types.TransactionError
-			status            int = types.Success
-		)
+		// Set nonce of the source
+		if tx.Source != nil {
+			accountdb.SetNonce(*tx.Source, tx.Nonce)
+		}
 
-		if !transaction.IsReward() {
-			if err = transaction.BoundCheck(); err != nil {
-				evictedTxs = append(evictedTxs, transaction.Hash)
-				continue
-			}
-			if !validGasPrice(&transaction.GasPrice.Int, bh.Height) {
-				evictedTxs = append(evictedTxs, transaction.Hash)
-				continue
-			}
-			intriGas, err := intrinsicGas(transaction)
-			if err != nil {
-				evictedTxs = append(evictedTxs, transaction.Hash)
-				continue
-			}
-			gasLimitFee := new(types.BigInt).Mul(transaction.GasLimit.Value(), transaction.GasPrice.Value())
-			success := checkGasFeeIsEnough(accountdb, *transaction.Source, gasLimitFee)
-			if !success {
-				evictedTxs = append(evictedTxs, transaction.Hash)
-				continue
-			}
-			gasUsed = intriGas
-			if !executor.validateNonce(accountdb, transaction) {
-				evictedTxs = append(evictedTxs, transaction.Hash)
-				continue
-			}
-			if canTransfer(accountdb, *transaction.Source, new(big.Int).Add(transaction.Value.Value(), gasLimitFee)) {
-				switch transaction.Type {
-				case types.TransactionTypeTransfer:
-					cumulativeGasUsed = executor.executeTransferTx(accountdb, transaction, castor, gasUsed)
-				case types.TransactionTypeContractCreate:
-					executeError, contractAddress, cumulativeGasUsed = executor.executeContractCreateTx(accountdb, transaction, castor, bh, gasUsed)
-				case types.TransactionTypeContractCall:
-					success, _, logs, cumulativeGasUsed = executor.executeContractCallTx(accountdb, transaction, castor, bh, gasUsed)
-				case types.TransactionTypeStakeAdd:
-					success, cumulativeGasUsed = executor.executeMinerApplyTx(accountdb, transaction, bh.Height, castor, gasUsed)
-				case types.TransactionTypeMinerAbort:
-					success, cumulativeGasUsed = executor.executeMinerAbortTx(accountdb, transaction, bh.Height, castor, gasUsed)
-				case types.TransactionTypeStakeReduce:
-					success, cumulativeGasUsed = executor.executeMinerRefundTx(accountdb, transaction, bh.Height, castor, gasUsed)
-				case types.TransactionTypeMinerCancelStake:
-					success, cumulativeGasUsed = executor.executeMinerCancelStakeTx(accountdb, transaction, bh.Height, castor, gasUsed)
-				case types.TransactionTypeStakeRefund:
-					success, cumulativeGasUsed = executor.executeMinerStakeTx(accountdb, transaction, bh.Height, castor, gasUsed)
-				}
-			} else {
-				cumulativeGasUsed = intriGas.Uint64()
-				executeError = types.TxErrorBalanceNotEnoughErr
-			}
-			fee := big.NewInt(0)
-			fee = fee.Mul(fee.SetUint64(cumulativeGasUsed), transaction.GasPrice.Value())
-			accountdb.SubBalance(*transaction.Source, fee)
-			gasFee += fee.Uint64()
-		} else {
-			executeError = executor.executeRewardTx(accountdb, transaction, castor)
-			Logger.Debugf("executed rewards tx, success: %t", executeError != nil)
-			if executeError == nil {
-				b := BlockChainImpl.QueryBlockByHash(common.BytesToHash(transaction.Data))
-				if b != nil {
-					castorTotalRewards += rm.CalculatePackedRewards(b.Header.Height)
-				}
-			} else {
-				evictedTxs = append(evictedTxs, transaction.Hash)
-				// Failed reward tx should not be included in block
-				continue
-			}
-		}
-		if executeError != nil {
-			status = executeError.Code
-		}
+		// New receipt
 		idx := len(transactions)
-		transactions = append(transactions, transaction)
-		receipt := types.NewReceipt(nil, status, cumulativeGasUsed)
-		receipt.Logs = logs
-		receipt.TxHash = transaction.Hash
-		receipt.ContractAddress = contractAddress
+		transactions = append(transactions, tx)
+		receipt := types.NewReceipt(nil, int(ret.transitionStatus), ret.cumulativeGas.Uint64())
+		receipt.Logs = ret.logs
+		receipt.TxHash = tx.Hash
+		receipt.ContractAddress = ret.contractAddress
 		receipt.TxIndex = uint16(idx)
 		receipt.Height = bh.Height
 		receipts = append(receipts, receipt)
 		//errs[i] = err
-		if transaction.Source != nil {
-			accountdb.SetNonce(*transaction.Source, transaction.Nonce)
-		}
 
 	}
-	//ts.AddStat("executeLoop", time.Since(b))
+
+	// Accumulate castor reward with the share of all gas fee
 	castorTotalRewards += rm.CalculateGasFeeCastorRewards(gasFee)
+
+	// Calculate rewards with the specified height
 	if rm.reduceBlockRewards(bh.Height, accountdb) {
 		castorTotalRewards += rm.CalculateCastorRewards(bh.Height)
 		accountdb.AddBalance(common.HexToAddress(daemonNodeAddress),
@@ -530,7 +507,6 @@ func validateNonce(accountdb vm.AccountDB, transaction *types.Transaction) bool 
 	}
 	return true
 }
-
 
 func createContract(accountdb vm.AccountDB, transaction *types.Transaction) (common.Address, error) {
 	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Source[:], common.Uint64ToByte(transaction.Nonce))))
