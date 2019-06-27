@@ -183,7 +183,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		if canTransfer(con.AccountDB, *sender, amount) {
 			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
 		} else {
-			return nil, false, nil, types.TxErrorBalanceNotEnough
+			return nil, false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: sender.Hex()}
@@ -194,7 +194,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
-		return nil, false, nil, types.TxErrorABIJSON
+		return nil, false, nil, types.TxErrorABIJSONErr
 	}
 
 	if !con.VM.VerifyABI(executeResult.Abi, abi){
