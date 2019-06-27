@@ -42,15 +42,15 @@ void wrap_remove_data(char* key)
 	RemoveData(key);
 }
 
-char* wrap_get_data(char* key)
+char* wrap_get_data(const char* key)
 {
-	char* GetData(char*);
+	char* GetData(const char*);
 	return GetData(key);
 }
 
-void wrap_set_data(char* key, char* value)
+void wrap_set_data(const char* key, const char* value)
 {
-	void SetData(char*, char*);
+	void SetData(const char*, const char*);
 	SetData(key, value);
 }
 
@@ -113,7 +113,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
@@ -172,13 +171,8 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		return result
 	}
 
-	if strings.EqualFold("[true]", params) {
-		params = "[true]"
-	} else if strings.EqualFold("[false]", params) {
-		params = "[false]"
-	}
 	abi := ABI{}
-	abiJSON := fmt.Sprintf(`{"FuncName": "%s", "Args": %s}`, funcName, params)
+	abiJSON := fmt.Sprintf(`{"FuncName": "%s", "Args": ["%s"]}`, funcName, params)
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION

@@ -38,6 +38,11 @@ var (
 	exportAbi             = app.Command("export", "export abi.")
 	exportAbiContractName = exportAbi.Arg("name", "").Required().String()
 	exportAbiContractPath = exportAbi.Arg("path", "").Required().String()
+
+	queryData    = app.Command("query", "query account data.")
+	queryAddress = queryData.Arg("account address", "account address.").Required().String()
+	queryKey     = queryData.Arg("query key", "").Required().String()
+	queryCount   = queryData.Arg("query count", "if count > 0, key is prefix of query db.").Required().Int()
 )
 
 func main() {
@@ -72,5 +77,9 @@ func main() {
 			return
 		}
 		tvmCli.ExportAbi(*exportAbiContractName, string(f))
+
+	case queryData.FullCommand():
+		tvmCli.QueryData(*queryAddress, *queryKey, *queryCount)
+
 	}
 }

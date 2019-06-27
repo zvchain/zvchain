@@ -120,9 +120,9 @@ const (
 						</formats>
 					</seelog>`
 
-	BonusStatConfig = `<seelog minlevel="debug">
+	RewardStatConfig = `<seelog minlevel="debug">
 						<outputs formatid="default">
-							<rollingfile type="size" filename="./logs/bonus_statLOG_INDEX.log" maxsize="100000000" maxrolls="1"/>
+							<rollingfile type="size" filename="./logs/reward_statLOG_INDEX.log" maxsize="100000000" maxrolls="1"/>
 						</outputs>
 						<formats>
 							<format id="default" format="%Date(2006-01-02 15:04:05.000)|%Msg%n" />

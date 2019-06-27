@@ -19,12 +19,13 @@
 package network
 
 import (
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
 	"math"
 	"math/rand"
 	"net"
 	"time"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/taslog"
 
 	"github.com/zvchain/zvchain/middleware/statistics"
 )
@@ -40,6 +41,8 @@ type NetworkConfig struct {
 	TestMode        bool
 	IsSuper         bool
 	SeedIDs         []string
+	PK              string
+	SK              string
 }
 
 var netServerInstance *Server
@@ -73,7 +76,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		natEnable = false
 		listenIP, err := getIPByAddress(networkConfig.SeedAddr)
 		if err != nil || listenIP == nil {
-			Logger.Errorf("network SeedAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
+			Logger.Errorf("Network SeedAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
 			return err
 		}
 		listenAddr = net.UDPAddr{IP: listenIP, Port: self.Port}
@@ -81,6 +84,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		if len(networkConfig.SeedIDs) > 0 {
 			seedId = networkConfig.SeedIDs[0]
 		}
+		Logger.Errorf("Seed ID:%v ", seedId)
 
 		if !networkConfig.IsSuper {
 			bnNode := NewNode(NewNodeID(seedId), net.ParseIP(networkConfig.SeedAddr), seedPort)
@@ -90,10 +94,10 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		}
 	} else {
 		natEnable = true
-		randomSeeds := genRandomSeeds(networkConfig.SeedIDs)
+		randomSeeds :=  genRandomSeeds(networkConfig.SeedIDs)
 		for _, sid := range randomSeeds {
 			bnNode := NewNode(NewNodeID(sid), net.ParseIP(networkConfig.SeedAddr), seedPort)
-			Logger.Errorf("seed id:%v ", sid)
+			Logger.Errorf("Seed ID:%v ", sid)
 
 			if bnNode.ID != self.ID {
 				seeds = append(seeds, bnNode)
@@ -104,7 +108,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 	if len(networkConfig.NatAddr) > 0 {
 		IP, err := getIPByAddress(networkConfig.NatAddr)
 		if err != nil || IP == nil {
-			Logger.Errorf("network Lookup NatAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
+			Logger.Errorf("Network Lookup NatAddr:%v is wrong:%v", networkConfig.SeedAddr, err.Error())
 			return err
 		}
 		natIP = IP.String()
@@ -122,7 +126,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 	var netCore NetCore
 	n, _ := netCore.InitNetCore(netConfig)
 
-	netServerInstance = &Server{Self: self, netCore: n, consensusHandler: consensusHandler}
+	netServerInstance = &Server{Self: self, netCore: n, consensusHandler: consensusHandler, config: &networkConfig}
 	return nil
 }
 
@@ -130,6 +134,10 @@ func genRandomSeeds(seeds []string) []string {
 	nodesSelect := make(map[int]bool)
 
 	totalSize := len(seeds)
+
+	//always select first
+	nodesSelect[0] = true
+
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	maxSize := int(math.Ceil(float64(totalSize) / 3))
 	for i := 0; i < totalSize; i++ {
@@ -144,7 +152,7 @@ func genRandomSeeds(seeds []string) []string {
 	}
 	seedsRandom := make([]string, 0, 0)
 
-	for key, _ := range nodesSelect {
+	for key := range nodesSelect {
 		seedsRandom = append(seedsRandom, seeds[key])
 	}
 	return seedsRandom
