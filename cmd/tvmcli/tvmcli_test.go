@@ -48,7 +48,7 @@ func _deployContract(contractName string, filePath string) string {
 	return contractAddress
 }
 
-func TestTvmCallContract(t *testing.T) {
+func TestTvmCli_Call(t *testing.T) {
 	contractAddress := _deployContract("Token", "erc20.py")
 
 	tvmCli := NewTvmCli()
@@ -60,7 +60,7 @@ func TestTvmCallContract(t *testing.T) {
 	tvmCli.DeleteTvmCli()
 }
 
-func TestTvmContractCallContract(t *testing.T) {
+func TestTvmCli_Call_ContractCallContract(t *testing.T) {
 	erc20Contract := _deployContract("Token", "erc20.py")
 	routerContract := _deployContract("Router", "router.py")
 
@@ -70,5 +70,13 @@ func TestTvmContractCallContract(t *testing.T) {
   "Args": ["%s","balance_of","0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`, erc20Contract)
 	tvmCli.Call(routerContract, abiJson)
+	tvmCli.DeleteTvmCli()
+}
+
+func TestTvmCli_QueryData(t *testing.T) {
+	erc20Contract := _deployContract("Token", "erc20.py")
+
+	tvmCli := NewTvmCli()
+	tvmCli.QueryData(erc20Contract, "name", 0)
 	tvmCli.DeleteTvmCli()
 }
