@@ -283,13 +283,12 @@ func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 		gtas.account = aci.Account
 		return nil
 	}
-	acc := acm.getFirstMinerAccount()
+	acc := acm.getFirstMinerAccount(password)
 	if acc != nil {
-		fmt.Printf("getFirstMinerAccount retrun nil")
 		gtas.account = *acc
 		return nil
 	}
-	return fmt.Errorf("please provide a miner account! ")
+	return fmt.Errorf("please provide a miner account and correct password! ")
 }
 
 func (gtas *Gtas) fullInit() error {
