@@ -2,7 +2,7 @@ import account
 
 class Router(object):
     def __init__(self):
-        pass
+        self.name = "router"
 
     @register.public(str, str, str, str)
     def call_contract(self, addr, contract_name, value):

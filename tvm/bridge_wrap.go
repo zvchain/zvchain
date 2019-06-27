@@ -118,13 +118,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-type CallTask struct {
-	Sender       *common.Address
-	ContractAddr *common.Address
-	FuncName     string
-	Params       string
-}
-
 type ExecuteResult struct {
 	ResultType int
 	ErrorCode  int
@@ -161,7 +154,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		return result
 	}
 
-	msg := Msg{Data: []byte{}, Value: 0, Sender: conAddr.Hex()}
+	msg := Msg{Data: []byte{}, Value: 0}
 	_, err := controller.VM.CreateContractInstance(msg)
 	if err != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
@@ -287,7 +280,6 @@ func (tvm *TVM) storeData() error {
 type Msg struct {
 	Data   []byte
 	Value  uint64
-	Sender string
 }
 
 // CreateContractInstance Create contract instance
@@ -386,7 +378,7 @@ func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *Execut
 }
 
 func (tvm *TVM) loadMsg(msg Msg) error {
-	script := pycodeLoadMsg(msg.Sender, msg.Value, tvm.ContractAddress.Hex())
+	script := pycodeLoadMsg(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
