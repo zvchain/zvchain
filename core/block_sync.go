@@ -248,10 +248,8 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	if top.Height == 0 {
 		return false
 	}
-	topBlockInfo := newTopBlockInfo(top)
-
 	bs.logger.Debugf("Send local %d,%v to neighbor!", top.TotalQN, top.Hash.Hex())
-	body, e := marshalTopBlockInfo(topBlockInfo)
+	body, e := marshalTopBlockInfo(top)
 	if e != nil {
 		bs.logger.Errorf("marshal blockInfo error:%s", e.Error())
 		return false
@@ -378,7 +376,7 @@ func (bs *blockSyncer) blockReqHandler(msg notify.Message) {
 		return
 	}
 	localHeight := bs.chain.Height()
-	if br.ReqHeight == 0 || br.ReqHeight > localHeight || br.ReqSize > maxReqBlockCount {
+	if br.ReqHeight <= 0 || br.ReqHeight > localHeight || br.ReqSize > maxReqBlockCount {
 		return
 	}
 
@@ -413,26 +411,20 @@ func (bs *blockSyncer) candidatePoolDump() {
 	}
 }
 
-func marshalTopBlockInfo(bi *topBlockInfo) ([]byte, error) {
-	blockInfo := tas_middleware_pb.TopBlockInfo{Hash: bi.Hash.Bytes(), TotalQn: &bi.TotalQN, PVBig: bi.PV.Bytes(), Height: &bi.Height}
+func marshalTopBlockInfo(header *types.BlockHeader) ([]byte, error) {
+	blockHeader := types.BlockHeaderToPb(header)
+	blockInfo := tas_middleware_pb.TopBlockInfo{TopHeader:blockHeader}
 	return proto.Marshal(&blockInfo)
 }
 
-func (bs *blockSyncer) unMarshalTopBlockInfo(b []byte) (*topBlockInfo, error) {
+func (bs *blockSyncer) unMarshalTopBlockInfo(b []byte) (*types.BlockHeader, error) {
 	message := new(tas_middleware_pb.TopBlockInfo)
 	e := proto.Unmarshal(b, message)
 	if e != nil {
 		bs.logger.Errorf("unMarshalBlockInfo error:%s", e.Error())
 		return nil, e
 	}
-	pv := big.NewInt(0).SetBytes(message.PVBig)
-	bw := &types.BlockWeight{
-		TotalQN: *message.TotalQn,
-		PV:      pv,
-		Hash:    common.BytesToHash(message.Hash),
-	}
-	blockInfo := topBlockInfo{BlockWeight: *bw, Height: *message.Height}
-	return &blockInfo, nil
+	return types.PbToBlockHeader(message.TopHeader), nil
 }
 
 func (bs *blockSyncer) unMarshalBlockMsgResponse(b []byte) (*blockResponseMessage, error) {
