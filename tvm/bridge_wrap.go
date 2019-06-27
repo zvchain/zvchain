@@ -451,7 +451,7 @@ func (tvm *TVM) loadMsg(msg Msg) error {
 }
 
 func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
-	script := pycodeLoadMsgWhenCall(msg.Value, tvm.ContractAddress.Hex())
+	script := pycodeLoadMsgWhenCall(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
