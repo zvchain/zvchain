@@ -102,7 +102,7 @@ func (con *Controller) Deploy(contract *Contract) error {
 		con.VM.DelTVM()
 	}()
 	con.VM.SetGas(int(con.GasLeft))
-	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue(), Sender: con.Transaction.GetSource().Hex()}
+	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue()}
 	err := con.VM.Deploy(msg)
 
 	if err != nil {
@@ -141,7 +141,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 			return false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
-	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: con.Transaction.GetSource().Hex()}
+	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
 	libLen, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
@@ -185,7 +185,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 			return nil
 		}
 	}
-	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue(), Sender: sender.Hex()}
+	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
 	libLen, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return nil
