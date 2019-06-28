@@ -142,21 +142,23 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
-	libLen, err := con.VM.CreateContractInstance(msg)
+	libLen,result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
+
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		return false, nil, types.TxErrorABIJSONErr
 	}
-	err = con.VM.checkABI(abi) //checkABI
-	if err != nil {
+
+	if !con.VM.VerifyABI(result.Abi, abi){
 		return false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
 			checkABI failed. abi:%s,msg=%s
 		`, abi.FuncName, err.Error()))
 	}
+
 	con.VM.SetLibLine(libLen)
 	err = con.VM.executABIVMSucceed(abi) //execute
 	if err != nil {
@@ -170,7 +172,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 }
 
 // ExecuteAbiEval Execute the contract with abi and returns result
-func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract, abiJSON string) *ExecuteResult {
+func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract, abiJSON string) (*ExecuteResult, bool, []*types.Log, *types.TransactionError) {
 	con.VM = NewTVM(sender, contract, con.LibPath)
 	con.VM.SetGas(int(con.GasLeft))
 	defer func() {
@@ -182,33 +184,36 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		if canTransfer(con.AccountDB, *sender, amount) {
 			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
 		} else {
-			return nil
+			return nil, false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
-	libLen, err := con.VM.CreateContractInstance(msg)
+	libLen, executeResult, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
-		return nil
+		return nil, false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
-		return nil
+		return nil, false, nil, types.TxErrorABIJSONErr
 	}
-	err = con.VM.checkABI(abi) //checkABI
-	if err != nil {
-		return nil
+
+	if !con.VM.VerifyABI(executeResult.Abi, abi){
+		return nil, false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
+			checkABI failed. abi:%s,msg=%s
+		`, abi.FuncName, err.Error()))
 	}
+
 	con.VM.SetLibLine(libLen)
 	result := con.VM.executeABIKindEval(abi) //execute
 	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
-		return result
+		return result, false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
 	err = con.VM.storeData() //store
 	if err != nil {
-		return nil
+		return nil, false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
-	return result
+	return result, true, con.VM.Logs, nil
 }
 
 // GetGasLeft get gas left

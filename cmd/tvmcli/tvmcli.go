@@ -178,7 +178,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	//fmt.Println(contract.Code)
 	sender := common.HexToAddress(DefaultAccounts[0])
 	controller.VM.SetGas(500000)
-	executeResult := controller.ExecuteAbiEval(&sender, contract, abiJSON)
+	executeResult, _, _, _ := controller.ExecuteAbiEval(&sender, contract, abiJSON)
 	fmt.Println("gas: ", 500000-controller.VM.Gas())
 
 	if executeResult == nil {
@@ -262,7 +262,6 @@ func (t *TvmCli) QueryData(address string, key string, count int) {
 	} else {
 		iter := state.DataIterator(hexAddr, key)
 		if iter != nil {
-			tmp := make([]map[string]interface{}, 0)
 			for iter.Next() {
 				k := string(iter.Key[:])
 				if !strings.HasPrefix(k, key) {
@@ -270,7 +269,8 @@ func (t *TvmCli) QueryData(address string, key string, count int) {
 				}
 				v := string(iter.Value[:])
 				fmt.Println("key:", k, "value:", v)
-				if len(tmp) >= count {
+				count--
+				if count <= 0 {
 					break
 				}
 			}
