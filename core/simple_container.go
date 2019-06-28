@@ -281,7 +281,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if !IsTestTransaction(tx) && (tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000) {
-		err = Logger.Warnf("nonce error:%v %v. hash = %s", tx.Nonce, stateNonce, tx.Hash.Hex())
+		err = Logger.Warnf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce)
 		return
 	}
 	//check balance before push to pool

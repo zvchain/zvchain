@@ -663,15 +663,18 @@ func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *byte
 	for header.Len() < PacketHeadSize && !p.isEmpty() {
 		b := p.popData()
 		if b != nil && b.Len() > 0 {
+			header.Write(b.Bytes())
 			netCore.bufferPool.freeBuffer(b)
 		}
 	}
-	if header.Len() < PacketHeadSize {
+
+	headerBytes := header.Bytes()
+
+	if len(headerBytes) < PacketHeadSize {
 		p.addRecvDataToHead(header)
 		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
 	}
 
-	headerBytes := header.Bytes()
 	msgType := MessageType(binary.BigEndian.Uint32(headerBytes[:PacketTypeSize]))
 	msgLen := binary.BigEndian.Uint32(headerBytes[PacketTypeSize:PacketHeadSize])
 	packetSize := int(msgLen + PacketHeadSize)

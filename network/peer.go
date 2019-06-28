@@ -122,7 +122,7 @@ func (sendList *SendList) onSendWaited(peer *Peer) {
 }
 
 func (sendList *SendList) autoSend(peer *Peer) {
-
+	
 	if peer.sessionID == 0 || !sendList.isSendAvailable() {
 		return
 	}
