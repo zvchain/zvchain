@@ -88,7 +88,7 @@ func (helper *ConsensusHelperImpl) VerifyRewardTransaction(tx *types.Transaction
 		return false, fmt.Errorf("not enough bytes for reward signature, sign =%v", signBytes)
 	}
 
-	groupID, targetIds, blockHash, value, err := Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
+	groupID, targetIds, blockHash, packFee, err := Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse reward transaction, err =%s", err)
 	}
@@ -100,11 +100,14 @@ func (helper *ConsensusHelperImpl) VerifyRewardTransaction(tx *types.Transaction
 	if !bytes.Equal(groupID, bh.GroupID) {
 		return false, fmt.Errorf("group id not equal to the block verifier groupId")
 	}
-	verifyRewards := Proc.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
-	gasFeeRewards := Proc.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
-	verifyRewards += gasFeeRewards
-	if verifyRewards/uint64(len(targetIds)) != value.Uint64() {
-		return false, fmt.Errorf("invalid verify reward, value=%v", value)
+	rewardShare := Proc.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
+
+	if rewardShare.ForRewardTxPacking != packFee.Uint64() {
+		return false, fmt.Errorf("pack fee error: receive %v, expect %v", packFee.Uint64(), rewardShare.ForRewardTxPacking)
+	}
+	verifyRewards := rewardShare.TotalForVerifier()
+	if verifyRewards/uint64(len(targetIds)) != tx.Value.Uint64() {
+		return false, fmt.Errorf("invalid verify reward, value=%v", tx.Value)
 	}
 
 	group := Proc.GroupChain.GetGroupByID(groupID)

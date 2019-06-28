@@ -23,18 +23,23 @@ import (
 	"math/big"
 )
 
+// Duration definition related to miner operation
 const (
-	oneDayBlocks = 86400 / 3
-	twoDayBlocks = 2 * oneDayBlocks
+	oneDayBlocks = 86400 / 3        // Blocks generated in one day on average, used when status transforms from Frozen to Prepare
+	twoDayBlocks = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
 )
 
 // mOperation define some functions on miner operation
+// Used when executes the miner related transactions or stake operations from contract
+// Different from the stateTransition, it doesn't take care of the gas and only focus on the operation
+// In mostly case, some functions can be reused in stateTransition
 type mOperation interface {
 	Validate() error         // Validate the input args
 	ParseTransaction() error // Parse the input transaction
 	Operation() error        // Do the operation
 }
 
+// newOperation creates the mOperation instance base on msg type
 func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) mOperation {
 	baseOp := newBaseOperation(db, msg, height)
 	var operation mOperation
@@ -210,6 +215,7 @@ func (op *minerAbortOp) Operation() error {
 		op.removeFromPool(op.addr, miner.Stake)
 	}
 
+	// Update the miner status
 	miner.UpdateStatus(types.MinerStatusPrepare, op.height)
 	if err := op.setMiner(miner); err != nil {
 		return err

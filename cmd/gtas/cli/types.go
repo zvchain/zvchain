@@ -250,6 +250,7 @@ type RewardTransaction struct {
 	GroupID      groupsig.ID   `json:"group_id"`
 	TargetIDs    []groupsig.ID `json:"target_ids"`
 	Value        uint64        `json:"value"`
+	PackFee      uint64        `json:"pack_fee"`
 	StatusReport string        `json:"status_report"`
 	Success      bool          `json:"success"`
 }

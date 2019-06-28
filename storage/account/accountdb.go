@@ -18,7 +18,6 @@ package account
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/storage/rlp"
-	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"sort"
 	"sync"
@@ -332,10 +331,6 @@ func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject
 func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accountObject) {
 	if obj, ok := adb.accountObjects.Load(addr); ok {
 		obj2 := obj.(*accountObject)
-		if addr == common.HeavyDBAddress {
-			getLogger().Infof("get  HeavyDBAddress obj from memory,root is %x,addr is %p", obj2.data.Root, obj)
-			taslog.Flush()
-		}
 		if obj2.deleted {
 			return nil
 		}
@@ -344,10 +339,6 @@ func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accoun
 
 	obj := adb.getAccountObjectFromTrie(addr)
 	if obj != nil {
-		if addr == common.HeavyDBAddress {
-			getLogger().Infof("get  HeavyDBAddress obj from level db,root is %x,addr is %p", obj.data.Root, obj)
-			taslog.Flush()
-		}
 		adb.setAccountObject(obj)
 	}
 	return obj

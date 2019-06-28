@@ -235,7 +235,7 @@ func (p Processor) getGroupPubKey(gid groupsig.ID) groupsig.Pubkey {
 // getProposerPubKey get the public key of proposer miner in the specified block
 func (p Processor) getProposerPubKeyInBlock(bh *types.BlockHeader) *groupsig.Pubkey {
 	castor := groupsig.DeserializeID(bh.Castor)
-	castorMO := p.minerReader.getProposeMiner(castor)
+	castorMO := p.minerReader.getLatestProposeMiner(castor)
 	if castorMO != nil {
 		return &castorMO.PK
 	}

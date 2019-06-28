@@ -39,7 +39,7 @@ const (
 )
 
 const (
-	pkSize    = 32
+	pkSize    = 128
 	vrfPkSize = 32
 )
 
@@ -143,7 +143,6 @@ func EncodePayload(pks *MinerPks) ([]byte, error) {
 		buf.Write(pks.Pk)
 		buf.Write(pks.VrfPk)
 	}
-
 	return buf.Bytes(), nil
 }
 
@@ -171,4 +170,17 @@ func IsProposalRole(typ MinerType) bool {
 }
 func IsVerifyRole(typ MinerType) bool {
 	return typ == MinerTypeVerify
+}
+
+// CastRewardShare represents for the block generation reward
+type CastRewardShare struct {
+	ForBlockProposal   uint64
+	ForBlockVerify     uint64
+	ForRewardTxPacking uint64
+	FeeForProposer     uint64
+	FeeForVerifier     uint64
+}
+
+func (crs *CastRewardShare) TotalForVerifier() uint64 {
+	return crs.FeeForVerifier + crs.ForBlockVerify
 }

@@ -16,7 +16,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"math/big"
 	"time"
@@ -44,19 +43,8 @@ var (
 	errNonceError       = fmt.Errorf("nonce error")
 )
 
-type transitionStatus int
-
-const (
-	tsSuccess transitionStatus = iota
-	tsOperationFail
-	tsBalanceNotEnough
-	tsAbiError
-	tsTvmFail
-)
-
 // stateTransition define some functions on state transition
 type stateTransition interface {
-	Validate() error         // Validate the input args
 	ParseTransaction() error // Parse the input transaction
 	Transition() *result     // Do the transition
 }
@@ -93,21 +81,19 @@ type transitionContext struct {
 
 type result struct {
 	cumulativeGas    *big.Int
-	transitionStatus transitionStatus
+	transitionStatus types.ReceiptStatus
 	err              error
 	logs             []*types.Log   // Generated when calls contract
 	contractAddress  common.Address // Generated when creates contract
-	packRewardFee    uint64         // Generated when executes reward transaction
 }
 
 func newResult() *result {
 	return &result{
-		transitionStatus: tsSuccess,
-		packRewardFee:    0,
+		transitionStatus: types.RSSuccess,
 	}
 }
 
-func (r *result) setError(err error, status transitionStatus) {
+func (r *result) setError(err error, status types.ReceiptStatus) {
 	r.err = err
 	r.transitionStatus = status
 }
@@ -116,33 +102,15 @@ func newTransitionContext(db vm.AccountDB, tx *types.Transaction, bh *types.Bloc
 	return &transitionContext{accountDB: db, tx: tx, source: *tx.Source, bh: bh}
 }
 
-func (ctx *transitionContext) checkNormTx() error {
-	tx := ctx.tx
-	if tx.GasLimit == nil {
-		return fmt.Errorf("gas limit is nil")
-	}
-	if !tx.GasLimit.IsUint64() {
-		return fmt.Errorf("gas limit is not uint64")
-	}
-	if tx.GasPrice == nil {
-		return fmt.Errorf("gas price is nil")
-	}
-	if !tx.GasPrice.IsUint64() {
-		return fmt.Errorf("gas price is not uint64")
-	}
-	if !validGasPrice(&tx.GasPrice.Int, ctx.bh.Height) {
+func checkState(db vm.AccountDB, tx *types.Transaction, height uint64) error {
+	if !validGasPrice(&tx.GasPrice.Int, height) {
 		return errGasPriceTooLow
 	}
-	intriGas, err := intrinsicGas(tx)
-	if err != nil {
-		return errGasTooLow
-	}
-	ctx.intrinsicGasUsed = intriGas
 	gasLimitFee := new(types.BigInt).Mul(tx.GasLimit.Value(), tx.GasPrice.Value())
-	if !canTransfer(ctx.accountDB, *tx.Source, gasLimitFee) {
+	if !canTransfer(db, *tx.Source, gasLimitFee) {
 		return errBalanceNotEnough
 	}
-	if !validateNonce(ctx.accountDB, tx) {
+	if !validateNonce(db, tx) {
 		return errNonceError
 	}
 	return nil
@@ -175,20 +143,6 @@ type txTransfer struct {
 	value  *big.Int
 }
 
-func (ss *txTransfer) Validate() error {
-	tx := ss.tx
-	if tx.Target == nil {
-		return fmt.Errorf("target is nil")
-	}
-	if tx.Value == nil || !tx.Value.IsUint64() {
-		return fmt.Errorf("value format error")
-	}
-	if err := ss.checkNormTx(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (ss *txTransfer) ParseTransaction() error {
 	ss.target = *ss.tx.Target
 	ss.value = ss.tx.Value.Value()
@@ -200,26 +154,20 @@ func (ss *txTransfer) Transition() *result {
 	if canTransfer(ss.accountDB, ss.source, ss.value) {
 		transfer(ss.accountDB, ss.source, ss.target, ss.value)
 	} else {
-		ret.setError(errBalanceNotEnough, tsBalanceNotEnough)
+		ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
 	}
 	ret.cumulativeGas = ss.intrinsicGasUsed
 	return ret
 }
 
+// minerStakeOperator handles all transactions related to miner stake
 type minerStakeOperator struct {
 	*transitionContext
-	minerOp mOperation
-}
-
-func (ss *minerStakeOperator) Validate() error {
-	ss.minerOp = newOperation(ss.accountDB, ss.tx, ss.bh.Height)
-	if err := ss.checkNormTx(); err != nil {
-		return err
-	}
-	return ss.minerOp.Validate()
+	minerOp mOperation // Real miner operation interface
 }
 
 func (ss *minerStakeOperator) ParseTransaction() error {
+	ss.minerOp = newOperation(ss.accountDB, ss.tx, ss.bh.Height)
 	return ss.minerOp.ParseTransaction()
 }
 
@@ -227,7 +175,7 @@ func (ss *minerStakeOperator) Transition() *result {
 	ret := newResult()
 	err := ss.minerOp.Operation()
 	if err != nil {
-		ret.setError(err, tsOperationFail)
+		ret.setError(err, types.RSFail)
 	}
 	ret.cumulativeGas = ss.intrinsicGasUsed
 	return ret
@@ -235,20 +183,6 @@ func (ss *minerStakeOperator) Transition() *result {
 
 type contractCreator struct {
 	*transitionContext
-}
-
-func (ss *contractCreator) Validate() error {
-	tx := ss.tx
-	if tx.Target != nil {
-		return fmt.Errorf("contract create tx shouldn't have target")
-	}
-	if len(tx.Data) == 0 {
-		return fmt.Errorf("no codes")
-	}
-	if err := ss.checkNormTx(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (ss *contractCreator) ParseTransaction() error {
@@ -260,12 +194,12 @@ func (ss *contractCreator) Transition() *result {
 	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "lib"), MinerManagerImpl)
 	contractAddress, txErr := createContract(ss.accountDB, ss.tx)
 	if txErr != nil {
-		ret.setError(txErr, tsOperationFail)
+		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
 		err := controller.Deploy(contract)
 		if err != nil {
-			ret.setError(err, tsTvmFail)
+			ret.setError(err, types.RSTvmError)
 		} else {
 			Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
 		}
@@ -281,20 +215,6 @@ type contractCaller struct {
 	*transitionContext
 }
 
-func (ss *contractCaller) Validate() error {
-	tx := ss.tx
-	if tx.Target == nil {
-		return fmt.Errorf("target is nil")
-	}
-	if len(tx.Data) == 0 {
-		return fmt.Errorf("data is empty")
-	}
-	if err := ss.checkNormTx(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (ss *contractCaller) ParseTransaction() error {
 	return nil
 }
@@ -306,20 +226,20 @@ func (ss *contractCaller) Transition() *result {
 	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "lib"), MinerManagerImpl)
 	contract := tvm.LoadContract(*tx.Target)
 	if contract.Code == "" {
-		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), tsTvmFail)
+		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSTvmError)
 	} else {
 		_, logs, err := controller.ExecuteABI(tx.Source, contract, string(tx.Data))
 		ret.logs = logs
 		if err != nil {
 			if err.Code == types.SysABIJSONError {
-				ret.setError(fmt.Errorf(err.Message), tsAbiError)
+				ret.setError(fmt.Errorf(err.Message), types.RSAbiError)
 			} else {
-				ret.setError(fmt.Errorf(err.Message), tsTvmFail)
+				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 			}
 		} else if canTransfer(ss.accountDB, ss.source, tx.Value.Value()) {
 			transfer(ss.accountDB, ss.source, *contract.ContractAddress, tx.Value.Value())
 		} else {
-			ret.setError(errBalanceNotEnough, tsBalanceNotEnough)
+			ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
 		}
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
@@ -333,53 +253,58 @@ type rewardExecutor struct {
 	*transitionContext
 	blockHash   common.Hash
 	blockHeight uint64
-}
-
-func (ss *rewardExecutor) Validate() error {
-	if len(ss.tx.Data) != len(common.Hash{}) {
-		return fmt.Errorf("data length should be 32bit")
-	}
-	if len(ss.tx.ExtraData) == 0 {
-		return fmt.Errorf("extra data empty")
-	}
-	return nil
+	targets     []common.Address
+	reward      *big.Int
+	packFee     *big.Int
+	proposal    common.Address
 }
 
 func (ss *rewardExecutor) ParseTransaction() error {
 	rm := BlockChainImpl.GetRewardManager()
-	ss.blockHash = rm.parseRewardBlockHash(ss.tx)
+
+	_, targets, blockHash, packFee, err := rm.ParseRewardTransaction(ss.tx)
+	if err != nil {
+		return err
+	}
+
+	ss.blockHash = blockHash
+
+	// Reward for each target address
+	ss.reward = ss.tx.Value.Value()
+	ss.packFee = packFee
+
+	ss.targets = make([]common.Address, 0)
+	for _, tid := range targets {
+		ss.targets = append(ss.targets, common.BytesToAddress(tid))
+	}
+
+	// Check if the corresponding block exists
 	if bh := BlockChainImpl.QueryBlockHeaderByHash(ss.blockHash); bh == nil {
 		return fmt.Errorf("block not exist：%v", ss.blockHash.Hex())
 	} else {
 		ss.blockHeight = bh.Height
 	}
+	// Check if there is a reward transaction of the same block already executed
 	if rm.contain(ss.blockHash.Bytes(), ss.accountDB) {
 		return fmt.Errorf("reward transaction already executed:%v", ss.blockHash.Hex())
 	}
+	ss.proposal = common.BytesToAddress(ss.bh.Castor)
 	return nil
 }
 
 func (ss *rewardExecutor) Transition() *result {
 	ret := newResult()
-	reader := bytes.NewReader(ss.tx.ExtraData)
-	groupID := make([]byte, common.GroupIDLength)
-	addr := make([]byte, common.AddressLength)
-	if n, _ := reader.Read(groupID); n != common.GroupIDLength {
-		Logger.Errorf("TVMExecutor Read GroupID Fail")
-		ret.setError(fmt.Errorf("read groupId fail"), tsOperationFail)
-		return ret
-	}
-	for n, _ := reader.Read(addr); n > 0; n, _ = reader.Read(addr) {
-		if n != common.AddressLength {
-			Logger.Errorf("TVMExecutor Reward Addr Size:%d Invalid", n)
-			ret.setError(fmt.Errorf("read address fail"), tsOperationFail)
-			return ret
-		}
-		address := common.BytesToAddress(addr)
-		ss.accountDB.AddBalance(address, ss.tx.Value.Value())
+	// Add the balance of the target addresses for verifying the block
+	// Including the verifying reward and gas fee share
+	for _, addr := range ss.targets {
+		ss.accountDB.AddBalance(addr, ss.reward)
 	}
 	ret.cumulativeGas = new(big.Int)
-	ret.packRewardFee = BlockChainImpl.GetRewardManager().CalculatePackedRewards(ss.blockHeight)
+
+	// Add the balance of proposer with pack fee for packing the reward tx
+	ss.accountDB.AddBalance(ss.proposal, ss.packFee)
+
+	// Mark reward tx of the block has been executed
 	BlockChainImpl.GetRewardManager().put(ss.blockHash.Bytes(), ss.tx.Hash.Bytes(), ss.accountDB)
 	return ret
 }
@@ -397,10 +322,14 @@ func NewTVMExecutor(bc BlockChain) *TVMExecutor {
 func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
 	ss := newStateTransition(accountDB, tx, bh)
 	var err error
-	if err = ss.Validate(); err != nil {
-		Logger.Errorf("state transition validate error:tx %v", tx.Hash.Hex())
-		return nil, err
+
+	// Check state related condition on the non-reward tx type
+	if !tx.IsReward() {
+		if err = checkState(accountDB, tx, bh.Height); err != nil {
+			return nil, err
+		}
 	}
+
 	if err = ss.ParseTransaction(); err != nil {
 		Logger.Errorf("state transition parse error:tx %v", tx.Hash.Hex())
 		return nil, err
@@ -417,6 +346,7 @@ func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *typ
 	snapshot := accountDB.Snapshot()
 	ret := ss.Transition()
 	if ret.err != nil {
+		// Revert any state changes when error occurs
 		accountDB.RevertToSnapshot(snapshot)
 		Logger.Errorf("state transition error:tx %v", tx.Hash.Hex())
 	}
@@ -430,14 +360,13 @@ func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *typ
 }
 
 // Execute executes all types transactions and returns the receipts
-func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed []*types.Transaction, recps []*types.Receipt, gasFee uint64, err error) {
+func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed []*types.Transaction, recps []*types.Receipt, gasFee uint64, err error) {
 	beginTime := time.Now()
 	receipts := make([]*types.Receipt, 0)
 	transactions := make([]*types.Transaction, 0)
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager()
-	var castorTotalRewards uint64
 
 	for _, tx := range txs {
 		if pack && time.Since(beginTime).Seconds() > float64(MaxCastBlockTime) {
@@ -446,7 +375,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 		}
 
 		// Apply transaction
-		ret, err := applyStateTransition(accountdb, tx, bh)
+		ret, err := applyStateTransition(accountDB, tx, bh)
 		if err != nil {
 			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
 			// transaction will be remove from pool when error happens
@@ -457,18 +386,16 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 		// Accumulate gas fee
 		fee := big.NewInt(0).Mul(ret.cumulativeGas, tx.GasPrice.Value())
 		gasFee += fee.Uint64()
-		// Accumulate rewards for packing one reward-transaction
-		castorTotalRewards += ret.packRewardFee
 
 		// Set nonce of the source
 		if tx.Source != nil {
-			accountdb.SetNonce(*tx.Source, tx.Nonce)
+			accountDB.SetNonce(*tx.Source, tx.Nonce)
 		}
 
 		// New receipt
 		idx := len(transactions)
 		transactions = append(transactions, tx)
-		receipt := types.NewReceipt(nil, int(ret.transitionStatus), ret.cumulativeGas.Uint64())
+		receipt := types.NewReceipt(nil, ret.transitionStatus, ret.cumulativeGas.Uint64())
 		receipt.Logs = ret.logs
 		receipt.TxHash = tx.Hash
 		receipt.ContractAddress = ret.contractAddress
@@ -479,28 +406,26 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 
 	}
 
-	// Accumulate castor reward with the share of all gas fee
-	castorTotalRewards += rm.CalculateGasFeeCastorRewards(gasFee)
+	// Accumulate reward with the share of all gas fee for castor
+	castorTotalRewards := rm.calculateGasFeeCastorRewards(gasFee)
 
 	// Calculate rewards with the specified height
-	if rm.reduceBlockRewards(bh.Height, accountdb) {
-		castorTotalRewards += rm.CalculateCastorRewards(bh.Height)
-		accountdb.AddBalance(common.HexToAddress(daemonNodeAddress),
-			big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
-		accountdb.AddBalance(common.HexToAddress(userNodeAddress),
-			big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
+	if rm.reduceBlockRewards(bh.Height, accountDB) {
+		castorTotalRewards += rm.calculateCastorRewards(bh.Height)
+		accountDB.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
+		accountDB.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
 	}
-	accountdb.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
+	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
-	state = accountdb.IntermediateRoot(true)
+	state = accountDB.IntermediateRoot(true)
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
 
-func validateNonce(accountdb vm.AccountDB, transaction *types.Transaction) bool {
+func validateNonce(accountDB vm.AccountDB, transaction *types.Transaction) bool {
 	if transaction.Type == types.TransactionTypeReward || IsTestTransaction(transaction) {
 		return true
 	}
-	nonce := accountdb.GetNonce(*transaction.Source)
+	nonce := accountDB.GetNonce(*transaction.Source)
 	if transaction.Nonce != nonce+1 {
 		Logger.Infof("Tx nonce error! Hash:%s,Source:%s,expect nonce:%d,real nonce:%d ", transaction.Hash.Hex(), transaction.Source.Hex(), nonce+1, transaction.Nonce)
 		return false
@@ -508,26 +433,16 @@ func validateNonce(accountdb vm.AccountDB, transaction *types.Transaction) bool 
 	return true
 }
 
-func createContract(accountdb vm.AccountDB, transaction *types.Transaction) (common.Address, error) {
+func createContract(accountDB vm.AccountDB, transaction *types.Transaction) (common.Address, error) {
 	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Source[:], common.Uint64ToByte(transaction.Nonce))))
 
-	if accountdb.GetCodeHash(contractAddr) != (common.Hash{}) {
+	if accountDB.GetCodeHash(contractAddr) != (common.Hash{}) {
 		return common.Address{}, fmt.Errorf("contract address conflict")
 	}
-	accountdb.CreateAccount(contractAddr)
-	accountdb.SetCode(contractAddr, transaction.Data)
-	accountdb.SetNonce(contractAddr, 1)
+	accountDB.CreateAccount(contractAddr)
+	accountDB.SetCode(contractAddr, transaction.Data)
+	accountDB.SetNonce(contractAddr, 1)
 	return contractAddr, nil
-}
-
-// intrinsicGas means transaction consumption intrinsic gas
-func intrinsicGas(transaction *types.Transaction) (gasUsed *big.Int, err error) {
-	gas := uint64(float32(len(transaction.Data)+len(transaction.ExtraData)) * CodeBytePrice)
-	gasBig := new(big.Int).SetUint64(TransactionGasCost + gas)
-	if transaction.GasLimit.Cmp(gasBig) < 0 {
-		return nil, fmt.Errorf("gas not enough")
-	}
-	return new(big.Int).SetUint64(gas), nil
 }
 
 func validGasPrice(gasPrice *big.Int, height uint64) bool {

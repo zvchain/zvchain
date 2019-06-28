@@ -24,13 +24,16 @@ import (
 )
 
 func TestCreatePool(t *testing.T) {
-	initContext4Test()
+	err := initContext4Test()
+	if err != nil {
+		t.Fatalf("init fail:%v", err)
+	}
 	defer clear()
 	pool := BlockChainImpl.GetTransactionPool()
 
 	fmt.Printf("received: %d transactions\n", len(pool.GetReceived()))
 
-	transaction := genTestTx(123457, "1", "2", 1, 3)
+	transaction := genTestTx(123457, "1", 1, 3)
 
 	sign := common.BytesToSign(transaction.Sign)
 	pk, err := sign.RecoverPubkey(transaction.Hash.Bytes())
@@ -45,7 +48,7 @@ func TestCreatePool(t *testing.T) {
 
 	h := common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
-	transaction = genTestTx(12347, "1", "2", 2, 3)
+	transaction = genTestTx(12347, "1", 2, 3)
 
 	_, err = pool.AddTransaction(transaction)
 	if err != nil {
@@ -64,14 +67,17 @@ func TestCreatePool(t *testing.T) {
 }
 
 func TestContainer(t *testing.T) {
-	initContext4Test()
+	err := initContext4Test()
+	if err != nil {
+		t.Fatalf("init fail:%v", err)
+	}
 	defer clear()
 	pool := BlockChainImpl.GetTransactionPool()
 
 	var gasePrice1 uint64 = 12347
 	var gasePrice2 uint64 = 12345
 
-	transaction1 := genTestTx(gasePrice1, "1", "2", 0, 3)
+	transaction1 := genTestTx(gasePrice1, "1", 1, 3)
 
 	var sign = common.BytesToSign(transaction1.Sign)
 	pk, err := sign.RecoverPubkey(transaction1.Hash.Bytes())
@@ -83,13 +89,13 @@ func TestContainer(t *testing.T) {
 
 	_, err = pool.AddTransaction(transaction1)
 	if err != nil {
-		t.Fatalf("fail to AddTransaction ")
+		t.Fatalf("fail to AddTransaction %v", err)
 	}
 
-	transaction2 := genTestTx(gasePrice2, "1", "2", 1, 3)
+	transaction2 := genTestTx(gasePrice2, "1", 2, 3)
 	_, err = pool.AddTransaction(transaction2)
 	if err != nil {
-		t.Fatalf("fail to AddTransaction ")
+		t.Fatalf("fail to AddTransaction %v", err)
 	}
 
 	tGet := pool.GetTransaction(false, transaction1.Hash)
@@ -102,34 +108,4 @@ func TestContainer(t *testing.T) {
 		t.Fatalf("gas price is wrong")
 	}
 
-}
-
-func TestMaxTxsPerBlock(t *testing.T) {
-	clear()
-	defer clear()
-	initContext4Test()
-	//chain := newFullChain()
-	chain := BlockChainImpl.(*FullBlockChain)
-	//chain.latestStateDB = chain.getDB()
-	pool := chain.GetTransactionPool()
-
-	for i := 0; i < 100000; i++ {
-		transaction := genTestTx(1111, "1", "2", uint64(i+1), 3)
-		var sign = common.BytesToSign(transaction.Sign)
-		pk, err := sign.RecoverPubkey(transaction.Hash.Bytes())
-		src := pk.GetAddress()
-
-		if i == 0 {
-			BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111111111111))
-		}
-
-		_, err = pool.AddTransaction(transaction)
-		if err != nil {
-			t.Fatalf("fail to AddTransaction ")
-		}
-	}
-
-	casting := pool.PackForCast()
-	//maxTxPoolSize
-	fmt.Printf("length for casting: %d\n", len(casting))
 }

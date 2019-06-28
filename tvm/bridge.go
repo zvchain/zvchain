@@ -59,14 +59,14 @@ func GetBalance(addressC *C.char) *C.char {
 func GetData(hashC *C.char) *C.char {
 	//hash := common.StringToHash(C.GoString(hashC))
 	address := *controller.VM.ContractAddress
-	state := controller.AccountDB.GetData(address, C.GoString(hashC))
+	state := controller.AccountDB.GetData(address, []byte(C.GoString(hashC)))
 	return C.CString(string(state))
 }
 
 //export SetData
 func SetData(keyC *C.char, data *C.char) {
 	address := *controller.VM.ContractAddress
-	key := C.GoString(keyC)
+	key := []byte(C.GoString(keyC))
 	state := []byte(C.GoString(data))
 	controller.AccountDB.SetData(address, key, state)
 }
@@ -132,7 +132,7 @@ func EventCall(eventName *C.char, index *C.char, data *C.char) *C.char {
 //export RemoveData
 func RemoveData(key *C.char) {
 	address := *controller.VM.ContractAddress
-	controller.AccountDB.RemoveData(address, C.GoString(key))
+	controller.AccountDB.RemoveData(address, []byte(C.GoString(key)))
 }
 
 func executeMinerOperation(msg vm.MinerOperationMessage) bool {

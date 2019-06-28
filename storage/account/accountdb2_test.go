@@ -49,25 +49,25 @@ func TestAccountDB_SetData(t *testing.T) {
 	defer db.Close()
 	triedb := NewDatabase(db)
 	state, _ := NewAccountDB(common.Hash{}, triedb)
-	state.SetData(common.BytesToAddress([]byte("1")), "aa", []byte("v1"))
-	state.SetData(common.BytesToAddress([]byte("1")), "bb", []byte("v2"))
+	state.SetData(common.BytesToAddress([]byte("1")), []byte("aa"), []byte("v1"))
+	state.SetData(common.BytesToAddress([]byte("1")), []byte("bb"), []byte("v2"))
 	snapshot := state.Snapshot()
-	state.SetData(common.BytesToAddress([]byte("1")), "bb", []byte("v3"))
+	state.SetData(common.BytesToAddress([]byte("1")), []byte("bb"), []byte("v3"))
 	state.RevertToSnapshot(snapshot)
-	state.SetData(common.BytesToAddress([]byte("2")), "cc", []byte("v4"))
+	state.SetData(common.BytesToAddress([]byte("2")), []byte("cc"), []byte("v4"))
 	root, _ := state.Commit(false)
 	triedb.TrieDB().Commit(root, false)
 
 	state, _ = NewAccountDB(root, triedb)
-	sta := state.GetData(common.BytesToAddress([]byte("1")), "aa")
+	sta := state.GetData(common.BytesToAddress([]byte("1")), []byte("aa"))
 	if string(sta) != "v1" {
 		t.Errorf("wrong value: %s,expect value v1", sta)
 	}
-	sta = state.GetData(common.BytesToAddress([]byte("1")), "bb")
+	sta = state.GetData(common.BytesToAddress([]byte("1")), []byte("bb"))
 	if string(sta) != "v2" {
 		t.Errorf("wrong value: %s,expect value v2", sta)
 	}
-	sta = state.GetData(common.BytesToAddress([]byte("2")), "cc")
+	sta = state.GetData(common.BytesToAddress([]byte("2")), []byte("cc"))
 	if string(sta) != "v4" {
 		t.Errorf("wrong value: %s,expect value v4", sta)
 	}

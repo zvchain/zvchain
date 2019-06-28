@@ -36,16 +36,11 @@ const (
 	AddBlockSucc              AddBlockResult = 0  // Means success
 	BlockExisted              AddBlockResult = 1  // Means the block already added before
 	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
-	Forking                   AddBlockResult = 3
 )
 const (
-	Success                            = 0
-	TxErrorBalanceNotEnough            = 1
-	TxErrorCodeContractAddressConflict = 2
-	TxFailed                           = 3
-	TxErrorCodeNoCode                  = 4
+	TxErrorBalanceNotEnough = 1
+	TxFailed                = 3
 
-	//TODO detail error
 	TVMExecutedError = 1003
 
 	SysCheckABIError = 2002
@@ -160,7 +155,7 @@ func (tx *Transaction) HexSign() string {
 // RecoverSource recover source from the sign field.
 // It returns directly if source is not nil or it is a reward transaction.
 func (tx *Transaction) RecoverSource() error {
-	if tx.Source != nil || tx.Type == TransactionTypeReward {
+	if tx.Source != nil || tx.IsReward() {
 		return nil
 	}
 	sign := common.BytesToSign(tx.Sign)
@@ -178,30 +173,6 @@ func (tx *Transaction) Size() int {
 
 func (tx *Transaction) IsReward() bool {
 	return tx.Type == TransactionTypeReward
-}
-
-// BoundCheck check if the transaction param exceeds the bounds
-func (tx *Transaction) BoundCheck() error {
-	if tx.GasPrice == nil || !tx.GasPrice.IsUint64() {
-		return fmt.Errorf("illegal tx gasPrice:%v", tx.GasPrice)
-	}
-	if tx.GasLimit == nil || !tx.GasLimit.IsUint64() {
-		return fmt.Errorf("illegal tx gasLimit:%v", tx.GasLimit)
-	}
-	if tx.Value == nil || !tx.Value.IsUint64() {
-		return fmt.Errorf("illegal tx value:%v", tx.Value)
-	}
-	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall {
-		if tx.Target == nil {
-			return fmt.Errorf("param target cannot nil")
-		}
-	}
-	if tx.Type == TransactionTypeMinerApply || tx.Type == TransactionTypeMinerCancelStake || tx.Type == TransactionTypeMinerStake {
-		if tx.Data == nil {
-			return fmt.Errorf("param data cannot nil")
-		}
-	}
-	return nil
 }
 
 func (tx Transaction) GetData() []byte { return tx.Data }
@@ -258,6 +229,7 @@ type Reward struct {
 	GroupID    []byte
 	Sign       []byte
 	TotalValue uint64
+	PackFee    uint64
 }
 
 // BlockHeader is block header structure

@@ -42,9 +42,9 @@ func testIDconvert(t *testing.T) {
 }
 
 //测试用衍生随机数生成私钥，从私钥萃取公钥，以及公钥的序列化
-func testPubkey(t *testing.T) {
+func TestPubkey(t *testing.T) {
 	fmt.Printf("\nbegin test pub key...\n")
-	t.Log("testPubkey")
+	t.Log("TestPubkey")
 	r := base.NewRand() //生成随机数
 
 	fmt.Printf("size of rand = %v\n.", len(r))
@@ -70,6 +70,7 @@ func testPubkey(t *testing.T) {
 			t.Log("pub != pub2")
 		}
 	}
+	t.Log("ss", len(pub.Serialize()))
 	fmt.Printf("\nend test pub key.\n")
 }
 
@@ -354,7 +355,7 @@ func test(t *testing.T) {
 	fmt.Printf("sizeof(int) =%v.\n", unsafe.Sizeof(tmp_i))
 	testID(t)          //测试从big.Int生成ID，以及ID的序列化
 	testSeckey(t)      //测试从big.Int生成私钥，以及私钥的序列化
-	testPubkey(t)      //测试用衍生随机数生成私钥，从私钥萃取公钥，以及公钥的序列化
+	TestPubkey(t)      //测试用衍生随机数生成私钥，从私钥萃取公钥，以及公钥的序列化
 	testAggregation(t) //生成n个衍生随机数私钥，对这n个衍生私钥进行聚合生成组私钥，然后萃取出组公钥
 	//用big.Int生成私钥，取得公钥和签名。然后对私钥、公钥和签名各复制一份后测试加法后的验证是否正确。
 	//同时测试签名的序列化。
