@@ -113,7 +113,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
@@ -267,19 +266,11 @@ func (tvm *TVM) DelTVM() {
 	C.tvm_gc()
 }
 
-func (tvm *TVM) checkABI(abi ABI) error {
-	script := pycodeCheckAbi(abi)
-	return tvm.ExecuteScriptVMSucceed(script)
-}
-
-func (tvm *TVM) VerifyABI(originABI string,callABI ABI) bool  {
-
-	var originalABI []ABIVerify
-
-	finalABIString := strings.Replace(originABI,"'","\"",-1)
-	err := json.Unmarshal([]byte(finalABIString),&originalABI)
+func (tvm *TVM) VerifyABI(standardABI string,callABI ABI) bool  {
+	var standardABIStruct []ABIVerify
+	err := json.Unmarshal([]byte(standardABI), &standardABIStruct)
 	if err != nil {
-		fmt.Println("abi unmarshal err:",err)
+		fmt.Println("abi unmarshal err:", err)
 		return false
 	}
 
@@ -302,7 +293,7 @@ func (tvm *TVM) VerifyABI(originABI string,callABI ABI) bool  {
 		}
 	}
 
-	for _, value := range originalABI{
+	for _, value := range standardABIStruct{
 		if value.FuncName == callABI.FuncName {
 			if len(value.Args) == len(callABI.Args) {
 				if reflect.DeepEqual(value.Args,argsType){
@@ -329,8 +320,6 @@ func (tvm *TVM) ExportABI(contract *Contract) string {
 func (tvm *TVM) storeData() error {
 	script := pycodeStoreContractData()
 	res := tvm.ExecuteScriptVMSucceed(script)
-	fmt.Println("STORE")
-	C.tvm_gas_report()
 	return res
 }
 
@@ -446,12 +435,12 @@ func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *Execut
 }
 
 func (tvm *TVM) loadMsg(msg Msg) error {
-	script := pycodeLoadMsg(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
+	script := pycodeLoad(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
 func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
-	script := pycodeLoadMsgWhenCall(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
+	script := pycodeLoadWhenCall(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 

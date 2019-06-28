@@ -89,63 +89,11 @@ except Exception:
 
 }
 
-func pycodeLoadMsg(sender string, value uint64, contractAddr string) string {
-	return fmt.Sprintf(`
-import ujson
-import account
-class TEvent(object):
-    dict = {}
-    def __init__(self):
-        pass
-
-TEvents = TEvent()
-
-class DefEvent(object):
-    class Node(object):
-        def __init__(self,name):
-            self.name = name
-            
-        def __call__(self, index,data):
-            if type(index) != type('a'):
-                raise LibException('index should be string',2)
-            if type(data) != type({'val':1}):
-                raise LibException('data should be dict',2)
-            account.eventCall(self.name,index,ujson.dumps(data))
-            #print("name :", self.name)
-            #print("index:",index)
-            #print("data :",ujson.dumps(data))
-
-    def __init__(self,name):
-        #print(name)
-        #def ev_fun(self,index,data):
-        #    print(index)
-        #    print(data)
-        setattr(TEvent,name,DefEvent.Node(name))
-
-
-class Msg(object):
-    def __init__(self, data, value, sender):
-        self.data = data
-        self.value = value
-        self.sender = sender
-
-    def __repr__(self):
-        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)
-
+func pycodeLoad(sender string, value uint64, contractAddr string) string {
+	str :=  fmt.Sprintf(`
 class Register(object):
-    def __init__(self):
-        self.funcinfo = {}
-
     def public(self , *dargs):
         def wrapper(func):
-            paranametuple = func.__para__
-            paraname = list(paranametuple)
-            paraname.remove("self")
-            paratype = []
-            for i in range(len(paraname)):
-                paratype.append(dargs[i])
-            self.funcinfo[func.__name__] = [paraname,paratype]
-            
             def _wrapper(*args , **kargs):
                 return func(*args, **kargs)
             return _wrapper
@@ -155,51 +103,14 @@ import builtins
 builtins.register = Register()
 builtins.msg = Msg(data=bytes(), sender="%s", value=%d)
 builtins.this = "%s"`, sender, value, contractAddr)
+
+	return fmt.Sprintf(`
+%s
+%s`, pycodeLoadMsg(), str)
 }
 
-func pycodeLoadMsgWhenCall(sender string, value uint64, contractAddr string) string {
-	return fmt.Sprintf(`
-import ujson
-import account
-class TEvent(object):
-    dict = {}
-    def __init__(self):
-        pass
-
-TEvents = TEvent()
-
-class DefEvent(object):
-    class Node(object):
-        def __init__(self,name):
-            self.name = name
-            
-        def __call__(self, index,data):
-            if type(index) != type('a'):
-                raise LibException('index should be string',2)
-            if type(data) != type({'val':1}):
-                raise LibException('data should be dict',2)
-            account.eventCall(self.name,index,ujson.dumps(data))
-            #print("name :", self.name)
-            #print("index:",index)
-            #print("data :",ujson.dumps(data))
-
-    def __init__(self,name):
-        #print(name)
-        #def ev_fun(self,index,data):
-        #    print(index)
-        #    print(data)
-        setattr(TEvent,name,DefEvent.Node(name))
-
-
-class Msg(object):
-    def __init__(self, data, value, sender):
-        self.data = data
-        self.value = value
-        self.sender = sender
-
-    def __repr__(self):
-        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)
-
+func pycodeLoadWhenCall(sender string, value uint64, contractAddr string) string {
+	str :=  fmt.Sprintf(`
 class Register(object):
     def __init__(self):
         self.funcinfo = {}
@@ -212,13 +123,14 @@ class Register(object):
             paraname.remove("self")
             paratype = []
             for i in range(len(paraname)):
-                paratype.append(dargs[i])
+                paratype.append(dargs[i].__name__)
             self.funcinfo[func.__name__] = [paraname,paratype]
             tmp = {}
             tmp["FuncName"] = func.__name__
             tmp["Args"] = paratype
             self.abiinfo.append(tmp)
-            abiexport(str(self.abiinfo))
+            infos = self.abiinfo
+            abiexport(ujson.dumps(infos))
 
             def _wrapper(*args , **kargs):
                 return func(*args, **kargs)
@@ -229,52 +141,55 @@ import builtins
 builtins.register = Register()
 builtins.msg = Msg(data=bytes(), sender="%s", value=%d)
 builtins.this = "%s"`, sender, value, contractAddr)
+	return fmt.Sprintf(`
+%s
+%s`, pycodeLoadMsg(), str)
 }
 
-func getInterfaceType(value interface{}) string {
-	switch value.(type) {
-	case float64:
-		return "1"
-	case bool:
-		return "True"
-	case string:
-		return "\"str\""
-	case []interface{}:
-		return "[list]"
-	case map[string]interface{}:
-		return "{\"dict\":\"test\"}"
-	default:
-		fmt.Println(value)
-		return "unknow"
-		//panic("")
-	}
+func pycodeLoadMsg() string {
+	return fmt.Sprintf(`
+import ujson
+import account
+class TEvent(object):
+    dict = {}
+    def __init__(self):
+        pass
+
+TEvents = TEvent()
+
+class DefEvent(object):
+    class Node(object):
+        def __init__(self,name):
+            self.name = name
+            
+        def __call__(self, index,data):
+            if type(index) != type('a'):
+                raise LibException('index should be string',2)
+            if type(data) != type({'val':1}):
+                raise LibException('data should be dict',2)
+            account.eventCall(self.name,index,ujson.dumps(data))
+            #print("name :", self.name)
+            #print("index:",index)
+            #print("data :",ujson.dumps(data))
+
+    def __init__(self,name):
+        #print(name)
+        #def ev_fun(self,index,data):
+        #    print(index)
+        #    print(data)
+        setattr(TEvent,name,DefEvent.Node(name))
+
+
+class Msg(object):
+    def __init__(self, data, value, sender):
+        self.data = data
+        self.value = value
+        self.sender = sender
+
+    def __repr__(self):
+        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)`)
 }
 
-func pycodeCheckAbi(abi ABI) string {
-
-	var str string
-	str = `
-__ABIParaTypes=[]`
-	for i := 0; i < len(abi.Args); i++ {
-		str += fmt.Sprintf("\n"+"__ABIParaTypes.append(type(%s))", getInterfaceType(abi.Args[i]))
-	}
-
-	str += fmt.Sprintf(`
-if "%s" in register.funcinfo:
-    if len(register.funcinfo["%s"][1]) == len(__ABIParaTypes):
-        for i in range(len(__ABIParaTypes)):
-            #print(__ABIParaTypes[i])
-            #print(register.funcinfo["%s"][1][i])
-            if __ABIParaTypes[i] != register.funcinfo["%s"][1][i]:
-                raise NoLineLibException('function %s para wrong')
-    else:
-        raise NoLineLibException("function %s para count wrong!")
-else:
-    raise NoLineLibException("cannot call this function: %s")
-`, abi.FuncName, abi.FuncName, abi.FuncName, abi.FuncName, abi.FuncName, abi.FuncName, abi.FuncName)
-
-	return str
-}
 func tasJSON() string {
 	code := `
 import ujson

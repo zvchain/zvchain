@@ -208,7 +208,6 @@ func TestTVM_VerifyABI(t *testing.T) {
 	msg := Msg{
 		Data:[]byte{},
 		Value:0,
-		Sender:"",
 	}
 	_, result,err := vm.CreateContractInstance(msg)
 	if err != nil{
