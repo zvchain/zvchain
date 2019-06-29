@@ -159,5 +159,8 @@ func genRandomSeeds(seeds []string) []string {
 }
 
 func GetNetInstance() Network {
+	if netServerInstance == nil {
+		return nil
+	}
 	return netServerInstance
 }

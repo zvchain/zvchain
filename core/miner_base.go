@@ -99,9 +99,14 @@ func getDetailKey(address common.Address, typ types.MinerType, status types.Stak
 func parseDetailKey(key []byte) (common.Address, types.MinerType, types.StakeStatus) {
 	reader := bytes.NewReader(key)
 
+	detail := make([]byte, len(prefixDetail))
+	n, err := reader.Read(detail)
+	if err != nil || n != len(prefixDetail) {
+		panic(fmt.Errorf("parse detail key error:%v", err))
+	}
 	addrBytes := make([]byte, len(common.Address{}))
-	_, err := reader.Read(addrBytes)
-	if err != nil {
+	n, err = reader.Read(addrBytes)
+	if err != nil || n != len(addrBytes) {
 		panic(fmt.Errorf("parse detail key error:%v", err))
 	}
 	mtByte, err := reader.ReadByte()
@@ -224,7 +229,6 @@ func (op *baseOperation) addToPool(address common.Address, addStake uint64) {
 	if op.opProposalRole() {
 		key = getPoolKey(prefixPoolProposal, address)
 		op.addProposalTotalStake(addStake)
-		MinerManagerImpl.proposalAddCh <- address
 	} else if op.opVerifyRole() {
 		key = getPoolKey(prefixPoolVerifier, address)
 
@@ -258,7 +262,6 @@ func (op *baseOperation) removeFromPool(address common.Address, stake uint64) {
 			panic(fmt.Errorf("totalStake less than stake: %v %v", totalStake, stake))
 		}
 		op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-stake))
-		MinerManagerImpl.proposalRemoveCh <- address
 	} else if op.opVerifyRole() {
 		key = getPoolKey(prefixPoolVerifier, address)
 

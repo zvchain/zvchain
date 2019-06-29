@@ -169,7 +169,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 		details := make([]*StakeDetail, 0)
 		for _, d := range dts {
 			dt := &StakeDetail{
-				Value:        d.Value,
+				Value:        uint64(common.RA2TAS(d.Value)),
 				UpdateHeight: d.UpdateHeight,
 				MType:        mTypeString(d.MType),
 				Status:       statusString(d.Status),

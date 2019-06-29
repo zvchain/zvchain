@@ -385,7 +385,7 @@ func (adb *AccountDB) CreateAccount(addr common.Address) {
 
 // DataIterator returns a new key-value iterator from a node iterator
 func (adb *AccountDB) DataIterator(addr common.Address, prefix []byte) *trie.Iterator {
-	stateObject := adb.getAccountObjectFromTrie(addr)
+	stateObject := adb.getAccountObject(addr)
 	if stateObject != nil {
 		return stateObject.DataIterator(adb.db, prefix)
 	}
@@ -460,6 +460,7 @@ func (adb *AccountDB) GetRefund() uint64 {
 // and clears the journal as well as the refunds.
 func (adb *AccountDB) Finalise(deleteEmptyObjects bool) {
 	for addr := range adb.accountObjectsDirty {
+		getLogger().Debugf("Finalize address %v", addr.Hex())
 		object, exist := adb.accountObjects.Load(addr)
 		if !exist {
 			continue

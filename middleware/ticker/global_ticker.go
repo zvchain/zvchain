@@ -17,12 +17,9 @@
 package ticker
 
 import (
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/zvchain/zvchain/common"
 )
 
 // RoutineFunc is the routine function which will be called at specified moment
@@ -84,13 +81,13 @@ func (gt *GlobalTicker) getRoutine(name string) *TickerRoutine {
 
 // trigger trigger an execution
 func (gt *GlobalTicker) trigger(routine *TickerRoutine) bool {
-	defer func() {
-		if r := recover(); r != nil {
-			common.DefaultLogger.Errorf("error：%v\n", r)
-			s := debug.Stack()
-			common.DefaultLogger.Errorf(string(s))
-		}
-	}()
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		common.DefaultLogger.Errorf("error：%v\n", r)
+	//		s := debug.Stack()
+	//		common.DefaultLogger.Errorf(string(s))
+	//	}
+	//}()
 
 	t := gt.ticker
 	lastTicker := atomic.LoadUint64(&routine.lastTicker)

@@ -16,6 +16,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -91,12 +92,20 @@ func (op *stakeAddOp) ParseTransaction() error {
 	op.minerPks = m
 	op.addSource = *op.msg.Operator()
 	op.addTarget = *op.msg.OpTarget()
+
+	// Only when stakes for self can specify the pks for security concern
+	// Otherwise, bad guys can change somebody else's pks with low cost to make the victim cannot work correctly
+	if len(m.Pk) > 0 && !bytes.Equal(op.addSource.Bytes(), op.addTarget.Bytes()) {
+		return fmt.Errorf("cann't specify target pubkeys when stakes for others")
+	}
 	op.value = op.msg.Amount().Uint64()
 	op.minerType = m.MType
 	return nil
 }
 
 func (op *stakeAddOp) Operation() error {
+	var add = false
+
 	targetMiner, err := op.getMiner(op.addTarget)
 	if err != nil {
 		return err
@@ -135,6 +144,9 @@ func (op *stakeAddOp) Operation() error {
 		targetMiner.UpdateStatus(types.MinerStatusActive, op.height)
 		// Add to pool so that the miner can start working
 		op.addToPool(op.addTarget, targetMiner.Stake)
+		if op.opProposalRole() {
+			add = true
+		}
 	}
 	// Save miner
 	if err := op.setMiner(targetMiner); err != nil {
@@ -171,6 +183,10 @@ func (op *stakeAddOp) Operation() error {
 	// Sub the balance of source account
 	op.accountDB.SubBalance(op.addSource, amount)
 
+	if add && MinerManagerImpl != nil {
+		// Inform added proposer address to minerManager
+		MinerManagerImpl.proposalAddCh <- op.addTarget
+	}
 	return nil
 
 }
@@ -196,6 +212,7 @@ func (op *minerAbortOp) Validate() error {
 }
 
 func (op *minerAbortOp) Operation() error {
+	var remove = false
 	miner, err := op.getMiner(op.addr)
 	if err != nil {
 		return err
@@ -213,12 +230,19 @@ func (op *minerAbortOp) Operation() error {
 	// Remove from pool if active
 	if miner.IsActive() {
 		op.removeFromPool(op.addr, miner.Stake)
+		if op.opProposalRole() {
+			remove = true
+		}
 	}
 
 	// Update the miner status
 	miner.UpdateStatus(types.MinerStatusPrepare, op.height)
 	if err := op.setMiner(miner); err != nil {
 		return err
+	}
+	if remove && MinerManagerImpl != nil {
+		// Informs MinerManager the removal address
+		MinerManagerImpl.proposalRemoveCh <- op.addr
 	}
 
 	return nil

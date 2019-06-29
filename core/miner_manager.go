@@ -16,6 +16,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/storage/account"
 	"sync"
@@ -29,30 +30,33 @@ import (
 )
 
 const (
-	heavyMinerNetTriggerInterval = 30
+	heavyMinerNetTriggerInterval = 10
+	buildVirtualNetRoutineName   = "build_virtual_net"
 )
 
 var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
 type MinerManager struct {
-	proposalAddresses map[string]struct{}
-	proposalAddCh     chan common.Address
-	proposalRemoveCh  chan common.Address
-	ticker            *ticker.GlobalTicker
-	lock              sync.RWMutex
+	existingProposal map[string]struct{} // Existing proposal addresses
+
+	proposalAddCh    chan common.Address // Received when miner active operation happens
+	proposalRemoveCh chan common.Address // Receiver when miner deactive operation such as miner-abort or frozen happens
+
+	ticker *ticker.GlobalTicker
+	lock   sync.RWMutex
 }
 
 func initMinerManager(ticker *ticker.GlobalTicker) {
 	MinerManagerImpl = &MinerManager{
-		proposalAddresses: make(map[string]struct{}, 0),
-		proposalAddCh:     make(chan common.Address),
-		proposalRemoveCh:  make(chan common.Address),
-		ticker:            ticker,
+		existingProposal: make(map[string]struct{}),
+		proposalAddCh:    make(chan common.Address),
+		proposalRemoveCh: make(chan common.Address),
+		ticker:           ticker,
 	}
 
-	MinerManagerImpl.ticker.RegisterPeriodicRoutine("build_virtual_net", MinerManagerImpl.updateProposalAddressRoutine, heavyMinerNetTriggerInterval)
-	MinerManagerImpl.ticker.StartTickerRoutine("build_virtual_net", false)
+	MinerManagerImpl.ticker.RegisterPeriodicRoutine(buildVirtualNetRoutineName, MinerManagerImpl.updateProposalAddressRoutine, heavyMinerNetTriggerInterval)
+	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 
 	go MinerManagerImpl.listenProposalUpdate()
 }
@@ -145,7 +149,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 
 func (mm *MinerManager) getStakeDetail(address, source common.Address, status types.StakeStatus, mType types.MinerType) *types.StakeDetail {
 	db := BlockChainImpl.LatestStateDB()
-	key := getDetailKey(address, mType, status)
+	key := getDetailKey(source, mType, status)
 	detail, err := getDetail(db, address, key)
 	if err != nil {
 		Logger.Errorf("get detail error:", err)
@@ -191,6 +195,10 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 	iter := BlockChainImpl.LatestStateDB().DataIterator(address, prefixDetail)
 	ret := make(map[string][]*types.StakeDetail)
 	for iter.Next() {
+		// finish the iterator
+		if !bytes.HasPrefix(iter.Key, prefixDetail) {
+			break
+		}
 		addr, mt, st := parseDetailKey(iter.Key)
 		sd, err := parseDetail(iter.Value)
 		if err != nil {
@@ -223,7 +231,10 @@ func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 	prefix := prefixPoolProposal
 	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
 	mp := make(map[string]struct{})
-	for iter.Next() {
+	for iter != nil && iter.Next() {
+		if !bytes.HasPrefix(iter.Key, prefix) {
+			break
+		}
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
 		mp[addr.Hex()] = struct{}{}
 	}
@@ -238,8 +249,8 @@ func (mm *MinerManager) GetAllProposalAddresses() []string {
 }
 
 func (mm *MinerManager) getAllProposalAddresses() []string {
-	mems := make([]string, len(mm.proposalAddresses))
-	for addr := range mm.proposalAddresses {
+	mems := make([]string, 0)
+	for addr := range mm.existingProposal {
 		mems = append(mems, addr)
 	}
 	return mems
@@ -250,16 +261,16 @@ func (mm *MinerManager) listenProposalUpdate() {
 		select {
 		case addr := <-mm.proposalAddCh:
 			mm.lock.Lock()
-			if _, ok := mm.proposalAddresses[addr.Hex()]; !ok {
-				mm.proposalAddresses[addr.Hex()] = struct{}{}
-				mm.buildVirtualNetRoutine()
+			if _, ok := mm.existingProposal[addr.Hex()]; !ok {
+				mm.existingProposal[addr.Hex()] = struct{}{}
+				Logger.Debugf("Add proposer %v", addr.Hex())
 			}
 			mm.lock.Unlock()
 		case addr := <-mm.proposalRemoveCh:
 			mm.lock.Lock()
-			if _, ok := mm.proposalAddresses[addr.Hex()]; ok {
-				delete(mm.proposalAddresses, addr.Hex())
-				mm.buildVirtualNetRoutine()
+			if _, ok := mm.existingProposal[addr.Hex()]; ok {
+				delete(mm.existingProposal, addr.Hex())
+				Logger.Debugf("Remove proposer %v", addr.Hex())
 			}
 			mm.lock.Unlock()
 		}
@@ -268,8 +279,10 @@ func (mm *MinerManager) listenProposalUpdate() {
 
 func (mm *MinerManager) buildVirtualNetRoutine() {
 	addrs := mm.getAllProposalAddresses()
-	network.GetNetInstance().BuildGroupNet(network.FullNodeVirtualGroupID, addrs)
 	Logger.Infof("MinerManager HeavyMinerUpdate Size:%d", len(addrs))
+	if network.GetNetInstance() != nil {
+		network.GetNetInstance().BuildGroupNet(network.FullNodeVirtualGroupID, addrs)
+	}
 }
 
 func (mm *MinerManager) updateProposalAddressRoutine() bool {
@@ -278,33 +291,45 @@ func (mm *MinerManager) updateProposalAddressRoutine() bool {
 	mm.lock.Lock()
 	defer mm.lock.Unlock()
 
-	mm.proposalAddresses = addresses
+	mm.existingProposal = addresses
 	mm.buildVirtualNetRoutine()
 	return true
 }
 
-func (mm *MinerManager) addGenesesMiner(miners []*types.Miner, accountDB vm.AccountDB) {
+func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db vm.AccountDB) {
+	pks := &types.MinerPks{
+		MType: miner.Type,
+		Pk:    miner.PublicKey,
+		VrfPk: miner.VrfPublicKey,
+	}
+	data, err := types.EncodePayload(pks)
+	if err != nil {
+		panic(fmt.Errorf("encode payload error:%v", err))
+	}
+	addr := common.BytesToAddress(miner.ID)
+	tx := &types.Transaction{
+		Source: &addr,
+		Value:  types.NewBigInt(miner.Stake),
+		Target: &addr,
+		Type:   types.TransactionTypeStakeAdd,
+		Data:   data,
+	}
+	_, err = mm.ExecuteOperation(db, tx, 0)
+	if err != nil {
+		panic(fmt.Errorf("add genesis miner error:%v", err))
+	}
+	// Add nonce or else the account maybe marked as deleted because zero nonce, zero balance, empty data
+	nonce := db.GetNonce(addr)
+	db.SetNonce(addr, nonce+1)
+}
+
+func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB vm.AccountDB) {
 	for _, miner := range miners {
-		pks := &types.MinerPks{
-			MType: miner.Type,
-			Pk:    miner.PublicKey,
-			VrfPk: miner.VrfPublicKey,
-		}
-		data, err := types.EncodePayload(pks)
-		if err != nil {
-			panic(fmt.Errorf("encode payload error:%v", err))
-		}
-		addr := common.BytesToAddress(miner.ID)
-		tx := &types.Transaction{
-			Source: &addr,
-			Value:  types.NewBigInt(miner.Stake),
-			Target: &addr,
-			Type:   types.TransactionTypeStakeAdd,
-			Data:   data,
-		}
-		_, err = mm.ExecuteOperation(accountDB, tx, 0)
-		if err != nil {
-			panic(fmt.Errorf("add genesis miner error:%v", err))
-		}
+		// Add as verifier
+		miner.Type = types.MinerTypeVerify
+		mm.addGenesisMinerStake(miner, accountDB)
+		// Add as proposer
+		miner.Type = types.MinerTypeProposal
+		mm.addGenesisMinerStake(miner, accountDB)
 	}
 }

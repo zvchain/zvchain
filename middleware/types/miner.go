@@ -148,7 +148,8 @@ func EncodePayload(pks *MinerPks) ([]byte, error) {
 
 // DecodePayload decodes the data field of the miner related transaction
 func DecodePayload(bs []byte) (*MinerPks, error) {
-	if len(bs) != 2 && len(bs) != 66 {
+	totalLen := 2 + pkSize + vrfPkSize
+	if len(bs) != 2 && len(bs) != totalLen {
 		return nil, fmt.Errorf("length error")
 	}
 	version := bs[0]
@@ -158,7 +159,7 @@ func DecodePayload(bs []byte) (*MinerPks, error) {
 	pks := &MinerPks{
 		MType: MinerType(bs[1]),
 	}
-	if len(bs) == 66 {
+	if len(bs) == totalLen {
 		pks.Pk = bs[2 : 2+pkSize]
 		pks.VrfPk = bs[2+pkSize:]
 	}

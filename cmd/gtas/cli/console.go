@@ -92,7 +92,7 @@ func genUnlockCmd() *unlockCmd {
 	c := &unlockCmd{
 		baseCmd: *genBaseCmd("unlock", "unlock the account"),
 	}
-	c.fs.StringVar(&c.addr, "target", "", "the account address")
+	c.fs.StringVar(&c.addr, "addr", "", "the account address")
 	c.fs.UintVar(&c.duration, "duration", 120, "unlock duration, default 120 secs")
 	return c
 }
@@ -124,7 +124,7 @@ func genBalanceCmd() *balanceCmd {
 	c := &balanceCmd{
 		baseCmd: *genBaseCmd("balance", "get the balance of the current unlocked account"),
 	}
-	c.fs.StringVar(&c.addr, "target", "", "the account address")
+	c.fs.StringVar(&c.addr, "addr", "", "the account address")
 	return c
 }
 
@@ -154,7 +154,7 @@ func genNonceCmd() *nonceCmd {
 	c := &nonceCmd{
 		baseCmd: *genBaseCmd("nonce", "get the nonce of the current unlocked account"),
 	}
-	c.fs.StringVar(&c.addr, "target", "", "the account address")
+	c.fs.StringVar(&c.addr, "addr", "", "the account address")
 	return c
 }
 

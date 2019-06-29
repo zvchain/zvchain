@@ -35,7 +35,7 @@ function buildp2p() {
 }
 
 git submodule sync
-git submodule update --init
+#git submodule update --init
 if [[ $1x = "gtas"x ]]; then
     echo building gtas ...
     buildtvm
