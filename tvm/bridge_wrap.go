@@ -139,7 +139,6 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	}
 
 	// prepare vm environment
-	controller.VM.createContext()
 	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.LibPath)
 	oneVM.SetGas(controller.VM.Gas())
 	finished := controller.StoreVMContext(oneVM)
@@ -147,7 +146,6 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		// recover vm environment
 		if finished {
 			controller.RecoverVMContext()
-			controller.VM.removeContext()
 		}
 	}()
 	if !finished {
