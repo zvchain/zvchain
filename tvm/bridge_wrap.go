@@ -146,6 +146,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	defer func() {
 		// recover vm environment
 		if finished {
+			controller.RecoverVMContext()
 			controller.VM.removeContext()
 		}
 	}()
@@ -181,7 +182,15 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = err.Error()
 		return result
 	}
-	return controller.VM.executeABIKindEval(abi)
+	result = controller.VM.executeABIKindEval(abi)
+	err = controller.VM.storeData()
+	if err != nil {
+		result.ResultType = C.RETURN_TYPE_EXCEPTION
+		result.ErrorCode = types.TVMExecutedError
+		result.Content = err.Error()
+		return result
+	}
+	return result
 }
 
 func bridgeInit() {
