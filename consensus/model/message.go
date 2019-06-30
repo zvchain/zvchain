@@ -224,6 +224,7 @@ func (msg *ConsensusBlockMessage) GenHash() common.Hash {
 	return base.Data2CommonHash(buf)
 }
 
+/*   the following function not used
 func (msg *ConsensusBlockMessage) VerifySig(gpk groupsig.Pubkey, preRandom []byte) bool {
 	sig := groupsig.DeserializeSign(msg.Block.Header.Signature)
 	if sig == nil {
@@ -239,7 +240,7 @@ func (msg *ConsensusBlockMessage) VerifySig(gpk groupsig.Pubkey, preRandom []byt
 	}
 	return groupsig.VerifySig(gpk, preRandom, *rsig)
 }
-
+*/
 /*
 Parent group build consensus message
 */

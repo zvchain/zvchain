@@ -34,25 +34,23 @@ const (
 )
 
 type PeerAuthContext struct {
-
-	PK []byte
-	Sign []byte
+	PK      []byte
+	Sign    []byte
 	CurTime uint64
-
 }
 
-func (pa *PeerAuthContext) Verify() (bool,string){
+func (pa *PeerAuthContext) Verify() (bool, string) {
 	pubkey := common.BytesToPublicKey(pa.PK)
-	if pubkey == nil  {
-		return false,""
+	if pubkey == nil {
+		return false, ""
 	}
 
-	if math.Abs(float64(time.Since(time.Unix(int64(pa.CurTime),0)))) > float64(time.Minute *5) {
-		return false,""
+	if math.Abs(float64(time.Since(time.Unix(int64(pa.CurTime), 0)))) > float64(time.Minute*5) {
+		return false, ""
 	}
 	buffer := bytes.Buffer{}
 	source := pubkey.GetAddress()
-	data :=common.Uint64ToByte(pa.CurTime)
+	data := common.Uint64ToByte(pa.CurTime)
 	buffer.Write(data)
 	if netServerInstance != nil {
 		buffer.Write(netServerInstance.netCore.ID.Bytes())
@@ -61,37 +59,32 @@ func (pa *PeerAuthContext) Verify() (bool,string){
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
 	sign := common.BytesToSign(pa.Sign)
 
-	result:= pubkey.Verify(hash.Bytes(),sign)
+	result := pubkey.Verify(hash.Bytes(), sign)
 
-	return  result,source.Hex()
+	return result, source.Hex()
 }
 
-func genPeerAuthContext(PK string ,SK string, toID *NodeID) *PeerAuthContext{
-
-	kBytes := common.FromHex(SK)
-	privateKey := new(common.PrivateKey)
-	if !privateKey.ImportKey(kBytes) {
-		return nil
-	}
+func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {
+	privateKey := common.HexToSecKey(SK)
 	pubkey := common.HexToPubKey(PK)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
 		return nil
 	}
 	buffer := bytes.Buffer{}
 	curTime := uint64(time.Now().UTC().Unix())
-	data :=common.Uint64ToByte(curTime)
+	data := common.Uint64ToByte(curTime)
 	buffer.Write(data)
 	if toID != nil {
 		buffer.Write(toID.Bytes())
 	}
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
 
-	sign,err := privateKey.Sign(hash.Bytes())
+	sign, err := privateKey.Sign(hash.Bytes())
 	if err != nil {
-		return  nil
+		return nil
 	}
 
-	return &PeerAuthContext{PK:pubkey.Bytes(),Sign:sign.Bytes(),CurTime:curTime}
+	return &PeerAuthContext{PK: pubkey.Bytes(), Sign: sign.Bytes(), CurTime: curTime}
 }
 
 // Peer is node connection object
@@ -107,8 +100,8 @@ type Peer struct {
 	connectTimeout uint64
 	mutex          sync.RWMutex
 	connecting     bool
-	pingCount       int
-	lastPingTime 	time.Time
+	pingCount      int
+	lastPingTime   time.Time
 	source         PeerSource
 
 	bytesReceived   int
@@ -117,14 +110,13 @@ type Peer struct {
 	disconnectCount int
 	chainID         uint16
 
-
-	connectTime 		time.Time
-	authContext 		*PeerAuthContext
-	remoteAuthContext 	*PeerAuthContext
-	verifyResult 		bool
-	remoteVerifyResult 	bool
-	isAuthSucceed 		bool
- }
+	connectTime        time.Time
+	authContext        *PeerAuthContext
+	remoteAuthContext  *PeerAuthContext
+	verifyResult       bool
+	remoteVerifyResult bool
+	isAuthSucceed      bool
+}
 
 func newPeer(ID NodeID, sessionID uint32) *Peer {
 
@@ -190,7 +182,7 @@ func (p *Peer) setRemoteVerifyResult(result bool) {
 
 func (p *Peer) verifyUpdate() {
 
-	if !p.isAuthSucceed  && p.verifyResult && p.remoteVerifyResult  {
+	if !p.isAuthSucceed && p.verifyResult && p.remoteVerifyResult {
 		p.isAuthSucceed = true
 	}
 }
@@ -207,15 +199,13 @@ func (p *Peer) isEmpty() bool {
 	return empty
 }
 
-
 func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted bool) {
 	p.resetData()
 	p.connecting = false
 	if session > p.sessionID {
 		p.sessionID = session
 	}
-	p.connectTime =  time.Now()
-
+	p.connectTime = time.Now()
 
 	netCore.ping(p.ID, nil)
 
@@ -224,21 +214,20 @@ func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted b
 
 }
 
-func (p *Peer) verify(pac *PeerAuthContext) bool{
+func (p *Peer) verify(pac *PeerAuthContext) bool {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	if p.isAuthSucceed {
 		return true
 	}
-	p.remoteAuthContext =  pac
-	verifyResult,verifyID := p.remoteAuthContext.Verify()
+	p.remoteAuthContext = pac
+	verifyResult, verifyID := p.remoteAuthContext.Verify()
 
-	p.verifyResult =  verifyResult
+	p.verifyResult = verifyResult
 	p.ID = NewNodeID(verifyID)
 	p.verifyUpdate()
 	return p.verifyResult
 }
-
 
 func (p *Peer) write(packet *bytes.Buffer, code uint32) {
 	p.mutex.Lock()
@@ -265,7 +254,7 @@ func (p *Peer) IsCompatible() bool {
 	return netCore.chainID == p.chainID
 }
 
-func (p *Peer) disconnect()  {
+func (p *Peer) disconnect() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -275,4 +264,3 @@ func (p *Peer) disconnect()  {
 	}
 	p.resetData()
 }
-
