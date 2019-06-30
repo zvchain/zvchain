@@ -137,10 +137,11 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = fmt.Sprint(types.NoCodeErrorMsg, conAddr)
 		return result
 	}
-	oneVM := &TVM{contract, controller.VM.ContractAddress, nil}
 
 	// prepare vm environment
 	controller.VM.createContext()
+	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.LibPath)
+	oneVM.SetGas(controller.VM.Gas())
 	finished := controller.StoreVMContext(oneVM)
 	defer func() {
 		// recover vm environment
@@ -228,19 +229,24 @@ type TVM struct {
 
 // NewTVM new a TVM instance
 func NewTVM(sender *common.Address, contract *Contract, libPath string) *TVM {
+	C.tvm_start()
+	return NewTVMForRetainContext(sender, contract, libPath)
+}
+
+func NewTVMForRetainContext(sender *common.Address, contract *Contract, libPath string) *TVM {
 	tvm := &TVM{
 		contract,
 		sender,
 		nil,
 	}
-	C.tvm_start()
 
 	if !HasLoadPyLibPath {
 		C.tvm_set_lib_path(C.CString(libPath))
 		HasLoadPyLibPath = true
+		bridgeInit()
 	}
 	C.tvm_set_gas(1000000)
-	bridgeInit()
+
 	return tvm
 }
 
