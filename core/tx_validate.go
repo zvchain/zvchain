@@ -116,8 +116,10 @@ func sourceRecover(tx *types.Transaction) error {
 func stateValidate(tx *types.Transaction) error {
 	accountDB := BlockChainImpl.LatestStateDB()
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
-	if gasLimitFee.Cmp(accountDB.GetBalance(*tx.Source)) > 0 {
-		return fmt.Errorf("balance not enough for paying gas")
+	balance := accountDB.GetBalance(*tx.Source)
+	src := tx.Source.Hex()
+	if gasLimitFee.Cmp(balance) > 0 {
+		return fmt.Errorf("balance not enough for paying gas, %v", src)
 	}
 	// Check gas price related to height
 	if !validGasPrice(tx.GasPrice.Value(), BlockChainImpl.Height()) {
@@ -243,12 +245,12 @@ func getValidator(tx *types.Transaction) validator {
 			if err != nil {
 				return err
 			}
-			// Validate state
-			if err := stateValidate(tx); err != nil {
-				return err
-			}
 			// Recover source at last for performance concern
 			if err := sourceRecover(tx); err != nil {
+				return err
+			}
+			// Validate state
+			if err := stateValidate(tx); err != nil {
 				return err
 			}
 		}

@@ -231,8 +231,9 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		Gas:      gas,
 		Gasprice: gasPrice,
 		TxType:   types.TransactionTypeStakeAdd,
-		Data:     string(data),
+		Data:     data,
 	}
+	fmt.Println("ddd", tx.Data, data)
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
 }
@@ -251,7 +252,7 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64) *Result
 		Gas:      gas,
 		Gasprice: gasprice,
 		TxType:   types.TransactionTypeMinerAbort,
-		Data:     string([]byte{byte(mtype)}),
+		Data:     []byte{byte(mtype)},
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -272,7 +273,7 @@ func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice
 		Gas:      gas,
 		Gasprice: gasPrice,
 		TxType:   types.TransactionTypeStakeRefund,
-		Data:     string([]byte{byte(mType)}),
+		Data:     []byte{byte(mType)},
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
@@ -295,7 +296,7 @@ func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, g
 		Gasprice: gasPrice,
 		Value:    reduceValue,
 		TxType:   types.TransactionTypeStakeReduce,
-		Data:     string([]byte{byte(mType)}),
+		Data:     []byte{byte(mType)},
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)

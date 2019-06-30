@@ -358,7 +358,7 @@ func genSendTxCmd() *sendTxCmd {
 	c.fs.Uint64Var(&c.nonce, "nonce", 0, "nonce, optional. will use default nonce on chain if not specified")
 	c.fs.StringVar(&c.contractName, "contractname", "", "the name of the contract.")
 	c.fs.StringVar(&c.contractPath, "contractpath", "", "the path to the contract file.")
-	c.fs.IntVar(&c.txType, "type", 0, "transaction type: 0=general tx, 1=contract create, 2=contract call, 3=reward, 4=miner apply,5=miner abort, 6=miner refund")
+	c.fs.IntVar(&c.txType, "type", 0, "transaction type: 0=general tx, 1=contract create, 2=contract call, 4=stake add ,5=miner abort, 6=stake reduce, 7=stake refund")
 	return c
 }
 
@@ -367,11 +367,11 @@ func (c *sendTxCmd) toTxRaw() *txRawData {
 		Target:    c.to,
 		Value:     common.Value2RA(c.value),
 		TxType:    c.txType,
-		Data:      c.data,
+		Data:      []byte(c.data),
 		Gas:       c.gaslimit,
 		Gasprice:  c.gasPrice,
 		Nonce:     c.nonce,
-		ExtraData: c.extraData,
+		ExtraData: []byte(c.extraData),
 	}
 }
 

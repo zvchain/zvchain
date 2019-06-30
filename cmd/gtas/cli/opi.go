@@ -36,9 +36,9 @@ type txRawData struct {
 	Gasprice  uint64 `json:"gasprice"`
 	TxType    int    `json:"tx_type"`
 	Nonce     uint64 `json:"nonce"`
-	Data      string `json:"data"`
+	Data      []byte `json:"data"`
 	Sign      string `json:"sign"`
-	ExtraData string `json:"extra_data"`
+	ExtraData []byte `json:"extra_data"`
 }
 
 func opError(err error) *Result {
@@ -75,7 +75,7 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 	}
 
 	return &types.Transaction{
-		Data:      []byte(tx.Data),
+		Data:      tx.Data,
 		Value:     types.NewBigInt(tx.Value),
 		Nonce:     tx.Nonce,
 		Target:    target,
@@ -83,7 +83,7 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 		GasLimit:  types.NewBigInt(tx.Gas),
 		GasPrice:  types.NewBigInt(tx.Gasprice),
 		Sign:      sign,
-		ExtraData: []byte(tx.ExtraData),
+		ExtraData: tx.ExtraData,
 	}
 }
 

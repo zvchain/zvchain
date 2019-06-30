@@ -51,21 +51,25 @@ type stateTransition interface {
 
 func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
 	base := newTransitionContext(db, tx, bh)
-	switch tx.Type {
-	case types.TransactionTypeTransfer:
-		return &txTransfer{transitionContext: base}
-	case types.TransactionTypeContractCreate:
-		return &contractCreator{transitionContext: base}
-	case types.TransactionTypeContractCall:
-		return &contractCaller{transitionContext: base}
-	case types.TransactionTypeReward:
+
+	if tx.IsReward() {
 		return &rewardExecutor{transitionContext: base}
-	case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
-		return &minerStakeOperator{transitionContext: base}
-	default:
-		return &unSupported{typ: tx.Type}
+	} else {
+		base.source = *tx.Source
+		base.intrinsicGasUsed = intrinsicGas(tx)
+		switch tx.Type {
+		case types.TransactionTypeTransfer:
+			return &txTransfer{transitionContext: base}
+		case types.TransactionTypeContractCreate:
+			return &contractCreator{transitionContext: base}
+		case types.TransactionTypeContractCall:
+			return &contractCaller{transitionContext: base}
+		case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
+			return &minerStakeOperator{transitionContext: base}
+		default:
+			return &unSupported{typ: tx.Type}
+		}
 	}
-	return nil
 }
 
 type transitionContext struct {
@@ -75,7 +79,6 @@ type transitionContext struct {
 	tx        *types.Transaction
 	source    common.Address
 
-	// Output
 	intrinsicGasUsed *big.Int
 }
 
@@ -99,7 +102,7 @@ func (r *result) setError(err error, status types.ReceiptStatus) {
 }
 
 func newTransitionContext(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) *transitionContext {
-	return &transitionContext{accountDB: db, tx: tx, source: *tx.Source, bh: bh}
+	return &transitionContext{accountDB: db, tx: tx, bh: bh}
 }
 
 func checkState(db vm.AccountDB, tx *types.Transaction, height uint64) error {
@@ -320,18 +323,22 @@ func NewTVMExecutor(bc BlockChain) *TVMExecutor {
 }
 
 func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
-	ss := newStateTransition(accountDB, tx, bh)
-	var err error
+	var (
+		err error
+	)
 
 	// Check state related condition on the non-reward tx type
 	if !tx.IsReward() {
 		if err = checkState(accountDB, tx, bh.Height); err != nil {
+			Logger.Errorf("state transition check state error:tx %v %v", tx.Hash.Hex(), err)
 			return nil, err
 		}
 	}
 
+	ss := newStateTransition(accountDB, tx, bh)
+
 	if err = ss.ParseTransaction(); err != nil {
-		Logger.Errorf("state transition parse error:tx %v", tx.Hash.Hex())
+		Logger.Errorf("state transition parse error:tx %v %v", tx.Hash.Hex(), err)
 		return nil, err
 	}
 
@@ -348,7 +355,7 @@ func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *typ
 	if ret.err != nil {
 		// Revert any state changes when error occurs
 		accountDB.RevertToSnapshot(snapshot)
-		Logger.Errorf("state transition error:tx %v", tx.Hash.Hex())
+		Logger.Errorf("state transition error:tx %v, err:%v", tx.Hash.Hex(), ret.err)
 	}
 
 	// refund the gas left
@@ -408,18 +415,19 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 
 	// Accumulate reward with the share of all gas fee for castor
 	castorTotalRewards := rm.calculateGasFeeCastorRewards(gasFee)
-
+	//
 	// Calculate rewards with the specified height
-	if rm.reduceBlockRewards(bh.Height, accountDB) {
+	if true /*rm.reduceBlockRewards(bh.Height, accountDB)*/ {
 		castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 		accountDB.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
 		accountDB.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
 	}
+
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	state = accountDB.IntermediateRoot(true)
 
-	Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
+	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
 

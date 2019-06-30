@@ -460,7 +460,6 @@ func (adb *AccountDB) GetRefund() uint64 {
 // and clears the journal as well as the refunds.
 func (adb *AccountDB) Finalise(deleteEmptyObjects bool) {
 	for addr := range adb.accountObjectsDirty {
-		getLogger().Debugf("Finalize address %v", addr.Hex())
 		object, exist := adb.accountObjects.Load(addr)
 		if !exist {
 			continue

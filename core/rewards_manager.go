@@ -131,34 +131,51 @@ func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) (groupId []byte, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	groupID := make([]byte, common.GroupIDLength)
-	addr := make([]byte, common.AddressLength)
-	version, err := reader.ReadByte()
-	if err != nil {
+	version, e := reader.ReadByte()
+	if e != nil {
+		err = e
 		return
 	}
 	if version != rewardVersion {
 		err = fmt.Errorf("reward version error")
 		return
 	}
-	if _, e := reader.Read(groupID); err != nil {
+	if _, e := reader.Read(groupID); e != nil {
 		err = fmt.Errorf("read group id error:%v", e)
 		return
 	}
 	pf := make([]byte, 8)
-	if _, e := reader.Read(pf); err != nil {
+	if _, e := reader.Read(pf); e != nil {
 		err = fmt.Errorf("read pack fee error:%v", e)
 		return
 	}
 
-	ids := make([][]byte, 0)
-	for n, _ := reader.Read(addr); n > 0; n, _ = reader.Read(addr) {
-		if n != common.AddressLength {
-			err = fmt.Errorf("read group id error")
+	targetIdxs := make([]uint16, 0)
+	idx := make([]byte, 2)
+
+	for n, e := reader.Read(idx); n > 0 && e == nil; n, e = reader.Read(idx) {
+		if e != nil {
+			err = fmt.Errorf("read target idex error: %v", e)
 			return
 		}
-		ids = append(ids, addr)
-		addr = make([]byte, common.AddressLength)
+		targetIdxs = append(targetIdxs, common.ByteToUInt16(idx))
 	}
+
+	group := GroupChainImpl.GetGroupByID(groupID)
+	if group == nil {
+		err = fmt.Errorf("group is nil, id=%v", common.ToHex(groupID))
+		return
+	}
+	ids := make([][]byte, 0)
+
+	for _, idx := range targetIdxs {
+		if idx > uint16(len(group.Members)) {
+			err = fmt.Errorf("target index exceed: group size %v, index %v", len(group.Members), idx)
+			return
+		}
+		ids = append(ids, group.Members[idx])
+	}
+
 	blockHash = rm.parseRewardBlockHash(transaction)
 	return groupID, ids, blockHash, new(big.Int).SetUint64(common.ByteToUint64(pf)), nil
 }
@@ -228,6 +245,7 @@ func (rm *RewardManager) reduceBlockRewards(height uint64, accountDB *account.Ac
 		return false
 	}
 	rm.tokenLeft -= rewards
+	Logger.Debugf("tokenLeft:%v at %v", rm.tokenLeft, height)
 	setRewardData(accountDB.AsAccountDBTS(), tokenLeftKey, common.Uint64ToByte(rm.tokenLeft))
 	return true
 }
