@@ -178,7 +178,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	if !controller.VM.VerifyABI(executeResult.Abi, abi){
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
 		result.ErrorCode = types.SysCheckABIError
-		result.Content = err.Error()
+		result.Content = fmt.Errorf("checkABI failed. abi:%s",abi.FuncName).Error()
 		return result
 	}
 	return controller.VM.executeABIKindEval(abi)
