@@ -18,11 +18,10 @@ package tvm
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/vm"
+	"math/big"
 )
 
 // HasLoadPyLibPath HasLoadPyLibPath is the flag that whether load python lib
@@ -141,6 +140,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 			return false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
+
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
 	libLen,result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {

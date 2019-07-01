@@ -187,7 +187,124 @@ class Msg(object):
         self.sender = sender
 
     def __repr__(self):
-        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)`)
+        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)
+
+class Register(object):
+    def __init__(self):
+        self.funcinfo = {}
+
+    def public(self , *dargs):
+        def wrapper(func):
+            paranametuple = func.__para__
+            paraname = list(paranametuple)
+            paraname.remove("self")
+            paratype = []
+            for i in range(len(paraname)):
+                paratype.append(dargs[i])
+            self.funcinfo[func.__name__] = [paraname,paratype]
+            
+            def _wrapper(*args , **kargs):
+                return func(*args, **kargs)
+            return _wrapper
+        return wrapper
+
+import builtins
+builtins.register = Register()
+builtins.msg = Msg(data=bytes(), sender="%s", value=%d)
+builtins.this = "%s"`, sender, value, contractAddr)
+}
+
+func pycodeLoadMsgWhenCall(sender string, value uint64, contractAddr string) string {
+	return fmt.Sprintf(`
+import ujson
+import account
+class TEvent(object):
+    dict = {}
+    def __init__(self):
+        pass
+
+TEvents = TEvent()
+
+class DefEvent(object):
+    class Node(object):
+        def __init__(self,name):
+            self.name = name
+            
+        def __call__(self, index,data):
+            if type(index) != type('a'):
+                raise LibException('index should be string',2)
+            if type(data) != type({'val':1}):
+                raise LibException('data should be dict',2)
+            account.eventCall(self.name,index,ujson.dumps(data))
+            #print("name :", self.name)
+            #print("index:",index)
+            #print("data :",ujson.dumps(data))
+
+    def __init__(self,name):
+        #print(name)
+        #def ev_fun(self,index,data):
+        #    print(index)
+        #    print(data)
+        setattr(TEvent,name,DefEvent.Node(name))
+
+
+class Msg(object):
+    def __init__(self, data, value, sender):
+        self.data = data
+        self.value = value
+        self.sender = sender
+
+    def __repr__(self):
+        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)
+
+class Register(object):
+    def __init__(self):
+        self.funcinfo = {}
+        self.abiinfo = []
+
+    def public(self , *dargs):
+        def wrapper(func):
+            paranametuple = func.__para__
+            paraname = list(paranametuple)
+            paraname.remove("self")
+            paratype = []
+            for i in range(len(paraname)):
+                paratype.append(dargs[i])
+            self.funcinfo[func.__name__] = [paraname,paratype]
+            tmp = {}
+            tmp["FuncName"] = func.__name__
+            tmp["Args"] = paratype
+            self.abiinfo.append(tmp)
+            abiexport(str(self.abiinfo))
+
+            def _wrapper(*args , **kargs):
+                return func(*args, **kargs)
+            return _wrapper
+        return wrapper
+
+import builtins
+builtins.register = Register()
+builtins.msg = Msg(data=bytes(), sender="%s", value=%d)
+builtins.this = "%s"`, sender, value, contractAddr)
+}
+
+func getInterfaceType(value interface{}) string {
+	switch value.(type) {
+	case float64:
+		return "1"
+	case bool:
+		return "True"
+	case string:
+		return "\"str\""
+	case []interface{}:
+		return "[list]"
+	case map[string]interface{}:
+		return "{\"dict\":\"test\"}"
+	default:
+		fmt.Println(value)
+		return "unknow"
+		//panic("")
+	}
 }
 
 func tasJSON() string {

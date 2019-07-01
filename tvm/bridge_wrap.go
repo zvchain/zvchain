@@ -180,6 +180,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = err.Error()
 		return result
 	}
+
 	return controller.VM.executeABIKindEval(abi)
 }
 
@@ -294,6 +295,59 @@ func (tvm *TVM) VerifyABI(standardABI string,callABI ABI) bool  {
 	}
 
 	for _, value := range standardABIStruct{
+		if value.FuncName == callABI.FuncName {
+			if len(value.Args) == len(callABI.Args) {
+				if reflect.DeepEqual(value.Args,argsType){
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (tvm *TVM) ExportABI(contract *Contract) string {
+
+	str := tasExportABI()
+	err := tvm.ExecuteScriptVMSucceed(str)
+	if err != nil{
+		return ""
+	}
+	result := tvm.ExecuteScriptKindFile(contract.Code)
+	return result.Abi
+}
+
+func (tvm *TVM) VerifyABI(originABI string,callABI ABI) bool  {
+
+	var originalABI []ABIVerify
+
+	finalABIString := strings.Replace(originABI,"'","\"",-1)
+	err := json.Unmarshal([]byte(finalABIString),&originalABI)
+	if err != nil {
+		fmt.Println("abi unmarshal err:",err)
+		return false
+	}
+
+	var argsType []string
+	for i := 0; i < len(callABI.Args); i++ {
+
+		switch callABI.Args[i].(type) {
+		case float64:
+			argsType = append(argsType, "int")
+		case string:
+			argsType = append(argsType, "str")
+		case bool:
+			argsType = append(argsType, "bool")
+		case []interface{}:
+			argsType = append(argsType, "list")
+		case map[string]interface{}:
+			argsType = append(argsType, "dict")
+		default:
+			argsType = append(argsType, "unknow")
+		}
+	}
+
+	for _, value := range originalABI{
 		if value.FuncName == callABI.FuncName {
 			if len(value.Args) == len(callABI.Args) {
 				if reflect.DeepEqual(value.Args,argsType){
@@ -444,6 +498,11 @@ func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
+func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
+	script := pycodeLoadMsgWhenCall(msg.Sender, msg.Value, tvm.ContractAddress.Hex())
+	return tvm.ExecuteScriptVMSucceed(script)
+}
+
 // Deploy TVM Deploy the contract code and load msg
 func (tvm *TVM) Deploy(msg Msg) error {
 	err := tvm.loadMsg(msg)
@@ -453,6 +512,8 @@ func (tvm *TVM) Deploy(msg Msg) error {
 	script, libLen := pycodeContractDeploy(tvm.Code, tvm.ContractName)
 	tvm.SetLibLine(libLen)
 	err = tvm.ExecuteScriptVMSucceed(script)
+	fmt.Println("DEPLOY")
+	C.tvm_gas_report()
 	return err
 }
 
