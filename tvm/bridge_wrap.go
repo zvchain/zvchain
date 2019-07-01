@@ -181,7 +181,6 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = err.Error()
 		return result
 	}
-
 	return controller.VM.executeABIKindEval(abi)
 }
 
@@ -499,11 +498,6 @@ func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
-func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
-	script := pycodeLoadMsgWhenCall(msg.Sender, msg.Value, tvm.ContractAddress.Hex())
-	return tvm.ExecuteScriptVMSucceed(script)
-}
-
 // Deploy TVM Deploy the contract code and load msg
 func (tvm *TVM) Deploy(msg Msg) error {
 	err := tvm.loadMsg(msg)
@@ -513,8 +507,6 @@ func (tvm *TVM) Deploy(msg Msg) error {
 	script, libLen := pycodeContractDeploy(tvm.Code, tvm.ContractName)
 	tvm.SetLibLine(libLen)
 	err = tvm.ExecuteScriptVMSucceed(script)
-	fmt.Println("DEPLOY")
-	C.tvm_gas_report()
 	return err
 }
 

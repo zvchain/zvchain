@@ -18,10 +18,11 @@ package tvm
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/vm"
-	"math/big"
 )
 
 // HasLoadPyLibPath HasLoadPyLibPath is the flag that whether load python lib
