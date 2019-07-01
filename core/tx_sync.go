@@ -32,6 +32,7 @@ import (
 const (
 	txNofifyInterval   = 5
 	txNotifyRoutine    = "ts_notify"
+	tickerTxSyncTimeout  = "sync_tx_timeout"
 	txNotifyGap        = 60 * time.Second
 	txMaxNotifyPerTime = 50
 
@@ -40,6 +41,11 @@ const (
 
 	txMaxReceiveLimit = 1000
 	txPeerMaxLimit    = 3000
+
+	txReceiveMaxLimit = 5000   //Prevent DDoS Attacks
+
+	txValidteErrorLimit = 5
+	txHitValidRate    = 0.5
 )
 
 type txSyncer struct {
@@ -55,11 +61,13 @@ var TxSyncer *txSyncer
 
 type peerTxsHashs struct {
 	txHashs *lru.Cache
+	sendHashs *lru.Cache
 }
 
 func newPeerTxsKeys() *peerTxsHashs {
 	return &peerTxsHashs{
-		txHashs: common.MustNewLRUCache(txPeerMaxLimit),
+		txHashs   : common.MustNewLRUCache(txPeerMaxLimit),
+		sendHashs : common.MustNewLRUCache(txPeerMaxLimit),
 	}
 }
 
@@ -77,6 +85,37 @@ func (ptk *peerTxsHashs) removeHashs(hashs []common.Hash) {
 
 func (ptk *peerTxsHashs) reset() {
 	ptk.txHashs = common.MustNewLRUCache(txPeerMaxLimit)
+}
+
+func (ptk *peerTxsHashs) resetSendHashs() {
+	ptk.sendHashs = common.MustNewLRUCache(txPeerMaxLimit)
+}
+
+func (ptk *peerTxsHashs) checkReceivedHashsInHitRate(txs []*types.Transaction)bool {
+	if ptk.sendHashs.Len() == 0{
+		return true
+	}
+	hasScaned := make(map[common.Hash]struct{})
+	hitHashsLen := 0
+
+	for _, tx := range txs{
+		if _, ok := hasScaned[tx.Hash]; ok {
+			continue
+		}
+		if ptk.sendHashs.Contains(tx.Hash){
+			hitHashsLen++
+		}
+		hasScaned[tx.Hash] = struct{}{}
+	}
+	rate := float64(hitHashsLen) / float64(ptk.sendHashs.Len())
+	if rate < txHitValidRate{
+		return false
+	}
+	return  true
+}
+
+func (ptk *peerTxsHashs) addSendHash(txHash common.Hash) {
+	ptk.sendHashs.ContainsOrAdd(txHash,1)
 }
 
 func (ptk *peerTxsHashs) hasHash(k common.Hash) bool {
@@ -197,7 +236,6 @@ func (ts *txSyncer) sendTxHashs(txs []*types.Transaction) {
 
 		ts.logger.Debugf("notify transactions len:%d", len(txs))
 		message := network.Message{Code: network.TxSyncNotify, Body: bodyBuf.Bytes()}
-
 		netInstance := network.GetNetInstance()
 		if netInstance != nil {
 			go network.GetNetInstance().TransmitToNeighbor(message)
@@ -216,6 +254,10 @@ func (ts *txSyncer) getOrAddCandidateKeys(id string) *peerTxsHashs {
 
 func (ts *txSyncer) onTxNotify(msg notify.Message) {
 	nm := notify.AsDefault(msg)
+	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil(){
+		ts.logger.Warnf("tx sync this source is is in evil...source is is %v\n",nm.Source())
+		return
+	}
 	reader := bytes.NewReader(nm.Body())
 	var (
 		hashs = make([]common.Hash, 0)
@@ -277,10 +319,14 @@ func (ts *txSyncer) reqTxsRoutine() bool {
 		if ptk == nil {
 			continue
 		}
+		if ptk.sendHashs.Len() > 0 {
+			continue
+		}
 		rqs := make([]common.Hash, 0)
 		ptk.forEach(func(k common.Hash) bool {
 			if exist, _ := BlockChainImpl.GetTransactionPool().IsTransactionExisted(k); !exist {
 				rqs = append(rqs, k)
+				ptk.addSendHash(k)
 			}
 			return true
 		})
@@ -303,6 +349,29 @@ func (ts *txSyncer) requestTxs(id string, hash *[]common.Hash) {
 	message := network.Message{Code: network.TxSyncReq, Body: bodyBuf.Bytes()}
 
 	network.GetNetInstance().Send(id, message)
+
+	ts.chain.ticker.RegisterOneTimeRoutine(ts.syncTimeoutRoutineName(id), func() bool {
+		return ts.syncTxComplete(id, true)
+	}, syncNeightborTimeout)
+}
+
+
+func (ts *txSyncer) syncTxComplete(id string, timeout bool) bool {
+	if timeout {
+		peerManagerImpl.timeoutPeer(id)
+		ts.logger.Warnf("sync txs from %v timeout", id)
+	} else {
+		peerManagerImpl.heardFromPeer(id)
+	}
+	candidateKeys := ts.getOrAddCandidateKeys(id)
+	candidateKeys.resetSendHashs()
+	ts.chain.ticker.RemoveRoutine(ts.syncTimeoutRoutineName(id))
+	return true
+}
+
+
+func (ts *txSyncer) syncTimeoutRoutineName(id string) string {
+	return tickerTxSyncTimeout + id
 }
 
 func (ts *txSyncer) onTxReq(msg notify.Message) {
@@ -345,12 +414,41 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 
 func (ts *txSyncer) onTxResponse(msg notify.Message) {
 	nm := notify.AsDefault(msg)
+	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil(){
+		ts.logger.Warnf("on tx response this source is is in evil...source is is %v\n",nm.Source())
+		return
+	}
+
+	defer func(){
+		ts.syncTxComplete(nm.Source(), false)
+	}()
+
 	txs, e := types.UnMarshalTransactions(nm.Body())
 	if e != nil {
 		ts.logger.Errorf("Unmarshal got transactions error:%s", e.Error())
 		return
 	}
 
+	if len(txs) > txReceiveMaxLimit{
+		ts.logger.Errorf("rec tx too much,length is %v ,and from %s", len(txs),nm.Source())
+		return
+	}
+
+	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
+	isEvil := candidateKeys.checkReceivedHashsInHitRate(txs)
+	if isEvil{
+		ts.logger.Errorf("rec tx rate too low,source is %s", nm.Source())
+		peerManagerImpl.addEvilCount(nm.Source())
+		return
+	}
+
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
-	ts.pool.AddTransactions(txs, txSync)
+	evilCount := ts.pool.AddTransactions(txs, txSync)
+	if evilCount > txValidteErrorLimit{
+		ts.logger.Errorf("rec tx evil count over limit,count is %d",evilCount)
+		peerManagerImpl.addEvilCount(nm.Source())
+		return
+	}
+
+	peerManagerImpl.resetEvilCount(nm.Source())
 }

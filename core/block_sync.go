@@ -139,7 +139,8 @@ func (bs *blockSyncer) getBestCandidate(candidateID string) (string, *types.Cand
 		_,err:= BlockChainImpl.GetConsensusHelper().VerifyBlockHeader(maxTop.BH)
 		if err != nil{
 			delete(bs.candidatePool, temp)
-			bs.logger.Debugf("getBestCandidate verify blockHeader error!,peer is %v",temp)
+			peerManagerImpl.addEvilCount(temp)
+			bs.logger.Debugf("getBestCandidate verify blockHeader error!we will add it to evil,peer is %v",temp)
 			return bs.getBestCandidate(candidateID)
 		}
 	}
@@ -272,7 +273,10 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 
 func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
 	bnm := notify.AsDefault(msg)
-
+	if peerManagerImpl.getOrAddPeer(bnm.Source()).isEvil(){
+		bs.logger.Warnf("block sync this source is is in evil...source is is %v\n",bnm.Source())
+		return
+	}
 	blockHeader, e := bs.unMarshalTopBlockInfo(bnm.Body())
 	if e != nil {
 		bs.logger.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
@@ -307,7 +311,6 @@ func (bs *blockSyncer) syncComplete(id string, timeout bool) bool {
 
 func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 	m := notify.AsDefault(msg)
-
 	source := m.Source()
 	if bs == nil {
 		//do nothing

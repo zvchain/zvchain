@@ -497,7 +497,6 @@ func clearTicker() {
 	if TxSyncer != nil && TxSyncer.ticker != nil {
 		TxSyncer.ticker.RemoveRoutine(txNotifyRoutine)
 		TxSyncer.ticker.RemoveRoutine(txReqRoutine)
-		TxSyncer.ticker.RemoveRoutine(txIndexPersistRoutine)
 	}
 }
 

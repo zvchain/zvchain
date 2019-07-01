@@ -129,7 +129,7 @@ type TransactionPool interface {
 	AddTransaction(tx *types.Transaction) (bool, error)
 
 	// AddTransactions add new transactions to the transaction pool
-	AddTransactions(txs []*types.Transaction, from txSource)
+	AddTransactions(txs []*types.Transaction, from txSource)(evilCount int)
 
 	// AsyncAddTxs rcv transactions broadcast from other nodes
 	AsyncAddTxs(txs []*types.Transaction)

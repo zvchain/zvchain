@@ -30,6 +30,10 @@ type AddBlockOnChainSituation string
 // AddBlockResult is the result of the add-block operation
 type AddBlockResult int8
 
+
+// gasLimitMax expresses the max gasLimit of a transaction
+var gasLimitMax = new(BigInt).SetUint64(500000)
+
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
@@ -52,6 +56,7 @@ const (
 	SysABIJSONError  = 2003
 
 	txFixSize = 200 // Fixed size for each transaction
+
 )
 
 var (
@@ -177,6 +182,9 @@ func (tx *Transaction) BoundCheck() error {
 	}
 	if tx.Value == nil || !tx.Value.IsUint64() {
 		return fmt.Errorf("illegal tx value:%v", tx.Value)
+	}
+	if tx.GasLimit.Cmp(gasLimitMax) > 0 {
+		return fmt.Errorf("gasLimit too  big! max gas limit is 500000 Ra")
 	}
 	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall {
 		if tx.Target == nil {

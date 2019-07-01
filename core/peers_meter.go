@@ -24,36 +24,67 @@ import (
 )
 
 const (
-	evilTimeoutMeterMax = 3
+	evilTimeoutMeterMax = 5
+	evilTimAdd = 10
 	maxReqBlockCount    = 16
+	maxEvilCount    = 100
+	maxEvilExpireTime = "1m"
 )
 
 var peerManagerImpl *peerManager
 
 type peerMeter struct {
-	id            string
-	timeoutMeter  int
-	lastHeard     time.Time
-	mu			  sync.Mutex
-	reqBlockCount int // Maximum number of blocks per request
+	id            	string
+	timeoutMeter  	int
+	mu			  	sync.Mutex
+	reqBlockCount 	int // Maximum number of blocks per request
+	evilCount	  	time.Duration
+	evilExpireTime	time.Time
 }
 
 func (m *peerMeter) isEvil() bool {
-	return time.Since(m.lastHeard).Seconds() > 30 || m.timeoutMeter > evilTimeoutMeterMax
+	return time.Since(m.evilExpireTime) < 0
+}
+
+func (m *peerMeter) addEvilCountWithLock(){
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.addEvilCount()
+}
+
+func (m *peerMeter) addEvilCount(){
+	if m.evilCount > maxEvilCount{
+		return
+	}
+	m.evilCount++
+	addTime, _ := time.ParseDuration(maxEvilExpireTime)
+	m.evilExpireTime = time.Now().Add(m.evilCount*evilTimAdd *addTime)
+}
+
+
+func (m *peerMeter) resetEvilCountWithLock(){
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.resetEvilCount()
+}
+
+func (m *peerMeter) resetEvilCount(){
+	m.evilCount  = 0
 }
 
 func (m *peerMeter) increaseTimeout() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.timeoutMeter++
+	if m.timeoutMeter >= evilTimeoutMeterMax{
+		m.addEvilCount()
+		m.timeoutMeter = 0
+	}
 }
 func (m *peerMeter) decreaseTimeout() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.timeoutMeter--
-	if m.timeoutMeter < 0 {
-		m.timeoutMeter = 0
-	}
+	m.timeoutMeter = 0
 }
 
 func (m *peerMeter) updateReqCnt(increase bool) {
@@ -68,10 +99,6 @@ func (m *peerMeter) updateReqCnt(increase bool) {
 			m.reqBlockCount = maxReqBlockCount
 		}
 	}
-}
-
-func (m *peerMeter) updateLastHeard() {
-	m.lastHeard = time.Now()
 }
 
 type peerManager struct {
@@ -91,6 +118,7 @@ func (bpm *peerManager) getOrAddPeer(id string) *peerMeter {
 		v = &peerMeter{
 			id:            id,
 			reqBlockCount: maxReqBlockCount,
+			evilExpireTime:time.Now(),
 		}
 		if exit, _ = bpm.peerMeters.ContainsOrAdd(id, v); exit {
 			v, _ = bpm.peerMeters.Get(id)
@@ -112,7 +140,6 @@ func (bpm *peerManager) heardFromPeer(id string) {
 		return
 	}
 	pm := bpm.getOrAddPeer(id)
-	pm.updateLastHeard()
 	pm.decreaseTimeout()
 }
 
@@ -131,6 +158,23 @@ func (bpm *peerManager) isEvil(id string) bool {
 	pm := bpm.getOrAddPeer(id)
 	return pm.isEvil()
 }
+
+func (bpm *peerManager) addEvilCount(id string) {
+	if id == "" {
+		return
+	}
+	pm := bpm.getOrAddPeer(id)
+	pm.addEvilCountWithLock()
+}
+
+func (bpm *peerManager) resetEvilCount(id string) {
+	if id == "" {
+		return
+	}
+	pm := bpm.getOrAddPeer(id)
+	pm.resetEvilCountWithLock()
+}
+
 func (bpm *peerManager) updateReqBlockCnt(id string, increase bool) {
 	pm := bpm.getOrAddPeer(id)
 	if pm == nil {
