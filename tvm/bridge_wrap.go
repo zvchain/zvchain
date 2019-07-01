@@ -323,8 +323,9 @@ func (tvm *TVM) VerifyABI(originABI string,callABI ABI) bool  {
 
 	finalABIString := strings.Replace(originABI,"'","\"",-1)
 	err := json.Unmarshal([]byte(finalABIString),&originalABI)
+
 	if err != nil {
-		fmt.Println("abi unmarshal err:",err)
+		fmt.Println("abi unmarshal err:", err)
 		return false
 	}
 
@@ -347,7 +348,7 @@ func (tvm *TVM) VerifyABI(originABI string,callABI ABI) bool  {
 		}
 	}
 
-	for _, value := range originalABI{
+	for _, value := range standardABIStruct{
 		if value.FuncName == callABI.FuncName {
 			if len(value.Args) == len(callABI.Args) {
 				if reflect.DeepEqual(value.Args,argsType){

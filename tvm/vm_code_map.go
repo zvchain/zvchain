@@ -179,19 +179,22 @@ class DefEvent(object):
         #    print(data)
         setattr(TEvent,name,DefEvent.Node(name))
 
+import builtins
+builtins.register = Register()
+builtins.msg = Msg(data=bytes(), sender="%s", value=%d)
+builtins.this = "%s"`, sender, value, contractAddr)
 
-class Msg(object):
-    def __init__(self, data, value, sender):
-        self.data = data
-        self.value = value
-        self.sender = sender
+	return fmt.Sprintf(`
+%s
+%s`, pycodeLoadMsg(), str)
+}
 
-    def __repr__(self):
-        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)
-
+func pycodeLoadWhenCall(sender string, value uint64, contractAddr string) string {
+	str :=  fmt.Sprintf(`
 class Register(object):
     def __init__(self):
         self.funcinfo = {}
+        self.abiinfo = []
 
     def public(self , *dargs):
         def wrapper(func):
@@ -200,9 +203,15 @@ class Register(object):
             paraname.remove("self")
             paratype = []
             for i in range(len(paraname)):
-                paratype.append(dargs[i])
+                paratype.append(dargs[i].__name__)
             self.funcinfo[func.__name__] = [paraname,paratype]
-            
+            tmp = {}
+            tmp["FuncName"] = func.__name__
+            tmp["Args"] = paratype
+            self.abiinfo.append(tmp)
+            infos = self.abiinfo
+            abiexport(ujson.dumps(infos))
+
             def _wrapper(*args , **kargs):
                 return func(*args, **kargs)
             return _wrapper
@@ -212,9 +221,12 @@ import builtins
 builtins.register = Register()
 builtins.msg = Msg(data=bytes(), sender="%s", value=%d)
 builtins.this = "%s"`, sender, value, contractAddr)
+	return fmt.Sprintf(`
+%s
+%s`, pycodeLoadMsg(), str)
 }
 
-func pycodeLoadMsgWhenCall(sender string, value uint64, contractAddr string) string {
+func pycodeLoadMsg() string {
 	return fmt.Sprintf(`
 import ujson
 import account
@@ -255,56 +267,7 @@ class Msg(object):
         self.sender = sender
 
     def __repr__(self):
-        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)
-
-class Register(object):
-    def __init__(self):
-        self.funcinfo = {}
-        self.abiinfo = []
-
-    def public(self , *dargs):
-        def wrapper(func):
-            paranametuple = func.__para__
-            paraname = list(paranametuple)
-            paraname.remove("self")
-            paratype = []
-            for i in range(len(paraname)):
-                paratype.append(dargs[i])
-            self.funcinfo[func.__name__] = [paraname,paratype]
-            tmp = {}
-            tmp["FuncName"] = func.__name__
-            tmp["Args"] = paratype
-            self.abiinfo.append(tmp)
-            abiexport(str(self.abiinfo))
-
-            def _wrapper(*args , **kargs):
-                return func(*args, **kargs)
-            return _wrapper
-        return wrapper
-
-import builtins
-builtins.register = Register()
-builtins.msg = Msg(data=bytes(), sender="%s", value=%d)
-builtins.this = "%s"`, sender, value, contractAddr)
-}
-
-func getInterfaceType(value interface{}) string {
-	switch value.(type) {
-	case float64:
-		return "1"
-	case bool:
-		return "True"
-	case string:
-		return "\"str\""
-	case []interface{}:
-		return "[list]"
-	case map[string]interface{}:
-		return "{\"dict\":\"test\"}"
-	default:
-		fmt.Println(value)
-		return "unknow"
-		//panic("")
-	}
+        return "data: " + str(self.data) + " value: " + str(self.value) + " sender: " + str(self.sender)`)
 }
 
 func tasJSON() string {
