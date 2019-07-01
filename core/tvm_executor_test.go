@@ -25,7 +25,12 @@ var (
 )
 
 func init() {
-
+	executor = &TVMExecutor{
+		bc: &FullBlockChain{
+			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
+			rewardManager:   newRewardManager(),
+		},
+	}
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        100,
 		BlockCacheCapacity:            16 * opt.MiB,

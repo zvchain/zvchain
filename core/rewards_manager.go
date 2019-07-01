@@ -227,16 +227,12 @@ func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
 }
 
 func (rm *RewardManager) reduceBlockRewards(height uint64, accountDB *account.AccountDB) bool {
-	if !rm.noRewards && rm.tokenLeft == 0 {
-		value := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), tokenLeftKey)
-		if value == nil {
-			rm.tokenLeft = tokensOfMiners
-		} else {
-			rm.tokenLeft = common.ByteToUint64(value)
-		}
-	}
-	if rm.noRewards {
-		return false
+	value := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), tokenLeftKey)
+
+	if value == nil {
+		rm.tokenLeft = tokensOfMiners
+	} else {
+		rm.tokenLeft = common.ByteToUint64(value)
 	}
 	rewards := rm.blockRewards(height)
 	if rewards > rm.tokenLeft {
