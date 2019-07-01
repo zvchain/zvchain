@@ -156,11 +156,6 @@ func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, txs []*types.Trans
 		return -1
 	}
 
-	if !chain.validateTxRoot(bh.TxTree, txs) {
-		err = fmt.Errorf("validate tx root fail")
-		return -1
-	}
-
 	return 0
 }
 
@@ -421,16 +416,6 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 	return true
 }
 
-func (chain *FullBlockChain) validateTxRoot(txMerkleTreeRoot common.Hash, txs []*types.Transaction) bool {
-	txTree := calcTxTree(txs)
-
-	if txTree != txMerkleTreeRoot {
-		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree.Hex(), txMerkleTreeRoot.Hex())
-		return false
-	}
-	return true
-}
-
 func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *executePostState) {
 	traceLog := monitor.NewPerformTraceLogger("executeTransaction", block.Header.Hash, block.Header.Height)
 	traceLog.SetParent("commitBlock")
@@ -454,7 +439,12 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 		return false, nil
 	}
 
-	statehash, evitTxs, _, receipts, gasFee, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
+	statehash, evitTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
+	txTree := calcTxTree(transactions)
+	if txTree != block.Header.TxTree{
+		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree, block.Header.TxTree)
+		return false, nil
+	}
 	if gasFee != block.Header.GasFee {
 		Logger.Errorf("Fail to verify GasFee, fee1: %d, fee1: %d", gasFee, block.Header.GasFee)
 		return false, nil
