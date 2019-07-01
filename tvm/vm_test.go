@@ -189,11 +189,15 @@ func TestController_ExecuteAbiEval(t *testing.T) {
 }
 
 func TestTVM_VerifyABI(t *testing.T) {
+	contractAddr := common.HexToAddress("0x123")
+	senderAddr := common.HexToAddress("0x456")
+
 	contract := &Contract{
 		Code:contractExample,
 		ContractName: "Token",
+		ContractAddress:&contractAddr,
 	}
-	vm := NewTVM(nil, contract, "")
+	vm := NewTVM(&senderAddr, contract, "")
 	vm.SetGas(9999999999999999)
 	var addr common.Address
 	addr = common.BytesToAddress([]byte("0x123"))
