@@ -81,7 +81,7 @@ func (m *peerMeter) increaseTimeout() {
 		m.timeoutMeter = 0
 	}
 }
-func (m *peerMeter) decreaseTimeout() {
+func (m *peerMeter) resetTimeoutMeter() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.timeoutMeter = 0
@@ -140,7 +140,7 @@ func (bpm *peerManager) heardFromPeer(id string) {
 		return
 	}
 	pm := bpm.getOrAddPeer(id)
-	pm.decreaseTimeout()
+	pm.resetTimeoutMeter()
 }
 
 func (bpm *peerManager) timeoutPeer(id string) {
