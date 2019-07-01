@@ -70,7 +70,10 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 		p.connecting = false
 		pm.addPeer(netID, p)
 	}
-	if p.relayID.IsValid() && relay {
+	if p.sessionID > 0  {
+		p.write(packet, code)
+		p.bytesSend += packet.Len()
+	} else 	if p.relayID.IsValid() && relay {
 		relayPeer := pm.peerByID(p.relayID)
 
 		if relayPeer != nil && relayPeer.sessionID > 0 {
@@ -78,9 +81,6 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 			go pm.write(p.relayID, nil, packet, code, false)
 			return
 		}
-	} else {
-		p.write(packet, code)
-		p.bytesSend += packet.Len()
 	}
 
 	if p.sessionID != 0 {
@@ -137,11 +137,8 @@ func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32)
 	if p != nil {
 
 		Logger.Infof("OnDisconnected id：%v  session:%v ip:%v port:%v ", p.ID.GetHexString(), session, p.IP, p.Port)
-		p.disconnectCount++
-		p.connecting = false
-		if p.sessionID == session {
-			p.sessionID = 0
-		}
+		p.onDisonnect()
+
 	} else {
 		Logger.Infof("OnDisconnected net id：%v session:%v port:%v code:%v", id, session, p2pCode)
 	}
@@ -158,7 +155,7 @@ func (pm *PeerManager) disconnect(id NodeID) {
 
 		Logger.Infof("disconnect ip:%v port:%v ", p.IP, p.Port)
 
-		p.connecting = false
+		p.disconnect()
 		delete(pm.peers, netID)
 	}
 }
