@@ -34,8 +34,8 @@ class Foundation(object):
         n = block.number()
         period = n // self.height_per_period
         remainder = n %% self.height_per_period
-        if period > 11:
-            period = 11
+        if period >= 12:
+            return self.total_token
         weight = 0
         for i in range(period):
             weight = weight + self.calculate_weight(i)
