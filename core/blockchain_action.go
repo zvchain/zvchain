@@ -482,6 +482,7 @@ func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 }
 
 func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) {
+	chain.groupManger.CheckSelfRound()
 	b := message.GetData().(*types.Block)
 	if value, _ := chain.futureBlocks.Get(b.Header.Hash); value != nil {
 		block := value.(*types.Block)

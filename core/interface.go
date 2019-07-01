@@ -186,3 +186,17 @@ type AccountRepository interface {
 	// GetBalance returns the nonce of specified address
 	GetNonce(address common.Address) uint64
 }
+
+// GroupMangerI contains group manger interface
+type GroupMangerI interface {
+	Init(chain BlockChain)
+
+	CheckSelfRound()
+
+	DoGroupCreate(db *account.AccountDB)
+	DoGroupPunish()
+
+	ExecuteGroupPieceTx()
+	ExecuteGroupMpkTx()
+	ExecuteGroupOriginPieceTx()
+}

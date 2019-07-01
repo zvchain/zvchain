@@ -1,0 +1,52 @@
+//   Copyright (C) 2018 ZVChain
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU General Public License for more details.
+//
+//   You should have received a copy of the GNU General Public License
+//   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+package group
+
+import (
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/middleware/types"
+)
+
+// 第一阶段上传的transaction.data
+type piece struct {
+	seed common.Hash
+	share []byte
+
+}
+
+type groupCreatingData struct {
+	seed common.Hash
+	pieces  map[common.Address][]piece //fill in round 1
+	mpk 	map[common.Hash][]byte	//fill in round 2
+	sign 	map[common.Hash][]byte	//fill in round 2
+	oPieces map[common.Hash][]byte	//fill in round 3
+}
+
+
+func (m *Manager) generatePieceTransaction() *types.Transaction  {
+	// TODO: implement it
+	return nil
+}
+
+func (m *Manager) generateMpkTransaction() *types.Transaction  {
+	// TODO: implement it
+	return nil
+}
+
+func (m *Manager) generateOriginPieceTransaction() *types.Transaction  {
+	// TODO: implement it
+	return nil
+}

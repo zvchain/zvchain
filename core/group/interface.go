@@ -13,25 +13,12 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package core
+package group
 
-import "github.com/zvchain/zvchain/middleware/types"
+import "github.com/zvchain/zvchain/common"
 
-// InitCore initialize the peerManagerImpl, BlockChainImpl and GroupChainImpl
-func InitCore(helper types.ConsensusHelper, groupManger GroupMangerI) error {
-	initPeerManager()
-	if nil == BlockChainImpl {
-		err := initBlockChain(helper, groupManger)
-		if err != nil {
-			return err
-		}
-	}
-
-	if nil == GroupChainImpl && helper != nil {
-		err := initGroupChain(helper.GenerateGenesisInfo(), helper)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+// MinerUtil contains account query interface
+type minerUtilI interface {
+	getAllMiner()
+	getSelfAddress() common.Address
 }

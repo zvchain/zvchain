@@ -93,6 +93,9 @@ const (
 	TransactionTypeMinerRefund      = 6
 	TransactionTypeMinerCancelStake = 7
 	TransactionTypeMinerStake       = 8
+	TransactionTypeGroupPiece       = 9
+	TransactionTypeGroupMpk         = 10
+	TransactionTypeGroupOriginPiece = 11
 
 	TransactionTypeToBeRemoved = -1
 )

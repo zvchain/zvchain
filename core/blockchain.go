@@ -18,13 +18,13 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb/filter"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"os"
 	"sync"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	time2 "github.com/zvchain/zvchain/middleware/time"
@@ -105,6 +105,8 @@ type FullBlockChain struct {
 
 	ticker *ticker.GlobalTicker // Ticker is a global time ticker
 	ts     time2.TimeService
+
+	groupManger GroupMangerI
 }
 
 func getBlockChainConfig() *BlockChainConfig {
@@ -123,7 +125,7 @@ func getBlockChainConfig() *BlockChainConfig {
 	}
 }
 
-func initBlockChain(helper types.ConsensusHelper) error {
+func initBlockChain(helper types.ConsensusHelper, groupManger GroupMangerI) error {
 	instance := common.GlobalConf.GetString("instance", "index", "")
 	Logger = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
 	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, instance)
@@ -133,6 +135,7 @@ func initBlockChain(helper types.ConsensusHelper) error {
 		init:            true,
 		isAdjusting:     false,
 		consensusHelper: helper,
+		groupManger:     groupManger,
 		ticker:          ticker.NewGlobalTicker("chain"),
 		ts:              time2.TSInstance,
 		futureBlocks:    common.MustNewLRUCache(10),
@@ -219,6 +222,9 @@ func initBlockChain(helper types.ConsensusHelper) error {
 	}
 
 	chain.forkProcessor = initForkProcessor(chain)
+	if chain.groupManger != nil {
+		chain.groupManger.Init(chain)
+	}
 
 	BlockChainImpl = chain
 	return nil

@@ -57,6 +57,8 @@ var (
 	HeavyDBAddress            = BigToAddress(big.NewInt(2))
 	MinerCountDBAddress       = BigToAddress(big.NewInt(3))
 	MinerStakeDetailDBAddress = BigToAddress(big.NewInt(4))
+	GroupCreatingDBAddress    = BigToAddress(big.NewInt(5))
+	GroupDBAddress            = BigToAddress(big.NewInt(6))
 )
 
 // Address data struct

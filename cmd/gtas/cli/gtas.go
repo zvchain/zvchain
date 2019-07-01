@@ -18,6 +18,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/core/group"
 	"os"
 
 	"github.com/zvchain/zvchain/common"
@@ -314,7 +315,7 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID))
+	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID), group.NewGroupManager())
 	if err != nil {
 		return err
 	}

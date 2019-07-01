@@ -89,6 +89,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 		Logger.Errorf("encode block transaction error:%v", err)
 		return
 	}
+	chain.groupManger.DoGroupCreate(ps.state)
 
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
