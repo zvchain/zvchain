@@ -113,7 +113,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
@@ -283,60 +282,6 @@ func (tvm *TVM) DelTVM() {
 func (tvm *TVM) VerifyABI(standardABI string,callABI ABI) bool  {
 	var standardABIStruct []ABIVerify
 	err := json.Unmarshal([]byte(standardABI), &standardABIStruct)
-	if err != nil {
-		fmt.Println("abi unmarshal err:", err)
-		return false
-	}
-
-	var argsType []string
-	for i := 0; i < len(callABI.Args); i++ {
-
-		switch callABI.Args[i].(type) {
-		case float64:
-			argsType = append(argsType, "int")
-		case string:
-			argsType = append(argsType, "str")
-		case bool:
-			argsType = append(argsType, "bool")
-		case []interface{}:
-			argsType = append(argsType, "list")
-		case map[string]interface{}:
-			argsType = append(argsType, "dict")
-		default:
-			argsType = append(argsType, "unknow")
-		}
-	}
-
-	for _, value := range standardABIStruct{
-		if value.FuncName == callABI.FuncName {
-			if len(value.Args) == len(callABI.Args) {
-				if reflect.DeepEqual(value.Args,argsType){
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func (tvm *TVM) ExportABI(contract *Contract) string {
-
-	str := tasExportABI()
-	err := tvm.ExecuteScriptVMSucceed(str)
-	if err != nil{
-		return ""
-	}
-	result := tvm.ExecuteScriptKindFile(contract.Code)
-	return result.Abi
-}
-
-func (tvm *TVM) VerifyABI(originABI string,callABI ABI) bool  {
-
-	var originalABI []ABIVerify
-
-	finalABIString := strings.Replace(originABI,"'","\"",-1)
-	err := json.Unmarshal([]byte(finalABIString),&originalABI)
-
 	if err != nil {
 		fmt.Println("abi unmarshal err:", err)
 		return false
