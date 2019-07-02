@@ -130,7 +130,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				totalGasUsed += cumulativeGasUsed
 				if totalGasUsed > GasLimitPerBlock {
 					accountdb.RevertToSnapshot(snapshot)
-					Logger.Infof("RevertToSnapshot happens: totalGasUsed is %d ,cumulativeGasUsed is %d", totalGasUsed, cumulativeGasUsed)
+					Logger.Infof("RevertToSnapshot happens: totalGasUsed is %d , cumulativeGasUsed is %d", totalGasUsed, cumulativeGasUsed)
 					break
 				}
 
@@ -139,7 +139,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				executeError = types.TxErrorBalanceNotEnoughErr
 				totalGasUsed += cumulativeGasUsed
 				if totalGasUsed > GasLimitPerBlock {
-					Logger.Infof("totalGasUsed is %d ,cumulativeGasUsed is %d", totalGasUsed, cumulativeGasUsed)
+					Logger.Infof("totalGasUsed is %d , cumulativeGasUsed is %d", totalGasUsed, cumulativeGasUsed)
 					break
 				}
 			}
