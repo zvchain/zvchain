@@ -126,8 +126,10 @@ func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) (ev
 	for _, tx := range txs {
 		// this error can be ignored
 		_, err := pool.tryAddTransaction(tx, from)
-		if _,ok:=evilErrorMap[err];ok{
-			evilCount++
+		if err != nil{
+			if _,ok:=evilErrorMap[err];ok{
+				evilCount++
+			}
 		}
 	}
 	notify.BUS.Publish(notify.TxPoolAddTxs, &txPoolAddMessage{txs: txs, txSrc: from})

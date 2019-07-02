@@ -39,10 +39,7 @@ const (
 	txReqRoutine  = "ts_req"
 	txReqInterval = 5
 
-	txMaxReceiveLimit = 1000
 	txPeerMaxLimit    = 3000
-
-	txReceiveMaxLimit = 5000   //Prevent DDoS Attacks
 
 	txValidteErrorLimit = 5
 	txHitValidRate    = 0.5
@@ -270,7 +267,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) {
 		if n != len(common.Hash{}) {
 			break
 		}
-		if count > txMaxReceiveLimit {
+		if count > txMaxNotifyPerTime {
 			ts.logger.Warnf("Rcv onTxNotify,but count exceeds limit")
 			return
 		}
@@ -429,7 +426,7 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 		return
 	}
 
-	if len(txs) > txReceiveMaxLimit{
+	if len(txs) > txPeerMaxLimit{
 		ts.logger.Errorf("rec tx too much,length is %v ,and from %s", len(txs),nm.Source())
 		return
 	}
