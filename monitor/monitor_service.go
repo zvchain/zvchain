@@ -46,7 +46,7 @@ type MonitorService struct {
 const (
 	LogTypeProposal                 = 1
 	LogTypeBlockBroadcast           = 2
-	LogTypeBonusBroadcast           = 3
+	LogTypeRewardBroadcast          = 3
 	LogTypeCreateGroup              = 4
 	LogTypeCreateGroupSignTimeout   = 5
 	LogTypeInitGroupRevPieceTimeout = 6

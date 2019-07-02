@@ -18,7 +18,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/consensus/base"
 	"os"
 
 	"github.com/zvchain/zvchain/common"
@@ -171,10 +170,11 @@ func (gtas *Gtas) Run() {
 	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
+	passWd := mineCmd.Flag("password", "login password").Default("123").String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
 		fmt.Println("Welcome to be a tas propose miner!")
-	} else if *apply == "heavy" {
+	} else if *apply == "light" {
 		fmt.Println("Welcome to be a tas verify miner!")
 	}
 
@@ -235,6 +235,7 @@ func (gtas *Gtas) Run() {
 			keystore:      *keystore,
 			enableMonitor: *enableMonitor,
 			chainID:       *chainID,
+			password:      *passWd,
 		}
 
 		// Start miner
@@ -263,7 +264,7 @@ func (gtas *Gtas) simpleInit(configPath string) {
 	common.InitConf(configPath)
 }
 
-func (gtas *Gtas) checkAddress(keystore, address string) error {
+func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 	aop, err := initAccountManager(keystore, true)
 	if err != nil {
 		return err
@@ -272,7 +273,7 @@ func (gtas *Gtas) checkAddress(keystore, address string) error {
 
 	acm := aop.(*AccountManager)
 	if address != "" {
-		aci, err := acm.getAccountInfo(address)
+		aci, err := acm.checkMinerAccount(address, password)
 		if err != nil {
 			return fmt.Errorf("cannot get miner, err:%v", err.Error())
 		}
@@ -281,26 +282,25 @@ func (gtas *Gtas) checkAddress(keystore, address string) error {
 		}
 		gtas.account = aci.Account
 		return nil
-
 	}
-	aci := acm.getFirstMinerAccount()
-	if aci != nil {
-		gtas.account = *aci
+	acc := acm.getFirstMinerAccount(password)
+	if acc != nil {
+		gtas.account = *acc
 		return nil
 	}
-	return fmt.Errorf("please create a miner account first")
+	return fmt.Errorf("please provide a miner account and correct password! ")
 }
 
 func (gtas *Gtas) fullInit() error {
 	var err error
 
-	// Initialization middleware
+	// Initialization middlewarex
 	middleware.InitMiddleware()
 
 	cfg := gtas.config
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
-	err = gtas.checkAddress(cfg.keystore, addressConfig)
+	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password)
 	if err != nil {
 		return err
 	}
@@ -308,25 +308,11 @@ func (gtas *Gtas) fullInit() error {
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
 	fmt.Println("Your Miner Address:", gtas.account.Address)
 
-	//minerInfo := model.NewSelfMinerDO(common.HexToSecKey(gtas.account.Sk))
-	var minerInfo model.SelfMinerDO
-	if gtas.account.Miner != nil {
-		prk := common.HexToSecKey(gtas.account.Sk)
-		dBytes := prk.PrivKey.D.Bytes()
-		tempBuf := make([]byte, 32)
-		if len(dBytes) < 32 {
-			copy(tempBuf[32-len(dBytes):32], dBytes[:])
-		} else {
-			copy(tempBuf[:], dBytes[len(dBytes)-32:])
-		}
-		minerInfo.SecretSeed = base.RandFromBytes(tempBuf[:])
-		minerInfo.SK = *groupsig.NewSeckeyFromHexString(gtas.account.Miner.BSk)
-		minerInfo.PK = *groupsig.NewPubkeyFromHexString(gtas.account.Miner.BPk)
-		minerInfo.ID = *groupsig.NewIDFromString(gtas.account.Address)
-		minerInfo.VrfSK = base.Hex2VRFPrivateKey(gtas.account.Miner.VrfSk)
-		minerInfo.VrfPK = base.Hex2VRFPublicKey(gtas.account.Miner.VrfPk)
+	sk := common.HexToSecKey(gtas.account.Sk)
+	minerInfo, err := model.NewSelfMinerDO(sk)
+	if err != nil {
+		return err
 	}
-	//import end.   gtas.account --> minerInfo
 
 	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID))
 	if err != nil {
@@ -389,6 +375,7 @@ func NewGtas() *Gtas {
 func (gtas *Gtas) autoApplyMiner(mtype int) {
 	miner := mediator.Proc.GetMinerInfo()
 	if miner.ID.GetHexString() != gtas.account.Address {
+		// exit if miner's id not match the the account
 		panic(fmt.Errorf("id error %v %v", miner.ID.GetHexString(), gtas.account.Address))
 	}
 
@@ -396,7 +383,7 @@ func (gtas *Gtas) autoApplyMiner(mtype int) {
 		ID:           miner.ID.Serialize(),
 		PublicKey:    miner.PK.Serialize(),
 		VrfPublicKey: miner.VrfPK,
-		Stake:        common.VerifyStake,
+		Stake:        core.MinMinerStake,
 		Type:         byte(mtype),
 	}
 	data, err := msgpack.Marshal(tm)
@@ -407,7 +394,7 @@ func (gtas *Gtas) autoApplyMiner(mtype int) {
 
 	nonce := core.BlockChainImpl.GetNonce(miner.ID.ToAddress()) + 1
 	api := &RpcDevImpl{}
-	ret, err := api.TxUnSafe(gtas.account.Sk, "", 0, 20000, 100, nonce, types.TransactionTypeMinerApply, common.ToHex(data))
+	ret, err := api.TxUnSafe(gtas.account.Sk, "", 0, 20000, 200, nonce, types.TransactionTypeMinerApply, common.ToHex(data))
 	common.DefaultLogger.Debugf("apply result", ret, err)
 
 }

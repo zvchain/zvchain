@@ -224,6 +224,7 @@ func (msg *ConsensusBlockMessage) GenHash() common.Hash {
 	return base.Data2CommonHash(buf)
 }
 
+/*   the following function not used
 func (msg *ConsensusBlockMessage) VerifySig(gpk groupsig.Pubkey, preRandom []byte) bool {
 	sig := groupsig.DeserializeSign(msg.Block.Header.Signature)
 	if sig == nil {
@@ -239,7 +240,7 @@ func (msg *ConsensusBlockMessage) VerifySig(gpk groupsig.Pubkey, preRandom []byt
 	}
 	return groupsig.VerifySig(gpk, preRandom, *rsig)
 }
-
+*/
 /*
 Parent group build consensus message
 */
@@ -269,10 +270,10 @@ func (msg *ConsensusCreateGroupSignMessage) GenHash() common.Hash {
 Reward transaction
 */
 
-// CastRewardTransSignReqMessage is the signature requesting message for bonus transaction
+// CastRewardTransSignReqMessage is the signature requesting message for reward transaction
 type CastRewardTransSignReqMessage struct {
 	BaseSignedMessage
-	Reward       types.Bonus
+	Reward       types.Reward
 	SignedPieces []groupsig.Signature
 	ReceiveTime  time.Time
 }

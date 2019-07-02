@@ -41,6 +41,7 @@ var cfg = &minerConfig{
 	keystore:      "keystore",
 	enableMonitor: false,
 	chainID:       1,
+	password:		"123",
 }
 
 func TestRPC(t *testing.T) {
@@ -48,7 +49,15 @@ func TestRPC(t *testing.T) {
 	gtas.config = cfg
 	gtas.simpleInit("tas.ini")
 	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
-	err := gtas.fullInit()
+
+
+	aop, err := newAccountOp("keystore")
+	account := aop.NewAccount("123",true)
+	aop.store.Close()
+	addr:= account.Data.(string)
+	common.GlobalConf.SetString(Section,"miner",addr)
+
+	err = gtas.fullInit()
 	if err != nil {
 		t.Error(err)
 	}
@@ -61,7 +70,7 @@ func TestRPC(t *testing.T) {
 	tx := &txRawData{Target: "0x8ad32757d4dbcea703ba4b982f6fd08dad84bfcb", Value: 10, Gas: 1000, Gasprice: 10000, TxType: 0, Nonce: nonce}
 	tranx := txRawToTransaction(tx)
 	tranx.Hash = tranx.GenHash()
-	sign := privateKey.Sign(tranx.Hash.Bytes())
+	sign, _ := privateKey.Sign(tranx.Hash.Bytes())
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
@@ -99,7 +108,6 @@ func TestRPC(t *testing.T) {
 func resetDb(dbPath string) error {
 	core.BlockChainImpl.(*core.FullBlockChain).Close()
 	core.GroupChainImpl.Close()
-	core.TxSyncer.Close()
 	taslog.Close()
 	fmt.Println("---reset db---")
 	dir, err := ioutil.ReadDir(".")

@@ -46,7 +46,8 @@ func initProcessor(conf string) *Processor {
 
 	gstore := fmt.Sprintf("%v/groupstore%v", confPathPrefix, cm.GetString("instance", "index", ""))
 	cm.SetString("consensus", "groupstore", gstore)
-	proc.Init(model.NewSelfMinerDO(common.HexToSecKey(minerInfo[addr])), cm)
+	minerDO, _ := model.NewSelfMinerDO(common.HexToSecKey(minerInfo[addr]))
+	proc.Init(minerDO, cm)
 	log.Printf("%v", proc.mi.VrfPK)
 	return proc
 }

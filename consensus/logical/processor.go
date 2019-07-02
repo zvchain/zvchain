@@ -99,7 +99,11 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.mi = &mi
 	p.globalGroups = newGlobalGroups(p.GroupChain)
 	p.joiningGroups = NewJoiningGroups()
-	p.belongGroups = NewBelongGroups(p.genBelongGroupStoreFile(), p.getEncryptPrivateKey())
+	encryptPrivateKey, err := p.getEncryptPrivateKey()
+	if err != nil {
+		return false
+	}
+	p.belongGroups = NewBelongGroups(p.genBelongGroupStoreFile(), encryptPrivateKey)
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()
 	p.proveChecker = newProveChecker(p.MainChain)
@@ -188,6 +192,10 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 
 	// Obtain legal ingot group
 	group = p.GetGroup(verifyGid)
+	if group == nil {
+		err = fmt.Errorf("group is nil:groupID=%v", verifyGid)
+		return
+	}
 	if !group.GroupID.IsValid() {
 		err = fmt.Errorf("selectedGroup is not valid, expect gid=%v, real gid=%v", verifyGid.ShortS(), group.GroupID.ShortS())
 		return
@@ -205,6 +213,7 @@ func (p *Processor) getMinerPos(gid groupsig.ID, uid groupsig.ID) int32 {
 // GetGroup get a specific group
 func (p Processor) GetGroup(gid groupsig.ID) *StaticGroupInfo {
 	if g, err := p.globalGroups.GetGroupByID(gid); err != nil {
+		// this must not happen
 		panic("GetSelfGroup failed.")
 	} else {
 		return g
@@ -215,6 +224,7 @@ func (p Processor) GetGroup(gid groupsig.ID) *StaticGroupInfo {
 // the chain when the processer is initialized)
 func (p Processor) getGroupPubKey(gid groupsig.ID) groupsig.Pubkey {
 	if g, err := p.globalGroups.GetGroupByID(gid); err != nil {
+		// hold it for now
 		panic("GetSelfGroup failed.")
 	} else {
 		return g.GetPubKey()
@@ -222,10 +232,19 @@ func (p Processor) getGroupPubKey(gid groupsig.ID) groupsig.Pubkey {
 
 }
 
-func (p *Processor) getEncryptPrivateKey() common.PrivateKey {
+// getProposerPubKey get the public key of proposer miner in the specified block
+func (p Processor) getProposerPubKeyInBlock(bh *types.BlockHeader) *groupsig.Pubkey {
+	castor := groupsig.DeserializeID(bh.Castor)
+	castorMO := p.minerReader.getProposeMiner(castor)
+	if castorMO != nil {
+		return &castorMO.PK
+	}
+	return nil
+}
+
+func (p *Processor) getEncryptPrivateKey() (common.PrivateKey, error) {
 	seed := p.mi.SK.GetHexString() + p.mi.ID.GetHexString()
-	encryptPrivateKey := common.GenerateKey(seed)
-	return encryptPrivateKey
+	return common.GenerateKey(seed)
 }
 
 func (p *Processor) getDefaultSeckeyInfo() model.SecKeyInfo {

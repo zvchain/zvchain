@@ -144,7 +144,7 @@ func genRandomSeeds(seeds []string) []string {
 	}
 	seedsRandom := make([]string, 0, 0)
 
-	for key, _ := range nodesSelect {
+	for key := range nodesSelect {
 		seedsRandom = append(seedsRandom, seeds[key])
 	}
 	return seedsRandom

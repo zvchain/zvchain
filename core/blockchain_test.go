@@ -25,11 +25,13 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware"
+	zvtime "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 	"github.com/zvchain/zvchain/taslog"
@@ -77,7 +79,16 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	//	print("hehe")
 	//`
 	// 交易1
-	_, err = txpool.AddTransaction(genTestTx(12345, "100", "2", 0, 1))
+	tx := genTestTx(12345, "100", "2", 0, 1)
+	var sign = common.BytesToSign(tx.Sign)
+	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
+	src := pk.GetAddress()
+	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111111111111))
+	if err != nil {
+		t.Fatalf("error")
+	}
+	_, err = txpool.AddTransaction(tx)
+
 	if err != nil {
 		t.Fatalf("fail to AddTransaction")
 	}
@@ -99,6 +110,15 @@ func TestBlockChain_AddBlock(t *testing.T) {
 
 	// 铸块1
 	block := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, *groupid)
+
+	fmt.Printf("block.Header.CurTime = %v \n", block.Header.CurTime)
+	time.Sleep(time.Second * 2)
+	delta := zvtime.TSInstance.Since(block.Header.CurTime)
+
+	if delta > 3 || delta < 1 {
+		t.Fatalf("zvtime.TSInstance.Since test failed, delta should be 2 but got %v", delta)
+	}
+
 	if nil == block {
 		t.Fatalf("fail to cast new block")
 	}
@@ -126,7 +146,12 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 
 	//交易3
-	_, err = txpool.AddTransaction(genTestTx(1, "1", "2", 2, 10))
+	transaction := genTestTx(1111, "1", "2", 2, 10)
+	sign = common.BytesToSign(transaction.Sign)
+	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
+	src = pk.GetAddress()
+	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111222))
+	_, err = txpool.AddTransaction(transaction)
 	if err != nil {
 		t.Fatalf("fail to AddTransaction")
 	}
@@ -417,7 +442,7 @@ func genTestTx(price uint64, source string, target string, nonce uint64, value u
 	}
 	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(privateKey)
-	sign := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.Hash.Bytes())
 	tx.Sign = sign.Bytes()
 
 	return tx
@@ -445,7 +470,6 @@ func clear() {
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
 		GroupChainImpl.Close()
-		TxSyncer.Close()
 		taslog.Close()
 		BlockChainImpl = nil
 	}
@@ -473,7 +497,6 @@ func clearTicker() {
 	if TxSyncer != nil && TxSyncer.ticker != nil {
 		TxSyncer.ticker.RemoveRoutine(txNotifyRoutine)
 		TxSyncer.ticker.RemoveRoutine(txReqRoutine)
-		TxSyncer.ticker.RemoveRoutine(txIndexPersistRoutine)
 	}
 }
 
@@ -512,14 +535,6 @@ func (helper *ConsensusHelperImpl4Test) VRFProve2Value(prove []byte) *big.Int {
 	return big.NewInt(1)
 }
 
-func (helper *ConsensusHelperImpl4Test) ProposalBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.ProposalBonus)
-}
-
-func (helper *ConsensusHelperImpl4Test) PackBonus() *big.Int {
-	return new(big.Int).SetUint64(model.Param.PackBonus)
-}
-
 func (helper *ConsensusHelperImpl4Test) CheckProveRoot(bh *types.BlockHeader) (bool, error) {
 	//return Proc.checkProveRoot(bh)
 	return true, nil //上链时不再校验，只在共识时校验（update：2019-04-23）
@@ -537,7 +552,7 @@ func (helper *ConsensusHelperImpl4Test) CheckGroup(g *types.Group) (ok bool, err
 	return true, nil
 }
 
-func (helper *ConsensusHelperImpl4Test) VerifyBonusTransaction(tx *types.Transaction) (ok bool, err error) {
+func (helper *ConsensusHelperImpl4Test) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err error) {
 	return true, nil
 }
 

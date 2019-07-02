@@ -282,7 +282,7 @@ func (ns *NetworkServerImpl) SendCreateGroupSignMessage(msg *model.ConsensusCrea
 	go ns.net.SendWithGroupRelay(msg.Launcher.GetHexString(), parentGid.GetHexString(), m)
 }
 
-// SendCastRewardSignReq sends bonus transaction sign request to other members of the group
+// SendCastRewardSignReq sends reward transaction sign request to other members of the group
 func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
 	body, e := marshalCastRewardTransSignReqMessage(msg)
 	if e != nil {
@@ -298,7 +298,7 @@ func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSig
 	ns.net.SpreadAmongGroup(gid.GetHexString(), m)
 }
 
-// SendCastRewardSign sends signed message of the bonus transaction to the requester by group relaying
+// SendCastRewardSign sends signed message of the reward transaction to the requester by group relaying
 func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMessage) {
 	body, e := marshalCastRewardTransSignMessage(msg)
 	if e != nil {

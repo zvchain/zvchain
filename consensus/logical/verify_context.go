@@ -275,9 +275,9 @@ func (vc *VerifyContext) Clear() {
 }
 
 // shouldRemove determine whether the context can be deleted,
-// mainly consider whether to send a bonus transaction
+// mainly consider whether to send a reward transaction
 func (vc *VerifyContext) shouldRemove(topHeight uint64) bool {
-	// Bonus transaction consensus timed out, can be deleted
+	// Reward transaction consensus timed out, can be deleted
 	if vc.castRewardSignExpire() {
 		return true
 	}

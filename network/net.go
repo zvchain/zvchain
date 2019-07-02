@@ -663,15 +663,18 @@ func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *byte
 	for header.Len() < PacketHeadSize && !p.isEmpty() {
 		b := p.popData()
 		if b != nil && b.Len() > 0 {
+			header.Write(b.Bytes())
 			netCore.bufferPool.freeBuffer(b)
 		}
 	}
-	if header.Len() < PacketHeadSize {
+
+	headerBytes := header.Bytes()
+
+	if len(headerBytes) < PacketHeadSize {
 		p.addRecvDataToHead(header)
 		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
 	}
 
-	headerBytes := header.Bytes()
 	msgType := MessageType(binary.BigEndian.Uint32(headerBytes[:PacketTypeSize]))
 	msgLen := binary.BigEndian.Uint32(headerBytes[PacketTypeSize:PacketHeadSize])
 	packetSize := int(msgLen + PacketHeadSize)
@@ -945,7 +948,7 @@ func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 }
 
 func (nc *NetCore) onHandleDataMessageStart() {
-	atomic.AddInt32(&nc.unhandledDataMsg,1)
+	atomic.AddInt32(&nc.unhandledDataMsg, 1)
 }
 
 func (nc *NetCore) onHandleDataMessageDone() {

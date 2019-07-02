@@ -122,7 +122,7 @@ func (sendList *SendList) onSendWaited(peer *Peer) {
 }
 
 func (sendList *SendList) autoSend(peer *Peer) {
-
+	
 	if peer.sessionID == 0 || !sendList.isSendAvailable() {
 		return
 	}
@@ -160,7 +160,6 @@ func (sendList *SendList) autoSend(peer *Peer) {
 		if sendList.curQuota >= sendList.totalQuota {
 			sendList.resetQuota()
 		}
-
 	}
 }
 
@@ -201,7 +200,9 @@ type Peer struct {
 	connectTimeout uint64
 	mutex          sync.RWMutex
 	connecting     bool
+
 	isPinged       bool
+
 	source         PeerSource
 
 	bytesReceived   int
@@ -338,7 +339,8 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 		p.connecting = false
 		pm.addPeer(netID, p)
 	}
-	if p.relayID.IsValid() && relay {
+
+	if  p.relayID.IsValid() && relay {
 		relayPeer := pm.peerByID(p.relayID)
 
 		if relayPeer != nil && relayPeer.sessionID > 0 {
@@ -378,6 +380,7 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 	}
 }
 
+
 // newConnection handling callbacks for successful connections
 func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, isAccepted bool) {
 
@@ -391,6 +394,7 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 		p.sessionID = session
 	}
 	p.connecting = false
+
 
 	if len(p.ID.GetHexString()) > 0 && !p.isPinged {
 		netCore.ping(p.ID, nil)
@@ -493,6 +497,7 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 	pm.checkPeerSource()
 	availablePeers := make([]*Peer, 0, 0)
 
+
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
 			availablePeers = append(availablePeers, p)
@@ -553,3 +558,4 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) {
 	pm.peers[netID] = peer
 
 }
+

@@ -52,6 +52,10 @@ func (p *Processor) OnMessageCreateGroupPing(msg *model.CreateGroupPingMessage) 
 			Ts:     time.Now(),
 		}
 		group := p.GetGroup(msg.FromGroupID)
+		if group == nil {
+			err = fmt.Errorf("group is nil:groupID=%v", msg.FromGroupID)
+			return
+		}
 		gb := &net.GroupBrief{
 			Gid:    msg.FromGroupID,
 			MemIds: group.GetMembers(),
@@ -218,7 +222,7 @@ func (p *Processor) OnMessageGroupInit(msg *model.ConsensusGroupRawMessage) {
 	tlog := newHashTraceLog("OMGI", gHash, msg.SI.GetID())
 
 	if msg.SI.DataHash != msg.GenHash() || gh.Hash != gh.GenHash() {
-		panic("msg gis hash diff")
+		return
 	}
 
 	// Non-group members do not follow the follow-up process
@@ -258,6 +262,7 @@ func (p *Processor) OnMessageGroupInit(msg *model.ConsensusGroupRawMessage) {
 
 	groupContext = p.joiningGroups.ConfirmGroupFromRaw(msg, candidates, p.mi)
 	if groupContext == nil {
+		// hold it for now
 		panic("Processor::OMGI failed, ConfirmGroupFromRaw return nil.")
 	}
 
@@ -379,6 +384,7 @@ func (p *Processor) handleSharePieceMessage(blog *bizLog, gHash common.Hash, sha
 					MemCnt:  int32(gc.gInfo.MemberSize()),
 				}
 				if !msg.SignPK.IsValid() {
+					// hold it for now
 					panic("signPK is InValid")
 				}
 				if msg.GenSign(ski, msg) {
@@ -524,7 +530,8 @@ func (p *Processor) OnMessageGroupInited(msg *model.ConsensusGroupInitedMessage)
 	tlog := newHashTraceLog("OMGIED", gHash, msg.SI.GetID())
 
 	if msg.SI.DataHash != msg.GenHash() {
-		panic("grm gis hash diff")
+		blog.error("grm gis hash diff")
+		return
 	}
 
 	// The group already added on chain before because of synchronization process
@@ -565,6 +572,10 @@ func (p *Processor) OnMessageGroupInited(msg *model.ConsensusGroupInitedMessage)
 
 	parentID := initedGroup.gInfo.GI.ParentID()
 	parentGroup := p.GetGroup(parentID)
+	if parentGroup == nil {
+		blog.error("group is nil:groupID=%v", parentID)
+		return
+	}
 
 	gpk := parentGroup.GroupPK
 	if !groupsig.VerifySig(gpk, msg.GHash.Bytes(), msg.ParentSign) {

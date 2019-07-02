@@ -325,7 +325,7 @@ func (c *gasBaseCmd) parseGasPrice() bool {
 
 func (c *gasBaseCmd) initBase() {
 	c.fs.Uint64Var(&c.gaslimit, "gaslimit", 3000, "gas limit, default 3000")
-	c.fs.StringVar(&c.gasPriceStr, "gasprice", "100RA", "gas price, default 100RA")
+	c.fs.StringVar(&c.gasPriceStr, "gasprice", "200RA", "gas price, default 200RA")
 }
 
 type sendTxCmd struct {
@@ -352,7 +352,7 @@ func genSendTxCmd() *sendTxCmd {
 	c.fs.Uint64Var(&c.nonce, "nonce", 0, "nonce, optional. will use default nonce on chain if not specified")
 	c.fs.StringVar(&c.contractName, "contractname", "", "the name of the contract.")
 	c.fs.StringVar(&c.contractPath, "contractpath", "", "the path to the contract file.")
-	c.fs.IntVar(&c.txType, "type", 0, "transaction type: 0=general tx, 1=contract create, 2=contract call, 3=bonus, 4=miner apply,5=miner abort, 6=miner refund")
+	c.fs.IntVar(&c.txType, "type", 0, "transaction type: 0=general tx, 1=contract create, 2=contract call, 3=reward, 4=miner apply,5=miner abort, 6=miner refund")
 	return c
 }
 
@@ -485,7 +485,7 @@ func genMinerApplyCmd() *minerApplyCmd {
 		gasBaseCmd: *genGasBaseCmd("minerapply", "apply to be a miner"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.stake, "stake", 100, "freeze stake of tas, default 100TAS")
+	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of tas, default 500TAS")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
 	return c
 }
@@ -657,6 +657,79 @@ func (c *viewContractCmd) parse(args []string) bool {
 	return true
 }
 
+type importKeyCmd struct {
+	baseCmd
+	key      string
+	password string
+	miner    bool
+}
+
+func genImportKeyCmd() *importKeyCmd {
+	c := &importKeyCmd{
+		baseCmd: *genBaseCmd("importkey", "import private key"),
+	}
+	c.fs.StringVar(&c.key, "privatekey", "", "private key imported for the account")
+	c.fs.StringVar(&c.password, "password", "", "password for the account")
+	c.fs.BoolVar(&c.miner, "miner", false, "create the account for miner if set")
+	return c
+}
+
+func (c *importKeyCmd) parse(args []string) bool {
+	err := c.fs.Parse(args)
+	if err != nil {
+		output(err.Error())
+		return false
+	}
+	key := strings.TrimSpace(c.key)
+	if len(key) == 0 {
+		output("Please input private key")
+		return false
+	}
+	if !validateKey(key) {
+		output("Private key is invalid")
+		return false
+	}
+	pass := strings.TrimSpace(c.password)
+	if len(pass) == 0 {
+		output("Please input password")
+		return false
+	}
+	if len(pass) > 50 || len(pass) < 3 {
+		output("password length should between 3-50")
+		return false
+	}
+	return true
+}
+
+type exportKeyCmd struct {
+	baseCmd
+	addr string
+}
+
+func genExportKeyCmd() *exportKeyCmd {
+	c := &exportKeyCmd{
+		baseCmd: *genBaseCmd("exportkey", "export private key"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "address of the account")
+	return c
+}
+
+func (c *exportKeyCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if c.addr == "" {
+		output("please input the account address")
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return true
+}
+
 var cmdNewAccount = genNewAccountCmd()
 var cmdExit = genBaseCmd("exit", "quit  gtas")
 var cmdHelp = genBaseCmd("help", "show help info")
@@ -680,6 +753,9 @@ var cmdMinerRefund = genMinerRefundCmd()
 var cmdMinerStake = genMinerStakeCmd()
 var cmdMinerCancelStake = genMinerCancelStakeCmd()
 var cmdViewContract = genViewContractCmd()
+
+var cmdImportKey = genImportKeyCmd()
+var cmdExportKey = genExportKeyCmd()
 
 var list = make([]*baseCmd, 0)
 
@@ -705,6 +781,8 @@ func init() {
 	list = append(list, &cmdViewContract.baseCmd)
 	list = append(list, &cmdMinerCancelStake.baseCmd)
 	list = append(list, &cmdMinerStake.baseCmd)
+	list = append(list, &cmdImportKey.baseCmd)
+	list = append(list, &cmdExportKey.baseCmd)
 	list = append(list, cmdExit)
 }
 
@@ -958,6 +1036,20 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return chainOp.ViewContract(cmd.addr)
+				})
+			}
+		case cmdImportKey.name:
+			cmd := genImportKeyCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return acm.NewAccountByImportKey(cmd.key, cmd.password, cmd.miner)
+				})
+			}
+		case cmdExportKey.name:
+			cmd := genExportKeyCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return acm.ExportKey(cmd.addr)
 				})
 			}
 		default:

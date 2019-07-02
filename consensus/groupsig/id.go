@@ -92,6 +92,7 @@ func (id ID) Serialize() []byte {
 		return idBytes
 	}
 	if len(idBytes) > Idlength {
+		// hold it for now
 		panic("ID Serialize error: ID bytes is more than Idlength")
 	}
 	buff := make([]byte, Idlength)
