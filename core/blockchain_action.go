@@ -441,8 +441,12 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 
 	statehash, evitTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
 	txTree := calcTxTree(transactions)
-	if txTree != block.Header.TxTree{
+	if txTree != block.Header.TxTree {
 		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree, block.Header.TxTree)
+		return false, nil
+	}
+	if len(transactions) != len(block.Transactions) {
+		Logger.Errorf("Fail to verify transactions, length1: %d length2: %d", len(transactions), len(block.Transactions))
 		return false, nil
 	}
 	if gasFee != block.Header.GasFee {

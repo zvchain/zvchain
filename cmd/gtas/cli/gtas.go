@@ -311,7 +311,7 @@ func (gtas *Gtas) fullInit() error {
 	//set the time for proposer package
 	timeForPackage := common.GlobalConf.GetInt(Section, "time_for_package", 2000)
 	if timeForPackage > 100 && timeForPackage < 2000 {
-		core.ProposerPackageTime = time.Duration(timeForPackage) * time.Microsecond
+		core.ProposerPackageTime = time.Duration(timeForPackage) * time.Millisecond
 		common.DefaultLogger.Infof("proposer uses the package config: timeForPackage %d ", timeForPackage)
 	}
 
