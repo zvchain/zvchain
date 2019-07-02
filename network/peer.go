@@ -228,7 +228,7 @@ func (p *Peer) onDisonnect() {
 	p.resetData()
 	p.connecting = false
 	p.disconnectCount++
-
+	p.sessionID = 0
 	p.sendList.pendingSend = 0
 
 }
