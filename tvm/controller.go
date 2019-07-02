@@ -100,6 +100,7 @@ func (con *Controller) Deploy(contract *Contract) error {
 	con.VM = NewTVM(con.Transaction.GetSource(), contract, con.LibPath)
 	defer func() {
 		con.VM.DelTVM()
+		con.GasLeft = uint64(con.VM.Gas())
 	}()
 	con.VM.SetGas(int(con.GasLeft))
 	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue()}
@@ -112,7 +113,6 @@ func (con *Controller) Deploy(contract *Contract) error {
 	if err != nil {
 		return err
 	}
-	con.GasLeft = uint64(con.VM.Gas())
 	return nil
 }
 
