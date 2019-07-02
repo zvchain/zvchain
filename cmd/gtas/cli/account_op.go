@@ -114,6 +114,7 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		ret := aop.NewAccount(DefaultPassword, true)
 		if !ret.IsSuccess() {
 			fmt.Println(ret.Message)
@@ -131,7 +132,7 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 
 func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) (*Account, error) {
 	account := &Account{
-		Sk:       common.ToHex(sk.ExportKey()),
+		Sk:       sk.Hex(),
 		Pk:       sk.GetPubKey().Hex(),
 		Address:  sk.GetPubKey().GetAddress().Hex(),
 		Password: passwordHash(password),
@@ -147,7 +148,7 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 			BPk:   minerDO.PK.GetHexString(),
 			BSk:   minerDO.SK.GetHexString(),
 			VrfPk: minerDO.VrfPK.GetHexString(),
-			VrfSk: common.ToHex(minerDO.VrfSK[:32]),
+			VrfSk: minerDO.VrfSK.GetHexString(),
 		}
 		account.Miner = minerRaw
 	}
@@ -202,6 +203,25 @@ func (am *AccountManager) storeAccount(addr string, ksr *KeyStoreRaw, password s
 
 	err = am.store.Put([]byte(addr), ct)
 	return err
+}
+
+func (am *AccountManager) getFirstMinerAccount(password string) *Account {
+	iter := am.store.NewIterator()
+	for iter.Next() {
+		addr := string(iter.Key())
+		if v, ok := am.accounts.Load(addr); ok {
+			aci := v.(*AccountInfo)
+			if passwordHash(password) == aci.Password && aci.Miner != nil {
+				return &aci.Account
+			}
+		} else {
+			acc, err := am.loadAccount(addr, password)
+			if err == nil && acc.Miner != nil {
+				return acc
+			}
+		}
+	}
+	return nil
 }
 
 func (am *AccountManager) checkMinerAccount(addr string, password string) (*AccountInfo, error) {
@@ -396,4 +416,14 @@ func (am *AccountManager) NewAccountByImportKey(key string, password string, min
 	am.accounts.Store(account.Address, aci)
 
 	return opSuccess(account.Address)
+}
+
+// ExportKey exports the private key of account
+func (am *AccountManager) ExportKey(addr string) *Result {
+	acc, err := am.getAccountInfo(addr)
+	if err != nil {
+		return opError(err)
+	}
+	sk := common.HexToSecKey(acc.Sk)
+	return opSuccess(common.ToHex(sk.ExportKey()))
 }

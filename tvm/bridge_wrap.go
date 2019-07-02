@@ -111,19 +111,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
-
-type CallTask struct {
-	Sender       *common.Address
-	ContractAddr *common.Address
-	FuncName     string
-	Params       string
-}
 
 type ExecuteResult struct {
 	ResultType int
@@ -143,15 +137,15 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = fmt.Sprint(types.NoCodeErrorMsg, conAddr)
 		return result
 	}
-	oneVM := &TVM{contract, controller.VM.ContractAddress, nil}
 
 	// prepare vm environment
-	controller.VM.createContext()
+	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.LibPath)
+	oneVM.SetGas(controller.VM.Gas())
 	finished := controller.StoreVMContext(oneVM)
 	defer func() {
 		// recover vm environment
 		if finished {
-			controller.VM.removeContext()
+			controller.RecoverVMContext()
 		}
 	}()
 	if !finished {
@@ -161,8 +155,8 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		return result
 	}
 
-	msg := Msg{Data: []byte{}, Value: 0, Sender: conAddr.Hex()}
-	_, err := controller.VM.CreateContractInstance(msg)
+	msg := Msg{Data: []byte{}, Value: 0}
+	_, executeResult, err := controller.VM.CreateContractInstance(msg)
 	if err != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
 		result.ErrorCode = types.TVMExecutedError
@@ -179,14 +173,22 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = types.ABIJSONErrorMsg
 		return result
 	}
-	err = controller.VM.checkABI(abi)
-	if err != nil {
+
+	if !controller.VM.VerifyABI(executeResult.Abi, abi){
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
 		result.ErrorCode = types.SysCheckABIError
+		result.Content = fmt.Errorf("checkABI failed. abi:%s",abi.FuncName).Error()
+		return result
+	}
+	result = controller.VM.executeABIKindEval(abi)
+	err = controller.VM.storeData()
+	if err != nil {
+		result.ResultType = C.RETURN_TYPE_EXCEPTION
+		result.ErrorCode = types.TVMExecutedError
 		result.Content = err.Error()
 		return result
 	}
-	return controller.VM.executeABIKindEval(abi)
+	return result
 }
 
 func bridgeInit() {
@@ -234,19 +236,24 @@ type TVM struct {
 
 // NewTVM new a TVM instance
 func NewTVM(sender *common.Address, contract *Contract, libPath string) *TVM {
+	C.tvm_start()
+	return NewTVMForRetainContext(sender, contract, libPath)
+}
+
+func NewTVMForRetainContext(sender *common.Address, contract *Contract, libPath string) *TVM {
 	tvm := &TVM{
 		contract,
 		sender,
 		nil,
 	}
-	C.tvm_start()
 
 	if !HasLoadPyLibPath {
 		C.tvm_set_lib_path(C.CString(libPath))
 		HasLoadPyLibPath = true
+		bridgeInit()
 	}
 	C.tvm_set_gas(1000000)
-	bridgeInit()
+
 	return tvm
 }
 
@@ -272,33 +279,78 @@ func (tvm *TVM) DelTVM() {
 	C.tvm_gc()
 }
 
-func (tvm *TVM) checkABI(abi ABI) error {
-	script := pycodeCheckAbi(abi)
-	return tvm.ExecuteScriptVMSucceed(script)
+func (tvm *TVM) VerifyABI(standardABI string,callABI ABI) bool  {
+	var standardABIStruct []ABIVerify
+	err := json.Unmarshal([]byte(standardABI), &standardABIStruct)
+	if err != nil {
+		fmt.Println("abi unmarshal err:", err)
+		return false
+	}
+
+	var argsType []string
+	for i := 0; i < len(callABI.Args); i++ {
+
+		switch callABI.Args[i].(type) {
+		case float64:
+			argsType = append(argsType, "int")
+		case string:
+			argsType = append(argsType, "str")
+		case bool:
+			argsType = append(argsType, "bool")
+		case []interface{}:
+			argsType = append(argsType, "list")
+		case map[string]interface{}:
+			argsType = append(argsType, "dict")
+		default:
+			argsType = append(argsType, "unknow")
+		}
+	}
+
+	for _, value := range standardABIStruct{
+		if value.FuncName == callABI.FuncName {
+			if len(value.Args) == len(callABI.Args) {
+				if reflect.DeepEqual(value.Args,argsType){
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (tvm *TVM) ExportABI(contract *Contract) string {
+
+	str := tasExportABI()
+	err := tvm.ExecuteScriptVMSucceed(str)
+	if err != nil{
+		return ""
+	}
+	result := tvm.ExecuteScriptKindFile(contract.Code)
+	return result.Abi
 }
 
 // storeData flush data to db
 func (tvm *TVM) storeData() error {
 	script := pycodeStoreContractData()
-	return tvm.ExecuteScriptVMSucceed(script)
+	res := tvm.ExecuteScriptVMSucceed(script)
+	return res
 }
 
 // Msg Msg is msg instance which store running message when running a contract
 type Msg struct {
 	Data   []byte
 	Value  uint64
-	Sender string
 }
 
 // CreateContractInstance Create contract instance
-func (tvm *TVM) CreateContractInstance(msg Msg) (int, error) {
-	err := tvm.loadMsg(msg)
+func (tvm *TVM) CreateContractInstance(msg Msg) (int,*ExecuteResult ,error) {
+	err := tvm.loadMsgWhenCall(msg)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	script, codeLen := pycodeCreateContractInstance(tvm.Code, tvm.ContractName)
-	err = tvm.ExecuteScriptVMSucceed(script)
-	return codeLen, err
+	result, err := tvm.ExecuteScriptVMSucceedResults(script)
+	return codeLen, result, err
 }
 
 func (tvm *TVM) generateScript(res ABI) string {
@@ -349,6 +401,16 @@ func (tvm *TVM) ExecuteScriptVMSucceed(script string) error {
 	return nil
 }
 
+// ExecuteScriptVMSucceed Execute script and returns result
+func (tvm *TVM) ExecuteScriptVMSucceedResults(script string) (result *ExecuteResult, err error) {
+	result = tvm.executePycode(script, C.PARSE_KIND_FILE)
+	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
+		fmt.Printf("execute error,code=%d,msg=%s \n", result.ErrorCode, result.Content)
+		return result, errors.New(result.Content)
+	}
+	return result, nil
+}
+
 func (tvm *TVM) executeScriptKindEval(script string) *ExecuteResult {
 	return tvm.executePycode(script, C.PARSE_KIND_EVAL)
 }
@@ -386,7 +448,12 @@ func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *Execut
 }
 
 func (tvm *TVM) loadMsg(msg Msg) error {
-	script := pycodeLoadMsg(msg.Sender, msg.Value, tvm.ContractAddress.Hex())
+	script := pycodeLoad(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
+	return tvm.ExecuteScriptVMSucceed(script)
+}
+
+func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
+	script := pycodeLoadWhenCall(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
@@ -414,6 +481,13 @@ func (tvm *TVM) removeContext() {
 type ABI struct {
 	FuncName string
 	Args     []interface{}
+}
+
+// ABIVerify stores the contract function name and args types,
+// in order to facilitate the abi verify
+type ABIVerify struct {
+	FuncName string
+	Args     []string
 }
 
 func (tvm *TVM) jsonValueToBuf(buf *bytes.Buffer, value interface{}) {

@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"math/big"
 	"math/rand"
 	"os"
 	"testing"
@@ -28,6 +29,7 @@ func init() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
+			rewardManager:   newRewardManager(),
 		},
 	}
 	options := &opt.Options{
@@ -85,7 +87,7 @@ func TestTVMExecutor_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stateHash, evts, executed, receptes, _,err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
+	stateHash, evts, executed, receptes, _, err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
 	if err != nil {
 		t.Fatalf("execute error :%v", err)
 	}
@@ -136,4 +138,25 @@ func TestReadWriteFile(t *testing.T) {
 
 	}
 	t.Log(time.Since(begin).String(), cost.String())
+}
+
+func Test_validGasPrice(t *testing.T) {
+	if validGasPrice(big.NewInt(1), 1) {
+		t.Errorf("validGasPrice error, wanned false, got true!")
+	}
+	if validGasPrice(big.NewInt(1), 100000000) {
+		t.Errorf("validGasPrice error, wanned false, got true!")
+	}
+	if !validGasPrice(big.NewInt(200), 1) {
+		t.Errorf("validGasPrice error, wanned true, got false!")
+	}
+	if validGasPrice(big.NewInt(399), 30000000) {
+		t.Errorf("validGasPrice error, wanned false, got true!")
+	}
+	if !validGasPrice(big.NewInt(400), 30000000) {
+		t.Errorf("validGasPrice error, wanned true, got false!")
+	}
+	if !validGasPrice(big.NewInt(800), 60000000) {
+		t.Errorf("validGasPrice error, wanned true, got false!")
+	}
 }

@@ -485,7 +485,7 @@ func genMinerApplyCmd() *minerApplyCmd {
 		gasBaseCmd: *genGasBaseCmd("minerapply", "apply to be a miner"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.stake, "stake", 100, "freeze stake of tas, default 100TAS")
+	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of tas, default 500TAS")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
 	return c
 }
@@ -701,6 +701,35 @@ func (c *importKeyCmd) parse(args []string) bool {
 	return true
 }
 
+type exportKeyCmd struct {
+	baseCmd
+	addr string
+}
+
+func genExportKeyCmd() *exportKeyCmd {
+	c := &exportKeyCmd{
+		baseCmd: *genBaseCmd("exportkey", "export private key"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "address of the account")
+	return c
+}
+
+func (c *exportKeyCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if c.addr == "" {
+		output("please input the account address")
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return true
+}
+
 var cmdNewAccount = genNewAccountCmd()
 var cmdExit = genBaseCmd("exit", "quit  gtas")
 var cmdHelp = genBaseCmd("help", "show help info")
@@ -726,6 +755,7 @@ var cmdMinerCancelStake = genMinerCancelStakeCmd()
 var cmdViewContract = genViewContractCmd()
 
 var cmdImportKey = genImportKeyCmd()
+var cmdExportKey = genExportKeyCmd()
 
 var list = make([]*baseCmd, 0)
 
@@ -752,6 +782,7 @@ func init() {
 	list = append(list, &cmdMinerCancelStake.baseCmd)
 	list = append(list, &cmdMinerStake.baseCmd)
 	list = append(list, &cmdImportKey.baseCmd)
+	list = append(list, &cmdExportKey.baseCmd)
 	list = append(list, cmdExit)
 }
 
@@ -1012,6 +1043,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return acm.NewAccountByImportKey(cmd.key, cmd.password, cmd.miner)
+				})
+			}
+		case cmdExportKey.name:
+			cmd := genExportKeyCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return acm.ExportKey(cmd.addr)
 				})
 			}
 		default:

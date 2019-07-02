@@ -48,7 +48,7 @@ func _deployContract(contractName string, filePath string) string {
 	return contractAddress
 }
 
-func TestTvmCallContract(t *testing.T) {
+func TestTvmCli_Call(t *testing.T) {
 	contractAddress := _deployContract("Token", "erc20.py")
 
 	tvmCli := NewTvmCli()
@@ -60,7 +60,15 @@ func TestTvmCallContract(t *testing.T) {
 	tvmCli.DeleteTvmCli()
 }
 
-func TestTvmContractCallContract(t *testing.T) {
+func TestTvmCli_QueryData(t *testing.T) {
+	erc20Contract := _deployContract("Token", "erc20.py")
+
+	tvmCli := NewTvmCli()
+	tvmCli.QueryData(erc20Contract, "name", 0)
+	tvmCli.DeleteTvmCli()
+}
+
+func TestTvmCli_Call_ContractCallContract(t *testing.T) {
 	erc20Contract := _deployContract("Token", "erc20.py")
 	routerContract := _deployContract("Router", "router.py")
 
@@ -72,3 +80,34 @@ func TestTvmContractCallContract(t *testing.T) {
 	tvmCli.Call(routerContract, abiJson)
 	tvmCli.DeleteTvmCli()
 }
+
+func TestTvmCli_Call_ContractCallContract_2(t *testing.T) {
+	receiverContract := _deployContract("Receiver", "receiver.py")
+	routerContract := _deployContract("Router", "router.py")
+
+	tvmCli := NewTvmCli()
+	abiJson := fmt.Sprintf(`{
+  "FuncName": "call_contract",
+  "Args": ["%s","private_set_name","test"]
+}`, receiverContract)
+	tvmCli.Call(routerContract, abiJson)
+	tvmCli.DeleteTvmCli()
+}
+
+func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
+	receiverContract := _deployContract("Receiver", "receiver.py")
+	routerContract := _deployContract("Router", "router.py")
+
+	tvmCli := NewTvmCli()
+	abiJson := fmt.Sprintf(`{
+  "FuncName": "call_contract",
+  "Args": ["%s","set_name","test"]
+}`, receiverContract)
+	tvmCli.Call(routerContract, abiJson)
+	
+	tvmCli.QueryData(routerContract, "name", 0)
+	tvmCli.QueryData(receiverContract, "name", 0)
+
+	tvmCli.DeleteTvmCli()
+}
+

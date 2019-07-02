@@ -21,6 +21,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/account"
@@ -177,7 +178,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	//fmt.Println(contract.Code)
 	sender := common.HexToAddress(DefaultAccounts[0])
 	controller.VM.SetGas(500000)
-	executeResult := controller.ExecuteAbiEval(&sender, contract, abiJSON)
+	executeResult, _, _, _ := controller.ExecuteAbiEval(&sender, contract, abiJSON)
 	fmt.Println("gas: ", 500000-controller.VM.Gas())
 
 	if executeResult == nil {
@@ -246,4 +247,33 @@ builtins.register = Register()
 		fmt.Println(err)
 	}
 
+}
+
+func (t *TvmCli) QueryData(address string, key string, count int) {
+	stateHash := t.settings.GetString("root", "StateHash", "")
+	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
+
+	hexAddr := common.HexToAddress(address)
+	if count == 0 {
+		value := state.GetData(hexAddr, key)
+		if value != nil {
+			fmt.Println("key:", key, "value:", string(value))
+		}
+	} else {
+		iter := state.DataIterator(hexAddr, key)
+		if iter != nil {
+			for iter.Next() {
+				k := string(iter.Key[:])
+				if !strings.HasPrefix(k, key) {
+					continue
+				}
+				v := string(iter.Value[:])
+				fmt.Println("key:", k, "value:", v)
+				count--
+				if count <= 0 {
+					break
+				}
+			}
+		}
+	}
 }

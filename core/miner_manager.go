@@ -84,7 +84,6 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 	}
 
 	MinerManagerImpl.ticker.RegisterPeriodicRoutine("build_virtual_net", MinerManagerImpl.buildVirtualNetRoutine, heavyMinerNetTriggerInterval)
-	MinerManagerImpl.ticker.StartTickerRoutine("build_virtual_net", false)
 }
 
 func (mm *MinerManager) GetMinerByID(id []byte, ttype byte, accountdb vm.AccountDB) *types.Miner {
