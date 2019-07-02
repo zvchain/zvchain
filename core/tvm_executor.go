@@ -67,12 +67,7 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 		}
 
 		if pack && totalGasUsed >= GasLimitForPackage {
-			Logger.Debug("exceeds the block gas limit GasLimitForPackage ")
-			break
-		}
-
-		if totalGasUsed >= GasLimitPerBlock {
-			Logger.Debug("enough gas for packing a block")
+			Logger.Infof("exceeds the block gas limit GasLimitForPackage ")
 			break
 		}
 
@@ -135,12 +130,18 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				totalGasUsed += cumulativeGasUsed
 				if totalGasUsed > GasLimitPerBlock {
 					accountdb.RevertToSnapshot(snapshot)
+					Logger.Infof("RevertToSnapshot happens: totalGasUsed is %d ,cumulativeGasUsed is %d", totalGasUsed, cumulativeGasUsed)
+					break
 				}
 
 			} else {
 				cumulativeGasUsed = intriGas.Uint64()
 				executeError = types.TxErrorBalanceNotEnoughErr
 				totalGasUsed += cumulativeGasUsed
+				if totalGasUsed > GasLimitPerBlock {
+					Logger.Infof("totalGasUsed is %d ,cumulativeGasUsed is %d", totalGasUsed, cumulativeGasUsed)
+					break
+				}
 			}
 			fee := big.NewInt(0)
 			fee = fee.Mul(fee.SetUint64(cumulativeGasUsed), transaction.GasPrice.Value())
@@ -239,7 +240,7 @@ func (executor *TVMExecutor) executeContractCreateTx(accountdb *account.AccountD
 	allUsed := new(big.Int).Sub(gasLimit.Value(), gasLeft)
 	cumulativeGasUsed = allUsed.Uint64()
 
-	Logger.Debugf("TVMExecutor Execute ContractCreate Transaction %s,success:%t", transaction.Hash.Hex())
+	Logger.Debugf("TVMExecutor Execute ContractCreate Transaction %s", transaction.Hash.Hex())
 	return txErr, contractAddress, cumulativeGasUsed
 }
 
