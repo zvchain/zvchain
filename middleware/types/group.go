@@ -22,48 +22,75 @@ type SeedI interface {
 	Seed() common.Hash
 }
 
-// EncryptedSenderPiece
-type EncryptedSenderPiece interface {
+// Piece明文数据包接口
+type SenderPiece interface {
 	Receiver() []byte  // piece的接收者
-	PieceData() []byte // Piece加密后的数据
+	PieceData() []byte // Piece明文
+}
+type SenderPiecePacket interface {
+	SeedI
+	Sender() []byte              //发送者
+	Pieces() []OriginSenderPiece //发送者对组内每个人的明文分片
+}
+
+// EncryptedSenderPiece is the encrypted piece data from sender during the group-create routine
+type EncryptedSenderPiece interface {
+	SenderPiece
 }
 type EncryptedSenderPiecePacket interface {
-	SeedI
-	Sender() []byte                 //发送者
-	Pieces() []EncryptedSenderPiece //发送者对组内每个人的加密分片
+	SenderPiecePacket
+	Pubkey() []byte
 }
+
 type EncryptedReceiverPiece interface {
-	Sender() []byte    // piece的接收者
+	Sender() []byte    // piece的发送者
 	PieceData() []byte // Piece加密后的数据
+	Pubkey() []byte
 }
 
 // Piece明文数据包接口
 type OriginSenderPiece interface {
-	Receiver() []byte  // piece的接收者
-	PieceData() []byte // Piece明文
+	SenderPiece
 }
 type OriginSenderPiecePacket interface {
-	SeedI
-	Sender() []byte              //发送者
-	Pieces() []OriginSenderPiece //发送者对组内每个人的明文分片
+	SenderPiecePacket
 }
 
 // Mpk数据包接口
 type MpkPacket interface {
 	SeedI
 	Sender() []byte //发送者
-	Pk() []byte     // 聚合出来的签名公钥
+	Mpk() []byte    // 聚合出来的签名公钥
 	Sign() []byte   // 用签名公钥对seed进行签名
 }
 
 // 建组数据接口
 type FullPacket interface {
 	Mpks() []MpkPacket
-	Pieces() map[Address][]EncryptedPiece
+	Pieces() []EncryptedSenderPiecePacket
+}
+
+type MemberI interface {
+	ID() []byte
+	PK() []byte
 }
 
 // 组信息接口
-type GroupInfo interface {
+type GroupI interface {
+	Header() GroupHeaderI
+	Members() []MemberI
+}
+
+// 组头部信息接口
+type GroupHeaderI interface {
+	SeedI
+	Hash() common.Hash
+	Height() uint64
+	MemRoot() common.Hash
+	WorkHeight() uint64
+	DismissHeight() uint64
+	Extends() string
+	PublicKey() []byte
 }
 
 // 惩罚消息接口
@@ -73,25 +100,29 @@ type PunishmentMsg interface {
 	Value() uint64           //罚款金额
 }
 
+type CheckerContext interface {
+	Height() uint64
+}
+
 // 链在执行相关交易时调用共识校验接口
 type GroupCreateChecker interface {
 
 	// 校验一个piece交易是否合法，如果合法，则返回该加密后的piece数据
 	// 链需要把piece数据存储到db
-	CheckEncryptedPiecePacket(packet EncryptedSenderPiecePacket) error
+	CheckEncryptedPiecePacket(packet EncryptedSenderPiecePacket, ctx CheckerContext) error
 
 	// 校验一个mpk交易是否合法，如果合法，则返回mpk数据
-	CheckMpkPacket(packet MpkPacket) error
+	CheckMpkPacket(packet MpkPacket, ctx CheckerContext) error
 
 	// 校验建组是否成功
 	// 若建组成功，则返回数据
-	CheckGroupCreateResult(height uint64) (resultCode int, data interface{}, err error)
+	CheckGroupCreateResult(ctx CheckerContext) (resultCode int, data interface{}, err error)
 
 	// 检查origin piece
-	CheckOriginPiecePacket(packet OriginSenderPiecePacket) error
+	CheckOriginPiecePacket(packet OriginSenderPiecePacket, ctx CheckerContext) error
 
 	// 检查惩罚
-	CheckGroupCreatePunishment(height uint64) (PunishmentMsg, error)
+	CheckGroupCreatePunishment(ctx CheckerContext) (PunishmentMsg, error)
 }
 
 // 建组数据读取接口
@@ -112,7 +143,7 @@ type GroupStoreReader interface {
 	IsOriginPieceRequired(seed SeedI) bool
 
 	// 获取所有明文分片
-	GetAllOriginPiecePackets(seed SeedI) ([]OriginSendPiecePacket, error)
+	GetAllOriginPiecePackets(seed SeedI) ([]OriginSenderPiecePacket, error)
 }
 
 // 负责建组相关消息转换成交易发送，共识不关注交易类型，只关注数据
