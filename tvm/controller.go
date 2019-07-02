@@ -141,8 +141,9 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 			return false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
+
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
-	libLen,result, err := con.VM.CreateContractInstance(msg)
+	libLen, result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
@@ -153,7 +154,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 		return false, nil, types.TxErrorABIJSONErr
 	}
 
-	if !con.VM.VerifyABI(result.Abi, abi){
+	if !con.VM.VerifyABI(result.Abi, abi) {
 		return false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
 			checkABI failed. abi:%s
 		`, abi.FuncName))
@@ -198,7 +199,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		return nil, false, nil, types.TxErrorABIJSONErr
 	}
 
-	if !con.VM.VerifyABI(executeResult.Abi, abi){
+	if !con.VM.VerifyABI(executeResult.Abi, abi) {
 		return nil, false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
 			checkABI failed. abi:%s
 		`, abi.FuncName))
