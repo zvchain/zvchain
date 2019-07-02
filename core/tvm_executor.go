@@ -28,12 +28,17 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 )
 
-const TransactionGasCost uint64 = 1000
+const TransactionGasCost uint64 = 400
 const CodeBytePrice = 0.3814697265625
-const MaxCastBlockTime = time.Second * 3
+const MaxCastBlockTime = time.Millisecond * 2000
 const adjustGasPricePeriod = 30000000
 const adjustGasPriceTimes = 3
-const initialMinGasPrice = 200
+const initialMinGasPrice = 500
+
+var (
+	ProposerPackageTime = MaxCastBlockTime
+	GasLimitForPackage  = uint64(GasLimitPerBlock)
+)
 
 type TVMExecutor struct {
 	bc BlockChain
@@ -54,11 +59,23 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager()
 	var castorTotalRewards uint64
+	totalGasUsed := uint64(0)
 	for _, transaction := range txs {
 		if pack && time.Since(beginTime).Seconds() > float64(MaxCastBlockTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", transaction.Hash.Hex())
 			break
 		}
+
+		if pack && totalGasUsed >= GasLimitForPackage {
+			Logger.Debug("exceeds the block gas limit GasLimitForPackage ")
+			break
+		}
+
+		if totalGasUsed >= GasLimitPerBlock {
+			Logger.Debug("enough gas for packing a block")
+			break
+		}
+
 		var (
 			contractAddress   common.Address
 			logs              []*types.Log
@@ -94,6 +111,8 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				continue
 			}
 			if canTransfer(accountdb, *transaction.Source, transaction.Value.Value(), gasLimitFee) {
+				snapshot := accountdb.Snapshot()
+
 				switch transaction.Type {
 				case types.TransactionTypeTransfer:
 					cumulativeGasUsed = executor.executeTransferTx(accountdb, transaction, castor, gasUsed)
@@ -112,9 +131,16 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 				case types.TransactionTypeMinerStake:
 					_, executeError, cumulativeGasUsed = executor.executeMinerStakeTx(accountdb, transaction, bh.Height, castor, gasUsed)
 				}
+
+				totalGasUsed += cumulativeGasUsed
+				if totalGasUsed > GasLimitPerBlock {
+					accountdb.RevertToSnapshot(snapshot)
+				}
+
 			} else {
 				cumulativeGasUsed = intriGas.Uint64()
 				executeError = types.TxErrorBalanceNotEnoughErr
+				totalGasUsed += cumulativeGasUsed
 			}
 			fee := big.NewInt(0)
 			fee = fee.Mul(fee.SetUint64(cumulativeGasUsed), transaction.GasPrice.Value())

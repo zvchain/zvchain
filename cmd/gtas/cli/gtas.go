@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
@@ -307,6 +308,18 @@ func (gtas *Gtas) fullInit() error {
 
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
 	fmt.Println("Your Miner Address:", gtas.account.Address)
+
+	//set the time for proposer package
+	timeForPackage := common.GlobalConf.GetInt(Section, "time_for_package", 2000)
+	if timeForPackage > 100 && timeForPackage < 2000 {
+		core.ProposerPackageTime = time.Duration(timeForPackage) * time.Microsecond
+	}
+
+	//set the block gas limit for proposer package
+	gasLimitForPackage := common.GlobalConf.GetInt(Section, "gas_limit_for_package", core.GasLimitPerBlock)
+	if gasLimitForPackage > 10000 && gasLimitForPackage < core.GasLimitPerBlock {
+		core.GasLimitForPackage = uint64(gasLimitForPackage)
+	}
 
 	sk := common.HexToSecKey(gtas.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
