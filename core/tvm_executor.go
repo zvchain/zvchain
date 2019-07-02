@@ -154,12 +154,14 @@ func (executor *TVMExecutor) Execute(accountdb *account.AccountDB, bh *types.Blo
 	}
 	//ts.AddStat("executeLoop", time.Since(b))
 	castorTotalRewards += rm.CalculateGasFeeCastorRewards(gasFee)
-	if rm.reduceBlockRewards(bh.Height, accountdb) {
-		castorTotalRewards += rm.CalculateCastorRewards(bh.Height)
-		accountdb.AddBalance(common.HexToAddress(daemonNodeAddress),
-			big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
-		accountdb.AddBalance(common.HexToAddress(userNodeAddress),
-			big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
+	castorTotalRewards += rm.CalculateCastorRewards(bh.Height)
+	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
+	if deamonNodeRewards != 0 {
+		accountdb.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
+	}
+	userNodesRewards := rm.userNodesRewards(bh.Height)
+	if userNodesRewards != 0 {
+		accountdb.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 	accountdb.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
