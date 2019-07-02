@@ -39,13 +39,20 @@ func Transfer(toAddressStr *C.char, value *C.char) {
 		return
 	}
 	contractAddr := controller.VM.ContractAddress
-	contractValue := controller.AccountDB.GetBalance(*contractAddr)
-	if contractValue.Cmp(transValue) < 0 {
+	toAddress := common.HexToAddress(C.GoString(toAddressStr))
+
+	if !canTransfer(controller.AccountDB,*contractAddr,transValue) {
 		return
 	}
-	toAddress := common.HexToAddress(C.GoString(toAddressStr))
-	controller.AccountDB.AddBalance(toAddress, transValue)
-	controller.AccountDB.SubBalance(*contractAddr, transValue)
+	transfer(controller.AccountDB,*contractAddr,toAddress,transValue)
+
+
+	//if contractValue.Cmp(transValue) < 0 {
+	//	return
+	//}
+	//toAddress := common.HexToAddress(C.GoString(toAddressStr))
+	//controller.AccountDB.AddBalance(toAddress, transValue)
+	//controller.AccountDB.SubBalance(*contractAddr, transValue)
 }
 
 //export GetBalance
