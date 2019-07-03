@@ -34,6 +34,8 @@ func (con *Controller) StoreVMContext(newTvm *TVM) bool {
 
 // RecoverVMContext Recover VM Context
 func (con *Controller) RecoverVMContext() {
+	logs := con.VM.Logs
 	con.VM = con.VMStack[len(con.VMStack)-1]
+	con.VM.Logs = logs
 	con.VMStack = con.VMStack[:len(con.VMStack)-1]
 }
