@@ -259,9 +259,7 @@ func (pool *txPool) add(tx *types.Transaction) (err error) {
 	if tx.Type == types.TransactionTypeReward {
 		pool.bonPool.add(tx)
 	} else {
-		if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) > 0 {
-			err = pool.received.push(tx)
-		}
+		err = pool.received.push(tx)
 	}
 	return err
 }
