@@ -90,6 +90,11 @@ const (
 	TransactionTypeStakeReduce = 6
 	TransactionTypeStakeRefund = 7
 
+	// Group operation related type
+	TransactionTypeGroupPiece       = 9  //group member upload his encrypted share piece
+	TransactionTypeGroupMpk         = 10 //group member upload his mpk
+	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
+
 	TransactionTypeToBeRemoved = -1
 )
 

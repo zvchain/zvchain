@@ -90,6 +90,10 @@ func dirExists(dir string) bool {
 	return f.IsDir()
 }
 
+func (a *Account)MinerSk() string  {
+	return a.Sk
+}
+
 func newAccountOp(ks string) (*AccountManager, error) {
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        10,

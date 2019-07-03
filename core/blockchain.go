@@ -105,6 +105,7 @@ type FullBlockChain struct {
 
 	ticker *ticker.GlobalTicker // Ticker is a global time ticker
 	ts     time2.TimeService
+	Account
 }
 
 func getBlockChainConfig() *BlockChainConfig {
@@ -123,7 +124,7 @@ func getBlockChainConfig() *BlockChainConfig {
 	}
 }
 
-func initBlockChain(helper types.ConsensusHelper) error {
+func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
 	instance := common.GlobalConf.GetString("instance", "index", "")
 	Logger = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
 	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, instance)
@@ -138,6 +139,7 @@ func initBlockChain(helper types.ConsensusHelper) error {
 		futureBlocks:    common.MustNewLRUCache(10),
 		verifiedBlocks:  common.MustNewLRUCache(10),
 		topBlocks:       common.MustNewLRUCache(20),
+		Account:		 minerAccount,
 	}
 
 	types.DefaultPVFunc = helper.VRFProve2Value
@@ -359,4 +361,9 @@ func (chain *FullBlockChain) getLatestBlock() *types.BlockHeader {
 // Version of chain Id
 func (chain *FullBlockChain) Version() int {
 	return common.ChainDataVersion
+}
+
+// Version of chain Id
+func (chain *FullBlockChain) AddTransactionToPool(tx *types.Transaction) (bool, error) {
+	return chain.GetTransactionPool().AddTransaction(tx)
 }
