@@ -34,12 +34,10 @@ const (
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
 
-	txMaxSize = 64000
-	// Maximum size per transaction
+	txMaxSize              = 64000   // Maximum size per transaction
+	gasLimitPerTransaction = 500000  // the max gas limit for a transaction
+	GasLimitPerBlock       = 2000000 // the max gas limit for a block
 )
-
-// gasLimitMax expresses the max gasLimit of a transaction
-var gasLimitMax = new(types.BigInt).SetUint64(500000)
 
 var (
 	ErrNil      = errors.New("nil transaction")
@@ -214,7 +212,7 @@ func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
 		if err := tx.BoundCheck(); err != nil {
 			return err
 		}
-		if tx.GasLimit.Cmp(gasLimitMax) > 0 {
+		if tx.GasLimit.Cmp(new(types.BigInt).SetUint64(gasLimitPerTransaction)) > 0 {
 			return fmt.Errorf("gasLimit too  big! max gas limit is 500000 Ra")
 		}
 

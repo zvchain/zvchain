@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
@@ -45,7 +46,6 @@ import (
 )
 
 const (
-
 	// Section is default section configuration
 	Section = "gtas"
 	// ini configuration file instance section
@@ -308,6 +308,20 @@ func (gtas *Gtas) fullInit() error {
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
 	fmt.Println("Your Miner Address:", gtas.account.Address)
 
+	//set the time for proposer package
+	timeForPackage := common.GlobalConf.GetInt(Section, "time_for_package", 2000)
+	if timeForPackage > 100 && timeForPackage < 2000 {
+		core.ProposerPackageTime = time.Duration(timeForPackage) * time.Millisecond
+		common.DefaultLogger.Infof("proposer uses the package config: timeForPackage %d ", timeForPackage)
+	}
+
+	//set the block gas limit for proposer package
+	gasLimitForPackage := common.GlobalConf.GetInt(Section, "gas_limit_for_package", core.GasLimitPerBlock)
+	if gasLimitForPackage > 10000 && gasLimitForPackage < core.GasLimitPerBlock {
+		core.GasLimitForPackage = uint64(gasLimitForPackage)
+		common.DefaultLogger.Infof("proposer uses the package config: gasLimitForPackage %d ", gasLimitForPackage)
+	}
+
 	sk := common.HexToSecKey(gtas.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
 	if err != nil {
@@ -396,7 +410,7 @@ func (gtas *Gtas) autoApplyMiner(mtype int) {
 
 	nonce := core.BlockChainImpl.GetNonce(miner.ID.ToAddress()) + 1
 	api := &RpcDevImpl{}
-	ret, err := api.TxUnSafe(gtas.account.Sk, "", 0, 20000, 200, nonce, types.TransactionTypeMinerApply, common.ToHex(data))
+	ret, err := api.TxUnSafe(gtas.account.Sk, "", 0, 20000, 500, nonce, types.TransactionTypeMinerApply, common.ToHex(data))
 	common.DefaultLogger.Debugf("apply result", ret, err)
 
 }
