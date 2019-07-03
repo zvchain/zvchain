@@ -485,7 +485,7 @@ func genMinerApplyCmd() *minerApplyCmd {
 		gasBaseCmd: *genGasBaseCmd("minerapply", "apply to be a miner"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.stake, "stake", 100, "freeze stake of tas, default 100TAS")
+	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of tas, default 500TAS")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
 	return c
 }
