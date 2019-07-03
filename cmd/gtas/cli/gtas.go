@@ -326,7 +326,7 @@ func (gtas *Gtas) fullInit() error {
 		SeedAddr:        cfg.seedIP,
 		NodeIDHex:       id,
 		ChainID:         cfg.chainID,
-		ProtocolVersion: common.ProtocalVersion,
+		ProtocolVersion: common.ProtocolVersion,
 		SeedIDs:         core.GroupChainImpl.GenesisMembers(),
 		PK:              gtas.account.Pk,
 		SK:              gtas.account.Sk,

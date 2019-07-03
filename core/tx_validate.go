@@ -135,6 +135,13 @@ func transferValidator(tx *types.Transaction) error {
 	return valueValidate(tx)
 }
 
+func minerTypeCheck(mt types.MinerType) error {
+	if !types.IsProposalRole(mt) && !types.IsVerifyRole(mt) {
+		return fmt.Errorf("unknown miner type %v", mt)
+	}
+	return nil
+}
+
 func stakeAddValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
@@ -142,12 +149,22 @@ func stakeAddValidator(tx *types.Transaction) error {
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
 	}
+	pks, err := types.DecodePayload(tx.Data)
+	if err != nil {
+		return err
+	}
+	if err := minerTypeCheck(pks.MType); err != nil {
+		return err
+	}
 	return valueValidate(tx)
 }
 
 func minerAbortValidator(tx *types.Transaction) error {
 	if len(tx.Data) != 1 {
 		return fmt.Errorf("data length should be 1")
+	}
+	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
+		return err
 	}
 	return nil
 }
@@ -159,6 +176,9 @@ func stakeReduceValidator(tx *types.Transaction) error {
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
 	}
+	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
+		return err
+	}
 	return valueValidate(tx)
 }
 
@@ -168,6 +188,9 @@ func stakeRefundValidator(tx *types.Transaction) error {
 	}
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
+	}
+	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
+		return err
 	}
 	return nil
 }

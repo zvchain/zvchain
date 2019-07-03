@@ -392,7 +392,7 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 
 	// A dividend transaction has been sent, no longer signed for this
 	if slot.IsRewardSent() {
-		err = fmt.Errorf("alreayd sent reward trans")
+		err = fmt.Errorf("already sent reward trans")
 		return
 	}
 

@@ -47,6 +47,7 @@ var (
 type stateTransition interface {
 	ParseTransaction() error // Parse the input transaction
 	Transition() *result     // Do the transition
+	GasUsed() *big.Int       // Total gas use during the transition
 }
 
 func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
@@ -57,6 +58,7 @@ func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockH
 	} else {
 		base.source = *tx.Source
 		base.intrinsicGasUsed = intrinsicGas(tx)
+		base.gasUsed = base.intrinsicGasUsed
 		switch tx.Type {
 		case types.TransactionTypeTransfer:
 			return &txTransfer{transitionContext: base}
@@ -80,14 +82,19 @@ type transitionContext struct {
 	source    common.Address
 
 	intrinsicGasUsed *big.Int
+	gasUsed          *big.Int
+}
+
+func (tc *transitionContext) GasUsed() *big.Int {
+	return tc.gasUsed
 }
 
 type result struct {
-	cumulativeGas    *big.Int
-	transitionStatus types.ReceiptStatus
-	err              error
-	logs             []*types.Log   // Generated when calls contract
-	contractAddress  common.Address // Generated when creates contract
+	cumulativeGasUsed *big.Int
+	transitionStatus  types.ReceiptStatus
+	err               error
+	logs              []*types.Log   // Generated when calls contract
+	contractAddress   common.Address // Generated when creates contract
 }
 
 func newResult() *result {
@@ -135,7 +142,9 @@ func (op *unSupported) ParseTransaction() error {
 func (op *unSupported) Validate() error {
 	return fmt.Errorf("unSupported tx type %v", op.typ)
 }
-
+func (op *unSupported) GasUsed() *big.Int {
+	return &big.Int{}
+}
 func (op *unSupported) Transition() *result {
 	return nil
 }
@@ -159,7 +168,6 @@ func (ss *txTransfer) Transition() *result {
 	} else {
 		ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
 	}
-	ret.cumulativeGas = ss.intrinsicGasUsed
 	return ret
 }
 
@@ -180,7 +188,6 @@ func (ss *minerStakeOperator) Transition() *result {
 	if err != nil {
 		ret.setError(err, types.RSFail)
 	}
-	ret.cumulativeGas = ss.intrinsicGasUsed
 	return ret
 }
 
@@ -209,7 +216,7 @@ func (ss *contractCreator) Transition() *result {
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
 	allUsed := new(big.Int).Sub(ss.tx.GasLimit.Value(), gasLeft)
-	ret.cumulativeGas = allUsed
+	ss.gasUsed = allUsed
 	ret.contractAddress = contractAddress
 	return ret
 }
@@ -247,7 +254,7 @@ func (ss *contractCaller) Transition() *result {
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
 	allUsed := new(big.Int).Sub(tx.GasLimit.Value(), gasLeft)
-	ret.cumulativeGas = allUsed
+	ss.gasUsed = allUsed
 
 	return ret
 }
@@ -302,7 +309,6 @@ func (ss *rewardExecutor) Transition() *result {
 	for _, addr := range ss.targets {
 		ss.accountDB.AddBalance(addr, ss.reward)
 	}
-	ret.cumulativeGas = new(big.Int)
 
 	// Add the balance of proposer with pack fee for packing the reward tx
 	ss.accountDB.AddBalance(ss.proposal, ss.packFee)
@@ -325,6 +331,7 @@ func NewTVMExecutor(bc BlockChain) *TVMExecutor {
 func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
 	var (
 		err error
+		ret *result
 	)
 
 	// Check state related condition on the non-reward tx type
@@ -337,32 +344,33 @@ func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *typ
 
 	ss := newStateTransition(accountDB, tx, bh)
 
-	if err = ss.ParseTransaction(); err != nil {
-		Logger.Errorf("state transition parse error:tx %v %v", tx.Hash.Hex(), err)
-		return nil, err
-	}
-
 	// pre consume the gas limit for the normal transaction types
 	if tx.Source != nil {
 		gasLimitFee := new(big.Int).Mul(tx.GasLimit.Value(), tx.GasPrice.Value())
 		accountDB.SubBalance(*tx.Source, gasLimitFee)
 	}
 
-	// Create the snapshot, and the stateDB will roll back to the the snapshot if error occurs
-	// during transaction process
-	snapshot := accountDB.Snapshot()
-	ret := ss.Transition()
-	if ret.err != nil {
-		// Revert any state changes when error occurs
-		accountDB.RevertToSnapshot(snapshot)
-		Logger.Errorf("state transition error:tx %v, err:%v", tx.Hash.Hex(), ret.err)
+	// Shouldn't return when ParseTransaction error for ddos risk concern
+	if err = ss.ParseTransaction(); err != nil {
+		Logger.Errorf("state transition parse error:tx %v %v", tx.Hash.Hex(), err)
+	} else {
+		// Create the snapshot, and the stateDB will roll back to the the snapshot if error occurs
+		// during transaction process
+		snapshot := accountDB.Snapshot()
+		ret = ss.Transition()
+		if ret.err != nil {
+			// Revert any state changes when error occurs
+			accountDB.RevertToSnapshot(snapshot)
+			Logger.Errorf("state transition error:tx %v, err:%v", tx.Hash.Hex(), ret.err)
+		}
 	}
 
 	// refund the gas left
-	if tx.Source != nil && tx.GasLimit.Cmp(ret.cumulativeGas) > 0 {
-		refund := new(big.Int).Sub(tx.GasLimit.Value(), ret.cumulativeGas)
+	if tx.Source != nil && tx.GasLimit.Cmp(ss.GasUsed()) > 0 {
+		refund := new(big.Int).Sub(tx.GasLimit.Value(), ss.GasUsed())
 		accountDB.AddBalance(*tx.Source, refund.Mul(refund, tx.GasPrice.Value()))
 	}
+	ret.cumulativeGasUsed = ss.GasUsed()
 	return ret, nil
 }
 
@@ -391,7 +399,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		}
 
 		// Accumulate gas fee
-		fee := big.NewInt(0).Mul(ret.cumulativeGas, tx.GasPrice.Value())
+		fee := big.NewInt(0).Mul(ret.cumulativeGasUsed, tx.GasPrice.Value())
 		gasFee += fee.Uint64()
 
 		// Set nonce of the source
@@ -402,7 +410,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		// New receipt
 		idx := len(transactions)
 		transactions = append(transactions, tx)
-		receipt := types.NewReceipt(nil, ret.transitionStatus, ret.cumulativeGas.Uint64())
+		receipt := types.NewReceipt(nil, ret.transitionStatus, ret.cumulativeGasUsed.Uint64())
 		receipt.Logs = ret.logs
 		receipt.TxHash = tx.Hash
 		receipt.ContractAddress = ret.contractAddress

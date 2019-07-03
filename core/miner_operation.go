@@ -106,6 +106,14 @@ func (op *stakeAddOp) ParseTransaction() error {
 func (op *stakeAddOp) Operation() error {
 	var add = false
 
+	// Check balance
+	amount := new(big.Int).SetUint64(op.value)
+	if !canTransfer(op.accountDB, op.addSource, amount) {
+		return fmt.Errorf("balance not enough")
+	}
+	// Sub the balance of source account
+	op.accountDB.SubBalance(op.addSource, amount)
+
 	targetMiner, err := op.getMiner(op.addTarget)
 	if err != nil {
 		return err
@@ -175,13 +183,6 @@ func (op *stakeAddOp) Operation() error {
 	if err := op.setDetail(op.addTarget, detailKey, detail); err != nil {
 		return err
 	}
-
-	amount := new(big.Int).SetUint64(op.value)
-	if !canTransfer(op.accountDB, op.addSource, amount) {
-		return fmt.Errorf("balance not enough")
-	}
-	// Sub the balance of source account
-	op.accountDB.SubBalance(op.addSource, amount)
 
 	if add && MinerManagerImpl != nil {
 		// Inform added proposer address to minerManager

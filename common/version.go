@@ -35,4 +35,4 @@ const ConsensusVersion = 1
 
 const ChainDataVersion = 6
 
-const ProtocalVersion = 1
+const ProtocolVersion = 1

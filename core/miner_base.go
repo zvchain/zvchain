@@ -142,7 +142,7 @@ func checkCanActivate(miner *types.Miner, height uint64) bool {
 }
 
 func checkUpperBound(miner *types.Miner, height uint64) bool {
-	return miner.Stake < maximumStake(height)
+	return miner.Stake <= maximumStake(height)
 }
 
 func checkLowerBound(miner *types.Miner, height uint64) bool {
@@ -238,11 +238,16 @@ func (op *baseOperation) addToPool(address common.Address, addStake uint64) {
 
 func (op *baseOperation) addProposalTotalStake(addStake uint64) {
 	totalStake := getProposalTotalStake(op.minerPool)
+	// Must not happen
+	if addStake+totalStake < totalStake {
+		panic(fmt.Errorf("total stake overflow:%v %v", addStake, totalStake))
+	}
 	op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
 }
 
 func (op *baseOperation) subProposalTotalStake(subStake uint64) {
 	totalStake := getProposalTotalStake(op.minerPool)
+	// Must not happen
 	if totalStake < subStake {
 		panic("total stake less than sub stake")
 	}
