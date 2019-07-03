@@ -124,7 +124,7 @@ func getBlockChainConfig() *BlockChainConfig {
 	}
 }
 
-func initBlockChain(helper types.ConsensusHelper, account Account) error {
+func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
 	instance := common.GlobalConf.GetString("instance", "index", "")
 	Logger = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
 	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, instance)
@@ -139,7 +139,7 @@ func initBlockChain(helper types.ConsensusHelper, account Account) error {
 		futureBlocks:    common.MustNewLRUCache(10),
 		verifiedBlocks:  common.MustNewLRUCache(10),
 		topBlocks:       common.MustNewLRUCache(20),
-		Account:		 account,
+		Account:		 minerAccount,
 	}
 
 	types.DefaultPVFunc = helper.VRFProve2Value
