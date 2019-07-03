@@ -198,7 +198,6 @@ func TestTvmCli_Set_Data(t *testing.T)  {
 	tvmCli := NewTvmCli()
 	state := getState(tvmCli)
 	key := "123"
-	//state.SetBalance(common.HexToAddress(contract),big.NewInt(100))
 	hash, _ := state.Commit(false)
 	tvmCli.database.TrieDB().Commit(hash, false)
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
@@ -207,28 +206,24 @@ func TestTvmCli_Set_Data(t *testing.T)  {
  "FuncName": "setdata",
  "Args": ["%s","abcde"]
 }`, key)
-	//fmt.Println("checkbalance\t"+contract+"________")
 	tvmCli.Call(contract, abiJson)
 
 	abiJson2 := fmt.Sprintf(`{
  "FuncName": "getdata",
  "Args": ["%s"]
 }`, key)
-	//fmt.Println("checkbalance\t"+contract+"________")
 	tvmCli.Call(contract, abiJson2)
 
 	abiJson3 := fmt.Sprintf(`{
 "FuncName": "removedata",
 "Args": ["%s"]
 }`, key)
-	//fmt.Println("checkbalance\t"+contract+"________")
 	tvmCli.Call(contract, abiJson3)
 
 	abiJson4 := fmt.Sprintf(`{
 "FuncName": "getdata",
 "Args": ["%s"]
 }`, key)
-	//fmt.Println("checkbalance\t"+contract+"________")
 	tvmCli.Call(contract, abiJson4)
 
 	tvmCli.DeleteTvmCli()
