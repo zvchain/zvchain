@@ -252,7 +252,7 @@ func (gtas *Gtas) Run() {
 
 // ClearBlock delete local blockchain data
 func ClearBlock() error {
-	err := core.InitCore(mediator.NewConsensusHelper(groupsig.ID{}))
+	err := core.InitCore(mediator.NewConsensusHelper(groupsig.ID{}),nil)
 	if err != nil {
 		return err
 	}
@@ -327,7 +327,7 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID))
+	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID), &gtas.account)
 	if err != nil {
 		return err
 	}
