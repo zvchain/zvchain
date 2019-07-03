@@ -38,14 +38,17 @@ type EncryptedSenderPiece interface {
 	SenderPiece
 }
 type EncryptedSenderPiecePacket interface {
-	SenderPiecePacket
-	Pubkey() []byte
+	//SenderPiecePacket
+	//Pubkey() []byte
+	SeedI
+	Sender()    []byte          //发送者
+	Pieces() []EncryptedSenderPiece //发送者对组内每个人的加密分片
 }
 
 type EncryptedReceiverPiece interface {
 	Sender() []byte    // piece的发送者
 	PieceData() []byte // Piece加密后的数据
-	Pubkey() []byte
+	Pubkey() []byte		//piece的目标者
 }
 
 // Piece明文数据包接口
