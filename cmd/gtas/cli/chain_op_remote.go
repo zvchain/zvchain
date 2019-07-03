@@ -233,7 +233,6 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		TxType:   types.TransactionTypeStakeAdd,
 		Data:     data,
 	}
-	fmt.Println("ddd", tx.Data, data)
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)
 }
