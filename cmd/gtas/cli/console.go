@@ -331,7 +331,7 @@ func (c *gasBaseCmd) parseGasPrice() bool {
 
 func (c *gasBaseCmd) initBase() {
 	c.fs.Uint64Var(&c.gaslimit, "gaslimit", 3000, "gas limit, default 3000")
-	c.fs.StringVar(&c.gasPriceStr, "gasprice", "200RA", "gas price, default 200RA")
+	c.fs.StringVar(&c.gasPriceStr, "gasprice", "500RA", "gas price, default 500RA")
 }
 
 type sendTxCmd struct {

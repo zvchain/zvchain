@@ -34,12 +34,10 @@ const (
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
 
-	txMaxSize = 64000
-	// Maximum size per transaction
+	txMaxSize              = 64000   // Maximum size per transaction
+	gasLimitPerTransaction = 500000  // the max gas limit for a transaction
+	GasLimitPerBlock       = 2000000 // the max gas limit for a block
 )
-
-// gasLimitMax expresses the max gasLimit of a transaction
-var gasLimitMax = new(types.BigInt).SetUint64(500000)
 
 var (
 	ErrNil      = errors.New("nil transaction")
@@ -207,9 +205,7 @@ func (pool *txPool) add(tx *types.Transaction) (err error) {
 	if tx.Type == types.TransactionTypeReward {
 		pool.bonPool.add(tx)
 	} else {
-		if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) > 0 {
-			err = pool.received.push(tx)
-		}
+		err = pool.received.push(tx)
 	}
 	return err
 }

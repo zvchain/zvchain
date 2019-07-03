@@ -30,10 +30,15 @@ import (
 const (
 	TransactionGasCost   uint64 = 1000
 	CodeBytePrice               = 0.3814697265625
-	MaxCastBlockTime            = time.Second * 3
+	MaxCastBlockTime            = time.Second * 2
 	adjustGasPricePeriod        = 30000000
 	adjustGasPriceTimes         = 3
 	initialMinGasPrice          = 200
+)
+
+var (
+	ProposerPackageTime = MaxCastBlockTime
+	GasLimitForPackage  = uint64(GasLimitPerBlock)
 )
 
 var (
@@ -383,13 +388,14 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager()
-
+	totalGasUsed := uint64(0)
 	for _, tx := range txs {
-		if pack && time.Since(beginTime).Seconds() > float64(MaxCastBlockTime) {
+		if pack && time.Since(beginTime).Seconds() > float64(ProposerPackageTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", tx.Hash.Hex())
 			break
 		}
 
+		snapshot := accountDB.Snapshot()
 		// Apply transaction
 		ret, err := applyStateTransition(accountDB, tx, bh)
 		if err != nil {
@@ -412,6 +418,14 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 			accountDB.SetNonce(*tx.Source, tx.Nonce)
 		}
 
+		totalGasUsed += cumulativeGas
+		if totalGasUsed > GasLimitForPackage {
+			// Revert snapshot in case total gas used exceeds the limit and break the loop
+			// The tx just executed won't be packed into the block
+			accountDB.RevertToSnapshot(snapshot)
+			Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitForPackage)
+			break
+		}
 		// New receipt
 		idx := len(transactions)
 		transactions = append(transactions, tx)

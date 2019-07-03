@@ -73,7 +73,7 @@ func gasValidate(tx *types.Transaction) error {
 	if !tx.GasPrice.IsUint64() {
 		return fmt.Errorf("gas price is not uint64")
 	}
-	if tx.GasLimit.Cmp(gasLimitMax) > 0 {
+	if tx.GasLimit.Uint64() > gasLimitPerTransaction {
 		return fmt.Errorf("gas limit too high")
 	}
 	// Check if the gasLimit less than the intrinsic gas
