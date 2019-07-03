@@ -26,6 +26,14 @@ import (
 	"github.com/zvchain/zvchain/storage/trie"
 )
 
+// AccountDBTS is a thread-safe interface for accessing account
+type AccountDBTS interface {
+	GetDataSafe(address common.Address, key []byte) []byte
+	SetDataSafe(address common.Address, key, val []byte)
+	RemoveDataSafe(address common.Address, key []byte)
+	DataIteratorSafe(address common.Address, prefix []byte) *trie.Iterator
+}
+
 type AccountDB interface {
 	CreateAccount(common.Address)
 
@@ -44,11 +52,11 @@ type AccountDB interface {
 	AddRefund(uint64)
 	GetRefund() uint64
 
-	GetData(common.Address, string) []byte
-	SetData(common.Address, string, []byte)
-	RemoveData(common.Address, string)
-	DataIterator(common.Address, string) *trie.Iterator
-	DataNext(iterator uintptr) string
+	GetData(common.Address, []byte) []byte
+	SetData(common.Address, []byte, []byte)
+	RemoveData(common.Address, []byte)
+	DataIterator(common.Address, []byte) *trie.Iterator
+	//DataNext(iterator uintptr) []byte
 
 	Suicide(common.Address) bool
 	HasSuicided(common.Address) bool
@@ -58,6 +66,8 @@ type AccountDB interface {
 
 	RevertToSnapshot(int)
 	Snapshot() int
+
+	AsAccountDBTS() AccountDBTS
 }
 
 type ChainReader interface {
@@ -67,4 +77,13 @@ type ChainReader interface {
 	QueryBlockHeaderByHeight(height uint64) *types.BlockHeader
 	HasBlock(hash common.Hash) bool
 	HasHeight(height uint64) bool
+}
+
+// MinerOperationMessage generated when operate miner stake info
+type MinerOperationMessage interface {
+	OpType() int8
+	Operator() *common.Address
+	OpTarget() *common.Address
+	Amount() *big.Int // Operated value
+	Payload() []byte  // Data transfer by the message
 }

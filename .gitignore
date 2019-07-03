@@ -41,3 +41,6 @@ tvm/tvm.h
 
 deploy
 deploy/*
+
+local_test
+local_test/*

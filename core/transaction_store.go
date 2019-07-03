@@ -55,15 +55,6 @@ func (pool *txPool) deleteReceipts(txs []common.Hash) error {
 	return nil
 }
 
-// GetTransactionStatus returns the execute result status by hash
-func (pool *txPool) GetTransactionStatus(hash common.Hash) (int, error) {
-	executedTx := pool.loadReceipt(hash)
-	if executedTx == nil {
-		return 0, ErrNil
-	}
-	return executedTx.Status, nil
-}
-
 func (pool *txPool) loadReceipt(hash common.Hash) *types.Receipt {
 	txBytes, _ := pool.receiptDb.Get(hash.Bytes())
 	if txBytes == nil {

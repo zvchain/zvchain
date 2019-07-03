@@ -34,12 +34,10 @@ const (
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
 
-	txMaxSize = 64000
-	// Maximum size per transaction
+	txMaxSize              = 64000   // Maximum size per transaction
+	gasLimitPerTransaction = 500000  // the max gas limit for a transaction
+	GasLimitPerBlock       = 2000000 // the max gas limit for a block
 )
-
-// gasLimitMax expresses the max gasLimit of a transaction
-var gasLimitMax = new(types.BigInt).SetUint64(500000)
 
 var (
 	ErrNil      = errors.New("nil transaction")
@@ -127,7 +125,7 @@ func (pool *txPool) AsyncAddTxs(txs []*types.Transaction) {
 		if tx.Source != nil {
 			continue
 		}
-		if tx.Type == types.TransactionTypeReward {
+		if tx.IsReward() {
 			if pool.bonPool.get(tx.Hash) != nil {
 				continue
 			}
@@ -179,60 +177,8 @@ func (pool *txPool) PackForCast() []*types.Transaction {
 
 // RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction
 func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
-	height := BlockChainImpl.Height()
-	if !tx.IsReward() && !validGasPrice(&tx.GasPrice.Int, height) {
-		return ErrGasPrice
-	}
-	if !tx.Hash.IsValid() {
-		return ErrHash
-	}
-	size := 0
-	if tx.Data != nil {
-		size += len(tx.Data)
-	}
-	if tx.ExtraData != nil {
-		size += len(tx.ExtraData)
-	}
-	if size > txMaxSize {
-		return fmt.Errorf("tx size(%v) should not larger than %v", size, txMaxSize)
-	}
-
-	if tx.Hash != tx.GenHash() {
-		return fmt.Errorf("tx hash error")
-	}
-
-	if tx.Sign == nil {
-		return fmt.Errorf("tx sign nil")
-	}
-
-	var source *common.Address
-	if tx.IsReward() {
-		if ok, err := BlockChainImpl.GetConsensusHelper().VerifyRewardTransaction(tx); !ok {
-			return err
-		}
-	} else {
-		if err := tx.BoundCheck(); err != nil {
-			return err
-		}
-		if tx.GasLimit.Cmp(gasLimitMax) > 0 {
-			return fmt.Errorf("gasLimit too  big! max gas limit is 500000 Ra")
-		}
-
-		var sign = common.BytesToSign(tx.Sign)
-		if sign == nil {
-			return fmt.Errorf("BytesToSign fail, sign=%v", tx.Sign)
-		}
-		msg := tx.Hash.Bytes()
-		pk, err := sign.RecoverPubkey(msg)
-		if err != nil {
-			return err
-		}
-		src := pk.GetAddress()
-		source = &src
-		tx.Source = source
-	}
-
-	return nil
+	validator := getValidator(tx)
+	return validator()
 }
 
 func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
@@ -259,9 +205,7 @@ func (pool *txPool) add(tx *types.Transaction) (err error) {
 	if tx.Type == types.TransactionTypeReward {
 		pool.bonPool.add(tx)
 	} else {
-		if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) > 0 {
-			err = pool.received.push(tx)
-		}
+		err = pool.received.push(tx)
 	}
 	return err
 }

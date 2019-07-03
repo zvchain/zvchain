@@ -156,11 +156,6 @@ func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, txs []*types.Trans
 		return -1
 	}
 
-	if !chain.validateTxRoot(bh.TxTree, txs) {
-		err = fmt.Errorf("validate tx root fail")
-		return -1
-	}
-
 	return 0
 }
 
@@ -358,6 +353,14 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 }
 
 func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err error) {
+
+	// Check if all txs exist in the pool to ensure the basic validation is done
+	for _, tx := range block.Transactions {
+		if exist, _ := chain.GetTransactionPool().IsTransactionExisted(tx.Hash); !exist {
+			return false, fmt.Errorf("tx is not in the pool %v", tx.Hash.Hex())
+		}
+	}
+
 	// Execute the transactions. Must be serialized execution
 	executeTxResult, ps := chain.executeTransaction(block)
 	if !executeTxResult {
@@ -397,12 +400,6 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 			tx.Source = poolTx.Source
 		} else {
 			addTxs = append(addTxs, tx)
-			//recoverCnt++
-			//TxSyncer.add(tx)
-			//if err := chain.transactionPool.RecoverAndValidateTx(tx); err != nil {
-			//	Logger.Debugf("fail to validate txs RecoverAndValidateTx err:%v at %v", err, tx.Hash.String())
-			//	return false
-			//}
 		}
 	}
 
@@ -418,16 +415,6 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 	}
 
 	Logger.Debugf("block %v, validate txs size %v, recover cnt %v", bh.Hash.Hex(), len(txs), len(addTxs))
-	return true
-}
-
-func (chain *FullBlockChain) validateTxRoot(txMerkleTreeRoot common.Hash, txs []*types.Transaction) bool {
-	txTree := calcTxTree(txs)
-
-	if txTree != txMerkleTreeRoot {
-		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree.Hex(), txMerkleTreeRoot.Hex())
-		return false
-	}
 	return true
 }
 
@@ -454,13 +441,22 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 		return false, nil
 	}
 
-	statehash, evitTxs, _, receipts, gasFee, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
+	stateTree, evictTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
+	txTree := calcTxTree(transactions)
+	if txTree != block.Header.TxTree {
+		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree, block.Header.TxTree)
+		return false, nil
+	}
+	if len(transactions) != len(block.Transactions) {
+		Logger.Errorf("Fail to verify transactions, length1: %d length2: %d", len(transactions), len(block.Transactions))
+		return false, nil
+	}
 	if gasFee != block.Header.GasFee {
 		Logger.Errorf("Fail to verify GasFee, fee1: %d, fee1: %d", gasFee, block.Header.GasFee)
 		return false, nil
 	}
-	if statehash != block.Header.StateTree {
-		Logger.Errorf("Fail to verify statetrexecute transaction failee, hash1:%s hash2:%s", statehash.Hex(), block.Header.StateTree.Hex())
+	if stateTree != block.Header.StateTree {
+		Logger.Errorf("Fail to verify state tree, execute fail, hash1:%s hash2:%s", stateTree.Hex(), block.Header.StateTree.Hex())
 		return false, nil
 	}
 	receiptsTree := calcReceiptsTree(receipts)
@@ -472,7 +468,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 	Logger.Infof("executeTransactions block height=%v,preHash=%x", block.Header.Height, preRoot)
 	taslog.Flush()
 
-	eps := &executePostState{state: state, receipts: receipts, evictedTxs: evitTxs, txs: block.Transactions}
+	eps := &executePostState{state: state, receipts: receipts, evictedTxs: evictTxs, txs: block.Transactions}
 	chain.verifiedBlocks.Add(block.Header.Hash, eps)
 	return true, eps
 }

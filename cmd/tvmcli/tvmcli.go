@@ -189,7 +189,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 
-	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, Transaction{}, 0, "../py", nil, nil)
+	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, Transaction{}, 0, "../py", nil)
 
 	//abi := tvm.ABI{}
 	//abiJsonError := json.Unmarshal([]byte(abiJSON), &abi)
@@ -282,12 +282,12 @@ func (t *TvmCli) QueryData(address string, key string, count int) {
 
 	hexAddr := common.HexToAddress(address)
 	if count == 0 {
-		value := state.GetData(hexAddr, key)
+		value := state.GetData(hexAddr, []byte(key))
 		if value != nil {
 			fmt.Println("key:", key, "value:", string(value))
 		}
 	} else {
-		iter := state.DataIterator(hexAddr, key)
+		iter := state.DataIterator(hexAddr, []byte(key))
 		if iter != nil {
 			for iter.Next() {
 				k := string(iter.Key[:])

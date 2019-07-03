@@ -103,7 +103,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			}
 		}
 	}
-	castorDO := p.minerReader.getProposeMiner(castor)
+	castorDO := p.minerReader.getProposeMinerByHeight(castor, preBH.Height)
 	if castorDO == nil {
 		err = fmt.Errorf("castorDO nil id=%v", castor.ShortS())
 		return
@@ -392,7 +392,7 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 
 	// A dividend transaction has been sent, no longer signed for this
 	if slot.IsRewardSent() {
-		err = fmt.Errorf("alreayd sent reward trans")
+		err = fmt.Errorf("already sent reward trans")
 		return
 	}
 
@@ -401,10 +401,8 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 		return
 	}
 	if !slot.hasSignedTxHash(reward.TxHash) {
-		verifyRewards := p.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
-		gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
-		genReward, _, err2 := p.MainChain.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.GroupID,
-			gasFeeRewards+verifyRewards)
+		rewardShare := p.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
+		genReward, _, err2 := p.MainChain.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.GroupID, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
 		if err2 != nil {
 			err = err2
 			return
