@@ -36,7 +36,6 @@ import (
 	"runtime/debug"
 	"strconv"
 
-	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware"
@@ -94,9 +93,9 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 	var appFun applyFunc
 	if len(cfg.applyRole) > 0 {
 		fmt.Printf("apply role: %v\n", cfg.applyRole)
-		mtype := types.MinerTypeHeavy
+		mtype := types.MinerTypeProposal
 		if cfg.applyRole == "light" {
-			mtype = types.MinerTypeLight
+			mtype = types.MinerTypeVerify
 		}
 		appFun = func() {
 			gtas.autoApplyMiner(mtype)
@@ -341,7 +340,7 @@ func (gtas *Gtas) fullInit() error {
 		SeedAddr:        cfg.seedIP,
 		NodeIDHex:       id,
 		ChainID:         cfg.chainID,
-		ProtocolVersion: common.ProtocalVersion,
+		ProtocolVersion: common.ProtocolVersion,
 		SeedIDs:         core.GroupChainImpl.GenesisMembers(),
 		PK:              gtas.account.Pk,
 		SK:              gtas.account.Sk,
@@ -388,29 +387,27 @@ func NewGtas() *Gtas {
 	return &Gtas{}
 }
 
-func (gtas *Gtas) autoApplyMiner(mtype int) {
+func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {
 	miner := mediator.Proc.GetMinerInfo()
 	if miner.ID.GetHexString() != gtas.account.Address {
 		// exit if miner's id not match the the account
 		panic(fmt.Errorf("id error %v %v", miner.ID.GetHexString(), gtas.account.Address))
 	}
 
-	tm := &types.Miner{
-		ID:           miner.ID.Serialize(),
-		PublicKey:    miner.PK.Serialize(),
-		VrfPublicKey: miner.VrfPK,
-		Stake:        core.MinMinerStake,
-		Type:         byte(mtype),
+	pks := &types.MinerPks{
+		MType: types.MinerType(mType),
+		Pk:    miner.PK.Serialize(),
+		VrfPk: miner.VrfPK,
 	}
-	data, err := msgpack.Marshal(tm)
+
+	data, err := types.EncodePayload(pks)
 	if err != nil {
-		common.DefaultLogger.Errorf("err marhsal types.Miner", err)
+		common.DefaultLogger.Debugf("auto apply fail:%v", err)
 		return
 	}
 
 	nonce := core.BlockChainImpl.GetNonce(miner.ID.ToAddress()) + 1
 	api := &RpcDevImpl{}
-	ret, err := api.TxUnSafe(gtas.account.Sk, "", 0, 20000, 500, nonce, types.TransactionTypeMinerApply, common.ToHex(data))
-	common.DefaultLogger.Debugf("apply result", ret, err)
-
+	ret, err := api.TxUnSafe(gtas.account.Sk, gtas.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 200, nonce, types.TransactionTypeStakeAdd, string(data))
+	common.DefaultLogger.Debug("apply result", ret, err)
 }

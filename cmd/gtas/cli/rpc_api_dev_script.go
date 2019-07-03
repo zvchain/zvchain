@@ -35,7 +35,7 @@ func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice,
 		Gasprice: gasprice,
 		Nonce:    nonce,
 		TxType:   txType,
-		Data:     data,
+		Data:     []byte(data),
 	}
 	sk := common.HexToSecKey(privateKey)
 	if sk == nil {

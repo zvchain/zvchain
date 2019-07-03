@@ -51,9 +51,9 @@ func TestNull(t *testing.T) {
 	s := setUp()
 	address := common.HexToAddress("0x823140710bf13990e4500136726d8b55")
 	s.state.CreateAccount(address)
-	s.state.SetData(address, "emptykey", []byte(""))
+	s.state.SetData(address, []byte("emptykey"), []byte(""))
 	s.state.Commit(false)
-	value := s.state.GetData(address, "emptykey")
+	value := s.state.GetData(address, []byte("emptykey"))
 	if string(value) != "" {
 		t.Errorf("expected empty hash. got %x", value)
 	}
@@ -62,7 +62,7 @@ func TestNull(t *testing.T) {
 func TestSnapshot(t *testing.T) {
 	s := setUp()
 	stateObjAddr := toAddr([]byte("aa"))
-	var storageAddr = "test"
+	var storageAddr = []byte("test")
 	data1 := []byte("value1")
 	data2 := []byte("value2")
 
@@ -120,8 +120,8 @@ func TestSnapshot2(t *testing.T) {
 	data0 := common.BytesToHash([]byte{17})
 	data1 := common.BytesToHash([]byte{18})
 
-	state.SetData(toAddr([]byte(stateobjaddr0)), "", data0[:])
-	state.SetData(toAddr([]byte(stateobjaddr1)), "", data1[:])
+	state.SetData(toAddr([]byte(stateobjaddr0)), []byte(""), data0[:])
+	state.SetData(toAddr([]byte(stateobjaddr1)), []byte(""), data1[:])
 
 	// db, trie are already non-empty values
 	so0 := state.getAccountObject(toAddr([]byte(stateobjaddr0)))
@@ -154,7 +154,7 @@ func TestSnapshot2(t *testing.T) {
 
 	so0Restored := state.getAccountObject(toAddr([]byte(stateobjaddr0)))
 	// Update lazily-loaded values before comparing.
-	so0Restored.GetData(state.db, "")
+	so0Restored.GetData(state.db, []byte(""))
 	so0Restored.Code(state.db)
 	// non-deleted is equal (restored)
 	compareStateObjects(so0Restored, so0, t)
@@ -220,13 +220,13 @@ func TestGetData(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	for a := 0; a < 100; a++ {
 		addr := common.BytesToAddress(common.Int32ToByte(int32(a)))
-		s.state.SetData(addr, "1", []byte("234444"))
+		s.state.SetData(addr, []byte("1"), []byte("234444"))
 
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				s.state.GetData(addr, "1")
+				s.state.GetData(addr, []byte("1"))
 			}()
 		}
 		s.state.Commit(true)

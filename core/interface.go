@@ -106,7 +106,6 @@ type BlockChain interface {
 
 	// ResetTop reset the current top block with parameter bh
 	ResetTop(bh *types.BlockHeader)
-
 }
 
 // ExecutedTransaction contains the transaction and its receipt
@@ -136,9 +135,6 @@ type TransactionPool interface {
 
 	// GetTransaction trys to find a transaction from pool by hash and return it
 	GetTransaction(reward bool, hash common.Hash) *types.Transaction
-
-	// GetTransactionStatus returns the execute result status by hash
-	GetTransactionStatus(hash common.Hash) (int, error)
 
 	// GetReceipt returns the transaction's recipe by hash
 	GetReceipt(hash common.Hash) *types.Receipt

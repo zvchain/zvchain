@@ -33,7 +33,9 @@ func TestGlobalTicker_RegisterRoutine(t *testing.T) {
 	var exeNum = 0
 	ticker.RegisterPeriodicRoutine("name1", func() bool {
 		if exeNum >= 3 {
-			defer wg.Done()
+			go func() {
+				defer wg.Done()
+			}()
 		}
 		fmt.Println("execute task...")
 		exeNum++
@@ -52,7 +54,9 @@ func TestGlobalTicker_RegisterOneTimeRoutine(t *testing.T) {
 	wg.Add(1)
 	ticker.RegisterOneTimeRoutine("onetime_1", func() bool {
 		fmt.Println("onetime...")
-		wg.Done()
+		go func() {
+			defer wg.Done()
+		}()
 		return true
 	}, 2)
 

@@ -84,7 +84,7 @@ func (ms *msgShower) showHeightRoutine() bool {
 
 func (ms *msgShower) txSuccess(tx common.Hash) bool {
 	receipt := ms.bchain.GetTransactionPool().GetReceipt(tx)
-	return receipt != nil && receipt.Status == types.Success
+	return receipt != nil && receipt.Success()
 }
 
 func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
@@ -96,22 +96,22 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 		for _, tx := range b.Transactions {
 			switch tx.Type {
 			case types.TransactionTypeReward:
-				_, ids, blockHash, value, err := ms.bchain.GetRewardManager().ParseRewardTransaction(tx)
+				_, ids, blockHash, _, err := ms.bchain.GetRewardManager().ParseRewardTransaction(tx)
 				if err != nil {
 					ms.showMsg("failed to parse reward transaction %s", err)
 					continue
 				}
 				for _, id := range ids {
 					if bytes.Equal(id, ms.id) {
-						ms.showMsg("congratulations, you verified block hash %v success, reward %v TAS", blockHash.Hex(), common.RA2TAS(value.Uint64()))
+						ms.showMsg("congratulations, you verified block hash %v success, reward %v TAS", blockHash.Hex(), common.RA2TAS(tx.Value.Uint64()))
 						break
 					}
 				}
-			case types.TransactionTypeMinerApply:
+			case types.TransactionTypeStakeAdd:
 				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
-					miner := core.MinerManagerImpl.Transaction2Miner(tx)
+					miner, _ := types.DecodePayload(tx.Data)
 					role := "proposer"
-					if miner.Type == types.MinerTypeLight {
+					if types.IsVerifyRole(miner.MType) {
 						role = "verifier"
 					}
 					ms.showMsg("congratulations to you on becoming a %v at height %v, start mining", role, b.Header.Height)
@@ -119,15 +119,15 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 			case types.TransactionTypeMinerAbort:
 				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
 					role := "proposer"
-					if tx.Data[0] == types.MinerTypeLight {
+					if types.IsVerifyRole(types.MinerType(tx.Data[0])) {
 						role = "verifier"
 					}
 					ms.showMsg("abort miner role %v success at height %v, stoping mining", role, b.Header.Height)
 				}
-			case types.TransactionTypeMinerRefund:
+			case types.TransactionTypeStakeReduce:
 				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
 					role := "proposer"
-					if tx.Data[0] == types.MinerTypeLight {
+					if types.IsVerifyRole(types.MinerType(tx.Data[0])) {
 						role = "verifier"
 					}
 					ms.showMsg("refund miner role %v success at %v", role, b.Header.Height)

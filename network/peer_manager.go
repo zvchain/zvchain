@@ -15,7 +15,6 @@
 
 package network
 
-
 import (
 	"bytes"
 	"math"
@@ -70,10 +69,10 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 		p.connecting = false
 		pm.addPeer(netID, p)
 	}
-	if p.sessionID > 0  {
+	if p.sessionID > 0 {
 		p.write(packet, code)
 		p.bytesSend += packet.Len()
-	} else 	if p.relayID.IsValid() && relay {
+	} else if p.relayID.IsValid() && relay {
 		relayPeer := pm.peerByID(p.relayID)
 
 		if relayPeer != nil && relayPeer.sessionID > 0 {
@@ -119,7 +118,7 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 		p.connectTimeout = uint64(time.Now().Add(connectTimeout).Unix())
 		pm.addPeer(id, p)
 	}
-	p.onConnect(id,session,p2pType,isAccepted)
+	p.onConnect(id, session, p2pType, isAccepted)
 	Logger.Infof("new connection, node id:%v  netid :%v session:%v isAccepted:%v ", p.ID.GetHexString(), id, session, isAccepted)
 }
 
@@ -168,12 +167,12 @@ func (pm *PeerManager) checkPeers() {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 	for nid, p := range pm.peers {
-		if !p.isAuthSucceed  {
+		if !p.isAuthSucceed {
 			Logger.Infof("[PeerManager] [checkPeers] peer id:%v netid:%v ip:%v port:%v session:%v bytes recv:%v ,bytes send:%v disconnect count:%v send wait count:%v ping count:%d isAuthSucceed:%v",
-				p.ID.GetHexString(),nid, p.IP, p.Port, p.sessionID, p.bytesReceived, p.bytesSend, p.disconnectCount, p.sendWaitCount,p.pingCount,p.isAuthSucceed)
+				p.ID.GetHexString(), nid, p.IP, p.Port, p.sessionID, p.bytesReceived, p.bytesSend, p.disconnectCount, p.sendWaitCount, p.pingCount, p.isAuthSucceed)
 
-			if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid(){
-				go netServerInstance.netCore.ping(p.ID,nil)
+			if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid() {
+				go netServerInstance.netCore.ping(p.ID, nil)
 			}
 		}
 
@@ -213,7 +212,7 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 	Logger.Infof("broadcast random total peer size:%v code:%v", len(pm.peers), code)
 
 	pm.checkPeerSource()
-	availablePeers:= make([]*Peer,0,0)
+	availablePeers := make([]*Peer, 0, 0)
 
 	for _, p := range pm.peers {
 		if p.isAvailable() {
@@ -240,9 +239,9 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
 				continue
 			}
 			nodesHasSend[peerIndex] = true
-			if peerIndex < len(availablePeers){
+			if peerIndex < len(availablePeers) {
 				p := availablePeers[peerIndex]
-				if p !=nil {
+				if p != nil {
 					p.write(packet, code)
 				}
 			}
@@ -275,4 +274,3 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) {
 	pm.peers[netID] = peer
 
 }
-

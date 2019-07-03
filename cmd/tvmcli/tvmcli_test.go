@@ -104,10 +104,9 @@ func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
   "Args": ["%s","set_name","test"]
 }`, receiverContract)
 	tvmCli.Call(routerContract, abiJson)
-	
+
 	tvmCli.QueryData(routerContract, "name", 0)
 	tvmCli.QueryData(receiverContract, "name", 0)
 
 	tvmCli.DeleteTvmCli()
 }
-

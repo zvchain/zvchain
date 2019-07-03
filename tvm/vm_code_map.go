@@ -90,7 +90,7 @@ except Exception:
 }
 
 func pycodeLoad(sender string, value uint64, contractAddr string) string {
-	str :=  fmt.Sprintf(`
+	str := fmt.Sprintf(`
 class Register(object):
     def public(self , *dargs):
         def wrapper(func):
@@ -110,7 +110,7 @@ builtins.this = "%s"`, sender, value, contractAddr)
 }
 
 func pycodeLoadWhenCall(sender string, value uint64, contractAddr string) string {
-	str :=  fmt.Sprintf(`
+	str := fmt.Sprintf(`
 class Register(object):
     def __init__(self):
         self.funcinfo = {}

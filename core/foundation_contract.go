@@ -15,7 +15,7 @@
 
 package core
 
-const foundation_contract = `
+const foundationContract = `
 import block
 import account
 class Foundation(object):
