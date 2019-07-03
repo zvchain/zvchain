@@ -44,9 +44,7 @@ type EncryptedReceiverPiece interface {
 	Pubkey() []byte    //piece的发送者的公钥
 }
 
-type OriginSenderPiecePacket interface {
-	SenderPiecePacket
-}
+type OriginSenderPiecePacket SenderPiecePacket
 
 // Mpk数据包接口
 type MpkPacket interface {

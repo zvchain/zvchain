@@ -16,11 +16,12 @@
 package group
 
 import (
-	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/taslog"
+	"math"
 )
 
 type createChecker struct {
@@ -29,6 +30,7 @@ type createChecker struct {
 	ctx          *createContext
 	storeReader  types.GroupStoreReader
 	minerReader  minerReader
+	logger       taslog.Logger
 }
 
 type createContext struct {
@@ -39,16 +41,29 @@ type createContext struct {
 
 type candidates []*model.MinerDO
 
+func (c candidates) has(id groupsig.ID) bool {
+	for _, m := range c {
+		if m.ID.IsEqual(id) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c candidates) size() int {
+	return len(c)
+}
+
+func (c candidates) threshold() int {
+	return int(math.Ceil(float64(c.size()) * float64(threshold) / float64(100.0)))
+}
+
 func newCreateContext(era *era) *createContext {
 	return &createContext{era: era}
 }
 
 func (checker *createChecker) currEra() *era {
 	return checker.ctx.era
-}
-
-func (checker *createChecker) sameSeed(h uint64, seed common.Hash) bool {
-	return checker.currEra().sameEra(h, seed)
 }
 
 func (checker *createChecker) hasSentEncryptedPiece(id groupsig.ID) bool {

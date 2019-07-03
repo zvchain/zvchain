@@ -26,7 +26,7 @@ import (
 const (
 	groupMemberMin        = 80
 	groupMemberMax        = 100
-	threshold             = 0.51
+	threshold             = 51
 	recvPieceMinRatio     = 0.8
 	memberMaxJoinGroupNum = 5
 )
@@ -66,11 +66,12 @@ type createRoutine struct {
 func (routine *createRoutine) UpdateContext(bh *types.BlockHeader) {
 	curEra := routine.currEra()
 	sh := seedHeight(bh.Height)
-	if curEra.seedHeight == sh {
+	seedBH := routine.chain.QueryBlockHeaderByHeight(sh)
+	if curEra.sameEra(sh, seedBH) {
 		return
 	}
-	seedBH := routine.chain.QueryBlockHeaderByHeight(sh)
 	routine.ctx = newCreateContext(newEra(sh, seedBH))
+	routine.selectCandidates()
 }
 
 func (routine *createRoutine) selectCandidates() error {
@@ -81,8 +82,9 @@ func (routine *createRoutine) selectCandidates() error {
 
 	routine.ctx.cands = make(candidates, 0)
 
-	h := routine.currEra().seedHeight
-	bh := routine.currEra().seedBlock
+	era := routine.currEra()
+	h := era.seedHeight
+	bh := era.seedBlock
 
 	allVerifiers := routine.minerReader.GetCanJoinGroupMinersAt(h)
 	if !candidateEnough(len(allVerifiers)) {
@@ -116,19 +118,59 @@ func (routine *createRoutine) selectCandidates() error {
 	selector := newCandidateSelector(availCandidates, bh.Random)
 	selectedCandidates := selector.algSatoshi(memberCnt)
 
+	mems := make([]string, len(selectedCandidates))
+	for _, m := range selectedCandidates {
+		mems = append(mems, m.ID.GetHexString())
+	}
+	routine.logger.Debugf("selected candidates at seed %v-%v is %v", era.seedHeight, era.Seed().Hex(), mems)
+
 	routine.ctx.cands = selectedCandidates
 	return nil
 }
 
-func (routine *createRoutine) generateSharePiece(miner *model.SelfMinerDO) {
+func (routine *createRoutine) generateSharePiece(miner *model.SelfMinerDO) types.EncryptedSenderPiecePacket {
 	rand := miner.GenSecretForGroup(routine.currEra().Seed())
-	seck := *groupsig.NewSeckeyFromRand(rand.Deri(0))
-	pk := *groupsig.NewPubkeyFromSeckey(seck)
+	sec0 := *groupsig.NewSeckeyFromRand(rand.Deri(0))
+	pk := *groupsig.NewPubkeyFromSeckey(sec0)
+
+	cands := routine.ctx.cands
+
+	secs := make([]groupsig.Seckey, cands.threshold())
+	for i := 0; i < len(secs); i++ {
+		secs[i] = *groupsig.NewSeckeyFromRand(rand.Deri(i))
+	}
+
+	pieces := make([]types.SenderPiece, 0)
+	for _, mem := range cands {
+		oriPiece := &originSenderSharePiece{
+			receiver: mem.ID,
+			piece:    *groupsig.ShareSeckey(secs, mem.ID),
+		}
+		encPiece := &encryptedSenderSharePiece{
+			originSenderSharePiece: oriPiece,
+			receiverPubkey:         mem.PK,
+			sourceSecKey:           miner.SK,
+		}
+		pieces = append(pieces, encPiece)
+	}
+
+	originPacket := &originSenderSharePiecePacket{
+		seed:   routine.currEra().Seed(),
+		sender: miner.ID,
+		pieces: pieces,
+	}
+
+	packet := &encryptedSenderSharePiecePacket{
+		pubkey:                       pk,
+		originSenderSharePiecePacket: originPacket,
+	}
+
+	routine.ctx.sentEncryptedPiece = packet
+	return packet
 
 }
 
 func (routine *createRoutine) CheckAndSendEncryptedPieces(bh *types.BlockHeader) error {
-	var err error
 	era := routine.currEra()
 	if !era.seedExist() {
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
@@ -141,8 +183,18 @@ func (routine *createRoutine) CheckAndSendEncryptedPieces(bh *types.BlockHeader)
 	if routine.hasSentEncryptedPiece(mInfo.ID) {
 		return fmt.Errorf("has sent encrypted pieces")
 	}
-	if !mInfo.CanJoinGroup(era.seedHeight) {
+	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("current miner cann't join group")
 	}
+	if !routine.ctx.cands.has(mInfo.ID) {
+		return fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
+	}
 
+	packet := routine.generateSharePiece(mInfo)
+	err := routine.packetSender.SendEncryptedPiecePacket(packet)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

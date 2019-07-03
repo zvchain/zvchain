@@ -71,8 +71,15 @@ func seedHeight(h uint64) uint64 {
 	return h / eraWindow * eraWindow
 }
 
-func (e *era) sameEra(h uint64, seed common.Hash) bool {
-	return seedHeight(h) == e.seedHeight && e.seedExist() && e.seedBlock.Hash == seed
+func (e *era) sameEra(h uint64, seedBH *types.BlockHeader) bool {
+	if seedHeight(h) == e.seedHeight {
+		if !e.seedExist() {
+			return seedBH == nil
+		} else {
+			return seedBH != nil && seedBH.Hash == e.Seed()
+		}
+	}
+	return false
 }
 
 func (e *era) String() string {
