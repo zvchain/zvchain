@@ -111,7 +111,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"unsafe"
 
@@ -309,13 +308,22 @@ func (tvm *TVM) VerifyABI(standardABI string,callABI ABI) bool  {
 	for _, value := range standardABIStruct{
 		if value.FuncName == callABI.FuncName {
 			if len(value.Args) == len(callABI.Args) {
-				if reflect.DeepEqual(value.Args,argsType){
-					return true
-				}
+				return compareSlice(value.Args,argsType)
 			}
 		}
 	}
 	return false
+}
+
+func compareSlice(a, b []string) bool {
+
+	for key, value := range a {
+		if value != b[key] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (tvm *TVM) ExportABI(contract *Contract) string {
