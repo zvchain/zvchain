@@ -261,17 +261,18 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 		ni.Status = "running"
 		morts := make([]MortGage, 0)
 		t := "--"
-		heavyInfo := core.MinerManagerImpl.GetMinerByID(p.GetMinerID().Serialize(), types.MinerTypeHeavy, nil)
-		if heavyInfo != nil {
-			morts = append(morts, *NewMortGageFromMiner(heavyInfo))
-			if heavyInfo.AbortHeight == 0 {
+		addr := common.BytesToAddress(p.GetMinerID().Serialize())
+		proposalInfo := core.MinerManagerImpl.GetLatestMiner(addr, types.MinerTypeProposal)
+		if proposalInfo != nil {
+			morts = append(morts, *NewMortGageFromMiner(proposalInfo))
+			if proposalInfo.IsActive() {
 				t = "proposal role"
 			}
 		}
-		lightInfo := core.MinerManagerImpl.GetMinerByID(p.GetMinerID().Serialize(), types.MinerTypeLight, nil)
-		if lightInfo != nil {
-			morts = append(morts, *NewMortGageFromMiner(lightInfo))
-			if lightInfo.AbortHeight == 0 {
+		verifyInfo := core.MinerManagerImpl.GetLatestMiner(addr, types.MinerTypeVerify)
+		if verifyInfo != nil {
+			morts = append(morts, *NewMortGageFromMiner(verifyInfo))
+			if verifyInfo.IsActive() {
 				t += " verify role"
 			}
 		}
@@ -332,19 +333,20 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 	minerReward[castor] = genMinerBalance(block.Castor, bh)
 
 	for _, tx := range b.Transactions {
-		if tx.Type == types.TransactionTypeReward {
+		if tx.IsReward() {
 			btx := *convertRewardTransaction(tx)
-			if st, err := mediator.Proc.MainChain.GetTransactionPool().GetTransactionStatus(tx.Hash); err != nil {
-				common.DefaultLogger.Errorf("getTransactions statue error, hash %v, err %v", tx.Hash.Hex(), err)
-				btx.StatusReport = "get status error" + err.Error()
+			receipt := chain.GetTransactionPool().GetReceipt(tx.Hash)
+			if receipt == nil {
+				btx.StatusReport = "get status nil"
 			} else {
-				if st == types.Success {
+				if receipt.Success() {
 					btx.StatusReport = "success"
 					btx.Success = true
 				} else {
 					btx.StatusReport = "fail"
 				}
 			}
+
 			rewardTxs = append(rewardTxs, btx)
 			blockVerifyReward[btx.BlockHash] = btx.Value
 			for _, tid := range btx.TargetIDs {
@@ -383,6 +385,8 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 		}
 	}
 
+	rm := chain.GetRewardManager()
+
 	mbs := make([]*MinerRewardBalance, 0)
 	for id, mb := range minerReward {
 		mb.Explain = ""
@@ -391,12 +395,14 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 			mb.Proposal = true
 			var packedRewards uint64
 			for _, height := range uniqueRewardBlockHash {
-				packedRewards += chain.GetRewardManager().CalculatePackedRewards(height)
+				share := rm.CalculateCastRewardShare(height, 0)
+				packedRewards += share.ForRewardTxPacking
 			}
 			mb.PackRewardTx = len(uniqueRewardBlockHash)
-			increase += chain.GetRewardManager().CalculateCastorRewards(bh.Height)
+			share := rm.CalculateCastRewardShare(bh.Height, bh.GasFee)
+			increase += share.ForBlockProposal
 			increase += packedRewards
-			increase += chain.GetRewardManager().CalculateGasFeeCastorRewards(bh.GasFee)
+			increase += share.FeeForProposer
 			mb.Explain = fmt.Sprintf("proposal, pack %v bouns-txs", mb.PackRewardTx)
 		}
 		if hs, ok := minerVerifyBlockHash[id]; ok {
@@ -518,7 +524,7 @@ func (api *RpcDevImpl) MonitorAllMiners() (*Result, error) {
 	totalStake := uint64(0)
 	maxStake := uint64(0)
 	for _, m := range miners {
-		if m.AbortHeight == 0 && m.NType == types.MinerTypeHeavy {
+		if m.IsActive() && m.IsProposal() {
 			totalStake += m.Stake
 			if maxStake < m.Stake {
 				maxStake = m.Stake

@@ -242,7 +242,7 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 	}
 	if p != nil && !p.isAuthSucceed {
 		if p.authContext == nil {
-			p.authContext = genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK,&p.ID)
+			p.authContext = genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &p.ID)
 		}
 		req.PK = p.authContext.PK
 		req.CurTime = p.authContext.CurTime

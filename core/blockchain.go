@@ -199,7 +199,6 @@ func initBlockChain(helper types.ConsensusHelper, account Account) error {
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
 	chain.executor = NewTVMExecutor(chain)
-	initMinerManager(chain.ticker)
 
 	chain.latestBlock = chain.loadCurrentBlock()
 	if nil != chain.latestBlock {
@@ -223,8 +222,9 @@ func initBlockChain(helper types.ConsensusHelper, account Account) error {
 	chain.forkProcessor = initForkProcessor(chain)
 
 	BlockChainImpl = chain
+	initMinerManager(chain.ticker)
 
-	MinerManagerImpl.ticker.StartTickerRoutine("build_virtual_net", false)
+	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 	return nil
 }
 
@@ -269,14 +269,14 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 
 	miners := make([]*types.Miner, 0)
 	for i, member := range genesisInfo.Group.Members {
-		miner := &types.Miner{ID: member, PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: common.TAS2RA(100)}
+		miner := &types.Miner{ID: member, PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: minimumStake()}
 		miners = append(miners, miner)
 	}
-	MinerManagerImpl.addGenesesMiner(miners, stateDB)
-	stateDB.SetNonce(common.RewardStorageAddress, 1)
-	stateDB.SetNonce(common.HeavyDBAddress, 1)
-	stateDB.SetNonce(common.LightDBAddress, 1)
-	stateDB.SetNonce(common.MinerStakeDetailDBAddress, 1)
+	MinerManagerImpl.addGenesesMiners(miners, stateDB)
+
+	// Create the global-use address
+	stateDB.SetNonce(minerPoolAddr, 1)
+	stateDB.SetNonce(rewardStoreAddr, 1)
 
 	root, _ := stateDB.Commit(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())

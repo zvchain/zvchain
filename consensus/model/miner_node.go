@@ -28,35 +28,31 @@ type MinerDO struct {
 	VrfPK       base.VRFPublicKey
 	ID          groupsig.ID
 	Stake       uint64
-	NType       byte
+	NType       types.MinerType
 	ApplyHeight uint64
-	AbortHeight uint64
+	Status      types.MinerStatus
 }
 
-func (md *MinerDO) IsAbort(h uint64) bool {
-	return md.AbortHeight > 0 && h >= md.AbortHeight
+func (md *MinerDO) IsActive() bool {
+	return md.Status == types.MinerStatusActive
 }
 
-func (md *MinerDO) EffectAt(h uint64) bool {
-	return h >= md.ApplyHeight
+// CanPropose means whether it can be cast block at this height
+func (md *MinerDO) CanPropose() bool {
+	return md.IsProposal() && md.IsActive()
 }
 
-// CanCastAt means whether it can be cast block at this height
-func (md *MinerDO) CanCastAt(h uint64) bool {
-	return md.IsWeight() && !md.IsAbort(h) && md.EffectAt(h)
+// CanJoinGroup means whether it can join the group at this height
+func (md *MinerDO) CanJoinGroup() bool {
+	return md.IsVerifier() && md.IsActive()
 }
 
-// CanJoinGroupAt means whether it can join the group at this height
-func (md *MinerDO) CanJoinGroupAt(h uint64) bool {
-	return md.IsLight() && !md.IsAbort(h) && md.EffectAt(h)
+func (md *MinerDO) IsVerifier() bool {
+	return md.NType == types.MinerTypeVerify
 }
 
-func (md *MinerDO) IsLight() bool {
-	return md.NType == types.MinerTypeLight
-}
-
-func (md *MinerDO) IsWeight() bool {
-	return md.NType == types.MinerTypeHeavy
+func (md *MinerDO) IsProposal() bool {
+	return md.NType == types.MinerTypeProposal
 }
 
 // SelfMinerDO inherited from MinerDO.

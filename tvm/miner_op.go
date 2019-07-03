@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -13,31 +13,37 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package cli
+package tvm
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
+	"github.com/zvchain/zvchain/common"
+	"math/big"
 )
 
-func signals() <-chan bool {
-	quit := make(chan bool)
-
-	go func() {
-		signals := make(chan os.Signal)
-		defer close(signals)
-
-		signal.Notify(signals, syscall.SIGQUIT, syscall.SIGTERM, os.Interrupt, syscall.SIGSEGV)
-		defer signalStop(signals)
-
-		<-signals
-		quit <- true
-	}()
-
-	return quit
+type minerOpMsg struct {
+	source  *common.Address
+	target  *common.Address
+	value   *big.Int
+	payload []byte
+	typ     int8
 }
 
-func signalStop(c chan<- os.Signal) {
-	signal.Stop(c)
+func (msg *minerOpMsg) OpType() int8 {
+	return msg.typ
+}
+
+func (msg *minerOpMsg) Operator() *common.Address {
+	return msg.source
+}
+
+func (msg *minerOpMsg) OpTarget() *common.Address {
+	return msg.target
+}
+
+func (msg *minerOpMsg) Amount() *big.Int {
+	return msg.value
+}
+
+func (msg *minerOpMsg) Payload() []byte {
+	return msg.payload
 }

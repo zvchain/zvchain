@@ -50,7 +50,7 @@ type (
 	}
 	storageChange struct {
 		account  *common.Address
-		key      string
+		key      []byte
 		prevalue []byte
 	}
 	codeChange struct {

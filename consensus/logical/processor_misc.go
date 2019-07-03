@@ -126,19 +126,19 @@ func (p *Processor) setVrfWorker(vrf *vrfWorker) {
 }
 
 func (p *Processor) getSelfMinerDO() *model.SelfMinerDO {
-	md := p.minerReader.getProposeMiner(p.GetMinerID())
+	md := p.minerReader.getLatestProposeMiner(p.GetMinerID())
 	if md != nil {
 		p.mi.MinerDO = *md
 	}
 	return p.mi
 }
 
-func (p *Processor) canProposalAt(h uint64) bool {
-	miner := p.minerReader.getProposeMiner(p.GetMinerID())
+func (p *Processor) canPropose() bool {
+	miner := p.minerReader.getLatestProposeMiner(p.GetMinerID())
 	if miner == nil {
 		return false
 	}
-	return miner.CanCastAt(h)
+	return miner.CanPropose()
 }
 
 // GetJoinedWorkGroupNums returns both work-group and avail-group num of current node
@@ -161,23 +161,23 @@ func (p *Processor) GetJoinedWorkGroupNums() (work, avail int) {
 func (p *Processor) CalcBlockHeaderQN(bh *types.BlockHeader) uint64 {
 	pi := base.VRFProve(bh.ProveValue)
 	castor := groupsig.DeserializeID(bh.Castor)
-	miner := p.minerReader.getProposeMiner(castor)
-	if miner == nil {
-		stdLogger.Warnf("CalcBHQN getMiner nil id=%v, bh=%v", castor.ShortS(), bh.Hash.ShortS())
-		return 0
-	}
 	pre := p.MainChain.QueryBlockHeaderByHash(bh.PreHash)
 	if pre == nil {
 		return 0
 	}
-	totalStake := p.minerReader.getTotalStake(pre.Height, false)
+	miner := p.minerReader.getProposeMinerByHeight(castor, pre.Height)
+	if miner == nil {
+		stdLogger.Warnf("CalcBHQN getMiner nil id=%v, bh=%v", castor.ShortS(), bh.Hash.ShortS())
+		return 0
+	}
+	totalStake := p.minerReader.getTotalStake(pre.Height)
 	_, qn := vrfSatisfy(pi, miner.Stake, totalStake)
 	return qn
 }
 
 // GetVrfThreshold returns the vrf threshold of current node under the specified stake
 func (p *Processor) GetVrfThreshold(stake uint64) float64 {
-	totalStake := p.minerReader.getTotalStake(p.MainChain.Height(), true)
+	totalStake := p.minerReader.getTotalStake(p.MainChain.Height())
 	if totalStake == 0 {
 		return 0
 	}
@@ -198,10 +198,10 @@ func (p *Processor) GetJoinGroupInfo(gid string) *JoinedGroup {
 func (p *Processor) GetAllMinerDOs() []*model.MinerDO {
 	h := p.MainChain.Height()
 	dos := make([]*model.MinerDO, 0)
-	miners := p.minerReader.getAllMinerDOByType(types.MinerTypeHeavy, h)
+	miners := p.minerReader.getAllMinerDOByType(types.MinerTypeProposal, h)
 	dos = append(dos, miners...)
 
-	miners = p.minerReader.getAllMinerDOByType(types.MinerTypeLight, h)
+	miners = p.minerReader.getAllMinerDOByType(types.MinerTypeVerify, h)
 	dos = append(dos, miners...)
 	return dos
 }

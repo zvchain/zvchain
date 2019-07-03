@@ -63,7 +63,7 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value fl
 		Gasprice: gp,
 		TxType:   txType,
 		Nonce:    nonce,
-		Data:     data,
+		Data:     []byte(data),
 	}
 
 	r := ws.aop.UnLock(source, unlockPassword, 10)

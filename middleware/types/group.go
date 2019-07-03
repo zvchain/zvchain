@@ -29,32 +29,21 @@ type SenderPiece interface {
 }
 type SenderPiecePacket interface {
 	SeedI
-	Sender() []byte              //发送者
-	Pieces() []OriginSenderPiece //发送者对组内每个人的明文分片
+	Sender() []byte        //发送者
+	Pieces() []SenderPiece //发送者对组内每个人的明文分片
 }
 
-// EncryptedSenderPiece is the encrypted piece data from sender during the group-create routine
-type EncryptedSenderPiece interface {
-	SenderPiece
-}
 type EncryptedSenderPiecePacket interface {
-	//SenderPiecePacket
-	//Pubkey() []byte
-	SeedI
-	Sender()    []byte          //发送者
-	Pieces() []EncryptedSenderPiece //发送者对组内每个人的加密分片
+	SenderPiecePacket
+	Pubkey() []byte
 }
 
 type EncryptedReceiverPiece interface {
 	Sender() []byte    // piece的发送者
 	PieceData() []byte // Piece加密后的数据
-	Pubkey() []byte		//piece的目标者
+	Pubkey() []byte    //piece的发送者的公钥
 }
 
-// Piece明文数据包接口
-type OriginSenderPiece interface {
-	SenderPiece
-}
 type OriginSenderPiecePacket interface {
 	SenderPiecePacket
 }
@@ -94,6 +83,7 @@ type GroupHeaderI interface {
 	DismissHeight() uint64
 	Extends() string
 	PublicKey() []byte
+	Threshold() uint32
 }
 
 // 惩罚消息接口
@@ -147,6 +137,9 @@ type GroupStoreReader interface {
 
 	// 获取所有明文分片
 	GetAllOriginPiecePackets(seed SeedI) ([]OriginSenderPiecePacket, error)
+
+	// Get available group infos at the given height
+	GetAvailableGroupInfos(h uint64) []GroupI
 }
 
 // 负责建组相关消息转换成交易发送，共识不关注交易类型，只关注数据
