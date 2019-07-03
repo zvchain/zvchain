@@ -332,7 +332,7 @@ func NewTVMExecutor(bc BlockChain) *TVMExecutor {
 func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
 	var (
 		err error
-		ret *result
+		ret = newResult()
 	)
 
 	// Check state related condition on the non-reward tx type
@@ -372,7 +372,7 @@ func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *typ
 		accountDB.AddBalance(*tx.Source, refund.Mul(refund, tx.GasPrice.Value()))
 	}
 	ret.cumulativeGasUsed = ss.GasUsed()
-	return ret, nil
+	return ret, err
 }
 
 // Execute executes all types transactions and returns the receipts
