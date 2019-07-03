@@ -329,6 +329,8 @@ func (gtas *Gtas) fullInit() error {
 		ChainID:         cfg.chainID,
 		ProtocolVersion: common.ProtocalVersion,
 		SeedIDs:         core.GroupChainImpl.GenesisMembers(),
+		PK:              gtas.account.Pk,
+		SK:              gtas.account.Sk,
 	}
 
 	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)

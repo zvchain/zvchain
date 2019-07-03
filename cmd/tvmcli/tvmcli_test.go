@@ -90,7 +90,6 @@ func TestTvmCli_Call_ContractCallContract_2(t *testing.T) {
   "FuncName": "call_contract",
   "Args": ["%s","private_set_name","test"]
 }`, receiverContract)
-	//TODO error call private_set_name need report
 	tvmCli.Call(routerContract, abiJson)
 	tvmCli.DeleteTvmCli()
 }
@@ -105,11 +104,9 @@ func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
   "Args": ["%s","set_name","test"]
 }`, receiverContract)
 	tvmCli.Call(routerContract, abiJson)
-	
-	//TODO error set_name does not save
+
 	tvmCli.QueryData(routerContract, "name", 0)
 	tvmCli.QueryData(receiverContract, "name", 0)
 
 	tvmCli.DeleteTvmCli()
 }
-

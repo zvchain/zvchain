@@ -137,15 +137,15 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = fmt.Sprint(types.NoCodeErrorMsg, conAddr)
 		return result
 	}
-	oneVM := &TVM{contract, controller.VM.ContractAddress, controller.VM.Logs}
 
 	// prepare vm environment
-	controller.VM.createContext()
+	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.LibPath)
+	oneVM.SetGas(controller.VM.Gas())
 	finished := controller.StoreVMContext(oneVM)
 	defer func() {
 		// recover vm environment
 		if finished {
-			controller.VM.removeContext()
+			controller.RecoverVMContext()
 		}
 	}()
 	if !finished {
@@ -177,10 +177,18 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	if !controller.VM.VerifyABI(executeResult.Abi, abi) {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
 		result.ErrorCode = types.SysCheckABIError
+		result.Content = fmt.Errorf("checkABI failed. abi:%s", abi.FuncName).Error()
+		return result
+	}
+	result = controller.VM.executeABIKindEval(abi)
+	err = controller.VM.storeData()
+	if err != nil {
+		result.ResultType = C.RETURN_TYPE_EXCEPTION
+		result.ErrorCode = types.TVMExecutedError
 		result.Content = err.Error()
 		return result
 	}
-	return controller.VM.executeABIKindEval(abi)
+	return result
 }
 
 func bridgeInit() {
@@ -228,19 +236,24 @@ type TVM struct {
 
 // NewTVM new a TVM instance
 func NewTVM(sender *common.Address, contract *Contract, libPath string) *TVM {
+	C.tvm_start()
+	return NewTVMForRetainContext(sender, contract, libPath)
+}
+
+func NewTVMForRetainContext(sender *common.Address, contract *Contract, libPath string) *TVM {
 	tvm := &TVM{
 		contract,
 		sender,
 		nil,
 	}
-	C.tvm_start()
 
 	if !HasLoadPyLibPath {
 		C.tvm_set_lib_path(C.CString(libPath))
 		HasLoadPyLibPath = true
+		bridgeInit()
 	}
 	C.tvm_set_gas(1000000)
-	bridgeInit()
+
 	return tvm
 }
 

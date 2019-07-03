@@ -221,6 +221,8 @@ func initBlockChain(helper types.ConsensusHelper) error {
 	chain.forkProcessor = initForkProcessor(chain)
 
 	BlockChainImpl = chain
+
+	MinerManagerImpl.ticker.StartTickerRoutine("build_virtual_net", false)
 	return nil
 }
 
