@@ -380,37 +380,6 @@ func (c *sendTxCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if c.extraData != "" {
-		begin := false
-		posBegin, posEnd := 0, 0
-		quot := ""
-		for i, arg := range args {
-			if strings.HasSuffix(arg, "-extra") {
-				begin = true
-				posBegin = i + 1
-				if args[posBegin][:1] == "\"" || args[posBegin][:1] == "'" {
-					quot = args[posBegin][:1]
-				}
-				continue
-			}
-			if begin {
-				if quot == "" && strings.HasPrefix(arg, "-") {
-					begin = false
-					posEnd = i
-					break
-				} else if quot != "" && arg[len(arg)-1:] == quot {
-					begin = false
-					posEnd = i + 1
-					break
-				}
-			}
-		}
-		if posEnd == 0 {
-			c.extraData = strings.Join(args[posBegin:], " ")
-		} else {
-			c.extraData = strings.Join(args[posBegin:posEnd], " ")
-		}
-	}
 	if !validateTxType(c.txType) {
 		output("Not supported transaction type")
 		return false
