@@ -150,34 +150,16 @@ func pycodeLoadMsg() string {
 	return fmt.Sprintf(`
 import ujson
 import account
-class TEvent(object):
-    dict = {}
-    def __init__(self):
-        pass
+class Event(object):
+    registered = {}
 
-TEvents = TEvent()
+    def __init__(self, name):
+        Event.registered[name] = True
+        self.name = name
 
-class DefEvent(object):
-    class Node(object):
-        def __init__(self,name):
-            self.name = name
-            
-        def __call__(self, index,data):
-            if type(index) != type('a'):
-                raise LibException('index should be string',2)
-            if type(data) != type({'val':1}):
-                raise LibException('data should be dict',2)
-            account.eventCall(self.name,index,ujson.dumps(data))
-            #print("name :", self.name)
-            #print("index:",index)
-            #print("data :",ujson.dumps(data))
-
-    def __init__(self,name):
-        #print(name)
-        #def ev_fun(self,index,data):
-        #    print(index)
-        #    print(data)
-        setattr(TEvent,name,DefEvent.Node(name))
+    def emit(self, *args, **kwargs):
+        kwargs["default"] = args
+        account.event_call(self.name, ujson.dumps(kwargs))
 
 
 class Msg(object):
