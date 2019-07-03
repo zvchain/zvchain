@@ -216,7 +216,6 @@ func TestTVM_VerifyABI1(t *testing.T) {
 		ContractAddress: &contractAddr,
 	}
 	vm := NewTVM(&senderAddr, contract, "")
-
 	vm.SetGas(9999999999999999)
 	var addr common.Address
 	addr = common.BytesToAddress([]byte("0x123"))
