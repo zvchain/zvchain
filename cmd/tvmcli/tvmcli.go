@@ -18,6 +18,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -45,6 +46,29 @@ func (Transaction) GetTarget() *common.Address {
 }
 func (Transaction) GetData() []byte      { return nil }
 func (Transaction) GetHash() common.Hash { return common.Hash{} }
+
+type FakeChainReader struct {
+}
+
+func (FakeChainReader) Height() uint64 {
+	return 0
+}
+
+func (FakeChainReader) QueryTopBlock() *types.BlockHeader {
+	return &types.BlockHeader{}
+}
+func (FakeChainReader) QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
+	return &types.BlockHeader{}
+}
+func (FakeChainReader) QueryBlockHeaderByHeight(height uint64) *types.BlockHeader {
+	return &types.BlockHeader{}
+}
+func (FakeChainReader) HasBlock(hash common.Hash) bool {
+	return true
+}
+func (FakeChainReader) HasHeight(height uint64) bool {
+	return true
+}
 
 func Exists(path string) bool {
 	_, err := os.Stat(path) //os.Stat获取文件信息
@@ -125,7 +149,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 	transaction := Transaction{}
-	controller := tvm.NewController(state, nil, nil, transaction, 0, "../py", nil, nil)
+	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, transaction, 0, "../py", nil, nil)
 
 	nonce := state.GetNonce(*transaction.GetSource())
 	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.GetSource()[:], common.Uint64ToByte(nonce))))
@@ -165,7 +189,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 
-	controller := tvm.NewController(state, nil, nil, Transaction{}, 0, "../py", nil, nil)
+	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, Transaction{}, 0, "../py", nil, nil)
 
 	//abi := tvm.ABI{}
 	//abiJsonError := json.Unmarshal([]byte(abiJSON), &abi)
@@ -178,9 +202,12 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	//fmt.Println(contract.Code)
 	sender := common.HexToAddress(DefaultAccounts[0])
 	controller.VM.SetGas(500000)
-	executeResult, _, _, _ := controller.ExecuteAbiEval(&sender, contract, abiJSON)
+	executeResult, _, logs, _ := controller.ExecuteAbiEval(&sender, contract, abiJSON)
 	fmt.Println("gas: ", 500000-controller.VM.Gas())
-
+	fmt.Printf("%d logs: \n", len(logs))
+	for _, log := range logs {
+		fmt.Printf("		string: %s, data: %s\n", log.String(), string(log.Data))
+	}
 	if executeResult == nil {
 		fmt.Println("ExecuteAbiEval error")
 		return

@@ -45,6 +45,7 @@ if [[ $1x = "gtas"x ]]; then
     echo build gtas successfully...
 
 elif [[ $1x = "tvmcli"x ]]; then
+    buildtvm
     go build -o ${output_dir}/tvmcli $basepath/cmd/tvmcli &&
     echo build tvmcli successfully...
 elif [[ $1x = "clean"x ]]; then
