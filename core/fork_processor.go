@@ -193,7 +193,9 @@ func (fp *forkProcessor) requestPieceBlock(topHash common.Hash) {
 
 	// Start ticker
 	fp.chain.ticker.RegisterOneTimeRoutine(fp.timeoutTickerName(fp.syncCtx.target), func() bool {
-		fp.reqPieceTimeout(fp.syncCtx.target)
+		if fp.syncCtx != nil {
+			fp.reqPieceTimeout(fp.syncCtx.target)
+		}
 		return true
 	}, reqPieceTimeout)
 }

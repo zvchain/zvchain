@@ -174,10 +174,10 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		return result
 	}
 
-	if !controller.VM.VerifyABI(executeResult.Abi, abi){
+	if !controller.VM.VerifyABI(executeResult.Abi, abi) {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
 		result.ErrorCode = types.SysCheckABIError
-		result.Content = fmt.Errorf("checkABI failed. abi:%s",abi.FuncName).Error()
+		result.Content = fmt.Errorf("checkABI failed. abi:%s", abi.FuncName).Error()
 		return result
 	}
 	result = controller.VM.executeABIKindEval(abi)
@@ -279,7 +279,7 @@ func (tvm *TVM) DelTVM() {
 	C.tvm_gc()
 }
 
-func (tvm *TVM) VerifyABI(standardABI string,callABI ABI) bool  {
+func (tvm *TVM) VerifyABI(standardABI string, callABI ABI) bool {
 	var standardABIStruct []ABIVerify
 	err := json.Unmarshal([]byte(standardABI), &standardABIStruct)
 	if err != nil {
@@ -306,10 +306,10 @@ func (tvm *TVM) VerifyABI(standardABI string,callABI ABI) bool  {
 		}
 	}
 
-	for _, value := range standardABIStruct{
+	for _, value := range standardABIStruct {
 		if value.FuncName == callABI.FuncName {
 			if len(value.Args) == len(callABI.Args) {
-				if reflect.DeepEqual(value.Args,argsType){
+				if reflect.DeepEqual(value.Args, argsType) {
 					return true
 				}
 			}
@@ -322,7 +322,7 @@ func (tvm *TVM) ExportABI(contract *Contract) string {
 
 	str := tasExportABI()
 	err := tvm.ExecuteScriptVMSucceed(str)
-	if err != nil{
+	if err != nil {
 		return ""
 	}
 	result := tvm.ExecuteScriptKindFile(contract.Code)
@@ -338,12 +338,12 @@ func (tvm *TVM) storeData() error {
 
 // Msg Msg is msg instance which store running message when running a contract
 type Msg struct {
-	Data   []byte
-	Value  uint64
+	Data  []byte
+	Value uint64
 }
 
 // CreateContractInstance Create contract instance
-func (tvm *TVM) CreateContractInstance(msg Msg) (int,*ExecuteResult ,error) {
+func (tvm *TVM) CreateContractInstance(msg Msg) (int, *ExecuteResult, error) {
 	err := tvm.loadMsgWhenCall(msg)
 	if err != nil {
 		return 0, nil, err

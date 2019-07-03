@@ -78,32 +78,43 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	//def Test(a, b, c, d):
 	//	print("hehe")
 	//`
+
+	nonce := uint64(1)
 	// 交易1
-	tx := genTestTx(12345, "100", "2", 0, 1)
+	tx := genTestTx(200, "100", nonce, 1)
 	var sign = common.BytesToSign(tx.Sign)
 	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
 	src := pk.GetAddress()
-	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111111111111))
+	balance := uint64(100000000)
+	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(balance))
 	if err != nil {
 		t.Fatalf("error")
 	}
+
+	balance2 := BlockChainImpl.LatestStateDB().GetBalance(src).Uint64()
+	if balance2 != balance {
+		t.Fatalf("set balance fail")
+	}
+
 	_, err = txpool.AddTransaction(tx)
 
 	if err != nil {
-		t.Fatalf("fail to AddTransaction")
+		t.Fatalf("fail to AddTransaction %v", err)
 	}
 	//txpool.AddTransaction(genContractTx(1, 20000000, "1", "", 1, 0, []byte(code), nil, 0))
 	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine([]byte("1"), common.Uint64ToByte(0))))
 	//交易2
-	_, err = txpool.AddTransaction(genTestTx(123456, "2", "3", 0, 1))
+	nonce++
+	_, err = txpool.AddTransaction(genTestTx(200, "2", nonce, 1))
 	if err != nil {
-		t.Fatalf("fail to AddTransaction")
+		t.Fatalf("fail to AddTransaction %v", err)
 	}
 
 	//交易3 执行失败的交易
-	_, err = txpool.AddTransaction(genTestTx(123456, "2", "3", 1, 1))
+	nonce++
+	_, err = txpool.AddTransaction(genTestTx(200, "2", nonce, 1))
 	if err != nil {
-		t.Fatalf("fail to AddTransaction")
+		t.Fatalf("fail to AddTransaction %v", err)
 	}
 	castor := new([]byte)
 	groupid := new([]byte)
@@ -146,7 +157,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 
 	//交易3
-	transaction := genTestTx(1111, "1", "2", 2, 10)
+	transaction := genTestTx(1111, "1", 2, 10)
 	sign = common.BytesToSign(transaction.Sign)
 	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
 	src = pk.GetAddress()
@@ -217,27 +228,6 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	if nil == blockHeader || 5 != blockHeader.Height || blockHeader.Hash != block5.Header.Hash {
 		t.Fatalf("add block3 failed")
 	}
-
-	// 铸块4 空块
-	// 模拟分叉
-	//block4 := BlockChainImpl.CastBlockAfter(block.Header, 2, 124, 0, *castor, *groupid)
-	//
-	//if 0 != BlockChainImpl.AddBlockOnChain(block4) {
-	//	t.Fatalf("fail to add empty block")
-	//}
-	////最新块是块4
-	//blockHeader = BlockChainImpl.QueryTopBlock()
-	//if nil == blockHeader || 2 != blockHeader.Height || blockHeader.Hash != block4.Header.Hash {
-	//	t.Fatalf("add block4 failed")
-	//}
-	//blockHeader = BlockChainImpl.QueryBlockByHeight(3)
-	//if nil != blockHeader {
-	//	t.Fatalf("failed to remove uncle blocks")
-	//}
-	//
-	//if BlockChainImpl.GetBalance(c.BytesToAddress(genHash("1"))).Int64() != 999999 {
-	//	t.Fatalf("fail to switch to main gchain. %d", BlockChainImpl.GetBalance(c.BytesToAddress(genHash("1"))))
-	//}
 
 	BlockChainImpl.Close()
 }
@@ -376,13 +366,13 @@ func TestBlockChain_StateTree(t *testing.T) {
 	}
 
 	// 交易1
-	_, _ = txpool.AddTransaction(genTestTx(12345, "1", "2", 1, 1))
+	_, _ = txpool.AddTransaction(genTestTx(12345, "1", 1, 1))
 
 	//交易2
-	_, _ = txpool.AddTransaction(genTestTx(123456, "2", "3", 2, 2))
+	_, _ = txpool.AddTransaction(genTestTx(123456, "2", 2, 2))
 
 	// 交易3 失败的交易
-	_, _ = txpool.AddTransaction(genTestTx(123457, "1", "2", 2, 3))
+	_, _ = txpool.AddTransaction(genTestTx(123457, "1", 2, 3))
 
 	// 铸块1
 	block := BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 0, *castor, *groupid)
@@ -427,15 +417,13 @@ func TestBlockChain_StateTree(t *testing.T) {
 
 var privateKey = "0x045c8153e5a849eef465244c0f6f40a43feaaa6855495b62a400cc78f9a6d61c76c09c3aaef393aa54bd2adc5633426e9645dfc36723a75af485c5f5c9f2c94658562fcdfb24e943cf257e25b9575216c6647c4e75e264507d2d57b3c8bc00b361"
 
-func genTestTx(price uint64, source string, target string, nonce uint64, value uint64) *types.Transaction {
+func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.Transaction {
 
-	sourcebyte := common.BytesToAddress(genHash(source))
 	targetbyte := common.BytesToAddress(genHash(target))
 
 	tx := &types.Transaction{
 		GasPrice: types.NewBigInt(price),
-		GasLimit: types.NewBigInt(10000),
-		Source:   &sourcebyte,
+		GasLimit: types.NewBigInt(5000),
 		Target:   &targetbyte,
 		Nonce:    nonce,
 		Value:    types.NewBigInt(value),
@@ -445,6 +433,9 @@ func genTestTx(price uint64, source string, target string, nonce uint64, value u
 	sign, _ := sk.Sign(tx.Hash.Bytes())
 	tx.Sign = sign.Bytes()
 
+	source := sk.GetPubKey().GetAddress()
+	tx.Source = &source
+
 	return tx
 }
 
@@ -452,18 +443,6 @@ func genHash(hash string) []byte {
 	bytes3 := []byte(hash)
 	return common.Sha256(bytes3)
 }
-
-//func TestMinerOnChain(t *testing.T)  {
-//	Clear()
-//	code := tvm.Read0("/Users/guangyujing/workspace/tas/src/tvm/py/miner/miner.py")
-//
-//	contract := tvm.Contract{code, "miner", nil}
-//	jsonString, _ := json.Marshal(contract)
-//	fmt.Println(string(jsonString))
-//	contractAddress := common.HexToAddress("0xff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")
-//	OnChainFunc(string(jsonString), contractAddress.GetHexString())
-//}
-//
 
 func clear() {
 	fmt.Println("---clear---")
@@ -501,7 +480,6 @@ func clearTicker() {
 }
 
 func initContext4Test() error {
-	clear()
 	common.DefaultLogger = taslog.GetLoggerByName("default")
 	common.InitConf("../tas_config_all.ini")
 	network.Logger = taslog.GetLoggerByName("p2p" + common.GlobalConf.GetString("client", "index", ""))
@@ -511,9 +489,10 @@ func initContext4Test() error {
 	}
 	BlockChainImpl = nil
 	GroupChainImpl = nil
-	_ = InitCore(NewConsensusHelper4Test(groupsig.ID{}))
+	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}))
+
 	clearTicker()
-	return nil
+	return err
 }
 
 func NewConsensusHelper4Test(id groupsig.ID) types.ConsensusHelper {

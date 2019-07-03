@@ -94,7 +94,7 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 		}
 	} else {
 		natEnable = true
-		randomSeeds :=  genRandomSeeds(networkConfig.SeedIDs)
+		randomSeeds := genRandomSeeds(networkConfig.SeedIDs)
 		for _, sid := range randomSeeds {
 			bnNode := NewNode(NewNodeID(sid), net.ParseIP(networkConfig.SeedAddr), seedPort)
 			Logger.Errorf("Seed ID:%v ", sid)
@@ -159,5 +159,8 @@ func genRandomSeeds(seeds []string) []string {
 }
 
 func GetNetInstance() Network {
+	if netServerInstance == nil {
+		return nil
+	}
 	return netServerInstance
 }

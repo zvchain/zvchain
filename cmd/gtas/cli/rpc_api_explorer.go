@@ -127,20 +127,22 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 		ProposalID: groupsig.DeserializeID(bh.Castor).GetHexString(),
 	}
 	packedReward := uint64(0)
+	rm := chain.GetRewardManager()
 	if b.Transactions != nil {
 		for _, tx := range b.Transactions {
-			if tx.Type == types.TransactionTypeReward {
+			if tx.IsReward() {
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
-				status, err := chain.GetTransactionPool().GetTransactionStatus(tx.Hash)
-				if err != nil && block != nil && status == types.Success {
-					packedReward += chain.GetRewardManager().CalculatePackedRewards(block.Header.Height)
+				receipt := chain.GetTransactionPool().GetReceipt(tx.Hash)
+				if receipt != nil && block != nil && receipt.Success() {
+					share := rm.CalculateCastRewardShare(bh.Height, 0)
+					packedReward += share.ForRewardTxPacking
 				}
 			}
 		}
 	}
-	ret.ProposalReward = chain.GetRewardManager().CalculateCastorRewards(bh.Height) + packedReward
-	ret.ProposalGasFeeReward = chain.GetRewardManager().
-		CalculateGasFeeCastorRewards(bh.GasFee)
+	share := rm.CalculateCastRewardShare(bh.Height, bh.GasFee)
+	ret.ProposalReward = share.ForBlockProposal + packedReward
+	ret.ProposalGasFeeReward = share.FeeForProposer
 	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
 		genReward := convertRewardTransaction(rewardTx)
 		genReward.Success = true

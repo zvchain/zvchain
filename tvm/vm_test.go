@@ -123,14 +123,14 @@ class Token(object):
         print(a)
 
 `
-const abiJSON  = `
+const abiJSON = `
 {
     "FuncName": "big",
     "Args": [[786, 2.23, 70.2], {"12": 123}, true,"goodday", 500]
 }
 `
 
-const evilJSON  = `
+const evilJSON = `
 {
     "FuncName": "balance_of",
     "Args": ["0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd\")\ntas_Token.transfer('0x123',50)\n(\""]
@@ -178,8 +178,7 @@ func TestVm(t *testing.T) {
 	vm.ContractName = "Token"
 	abi := ABI{
 		FuncName: "balance_of",
-		Args: []interface{}{"0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd\")\ntas_Token.transfer('0x123',50)=\n(\""},
-
+		Args:     []interface{}{"0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd\")\ntas_Token.transfer('0x123',50)=\n(\""},
 	}
 	fmt.Println(vm.generateScript(abi))
 }
@@ -193,9 +192,9 @@ func TestTVM_VerifyABI(t *testing.T) {
 	senderAddr := common.HexToAddress("0x456")
 
 	contract := &Contract{
-		Code:contractExample,
-		ContractName: "Token",
-		ContractAddress:&contractAddr,
+		Code:            contractExample,
+		ContractName:    "Token",
+		ContractAddress: &contractAddr,
 	}
 	vm := NewTVM(&senderAddr, contract, "")
 
@@ -207,22 +206,22 @@ func TestTVM_VerifyABI(t *testing.T) {
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
-		t.Error("abiJSONError Unmarshall err:",abiJSONError)
+		t.Error("abiJSONError Unmarshall err:", abiJSONError)
 	}
 
 	msg := Msg{
-		Data:[]byte{},
-		Value:0,
+		Data:  []byte{},
+		Value: 0,
 	}
-	_, result,err := vm.CreateContractInstance(msg)
-	if err != nil{
-		t.Error("CreateContractInstance err:",err)
+	_, result, err := vm.CreateContractInstance(msg)
+	if err != nil {
+		t.Error("CreateContractInstance err:", err)
 	}
 
 	//result := vm.ExecuteScriptKindFile(contract.Code)
-	fmt.Println("result:",result)
+	fmt.Println("result:", result)
 
-	if !vm.VerifyABI(result.Abi,abi){
+	if !vm.VerifyABI(result.Abi, abi) {
 		t.Error("VerifyABI err")
 	}
 }

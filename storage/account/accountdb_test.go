@@ -42,7 +42,7 @@ func TestUpdateLeaks(t *testing.T) {
 		state.AddBalance(addr, big.NewInt(int64(11*i)))
 		state.SetNonce(addr, uint64(42*i))
 		if i%2 == 0 {
-			state.SetData(addr, string([]byte{i, i, i}), []byte{i, i, i, i})
+			state.SetData(addr, []byte{i, i, i}, []byte{i, i, i, i})
 		}
 		if i%3 == 0 {
 			state.SetCode(addr, []byte{i, i, i, i, i})
@@ -161,7 +161,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 		{
 			name: "SetData",
 			fn: func(a testAction, s *AccountDB) {
-				key := "key"
+				key := []byte("key")
 				var val []byte
 				binary.BigEndian.PutUint16([]byte(key), uint16(a.args[1]))
 				s.SetData(addr, key, val)

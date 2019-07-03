@@ -52,8 +52,15 @@ func init() {
 		panic(fmt.Sprintf("Init block chain error! Error:%s", err.Error()))
 	}
 	accountdb = account.NewDatabase(statedb)
-
 	Logger = taslog.GetLogger("")
+
+	executor = &TVMExecutor{
+		bc: &FullBlockChain{
+			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
+			rewardManager:   newRewardManager(),
+		},
+	}
+	BlockChainImpl = executor.bc
 }
 
 func randomAddress() common.Address {

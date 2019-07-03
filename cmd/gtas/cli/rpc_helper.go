@@ -58,7 +58,7 @@ func convertTransaction(tx *types.Transaction) *Transaction {
 
 func convertExecutedTransaction(executed *core.ExecutedTransaction) *ExecutedTransaction {
 	rec := &Receipt{
-		Status:            executed.Receipt.Status,
+		Status:            int(executed.Receipt.Status),
 		CumulativeGasUsed: executed.Receipt.CumulativeGasUsed,
 		Logs:              executed.Receipt.Logs,
 		TxHash:            executed.Receipt.TxHash,
@@ -99,7 +99,7 @@ func convertRewardTransaction(tx *types.Transaction) *RewardTransaction {
 	if tx.Type != types.TransactionTypeReward {
 		return nil
 	}
-	gid, ids, bhash, value, err := mediator.Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
+	gid, ids, bhash, packFee, err := mediator.Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
 	if err != nil {
 		return nil
 	}
@@ -112,7 +112,8 @@ func convertRewardTransaction(tx *types.Transaction) *RewardTransaction {
 		BlockHash: bhash,
 		GroupID:   groupsig.DeserializeID(gid),
 		TargetIDs: targets,
-		Value:     value.Uint64(),
+		Value:     tx.Value.Uint64(),
+		PackFee:   packFee.Uint64(),
 	}
 }
 

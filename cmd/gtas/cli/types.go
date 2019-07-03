@@ -97,28 +97,40 @@ type CastStat struct {
 type MortGage struct {
 	Stake       uint64 `json:"stake"`
 	ApplyHeight uint64 `json:"apply_height"`
-	AbortHeight uint64 `json:"abort_height"`
 	Type        string `json:"type"`
 	Status      string `json:"status"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	t := "proposal node"
-	if miner.Type == types.MinerTypeLight {
+	if miner.IsVerifyRole() {
 		t = "verify node"
 	}
-	status := "abort"
-	if miner.Status == types.MinerStatusNormal {
+	status := "prepared"
+	if miner.IsActive() {
 		status = "normal"
+	} else if miner.IsFrozen() {
+		status = "frozen"
 	}
 	mg := &MortGage{
 		Stake:       uint64(common.RA2TAS(miner.Stake)),
 		ApplyHeight: miner.ApplyHeight,
-		AbortHeight: miner.AbortHeight,
 		Type:        t,
 		Status:      status,
 	}
 	return mg
+}
+
+type StakeDetail struct {
+	Value        uint64 `json:"value"`
+	UpdateHeight uint64 `json:"update_height"`
+	MType        string `json:"m_type"`
+	Status       string `json:"status"`
+}
+
+type MinerStakeDetails struct {
+	Overview []*MortGage               `json:"overview"`
+	Details  map[string][]*StakeDetail `json:"details,omitempty"`
 }
 
 type NodeInfo struct {
@@ -217,7 +229,7 @@ type Transaction struct {
 }
 
 type Receipt struct {
-	Status            int         `json:"status"`
+	Status            int          `json:"status"`
 	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
 	Logs              []*types.Log `json:"logs"`
 
@@ -238,6 +250,7 @@ type RewardTransaction struct {
 	GroupID      groupsig.ID   `json:"group_id"`
 	TargetIDs    []groupsig.ID `json:"target_ids"`
 	Value        uint64        `json:"value"`
+	PackFee      uint64        `json:"pack_fee"`
 	StatusReport string        `json:"status_report"`
 	Success      bool          `json:"success"`
 }

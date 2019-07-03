@@ -7,10 +7,10 @@ import (
 func TestRewardManager_CalculateGasFeeVerifyRewards(t *testing.T) {
 	rm := RewardManager{}
 	gasFee := uint64(100)
-	rewards := rm.CalculateGasFeeVerifyRewards(gasFee)
+	rewards := rm.calculateGasFeeVerifyRewards(gasFee)
 	correctRewards := gasFee * gasFeeVerifyRewardsWeight / gasFeeTotalRewardsWeight
 	if rewards != correctRewards {
-		t.Errorf("CalculateGasFeeVerifyRewards: rewards error, wanted: %d, got: %d",
+		t.Errorf("calculateGasFeeVerifyRewards: rewards error, wanted: %d, got: %d",
 			correctRewards, rewards)
 	}
 }
@@ -18,10 +18,10 @@ func TestRewardManager_CalculateGasFeeVerifyRewards(t *testing.T) {
 func TestRewardManager_CalculateGasFeeCastorRewards(t *testing.T) {
 	rm := RewardManager{}
 	gasFee := uint64(100)
-	rewards := rm.CalculateGasFeeCastorRewards(gasFee)
+	rewards := rm.calculateGasFeeCastorRewards(gasFee)
 	correctRewards := gasFee * gasFeeCastorRewardsWeight / gasFeeTotalRewardsWeight
 	if rewards != correctRewards {
-		t.Errorf("CalculateGasFeeVerifyRewards: rewards error, wanted: %d, got: %d",
+		t.Errorf("calculateGasFeeVerifyRewards: rewards error, wanted: %d, got: %d",
 			correctRewards, rewards)
 	}
 }
@@ -50,22 +50,22 @@ func TestRewardManager_Rewards(t *testing.T) {
 			t.Errorf("minerNodesRewards: rewards error, wanted: %d, got: %d",
 				correctMinerNodeRewards, minerNodeRewards)
 		}
-		castorRewards := rm.CalculateCastorRewards(i)
+		castorRewards := rm.calculateCastorRewards(i)
 		correctCastorRewards := minerNodeRewards * castorRewardsWeight / totalRewardsWeight
 		if castorRewards != correctCastorRewards {
-			t.Errorf("CalculateCastorRewards: rewards error, wanted: %d, got: %d",
+			t.Errorf("calculateCastorRewards: rewards error, wanted: %d, got: %d",
 				correctCastorRewards, castorRewards)
 		}
-		packedRewards := rm.CalculatePackedRewards(i)
+		packedRewards := rm.calculatePackedRewards(i)
 		correctPackedRewards := minerNodeRewards * packedRewardsWeight / totalRewardsWeight
 		if packedRewards != correctPackedRewards {
-			t.Errorf("CalculatePackedRewards: rewards error, wanted: %d, got: %d",
+			t.Errorf("calculatePackedRewards: rewards error, wanted: %d, got: %d",
 				correctPackedRewards, packedRewards)
 		}
-		verifyRewards := rm.CalculateVerifyRewards(i)
+		verifyRewards := rm.calculateVerifyRewards(i)
 		correctVerifyRewards := minerNodeRewards * verifyRewardsWeight / totalRewardsWeight
 		if verifyRewards != correctVerifyRewards {
-			t.Errorf("CalculateVerifyRewards: rewards error, wanted: %d, got: %d",
+			t.Errorf("calculateVerifyRewards: rewards error, wanted: %d, got: %d",
 				correctVerifyRewards, verifyRewards)
 		}
 	}
