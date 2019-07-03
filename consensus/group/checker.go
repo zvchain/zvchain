@@ -18,6 +18,7 @@ package group
 import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -33,8 +34,10 @@ type createChecker struct {
 type createContext struct {
 	era                *era
 	sentEncryptedPiece types.EncryptedSenderPiecePacket
-	cands              candidateSelector
+	cands              candidates
 }
+
+type candidates []*model.MinerDO
 
 func newCreateContext(era *era) *createContext {
 	return &createContext{era: era}

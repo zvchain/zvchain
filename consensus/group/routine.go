@@ -18,7 +18,6 @@ package group
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -80,7 +79,7 @@ func (routine *createRoutine) selectCandidates() error {
 		return nil
 	}
 
-	routine.ctx.cands = make(candidateSelector, 0)
+	routine.ctx.cands = make(candidates, 0)
 
 	h := routine.currEra().seedHeight
 	bh := routine.currEra().seedBlock
@@ -114,13 +113,11 @@ func (routine *createRoutine) selectCandidates() error {
 		return fmt.Errorf("not enough candiates in availables:%v", len(availCandidates))
 	}
 
-	rand := base.RandFromBytes(bh.Random)
-	remain := memberCnt
-	remainCandidates := availCandidates
-	for remain > 0 {
-		r := rand.Modulo()
-	}
+	selector := newCandidateSelector(availCandidates, bh.Random)
+	selectedCandidates := selector.algSatoshi(memberCnt)
 
+	routine.ctx.cands = selectedCandidates
+	return nil
 }
 
 func (routine *createRoutine) generateSharePiece(miner *model.SelfMinerDO) {

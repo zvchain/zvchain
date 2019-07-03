@@ -24,10 +24,10 @@ import (
 type candidateSelector struct {
 	list        *list.List
 	remainStake uint64
-	rand        base.Rand
+	rand        []byte
 }
 
-func newCandidateSelector(cands []*model.MinerDO, rand base.Rand) *candidateSelector {
+func newCandidateSelector(cands []*model.MinerDO, rand []byte) *candidateSelector {
 	list := list.New()
 	stake := uint64(0)
 	for _, c := range cands {
@@ -38,14 +38,21 @@ func newCandidateSelector(cands []*model.MinerDO, rand base.Rand) *candidateSele
 }
 
 func (cs *candidateSelector) algSatoshi(num int) []*model.MinerDO {
+	rand := base.RandFromBytes(cs.rand)
 	result := make([]*model.MinerDO, 0)
-	for num > 0 {
-		r := cs.rand.ModuloUint64(cs.remainStake)
-		var (
-			cumulativeStake = uint64(0)
-			miner           interface{}
-		)
-		for e := cs.list.Front(); e != nil && cumulativeStake > r; e = e.Next() {
+	for len(result) < num {
+		r := rand.Deri(len(result)).ModuloUint64(cs.remainStake)
+		cumulativeStake := uint64(0)
+		for e := cs.list.Front(); e != nil; e = e.Next() {
+			m := e.Value.(*model.MinerDO)
+			if m.Stake+cumulativeStake > r {
+				cs.list.Remove(e)
+				cs.remainStake -= m.Stake
+				result = append(result, m)
+				break
+			}
+			cumulativeStake += m.Stake
 		}
 	}
+	return result
 }
