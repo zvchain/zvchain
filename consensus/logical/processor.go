@@ -150,7 +150,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 		err = fmt.Errorf("minerDO is nil, id=%v", castor.ShortS())
 		return
 	}
-	if !minerDO.CanCastAt(bh.Height) {
+	if !minerDO.CanPropose() {
 		err = fmt.Errorf("miner can't cast at height, id=%v, height=%v, status=%v", castor.ShortS(), bh.Height, minerDO.Status)
 		return
 	}

@@ -133,12 +133,12 @@ func (p *Processor) getSelfMinerDO() *model.SelfMinerDO {
 	return p.mi
 }
 
-func (p *Processor) canProposalAt(h uint64) bool {
+func (p *Processor) canPropose() bool {
 	miner := p.minerReader.getLatestProposeMiner(p.GetMinerID())
 	if miner == nil {
 		return false
 	}
-	return miner.CanCastAt(h)
+	return miner.CanPropose()
 }
 
 // GetJoinedWorkGroupNums returns both work-group and avail-group num of current node

@@ -53,7 +53,7 @@ func GetMinerPK(id groupsig.ID) *groupsig.Pubkey {
 	if v, ok := pkPool.pkCache.Get(id.GetHexString()); ok {
 		return v.(*groupsig.Pubkey)
 	}
-	miner := pkPool.minerAccess.getLatestLightMiner(id)
+	miner := pkPool.minerAccess.GetLatestVerifyMiner(id)
 	if miner == nil {
 		miner = pkPool.minerAccess.getLatestProposeMiner(id)
 	}

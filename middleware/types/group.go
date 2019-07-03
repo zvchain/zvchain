@@ -83,6 +83,7 @@ type GroupHeaderI interface {
 	DismissHeight() uint64
 	Extends() string
 	PublicKey() []byte
+	Threshold() uint32
 }
 
 // 惩罚消息接口
@@ -136,6 +137,9 @@ type GroupStoreReader interface {
 
 	// 获取所有明文分片
 	GetAllOriginPiecePackets(seed SeedI) ([]OriginSenderPiecePacket, error)
+
+	// Get available group infos at the given height
+	GetAvailableGroupInfos(h uint64) []GroupI
 }
 
 // 负责建组相关消息转换成交易发送，共识不关注交易类型，只关注数据

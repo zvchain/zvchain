@@ -70,7 +70,7 @@ func convert2MinerDO(miner *types.Miner) *model.MinerDO {
 	return md
 }
 
-func (access *MinerPoolReader) getLatestLightMiner(id groupsig.ID) *model.MinerDO {
+func (access *MinerPoolReader) GetLatestVerifyMiner(id groupsig.ID) *model.MinerDO {
 	miner := access.mPool.GetLatestMiner(id.ToAddress(), types.MinerTypeVerify)
 	if miner == nil {
 		return nil
@@ -107,13 +107,12 @@ func (access *MinerPoolReader) getAllMinerDOByType(minerType types.MinerType, h 
 	return mds
 }
 
-func (access *MinerPoolReader) getCanJoinGroupMinersAt(h uint64) []model.MinerDO {
+func (access *MinerPoolReader) GetCanJoinGroupMinersAt(h uint64) []*model.MinerDO {
 	miners := access.getAllMinerDOByType(types.MinerTypeVerify, h)
-	rets := make([]model.MinerDO, 0)
-	access.blog.debug("all light nodes size %v", len(miners))
+	rets := make([]*model.MinerDO, 0)
 	for _, md := range miners {
-		if md.CanJoinGroupAt(h) {
-			rets = append(rets, *md)
+		if md.CanJoinGroup() {
+			rets = append(rets, md)
 		}
 	}
 	return rets
