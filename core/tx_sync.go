@@ -165,7 +165,7 @@ func (ts *txSyncer) notifyTxs() bool {
 	})
 
 	if len(txs) < txMaxNotifyPerTime {
-		ts.pool.received.eachForSync(func(tx *types.Transaction) bool {
+		ts.pool.received.eachForPack(func(tx *types.Transaction) bool {
 			if ts.checkTxCanBroadcast(tx.Hash) {
 				txs = append(txs, tx)
 				return len(txs) < txMaxNotifyPerTime
