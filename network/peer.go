@@ -18,11 +18,12 @@ package network
 import (
 	"bytes"
 	"container/list"
-	"github.com/zvchain/zvchain/common"
 	"math"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/zvchain/zvchain/common"
 )
 
 type PeerSource int32
@@ -102,6 +103,7 @@ type Peer struct {
 	connecting     bool
 	pingCount      int
 	lastPingTime   time.Time
+	isPinged       bool
 	source         PeerSource
 
 	bytesReceived   int
@@ -188,7 +190,6 @@ func (p *Peer) verifyUpdate() {
 }
 
 func (p *Peer) isEmpty() bool {
-
 	empty := true
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
@@ -201,8 +202,10 @@ func (p *Peer) isEmpty() bool {
 
 func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted bool) {
 	p.resetData()
+	p.resetAuthCoentext()
 	p.connecting = false
 	if session > p.sessionID {
+
 		p.sessionID = session
 	}
 	p.connectTime = time.Now()
@@ -211,6 +214,22 @@ func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted b
 
 	p.sendList.pendingSend = 0
 	p.sendList.autoSend(p)
+}
+
+func (p *Peer) resetAuthCoentext() {
+	p.isAuthSucceed = false
+	p.authContext = nil
+	p.remoteAuthContext = nil
+	p.remoteVerifyResult = false
+	p.verifyResult = false
+}
+
+func (p *Peer) onDisonnect() {
+	p.resetData()
+	p.connecting = false
+	p.disconnectCount++
+	p.sessionID = 0
+	p.sendList.pendingSend = 0
 
 }
 

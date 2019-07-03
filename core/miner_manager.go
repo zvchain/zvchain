@@ -56,7 +56,6 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 	}
 
 	MinerManagerImpl.ticker.RegisterPeriodicRoutine(buildVirtualNetRoutineName, MinerManagerImpl.updateProposalAddressRoutine, heavyMinerNetTriggerInterval)
-	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 
 	go MinerManagerImpl.listenProposalUpdate()
 }

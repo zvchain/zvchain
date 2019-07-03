@@ -87,6 +87,7 @@ func (con *Controller) Deploy(contract *Contract) error {
 	con.VM = NewTVM(con.Transaction.GetSource(), contract, con.LibPath)
 	defer func() {
 		con.VM.DelTVM()
+		con.GasLeft = uint64(con.VM.Gas())
 	}()
 	con.VM.SetGas(int(con.GasLeft))
 	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue()}
@@ -99,7 +100,6 @@ func (con *Controller) Deploy(contract *Contract) error {
 	if err != nil {
 		return err
 	}
-	con.GasLeft = uint64(con.VM.Gas())
 	return nil
 }
 
@@ -128,6 +128,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 			return false, nil, types.TxErrorBalanceNotEnoughErr
 		}
 	}
+
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
 	libLen, result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
@@ -142,8 +143,8 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 
 	if !con.VM.VerifyABI(result.Abi, abi) {
 		return false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
-			checkABI failed. abi:%s,msg=%s
-		`, abi.FuncName, err.Error()))
+			checkABI failed. abi:%s
+		`, abi.FuncName))
 	}
 
 	con.VM.SetLibLine(libLen)
@@ -187,14 +188,14 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 
 	if !con.VM.VerifyABI(executeResult.Abi, abi) {
 		return nil, false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
-			checkABI failed. abi:%s,msg=%s
-		`, abi.FuncName, err.Error()))
+			checkABI failed. abi:%s
+		`, abi.FuncName))
 	}
 
 	con.VM.SetLibLine(libLen)
 	result := con.VM.executeABIKindEval(abi) //execute
 	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
-		return result, false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
+		return result, false, nil, types.NewTransactionError(types.TVMExecutedError, fmt.Errorf("C RETURN_TYPE_EXCEPTION").Error())
 	}
 	err = con.VM.storeData() //store
 	if err != nil {

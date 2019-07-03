@@ -25,15 +25,23 @@ class Foundation(object):
         self.withdrawed = 0
         self.first_year_weight = 64
         self.total_weight = 360
+        self.height_per_period = 10000000
+
+    def calculate_weight(self, period):
+        return self.first_year_weight // (2 ** (period // 3))
 
     def calculate_released(self):
-        period = block.number() // 10000000
-        if period > 11:
-            period = 11
+        n = block.number()
+        period = n // self.height_per_period
+        remainder = n %% self.height_per_period
+        if period >= 12:
+            return self.total_token
         weight = 0
-        for i in range(period+1):
-            weight = weight + self.first_year_weight // (2 ** (i // 3))
-        return self.total_token * weight // self.total_weight
+        for i in range(period):
+            weight = weight + self.calculate_weight(i)
+        tokens = self.total_token * weight // self.total_weight
+        tokens += self.total_token * self.calculate_weight(period) * remainder // self.total_weight // self.height_per_period
+        return tokens
 
     @register.public(int)
     def withdraw(self, amount):

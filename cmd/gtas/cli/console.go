@@ -492,7 +492,7 @@ func genStakeAddCmd() *stakeAddCmd {
 		gasBaseCmd: *genGasBaseCmd("stakeadd", "add stake for the target miner"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.stake, "stake", 100, "freeze stake of tas, default 100TAS")
+	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of tas, default 500TAS")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
 	c.fs.StringVar(&c.target, "target", "", "stake add target address, default the operator if not specified")
 	return c

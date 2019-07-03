@@ -222,6 +222,7 @@ func initBlockChain(helper types.ConsensusHelper) error {
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)
 
+	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 	return nil
 }
 

@@ -99,7 +99,8 @@ type result struct {
 
 func newResult() *result {
 	return &result{
-		transitionStatus: types.RSSuccess,
+		transitionStatus:  types.RSSuccess,
+		cumulativeGasUsed: new(big.Int).SetUint64(0),
 	}
 }
 
@@ -399,8 +400,12 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		}
 
 		// Accumulate gas fee
-		fee := big.NewInt(0).Mul(ret.cumulativeGasUsed, tx.GasPrice.Value())
-		gasFee += fee.Uint64()
+		cumulativeGas := uint64(0)
+		if ret.cumulativeGasUsed != nil {
+			fee := big.NewInt(0).Mul(ret.cumulativeGasUsed, tx.GasPrice.Value())
+			gasFee += fee.Uint64()
+			cumulativeGas = ret.cumulativeGasUsed.Uint64()
+		}
 
 		// Set nonce of the source
 		if tx.Source != nil {
@@ -410,7 +415,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		// New receipt
 		idx := len(transactions)
 		transactions = append(transactions, tx)
-		receipt := types.NewReceipt(nil, ret.transitionStatus, ret.cumulativeGasUsed.Uint64())
+		receipt := types.NewReceipt(nil, ret.transitionStatus, cumulativeGas)
 		receipt.Logs = ret.logs
 		receipt.TxHash = tx.Hash
 		receipt.ContractAddress = ret.contractAddress
@@ -420,15 +425,16 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		//errs[i] = err
 
 	}
-
-	// Accumulate reward with the share of all gas fee for castor
+	//ts.AddStat("executeLoop", time.Since(b))
 	castorTotalRewards := rm.calculateGasFeeCastorRewards(gasFee)
-	//
-	// Calculate rewards with the specified height
-	if true /*rm.reduceBlockRewards(bh.Height, accountDB)*/ {
-		castorTotalRewards += rm.calculateCastorRewards(bh.Height)
-		accountDB.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(rm.daemonNodesRewards(bh.Height)))
-		accountDB.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(rm.userNodesRewards(bh.Height)))
+	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
+	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
+	if deamonNodeRewards != 0 {
+		accountDB.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
+	}
+	userNodesRewards := rm.userNodesRewards(bh.Height)
+	if userNodesRewards != 0 {
+		accountDB.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))

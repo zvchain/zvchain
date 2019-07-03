@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 	"sync"
@@ -32,9 +31,8 @@ const (
 	halveRewardsPeriod = 30000000                // the period of halve block rewards
 	halveRewardsTimes  = 3                       // the times of halve block rewards
 	tokensOfMiners     = 3500000000 * common.TAS // total amount of tokens belonging to miners
+	noRewardsHeight    = 120000000
 )
-
-var tokenLeftKey = []byte("TokenLeft") // the key of token left stored in statedb
 
 const (
 	initialDaemonNodeWeight = 629      // initial daemon node weight of rewards
@@ -62,10 +60,7 @@ const rewardVersion = 1
 
 // RewardManager manage the reward transactions
 type RewardManager struct {
-	noRewards       bool
-	noRewardsHeight uint64
-	tokenLeft       uint64
-	lock            sync.RWMutex
+	lock sync.RWMutex
 }
 
 func newRewardManager() *RewardManager {
@@ -197,7 +192,7 @@ func (rm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb
 }
 
 func (rm *RewardManager) blockRewards(height uint64) uint64 {
-	if rm.noRewards && rm.noRewardsHeight <= height {
+	if height > noRewardsHeight {
 		return 0
 	}
 	return initialRewards >> (height / halveRewardsPeriod)
@@ -205,11 +200,17 @@ func (rm *RewardManager) blockRewards(height uint64) uint64 {
 
 func (rm *RewardManager) userNodesRewards(height uint64) uint64 {
 	rewards := rm.blockRewards(height)
+	if rewards == 0 {
+		return 0
+	}
 	return rewards * userNodeWeight / totalNodeWeight
 }
 
 func (rm *RewardManager) daemonNodesRewards(height uint64) uint64 {
 	rewards := rm.blockRewards(height)
+	if rewards == 0 {
+		return 0
+	}
 	daemonNodeWeight := initialDaemonNodeWeight + height/adjustWeightPeriod*adjustWeight
 	return rewards * daemonNodeWeight / totalNodeWeight
 }
@@ -226,27 +227,7 @@ func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
 	return rewards * minerNodesWeight / totalNodeWeight
 }
 
-func (rm *RewardManager) reduceBlockRewards(height uint64, accountDB *account.AccountDB) bool {
-	value := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), tokenLeftKey)
-
-	if value == nil {
-		rm.tokenLeft = tokensOfMiners
-	} else {
-		rm.tokenLeft = common.ByteToUint64(value)
-	}
-	rewards := rm.blockRewards(height)
-	if rewards > rm.tokenLeft {
-		rm.noRewards = true
-		rm.noRewardsHeight = height
-		return false
-	}
-	rm.tokenLeft -= rewards
-	Logger.Debugf("tokenLeft:%v at %v", rm.tokenLeft, height)
-	setRewardData(accountDB.AsAccountDBTS(), tokenLeftKey, common.Uint64ToByte(rm.tokenLeft))
-	return true
-}
-
-// calculateCastorRewards Calculate castor's rewards in a block
+// CalculateCastorRewards Calculate castor's rewards in a block
 func (rm *RewardManager) calculateCastorRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
 	return minerNodesRewards * castorRewardsWeight / totalRewardsWeight
