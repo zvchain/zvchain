@@ -186,3 +186,7 @@ type AccountRepository interface {
 	// GetBalance returns the nonce of specified address
 	GetNonce(address common.Address) uint64
 }
+
+type Account interface {
+	MinerSk()	string
+}
