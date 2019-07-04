@@ -33,19 +33,20 @@ import (
 var logger = taslog.GetLoggerByIndex(taslog.TvmConfig, strconv.FormatInt(int64(common.InstanceIndex), 10))
 
 //export Transfer
-func Transfer(toAddressStr *C.char, value *C.char) {
+func Transfer(toAddressStr *C.char, value *C.char) bool {
 	transValue, ok := big.NewInt(0).SetString(C.GoString(value), 10)
 	if !ok {
-		return
+		return false
 	}
 	contractAddr := controller.VM.ContractAddress
-	contractValue := controller.AccountDB.GetBalance(*contractAddr)
-	if contractValue.Cmp(transValue) < 0 {
-		return
-	}
 	toAddress := common.HexToAddress(C.GoString(toAddressStr))
-	controller.AccountDB.AddBalance(toAddress, transValue)
-	controller.AccountDB.SubBalance(*contractAddr, transValue)
+
+	if !canTransfer(controller.AccountDB,*contractAddr,transValue) {
+		return false
+	}
+	transfer(controller.AccountDB,*contractAddr,toAddress,transValue)
+	return true
+
 }
 
 //export GetBalance
