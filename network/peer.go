@@ -224,12 +224,14 @@ func (p *Peer) resetAuthCoentext() {
 	p.verifyResult = false
 }
 
-func (p *Peer) onDisonnect() {
-	p.resetData()
+func (p *Peer) onDisonnect(id uint64, session uint32, p2pCode uint32) {
 	p.connecting = false
 	p.disconnectCount++
-	p.sessionID = 0
-	p.sendList.pendingSend = 0
+	if session == p.sessionID {
+		p.resetData()
+		p.sessionID = 0
+		p.sendList.pendingSend = 0
+	}
 
 }
 

@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-const contractExample = `
+const contractExample1 = `
 
 import account
 
@@ -123,10 +123,30 @@ class Token(object):
         print(a)
 
 `
-const abiJSON = `
+
+const contractExample2 = `
+
+import account
+
+class A(object):
+    def __init__(self):
+        pass
+
+    @register.public()
+    def t(self):
+        pass
+`
+const abiJSON1 = `
 {
     "FuncName": "big",
     "Args": [[786, 2.23, 70.2], {"12": 123}, true,"goodday", 500]
+}
+`
+
+const abiJSON2 = `
+{
+    "FuncName": "t",
+    "Args": []
 }
 `
 
@@ -187,24 +207,59 @@ func TestController_ExecuteAbiEval(t *testing.T) {
 
 }
 
-func TestTVM_VerifyABI(t *testing.T) {
+func TestTVM_VerifyABI1(t *testing.T) {
 	contractAddr := common.HexToAddress("0x123")
 	senderAddr := common.HexToAddress("0x456")
-
 	contract := &Contract{
-		Code:            contractExample,
+		Code:            contractExample1,
 		ContractName:    "Token",
 		ContractAddress: &contractAddr,
 	}
 	vm := NewTVM(&senderAddr, contract, "")
-
 	vm.SetGas(9999999999999999)
 	var addr common.Address
 	addr = common.BytesToAddress([]byte("0x123"))
 	vm.ContractAddress = &addr
 
 	abi := ABI{}
-	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
+	abiJSONError := json.Unmarshal([]byte(abiJSON1), &abi)
+	if abiJSONError != nil {
+		t.Error("abiJSONError Unmarshall err:", abiJSONError)
+	}
+
+	msg := Msg{
+		Data:  []byte{},
+		Value: 0,
+	}
+	_, result, err := vm.CreateContractInstance(msg)
+	if err != nil {
+		t.Error("CreateContractInstance err:", err)
+	}
+
+	//result := vm.ExecuteScriptKindFile(contract.Code)
+	fmt.Println("result:", result)
+
+	if !vm.VerifyABI(result.Abi, abi) {
+		t.Error("VerifyABI err")
+	}
+}
+
+func TestTVM_VerifyABI2(t *testing.T) {
+	contractAddr := common.HexToAddress("0x123")
+	senderAddr := common.HexToAddress("0x456")
+	contract := &Contract{
+		Code:            contractExample2,
+		ContractName:    "A",
+		ContractAddress: &contractAddr,
+	}
+	vm := NewTVM(&senderAddr, contract, "")
+	vm.SetGas(9999999999999999)
+	var addr common.Address
+	addr = common.BytesToAddress([]byte("0x123"))
+	vm.ContractAddress = &addr
+
+	abi := ABI{}
+	abiJSONError := json.Unmarshal([]byte(abiJSON2), &abi)
 	if abiJSONError != nil {
 		t.Error("abiJSONError Unmarshall err:", abiJSONError)
 	}

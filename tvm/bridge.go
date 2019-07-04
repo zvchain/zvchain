@@ -20,32 +20,33 @@ package tvm
 */
 import "C"
 import (
-	"github.com/zvchain/zvchain/storage/vm"
-	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"strconv"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/vm"
+	"github.com/zvchain/zvchain/taslog"
 )
 
 var logger = taslog.GetLoggerByIndex(taslog.TvmConfig, strconv.FormatInt(int64(common.InstanceIndex), 10))
 
 //export Transfer
-func Transfer(toAddressStr *C.char, value *C.char) {
+func Transfer(toAddressStr *C.char, value *C.char) bool {
 	transValue, ok := big.NewInt(0).SetString(C.GoString(value), 10)
 	if !ok {
-		return
+		return false
 	}
 	contractAddr := controller.VM.ContractAddress
-	contractValue := controller.AccountDB.GetBalance(*contractAddr)
-	if contractValue.Cmp(transValue) < 0 {
-		return
-	}
 	toAddress := common.HexToAddress(C.GoString(toAddressStr))
-	controller.AccountDB.AddBalance(toAddress, transValue)
-	controller.AccountDB.SubBalance(*contractAddr, transValue)
+
+	if !canTransfer(controller.AccountDB,*contractAddr,transValue) {
+		return false
+	}
+	transfer(controller.AccountDB,*contractAddr,toAddress,transValue)
+	return true
+
 }
 
 //export GetBalance
@@ -56,10 +57,10 @@ func GetBalance(addressC *C.char) *C.char {
 }
 
 //export GetData
-func GetData(hashC *C.char) *C.char {
+func GetData(key *C.char) *C.char {
 	//hash := common.StringToHash(C.GoString(hashC))
 	address := *controller.VM.ContractAddress
-	state := controller.AccountDB.GetData(address, []byte(C.GoString(hashC)))
+	state := controller.AccountDB.GetData(address, []byte(C.GoString(key)))
 	return C.CString(string(state))
 }
 
@@ -110,14 +111,12 @@ func ContractCall(addressC *C.char, funName *C.char, jsonParms *C.char, cResult 
 }
 
 //export EventCall
-func EventCall(eventName *C.char, index *C.char, data *C.char) *C.char {
+func EventCall(eventName *C.char, data *C.char) {
 
 	var log types.Log
 	log.Topics = append(log.Topics, common.BytesToHash(common.Sha256([]byte(C.GoString(eventName)))))
-	log.Topics = append(log.Topics, common.BytesToHash(common.Sha256([]byte(C.GoString(index)))))
-	for i := 0; i < len(C.GoString(data)); i++ {
-		log.Data = append(log.Data, C.GoString(data)[i])
-	}
+	log.Index = uint(len(controller.VM.Logs))
+	log.Data = []byte(C.GoString(data))
 	log.TxHash = controller.Transaction.GetHash()
 	log.Address = *controller.VM.ContractAddress //*(controller.Transaction.Target)
 	log.BlockNumber = controller.BlockHeader.Height
@@ -125,8 +124,6 @@ func EventCall(eventName *C.char, index *C.char, data *C.char) *C.char {
 	// log.BlockHash = controller.BlockHeader.Hash
 
 	controller.VM.Logs = append(controller.VM.Logs, &log)
-
-	return nil //C.CString(contractResult);
 }
 
 //export RemoveData

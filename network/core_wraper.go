@@ -145,30 +145,7 @@ func P2PShutdown(session uint32) {
 	C.p2p_shutdown(C.uint(session))
 }
 
-func P2PSessionRtt(session uint32) uint32 {
-	r := C.p2p_kcp_rxrtt(C.uint32_t(session))
-	return uint32(r)
-}
-
-func P2PSessionSendBufferCount(session uint32) uint32 {
-	r := C.p2p_kcp_nsndbuf(C.uint(session))
-	return uint32(r)
-}
-
-func P2PCacheSize() uint64 {
-	r := C.p2p_cache_size()
-	return uint64(r)
-}
-
 func P2PSend(session uint32, data []byte) {
-
-	pendingSendBuffer := P2PSessionSendBufferCount(session)
-	const maxSendBuffer = 10240
-
-	if pendingSendBuffer > maxSendBuffer {
-		Logger.Debugf("session kcp send queue over 10240 drop this message,session id:%v pendingSendBuffer:%v ", session, pendingSendBuffer)
-		return
-	}
 
 	const maxSize = 64 * 1024
 	totalLen := len(data)

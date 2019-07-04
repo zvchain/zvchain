@@ -136,7 +136,7 @@ func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32)
 	if p != nil {
 
 		Logger.Infof("OnDisconnected id：%v  session:%v ip:%v port:%v ", p.ID.GetHexString(), session, p.IP, p.Port)
-		p.onDisonnect()
+		p.onDisonnect(id , session , p2pCode )
 
 	} else {
 		Logger.Infof("OnDisconnected net id：%v session:%v port:%v code:%v", id, session, p2pCode)

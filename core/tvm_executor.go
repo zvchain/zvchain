@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	TransactionGasCost   uint64 = 1000
+	TransactionGasCost   uint64 = 400
 	CodeBytePrice               = 0.3814697265625
 	MaxCastBlockTime            = time.Second * 2
 	adjustGasPricePeriod        = 30000000
 	adjustGasPriceTimes         = 3
-	initialMinGasPrice          = 200
+	initialMinGasPrice          = 500
 )
 
 var (
@@ -395,6 +395,11 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 			break
 		}
 
+		if pack && totalGasUsed >= GasLimitForPackage {
+			Logger.Warnf("exceeds the block gas limit GasLimitForPackage :%v %v ", totalGasUsed, GasLimitForPackage)
+			break
+		}
+
 		snapshot := accountDB.Snapshot()
 		// Apply transaction
 		ret, err := applyStateTransition(accountDB, tx, bh)
@@ -419,11 +424,11 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		}
 
 		totalGasUsed += cumulativeGas
-		if totalGasUsed > GasLimitForPackage {
+		if totalGasUsed > GasLimitPerBlock {
 			// Revert snapshot in case total gas used exceeds the limit and break the loop
 			// The tx just executed won't be packed into the block
 			accountDB.RevertToSnapshot(snapshot)
-			Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitForPackage)
+			Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitPerBlock)
 			break
 		}
 		// New receipt
