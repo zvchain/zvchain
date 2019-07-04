@@ -124,7 +124,7 @@ type GroupStoreReader interface {
 	GetEncryptedReceiverPiece(receiver []byte, seed SeedI) ([]EncryptedReceiverPiece, error)
 
 	// 查询指定sender 和seed 是否有piece数据
-	HasSentEncryptedPiecePacket(sender []byte) bool
+	HasSentEncryptedPiecePacket(sender []byte, seed SeedI) bool
 
 	// 返回所有的建组数据
 	// 共识在校验是否建组成时调用
