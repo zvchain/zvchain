@@ -290,6 +290,9 @@ func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, g
 	if target == "" {
 		target = aci.Address
 	}
+	if value == 0{
+		return opError(fmt.Errorf("value must > 0"))
+	}
 	reduceValue := common.TAS2RA(value)
 	tx := &txRawData{
 		Target:   target,
