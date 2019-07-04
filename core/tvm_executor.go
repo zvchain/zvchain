@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/core/group"
 	"math/big"
 	"time"
 
@@ -73,6 +74,8 @@ func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockH
 			return &contractCaller{transitionContext: base}
 		case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
 			return &minerStakeOperator{transitionContext: base}
+		case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
+			return &groupOperator{transitionContext: base}
 		default:
 			return &unSupported{typ: tx.Type}
 		}
@@ -191,6 +194,26 @@ func (ss *minerStakeOperator) ParseTransaction() error {
 func (ss *minerStakeOperator) Transition() *result {
 	ret := newResult()
 	err := ss.minerOp.Operation()
+	if err != nil {
+		ret.setError(err, types.RSFail)
+	}
+	return ret
+}
+
+// minerStakeOperator handles all transactions related to group create
+type groupOperator struct {
+	*transitionContext
+	groupOp group.Operation // Real group operation interface
+}
+
+func (ss *groupOperator) ParseTransaction() error {
+	ss.groupOp = group.NewOperation(ss.accountDB, *ss.tx, ss.bh.Height)
+	return ss.groupOp.ParseTransaction()
+}
+
+func (ss *groupOperator) Transition() *result {
+	ret := newResult()
+	err := ss.groupOp.Operation()
 	if err != nil {
 		ret.setError(err, types.RSFail)
 	}
