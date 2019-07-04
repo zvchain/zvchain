@@ -141,11 +141,13 @@ func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) {
 
 func (fp *forkProcessor) reqPieceTimeout(id string) {
 	fp.logger.Debugf("req piece from %v timeout", id)
+
+	fp.lock.Lock()
+	defer fp.lock.Unlock()
+
 	if fp.syncCtx == nil {
 		return
 	}
-	fp.lock.Lock()
-	defer fp.lock.Unlock()
 
 	if fp.syncCtx.target != id {
 		return
