@@ -179,7 +179,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 		return details
 	}
 
-	minerDetails := &MinerStakeDetails{Details:map[string][]*StakeDetail{}}
+	minerDetails := &MinerStakeDetails{}
 	morts := make([]*MortGage, 0)
 	address := common.HexToAddress(addr)
 	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
