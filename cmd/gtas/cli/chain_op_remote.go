@@ -209,7 +209,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	// When stakes for himself, pks will be required
 	if aci.Address == target {
 		if aci.Miner == nil {
-			return opError(fmt.Errorf("the current account is not a pks account"))
+			return opError(fmt.Errorf("the current account is not a miner account"))
 		}
 		var bpk groupsig.Pubkey
 		bpk.SetHexString(aci.Miner.BPk)
