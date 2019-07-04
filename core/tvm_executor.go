@@ -207,7 +207,7 @@ func (ss *contractCreator) ParseTransaction() error {
 
 func (ss *contractCreator) Transition() *result {
 	ret := newResult()
-	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "lib"), MinerManagerImpl)
+	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "py"), MinerManagerImpl)
 	contractAddress, txErr := createContract(ss.accountDB, ss.tx)
 	if txErr != nil {
 		ret.setError(txErr, types.RSFail)
@@ -239,7 +239,7 @@ func (ss *contractCaller) Transition() *result {
 	ret := newResult()
 	tx := ss.tx
 
-	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "lib"), MinerManagerImpl)
+	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "py"), MinerManagerImpl)
 	contract := tvm.LoadContract(*tx.Target)
 	if contract.Code == "" {
 		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSTvmError)
