@@ -237,6 +237,7 @@ type TVM struct {
 // NewTVM new a TVM instance
 func NewTVM(sender *common.Address, contract *Contract, libPath string) *TVM {
 	C.tvm_start()
+	C.tvm_set_lib_path(C.CString(libPath))
 	return NewTVMForRetainContext(sender, contract, libPath)
 }
 
@@ -248,7 +249,6 @@ func NewTVMForRetainContext(sender *common.Address, contract *Contract, libPath 
 	}
 
 	if !HasLoadPyLibPath {
-		C.tvm_set_lib_path(C.CString(libPath))
 		HasLoadPyLibPath = true
 		bridgeInit()
 	}
