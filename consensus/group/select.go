@@ -37,7 +37,8 @@ func newCandidateSelector(cands []*model.MinerDO, rand []byte) *candidateSelecto
 	return &candidateSelector{list: list, remainStake: stake, rand: rand}
 }
 
-func (cs *candidateSelector) algSatoshi(num int) []*model.MinerDO {
+// fts implements the selecting algorithm with FTS(Follow the Satoshi)
+func (cs *candidateSelector) fts(num int) []*model.MinerDO {
 	rand := base.RandFromBytes(cs.rand)
 	result := make([]*model.MinerDO, 0)
 	for len(result) < num {

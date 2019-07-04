@@ -25,6 +25,7 @@ const (
 	steadyStateBackTrackGap = 20                                                                // The gap from the present to the steady state
 	roundWindow             = 80                                                                // The window length of each round
 	eraWindow               = (steadyStateBackTrackGap+roundWindow)*3 + steadyStateBackTrackGap // The window length of group-create routine
+	lifeWindow              = 8 * eraWindow                                                     // The life window of a active group
 )
 
 type rRange struct {
@@ -88,4 +89,8 @@ func (e *era) String() string {
 		hash = e.seedBlock.Hash.Hex()
 	}
 	return fmt.Sprintf("%v-%v", e.seedHeight, hash)
+}
+
+func (e *era) end() uint64 {
+	return e.endRange.begin
 }

@@ -74,11 +74,8 @@ type CreateResult interface {
 // 组头部信息接口
 type GroupHeaderI interface {
 	SeedI
-	Hash() common.Hash
-	MemRoot() common.Hash
 	WorkHeight() uint64
 	DismissHeight() uint64
-	Extends() string
 	PublicKey() []byte
 	Threshold() uint32
 }
