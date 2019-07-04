@@ -435,6 +435,9 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		idx := len(transactions)
 		transactions = append(transactions, tx)
 		receipt := types.NewReceipt(nil, ret.transitionStatus, cumulativeGas)
+		for _, log := range ret.logs {
+			log.TxIndex = uint(idx)
+		}
 		receipt.Logs = ret.logs
 		receipt.TxHash = tx.Hash
 		receipt.ContractAddress = ret.contractAddress

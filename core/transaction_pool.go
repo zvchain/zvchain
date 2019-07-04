@@ -294,3 +294,29 @@ func (pool *txPool) GetRewardTxs() []*types.Transaction {
 	})
 	return txs
 }
+
+// ClearRewardTxs
+func (pool *txPool) ClearRewardTxs() {
+	pool.bonPool.forEach(func(tx *types.Transaction) bool {
+		bhash := common.BytesToHash(tx.Data)
+		// The reward transaction of the block already exists on the chain, or the block is not
+		// on the chain, and the corresponding reward transaction needs to be deleted.
+		reason := ""
+		remove := false
+		if pool.bonPool.hasReward(tx.Data) {
+			remove = true
+			reason = "tx exist"
+		} else if !pool.chain.HasBlock(bhash) {
+			// The block is not on the chain. It may be that this height has passed, or it maybe
+			// the height of the future. It cannot be distinguished here.
+			remove = true
+			reason = "block not exist"
+		}
+
+		if remove {
+			rm := pool.bonPool.removeByBlockHash(bhash)
+			Logger.Debugf("remove from reward pool because %v: blockHash %v, size %v", reason, bhash.Hex(), rm)
+		}
+		return true
+	})
+}

@@ -42,8 +42,6 @@ type Log struct {
 	TxHash common.Hash `json:"transactionHash" gencodec:"required"`
 	// index of the transaction in the block
 	TxIndex uint `json:"transactionIndex" gencodec:"required"`
-	// hash of the block in which the transaction was included
-	BlockHash common.Hash `json:"blockHash"`
 	// index of the log in the receipt
 	Index uint `json:"logIndex" gencodec:"required"`
 
@@ -53,5 +51,5 @@ type Log struct {
 }
 
 func (l *Log) String() string {
-	return fmt.Sprintf(`log: %x %x %x %x %d %x %d`, l.Address, l.Topics, l.Data, l.TxHash, l.TxIndex, l.BlockHash, l.Index)
+	return fmt.Sprintf(`log: %x %x %x %x %d %d`, l.Address, l.Topics, l.Data, l.TxHash, l.TxIndex, l.Index)
 }
