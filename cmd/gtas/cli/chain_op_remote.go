@@ -20,11 +20,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/consensus/base"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -197,29 +197,31 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		return r
 	}
 	aci := r.Data.(*Account)
-	if aci.Miner == nil {
-		return opError(fmt.Errorf("the current account is not a pks account"))
-	}
-	if stake == 0 {
-		return opError(errors.New("stake value must > 0"))
-	}
-	var bpk groupsig.Pubkey
-	bpk.SetHexString(aci.Miner.BPk)
 
-	st := common.TAS2RA(stake)
+	if target == "" {
+		target = aci.Address
+	}
 
 	pks := &types.MinerPks{
 		MType: types.MinerType(mType),
 	}
 
-	if target == "" {
-		target = aci.Address
-	}
 	// When stakes for himself, pks will be required
 	if aci.Address == target {
+		if aci.Miner == nil {
+			return opError(fmt.Errorf("the current account is not a pks account"))
+		}
+		var bpk groupsig.Pubkey
+		bpk.SetHexString(aci.Miner.BPk)
 		pks.Pk = bpk.Serialize()
 		pks.VrfPk = base.Hex2VRFPublicKey(aci.Miner.VrfPk)
 	}
+
+	if stake == 0 {
+		return opError(errors.New("stake value must > 0"))
+	}
+
+	st := common.TAS2RA(stake)
 
 	data, err := types.EncodePayload(pks)
 	if err != nil {
