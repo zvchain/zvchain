@@ -53,6 +53,8 @@ var (
 	hashT               = reflect.TypeOf(Hash{})
 	addressT            = reflect.TypeOf(Address{})
 	BonusStorageAddress = BigToAddress(big.NewInt(0))
+
+	GroupActiveAddress = BigToAddress(big.NewInt(3))
 )
 
 // Address data struct
@@ -148,6 +150,7 @@ func BytesToHash(b []byte) Hash {
 
 func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
 func HexToHash(s string) Hash   { return BytesToHash(FromHex(s)) }
+func HashToAddress(h Hash) Address { return BytesToAddress(h[:])}
 
 // Get the string representation of the underlying hash
 func (h Hash) Bytes() []byte { return h[:] }

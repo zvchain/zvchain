@@ -277,6 +277,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	// Create the global-use address
 	stateDB.SetNonce(minerPoolAddr, 1)
 	stateDB.SetNonce(rewardStoreAddr, 1)
+	stateDB.SetNonce(common.GroupActiveAddress, 1)
 
 	root, _ := stateDB.Commit(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
