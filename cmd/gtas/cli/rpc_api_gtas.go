@@ -179,7 +179,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 		return details
 	}
 
-	minerDetails := &MinerStakeDetails{}
+	minerDetails := &MinerStakeDetails{Details:map[string][]*StakeDetail{}}
 	morts := make([]*MortGage, 0)
 	address := common.HexToAddress(addr)
 	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
@@ -198,11 +198,14 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	case "all":
 		detailsMap := core.MinerManagerImpl.GetAllStakeDetails(address)
 		m := make(map[string][]*StakeDetail)
-		for from, ds := range detailsMap {
-			dts := convertDetails(ds)
-			m[from] = dts
+		if detailsMap != nil{
+			for from, ds := range detailsMap {
+				dts := convertDetails(ds)
+				m[from] = dts
+			}
+			minerDetails.Details = m
 		}
-		minerDetails.Details = m
+
 	default:
 		details := core.MinerManagerImpl.GetStakeDetails(address, common.HexToAddress(detail))
 		m := make(map[string][]*StakeDetail)
