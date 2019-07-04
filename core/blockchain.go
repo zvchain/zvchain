@@ -276,7 +276,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	stateDB.SetNonce(minerPoolAddr, 1)
 	stateDB.SetNonce(rewardStoreAddr, 1)
 
-	root, _ := stateDB.Commit(true)
+	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
 	block.Header.Hash = block.Header.GenHash()
 

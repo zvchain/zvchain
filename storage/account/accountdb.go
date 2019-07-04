@@ -500,10 +500,8 @@ func (adb *AccountDB) Commit(deleteEmptyObjects bool) (root common.Hash, err err
 		accountObject := value.(*accountObject)
 		switch {
 		case accountObject.suicided || (isDirty && deleteEmptyObjects && accountObject.empty()):
-
 			adb.deleteAccountObject(accountObject)
 		case isDirty:
-
 			if accountObject.code != nil && accountObject.dirtyCode {
 				adb.db.TrieDB().InsertBlob(common.BytesToHash(accountObject.CodeHash()), accountObject.code)
 				accountObject.dirtyCode = false
