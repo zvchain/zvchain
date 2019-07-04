@@ -28,7 +28,7 @@ const (
 	evilTimAdd = 10
 	maxReqBlockCount    = 16
 	maxEvilCount    = 100
-	maxEvilExpireTime = "1m"
+	eachEvilExpireTime = "1m"
 )
 
 var peerManagerImpl *peerManager
@@ -57,7 +57,7 @@ func (m *peerMeter) addEvilCount(){
 		return
 	}
 	m.evilCount++
-	addTime, _ := time.ParseDuration(maxEvilExpireTime)
+	addTime, _ := time.ParseDuration(eachEvilExpireTime)
 	m.evilExpireTime = time.Now().Add(m.evilCount*evilTimAdd *addTime)
 }
 

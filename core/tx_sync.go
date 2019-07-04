@@ -56,40 +56,40 @@ type txSyncer struct {
 
 var TxSyncer *txSyncer
 
-type peerTxsHashs struct {
-	txHashs *lru.Cache
-	sendHashs *lru.Cache
+type peerTxsHashes struct {
+	txHashes *lru.Cache
+	sendHashes *lru.Cache
 }
 
-func newPeerTxsKeys() *peerTxsHashs {
-	return &peerTxsHashs{
-		txHashs   : common.MustNewLRUCache(txPeerMaxLimit),
-		sendHashs : common.MustNewLRUCache(txPeerMaxLimit),
+func newPeerTxsKeys() *peerTxsHashes {
+	return &peerTxsHashes{
+		txHashes   : common.MustNewLRUCache(txPeerMaxLimit),
+		sendHashes : common.MustNewLRUCache(txPeerMaxLimit),
 	}
 }
 
-func (ptk *peerTxsHashs) addTxHashs(hashs []common.Hash) {
+func (ptk *peerTxsHashes) addTxHashes(hashs []common.Hash) {
 	for _, k := range hashs {
-		ptk.txHashs.Add(k, 1)
+		ptk.txHashes.Add(k, 1)
 	}
 }
 
-func (ptk *peerTxsHashs) removeHashs(hashs []common.Hash) {
+func (ptk *peerTxsHashes) removeHashes(hashs []common.Hash) {
 	for _, k := range hashs {
-		ptk.txHashs.Remove(k)
+		ptk.txHashes.Remove(k)
 	}
 }
 
-func (ptk *peerTxsHashs) reset() {
-	ptk.txHashs = common.MustNewLRUCache(txPeerMaxLimit)
+func (ptk *peerTxsHashes) reset() {
+	ptk.txHashes = common.MustNewLRUCache(txPeerMaxLimit)
 }
 
-func (ptk *peerTxsHashs) resetSendHashs() {
-	ptk.sendHashs = common.MustNewLRUCache(txPeerMaxLimit)
+func (ptk *peerTxsHashes) resetSendHashes() {
+	ptk.sendHashes = common.MustNewLRUCache(txPeerMaxLimit)
 }
 
-func (ptk *peerTxsHashs) checkReceivedHashsInHitRate(txs []*types.Transaction)bool {
-	if ptk.sendHashs.Len() == 0{
+func (ptk *peerTxsHashes) checkReceivedHashsInHitRate(txs []*types.Transaction)bool {
+	if ptk.sendHashes.Len() == 0{
 		return true
 	}
 	hasScaned := make(map[common.Hash]struct{})
@@ -99,28 +99,28 @@ func (ptk *peerTxsHashs) checkReceivedHashsInHitRate(txs []*types.Transaction)bo
 		if _, ok := hasScaned[tx.Hash]; ok {
 			continue
 		}
-		if ptk.sendHashs.Contains(tx.Hash){
+		if ptk.sendHashes.Contains(tx.Hash){
 			hitHashsLen++
 		}
 		hasScaned[tx.Hash] = struct{}{}
 	}
-	rate := float64(hitHashsLen) / float64(ptk.sendHashs.Len())
+	rate := float64(hitHashsLen) / float64(ptk.sendHashes.Len())
 	if rate < txHitValidRate{
 		return false
 	}
 	return  true
 }
 
-func (ptk *peerTxsHashs) addSendHash(txHash common.Hash) {
-	ptk.sendHashs.ContainsOrAdd(txHash,1)
+func (ptk *peerTxsHashes) addSendHash(txHash common.Hash) {
+	ptk.sendHashes.ContainsOrAdd(txHash,1)
 }
 
-func (ptk *peerTxsHashs) hasHash(k common.Hash) bool {
-	return ptk.txHashs.Contains(k)
+func (ptk *peerTxsHashes) hasHash(k common.Hash) bool {
+	return ptk.txHashes.Contains(k)
 }
 
-func (ptk *peerTxsHashs) forEach(f func(k common.Hash) bool) {
-	for _, k := range ptk.txHashs.Keys() {
+func (ptk *peerTxsHashes) forEach(f func(k common.Hash) bool) {
+	for _, k := range ptk.txHashes.Keys() {
 		if !f(k.(common.Hash)) {
 			break
 		}
@@ -240,13 +240,13 @@ func (ts *txSyncer) sendTxHashs(txs []*types.Transaction) {
 	}
 }
 
-func (ts *txSyncer) getOrAddCandidateKeys(id string) *peerTxsHashs {
+func (ts *txSyncer) getOrAddCandidateKeys(id string) *peerTxsHashes {
 	v, _ := ts.candidateKeys.Get(id)
 	if v == nil {
 		v = newPeerTxsKeys()
 		ts.candidateKeys.Add(id, v)
 	}
-	return v.(*peerTxsHashs)
+	return v.(*peerTxsHashes)
 }
 
 func (ts *txSyncer) onTxNotify(msg notify.Message) {
@@ -281,8 +281,8 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) {
 			accepts = append(accepts, k)
 		}
 	}
-	candidateKeys.addTxHashs(accepts)
-	ts.logger.Debugf("Rcv txs notify from %v, size %v, accept %v, totalOfSource %v", nm.Source(), len(hashs), len(accepts), candidateKeys.txHashs.Len())
+	candidateKeys.addTxHashes(accepts)
+	ts.logger.Debugf("Rcv txs notify from %v, size %v, accept %v, totalOfSource %v", nm.Source(), len(hashs), len(accepts), candidateKeys.txHashes.Len())
 
 }
 
@@ -308,7 +308,7 @@ func (ts *txSyncer) reqTxsRoutine() bool {
 			}
 			return true
 		})
-		ptk.removeHashs(rms)
+		ptk.removeHashes(rms)
 	}
 	// Request transaction
 	for _, v := range ts.candidateKeys.Keys() {
@@ -316,7 +316,7 @@ func (ts *txSyncer) reqTxsRoutine() bool {
 		if ptk == nil {
 			continue
 		}
-		if ptk.sendHashs.Len() > 0 {
+		if ptk.sendHashes.Len() > 0 {
 			continue
 		}
 		rqs := make([]common.Hash, 0)
@@ -361,7 +361,7 @@ func (ts *txSyncer) syncTxComplete(id string, timeout bool) bool {
 		peerManagerImpl.heardFromPeer(id)
 	}
 	candidateKeys := ts.getOrAddCandidateKeys(id)
-	candidateKeys.resetSendHashs()
+	candidateKeys.resetSendHashes()
 	ts.chain.ticker.RemoveRoutine(ts.syncTimeoutRoutineName(id))
 	return true
 }
