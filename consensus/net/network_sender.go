@@ -196,7 +196,7 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(cbm *model.ConsensusBlockMessage,
 	groupMembers := id2String(group.MemIds)
 
 	// Broadcast to a virtual group of heavy nodes
-	heavyMinerMembers := core.MinerManagerImpl.GetHeavyMiners()
+	heavyMinerMembers := core.MinerManagerImpl.GetAllProposalAddresses()
 
 	validGroupMembers := make([]string, 0)
 	for _, mid := range groupMembers {

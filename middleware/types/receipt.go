@@ -24,19 +24,22 @@ import (
 
 //go:generate gencodec -type Receipt -field-override receiptMarshaling -out gen_receipt_json.go
 
-var (
-	receiptStatusFailed     = []byte{}
-	receiptStatusSuccessful = []byte{0x01}
+type ReceiptStatus int
+
+const (
+	RSSuccess ReceiptStatus = iota
+	RSFail
+	RSBalanceNotEnough
+	RSAbiError
+	RSTvmError
 )
 
-
-
 type Receipt struct {
-	PostState         []byte `json:"-"`
-	Status            int   `json:"status"`
-	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
-	Bloom             Bloom  `json:"-"`
-	Logs              []*Log `json:"logs"`
+	PostState         []byte        `json:"-"`
+	Status            ReceiptStatus `json:"status"`
+	CumulativeGasUsed uint64        `json:"cumulativeGasUsed"`
+	Bloom             Bloom         `json:"-"`
+	Logs              []*Log        `json:"logs"`
 
 	TxHash          common.Hash    `json:"transactionHash" gencodec:"required"`
 	ContractAddress common.Address `json:"contractAddress"`
@@ -44,11 +47,10 @@ type Receipt struct {
 	TxIndex         uint16         `json:"tx_index"`
 }
 
-func NewReceipt(root []byte, status int, cumulativeGasUsed uint64) *Receipt {
-	r := &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: cumulativeGasUsed,Status:status}
+func NewReceipt(root []byte, status ReceiptStatus, cumulativeGasUsed uint64) *Receipt {
+	r := &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: cumulativeGasUsed, Status: status}
 	return r
 }
-
 
 func (r *Receipt) Size() common.StorageSize {
 	size := common.StorageSize(unsafe.Sizeof(*r)) + common.StorageSize(len(r.PostState))
@@ -65,6 +67,10 @@ func (r *Receipt) String() string {
 		return fmt.Sprintf("receipt{status=%d cgas=%v bloom=%x logs=%v tx=%v h=%v ti=%v}", r.Status, r.CumulativeGasUsed, r.Bloom, r.Logs, r.TxHash.Hex(), r.Height, r.TxIndex)
 	}
 	return fmt.Sprintf("receipt{med=%x cgas=%v bloom=%x logs=%v tx=%v h=%v ti=%v}", r.PostState, r.CumulativeGasUsed, r.Bloom, r.Logs, r.TxHash.Hex(), r.Height, r.TxIndex)
+}
+
+func (r *Receipt) Success() bool {
+	return r.Status == RSSuccess
 }
 
 type Receipts []*Receipt

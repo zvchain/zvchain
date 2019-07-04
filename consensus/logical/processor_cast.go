@@ -213,7 +213,7 @@ func (p *Processor) blockProposal() {
 		return
 	}
 
-	totalStake := p.minerReader.getTotalStake(worker.baseBH.Height, false)
+	totalStake := p.minerReader.getTotalStake(worker.baseBH.Height)
 	blog.debug("totalStake height=%v, stake=%v", height, totalStake)
 	pi, qn, err := worker.Prove(totalStake)
 	if err != nil {
@@ -369,11 +369,9 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 			}
 		}
 	}
-	verifyRewards := p.MainChain.GetRewardManager().CalculateVerifyRewards(bh.Height)
-	gasFeeRewards := p.MainChain.GetRewardManager().CalculateGasFeeVerifyRewards(bh.GasFee)
-	verifyRewards += gasFeeRewards
-	reward, tx, err := p.MainChain.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.GroupID,
-		verifyRewards)
+	rewardShare := p.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
+
+	reward, tx, err := p.MainChain.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.GroupID, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
 	if err != nil {
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return

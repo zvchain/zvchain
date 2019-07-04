@@ -35,8 +35,9 @@ const (
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
 
-	txMaxSize = 64000
-	// Maximum size per transaction
+	txMaxSize              = 64000   // Maximum size per transaction
+	gasLimitPerTransaction = 500000  // the max gas limit for a transaction
+	GasLimitPerBlock       = 2000000 // the max gas limit for a block
 )
 
 var evilErrorMap map[error]struct{} = map[error]struct{}{
@@ -146,7 +147,7 @@ func (pool *txPool) AsyncAddTxs(txs []*types.Transaction) {
 		if tx.Source != nil {
 			continue
 		}
-		if tx.Type == types.TransactionTypeReward {
+		if tx.IsReward() {
 			if pool.bonPool.get(tx.Hash) != nil {
 				continue
 			}
@@ -198,58 +199,8 @@ func (pool *txPool) PackForCast() []*types.Transaction {
 
 // RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction
 func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
-	height := BlockChainImpl.Height()
-	if !tx.IsReward() && !validGasPrice(&tx.GasPrice.Int, height) {
-		return ErrGasPrice
-	}
-	if !tx.Hash.IsValid() {
-		return ErrHash
-	}
-	size := 0
-	if tx.Data != nil {
-		size += len(tx.Data)
-	}
-	if tx.ExtraData != nil {
-		size += len(tx.ExtraData)
-	}
-	if size > txMaxSize {
-		Logger.Errorf("receive tx data too long,data size is %v \n",size)
-		return ErrDataSizeTooLong
-	}
-
-	if tx.Hash != tx.GenHash() {
-		Logger.Errorf("receive tx data has is inValid")
-		return ErrHash
-	}
-
-	if tx.Sign == nil {
-		return ErrSign
-	}
-
-	var source *common.Address
-	if tx.IsReward() {
-		if ok, err := BlockChainImpl.GetConsensusHelper().VerifyRewardTransaction(tx); !ok {
-			return err
-		}
-	} else {
-		if err := tx.BoundCheck(); err != nil {
-			return err
-		}
-		var sign = common.BytesToSign(tx.Sign)
-		if sign == nil {
-			return fmt.Errorf("BytesToSign fail, sign=%v", tx.Sign)
-		}
-		msg := tx.Hash.Bytes()
-		pk, err := sign.RecoverPubkey(msg)
-		if err != nil {
-			return err
-		}
-		src := pk.GetAddress()
-		source = &src
-		tx.Source = source
-	}
-
-	return nil
+	validator := getValidator(tx)
+	return validator()
 }
 
 func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
@@ -276,9 +227,7 @@ func (pool *txPool) add(tx *types.Transaction) (err error) {
 	if tx.Type == types.TransactionTypeReward {
 		pool.bonPool.add(tx)
 	} else {
-		if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) > 0 {
-			err = pool.received.push(tx)
-		}
+		err = pool.received.push(tx)
 	}
 	return err
 }
@@ -366,4 +315,30 @@ func (pool *txPool) GetRewardTxs() []*types.Transaction {
 		return true
 	})
 	return txs
+}
+
+// ClearRewardTxs
+func (pool *txPool) ClearRewardTxs() {
+	pool.bonPool.forEach(func(tx *types.Transaction) bool {
+		bhash := common.BytesToHash(tx.Data)
+		// The reward transaction of the block already exists on the chain, or the block is not
+		// on the chain, and the corresponding reward transaction needs to be deleted.
+		reason := ""
+		remove := false
+		if pool.bonPool.hasReward(tx.Data) {
+			remove = true
+			reason = "tx exist"
+		} else if !pool.chain.HasBlock(bhash) {
+			// The block is not on the chain. It may be that this height has passed, or it maybe
+			// the height of the future. It cannot be distinguished here.
+			remove = true
+			reason = "block not exist"
+		}
+
+		if remove {
+			rm := pool.bonPool.removeByBlockHash(bhash)
+			Logger.Debugf("remove from reward pool because %v: blockHash %v, size %v", reason, bhash.Hex(), rm)
+		}
+		return true
+	})
 }

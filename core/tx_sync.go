@@ -157,28 +157,7 @@ func (ts *txSyncer) clearJob() {
 			}
 		}
 	}
-	ts.pool.bonPool.forEach(func(tx *types.Transaction) bool {
-		bhash := common.BytesToHash(tx.Data)
-		// The reward transaction of the block already exists on the chain, or the block is not
-		// on the chain, and the corresponding reward transaction needs to be deleted.
-		reason := ""
-		remove := false
-		if ts.pool.bonPool.hasReward(tx.Data) {
-			remove = true
-			reason = "tx exist"
-		} else if !ts.chain.hasBlock(bhash) {
-			// The block is not on the chain. It may be that this height has passed, or it maybe
-			// the height of the future. It cannot be distinguished here.
-			remove = true
-			reason = "block not exist"
-		}
-
-		if remove {
-			rm := ts.pool.bonPool.removeByBlockHash(bhash)
-			ts.logger.Debugf("remove from reward pool because %v: blockHash %v, size %v", reason, bhash.Hex(), rm)
-		}
-		return true
-	})
+	ts.pool.ClearRewardTxs()
 }
 
 func (ts *txSyncer) checkTxCanBroadcast(txHash common.Hash) bool {

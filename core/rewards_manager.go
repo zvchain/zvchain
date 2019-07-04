@@ -18,11 +18,12 @@ package core
 import (
 	"bytes"
 	"errors"
-	"sync"
-
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/vm"
+	"math/big"
+	"sync"
 )
 
 const (
@@ -30,7 +31,6 @@ const (
 	halveRewardsPeriod = 30000000                // the period of halve block rewards
 	halveRewardsTimes  = 3                       // the times of halve block rewards
 	tokensOfMiners     = 3500000000 * common.TAS // total amount of tokens belonging to miners
-	tokenLeftKey       = "TokenLeft"             // the key of token left stored in statedb
 	noRewardsHeight    = 120000000
 )
 
@@ -56,6 +56,8 @@ const (
 	gasFeeTotalRewardsWeight  = 10 // total rewards weight of gas fee
 )
 
+const rewardVersion = 1
+
 // RewardManager manage the reward transactions
 type RewardManager struct {
 	lock sync.RWMutex
@@ -66,12 +68,20 @@ func newRewardManager() *RewardManager {
 	return manager
 }
 
+func getRewardData(db vm.AccountDBTS, key []byte) []byte {
+	return db.GetDataSafe(rewardStoreAddr, key)
+}
+
+func setRewardData(db vm.AccountDBTS, key, value []byte) {
+	db.SetDataSafe(rewardStoreAddr, key, value)
+}
+
 func (rm *RewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
-	return BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, string(blockHashByte)) != nil
+	return getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHashByte) != nil
 }
 
 func (rm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
-	transactionHash := BlockChainImpl.LatestStateDB().GetData(common.RewardStorageAddress, string(blockHash))
+	transactionHash := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHash)
 	if transactionHash == nil {
 		return nil
 	}
@@ -80,49 +90,89 @@ func (rm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *type
 }
 
 // GenerateReward generate the reward transaction for the group who just validate a block
-func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, groupID []byte, totalValue uint64) (*types.Reward, *types.Transaction, error) {
-	group := GroupChainImpl.getGroupByID(groupID)
+func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, groupID []byte, totalValue uint64, packFee uint64) (*types.Reward, *types.Transaction, error) {
 	buffer := &bytes.Buffer{}
+	// Write version
+	buffer.WriteByte(rewardVersion)
+
+	// Write groupId
 	buffer.Write(groupID)
+	// pack fee
+	buffer.Write(common.Uint64ToByte(packFee))
+
 	if len(targetIds) == 0 {
 		return nil, nil, errors.New("GenerateReward targetIds size 0")
 	}
-	for i := 0; i < len(targetIds); i++ {
-		index := targetIds[i]
-		buffer.Write(group.Members[index])
+
+	// Write target indexes
+	for _, idIdx := range targetIds {
+		// Write the mem idx instead
+		buffer.Write(common.UInt16ToByte(uint16(idIdx)))
 	}
+
 	transaction := &types.Transaction{}
 	transaction.Data = blockHash.Bytes()
 	transaction.ExtraData = buffer.Bytes()
-	if len(buffer.Bytes())%common.AddressLength != 0 {
-		return nil, nil, errors.New("GenerateReward ExtraData Size Invalid")
-	}
+
 	transaction.Value = types.NewBigInt(totalValue / uint64(len(targetIds)))
 	transaction.Type = types.TransactionTypeReward
 	transaction.GasPrice = types.NewBigInt(0)
+	transaction.GasLimit = types.NewBigInt(0)
 	transaction.Hash = transaction.GenHash()
 	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
 }
 
 // ParseRewardTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
-func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) ([]byte, [][]byte, common.Hash, *types.BigInt, error) {
+func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) (groupId []byte, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	groupID := make([]byte, common.GroupIDLength)
-	addr := make([]byte, common.AddressLength)
-	if n, _ := reader.Read(groupID); n != common.GroupIDLength {
-		return nil, nil, common.Hash{}, nil, errors.New("ParseRewardTransaction Read GroupID Fail")
+	version, e := reader.ReadByte()
+	if e != nil {
+		err = e
+		return
+	}
+	if version != rewardVersion {
+		err = fmt.Errorf("reward version error")
+		return
+	}
+	if _, e := reader.Read(groupID); e != nil {
+		err = fmt.Errorf("read group id error:%v", e)
+		return
+	}
+	pf := make([]byte, 8)
+	if _, e := reader.Read(pf); e != nil {
+		err = fmt.Errorf("read pack fee error:%v", e)
+		return
+	}
+
+	targetIdxs := make([]uint16, 0)
+	idx := make([]byte, 2)
+
+	for n, e := reader.Read(idx); n > 0 && e == nil; n, e = reader.Read(idx) {
+		if e != nil {
+			err = fmt.Errorf("read target idex error: %v", e)
+			return
+		}
+		targetIdxs = append(targetIdxs, common.ByteToUInt16(idx))
+	}
+
+	group := GroupChainImpl.GetGroupByID(groupID)
+	if group == nil {
+		err = fmt.Errorf("group is nil, id=%v", common.ToHex(groupID))
+		return
 	}
 	ids := make([][]byte, 0)
-	for n, _ := reader.Read(addr); n > 0; n, _ = reader.Read(addr) {
-		if n != common.AddressLength {
-			Logger.Debugf("ParseRewardTransaction Addr Size:%d Invalid", n)
-			break
+
+	for _, idx := range targetIdxs {
+		if idx > uint16(len(group.Members)) {
+			err = fmt.Errorf("target index exceed: group size %v, index %v", len(group.Members), idx)
+			return
 		}
-		ids = append(ids, addr)
-		addr = make([]byte, common.AddressLength)
+		ids = append(ids, group.Members[idx])
 	}
-	blockHash := rm.parseRewardBlockHash(transaction)
-	return groupID, ids, blockHash, transaction.Value, nil
+
+	blockHash = rm.parseRewardBlockHash(transaction)
+	return groupID, ids, blockHash, new(big.Int).SetUint64(common.ByteToUint64(pf)), nil
 }
 
 func (rm *RewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {
@@ -130,7 +180,7 @@ func (rm *RewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash
 }
 
 func (rm *RewardManager) contain(blockHash []byte, accountdb vm.AccountDB) bool {
-	value := accountdb.GetData(common.RewardStorageAddress, string(blockHash))
+	value := getRewardData(accountdb.AsAccountDBTS(), blockHash)
 	if value != nil {
 		return true
 	}
@@ -138,7 +188,7 @@ func (rm *RewardManager) contain(blockHash []byte, accountdb vm.AccountDB) bool 
 }
 
 func (rm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb vm.AccountDB) {
-	accountdb.SetData(common.RewardStorageAddress, string(blockHash), transactionHash)
+	setRewardData(accountdb.AsAccountDBTS(), blockHash, transactionHash)
 }
 
 func (rm *RewardManager) blockRewards(height uint64) uint64 {
@@ -178,29 +228,39 @@ func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
 }
 
 // CalculateCastorRewards Calculate castor's rewards in a block
-func (rm *RewardManager) CalculateCastorRewards(height uint64) uint64 {
+func (rm *RewardManager) calculateCastorRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
 	return minerNodesRewards * castorRewardsWeight / totalRewardsWeight
 }
 
-// CalculatePackedRewards Calculate castor's reword that packed a reward transaction
-func (rm *RewardManager) CalculatePackedRewards(height uint64) uint64 {
+// calculatePackedRewards Calculate castor's reword that packed a reward transaction
+func (rm *RewardManager) calculatePackedRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
 	return minerNodesRewards * packedRewardsWeight / totalRewardsWeight
 }
 
-// CalculateVerifyRewards Calculate verify-node's rewards in a block
-func (rm *RewardManager) CalculateVerifyRewards(height uint64) uint64 {
+// calculateVerifyRewards Calculate verify-node's rewards in a block
+func (rm *RewardManager) calculateVerifyRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
 	return minerNodesRewards * verifyRewardsWeight / totalRewardsWeight
 }
 
-// CalculateGasFeeVerifyRewards Calculate verify-node's gas fee rewards
-func (rm *RewardManager) CalculateGasFeeVerifyRewards(gasFee uint64) uint64 {
+// calculateGasFeeVerifyRewards Calculate verify-node's gas fee rewards
+func (rm *RewardManager) calculateGasFeeVerifyRewards(gasFee uint64) uint64 {
 	return gasFee * gasFeeVerifyRewardsWeight / gasFeeTotalRewardsWeight
 }
 
-// CalculateGasFeeCastorRewards Calculate castor's gas fee rewards
-func (rm *RewardManager) CalculateGasFeeCastorRewards(gasFee uint64) uint64 {
+// calculateGasFeeCastorRewards Calculate castor's gas fee rewards
+func (rm *RewardManager) calculateGasFeeCastorRewards(gasFee uint64) uint64 {
 	return gasFee * gasFeeCastorRewardsWeight / gasFeeTotalRewardsWeight
+}
+
+func (rm *RewardManager) CalculateCastRewardShare(height uint64, gasFee uint64) *types.CastRewardShare {
+	return &types.CastRewardShare{
+		ForBlockProposal:   rm.calculateCastorRewards(height),
+		ForBlockVerify:     rm.calculateVerifyRewards(height),
+		ForRewardTxPacking: rm.calculatePackedRewards(height),
+		FeeForProposer:     rm.calculateGasFeeCastorRewards(gasFee),
+		FeeForVerifier:     rm.calculateGasFeeVerifyRewards(gasFee),
+	}
 }

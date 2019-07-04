@@ -168,4 +168,12 @@ const (
 							<format id="default" format="%Msg%n" />
 						</formats>
 					</seelog>`
+	TvmConfig = `<seelog minlevel="debug">
+						<outputs formatid="default">
+							<rollingfile type="size" filename="./logs/tvmLOG_INDEX.log" maxsize="200000000" maxrolls="1"/>
+						</outputs>
+						<formats>
+							<format id="default" format="%Date(2006-01-02 15:04:05.000)[%File:%Line]%Msg%n" />
+						</formats>
+					</seelog>`
 )

@@ -18,12 +18,9 @@ package account
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/storage/rlp"
-	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"sort"
 	"sync"
-
-	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/trie"
@@ -72,7 +69,7 @@ type AccountDB struct {
 	validRevisions []revision
 	nextRevisionID int
 
-	lock sync.Mutex
+	lock sync.RWMutex
 }
 
 // Create a new account from a given trie.
@@ -98,7 +95,7 @@ func (adb *AccountDB) setError(err error) {
 }
 
 // RemoveData set data nil
-func (adb *AccountDB) RemoveData(addr common.Address, key string) {
+func (adb *AccountDB) RemoveData(addr common.Address, key []byte) {
 	adb.SetData(addr, key, nil)
 }
 
@@ -198,10 +195,10 @@ func (adb *AccountDB) GetCodeHash(addr common.Address) common.Hash {
 }
 
 // GetData retrieves a value from the account storage trie.
-func (adb *AccountDB) GetData(a common.Address, b string) []byte {
+func (adb *AccountDB) GetData(a common.Address, key []byte) []byte {
 	stateObject := adb.getAccountObject(a)
 	if stateObject != nil {
-		return stateObject.GetData(adb.db, b)
+		return stateObject.GetData(adb.db, key)
 	}
 	return nil
 }
@@ -268,7 +265,7 @@ func (adb *AccountDB) SetCode(addr common.Address, code []byte) {
 	}
 }
 
-func (adb *AccountDB) SetData(addr common.Address, key string, value []byte) {
+func (adb *AccountDB) SetData(addr common.Address, key []byte, value []byte) {
 	stateObject := adb.getOrNewAccountObject(addr)
 	if stateObject != nil {
 		stateObject.SetData(adb.db, key, value)
@@ -334,10 +331,6 @@ func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject
 func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accountObject) {
 	if obj, ok := adb.accountObjects.Load(addr); ok {
 		obj2 := obj.(*accountObject)
-		if addr == common.HeavyDBAddress {
-			getLogger().Infof("get  HeavyDBAddress obj from memory,root is %x,addr is %p",obj2.data.Root,obj)
-			taslog.Flush()
-		}
 		if obj2.deleted {
 			return nil
 		}
@@ -346,17 +339,13 @@ func (adb *AccountDB) getAccountObject(addr common.Address) (stateObject *accoun
 
 	obj := adb.getAccountObjectFromTrie(addr)
 	if obj != nil {
-		if addr == common.HeavyDBAddress {
-			getLogger().Infof("get  HeavyDBAddress obj from level db,root is %x,addr is %p",obj.data.Root,obj)
-			taslog.Flush()
-		}
 		adb.setAccountObject(obj)
 	}
 	return obj
 }
 
 func (adb *AccountDB) setAccountObject(object *accountObject) {
-	adb.accountObjects.Store(object.Address(), object)
+	adb.accountObjects.LoadOrStore(object.Address(), object)
 }
 
 func (adb *AccountDB) getOrNewAccountObject(addr common.Address) *accountObject {
@@ -395,47 +384,47 @@ func (adb *AccountDB) CreateAccount(addr common.Address) {
 }
 
 // DataIterator returns a new key-value iterator from a node iterator
-func (adb *AccountDB) DataIterator(addr common.Address, prefix string) *trie.Iterator {
-	stateObject := adb.getAccountObjectFromTrie(addr)
+func (adb *AccountDB) DataIterator(addr common.Address, prefix []byte) *trie.Iterator {
+	stateObject := adb.getAccountObject(addr)
 	if stateObject != nil {
-		return stateObject.DataIterator(adb.db, []byte(prefix))
+		return stateObject.DataIterator(adb.db, prefix)
 	}
 	return nil
 }
 
-//DataNext returns next key-value data from iterator
-func (adb *AccountDB) DataNext(iterator uintptr) string {
-	iter := (*trie.Iterator)(unsafe.Pointer(iterator))
-	if iter == nil {
-		return `{"key":"","value":"","hasValue":0}`
-	}
-	hasValue := 1
-	var key string
-	var value string
-	if len(iter.Key) != 0 {
-		key = string(iter.Key)
-		value = string(iter.Value)
-	}
-
-	// Means no data
-	if !iter.Next() {
-		hasValue = 0
-	}
-	if key == "" {
-		return fmt.Sprintf(`{"key":"","value":"","hasValue":%d}`, hasValue)
-	}
-	if len(value) > 0 {
-		valueType := value[0:1]
-		if valueType == "0" { // This is map node
-			hasValue = 2
-		} else {
-			value = value[1:]
-		}
-	} else {
-		return `{"key":"","value":"","hasValue":0}`
-	}
-	return fmt.Sprintf(`{"key":"%s","value":%s,"hasValue":%d}`, key, value, hasValue)
-}
+////DataNext returns next key-value data from iterator
+//func (adb *AccountDB) DataNext(iterator uintptr) []byte {
+//	iter := (*trie.Iterator)(unsafe.Pointer(iterator))
+//	if iter == nil {
+//		return `{"key":"","value":"","hasValue":0}`
+//	}
+//	hasValue := 1
+//	var key string
+//	var value string
+//	if len(iter.Key) != 0 {
+//		key = string(iter.Key)
+//		value = string(iter.Value)
+//	}
+//
+//	// Means no data
+//	if !iter.Next() {
+//		hasValue = 0
+//	}
+//	if key == "" {
+//		return fmt.Sprintf(`{"key":"","value":"","hasValue":%d}`, hasValue)
+//	}
+//	if len(value) > 0 {
+//		valueType := value[0:1]
+//		if valueType == "0" { // This is map node
+//			hasValue = 2
+//		} else {
+//			value = value[1:]
+//		}
+//	} else {
+//		return `{"key":"","value":"","hasValue":0}`
+//	}
+//	return fmt.Sprintf(`{"key":"%s","value":%s,"hasValue":%d}`, key, value, hasValue)
+//}
 
 //// Snapshot returns an identifier for the current revision of the account.
 func (adb *AccountDB) Snapshot() int {
@@ -511,10 +500,8 @@ func (adb *AccountDB) Commit(deleteEmptyObjects bool) (root common.Hash, err err
 		accountObject := value.(*accountObject)
 		switch {
 		case accountObject.suicided || (isDirty && deleteEmptyObjects && accountObject.empty()):
-
 			adb.deleteAccountObject(accountObject)
 		case isDirty:
-
 			if accountObject.code != nil && accountObject.dirtyCode {
 				adb.db.TrieDB().InsertBlob(common.BytesToHash(accountObject.CodeHash()), accountObject.code)
 				accountObject.dirtyCode = false

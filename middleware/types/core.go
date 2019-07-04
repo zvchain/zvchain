@@ -40,16 +40,11 @@ const (
 	AddBlockSucc              AddBlockResult = 0  // Means success
 	BlockExisted              AddBlockResult = 1  // Means the block already added before
 	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
-	Forking                   AddBlockResult = 3
 )
 const (
-	Success                            = 0
-	TxErrorBalanceNotEnough        	   = 1
-	TxErrorCodeContractAddressConflict = 2
-	TxFailed 						   = 3
-	TxErrorCodeNoCode                  = 4
+	TxErrorBalanceNotEnough = 1
+	TxFailed                = 3
 
-	//TODO detail error
 	TVMExecutedError = 1003
 
 	SysCheckABIError = 2002
@@ -60,22 +55,22 @@ const (
 )
 
 var (
-	NoCodeErr                    = 4
-	NoCodeErrorMsg               = "get code from address %s,but no code!"
-	ABIJSONError                 = 2003
-	ABIJSONErrorMsg              = "abi json format error"
-	CallMaxDeepError             = 2004
-	CallMaxDeepErrorMsg          = "call max deep cannot more than 8"
-	InitContractError            = 2005
-	InitContractErrorMsg         = "contract init error"
-	TargetNilError               = 2006
-	TargetNilErrorMsg            = "target nil error"
+	NoCodeErr            = 4
+	NoCodeErrorMsg       = "get code from address %s,but no code!"
+	ABIJSONError         = 2003
+	ABIJSONErrorMsg      = "abi json format error"
+	CallMaxDeepError     = 2004
+	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
+	InitContractError    = 2005
+	InitContractErrorMsg = "contract init error"
+	TargetNilError       = 2006
+	TargetNilErrorMsg    = "target nil error"
 )
 
 var (
-	TxErrorBalanceNotEnoughErr          = NewTransactionError(TxErrorBalanceNotEnough, "balance not enough")
-	TxErrorABIJSONErr                   = NewTransactionError(SysABIJSONError, "abi json format error")
-	TxErrorFailedErr                    = NewTransactionError(TxFailed, "failed")
+	TxErrorBalanceNotEnoughErr = NewTransactionError(TxErrorBalanceNotEnough, "balance not enough")
+	TxErrorABIJSONErr          = NewTransactionError(SysABIJSONError, "abi json format error")
+	TxErrorFailedErr           = NewTransactionError(TxFailed, "failed")
 )
 
 type TransactionError struct {
@@ -89,15 +84,16 @@ func NewTransactionError(code int, msg string) *TransactionError {
 
 // Supported transaction types
 const (
-	TransactionTypeTransfer         = 0
-	TransactionTypeContractCreate   = 1
-	TransactionTypeContractCall     = 2
-	TransactionTypeReward           = 3
-	TransactionTypeMinerApply       = 4
-	TransactionTypeMinerAbort       = 5
-	TransactionTypeMinerRefund      = 6
-	TransactionTypeMinerCancelStake = 7
-	TransactionTypeMinerStake       = 8
+	TransactionTypeTransfer       = 0
+	TransactionTypeContractCreate = 1
+	TransactionTypeContractCall   = 2
+	TransactionTypeReward         = 3
+
+	// Miner operation related type
+	TransactionTypeStakeAdd    = 4
+	TransactionTypeMinerAbort  = 5
+	TransactionTypeStakeReduce = 6
+	TransactionTypeStakeRefund = 7
 
 	TransactionTypeToBeRemoved = -1
 )
@@ -118,6 +114,18 @@ type Transaction struct {
 	ExtraDataType int8            `msgpack:"et,omitempty"`
 	Sign          []byte          `msgpack:"si"`  // The Sign of the sender
 	Source        *common.Address `msgpack:"src"` // Sender address, recovered from sign
+}
+
+func (tx *Transaction) GetNonce() uint64 {
+	return tx.Nonce
+}
+
+func (tx *Transaction) GetSign() []byte {
+	return tx.Sign
+}
+
+func (tx *Transaction) GetType() int8 {
+	return tx.Type
 }
 
 // GenHash generate unique hash of the transaction. source,sign is out of the hash calculation range
@@ -152,7 +160,7 @@ func (tx *Transaction) HexSign() string {
 // RecoverSource recover source from the sign field.
 // It returns directly if source is not nil or it is a reward transaction.
 func (tx *Transaction) RecoverSource() error {
-	if tx.Source != nil || tx.Type == TransactionTypeReward {
+	if tx.Source != nil || tx.IsReward() {
 		return nil
 	}
 	sign := common.BytesToSign(tx.Sign)
@@ -170,33 +178,6 @@ func (tx *Transaction) Size() int {
 
 func (tx *Transaction) IsReward() bool {
 	return tx.Type == TransactionTypeReward
-}
-
-// BoundCheck check if the transaction param exceeds the bounds
-func (tx *Transaction) BoundCheck() error {
-	if tx.GasPrice == nil || !tx.GasPrice.IsUint64() {
-		return fmt.Errorf("illegal tx gasPrice:%v", tx.GasPrice)
-	}
-	if tx.GasLimit == nil || !tx.GasLimit.IsUint64() {
-		return fmt.Errorf("illegal tx gasLimit:%v", tx.GasLimit)
-	}
-	if tx.Value == nil || !tx.Value.IsUint64() {
-		return fmt.Errorf("illegal tx value:%v", tx.Value)
-	}
-	if tx.GasLimit.Cmp(gasLimitMax) > 0 {
-		return fmt.Errorf("gasLimit too  big! max gas limit is 500000 Ra")
-	}
-	if tx.Type == TransactionTypeTransfer || tx.Type == TransactionTypeContractCall {
-		if tx.Target == nil {
-			return fmt.Errorf("param target cannot nil")
-		}
-	}
-	if tx.Type == TransactionTypeMinerApply || tx.Type == TransactionTypeMinerCancelStake || tx.Type ==TransactionTypeMinerStake {
-		if tx.Data == nil {
-			return fmt.Errorf("param data cannot nil")
-		}
-	}
-	return nil
 }
 
 func (tx Transaction) GetData() []byte { return tx.Data }
@@ -253,25 +234,7 @@ type Reward struct {
 	GroupID    []byte
 	Sign       []byte
 	TotalValue uint64
-}
-
-const (
-	MinerTypeLight    = 0
-	MinerTypeHeavy    = 1
-	MinerStatusNormal = 0
-	MinerStatusAbort  = 1
-)
-
-// Miner is the miner info including public keys and pledges
-type Miner struct {
-	ID           []byte
-	PublicKey    []byte
-	VrfPublicKey []byte
-	ApplyHeight  uint64
-	Stake        uint64
-	AbortHeight  uint64
-	Type         byte
-	Status       byte
+	PackFee    uint64
 }
 
 // BlockHeader is block header structure
@@ -476,21 +439,4 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 
 func (bw *BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.PV.Uint64())
-}
-
-// StakeStatus indicates the stake status
-type StakeStatus = int
-
-const (
-	Staked      StakeStatus = iota // Normal status
-	StakeFrozen                    // Frozen status
-)
-
-// StakeDetail expresses the stake detail
-type StakeDetail struct {
-	Source       common.Address
-	Target       common.Address
-	Value        uint64
-	Status       StakeStatus
-	FrozenHeight uint64
 }

@@ -50,13 +50,9 @@ const (
 var DefaultLogger taslog.Logger
 
 var (
-	hashT                     = reflect.TypeOf(Hash{})
-	addressT                  = reflect.TypeOf(Address{})
-	RewardStorageAddress      = BigToAddress(big.NewInt(0))
-	LightDBAddress            = BigToAddress(big.NewInt(1))
-	HeavyDBAddress            = BigToAddress(big.NewInt(2))
-	MinerCountDBAddress       = BigToAddress(big.NewInt(3))
-	MinerStakeDetailDBAddress = BigToAddress(big.NewInt(4))
+	hashT               = reflect.TypeOf(Hash{})
+	addressT            = reflect.TypeOf(Address{})
+	BonusStorageAddress = BigToAddress(big.NewInt(0))
 )
 
 // Address data struct
@@ -128,6 +124,13 @@ func (a Address) Hash() Hash { return BytesToHash(a[:]) }
 // isValid checks the validity of a
 func (a Address) IsValid() bool {
 	return len(a.Bytes()) > 0
+}
+
+func (a *Address) String() string {
+	if a == nil {
+		return "nil"
+	}
+	return a.Hex()
 }
 
 ///////////////////////////////////////////////////////////////////////////////

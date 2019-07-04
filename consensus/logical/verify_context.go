@@ -192,7 +192,8 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 		err = fmt.Errorf("already blocked:%v", vc.consensusStatus)
 		return
 	}
-	if vc.castExpire() {
+	// Don't check the height 1
+	if vc.castExpire() && vc.castHeight > 1 {
 		vc.markTimeout()
 		err = fmt.Errorf("timed out" + vc.expireTime.String())
 		return
@@ -234,7 +235,7 @@ func (vc *VerifyContext) PrepareSlot(bh *types.BlockHeader) (*SlotContext, error
 		return nil, fmt.Errorf("hasSignedMoreWeightThan")
 	}
 	sc := createSlotContext(bh, model.Param.GetGroupK(vc.group.GetMemberCount()))
-	if v, ok := vc.proposers[sc.castor.GetHexString()]; ok {
+	if v, ok := vc.proposers[sc.castor.GetHexString()]; ok && vc.castHeight > 1 {
 		if v != bh.Hash {
 			return nil, fmt.Errorf("too many proposals: castor %v", sc.castor.GetHexString())
 		}
