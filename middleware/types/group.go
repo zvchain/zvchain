@@ -45,16 +45,18 @@ type MpkPacket interface {
 	Sign() []byte   // 用签名公钥对seed进行签名
 }
 
-// 建组数据接口
-type FullPacket interface {
-	Mpks() []MpkPacket
-	Pieces() []EncryptedSharePiecePacket
-}
-
 type MemberI interface {
 	ID() []byte
 	PK() []byte
 }
+
+type CreateResultCode int
+
+const (
+	CreateResultSuccess  CreateResultCode = iota // Group create success
+	CreateResultMarkEvil                         // Someone cheat, and mark the origin pieces required
+	CreateResultFail                             // Error occurs
+)
 
 // 组信息接口
 type GroupI interface {
@@ -62,11 +64,17 @@ type GroupI interface {
 	Members() []MemberI
 }
 
+type CreateResult interface {
+	Code() CreateResultCode
+	GroupInfo() GroupI
+	FrozenMiners() [][]byte
+	Err() error
+}
+
 // 组头部信息接口
 type GroupHeaderI interface {
 	SeedI
 	Hash() common.Hash
-	Height() uint64
 	MemRoot() common.Hash
 	WorkHeight() uint64
 	DismissHeight() uint64
@@ -98,7 +106,7 @@ type GroupCreateChecker interface {
 
 	// 校验建组是否成功
 	// 若建组成功，则返回数据
-	CheckGroupCreateResult(ctx CheckerContext) (resultCode int, data interface{}, err error)
+	CheckGroupCreateResult(ctx CheckerContext) CreateResult
 
 	// 检查origin piece
 	CheckOriginPiecePacket(packet OriginSharePiecePacket, ctx CheckerContext) error
@@ -122,7 +130,7 @@ type GroupStoreReader interface {
 
 	// 返回所有的建组数据
 	// 共识在校验是否建组成时调用
-	GetMpkPackets(seed SeedI) (FullPacket, error)
+	GetMpkPackets(seed SeedI) ([]MpkPacket, error)
 
 	// 返回origin piece 是否需要的标志
 	IsOriginPieceRequired(seed SeedI) bool
