@@ -35,13 +35,13 @@ type SenderPiecePacket interface {
 
 type EncryptedSenderPiecePacket interface {
 	SenderPiecePacket
-	Pubkey0() []byte
+	Pubkey0() []byte		//the gpk share of the miner
 }
 
 type EncryptedReceiverPiece interface {
 	Sender() []byte    // piece的发送者
 	PieceData() []byte // Piece加密后的数据
-	Pubkey0() []byte   //piece的发送者的公钥
+	Pubkey0() []byte   //the gpk share of the miner
 }
 
 type OriginSenderPiecePacket SenderPiecePacket
