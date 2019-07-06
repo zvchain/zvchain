@@ -85,6 +85,12 @@ func (sec *Seckey) Deserialize(b []byte) error {
 	return sec.value.Deserialize(b)
 }
 
+func DeserializeSeckey(bs []byte) *Seckey {
+	var sk Seckey
+	sk.Deserialize(bs)
+	return &sk
+}
+
 func (sec Seckey) MarshalJSON() ([]byte, error) {
 	str := "\"" + sec.GetHexString() + "\""
 	return []byte(str), nil

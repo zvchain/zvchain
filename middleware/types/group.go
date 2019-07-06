@@ -84,7 +84,6 @@ type GroupHeaderI interface {
 type PunishmentMsg interface {
 	PenaltyTarget() [][]byte //罚款矿工列表
 	RewardTarget() [][]byte  // 奖励列表
-	Value() uint64           //罚款金额
 }
 
 type CheckerContext interface {

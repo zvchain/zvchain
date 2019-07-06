@@ -27,7 +27,11 @@ func encryptSharePieces(pieces []groupsig.Seckey, selfSK groupsig.Seckey, peerPK
 	return nil, nil
 }
 
-func decryptSharePieces(bs [][]byte, selfSK groupsig.Seckey, selfIndex int) ([]groupsig.Seckey, error) {
+func decryptSharePiecesWithMySK(bs [][]byte, selfSK groupsig.Seckey, index int) ([]groupsig.Seckey, error) {
+	return []groupsig.Seckey{}, nil
+}
+
+func decryptSharePiecesWithMyPK(bs [][]byte, encSks []groupsig.Seckey, selfPK groupsig.Pubkey, selfIndex int) ([]groupsig.Seckey, error) {
 	return []groupsig.Seckey{}, nil
 }
 
@@ -64,14 +68,9 @@ func generateEncryptedSharePiecePacket(miner *model.SelfMinerDO, encSeckey group
 
 	oriPieces := generateSharePiecePacket(miner, encSeckey, seed, cands)
 
-	memPks := make([]groupsig.Pubkey, 0)
-	for _, mem := range cands {
-		memPks = append(memPks, mem.PK)
-	}
-
 	packet := &encryptedSharePiecePacket{
 		pubkey0:          pk,
-		memberPubkeys:    memPks,
+		memberPubkeys:    cands.pubkeys(),
 		sharePiecePacket: oriPieces,
 	}
 
@@ -83,17 +82,27 @@ func generateEncryptedSeckey() groupsig.Seckey {
 	return *groupsig.NewSeckeyFromRand(base.NewRand())
 }
 
-func decryptPackets(packets []types.EncryptedSharePiecePacket, sk groupsig.Seckey, idx int) ([]groupsig.Seckey, error) {
+// aggrSignSecKeyWithMySK generate miner signature private key with my sk and encrypted pk
+func aggrSignSecKeyWithMySK(packets []types.EncryptedSharePiecePacket, idx int, mySK groupsig.Seckey) (*groupsig.Seckey, error) {
 	bs := make([][]byte, 0)
 	for _, packet := range packets {
 		bs = append(bs, packet.Pieces())
 	}
-	return decryptSharePieces(bs, sk, idx)
+	shares, err := decryptSharePiecesWithMySK(bs, mySK, idx)
+	if err != nil {
+		return nil, err
+	}
+	sk := groupsig.AggregateSeckeys(shares)
+	return sk, nil
 }
 
-// aggrSignSecKey generate miner signature private key
-func aggrSignSecKey(packets []types.EncryptedSharePiecePacket, cand candidates, mInfo *model.SelfMinerDO) (*groupsig.Seckey, error) {
-	shares, err := decryptPackets(packets, mInfo.SK, cand.find(mInfo.ID))
+// aggrSignSecKeyWithMyPK generate miner signature private key with encrypted sk and my pk
+func aggrSignSecKeyWithMyPK(packets []types.EncryptedSharePiecePacket, idx int, encSKs []groupsig.Seckey, myPK groupsig.Pubkey) (*groupsig.Seckey, error) {
+	bs := make([][]byte, 0)
+	for _, packet := range packets {
+		bs = append(bs, packet.Pieces())
+	}
+	shares, err := decryptSharePiecesWithMyPK(bs, encSKs, myPK, idx)
 	if err != nil {
 		return nil, err
 	}

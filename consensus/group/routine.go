@@ -216,7 +216,7 @@ func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error
 		return fmt.Errorf("received piece not enough, recv %v, total %v", num, cands.size())
 	}
 
-	msk, err := aggrSignSecKey(encryptedPackets, cands, mInfo)
+	msk, err := aggrSignSecKeyWithMySK(encryptedPackets, cands.find(mInfo.ID), mInfo.SK)
 	if err != nil {
 		return fmt.Errorf("genearte msk error:%v", err)
 	}
@@ -261,12 +261,17 @@ func (routine *createRoutine) CheckAndSendOriginPiecePacket(bh *types.BlockHeade
 	if !routine.storeReader.IsOriginPieceRequired(era) {
 		return fmt.Errorf("don't need origin pieces")
 	}
+	id := mInfo.ID.Serialize()
 	// Whether sent encrypted pieces
-	if !routine.storeReader.HasSentEncryptedPiecePacket(mInfo.ID.Serialize(), era) {
+	if !routine.storeReader.HasSentEncryptedPiecePacket(id, era) {
 		return fmt.Errorf("didn't sent encrypted share piece")
 	}
+	// Whether sent mpk packet
+	if !routine.storeReader.HasSentMpkPacket(id, era) {
+		return fmt.Errorf("didn't sent mpk packet")
+	}
 	// Has sent piece
-	if routine.ctx.sentOriginPiecePacket != nil || routine.storeReader.HasSentOriginPiecePacket(mInfo.ID.Serialize(), era) {
+	if routine.ctx.sentOriginPiecePacket != nil || routine.storeReader.HasSentOriginPiecePacket(id, era) {
 		return fmt.Errorf("has sent origin pieces")
 	}
 

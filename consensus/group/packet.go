@@ -201,3 +201,28 @@ func generateGroupInfo(packets []types.MpkPacket, era *era, gpk groupsig.Pubkey,
 		members: members,
 	}
 }
+
+func DeserializeSharePieces(pieceData []byte) []groupsig.Seckey {
+	secks := make([]groupsig.Seckey, 0)
+	reader := bytes.NewReader(pieceData)
+
+	bs := make([]byte, len(groupsig.Seckey{}.Serialize()))
+
+	for n, _ := reader.Read(bs); n == len(bs); n, _ = reader.Read(bs) {
+		secks = append(secks, *groupsig.DeserializeSeckey(bs))
+	}
+	return secks
+}
+
+type punishment struct {
+	penaltyTargets [][]byte
+	rewardTargets  [][]byte
+}
+
+func (pm *punishment) PenaltyTarget() [][]byte {
+	return pm.penaltyTargets
+}
+
+func (pm *punishment) RewardTarget() [][]byte {
+	return pm.rewardTargets
+}

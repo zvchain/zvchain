@@ -40,10 +40,13 @@ type mOperation interface {
 	Operation() error        // Do the operation
 }
 
+type sysMinerOpType int8
+
 // newOperation creates the mOperation instance base on msg type
 func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) mOperation {
 	baseOp := newBaseOperation(db, msg, height)
 	var operation mOperation
+
 	switch msg.OpType() {
 	case types.TransactionTypeStakeAdd:
 		operation = &stakeAddOp{baseOperation: baseOp}
@@ -56,6 +59,7 @@ func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) 
 	default:
 		operation = &unSupported{typ: msg.OpType()}
 	}
+
 	return operation
 }
 
@@ -424,4 +428,94 @@ func (op *stakeRefundOp) Operation() error {
 	op.accountDB.AddBalance(op.refundSource, new(big.Int).SetUint64(frozenDetail.Value))
 	return nil
 
+}
+
+// minerFreezeOp freeze the miner, which can cause miner status transfer to Frozen
+// and quit mining.
+// It was called by the group-create routine when the miner didn't participate in the process completely
+type minerFreezeOp struct {
+	*baseOperation
+	addr common.Address
+}
+
+func (op *minerFreezeOp) ParseTransaction() error {
+	return nil
+}
+
+func (op *minerFreezeOp) Validate() error {
+	return nil
+}
+
+func (op *minerFreezeOp) Operation() error {
+	var remove = false
+	miner, err := op.getMiner(op.addr)
+	if err != nil {
+		return err
+	}
+	if miner == nil {
+		return fmt.Errorf("no miner info")
+	}
+	if miner.IsFrozen() {
+		return fmt.Errorf("already in forzen status")
+	}
+
+	// Remove from pool if active
+	if miner.IsActive() {
+		op.removeFromPool(op.addr, miner.Stake)
+		if op.opProposalRole() {
+			remove = true
+		}
+	}
+
+	// Update the miner status
+	miner.UpdateStatus(types.MinerStatusFrozen, op.height)
+	if err := op.setMiner(miner); err != nil {
+		return err
+	}
+	if remove && MinerManagerImpl != nil {
+		// Informs MinerManager the removal address
+		MinerManagerImpl.proposalRemoveCh <- op.addr
+	}
+
+	return nil
+}
+
+type minerPenaltyOp struct {
+	*baseOperation
+	targets []common.Address
+	rewards []common.Address
+	value   uint64
+}
+
+func (op *minerPenaltyOp) ParseTransaction() error {
+	return nil
+}
+
+func (op *minerPenaltyOp) Validate() error {
+	return nil
+}
+
+func (op *minerPenaltyOp) Operation() error {
+	// Firstly, frozen the targets
+	for _, addr := range op.targets {
+		frozenOp := &minerFreezeOp{baseOperation: op.baseOperation, addr: addr}
+		if err := frozenOp.Operation(); err != nil {
+			return err
+		}
+	}
+	// todo: Secondly, sub the stake of each target
+
+	// todo: Thirdly, sub the detail of the stake source of each target
+	// How can the target know that what causes the reduction of his stake ?
+
+	// Finally, add the penalty stake to the balance of rewards
+	if len(op.rewards) > 0 {
+		addEach := new(big.Int).SetUint64(op.value * uint64(len(op.targets)) / uint64(len(op.rewards)))
+		for _, addr := range op.rewards {
+			op.accountDB.AddBalance(addr, addEach)
+		}
+
+	}
+
+	return nil
 }
