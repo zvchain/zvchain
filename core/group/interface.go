@@ -35,30 +35,28 @@ type chainReader interface {
 }
 
 // Round 1 tx data,implement common.EncryptedSharePiecePacket
-type EncryptedSharePiecePacketImp struct {
-	SeedD    common.Hash    `msgpack:"se"`           //当前轮的seed
-	SenderD  []byte `msgpack:"sr,omitempty"` //发送者address. will set from transaction source
-	Pubkey0D []byte         `msgpack:"pb"`           //the gpk share of the miner
-	PiecesD  []byte  		`msgpack:"pi"`           //发送者对组内每个人的加密分片
+type EncryptedSharePiecePacketImpl struct {
+	SeedD    common.Hash `msgpack:"se"`           //当前轮的seed
+	SenderD  []byte      `msgpack:"sr,omitempty"` //发送者address. will set from transaction source
+	Pubkey0D []byte      `msgpack:"pb"`           //the gpk share of the miner
+	PiecesD  []byte      `msgpack:"pi"`           //发送者对组内每个人的加密分片
 }
 
-func (e *EncryptedSharePiecePacketImp) Seed() common.Hash {
+func (e *EncryptedSharePiecePacketImpl) Seed() common.Hash {
 	return e.SeedD
 }
 
-func (e *EncryptedSharePiecePacketImp) Sender() []byte {
+func (e *EncryptedSharePiecePacketImpl) Sender() []byte {
 	return e.SenderD
 }
 
-func (e *EncryptedSharePiecePacketImp) Pieces() []byte {
+func (e *EncryptedSharePiecePacketImpl) Pieces() []byte {
 	return e.PiecesD
 }
 
-func (e *EncryptedSharePiecePacketImp) Pubkey0() []byte {
+func (e *EncryptedSharePiecePacketImpl) Pubkey0() []byte {
 	return e.PiecesD
 }
-
-
 
 //
 //// Piece明文数据包接口
@@ -92,7 +90,6 @@ func (e *EncryptedSharePiecePacketImp) Pubkey0() []byte {
 //	return s.pubkey0
 //}
 
-
 // Round 2 tx data
 // Mpk数据包接口, implement interface types.MpkPacket
 type MpkPacketImpl struct {
@@ -120,10 +117,10 @@ func (s *MpkPacketImpl) Sign() []byte {
 
 // OriginSharePiecePacket implements types.OriginSharePiecePacket.
 type OriginSharePiecePacketImpl struct {
-	SeedD    common.Hash    `msgpack:"se"`           //当前轮的seed
-	SenderD  []byte `msgpack:"sr,omitempty"` //发送者address. will set from transaction source
-	EncSeckeyD []byte         `msgpack:"es"`           //the gpk share of the miner
-	PiecesD  []byte  		`msgpack:"pi"`           //发送者对组内每个人的加密分片
+	SeedD      common.Hash `msgpack:"se"`           //当前轮的seed
+	SenderD    []byte      `msgpack:"sr,omitempty"` //发送者address. will set from transaction source
+	EncSeckeyD []byte      `msgpack:"es"`           //the gpk share of the miner
+	PiecesD    []byte      `msgpack:"pi"`           //发送者对组内每个人的加密分片
 }
 
 func (e *OriginSharePiecePacketImpl) Seed() common.Hash {
@@ -142,27 +139,75 @@ func (e *OriginSharePiecePacketImpl) EncSeckey() []byte {
 	return e.EncSeckeyD
 }
 
+type FullPacketImpl struct {
+	mpks   []types.MpkPacket
+	pieces []types.EncryptedSharePiecePacket
+}
 
+func (s *FullPacketImpl) Mpks() []types.MpkPacket {
+	return s.mpks
+}
 
-//type FullPacket struct {
-//	mpks []types.MpkPacket
-//	pieces []types.EncryptedSenderPiecePacket
-//}
-//
-//func newFullPacket(m []types.MpkPacket,p []types.EncryptedSenderPiecePacket) *FullPacket {
-//	return &FullPacket{m,p}
-//}
-//
-//func (s *FullPacket) Mpks() []types.MpkPacket {
-//	//rs := make([]types.MpkPacket,0, len(s.mpks))
-//	//for i := range s.mpks {
-//	//	rs[i] = s.mpks[i]
-//	//}
-//	//return rs
-//	return s.mpks
-//}
-//
-//func (s *FullPacket) Pieces() []types.EncryptedSenderPiecePacket {
-//	return s.pieces
-//}
-//
+func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
+	return s.pieces
+}
+
+type Group struct {
+	HeaderD  types.GroupHeaderI
+	MembersD []types.MemberI
+}
+
+type Member struct {
+	id []byte
+	pk []byte
+}
+
+func (m *Member) ID() []byte {
+	return m.id
+}
+
+func (m *Member) PK() []byte {
+	return m.pk
+}
+
+// 组头部信息接口
+type GroupHeader struct {
+	seed          common.Hash
+	workHeight    uint64
+	dismissHeight uint64
+	publicKey     []byte
+	threshold     uint32
+}
+
+func (g *GroupHeader) Seed() common.Hash {
+	return g.seed
+}
+
+func (g *GroupHeader) WorkHeight() uint64 {
+	return g.workHeight
+}
+
+func (g *GroupHeader) DismissHeight() uint64 {
+	return g.dismissHeight
+}
+
+func (g *GroupHeader) PublicKey() []byte {
+	return g.publicKey
+}
+func (g *GroupHeader) Threshold() uint32 {
+	return g.threshold
+}
+
+func newGroup(i types.GroupI) *Group {
+	header := &GroupHeader{i.Header().Seed(),
+		i.Header().WorkHeight(),
+		i.Header().DismissHeight(),
+		i.Header().PublicKey(),
+		i.Header().Threshold()}
+	members := make([]types.MemberI, 0)
+	for _, m := range i.Members() {
+		mem := &Member{m.ID(), m.PK()}
+		members = append(members, mem)
+	}
+	return &Group{header, members}
+}

@@ -17,26 +17,30 @@ package group
 
 import (
 	"fmt"
+
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
 const (
-	BaseGasPrice    = 200	//gas price when auto send the transaction
-	BaseGasLimit    = 2000	//gas limit when auto send the transaction
+	BaseGasPrice = 2000 //gas price when auto send the transaction
+	BaseGasLimit = 2000 //gas limit when auto send the transaction
 
 )
 
 type PacketSender struct {
 	chain chainReader
+}
 
+func NewPacketSender(chain chainReader) *PacketSender {
+	return &PacketSender{chain}
 }
 
 // SendEncryptedPiecePacket send transaction the miner's encrypted piece  in round one
-func (p PacketSender)SendEncryptedPiecePacket(packet types.EncryptedSharePiecePacket) (err error)  {
+func (p PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePiecePacket) (err error) {
 	source := common.BytesToAddress(packet.Sender())
-	data :=&EncryptedSharePiecePacketImp{}
+	data := &EncryptedSharePiecePacketImpl{}
 	data.SeedD = packet.Seed()
 	data.SenderD = packet.Sender()
 	data.Pubkey0D = packet.Pubkey0()
@@ -58,9 +62,9 @@ func (p PacketSender)SendEncryptedPiecePacket(packet types.EncryptedSharePiecePa
 }
 
 // SendEncryptedPiecePacket send transaction the miner mpk and sign  in round two
-func (p PacketSender)SendMpkPacket(packet types.MpkPacket) (err error)  {
+func (p PacketSender) SendMpkPacket(packet types.MpkPacket) (err error) {
 	source := common.BytesToAddress(packet.Sender())
-	data :=&MpkPacketImpl{}
+	data := &MpkPacketImpl{}
 	data.SeedD = packet.Seed()
 	data.MpkD = packet.Mpk()
 	data.SignD = packet.Sign()
@@ -80,11 +84,10 @@ func (p PacketSender)SendMpkPacket(packet types.MpkPacket) (err error)  {
 	return nil
 }
 
-
 // SendEncryptedPiecePacket send transaction the miner origin in round three
-func (p PacketSender)SendOriginPiecePacket(packet types.OriginSharePiecePacket) (err error)  {
+func (p PacketSender) SendOriginPiecePacket(packet types.OriginSharePiecePacket) (err error) {
 	source := common.BytesToAddress(packet.Sender())
-	data :=&OriginSharePiecePacketImpl{}
+	data := &OriginSharePiecePacketImpl{}
 	data.SeedD = packet.Seed()
 	data.SenderD = packet.Sender()
 	data.EncSeckeyD = packet.EncSeckey()
@@ -105,13 +108,13 @@ func (p PacketSender)SendOriginPiecePacket(packet types.OriginSharePiecePacket) 
 	return nil
 }
 
-func (p PacketSender)toTx(source common.Address, data []byte, txType int8) (*types.Transaction, error) {
+func (p PacketSender) toTx(source common.Address, data []byte, txType int8) (*types.Transaction, error) {
 	tx := &types.Transaction{}
 	tx.Data = data
 	tx.Type = txType
 	tx.GasPrice = types.NewBigInt(BaseGasPrice)
 	tx.GasLimit = types.NewBigInt(BaseGasLimit)
-	tx.Nonce = p.chain.LatestStateDB().GetNonce(source)+1
+	tx.Nonce = p.chain.LatestStateDB().GetNonce(source) + 1
 	tx.Hash = tx.GenHash()
 
 	sk := common.HexToSecKey(p.chain.MinerSk())
@@ -126,7 +129,7 @@ func (p PacketSender)toTx(source common.Address, data []byte, txType int8) (*typ
 	return tx, nil
 }
 
-func (p PacketSender)sendTransaction(tx *types.Transaction) error {
+func (p PacketSender) sendTransaction(tx *types.Transaction) error {
 	if tx.Sign == nil {
 		return fmt.Errorf("transaction sign is empty")
 	}

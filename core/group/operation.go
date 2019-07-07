@@ -17,12 +17,12 @@ package group
 
 import (
 	"fmt"
+
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/vm"
 )
-
 
 type CheckerContext struct {
 	height uint64
@@ -41,17 +41,16 @@ type Operation interface {
 func newBaseOperation(db vm.AccountDB, tx types.Transaction, height uint64) *baseOperation {
 	return &baseOperation{
 		accountDB: db,
-		tx:tx,
+		tx:        tx,
 		height:    height,
 	}
 }
 
 type baseOperation struct {
 	accountDB vm.AccountDB
-	tx types.Transaction
+	tx        types.Transaction
 	height    uint64
 }
-
 
 // NewOperation creates the mOperation instance base on msg type
 func NewOperation(db vm.AccountDB, tx types.Transaction, height uint64) Operation {
@@ -62,6 +61,8 @@ func NewOperation(db vm.AccountDB, tx types.Transaction, height uint64) Operatio
 		operation = &sendPieceOp{baseOperation: baseOp}
 	case types.TransactionTypeGroupMpk:
 		operation = &sendMpkOp{baseOperation: baseOp}
+	case types.TransactionTypeGroupOriginPiece:
+		operation = &sendOriginPieceOp{baseOperation: baseOp}
 	}
 	return operation
 }
@@ -76,10 +77,10 @@ func (op *sendPieceOp) ParseTransaction() error {
 	if op.tx.Data == nil {
 		return fmt.Errorf("payload length error")
 	}
-	var data EncryptedSharePiecePacketImp
+	var data EncryptedSharePiecePacketImpl
 	err := msgpack.Unmarshal(op.tx.Data, &data)
 	if err != nil {
-		return  err
+		return err
 	}
 	op.data = &data
 
@@ -88,13 +89,12 @@ func (op *sendPieceOp) ParseTransaction() error {
 	return nil
 }
 
-
 func (op *sendPieceOp) Operation() error {
 	seedAddr := common.HashToAddress(op.data.Seed())
 	source := op.tx.Source
-	key := &txDataKey{dataVersion,dataTypePiece,*source}
+	key := &txDataKey{dataVersion, dataTypePiece, *source}
 	byteKey := keyToByte(key)
-	op.accountDB.SetData(seedAddr,byteKey,op.tx.Data)
+	op.accountDB.SetData(seedAddr, byteKey, op.tx.Data)
 
 	return nil
 }
@@ -112,7 +112,7 @@ func (op *sendMpkOp) ParseTransaction() error {
 	var data MpkPacketImpl
 	err := msgpack.Unmarshal(op.tx.Data, &data)
 	if err != nil {
-		return  err
+		return err
 	}
 	op.data = &data
 	//TODO: CheckMpkPacket(packet MpkPacket, ctx CheckerContext) error
@@ -121,18 +121,16 @@ func (op *sendMpkOp) ParseTransaction() error {
 	return nil
 }
 
-
 func (op *sendMpkOp) Operation() error {
 	seedAddr := common.HashToAddress(op.data.Seed())
 	source := op.tx.Source
 
-	key := &txDataKey{dataVersion, dataTypeMpk,*source}
+	key := &txDataKey{dataVersion, dataTypeMpk, *source}
 	byteKey := keyToByte(key)
-	op.accountDB.SetData(seedAddr,byteKey,op.tx.Data)
+	op.accountDB.SetData(seedAddr, byteKey, op.tx.Data)
 
 	return nil
 }
-
 
 // sendOriginPieceOp is for the group piece upload operation in round three
 type sendOriginPieceOp struct {
@@ -147,21 +145,20 @@ func (op *sendOriginPieceOp) ParseTransaction() error {
 	var data OriginSharePiecePacketImpl
 	err := msgpack.Unmarshal(op.tx.Data, &data)
 	if err != nil {
-		return  err
+		return err
 	}
 	op.data = &data
 	//TODO: CheckOriginPiecePacket(packet OriginSharePiecePacket, ctx CheckerContext) error
 	return nil
 }
 
-
 func (op *sendOriginPieceOp) Operation() error {
 	seedAddr := common.HashToAddress(op.data.Seed())
 	source := op.tx.Source
 
-	key := &txDataKey{dataVersion, dataTypeOriginPiece,*source}
+	key := &txDataKey{dataVersion, dataTypeOriginPiece, *source}
 	byteKey := keyToByte(key)
-	op.accountDB.SetData(seedAddr,byteKey,op.tx.Data)
+	op.accountDB.SetData(seedAddr, byteKey, op.tx.Data)
 
 	return nil
 }
