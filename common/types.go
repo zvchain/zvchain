@@ -44,7 +44,7 @@ const (
 
 	AddressLength = 32 //Length of Address( golang.SHA3，256-bit)
 	HashLength    = 32 //Length of Hash (golang.SHA3, 256-bit)。
-	GroupIDLength = 32 //Length of GroupID
+	GroupIDLength = 32 //Length of Group
 )
 
 var DefaultLogger taslog.Logger
@@ -148,9 +148,9 @@ func BytesToHash(b []byte) Hash {
 	return h
 }
 
-func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
-func HexToHash(s string) Hash   { return BytesToHash(FromHex(s)) }
-func HashToAddress(h Hash) Address { return BytesToAddress(h[:])}
+func BigToHash(b *big.Int) Hash    { return BytesToHash(b.Bytes()) }
+func HexToHash(s string) Hash      { return BytesToHash(FromHex(s)) }
+func HashToAddress(h Hash) Address { return BytesToAddress(h[:]) }
 
 // Get the string representation of the underlying hash
 func (h Hash) Bytes() []byte { return h[:] }

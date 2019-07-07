@@ -165,7 +165,7 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		return
 	}
 
-	gpk := p.getGroupPubKey(groupsig.DeserializeID(bh.GroupID))
+	gpk := p.getGroupPubKey(groupsig.DeserializeID(bh.Group))
 
 	// Group signature verification passed
 	if !slot.VerifyGroupSigns(gpk, vctx.prevBH.Random) {
@@ -347,7 +347,7 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 		return
 	}
 
-	groupID := groupsig.DeserializeID(bh.GroupID)
+	groupID := groupsig.DeserializeID(bh.Group)
 	group := p.GetGroup(groupID)
 	if group == nil {
 		_ = fmt.Errorf("group is nil:groupID=%v", groupID)
@@ -371,7 +371,7 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 	}
 	rewardShare := p.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
 
-	reward, tx, err := p.MainChain.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.GroupID, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
+	reward, tx, err := p.MainChain.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
 	if err != nil {
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return

@@ -64,7 +64,7 @@ func genBlockHeader() *types.BlockHeader {
 		Height:     rand.Uint64(),
 		ProveValue: []byte{},
 		Castor:     castor.Serialize(),
-		GroupID:    castor.Serialize(),
+		Group:      castor.Serialize(),
 		TotalQN:    rand.Uint64(),
 		StateTree:  common.Hash{},
 	}

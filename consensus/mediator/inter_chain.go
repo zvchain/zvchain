@@ -97,7 +97,7 @@ func (helper *ConsensusHelperImpl) VerifyRewardTransaction(tx *types.Transaction
 	if bh = Proc.MainChain.QueryBlockHeaderByHash(blockHash); bh == nil {
 		return false, fmt.Errorf("chain does not have this block, block hash=%v", blockHash)
 	}
-	if !bytes.Equal(groupID, bh.GroupID) {
+	if !bytes.Equal(groupID, bh.Group) {
 		return false, fmt.Errorf("group id not equal to the block verifier groupId")
 	}
 	rewardShare := Proc.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)

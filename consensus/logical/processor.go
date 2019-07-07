@@ -71,6 +71,8 @@ type Processor struct {
 
 	isCasting int32 // Proposal check status: 0 idle, 1 casting
 
+	castVerifyCh chan common.Hash
+
 	ts time.TimeService // Network-wide time service, regardless of local time
 
 }
@@ -103,6 +105,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	if err != nil {
 		return false
 	}
+	p.castVerifyCh = make(chan common.Hash, 5)
 	p.belongGroups = NewBelongGroups(p.genBelongGroupStoreFile(), encryptPrivateKey)
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()
@@ -110,7 +113,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.ts = time.TSInstance
 	p.isCasting = 0
 
-	p.minerReader = newMinerPoolReader(core.MinerManagerImpl)
+	p.minerReader = newMinerPoolReader(p, core.MinerManagerImpl)
 	pkPoolInit(p.minerReader)
 
 	p.groupManager = newGroupManager(p)
@@ -160,7 +163,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 		return
 	}
 
-	var gid = groupsig.DeserializeID(bh.GroupID)
+	var gid = groupsig.DeserializeID(bh.Group)
 
 	selectGroupIDFromCache := p.calcVerifyGroupFromCache(preHeader, bh.Height)
 
@@ -253,4 +256,13 @@ func (p *Processor) getDefaultSeckeyInfo() model.SecKeyInfo {
 
 func (p *Processor) getInGroupSeckeyInfo(gid groupsig.ID) model.SecKeyInfo {
 	return model.NewSecKeyInfo(p.GetMinerID(), p.getSignKey(gid))
+}
+
+func (p *Processor) chLoop() {
+	for {
+		select {
+		case hash := <-p.castVerifyCh:
+			p.verifyCachedMsg(hash)
+		}
+	}
 }

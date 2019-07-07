@@ -39,14 +39,16 @@ type minerPool interface {
 
 // MinerPoolReader provides some functions for access to the miner pool
 type MinerPoolReader struct {
-	mPool minerPool
-	blog  *bizLog
+	mPool   minerPool
+	process *Processor
+	blog    *bizLog
 }
 
-func newMinerPoolReader(mp minerPool) *MinerPoolReader {
+func newMinerPoolReader(p *Processor, mp minerPool) *MinerPoolReader {
 	return &MinerPoolReader{
-		mPool: mp,
-		blog:  newBizLog("MinerPoolReader"),
+		mPool:   mp,
+		process: p,
+		blog:    newBizLog("MinerPoolReader"),
 	}
 }
 
@@ -121,4 +123,8 @@ func (access *MinerPoolReader) GetCanJoinGroupMinersAt(h uint64) []*model.MinerD
 func (access *MinerPoolReader) getTotalStake(h uint64) uint64 {
 	st := access.mPool.GetProposalTotalStake(h)
 	return st
+}
+
+func (access *MinerPoolReader) SelfMinerInfo() *model.SelfMinerDO {
+	return access.process.getSelfMinerDO()
 }

@@ -171,7 +171,7 @@ func PbToBlockHeader(h *tas_middleware_pb.BlockHeader) *BlockHeader {
 		return nil
 	}
 	header := BlockHeader{Hash: common.BytesToHash(h.Hash), Height: *h.Height, PreHash: common.BytesToHash(h.PreHash), Elapsed: *h.Elapsed,
-		ProveValue: h.ProveValue, CurTime: time2.Int64ToTimeStamp(*h.CurTime), Castor: h.Castor, GroupID: h.GroupId, Signature: h.Signature,
+		ProveValue: h.ProveValue, CurTime: time2.Int64ToTimeStamp(*h.CurTime), Castor: h.Castor, Group: h.GroupId, Signature: h.Signature,
 		Nonce: *h.Nonce, TxTree: common.BytesToHash(h.TxTree), ReceiptTree: common.BytesToHash(h.ReceiptTree), StateTree: common.BytesToHash(h.StateTree),
 		ExtraData: h.ExtraData, TotalQN: *h.TotalQN, Random: h.Random, GasFee: *h.GasFee}
 	return &header
@@ -263,7 +263,7 @@ func TransactionsToPb(txs []*Transaction) []*tas_middleware_pb.Transaction {
 func BlockHeaderToPb(h *BlockHeader) *tas_middleware_pb.BlockHeader {
 	ts := h.CurTime.Unix()
 	header := tas_middleware_pb.BlockHeader{Hash: h.Hash.Bytes(), Height: &h.Height, PreHash: h.PreHash.Bytes(), Elapsed: &h.Elapsed,
-		ProveValue: h.ProveValue, CurTime: &ts, Castor: h.Castor, GroupId: h.GroupID, Signature: h.Signature,
+		ProveValue: h.ProveValue, CurTime: &ts, Castor: h.Castor, GroupId: h.Group, Signature: h.Signature,
 		Nonce: &h.Nonce, TxTree: h.TxTree.Bytes(), ReceiptTree: h.ReceiptTree.Bytes(), StateTree: h.StateTree.Bytes(),
 		ExtraData: h.ExtraData, TotalQN: &h.TotalQN, Random: h.Random, GasFee: &h.GasFee}
 	return &header

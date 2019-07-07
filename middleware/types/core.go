@@ -247,7 +247,7 @@ type BlockHeader struct {
 	TotalQN     uint64         // QN of the entire chain
 	CurTime     time.TimeStamp // Current block time
 	Castor      []byte         // Proposer ID
-	GroupID     []byte         // Verify group ID，binary representation of groupsig.ID
+	Group       common.Hash    // Verify group hash，hash of the seed block
 	Signature   []byte         // Group signature from consensus
 	Nonce       int32          // Salt
 	TxTree      common.Hash    // Transaction Merkel root hash
@@ -276,7 +276,7 @@ func (bh *BlockHeader) GenHash() common.Hash {
 
 	buf.Write(bh.Castor)
 
-	buf.Write(bh.GroupID)
+	buf.Write(bh.Group.Bytes())
 
 	buf.Write(common.Int32ToByte(bh.Nonce))
 

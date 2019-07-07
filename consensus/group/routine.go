@@ -20,6 +20,8 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math"
 )
@@ -54,19 +56,58 @@ func pieceEnough(pieceNum, candidateNum int) bool {
 	return pieceNum >= int(math.Ceil(float64(candidateNum)*recvPieceMinRatio))
 }
 
-type minerReader interface {
-	GetLatestVerifyMiner(id groupsig.ID) *model.MinerDO
-	GetCanJoinGroupMinersAt(h uint64) []*model.MinerDO
+type groupContextProvider interface {
+	GetGroupStoreReader() types.GroupStoreReader
+
+	GetGroupPacketSender() types.GroupPacketSender
+
+	RegisterGroupCreateChecker(checker types.GroupCreateChecker)
 }
 
-type currentMinerInfoReader interface {
-	MInfo() *model.SelfMinerDO
+type minerReader interface {
+	SelfMinerInfo() *model.SelfMinerDO
+	GetLatestVerifyMiner(id groupsig.ID) *model.MinerDO
+	GetCanJoinGroupMinersAt(h uint64) []*model.MinerDO
 }
 
 type createRoutine struct {
 	*createChecker
 	packetSender types.GroupPacketSender
 	store        *skStorage
+}
+
+var routine *createRoutine
+
+func InitRoutine(reader minerReader, chain core.BlockChain, provider groupContextProvider) {
+	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
+	routine = &createRoutine{
+		createChecker: checker,
+		packetSender:  provider.GetGroupPacketSender(),
+		store:         newSkStoage("groupstore" + common.GlobalConf.GetString("instance", "index", "")),
+	}
+	provider.RegisterGroupCreateChecker(checker)
+
+	notify.BUS.Subscribe(notify.BlockAddSucc, routine.onBlockAddSuccess)
+}
+
+func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
+	block := message.GetData().(*types.Block)
+	bh := block.Header
+
+	routine.UpdateContext(bh)
+	err := routine.CheckAndSendEncryptedPiecePacket(bh)
+	if err != nil {
+		routine.logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+	}
+	err = routine.CheckAndSendMpkPacket(bh)
+	if err != nil {
+		routine.logger.Errorf("check and send mpk error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+	}
+	err = routine.CheckAndSendOriginPiecePacket(bh)
+	if err != nil {
+		routine.logger.Errorf("check and send origin piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+	}
+
 }
 
 // UpdateEra updates the era info base on current block header
@@ -143,7 +184,7 @@ func (routine *createRoutine) CheckAndSendEncryptedPiecePacket(bh *types.BlockHe
 	if !era.encPieceRange.inRange(bh.Height) {
 		return fmt.Errorf("height not in the encrypted-piece round")
 	}
-	mInfo := routine.currentMiner.MInfo()
+	mInfo := routine.minerReader.SelfMinerInfo()
 	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("current miner cann't join group")
 	}
@@ -182,7 +223,7 @@ func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error
 		return fmt.Errorf("height not in the mpk round")
 	}
 
-	mInfo := routine.currentMiner.MInfo()
+	mInfo := routine.minerReader.SelfMinerInfo()
 	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("current miner cann't join group")
 	}
@@ -248,7 +289,7 @@ func (routine *createRoutine) CheckAndSendOriginPiecePacket(bh *types.BlockHeade
 	if !era.oriPieceRange.inRange(bh.Height) {
 		return fmt.Errorf("height not in the encrypted-piece round")
 	}
-	mInfo := routine.currentMiner.MInfo()
+	mInfo := routine.minerReader.SelfMinerInfo()
 	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("current miner cann't join group")
 	}

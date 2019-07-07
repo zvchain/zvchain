@@ -131,7 +131,7 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 	blockDetail["total_qn"] = bh.TotalQN
 	blockDetail["cur_time"] = bh.CurTime.Local().Format("2006-01-02 15:04:05")
 	blockDetail["castor"] = hex.EncodeToString(bh.Castor)
-	blockDetail["group_id"] = hex.EncodeToString(bh.GroupID)
+	blockDetail["group_id"] = hex.EncodeToString(bh.Group)
 	blockDetail["signature"] = hex.EncodeToString(bh.Signature)
 	blockDetail["txs"] = len(b.Transactions)
 	blockDetail["elapsed"] = bh.Elapsed
@@ -225,7 +225,7 @@ func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 		} else {
 			proposerStat[p] = 1
 		}
-		g := string(bh.GroupID)
+		g := string(bh.Group)
 		if v, ok := groupStat[g]; ok {
 			groupStat[g] = v + 1
 		} else {

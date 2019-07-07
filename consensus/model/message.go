@@ -220,7 +220,7 @@ type ConsensusBlockMessage struct {
 
 func (msg *ConsensusBlockMessage) GenHash() common.Hash {
 	buf := msg.Block.Header.GenHash().Bytes()
-	buf = append(buf, msg.Block.Header.GroupID...)
+	buf = append(buf, msg.Block.Header.Group...)
 	return base.Data2CommonHash(buf)
 }
 

@@ -23,7 +23,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-func encryptSharePieces(pieces []groupsig.Seckey, selfSK groupsig.Seckey, peerPKs []groupsig.Pubkey) ([]byte, error) {
+func encryptSharePieces(pieces []groupsig.Seckey, encSK groupsig.Seckey, peerPKs []groupsig.Pubkey) ([]byte, error) {
 	return nil, nil
 }
 
@@ -31,7 +31,7 @@ func decryptSharePiecesWithMySK(bs [][]byte, selfSK groupsig.Seckey, index int) 
 	return []groupsig.Seckey{}, nil
 }
 
-func decryptSharePiecesWithMyPK(bs [][]byte, encSks []groupsig.Seckey, selfPK groupsig.Pubkey, selfIndex int) ([]groupsig.Seckey, error) {
+func decryptSharePiecesWithMyPK(bs [][]byte, encSks []groupsig.Seckey, selfPK groupsig.Pubkey, index int) ([]groupsig.Seckey, error) {
 	return []groupsig.Seckey{}, nil
 }
 

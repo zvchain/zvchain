@@ -82,7 +82,7 @@ func convertBlockHeader(b *types.Block) *Block {
 		CurTime: bh.CurTime.Local(),
 		PreTime: bh.PreTime().Local(),
 		Castor:  groupsig.DeserializeID(bh.Castor),
-		GroupID: groupsig.DeserializeID(bh.GroupID),
+		GroupID: groupsig.DeserializeID(bh.Group),
 		Prove:   common.ToHex(bh.ProveValue),
 		TotalQN: bh.TotalQN,
 		TxNum:   uint64(len(b.Transactions)),

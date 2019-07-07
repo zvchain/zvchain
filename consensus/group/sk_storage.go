@@ -27,6 +27,13 @@ type skStorage struct {
 	lock    sync.RWMutex
 }
 
+func newSkStoage(file string) *skStorage {
+	return &skStorage{
+		file:    file,
+		seckeys: make(map[string]groupsig.Seckey),
+	}
+}
+
 func (store *skStorage) storeSeckey(prefix string, hash common.Hash, sk groupsig.Seckey) {
 	store.lock.Lock()
 	defer store.lock.Unlock()

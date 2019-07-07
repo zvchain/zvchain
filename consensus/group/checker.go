@@ -28,12 +28,20 @@ import (
 )
 
 type createChecker struct {
-	currentMiner currentMinerInfoReader
-	chain        core.BlockChain
-	ctx          *createContext
-	storeReader  types.GroupStoreReader
-	minerReader  minerReader
-	logger       taslog.Logger
+	chain       core.BlockChain
+	ctx         *createContext
+	storeReader types.GroupStoreReader
+	minerReader minerReader
+	logger      taslog.Logger
+}
+
+func newCreateChecker(reader minerReader, chain core.BlockChain, store types.GroupStoreReader) *createChecker {
+	return &createChecker{
+		chain:       chain,
+		storeReader: store,
+		minerReader: reader,
+		logger:      taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", "")),
+	}
 }
 
 type createContext struct {
