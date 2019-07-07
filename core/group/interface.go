@@ -17,6 +17,7 @@ package group
 
 import (
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
@@ -125,6 +126,14 @@ type Group struct {
 	MembersD []types.MemberI
 }
 
+func (g *Group) Header() types.GroupHeaderI {
+	return g.HeaderD
+}
+
+func (g *Group) Members() []types.MemberI {
+	return g.MembersD
+}
+
 type Member struct {
 	id []byte
 	pk []byte
@@ -178,4 +187,60 @@ func newGroup(i types.GroupI) *Group {
 		members = append(members, mem)
 	}
 	return &Group{header, members}
+}
+
+
+//TODO: remove it latter
+// for other package testing
+type GroupCreateChecker4Test struct {
+}
+
+func (g *GroupCreateChecker4Test )CheckEncryptedPiecePacket(packet types.EncryptedSharePiecePacket, ctx types.CheckerContext) error{
+	return nil
+}
+func (g *GroupCreateChecker4Test )CheckMpkPacket(packet types.MpkPacket, ctx types.CheckerContext) error{
+	return nil
+}
+func (g *GroupCreateChecker4Test )CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult{
+	return nil
+	//TODO:test other cases
+	//rs := &createResult4Test{code:types.CreateResultSuccess}
+	//return rs
+}
+
+func (g *GroupCreateChecker4Test )CheckOriginPiecePacket(packet types.OriginSharePiecePacket, ctx types.CheckerContext) error{
+	return nil
+}
+func (g *GroupCreateChecker4Test )CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error){
+	return nil,nil
+}
+
+
+type createResult4Test struct {
+	code         types.CreateResultCode
+	frozenMiners []groupsig.ID
+	err          error
+}
+
+
+func (cr *createResult4Test) Code() types.CreateResultCode {
+	return cr.code
+}
+
+func (cr *createResult4Test) GroupInfo() types.GroupI {
+	return nil
+}
+
+func (cr *createResult4Test) FrozenMiners() [][]byte {
+	bs := make([][]byte, 0)
+	if len(cr.frozenMiners) > 0 {
+		for _, mem := range cr.frozenMiners {
+			bs = append(bs, mem.Serialize())
+		}
+	}
+	return bs
+}
+
+func (cr *createResult4Test) Err() error {
+	return cr.err
 }

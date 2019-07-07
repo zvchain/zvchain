@@ -143,6 +143,12 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to test HasSentOriginPiecePacket, should returns ture but got false" )
 	}
 
+	//TODO: test GetGroupInfoBySeed()
+	//groupInfo := store.GetGroupInfoBySeed(dataOp)
+	//if groupInfo == nil {
+	//	t.Fatalf("fail to test GetGroupBySeed, should returns object but got nil" )
+	//}
+
 	//TODO: test GetAvailableGroupInfos()
 	//hasOrgPieceSent := store.GetAvailableGroupInfos(3)
 	//if !hasOrgPieceSent {

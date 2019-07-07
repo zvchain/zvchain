@@ -371,7 +371,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err 
 	// try to create group
 	//TODO: use the checker from consensus package [Lei]
 	checker := &group.GroupCreateChecker4Test{}
-	group.TryCreateGroup(ps.state,checker, chain)
+	group.RegularCheck(ps.state,checker, chain)
 	// Commit to DB
 	return chain.commitBlock(block, ps)
 }

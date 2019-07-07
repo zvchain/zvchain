@@ -26,8 +26,14 @@ type Manager struct {
 	checker types.GroupCreateChecker
 }
 
-func TryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, chain chainReader) {
+// RegularCheck try to create group and do punishment
+func RegularCheck(db *account.AccountDB, checker types.GroupCreateChecker, chain chainReader) {
 	ctx := &CheckerContext{chain.Height()}
+	tryCreateGroup(db,checker,ctx)
+	tryDoPunish(db, checker,ctx)
+}
+
+func tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
 	if createResult == nil {
 		return
@@ -39,9 +45,24 @@ func TryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, cha
 	case types.CreateResultSuccess:
 		_ = saveGroup(db, newGroup(createResult.GroupInfo()))
 	case types.CreateResultMarkEvil:
-		_ = markEvil(db, createResult.FrozenMiners())
-	case types.CreateResultFail:
 		_ = markGroupFail(db, newGroup(createResult.GroupInfo()))
+	case types.CreateResultFail:
+		// do nothing
+	}
+	_ = markEvil(db, createResult.FrozenMiners())
+}
+
+func tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
+	msg, err := checker.CheckGroupCreatePunishment(ctx)
+	if err != nil {
+		return
+	}
+	for _, p := range msg.PenaltyTarget() {
+		//TODO: reduce stake
+	}
+
+	for _, r := range msg.RewardTarget() {
+		// TODO: add balance
 	}
 
 }
@@ -69,9 +90,14 @@ func saveGroup(db *account.AccountDB, group *Group) error {
 }
 
 func markEvil(db *account.AccountDB, frozenMiners [][]byte) error {
+	if frozenMiners == nil || len(frozenMiners) == 0 {
+		return nil
+	}
+	//TODO: call miner interface
 	return nil
 }
 
+// markGroupFail mark group member should upload origin piece
 func markGroupFail(db *account.AccountDB, group *Group) error {
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte("1"))
 	return nil

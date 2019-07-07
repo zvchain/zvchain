@@ -139,6 +139,9 @@ type GroupStoreReader interface {
 
 	// Get available group infos at the given height
 	GetAvailableGroupInfos(h uint64) []GroupI
+
+	// Get group info by seed
+	GetGroupInfoBySeed(seed SeedI) GroupI
 }
 
 // 负责建组相关消息转换成交易发送，共识不关注交易类型，只关注数据

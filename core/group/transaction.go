@@ -17,7 +17,6 @@ package group
 
 import (
 	"fmt"
-
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -140,24 +139,3 @@ func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 	return nil
 }
 
-
-//TODO: remove it latter
-// for other package testing
-type GroupCreateChecker4Test struct {
-}
-
-func (g *GroupCreateChecker4Test )CheckEncryptedPiecePacket(packet types.EncryptedSharePiecePacket, ctx types.CheckerContext) error{
-	return nil
-}
-func (g *GroupCreateChecker4Test )CheckMpkPacket(packet types.MpkPacket, ctx types.CheckerContext) error{
-	return nil
-}
-func (g *GroupCreateChecker4Test )CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult{
-	return nil
-}
-func (g *GroupCreateChecker4Test )CheckOriginPiecePacket(packet types.OriginSharePiecePacket, ctx types.CheckerContext) error{
-	return nil
-}
-func (g *GroupCreateChecker4Test )CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error){
-	return nil,nil
-}
