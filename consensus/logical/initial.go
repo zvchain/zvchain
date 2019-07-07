@@ -21,21 +21,16 @@ import (
 	"github.com/zvchain/zvchain/taslog"
 )
 
-const NormalFailed int = -1
-const NormalSuccess int = 0
-
 const ConsensusConfSection = "consensus"
 
 var consensusLogger taslog.Logger
 var stdLogger taslog.Logger
-var groupLogger taslog.Logger
 var consensusConfManager common.SectionConfManager
 
 func InitConsensus() {
 	cc := common.GlobalConf.GetSectionManager(ConsensusConfSection)
 	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 	stdLogger = taslog.GetLoggerByIndex(taslog.StdConsensusLogConfig, common.GlobalConf.GetString("instance", "index", ""))
-	groupLogger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 	consensusConfManager = cc
 	model.InitParam(cc)
 	return

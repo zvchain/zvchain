@@ -88,7 +88,6 @@ func (gm *GroupManager) checkCreateGroupRoutine(baseHeight uint64) {
 	kings, isKing := gm.checker.selectKing(baseCtx.baseBH, baseCtx.parentInfo)
 
 	gm.setCreatingGroupContext(baseCtx, kings, isKing)
-	groupLogger.Infof("createGroupContext info=%v", gm.getContext().logString())
 
 	gm.pingNodes()
 	create = true
@@ -123,13 +122,6 @@ func (gm *GroupManager) checkReqCreateGroupSign(topHeight uint64) bool {
 		return false
 	}
 
-	var desc string
-	defer func() {
-		if desc != "" {
-			groupLogger.Infof("checkReqCreateGroupSign info=%v, %v", ctx.logString(), desc)
-		}
-	}()
-
 	if ctx.readyTimeout(topHeight) {
 		return false
 	}
@@ -141,7 +133,6 @@ func (gm *GroupManager) checkReqCreateGroupSign(topHeight uint64) bool {
 	}
 
 	if !ctx.generateGroupInitInfo(topHeight) {
-		desc = fmt.Sprintf("cannot generate group info, pongsize %v, pongdeadline %v", pongsize, ctx.pongDeadline(topHeight))
 		return false
 	}
 
@@ -149,14 +140,11 @@ func (gm *GroupManager) checkReqCreateGroupSign(topHeight uint64) bool {
 	gInfo := ctx.gInfo
 	gh := gInfo.GI.GHeader
 
-	desc = fmt.Sprintf("generateGroupInitInfo gHash=%v, memsize=%v, wait sign", gh.Hash.ShortS(), gInfo.MemberSize())
-
 	if !ctx.isKing() {
 		return false
 	}
 	if gInfo.MemberSize() < model.Param.GroupMemberMin {
 		blog.warn("got not enough pongs!, got %v", pongsize)
-		desc = "not enough pongs."
 		return false
 	}
 
@@ -187,7 +175,6 @@ func (gm *GroupManager) checkReqCreateGroupSign(topHeight uint64) bool {
 	}
 
 	gm.processor.NetServer.SendCreateGroupRawMessage(msg)
-	desc += "req sign"
 	return true
 }
 

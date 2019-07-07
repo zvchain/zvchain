@@ -41,22 +41,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 	bh := &msg.BH
 	si := &msg.SI
 	castor := groupsig.DeserializeID(bh.Castor)
-	groupID := groupsig.DeserializeID(bh.GroupID)
-
-	// trigger the cached messages from other members that come ahead of the proposal message
-	defer func() {
-		if ok {
-			go func() {
-				verifys := p.blockContexts.getVerifyMsgCache(bh.Hash)
-				if verifys != nil {
-					for _, vmsg := range verifys.verifyMsgs {
-						p.OnMessageVerify(vmsg)
-					}
-				}
-				p.blockContexts.removeVerifyMsgCache(bh.Hash)
-			}()
-		}
-	}()
+	groupID := groupsig.DeserializeID(bh.Group)
 
 	// if the block already added on chain, then ignore this message
 	if p.blockOnChain(bh.Hash) {
@@ -157,6 +142,9 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		slot.setSlotStatus(slSigned)
 		p.blockContexts.attachVctx(bh, vctx)
 		vctx.markSignedBlock(bh)
+
+		// trigger the cached messages from other members that come ahead of the proposal message
+		p.castVerifyCh <- bh.Hash
 		ok = true
 	} else {
 		err = fmt.Errorf("gen sign fail")
@@ -177,10 +165,10 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 		Hash:     bh.Hash.Hex(),
 		PreHash:  bh.PreHash.Hex(),
 		Proposer: ccm.SI.GetID().GetHexString(),
-		Verifier: groupsig.DeserializeID(bh.GroupID).GetHexString(),
+		Verifier: groupsig.DeserializeID(bh.Group).GetHexString(),
 		Ext:      fmt.Sprintf("external:qn:%v,totalQN:%v", 0, bh.TotalQN),
 	}
-	group := p.GetGroup(groupsig.DeserializeID(bh.GroupID))
+	group := p.GetGroup(groupsig.DeserializeID(bh.Group))
 	var err error
 	if group == nil {
 		err = fmt.Errorf("GetSelfGroup failed")
@@ -197,7 +185,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 	si := &ccm.SI
 	tlog := newHashTraceLog(mtype, bh.Hash, si.GetID())
 	castor := groupsig.DeserializeID(bh.Castor)
-	groupID := groupsig.DeserializeID(bh.GroupID)
+	groupID := groupsig.DeserializeID(bh.Group)
 
 	tlog.logStart("%v:height=%v, castor=%v", mtype, bh.Height, castor.ShortS())
 	blog.debug("proc(%v) begin hash=%v, height=%v, sender=%v, castor=%v, groupID=%v", p.getPrefix(), bh.Hash.ShortS(), bh.Height, si.GetID().ShortS(), castor.ShortS(), groupID.ShortS())
@@ -257,6 +245,16 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 
 	_, err = p.verifyCastMessage(ccm, preBH)
 
+}
+
+func (p *Processor) verifyCachedMsg(hash common.Hash) {
+	verifys := p.blockContexts.getVerifyMsgCache(hash)
+	if verifys != nil {
+		for _, vmsg := range verifys.verifyMsgs {
+			p.OnMessageVerify(vmsg)
+		}
+	}
+	p.blockContexts.removeVerifyMsgCache(hash)
 }
 
 func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyContext) (ret int8, err error) {
@@ -370,7 +368,7 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) {
 }
 
 func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, bh *types.BlockHeader) (send bool, err error) {
-	gid := groupsig.DeserializeID(bh.GroupID)
+	gid := groupsig.DeserializeID(bh.Group)
 	group := p.GetGroup(gid)
 	reward := &msg.Reward
 	if group == nil {
@@ -396,13 +394,13 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 		return
 	}
 
-	if !bytes.Equal(bh.GroupID, reward.GroupID) {
-		err = fmt.Errorf("groupID error %v %v", bh.GroupID, reward.GroupID)
+	if !bytes.Equal(bh.Group, reward.GroupID) {
+		err = fmt.Errorf("groupID error %v %v", bh.Group, reward.GroupID)
 		return
 	}
 	if !slot.hasSignedTxHash(reward.TxHash) {
 		rewardShare := p.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
-		genReward, _, err2 := p.MainChain.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.GroupID, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
+		genReward, _, err2 := p.MainChain.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
 		if err2 != nil {
 			err = err2
 			return
@@ -554,7 +552,7 @@ func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessag
 		return
 	}
 
-	gid := groupsig.DeserializeID(bh.GroupID)
+	gid := groupsig.DeserializeID(bh.Group)
 	group := p.GetGroup(gid)
 	if group == nil {
 		err = fmt.Errorf("group is nil")
@@ -620,7 +618,7 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	}
 
 	if pb.maxResponseCount == 0 {
-		gid := groupsig.DeserializeID(pb.block.Header.GroupID)
+		gid := groupsig.DeserializeID(pb.block.Header.Group)
 		group, err := p.globalGroups.GetGroupByID(gid)
 		if err != nil {
 			s = fmt.Sprintf("get group error")

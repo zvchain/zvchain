@@ -187,7 +187,7 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 		return
 	}
 
-	gid := groupsig.DeserializeID(bh.GroupID)
+	gid := groupsig.DeserializeID(bh.Group)
 	gpk := p.getGroupPubKey(gid)
 	ppk := p.getProposerPubKeyInBlock(bh)
 	if ppk == nil {

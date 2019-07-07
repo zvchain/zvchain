@@ -70,7 +70,7 @@ func (p *Processor) onBlockAddSuccess(message notify.Message) {
 	tlog := newMsgTraceLog("OnBlockAddSuccess", bh.Hash.ShortS(), "")
 	tlog.log("preHash=%v, height=%v", bh.PreHash.ShortS(), bh.Height)
 
-	gid := groupsig.DeserializeID(bh.GroupID)
+	gid := groupsig.DeserializeID(bh.Group)
 	if p.IsMinerGroup(gid) {
 		p.blockContexts.addCastedHeight(bh.Height, bh.PreHash)
 		vctx := p.blockContexts.getVctxByHeight(bh.Height)
@@ -135,7 +135,7 @@ func (p *Processor) onGroupAddSuccess(message notify.Message) {
 				panic(fmt.Sprintf("pre error:bh %v, prehash %v, height %v, real pre hash %v height %v", bh.Hash.Hex(), bh.PreHash.Hex(), bh.Height, pre.Hash.Hex(), pre.Height))
 			}
 			gid := p.calcVerifyGroupFromChain(pre, bh.Height)
-			if !bytes.Equal(gid.Serialize(), bh.GroupID) {
+			if !bytes.Equal(gid.Serialize(), bh.Group) {
 				old := p.MainChain.QueryTopBlock()
 				stdLogger.Errorf("adjust top block: old %v %v %v, new %v %v %v", old.Hash.Hex(), old.PreHash.Hex(), old.Height, pre.Hash.Hex(), pre.PreHash.Hex(), pre.Height)
 				p.MainChain.ResetTop(pre)

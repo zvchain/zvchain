@@ -199,7 +199,6 @@ func (p *Processor) OnMessageCreateGroupSign(msg *model.ConsensusCreateGroupSign
 			tlog.log("collecting pieces,SendGroupInitMessage")
 			p.NetServer.SendGroupInitMessage(initMsg)
 			ctx.setStatus(sendInit)
-			groupLogger.Infof("OMCGS send group init: info=%v, gHash=%v, costHeight=%v", ctx.logString(), ctx.gInfo.GroupHash().ShortS(), p.MainChain.Height()-ctx.createTopHeight)
 
 		} else {
 			blog.error("genSign fail, id=%v, sk=%v", ski.ID.ShortS(), ski.SK.ShortS())
@@ -230,13 +229,6 @@ func (p *Processor) OnMessageGroupInit(msg *model.ConsensusGroupRawMessage) {
 		return
 	}
 
-	var desc string
-	defer func() {
-		if desc != "" {
-			groupLogger.Infof("OMGI:gHash=%v,sender=%v, %v", msg.GInfo.GroupHash().ShortS(), msg.SI.GetID().ShortS(), desc)
-		}
-	}()
-
 	groupContext := p.joiningGroups.GetGroup(gHash)
 	if groupContext != nil && groupContext.GetGroupStatus() != GisInit {
 		blog.debug("already handle, status=%v", groupContext.GetGroupStatus())
@@ -245,8 +237,6 @@ func (p *Processor) OnMessageGroupInit(msg *model.ConsensusGroupRawMessage) {
 
 	topHeight := p.MainChain.QueryTopBlock().Height
 	if gis.ReadyTimeout(topHeight) {
-		desc = fmt.Sprintf("OMGI ready timeout, readyHeight=%v, now=%v", gh.ReadyHeight, topHeight)
-		blog.warn(desc)
 		return
 	}
 
@@ -274,7 +264,6 @@ func (p *Processor) OnMessageGroupInit(msg *model.ConsensusGroupRawMessage) {
 
 	// Use CAS operation to make sure the logical below executed once
 	if groupContext.StatusTransfrom(GisInit, GisSendSharePiece) {
-		desc = "send sharepiece"
 
 		// Generate secret sharing
 		shares := groupContext.GenSharePieces()
@@ -369,7 +358,6 @@ func (p *Processor) handleSharePieceMessage(blog *bizLog, gHash common.Hash, sha
 	// All piece collected
 	if result == 1 {
 		recover = true
-		groupLogger.Infof("OMSP collecting slices: gHash=%v, elapsed=%v.", gHash.ShortS(), time.Since(gc.createTime).String())
 		jg := gc.GetGroupInfo()
 		p.joinGroup(jg)
 

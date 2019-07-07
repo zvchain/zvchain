@@ -1684,7 +1684,7 @@ func (m *ConsensusSharePieceMessage) GetSign() *SignData {
 
 type ConsensusSignPubKeyMessage struct {
 	GHash                []byte    `protobuf:"bytes,1,req,name=GHash" json:"GHash,omitempty"`
-	GroupID              []byte    `protobuf:"bytes,2,req,name=GroupID" json:"GroupID,omitempty"`
+	GroupID              []byte    `protobuf:"bytes,2,req,name=Group" json:"Group,omitempty"`
 	SignPK               []byte    `protobuf:"bytes,3,req,name=SignPK" json:"SignPK,omitempty"`
 	MemCnt               *int32    `protobuf:"varint,4,req,name=MemCnt" json:"MemCnt,omitempty"`
 	SignData             *SignData `protobuf:"bytes,5,req,name=SignData" json:"SignData,omitempty"`
@@ -1753,7 +1753,7 @@ func (m *ConsensusSignPubKeyMessage) GetSignData() *SignData {
 }
 
 type ConsensusSignPubkeyReqMessage struct {
-	GroupID              []byte    `protobuf:"bytes,1,req,name=GroupID" json:"GroupID,omitempty"`
+	GroupID              []byte    `protobuf:"bytes,1,req,name=Group" json:"Group,omitempty"`
 	SignData             *SignData `protobuf:"bytes,2,req,name=SignData" json:"SignData,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
@@ -1799,7 +1799,7 @@ func (m *ConsensusSignPubkeyReqMessage) GetSignData() *SignData {
 }
 
 type StaticGroupSummary struct {
-	GroupID              []byte   `protobuf:"bytes,1,req,name=GroupID" json:"GroupID,omitempty"`
+	GroupID              []byte   `protobuf:"bytes,1,req,name=Group" json:"Group,omitempty"`
 	GroupPK              []byte   `protobuf:"bytes,2,req,name=GroupPK" json:"GroupPK,omitempty"`
 	GHash                []byte   `protobuf:"bytes,3,req,name=GHash" json:"GHash,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -1854,7 +1854,7 @@ func (m *StaticGroupSummary) GetGHash() []byte {
 
 type ConsensusGroupInitedMessage struct {
 	GHash                []byte    `protobuf:"bytes,1,req,name=GHash" json:"GHash,omitempty"`
-	GroupID              []byte    `protobuf:"bytes,2,req,name=GroupID" json:"GroupID,omitempty"`
+	GroupID              []byte    `protobuf:"bytes,2,req,name=Group" json:"Group,omitempty"`
 	GroupPK              []byte    `protobuf:"bytes,3,req,name=GroupPK" json:"GroupPK,omitempty"`
 	CreateHeight         *uint64   `protobuf:"varint,4,req,name=CreateHeight" json:"CreateHeight,omitempty"`
 	ParentSign           []byte    `protobuf:"bytes,5,req,name=ParentSign" json:"ParentSign,omitempty"`
@@ -1947,7 +1947,7 @@ func (m *ConsensusGroupInitedMessage) GetSign() *SignData {
 }
 
 type ConsensusCurrentMessage struct {
-	GroupID              []byte    `protobuf:"bytes,1,opt,name=GroupID" json:"GroupID,omitempty"`
+	GroupID              []byte    `protobuf:"bytes,1,opt,name=Group" json:"Group,omitempty"`
 	PreHash              []byte    `protobuf:"bytes,2,req,name=PreHash" json:"PreHash,omitempty"`
 	PreTime              []byte    `protobuf:"bytes,3,req,name=PreTime" json:"PreTime,omitempty"`
 	BlockHeight          *uint64   `protobuf:"varint,4,req,name=BlockHeight" json:"BlockHeight,omitempty"`
@@ -2018,7 +2018,7 @@ func (m *ConsensusCurrentMessage) GetSign() *SignData {
 
 type ConsensusCastMessage struct {
 	Bh                   *BlockHeader `protobuf:"bytes,1,req,name=Bh" json:"Bh,omitempty"`
-	GroupID              []byte       `protobuf:"bytes,2,opt,name=GroupID" json:"GroupID,omitempty"`
+	GroupID              []byte       `protobuf:"bytes,2,opt,name=Group" json:"Group,omitempty"`
 	Sign                 *SignData    `protobuf:"bytes,3,req,name=Sign" json:"Sign,omitempty"`
 	ProveHash            []byte       `protobuf:"bytes,4,req,name=ProveHash" json:"ProveHash,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`

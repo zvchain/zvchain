@@ -84,7 +84,6 @@ type GroupHeaderI interface {
 type PunishmentMsg interface {
 	PenaltyTarget() [][]byte //罚款矿工列表
 	RewardTarget() [][]byte  // 奖励列表
-	Value() uint64           //罚款金额
 }
 
 type CheckerContext interface {
@@ -140,8 +139,9 @@ type GroupStoreReader interface {
 	// Get available group infos at the given height
 	GetAvailableGroupInfos(h uint64) []GroupI
 
-	// Get group info by seed
-	GetGroupInfoBySeed(seed SeedI) GroupI
+	GetGroupBySeed(seedHash common.Hash) GroupI
+
+	GetGroupHeaderBySeed(seedHash common.Hash) GroupHeaderI
 }
 
 // 负责建组相关消息转换成交易发送，共识不关注交易类型，只关注数据

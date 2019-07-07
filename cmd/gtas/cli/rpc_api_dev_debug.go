@@ -225,7 +225,7 @@ func (api *RpcDevImpl) DebugVerifySummary(from, to uint64) (*Result, error) {
 				}
 			}
 			//expectGid, gs := selectNextVerifyGroup(allGroup, preBH, h-preBH.Height)
-			gid := groupsig.DeserializeID(bh.GroupID)
+			gid := groupsig.DeserializeID(bh.Group)
 			preBH = bh
 			gvs := summary.getGroupSummary(gid, topHeight, gid.IsEqual(nextGroupID))
 			gvs.NumVerify++

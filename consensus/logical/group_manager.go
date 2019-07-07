@@ -175,7 +175,6 @@ func (gm *GroupManager) onGroupAddSuccess(g *StaticGroupInfo) {
 	ctx := gm.getContext()
 	if ctx != nil && ctx.gInfo != nil && ctx.gInfo.GroupHash() == g.GInfo.GroupHash() {
 		top := gm.mainChain.Height()
-		groupLogger.Infof("onGroupAddSuccess info=%v, gHash=%v, gid=%v, costHeight=%v", ctx.logString(), g.GInfo.GroupHash().ShortS(), g.GroupID.ShortS(), top-ctx.createTopHeight)
 		gm.removeContext()
 	}
 }

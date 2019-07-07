@@ -18,6 +18,7 @@ package group
 import (
 	"bytes"
 	"fmt"
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
@@ -27,12 +28,20 @@ import (
 )
 
 type createChecker struct {
-	currentMiner currentMinerInfoReader
-	chain        core.BlockChain
-	ctx          *createContext
-	storeReader  types.GroupStoreReader
-	minerReader  minerReader
-	logger       taslog.Logger
+	chain       core.BlockChain
+	ctx         *createContext
+	storeReader types.GroupStoreReader
+	minerReader minerReader
+	logger      taslog.Logger
+}
+
+func newCreateChecker(reader minerReader, chain core.BlockChain, store types.GroupStoreReader) *createChecker {
+	return &createChecker{
+		chain:       chain,
+		storeReader: store,
+		minerReader: reader,
+		logger:      taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", "")),
+	}
 }
 
 type createContext struct {
@@ -69,6 +78,22 @@ func (c candidates) find(id groupsig.ID) int {
 		}
 	}
 	return -1
+}
+
+func (c candidates) pubkeys() []groupsig.Pubkey {
+	memPks := make([]groupsig.Pubkey, 0)
+	for _, mem := range c {
+		memPks = append(memPks, mem.PK)
+	}
+	return memPks
+}
+
+func (c candidates) ids() []groupsig.ID {
+	ids := make([]groupsig.ID, 0)
+	for _, mem := range c {
+		ids = append(ids, mem.ID)
+	}
+	return ids
 }
 
 func (c candidates) threshold() int {
@@ -135,6 +160,11 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 	// Was selected
 	if !cands.has(sender) {
 		return fmt.Errorf("miner not selected:%v", sender.GetHexString())
+	}
+
+	// Verify sig
+	if !groupsig.VerifySig(groupsig.DeserializePubkeyBytes(packet.Mpk()), packet.Seed().Bytes(), *groupsig.DeserializeSign(packet.Sign())) {
+		return fmt.Errorf("verify sign fail:%v", common.ToHex(packet.Sign()))
 	}
 
 	mInfo := checker.minerReader.GetLatestVerifyMiner(sender)
@@ -275,17 +305,21 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("miner cann't join group")
 	}
-
+	id := mInfo.ID.Serialize()
 	// Whether origin piece required
 	if !checker.storeReader.IsOriginPieceRequired(era) {
 		return fmt.Errorf("don't need origin pieces")
 	}
 	// Whether sent encrypted pieces
-	if !checker.storeReader.HasSentEncryptedPiecePacket(mInfo.ID.Serialize(), era) {
+	if !checker.storeReader.HasSentEncryptedPiecePacket(id, era) {
 		return fmt.Errorf("didn't sent encrypted share piece")
 	}
+	// Whether sent mpk packet
+	if !checker.storeReader.HasSentMpkPacket(id, era) {
+		return fmt.Errorf("didn't sent mpk packet")
+	}
 	// Has sent piece
-	if checker.storeReader.HasSentOriginPiecePacket(mInfo.ID.Serialize(), era) {
+	if checker.storeReader.HasSentOriginPiecePacket(id, era) {
 		return fmt.Errorf("has sent origin pieces")
 	}
 	return nil
@@ -317,14 +351,115 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		return nil, fmt.Errorf("get origin packet error:%v", err)
 	}
 
-	for _, oriPkt := range originPacket {
-		oriPkt.
-			encryptSharePieces()
-		checkEvil()
-	}
-
 	piecePkt, err := checker.storeReader.GetEncryptedPiecePackets(era)
 	if err != nil {
-		return errCreateResult(fmt.Errorf("get encrypted piece error"))
+		return nil, fmt.Errorf("get encrypted piece error:%v", err)
 	}
+
+	mpkPacket, err := checker.storeReader.GetMpkPackets(era)
+	if err != nil {
+		return nil, fmt.Errorf("get mpk packet error:%v", err)
+	}
+
+	// Find those who sent mpk (and of course encrypted piece did) but not sent origin pieces.
+	missOriPieceIds := make([][]byte, 0)
+	for _, mpk := range mpkPacket {
+		find := false
+		for _, ori := range originPacket {
+			if bytes.Equal(ori.Sender(), mpk.Sender()) {
+				find = true
+				break
+			}
+		}
+		if !find {
+			missOriPieceIds = append(missOriPieceIds, mpk.Sender())
+		}
+	}
+
+	wrongPiecesIds := make([][]byte, 0)
+	// Find those who sent the wrong encrypted pieces
+	for _, ori := range originPacket {
+		var (
+			find = false
+			enc  types.EncryptedSharePiecePacket
+		)
+		for _, enc = range piecePkt {
+			if bytes.Equal(ori.Sender(), enc.Sender()) {
+				find = true
+				break
+			}
+		}
+		// Must not happen
+		if !find {
+			panic(fmt.Sprintf("cannot find enc packet of %v", common.ToHex(ori.Sender())))
+		}
+		sharePieces := DeserializeSharePieces(ori.Pieces())
+		encBytes, err := encryptSharePieces(sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys())
+		// Check If the origin pieces and encrypted pieces are equal
+		if err != nil || !bytes.Equal(enc.Pieces(), encBytes) {
+			if err != nil {
+				checker.logger.Errorf("encrypted share pieces error:%v %v", err, common.ToHex(ori.Sender()))
+			}
+			wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
+		} else { // Check if the origin share pieces are modified
+			if ok, err := checkEvil(sharePieces, cands.ids()); !ok || err != nil {
+				if err != nil {
+					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
+				}
+				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
+			}
+		}
+	}
+
+	wrongMpkIds := make([][]byte, 0)
+	// If someone didn't send origin piece, then we can't decrypt the encrypted-share piece and so we can't find out those who
+	// gave the wrong mpk
+	if len(missOriPieceIds) == 0 {
+		sks := make([]groupsig.Seckey, 0)
+		for _, ori := range originPacket {
+			sks = append(sks, *groupsig.DeserializeSeckey(ori.EncSeckey()))
+		}
+		// Find those who sent the wrong mpk
+		for _, mpk := range mpkPacket {
+			idx := cands.find(groupsig.DeserializeID(mpk.Sender()))
+			if idx < 0 {
+				panic(fmt.Sprintf("cannot find id:%v", common.ToHex(mpk.Sender())))
+			}
+
+			msk, err := aggrSignSecKeyWithMyPK(piecePkt, idx, sks, cands[idx].PK)
+			if err != nil {
+				wrongMpkIds = append(wrongMpkIds, mpk.Sender())
+				checker.logger.Errorf("aggregate seckey error:%v %v", err, common.ToHex(mpk.Sender()))
+			} else {
+				pk := groupsig.NewPubkeyFromSeckey(*msk)
+				if !bytes.Equal(pk.Serialize(), mpk.Mpk()) {
+					wrongMpkIds = append(wrongMpkIds, mpk.Sender())
+				}
+			}
+
+		}
+	}
+
+	// Take apart the penalty targets and reward targets
+	penaltyTargets := make([][]byte, 0)
+	penaltyTargets = append(penaltyTargets, missOriPieceIds...)
+	penaltyTargets = append(penaltyTargets, wrongPiecesIds...)
+	penaltyTargets = append(penaltyTargets, wrongMpkIds...)
+
+	rewardTargets := make([][]byte, 0)
+	for _, mpk := range mpkPacket {
+		find := false
+		for _, id := range penaltyTargets {
+			if bytes.Equal(id, mpk.Sender()) {
+				find = true
+				break
+			}
+		}
+		if !find {
+			rewardTargets = append(rewardTargets, mpk.Sender())
+		}
+	}
+
+	return &punishment{penaltyTargets: penaltyTargets, rewardTargets: rewardTargets}, nil
+
 }

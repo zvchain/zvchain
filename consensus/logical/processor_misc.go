@@ -226,12 +226,12 @@ func (p *Processor) checkProveRoot(bh *types.BlockHeader) (bool, error) {
 	//if preBH == nil {
 	//	return false, errors.New(fmt.Sprintf("preBlock is nil,hash %v", bh.PreHash.ShortS()))
 	//}
-	//gid := groupsig.DeserializeID(bh.GroupID)
+	//gid := groupsig.DeserializeID(bh.Group)
 	//
 	//slog.AddStage("getGroup")
 	//group := p.GetGroup(gid)
 	//slog.EndStage()
-	//if !group.GroupID.isValid() {
+	//if !group.Group.isValid() {
 	//	return false, errors.New(fmt.Sprintf("group is invalid, gid %v", gid))
 	//}
 

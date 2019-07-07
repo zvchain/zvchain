@@ -176,7 +176,7 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 	}
 
 	// Check group id
-	gid := groupsig.DeserializeID(bh.GroupID)
+	gid := groupsig.DeserializeID(bh.Group)
 	if !vc.group.GroupID.IsEqual(gid) {
 		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.GroupID.ShortS(), gid.ShortS())
 	}

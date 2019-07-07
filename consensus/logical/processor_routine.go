@@ -191,7 +191,6 @@ func (p *Processor) releaseRoutine() bool {
 	})
 	gctx := p.groupManager.getContext()
 	if gctx != nil && gctx.readyTimeout(topHeight) {
-		groupLogger.Infof("releaseRoutine:info=%v, elapsed %v. ready timeout.", gctx.logString(), time2.Since(gctx.createTime))
 
 		if gctx.isKing() {
 			gHash := "0000"
