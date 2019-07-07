@@ -33,12 +33,12 @@ type PacketSender struct {
 	chain chainReader
 }
 
-func NewPacketSender(chain chainReader) *PacketSender {
+func NewPacketSender(chain chainReader) types.GroupPacketSender {
 	return &PacketSender{chain}
 }
 
 // SendEncryptedPiecePacket send transaction the miner's encrypted piece  in round one
-func (p PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePiecePacket) (err error) {
+func (p *PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePiecePacket) (err error) {
 	source := common.BytesToAddress(packet.Sender())
 	data := &EncryptedSharePiecePacketImpl{}
 	data.SeedD = packet.Seed()
@@ -62,12 +62,13 @@ func (p PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePieceP
 }
 
 // SendEncryptedPiecePacket send transaction the miner mpk and sign  in round two
-func (p PacketSender) SendMpkPacket(packet types.MpkPacket) (err error) {
+func (p *PacketSender) SendMpkPacket(packet types.MpkPacket) (err error) {
 	source := common.BytesToAddress(packet.Sender())
 	data := &MpkPacketImpl{}
 	data.SeedD = packet.Seed()
 	data.MpkD = packet.Mpk()
 	data.SignD = packet.Sign()
+	data.SenderD = packet.Sender()
 
 	byteData, err := msgpack.Marshal(data)
 	if err != nil {
@@ -108,7 +109,7 @@ func (p PacketSender) SendOriginPiecePacket(packet types.OriginSharePiecePacket)
 	return nil
 }
 
-func (p PacketSender) toTx(source common.Address, data []byte, txType int8) (*types.Transaction, error) {
+func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*types.Transaction, error) {
 	tx := &types.Transaction{}
 	tx.Data = data
 	tx.Type = txType
@@ -129,7 +130,7 @@ func (p PacketSender) toTx(source common.Address, data []byte, txType int8) (*ty
 	return tx, nil
 }
 
-func (p PacketSender) sendTransaction(tx *types.Transaction) error {
+func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 	if tx.Sign == nil {
 		return fmt.Errorf("transaction sign is empty")
 	}

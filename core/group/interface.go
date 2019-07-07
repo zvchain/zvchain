@@ -58,45 +58,13 @@ func (e *EncryptedSharePiecePacketImpl) Pubkey0() []byte {
 	return e.PiecesD
 }
 
-//
-//// Piece明文数据包接口
-//type SenderPiece struct {
-//	ReceiverD  []byte `msgpack:"re"` // piece的接收者
-//	PieceDataD []byte `msgpack:"pd"` // Piece
-//}
-//
-//func (s *SenderPiece) Receiver() []byte {
-//	return s.ReceiverD
-//}
-//
-//func (s *SenderPiece) PieceData() []byte {
-//	return s.PieceDataD
-//}
-
-// 传给共识用
-//type encryptedReceiverPiece struct {
-//	sender []byte    // piece的发送者
-//	pieceData []byte // Piece加密后的数据
-//	pubkey0 []byte   //the gpk share of the miner
-//}
-//
-//func (s *encryptedReceiverPiece) Sender() []byte {
-//	return s.sender
-//}
-//func (s *encryptedReceiverPiece) PieceData() []byte {
-//	return s.pieceData
-//}
-//func (s *encryptedReceiverPiece) Pubkey0() []byte {
-//	return s.pubkey0
-//}
-
 // Round 2 tx data
 // Mpk数据包接口, implement interface types.MpkPacket
 type MpkPacketImpl struct {
-	SeedD   common.Hash    `msgpack:"se"`           //当前轮的seed
-	SourceD common.Address `msgpack:"sr,omitempty"` //发送者address
-	MpkD    []byte         `msgpack:"mp"`           // 聚合出来的签名公钥
-	SignD   []byte         `msgpack:"si"`           // 用签名公钥对seed进行签名
+	SeedD   common.Hash `msgpack:"se"`           //当前轮的seed
+	SenderD []byte      `msgpack:"sr,omitempty"` //发送者address
+	MpkD    []byte      `msgpack:"mp"`           // 聚合出来的签名公钥
+	SignD   []byte      `msgpack:"si"`           // 用签名公钥对seed进行签名
 }
 
 func (s *MpkPacketImpl) Seed() common.Hash {
@@ -104,7 +72,7 @@ func (s *MpkPacketImpl) Seed() common.Hash {
 }
 
 func (s *MpkPacketImpl) Sender() []byte {
-	return s.SourceD.Bytes()
+	return s.SenderD
 }
 
 func (s *MpkPacketImpl) Mpk() []byte {

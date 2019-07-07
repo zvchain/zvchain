@@ -85,7 +85,7 @@ func (op *sendPieceOp) ParseTransaction() error {
 	op.data = &data
 
 	//context := &CheckerContext{op.height}
-	//CheckEncryptedPiecePacket(packet EncryptedSenderPiecePacket, ctx CheckerContext) error
+	//TODO:CheckEncryptedPiecePacket(packet EncryptedSenderPiecePacket, ctx CheckerContext) error
 	return nil
 }
 
@@ -95,7 +95,6 @@ func (op *sendPieceOp) Operation() error {
 	key := &txDataKey{dataVersion, dataTypePiece, *source}
 	byteKey := keyToByte(key)
 	op.accountDB.SetData(seedAddr, byteKey, op.tx.Data)
-
 	return nil
 }
 

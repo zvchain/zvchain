@@ -37,11 +37,11 @@ func TryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, cha
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		saveGroup(db, newGroup(createResult.GroupInfo()))
+		_ = saveGroup(db, newGroup(createResult.GroupInfo()))
 	case types.CreateResultMarkEvil:
-		markEvil(db, createResult.FrozenMiners())
+		_ = markEvil(db, createResult.FrozenMiners())
 	case types.CreateResultFail:
-		markGroupFail(db, newGroup(createResult.GroupInfo()))
+		_ = markGroupFail(db, newGroup(createResult.GroupInfo()))
 	}
 
 }
@@ -73,6 +73,6 @@ func markEvil(db *account.AccountDB, frozenMiners [][]byte) error {
 }
 
 func markGroupFail(db *account.AccountDB, group *Group) error {
-	//db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupDataKey,byteData)
+	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte("1"))
 	return nil
 }
