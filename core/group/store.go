@@ -158,8 +158,8 @@ func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
 	return rs
 }
 
-func (s *Store) GetGroupInfoBySeed(seed types.SeedI) types.GroupI {
-	byteData := s.db.GetData(common.HashToAddress(seed.Seed()),groupDataKey)
+func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
+	byteData := s.db.GetData(common.HashToAddress(seedHash),groupDataKey)
 	if byteData != nil {
 
 		var data Group
@@ -169,6 +169,11 @@ func (s *Store) GetGroupInfoBySeed(seed types.SeedI) types.GroupI {
 		}
 		return &data
 	}
+	return nil
+}
+
+func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI{
+	// todo: implement it
 	return nil
 }
 
