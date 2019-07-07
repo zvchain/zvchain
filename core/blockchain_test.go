@@ -458,7 +458,8 @@ func clear() {
 		return
 	}
 	for _, d := range dir {
-		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore")) {
+		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore") ||
+			strings.HasPrefix(d.Name(), "database")) {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
@@ -489,10 +490,30 @@ func initContext4Test() error {
 	}
 	BlockChainImpl = nil
 	GroupChainImpl = nil
-	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}))
+
+	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}),getAccount())
 
 	clearTicker()
 	return err
+}
+
+func getAccount() *Account4Test {
+	var ksr = new(KeyStoreRaw4Test)
+
+	ksr.Key = common.Hex2Bytes("A8cmFJACR7VqbbuKwDYu/zj/hn6hcox97ujw2TNvCYk=")
+	secKey := new(common.PrivateKey)
+	if !secKey.ImportKey(ksr.Key) {
+		fmt.Errorf("failed to import key")
+		return nil
+	}
+
+	account := &Account4Test{
+		Sk:       secKey.Hex(),
+		Pk:       secKey.GetPubKey().Hex(),
+		Address:  secKey.GetPubKey().GetAddress().Hex(),
+		Password: "Password",
+	}
+	return account
 }
 
 func NewConsensusHelper4Test(id groupsig.ID) types.ConsensusHelper {
@@ -545,4 +566,20 @@ func (helper *ConsensusHelperImpl4Test) EstimatePreHeight(bh *types.BlockHeader)
 
 func (helper *ConsensusHelperImpl4Test) CalculateQN(bh *types.BlockHeader) uint64 {
 	return uint64(11)
+}
+
+type Account4Test struct {
+	Address  string
+	Pk       string
+	Sk       string
+	Password string
+}
+
+func (a *Account4Test)MinerSk() string  {
+	return a.Sk
+}
+
+type KeyStoreRaw4Test struct {
+	Key     []byte
+	IsMiner bool
 }
