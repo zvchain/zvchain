@@ -38,11 +38,12 @@ type Operation interface {
 	Operation() error        // Do the operation
 }
 
-func newBaseOperation(db vm.AccountDB, tx types.Transaction, height uint64) *baseOperation {
+func newBaseOperation(db vm.AccountDB, tx types.Transaction, height uint64, checker types.GroupCreateChecker) *baseOperation {
 	return &baseOperation{
 		accountDB: db,
 		tx:        tx,
 		height:    height,
+		checker:   checker,
 	}
 }
 
@@ -50,11 +51,12 @@ type baseOperation struct {
 	accountDB vm.AccountDB
 	tx        types.Transaction
 	height    uint64
+	checker   types.GroupCreateChecker
 }
 
 // NewOperation creates the mOperation instance base on msg type
-func NewOperation(db vm.AccountDB, tx types.Transaction, height uint64) Operation {
-	baseOp := newBaseOperation(db, tx, height)
+func (m *Manager) NewOperation(db vm.AccountDB, tx types.Transaction, height uint64) Operation {
+	baseOp := newBaseOperation(db, tx, height, m.checker)
 	var operation Operation
 	switch tx.Type {
 	case types.TransactionTypeGroupPiece:
@@ -73,20 +75,20 @@ type sendPieceOp struct {
 	data types.EncryptedSharePiecePacket
 }
 
-func (op *sendPieceOp) ParseTransaction() error {
+func (op *sendPieceOp) ParseTransaction() (err error) {
 	if op.tx.Data == nil {
-		return fmt.Errorf("payload length error")
+		err = fmt.Errorf("payload length error")
+		return
 	}
 	var data EncryptedSharePiecePacketImpl
-	err := msgpack.Unmarshal(op.tx.Data, &data)
+	err = msgpack.Unmarshal(op.tx.Data, &data)
 	if err != nil {
-		return err
+		return
 	}
 	op.data = &data
-
-	//context := &CheckerContext{op.height}
-	//TODO:CheckEncryptedPiecePacket(packet EncryptedSenderPiecePacket, ctx CheckerContext) error
-	return nil
+	ctx := &CheckerContext{op.height}
+	err = op.checker.CheckEncryptedPiecePacket(&data, ctx)
+	return
 }
 
 func (op *sendPieceOp) Operation() error {
@@ -104,20 +106,20 @@ type sendMpkOp struct {
 	data types.MpkPacket
 }
 
-func (op *sendMpkOp) ParseTransaction() error {
+func (op *sendMpkOp) ParseTransaction() (err error) {
 	if op.tx.Data == nil {
-		return fmt.Errorf("payload length error")
+		err = fmt.Errorf("payload length error")
+		return
 	}
 	var data MpkPacketImpl
-	err := msgpack.Unmarshal(op.tx.Data, &data)
+	err = msgpack.Unmarshal(op.tx.Data, &data)
 	if err != nil {
-		return err
+		return
 	}
 	op.data = &data
-	//TODO: CheckMpkPacket(packet MpkPacket, ctx CheckerContext) error
-	//context := &CheckerContext{op.height}
-	//CheckMpkPacket(packet MpkPacket, ctx CheckerContext) error
-	return nil
+	ctx := &CheckerContext{op.height}
+	err = op.checker.CheckMpkPacket(&data, ctx)
+	return
 }
 
 func (op *sendMpkOp) Operation() error {
@@ -137,18 +139,21 @@ type sendOriginPieceOp struct {
 	data types.OriginSharePiecePacket
 }
 
-func (op *sendOriginPieceOp) ParseTransaction() error {
+func (op *sendOriginPieceOp) ParseTransaction() (err error) {
 	if op.tx.Data == nil {
-		return fmt.Errorf("payload length error")
+		err = fmt.Errorf("payload length error")
+		return
 	}
 	var data OriginSharePiecePacketImpl
-	err := msgpack.Unmarshal(op.tx.Data, &data)
+	err = msgpack.Unmarshal(op.tx.Data, &data)
 	if err != nil {
-		return err
+		return
 	}
 	op.data = &data
-	//TODO: CheckOriginPiecePacket(packet OriginSharePiecePacket, ctx CheckerContext) error
-	return nil
+
+	ctx := &CheckerContext{op.height}
+	err = op.checker.CheckOriginPiecePacket(&data, ctx)
+	return
 }
 
 func (op *sendOriginPieceOp) Operation() error {

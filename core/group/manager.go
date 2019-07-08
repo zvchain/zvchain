@@ -16,6 +16,8 @@
 package group
 
 import (
+	"fmt"
+
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/ticker"
@@ -25,39 +27,46 @@ import (
 
 // Manager implements groupContextProvider in package consensus
 type Manager struct {
+	chain        chainReader
 	checker      types.GroupCreateChecker
 	storeReader  types.GroupStoreReader
 	packetSender types.GroupPacketSender
+	poolImpl     pool
 }
 
-func (m *Manager)GetGroupStoreReader()types.GroupStoreReader  {
+func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
 	return m.storeReader
 }
 
-func (m *Manager)GetGroupPacketSender()types.GroupPacketSender  {
+func (m *Manager) GetGroupPacketSender() types.GroupPacketSender {
 	return m.packetSender
 }
 
-func (m *Manager)RegisterGroupCreateChecker(checker types.GroupCreateChecker)  {
+func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 	m.checker = checker
 }
 
-func NewManager(chain chainReader,ticker *ticker.GlobalTicker) Manager{
-	store := NewStore(chain.LatestStateDB())
+func NewManager(chain chainReader, ticker *ticker.GlobalTicker) Manager {
+	store := NewStore(chain)
 	packetSender := NewPacketSender(chain)
-	managerImpl := Manager{storeReader: store, packetSender:packetSender}
+	gPool := newPool()
+	err := gPool.initPool(chain.LatestStateDB())
+	if err != nil {
+		panic(fmt.Sprintf("failed to init group manager pool %v", err))
+	}
+	managerImpl := Manager{storeReader: store, packetSender: packetSender, poolImpl: *gPool}
 	return managerImpl
 }
 
-// RegularCheck try to create group and do punishment
-func RegularCheck(db *account.AccountDB, checker types.GroupCreateChecker, chain chainReader) {
-	ctx := &CheckerContext{chain.Height()}
-	tryCreateGroup(db,checker,ctx)
-	tryDoPunish(db, checker,ctx)
-	freshActiveGroup(db)
+// RegularCheck try to create group, do punishment and refresh active group
+func (m *Manager) RegularCheck(db *account.AccountDB) {
+	ctx := &CheckerContext{m.chain.Height()}
+	m.tryCreateGroup(db, m.checker, ctx)
+	m.tryDoPunish(db, m.checker, ctx)
+	_ = freshActiveGroup(db)
 }
 
-func tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
+func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
 	if createResult == nil {
 		return
@@ -67,7 +76,7 @@ func tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		_ = saveGroup(db, newGroup(createResult.GroupInfo()))
+		_ = m.saveGroup(db, newGroup(createResult.GroupInfo()))
 	case types.CreateResultMarkEvil:
 		_ = markGroupFail(db, newGroup(createResult.GroupInfo()))
 	case types.CreateResultFail:
@@ -76,7 +85,7 @@ func tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx
 	_ = markEvil(db, createResult.FrozenMiners())
 }
 
-func tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
+func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	_, err := checker.CheckGroupCreatePunishment(ctx)
 	if err != nil {
 		return
@@ -91,9 +100,7 @@ func tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx ty
 
 }
 
-
-
-func saveGroup(db *account.AccountDB, group *Group) error {
+func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
 	byteData, err := msgpack.Marshal(group)
 	if err != nil {
 		return err
@@ -103,13 +110,7 @@ func saveGroup(db *account.AccountDB, group *Group) error {
 	if err != nil {
 		return err
 	}
-	life := newGroupLife(group)
-	lifeData, err := msgpack.Marshal(life)
-	if err != nil {
-		return err
-	}
-
-	db.SetData(common.GroupWaitingAddress, group.HeaderD.Seed().Bytes(), lifeData)
+	_ = m.poolImpl.add(db, group)
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupDataKey, byteData)
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupHeaderKey, byteHeader)
 

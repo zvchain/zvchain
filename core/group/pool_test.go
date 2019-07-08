@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestShift(t *testing.T)  {
-	queue := make([]*groupLife,0)
+func TestShift(t *testing.T) {
+	queue := make([]*groupLife, 0)
 	queue = shift(queue)
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
 )
 
 const (
@@ -34,18 +33,17 @@ const (
 
 var (
 	originPieceReqKey = common.Hex2Bytes("originPieceRequired") //the key for marking origin piece required in current seed
-	groupDataKey          = common.Hex2Bytes("group")               //the key for saving group data in levelDb
-	groupHeaderKey          = common.Hex2Bytes("groupHeader")               //the key for saving group data in levelDb
+	groupDataKey      = common.Hex2Bytes("group")               //the key for saving group data in levelDb
+	groupHeaderKey    = common.Hex2Bytes("groupHeader")         //the key for saving group data in levelDb
 )
 
 // Store implements GroupStoreReader
 type Store struct {
-	//chain chainReader
-	db *account.AccountDB
+	chain chainReader
 }
 
-func NewStore(db *account.AccountDB) types.GroupStoreReader {
-	return &Store{db}
+func NewStore(chain chainReader) types.GroupStoreReader {
+	return &Store{chain}
 }
 
 //	返回指定seed的piece数据
@@ -54,7 +52,7 @@ func (s *Store) GetEncryptedPiecePackets(seed types.SeedI) ([]types.EncryptedSha
 	seedAdder := common.HashToAddress(seed.Seed())
 	rs := make([]types.EncryptedSharePiecePacket, 0, 100) //max group member number is 100
 	prefix := getKeyPrefix(dataTypePiece)
-	iter := s.db.DataIterator(seedAdder, prefix)
+	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
 	if iter == nil {
 		return nil, errors.New("no pieces uploaded for this seed")
 	}
@@ -76,13 +74,13 @@ func (s *Store) HasSentEncryptedPiecePacket(sender []byte, seed types.SeedI) boo
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypePiece, common.BytesToAddress(sender))
 	//return s.db.Exist(seedAdder, key.toByte())
-	return s.db.GetData(seedAdder, key.toByte()) != nil
+	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
 func (s *Store) HasSentMpkPacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeMpk, common.BytesToAddress(sender))
-	return s.db.GetData(seedAdder, key.toByte()) != nil
+	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
 // 返回所有的建组数据
@@ -90,7 +88,7 @@ func (s *Store) HasSentMpkPacket(sender []byte, seed types.SeedI) bool {
 func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeMpk)
-	iter := s.db.DataIterator(seedAdder, prefix)
+	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
 	mpks := make([]types.MpkPacket, 0)
 	for iter.Next() {
 		var data MpkPacketImpl
@@ -106,14 +104,14 @@ func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 // 返回origin piece 是否需要的标志
 func (s *Store) IsOriginPieceRequired(seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
-	return s.db.GetData(seedAdder, originPieceReqKey) != nil
+	return s.chain.LatestStateDB().GetData(seedAdder, originPieceReqKey) != nil
 }
 
 // 获取所有明文分片
 func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiecePacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeOriginPiece)
-	iter := s.db.DataIterator(seedAdder, prefix)
+	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
 	pieces := make([]types.OriginSharePiecePacket, 0, 100)
 	for iter.Next() {
 		var data OriginSharePiecePacketImpl
@@ -129,13 +127,14 @@ func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiec
 func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeOriginPiece, common.BytesToAddress(sender))
-	return s.db.GetData(seedAdder, key.toByte()) != nil
+	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
 // Get available group infos at the given height
 func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
-	rs := make([]types.GroupI,0)
-	iter := s.db.DataIterator(common.GroupActiveAddress,[]byte{})
+	rs := make([]types.GroupI, 0)
+	db := s.chain.LatestStateDB()
+	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter == nil {
 		return nil
 	}
@@ -147,7 +146,7 @@ func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
 		}
 		if life.begin <= h && h <= life.end {
 			key := iter.Key
-			byteInfo := s.db.GetData(common.BytesToAddress(key),groupDataKey)
+			byteInfo := db.GetData(common.BytesToAddress(key), groupDataKey)
 			info := &Group{}
 			err := msgpack.Unmarshal(byteInfo, &life)
 			if err != nil {
@@ -160,7 +159,7 @@ func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
 }
 
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	byteData := s.db.GetData(common.HashToAddress(seedHash),groupDataKey)
+	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupDataKey)
 	if byteData != nil {
 
 		var data Group
@@ -173,8 +172,8 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	return nil
 }
 
-func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI{
-	byteData := s.db.GetData(common.HashToAddress(seedHash),groupHeaderKey)
+func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
+	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupHeaderKey)
 	if byteData != nil {
 		var data GroupHeader
 		err := msgpack.Unmarshal(byteData, &data)

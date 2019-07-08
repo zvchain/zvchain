@@ -17,6 +17,7 @@ package group
 
 import (
 	"fmt"
+
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -138,4 +139,3 @@ func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 	}
 	return nil
 }
-
