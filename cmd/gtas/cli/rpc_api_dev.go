@@ -44,6 +44,17 @@ func (api *RpcDevImpl) Version() string {
 	return "1"
 }
 
+func (api *RpcDevImpl) ProposalTotalStake(height uint64) (*Result, error) {
+	if core.MinerManagerImpl == nil{
+		return failResult("status error")
+
+	}else{
+		totalStake := core.MinerManagerImpl.GetProposalTotalStake(height)
+		return successResult(totalStake)
+	}
+}
+
+
 // ConnectedNodes query the information of the connected node
 func (api *RpcDevImpl) ConnectedNodes() (*Result, error) {
 

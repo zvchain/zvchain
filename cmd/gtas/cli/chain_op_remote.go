@@ -218,7 +218,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	}else{
 		//if stake to Verify and target is not myself then return error
 		if pks.MType == types.MinerTypeVerify{
-			return opError(fmt.Errorf("you could not stake to other's verify node"))
+			return opError(fmt.Errorf("you could not stake for other's verify node"))
 		}
 	}
 
