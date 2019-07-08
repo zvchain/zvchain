@@ -229,7 +229,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 
-	GroupManagerImpl = group.NewManager(chain, chain.ticker)
+	GroupManagerImpl = group.NewManager(chain, MinerManagerImpl)
 	return nil
 }
 

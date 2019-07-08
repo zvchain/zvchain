@@ -56,7 +56,7 @@ type baseOperation struct {
 
 // NewOperation creates the mOperation instance base on msg type
 func (m *Manager) NewOperation(db vm.AccountDB, tx types.Transaction, height uint64) Operation {
-	baseOp := newBaseOperation(db, tx, height, m.checker)
+	baseOp := newBaseOperation(db, tx, height, m.checkerImpl)
 	var operation Operation
 	switch tx.Type {
 	case types.TransactionTypeGroupPiece:

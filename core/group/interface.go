@@ -20,7 +20,13 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
+	"github.com/zvchain/zvchain/storage/vm"
 )
+
+type minerReader interface {
+	MinerFrozen(accountDB vm.AccountDB, miner common.Address, height uint64) (success bool, err error)
+	MinerPenalty(accountDB vm.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error)
+}
 
 type chainReader interface {
 	Height() uint64

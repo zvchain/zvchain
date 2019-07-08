@@ -20,33 +20,33 @@ import (
 
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
 
 // Manager implements groupContextProvider in package consensus
 type Manager struct {
-	chain        chainReader
-	checker      types.GroupCreateChecker
-	storeReader  types.GroupStoreReader
-	packetSender types.GroupPacketSender
-	poolImpl     pool
+	chain            chainReader
+	checkerImpl      types.GroupCreateChecker
+	storeReaderImpl  types.GroupStoreReader
+	packetSenderImpl types.GroupPacketSender
+	minerReaderImpl  minerReader
+	poolImpl         pool
 }
 
 func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
-	return m.storeReader
+	return m.storeReaderImpl
 }
 
 func (m *Manager) GetGroupPacketSender() types.GroupPacketSender {
-	return m.packetSender
+	return m.packetSenderImpl
 }
 
 func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
-	m.checker = checker
+	m.checkerImpl = checker
 }
 
-func NewManager(chain chainReader, ticker *ticker.GlobalTicker) Manager {
+func NewManager(chain chainReader, reader minerReader) Manager {
 	store := NewStore(chain)
 	packetSender := NewPacketSender(chain)
 	gPool := newPool()
@@ -54,15 +54,15 @@ func NewManager(chain chainReader, ticker *ticker.GlobalTicker) Manager {
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
-	managerImpl := Manager{storeReader: store, packetSender: packetSender, poolImpl: *gPool}
+	managerImpl := Manager{storeReaderImpl: store, packetSenderImpl: packetSender, poolImpl: *gPool, minerReaderImpl:reader}
 	return managerImpl
 }
 
 // RegularCheck try to create group, do punishment and refresh active group
 func (m *Manager) RegularCheck(db *account.AccountDB) {
 	ctx := &CheckerContext{m.chain.Height()}
-	m.tryCreateGroup(db, m.checker, ctx)
-	m.tryDoPunish(db, m.checker, ctx)
+	m.tryCreateGroup(db, m.checkerImpl, ctx)
+	m.tryDoPunish(db, m.checkerImpl, ctx)
 	_ = freshActiveGroup(db)
 }
 
@@ -86,16 +86,22 @@ func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreat
 }
 
 func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
-	_, err := checker.CheckGroupCreatePunishment(ctx)
+	msg, err := checker.CheckGroupCreatePunishment(ctx)
 	if err != nil {
 		return
 	}
-	//for _, packetSender := range msg.PenaltyTarget() {
-	//	//TODO: reduce stake
-	//}
-	//
+	for _, p := range msg.PenaltyTarget() {
+		addr := common.BytesToAddress(p)
+		_, err = m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
+		if err != nil {
+			//TODO panic
+		}
+	}
+	//TODO reward
 	//for _, r := range msg.RewardTarget() {
-	//	// TODO: add balance
+	//	addr := common.BytesToAddress(r)s
+
+	//	m.minerReaderImpl.MinerPenalty(db, addr,ctx.Height())
 	//}
 
 }
