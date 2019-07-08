@@ -54,7 +54,9 @@ var (
 	addressT            = reflect.TypeOf(Address{})
 	BonusStorageAddress = BigToAddress(big.NewInt(0))
 
-	GroupActiveAddress = BigToAddress(big.NewInt(3))
+	GroupActiveAddress = BigToAddress(big.NewInt(3))  //save the current active groups
+	GroupWaitingAddress = BigToAddress(big.NewInt(4)) //save the groups waiting active
+	GroupDismissAddress = BigToAddress(big.NewInt(5)) //save the groups dismissed
 )
 
 // Address data struct

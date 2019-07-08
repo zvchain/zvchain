@@ -174,7 +174,6 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 }
 
 func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI{
-	// todo: implement it
 	byteData := s.db.GetData(common.HashToAddress(seedHash),groupHeaderKey)
 	if byteData != nil {
 		var data GroupHeader

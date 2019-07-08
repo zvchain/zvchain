@@ -18,12 +18,35 @@ package group
 import (
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
 
+// Manager implements groupContextProvider in package consensus
 type Manager struct {
 	checker types.GroupCreateChecker
+	s types.GroupStoreReader
+	p types.GroupPacketSender
+}
+
+func (m *Manager)GetGroupStoreReader()types.GroupStoreReader  {
+	return m.s
+}
+
+func (m *Manager)GetGroupPacketSender()types.GroupPacketSender  {
+	return m.p
+}
+
+func (m *Manager)RegisterGroupCreateChecker(checker types.GroupCreateChecker)  {
+	m.checker = checker
+}
+
+func NewManager(chain chainReader,ticker *ticker.GlobalTicker) Manager{
+	store := NewStore(chain.LatestStateDB())
+	packetSender := NewPacketSender(chain)
+	managerImpl := Manager{s:store,p:packetSender}
+	return managerImpl
 }
 
 // RegularCheck try to create group and do punishment
@@ -31,6 +54,7 @@ func RegularCheck(db *account.AccountDB, checker types.GroupCreateChecker, chain
 	ctx := &CheckerContext{chain.Height()}
 	tryCreateGroup(db,checker,ctx)
 	tryDoPunish(db, checker,ctx)
+	freshActiveGroup(db)
 }
 
 func tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
@@ -53,24 +77,21 @@ func tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx
 }
 
 func tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
-	msg, err := checker.CheckGroupCreatePunishment(ctx)
+	_, err := checker.CheckGroupCreatePunishment(ctx)
 	if err != nil {
 		return
 	}
-	for _, p := range msg.PenaltyTarget() {
-		//TODO: reduce stake
-	}
-
-	for _, r := range msg.RewardTarget() {
-		// TODO: add balance
-	}
+	//for _, p := range msg.PenaltyTarget() {
+	//	//TODO: reduce stake
+	//}
+	//
+	//for _, r := range msg.RewardTarget() {
+	//	// TODO: add balance
+	//}
 
 }
 
-type groupLife struct {
-	begin uint64
-	end   uint64
-}
+
 
 func saveGroup(db *account.AccountDB, group *Group) error {
 	byteData, err := msgpack.Marshal(group)
@@ -82,15 +103,20 @@ func saveGroup(db *account.AccountDB, group *Group) error {
 	if err != nil {
 		return err
 	}
-	life := &groupLife{group.HeaderD.WorkHeight(), group.HeaderD.DismissHeight()}
+	life := newGroupLife(group)
 	lifeData, err := msgpack.Marshal(life)
 	if err != nil {
 		return err
 	}
 
-	db.SetData(common.GroupActiveAddress, group.HeaderD.Seed().Bytes(), lifeData)
+	db.SetData(common.GroupWaitingAddress, group.HeaderD.Seed().Bytes(), lifeData)
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupDataKey, byteData)
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupHeaderKey, byteHeader)
+
+	return nil
+}
+
+func freshActiveGroup(db *account.AccountDB) error {
 
 	return nil
 }
@@ -105,6 +131,6 @@ func markEvil(db *account.AccountDB, frozenMiners [][]byte) error {
 
 // markGroupFail mark group member should upload origin piece
 func markGroupFail(db *account.AccountDB, group *Group) error {
-	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte("1"))
+	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte{1})
 	return nil
 }
