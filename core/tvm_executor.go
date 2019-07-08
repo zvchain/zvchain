@@ -29,7 +29,8 @@ import (
 
 const (
 	TransactionGasCost   uint64 = 400
-	CodeBytePrice               = 0.3814697265625
+	CodeBytePrice               = 19073 //1.9073486328125
+	CodeBytePricePrecision      = 10000
 	MaxCastBlockTime            = time.Second * 2
 	adjustGasPricePeriod        = 30000000
 	adjustGasPriceTimes         = 3
