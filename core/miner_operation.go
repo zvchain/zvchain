@@ -81,9 +81,6 @@ func (op *stakeAddOp) Validate() error {
 	if !op.msg.Amount().IsUint64() {
 		return fmt.Errorf("amount type not uint64")
 	}
-	if *op.msg.Operator() != *op.msg.OpTarget() && op.minerType == types.MinerTypeVerify{
-		return fmt.Errorf("could not stake to other's verify node")
-	}
 	return nil
 }
 
@@ -109,6 +106,9 @@ func (op *stakeAddOp) ParseTransaction() error {
 func (op *stakeAddOp) Operation() error {
 	var add = false
 
+	if op.addSource != op.addTarget && op.minerType == types.MinerTypeVerify{
+		return fmt.Errorf("could not stake to other's verify node")
+	}
 	// Check balance
 	amount := new(big.Int).SetUint64(op.value)
 	if !canTransfer(op.accountDB, op.addSource, amount) {
