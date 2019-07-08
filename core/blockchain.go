@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/zvchain/zvchain/core/group"
 	"os"
 	"sync"
 	"time"
@@ -47,6 +48,8 @@ var (
 )
 
 var BlockChainImpl BlockChain
+
+var GroupManager group.Manager
 
 var Logger taslog.Logger
 
@@ -225,6 +228,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
 	initMinerManager(chain.ticker)
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
+
+	GroupManager = group.NewManager(chain,chain.ticker)
 	return nil
 }
 
@@ -278,6 +283,8 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	stateDB.SetNonce(minerPoolAddr, 1)
 	stateDB.SetNonce(rewardStoreAddr, 1)
 	stateDB.SetNonce(common.GroupActiveAddress, 1)
+	stateDB.SetNonce(common.GroupWaitingAddress, 1)
+	stateDB.SetNonce(common.GroupDismissAddress, 1)
 
 	root, _ := stateDB.Commit(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
