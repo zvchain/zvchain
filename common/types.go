@@ -54,7 +54,7 @@ var (
 	addressT            = reflect.TypeOf(Address{})
 	BonusStorageAddress = BigToAddress(big.NewInt(0))
 
-	GroupActiveAddress = BigToAddress(big.NewInt(3))  //save the current active groups
+	GroupActiveAddress  = BigToAddress(big.NewInt(3)) //save the current active groups
 	GroupWaitingAddress = BigToAddress(big.NewInt(4)) //save the groups waiting active
 	GroupDismissAddress = BigToAddress(big.NewInt(5)) //save the groups dismissed
 )
@@ -169,10 +169,6 @@ func (h Hash) IsValid() bool {
 	return len(h.Bytes()) > 0
 }
 
-func (h Hash) ShortS() string {
-	return ShortHex12(h.Hex())
-}
-
 // Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
 // without going through the stringer interface used for logging.
 func (h Hash) Format(s fmt.State, c rune) {
@@ -218,6 +214,10 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 		h[i] = byte(rand.Uint32())
 	}
 	return reflect.ValueOf(h)
+}
+
+func (h Hash) String() string {
+	return h.Hex()
 }
 
 // UnprefixedHash allows marshaling a Hash without 0x prefix.

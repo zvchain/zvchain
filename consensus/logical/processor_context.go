@@ -99,7 +99,7 @@ func newCastBlockContexts(chain core.BlockChain) *castBlockContexts {
 
 func heightVctxEvitCallback(k, v interface{}) {
 	ctx := v.(*VerifyContext)
-	stdLogger.Debugf("evitVctx: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash.ShortS(), ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
+	stdLogger.Debugf("evitVctx: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
 }
 
 func (bctx *castBlockContexts) removeReservedVctx(height uint64) {
@@ -175,13 +175,13 @@ func (bctx *castBlockContexts) getVctxByHash(hash common.Hash) *VerifyContext {
 	return nil
 }
 
-func (bctx *castBlockContexts) replaceVerifyCtx(group *StaticGroupInfo, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
+func (bctx *castBlockContexts) replaceVerifyCtx(group *verifyGroup, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
 	vctx := newVerifyContext(group, height, expireTime, preBH)
 	bctx.addVctx(vctx)
 	return vctx
 }
 
-func (bctx *castBlockContexts) getOrNewVctx(group *StaticGroupInfo, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
+func (bctx *castBlockContexts) getOrNewVctx(group *verifyGroup, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
 	var vctx *VerifyContext
 	blog := newBizLog("getOrNewVctx")
 
@@ -193,7 +193,7 @@ func (bctx *castBlockContexts) getOrNewVctx(group *StaticGroupInfo, height uint6
 	} else {
 		// In case of hash inconsistency,
 		if vctx.prevBH.Hash != preBH.Hash {
-			blog.error("vctx pre hash diff, height=%v, existHash=%v, commingHash=%v", height, vctx.prevBH.Hash.ShortS(), preBH.Hash.ShortS())
+			blog.error("vctx pre hash diff, height=%v, existHash=%v, commingHash=%v", height, vctx.prevBH.Hash, preBH.Hash)
 			preOld := bctx.chain.QueryBlockHeaderByHash(vctx.prevBH.Hash)
 			// The original preBH may be removed by the fork adjustment, then the vctx is invalid, re-use the new preBH
 			if preOld == nil {
@@ -219,7 +219,7 @@ func (bctx *castBlockContexts) getOrNewVctx(group *StaticGroupInfo, height uint6
 	return vctx
 }
 
-func (bctx *castBlockContexts) getOrNewVerifyContext(group *StaticGroupInfo, bh *types.BlockHeader, preBH *types.BlockHeader) *VerifyContext {
+func (bctx *castBlockContexts) getOrNewVerifyContext(group *verifyGroup, bh *types.BlockHeader, preBH *types.BlockHeader) *VerifyContext {
 	deltaHeightByTime := deltaHeightByTime(bh, preBH)
 
 	expireTime := getCastExpireTime(preBH.CurTime, deltaHeightByTime, bh.Height)
@@ -243,7 +243,7 @@ func (bctx *castBlockContexts) cleanVerifyContext(height uint64) {
 			ctx.Clear()
 			bctx.removeReservedVctx(ctx.castHeight)
 			bctx.heightVctxs.Remove(h)
-			stdLogger.Debugf("cleanVerifyContext: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash.ShortS(), ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
+			stdLogger.Debugf("cleanVerifyContext: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
 		}
 	}
 }

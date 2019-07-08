@@ -212,38 +212,6 @@ func (msg *ConsensusVerifyMessage) GenRandomSign(skey groupsig.Seckey, preRandom
 	msg.RandomSign = sig
 }
 
-// ConsensusBlockMessage is the block Successfully added Message
-// deprecated
-type ConsensusBlockMessage struct {
-	Block types.Block
-}
-
-func (msg *ConsensusBlockMessage) GenHash() common.Hash {
-	buf := msg.Block.Header.GenHash().Bytes()
-	buf = append(buf, msg.Block.Header.Group...)
-	return base.Data2CommonHash(buf)
-}
-
-/*   the following function not used
-func (msg *ConsensusBlockMessage) VerifySig(gpk groupsig.Pubkey, preRandom []byte) bool {
-	sig := groupsig.DeserializeSign(msg.Block.Header.Signature)
-	if sig == nil {
-		return false
-	}
-	b := groupsig.VerifySig(gpk, msg.Block.Header.Hash.Bytes(), *sig)
-	if !b {
-		return false
-	}
-	rsig := groupsig.DeserializeSign(msg.Block.Header.Random)
-	if rsig == nil {
-		return false
-	}
-	return groupsig.VerifySig(gpk, preRandom, *rsig)
-}
-*/
-/*
-Parent group build consensus message
-*/
 // ConsensusCreateGroupRawMessage is the group-create consensus raw message
 // Parent group members need to reach consensus on the basic info of the new-group stored in the field GInfo
 type ConsensusCreateGroupRawMessage struct {
@@ -289,7 +257,7 @@ type CastRewardTransSignMessage struct {
 	BlockHash common.Hash
 
 	// Not serialized
-	GroupID  groupsig.ID
+	GSeed    common.Hash
 	Launcher groupsig.ID
 }
 

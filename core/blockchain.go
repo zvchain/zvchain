@@ -142,7 +142,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
 		futureBlocks:    common.MustNewLRUCache(10),
 		verifiedBlocks:  common.MustNewLRUCache(10),
 		topBlocks:       common.MustNewLRUCache(20),
-		Account:		 minerAccount,
+		Account:         minerAccount,
 	}
 
 	types.DefaultPVFunc = helper.VRFProve2Value
@@ -229,7 +229,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 
-	GroupManagerImpl = group.NewManager(chain,chain.ticker)
+	GroupManagerImpl = group.NewManager(chain, chain.ticker)
 	return nil
 }
 
@@ -273,8 +273,8 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	setupGenesisStateDB(stateDB, genesisInfo)
 
 	miners := make([]*types.Miner, 0)
-	for i, member := range genesisInfo.Group.Members {
-		miner := &types.Miner{ID: member, PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: minimumStake()}
+	for i, member := range genesisInfo.Group.Members() {
+		miner := &types.Miner{ID: member.ID(), PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: minimumStake()}
 		miners = append(miners, miner)
 	}
 	MinerManagerImpl.addGenesesMiners(miners, stateDB)

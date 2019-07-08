@@ -35,7 +35,7 @@ func decryptSharePiecesWithMyPK(bs [][]byte, encSks []groupsig.Seckey, selfPK gr
 	return []groupsig.Seckey{}, nil
 }
 
-func checkEvil(originPieces []groupsig.Seckey, ids []groupsig.ID) (bool, error) {
+func checkEvil(encryptedPieces []byte, ids []groupsig.ID, originPieces []groupsig.Seckey, encSk groupsig.Seckey, peerPKs []groupsig.Pubkey) (bool, error) {
 	return false, nil
 }
 

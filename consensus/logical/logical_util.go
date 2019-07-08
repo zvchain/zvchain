@@ -35,20 +35,6 @@ func getCastExpireTime(base time.TimeStamp, deltaHeight uint64, castHeight uint6
 	return base.Add(int64(t+deltaHeight) * int64(model.Param.MaxGroupCastTime))
 }
 
-func convertStaticGroup2CoreGroup(sgi *StaticGroupInfo) *types.Group {
-	members := make([][]byte, sgi.GetMemberCount())
-	for idx, miner := range sgi.GInfo.Mems {
-		members[idx] = miner.Serialize()
-	}
-	return &types.Group{
-		Header:    sgi.getGroupHeader(),
-		ID:        sgi.GroupID.Serialize(),
-		PubKey:    sgi.GroupPK.Serialize(),
-		Signature: sgi.GInfo.GI.Signature.Serialize(),
-		Members:   members,
-	}
-}
-
 func deltaHeightByTime(bh *types.BlockHeader, preBH *types.BlockHeader) uint64 {
 	var (
 		deltaHeightByTime uint64
@@ -82,7 +68,7 @@ func isGroupDissmisedAt(gh *types.GroupHeader, h uint64) bool {
 	return gh.DismissHeight <= h
 }
 
-// IsGroupWorkQualifiedAt check if the specified group is work qualified at the given height
+// IsGroupWorkQualifiedAt check if the specified verifyGroup is work qualified at the given height
 func IsGroupWorkQualifiedAt(gh *types.GroupHeader, h uint64) bool {
 	return !isGroupDissmisedAt(gh, h) && gh.WorkHeight <= h
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/middleware/types"
 )
 
 // MessageProcessor interface defines the process functions of all consensus messages
@@ -110,7 +111,7 @@ type MessageProcessor interface {
 
 // GroupBrief represents the brief info of one group including group id and member ids
 type GroupBrief struct {
-	Gid    groupsig.ID
+	GSeed  common.Hash
 	MemIds []groupsig.ID
 }
 
@@ -136,12 +137,12 @@ type NetworkServer interface {
 	SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief, proveHashs []common.Hash)
 
 	// SendVerifiedCast broadcast the signed message for specified block proposal among group members
-	SendVerifiedCast(cvm *model.ConsensusVerifyMessage, receiver groupsig.ID)
+	SendVerifiedCast(cvm *model.ConsensusVerifyMessage, gSeed common.Hash)
 
 	// BroadcastNewBlock means network-wide broadcast for the generated block.
 	// Based on bandwidth and performance considerations, it only transits the block to all of the proposers and
 	// the next verify-group
-	BroadcastNewBlock(cbm *model.ConsensusBlockMessage, group *GroupBrief)
+	BroadcastNewBlock(block *types.Block, group *GroupBrief)
 
 	// SendCreateGroupRawMessage sends the group-create raw message to other members of the group
 	SendCreateGroupRawMessage(msg *model.ConsensusCreateGroupRawMessage)

@@ -75,11 +75,6 @@ func (sec Seckey) GetHexString() string {
 	return sec.getHex()
 }
 
-func (sec *Seckey) ShortS() string {
-	str := sec.GetHexString()
-	return common.ShortHex12(str)
-}
-
 // Deserialize initializes the private key by byte slice
 func (sec *Seckey) Deserialize(b []byte) error {
 	return sec.value.Deserialize(b)

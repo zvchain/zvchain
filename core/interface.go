@@ -31,7 +31,7 @@ type BlockChain interface {
 	AccountRepository
 
 	// CastBlock cast a block, current casters synchronization operation in the group
-	CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, groupid []byte) *types.Block
+	CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, groupSeed common.Hash) *types.Block
 
 	// AddBlockOnChain add a block on blockchain, there are five cases of return value：
 	// 0, successfully add block on blockchain
@@ -184,5 +184,5 @@ type AccountRepository interface {
 }
 
 type Account interface {
-	MinerSk()	string
+	MinerSk() string
 }

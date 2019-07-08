@@ -35,10 +35,10 @@ const (
 	// slSigned indicate whether you have signed
 	slSigned
 
-	// slRecoverd recover group signature
-	slRecoverd
+	// slRecovered recover verifyGroup signature
+	slRecovered
 
-	// slVerified indicate group signature is verified by group public key
+	// slVerified indicate verifyGroup signature is verified by verifyGroup public key
 	slVerified
 
 	// slSuccess indicate already on the chain and broadcast
@@ -105,7 +105,7 @@ func (sc SlotContext) MessageSize() int {
 	return sc.gSignGenerator.WitnessSize()
 }
 
-// VerifyGroupSigns verifies both the group signature and the random number(also a signature in fact)
+// VerifyGroupSigns verifies both the verifyGroup signature and the random number(also a signature in fact)
 func (sc *SlotContext) VerifyGroupSigns(pk groupsig.Pubkey, preRandom []byte) bool {
 	if sc.IsVerified() || sc.IsSuccess() {
 		return true
@@ -129,7 +129,7 @@ func (sc *SlotContext) IsVerified() bool {
 }
 
 func (sc *SlotContext) IsRecovered() bool {
-	return sc.GetSlotStatus() == slRecoverd
+	return sc.GetSlotStatus() == slRecovered
 }
 
 func (sc *SlotContext) IsSuccess() bool {
@@ -140,7 +140,7 @@ func (sc *SlotContext) IsWaiting() bool {
 	return sc.GetSlotStatus() == slWaiting
 }
 
-// AcceptVerifyPiece received an in-group verification signature piece
+// AcceptVerifyPiece received an in-verifyGroup verification signature piece
 //
 // Returns:
 //		1, the verification piece is accepted and the threshold not reached
@@ -156,10 +156,10 @@ func (sc *SlotContext) AcceptVerifyPiece(signer groupsig.ID, sign groupsig.Signa
 	}
 
 	// Did not receive the signature of the user
-	radd, rgen := sc.rSignGenerator.AddWitness(signer, randomSign)
-	// Reach the group signature condition
-	if radd && generate && rgen {
-		sc.setSlotStatus(slRecoverd)
+	randomAdd, randomGen := sc.rSignGenerator.AddWitness(signer, randomSign)
+	// Reach the verifyGroup signature condition
+	if randomAdd && generate && randomGen {
+		sc.setSlotStatus(slRecovered)
 		return pieceThreshold, nil
 	}
 	return pieceNormal, nil
@@ -194,7 +194,7 @@ func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bo
 	}
 	accept, recover = sc.rewardGSignGen.AddWitness(sd.GetID(), sd.DataSign)
 	if accept && recover {
-		// Cast block reward transaction using group signature
+		// Cast block reward transaction using verifyGroup signature
 		if sc.rewardTrans.Sign == nil {
 			signBytes := sc.rewardGSignGen.GetGroupSign().Serialize()
 			tmpBytes := make([]byte, common.SignLength)
@@ -221,7 +221,7 @@ func (sc *SlotContext) hasSignedRewardTx() bool {
 	return sc.signedRewardTxHashs.Size() > 0
 }
 
-// GetAggregatedSign returns the aggregated signature of proposer and verifier-group
+// GetAggregatedSign returns the aggregated signature of proposer and verifier-verifyGroup
 func (sc *SlotContext) GetAggregatedSign() *groupsig.Signature {
 	gSign := sc.gSignGenerator.GetGroupSign()
 	if sc.pSign.IsValid() && gSign.IsValid() {

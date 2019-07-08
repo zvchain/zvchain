@@ -34,11 +34,6 @@ const (
 	memberMaxJoinGroupNum = 5
 )
 
-const (
-	prefixMSK         = "msk_"
-	prefixEncryptedSK = "enc_"
-)
-
 func candidateCount(totalN int) int {
 	if totalN >= groupMemberMax {
 		return groupMemberMax
@@ -78,16 +73,17 @@ type createRoutine struct {
 
 var routine *createRoutine
 
-func InitRoutine(reader minerReader, chain core.BlockChain, provider groupContextProvider) {
+func InitRoutine(reader minerReader, chain core.BlockChain, provider groupContextProvider) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
 	routine = &createRoutine{
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
-		store:         newSkStoage("groupstore" + common.GlobalConf.GetString("instance", "index", "")),
+		store:         newSkStorage("groupstore" + common.GlobalConf.GetString("instance", "index", "")),
 	}
 	provider.RegisterGroupCreateChecker(checker)
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, routine.onBlockAddSuccess)
+	return routine.store
 }
 
 func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
@@ -140,7 +136,7 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	availCandidates := make([]*model.MinerDO, 0)
-	groups := routine.storeReader.GetAvailableGroupInfos(h)
+	groups := routine.storeReader.GetAvailableGroups(h)
 	memJoinedCountMap := make(map[string]int)
 	for _, g := range groups {
 		for _, mem := range g.Members() {

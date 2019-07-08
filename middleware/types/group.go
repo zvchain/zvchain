@@ -22,9 +22,13 @@ type SeedI interface {
 	Seed() common.Hash
 }
 
+type SenderI interface {
+	Sender() []byte
+}
+
 type SharePiecePacket interface {
 	SeedI
-	Sender() []byte
+	SenderI
 	Pieces() []byte // Encrypted pieces data
 }
 type EncryptedSharePiecePacket interface {
@@ -40,9 +44,9 @@ type OriginSharePiecePacket interface {
 // Mpk数据包接口
 type MpkPacket interface {
 	SeedI
-	Sender() []byte //发送者
-	Mpk() []byte    // 聚合出来的签名公钥
-	Sign() []byte   // 用签名公钥对seed进行签名
+	SenderI       //发送者
+	Mpk() []byte  // 聚合出来的签名公钥
+	Sign() []byte // 用签名公钥对seed进行签名
 }
 
 type MemberI interface {
@@ -137,7 +141,7 @@ type GroupStoreReader interface {
 	HasSentOriginPiecePacket(sender []byte, seed SeedI) bool
 
 	// Get available group infos at the given height
-	GetAvailableGroupInfos(h uint64) []GroupI
+	GetAvailableGroups(h uint64) []GroupI
 
 	GetGroupBySeed(seedHash common.Hash) GroupI
 

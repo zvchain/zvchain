@@ -18,6 +18,7 @@ package logical
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"math/big"
 	"strings"
 	"sync"
 
@@ -28,42 +29,34 @@ import (
 	"github.com/zvchain/zvchain/monitor"
 )
 
-// triggerCastCheck trigger once to check if you are next ingot group
+// triggerCastCheck trigger once to check if you are next ingot verifyGroup
 func (p *Processor) triggerCastCheck() {
 	p.Ticker.StartAndTriggerRoutine(p.getCastCheckRoutineName())
 }
 
-func (p *Processor) calcVerifyGroupFromCache(preBH *types.BlockHeader, height uint64) *groupsig.ID {
+func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
 	var hash = calcRandomHash(preBH, height)
 
-	selectGroup, err := p.globalGroups.SelectNextGroupFromCache(hash, height)
-	if err != nil {
-		stdLogger.Errorf("SelectNextGroupFromCache height=%v, err: %v", height, err)
-		return nil
+	groups := p.groupReader.getAvailableGroupsByHeight(height)
+	// Must not happen
+	if len(groups) == 0 {
+		panic("no available groups")
 	}
-	return &selectGroup
-}
 
-func (p *Processor) calcVerifyGroupFromChain(preBH *types.BlockHeader, height uint64) *groupsig.ID {
-	var hash = calcRandomHash(preBH, height)
+	value := hash.Big()
+	index := value.Mod(value, big.NewInt(int64(len(groups))))
 
-	selectGroup, err := p.globalGroups.SelectNextGroupFromChain(hash, height)
-	if err != nil {
-		stdLogger.Errorf("SelectNextGroupFromChain height=%v, err:%v", height, err)
-		return nil
-	}
-	return &selectGroup
+	selectedGroup := groups[index.Int64()]
+
+	return selectedGroup.header.Seed()
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {
-	nextID := p.calcVerifyGroupFromCache(bh, height)
-	if nextID == nil {
-		return nil
-	}
-	group := p.GetGroup(*nextID)
+	nextGroup := p.calcVerifyGroup(bh, height)
+	group := p.groupReader.getGroupBySeed(nextGroup)
 	g := &net.GroupBrief{
-		Gid:    *nextID,
-		MemIds: group.GetMembers(),
+		GSeed:  nextGroup,
+		MemIds: group.getMembers(),
 	}
 	return g
 }
@@ -72,7 +65,7 @@ func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.
 func (p *Processor) reserveBlock(vctx *VerifyContext, slot *SlotContext) {
 	bh := slot.BH
 	blog := newBizLog("reserveBLock")
-	blog.debug("height=%v, totalQN=%v, hash=%v, slotStatus=%v", bh.Height, bh.TotalQN, bh.Hash.ShortS(), slot.GetSlotStatus())
+	blog.debug("height=%v, totalQN=%v, hash=%v, slotStatus=%v", bh.Height, bh.TotalQN, bh.Hash, slot.GetSlotStatus())
 
 	traceLog := monitor.NewPerformTraceLogger("reserveBlock", bh.Hash, bh.Height)
 	traceLog.SetParent("OnMessageVerify")
@@ -95,7 +88,7 @@ func (p *Processor) tryNotify(vctx *VerifyContext) bool {
 		tlog := newHashTraceLog("tryNotify", bh.Hash, p.GetMinerID())
 		tlog.log("try broadcast, height=%v, totalQN=%v, consuming %vs", bh.Height, bh.TotalQN, p.ts.Since(bh.CurTime))
 
-		// Add on chain and out-of-group broadcasting
+		// Add on chain and out-of-verifyGroup broadcasting
 		p.consensusFinalize(vctx, sc)
 
 		p.blockContexts.removeReservedVctx(vctx.castHeight)
@@ -122,14 +115,11 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 	bh := block.Header
 	tlog := newHashTraceLog("onBlockSignAggregation", bh.Hash, p.GetMinerID())
 
-	cbm := &model.ConsensusBlockMessage{
-		Block: *block,
-	}
 	gb := p.spreadGroupBrief(bh, bh.Height+1)
 	if gb == nil {
-		return fmt.Errorf("next group is nil")
+		return fmt.Errorf("next verifyGroup is nil")
 	}
-	p.NetServer.BroadcastNewBlock(cbm, gb)
+	p.NetServer.BroadcastNewBlock(block, gb)
 	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.Since(bh.CurTime))
 
 	// Send info
@@ -139,14 +129,14 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 		Hash:     bh.Hash.Hex(),
 		PreHash:  bh.PreHash.Hex(),
 		Proposer: groupsig.DeserializeID(bh.Castor).GetHexString(),
-		Verifier: gb.Gid.GetHexString(),
+		Verifier: gb.GSeed.Hex(),
 	}
 	monitor.Instance.AddLog(le)
 	return nil
 }
 
 // consensusFinalize represents the final stage of the consensus process.
-// It firstly verifies the group signature and then requests the block body from proposer
+// It firstly verifies the verifyGroup signature and then requests the block body from proposer
 func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	bh := slot.BH
 
@@ -154,23 +144,24 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 
 	traceLog := monitor.NewPerformTraceLogger("consensusFinalize", bh.Hash, bh.Height)
 	traceLog.SetParent("OnMessageVerify")
+
+	tLog := newHashTraceLog("consensusFinalize", bh.Hash, p.GetMinerID())
 	defer func() {
 		traceLog.Log("result=%v. consensusFinalize cost %v", result, p.ts.Now().Local().Sub(bh.CurTime.Local()).String())
+		tLog.log("result=%v", result)
 	}()
-	blog := newBizLog("consensusFinalize-" + bh.Hash.ShortS())
 
 	// Already on blockchain
 	if p.blockOnChain(bh.Hash) {
-		blog.warn("block already onchain!")
+		result = "already on chain"
 		return
 	}
 
-	gpk := p.getGroupPubKey(groupsig.DeserializeID(bh.Group))
+	gpk := groupsig.DeserializePubkeyBytes(vctx.group.header.PublicKey())
 
 	// Group signature verification passed
 	if !slot.VerifyGroupSigns(gpk, vctx.prevBH.Random) {
-		blog.error("group pub key local check failed, gpk=%v, hash in slot=%v, hash in bh=%v status=%v.",
-			gpk.ShortS(), slot.BH.Hash.ShortS(), bh.Hash.ShortS(), slot.GetSlotStatus())
+		result = "verify group sig fail"
 		return
 	}
 
@@ -178,8 +169,6 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	msg := &model.ReqProposalBlock{
 		Hash: bh.Hash,
 	}
-	tlog := newHashTraceLog("consensusFinalize", bh.Hash, p.GetMinerID())
-	tlog.log("send ReqProposalBlock msg to %v", slot.castor.ShortS())
 	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
 
 	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
@@ -233,10 +222,9 @@ func (p *Processor) blockProposal() {
 
 	gb := p.spreadGroupBrief(top, height)
 	if gb == nil {
-		blog.error("spreadGroupBrief nil, bh=%v, height=%v", top.Hash.ShortS(), height)
+		blog.error("spreadGroupBrief nil, bh=%v, height=%v", top.Hash, height)
 		return
 	}
-	gid := gb.Gid
 
 	var (
 		block         *types.Block
@@ -248,8 +236,9 @@ func (p *Processor) blockProposal() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		block = p.MainChain.CastBlock(uint64(height), pi, qn, p.GetMinerID().Serialize(), gid.Serialize())
+		block = p.MainChain.CastBlock(uint64(height), pi, qn, p.GetMinerID().Serialize(), gb.GSeed)
 	}()
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -273,12 +262,12 @@ func (p *Processor) blockProposal() {
 	proveTraceLog.SetHeight(bh.Height)
 	proveTraceLog.Log("")
 
-	tlog := newHashTraceLog("CASTBLOCK", bh.Hash, p.GetMinerID())
-	blog.debug("begin proposal, hash=%v, height=%v, qn=%v,, verifyGroup=%v, pi=%v...", bh.Hash.ShortS(), height, qn, gid.ShortS(), pi.ShortS())
-	tlog.logStart("height=%v,qn=%v, preHash=%v, verifyGroup=%v", bh.Height, qn, bh.PreHash.ShortS(), gid.ShortS())
+	tLog := newHashTraceLog("CASTBLOCK", bh.Hash, p.GetMinerID())
+	blog.debug("begin proposal, hash=%v, height=%v, qn=%v,, verifyGroup=%v, pi=%v...", bh.Hash, height, qn, gb.GSeed, pi)
+	tLog.logStart("height=%v,qn=%v, preHash=%v, verifyGroup=%v", bh.Height, qn, bh.PreHash, gb.GSeed)
 
 	if bh.Height > 0 && bh.Height == height && bh.PreHash == worker.baseBH.Hash {
-		// Here you need to use a normal private key, a non-group related private key.
+		// Here you need to use a normal private key, a non-verifyGroup related private key.
 		skey := p.mi.SK
 
 		ccm := &model.ConsensusCastMessage{
@@ -286,17 +275,17 @@ func (p *Processor) blockProposal() {
 		}
 		// The message hash sent to everyone is the same, the signature is the same
 		if !ccm.GenSign(model.NewSecKeyInfo(p.GetMinerID(), skey), ccm) {
-			blog.error("sign fail, id=%v, sk=%v", p.GetMinerID().ShortS(), skey.ShortS())
+			blog.error("sign fail, id=%v, sk=%v", p.GetMinerID(), skey)
 			return
 		}
 
-		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash.ShortS(), qn)
+		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
 		p.NetServer.SendCastVerify(ccm, gb, proveHashs)
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)
 		// Castor cannot sign random numbers
-		tlog.log("successful cast block, SendVerifiedCast, time interval %v, castor=%v, hash=%v, genHash=%v", bh.Elapsed, ccm.SI.GetID().ShortS(), bh.Hash.ShortS(), ccm.SI.DataHash.ShortS())
+		tLog.log("successful cast block, SendVerifiedCast, time interval %v, castor=%v, hash=%v, genHash=%v", bh.Elapsed, ccm.SI.GetID(), bh.Hash, ccm.SI.DataHash)
 
 		// Send info
 		le := &monitor.LogEntry{
@@ -305,7 +294,7 @@ func (p *Processor) blockProposal() {
 			Hash:     bh.Hash.Hex(),
 			PreHash:  bh.PreHash.Hex(),
 			Proposer: p.GetMinerID().GetHexString(),
-			Verifier: gb.Gid.GetHexString(),
+			Verifier: gb.GSeed.Hex(),
 			Ext:      fmt.Sprintf("qn:%v,totalQN:%v", qn, bh.TotalQN),
 		}
 		monitor.Instance.AddLog(le)
@@ -321,9 +310,9 @@ func (p *Processor) blockProposal() {
 }
 
 // reqRewardTransSign generates a reward transaction based on the signature pieces received locally,
-// and broadcast it to other members of the group for signature.
+// and broadcast it to other members of the verifyGroup for signature.
 //
-// After the block verification consensus, the group should issue a corresponding reward transaction consensus
+// After the block verification consensus, the verifyGroup should issue a corresponding reward transaction consensus
 // to make sure that 51% of the verified-member can get the reward
 func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeader) {
 	blog := newBizLog("reqRewardTransSign")
@@ -347,24 +336,19 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 		return
 	}
 
-	groupID := groupsig.DeserializeID(bh.Group)
-	group := p.GetGroup(groupID)
-	if group == nil {
-		_ = fmt.Errorf("group is nil:groupID=%v", groupID)
-		return
-	}
+	group := vctx.group
 
 	targetIDIndexs := make([]int32, 0)
 	signs := make([]groupsig.Signature, 0)
 	idHexs := make([]string, 0)
 
-	threshold := model.Param.GetGroupK(group.GetMemberCount())
-	for idx, mem := range group.GetMembers() {
+	threshold := group.header.Threshold()
+	for idx, mem := range group.getMembers() {
 		if sig, ok := slot.gSignGenerator.GetWitness(mem); ok {
 			signs = append(signs, sig)
 			targetIDIndexs = append(targetIDIndexs, int32(idx))
-			idHexs = append(idHexs, mem.ShortS())
-			if len(signs) >= threshold {
+			idHexs = append(idHexs, mem.GetHexString())
+			if len(signs) >= int(threshold) {
 				break
 			}
 		}
@@ -376,22 +360,22 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return
 	}
-	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash.ShortS(), reward.TargetIds, bh.Height)
+	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash, reward.TargetIds, bh.Height)
 
-	tlog := newHashTraceLog("REWARD_REQ", bh.Hash, p.GetMinerID())
-	tlog.log("txHash=%v, targetIds=%v", reward.TxHash.ShortS(), strings.Join(idHexs, ","))
+	tLog := newHashTraceLog("REWARD_REQ", bh.Hash, p.GetMinerID())
+	tLog.log("txHash=%v, targetIds=%v", reward.TxHash, strings.Join(idHexs, ","))
 
 	if slot.setRewardTrans(tx) {
 		msg := &model.CastRewardTransSignReqMessage{
 			Reward:       *reward,
 			SignedPieces: signs,
 		}
-		ski := model.NewSecKeyInfo(p.GetMinerID(), p.getSignKey(groupID))
+		ski := model.NewSecKeyInfo(p.GetMinerID(), p.groupReader.getGroupSignatureSeckey(group.header.Seed()))
 		if msg.GenSign(ski, msg) {
 			p.NetServer.SendCastRewardSignReq(msg)
-			blog.debug("reward req send height=%v, gid=%v", bh.Height, groupID.ShortS())
+			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
 		} else {
-			blog.error("genSign fail, id=%v, sk=%v, belong=%v", ski.ID.ShortS(), ski.SK.ShortS(), p.IsMinerGroup(groupID))
+			blog.error("genSign fail, id=%v, sk=%v", ski.ID, ski.SK)
 		}
 	}
 

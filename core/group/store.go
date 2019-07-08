@@ -131,10 +131,11 @@ func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 }
 
 // Get available group infos at the given height
-func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
+func (s *Store) GetAvailableGroups(h uint64) []types.GroupI {
 	rs := make([]types.GroupI, 0)
 	db := s.chain.LatestStateDB()
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
+
 	if iter == nil {
 		return nil
 	}
@@ -160,6 +161,7 @@ func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
 
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupDataKey)
+
 	if byteData != nil {
 
 		var data Group
@@ -174,6 +176,7 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 
 func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
 	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupHeaderKey)
+
 	if byteData != nil {
 		var data GroupHeader
 		err := msgpack.Unmarshal(byteData, &data)

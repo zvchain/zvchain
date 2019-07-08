@@ -86,8 +86,9 @@ func (m *Miner) IsVerifyRole() bool {
 type StakeStatus = byte
 
 const (
-	Staked      StakeStatus = iota // Normal status
-	StakeFrozen                    // Frozen status
+	Staked          StakeStatus = iota // Normal status
+	StakeFrozen                        // Frozen status
+	StakePunishment                    // Punishment status, can't never refund
 )
 
 // StakeDetail expresses the stake detail
