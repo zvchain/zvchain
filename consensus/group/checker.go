@@ -372,20 +372,11 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 			panic(fmt.Sprintf("cannot find enc packet of %v", common.ToHex(ori.Sender())))
 		} else {
 			sharePieces := DeserializeSharePieces(ori.Pieces())
-			encBytes, err := encryptSharePieces(sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys())
-			// Check If the origin pieces and encrypted pieces are equal
-			if err != nil || !bytes.Equal(enc.(types.EncryptedSharePiecePacket).Pieces(), encBytes) {
+			if ok, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), cands.ids(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); !ok || err != nil {
 				if err != nil {
-					checker.logger.Errorf("encrypted share pieces error:%v %v", err, common.ToHex(ori.Sender()))
+					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
 				}
 				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
-			} else { // Check if the origin share pieces are modified
-				if ok, err := checkEvil(sharePieces, cands.ids()); !ok || err != nil {
-					if err != nil {
-						checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
-					}
-					wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
-				}
 			}
 		}
 	}

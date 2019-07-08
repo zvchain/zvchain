@@ -303,7 +303,7 @@ func pbToReward(b *tas_middleware_pb.Reward) *types.Reward {
 		TxHash:     common.BytesToHash(b.TxHash),
 		TargetIds:  b.TargetIds,
 		BlockHash:  common.BytesToHash(b.BlockHash),
-		GroupID:    b.GroupId,
+		Group:      b.GroupId,
 		Sign:       b.Sign,
 		TotalValue: *b.TotalValue,
 	}

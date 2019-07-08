@@ -34,8 +34,8 @@ const (
 
 var (
 	originPieceReqKey = common.Hex2Bytes("originPieceRequired") //the key for marking origin piece required in current seed
-	groupDataKey          = common.Hex2Bytes("group")               //the key for saving group data in levelDb
-	groupHeaderKey          = common.Hex2Bytes("groupHeader")               //the key for saving group data in levelDb
+	groupDataKey      = common.Hex2Bytes("group")               //the key for saving group data in levelDb
+	groupHeaderKey    = common.Hex2Bytes("groupHeader")         //the key for saving group data in levelDb
 )
 
 // Store implements GroupStoreReader
@@ -133,9 +133,9 @@ func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 }
 
 // Get available group infos at the given height
-func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
-	rs := make([]types.GroupI,0)
-	iter := s.db.DataIterator(common.GroupActiveAddress,[]byte{})
+func (s *Store) GetAvailableGroupHeaders(h uint64) []types.GroupI {
+	rs := make([]types.GroupI, 0)
+	iter := s.db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter == nil {
 		return nil
 	}
@@ -147,7 +147,7 @@ func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
 		}
 		if life.begin <= h && h <= life.end {
 			key := iter.Key
-			byteInfo := s.db.GetData(common.BytesToAddress(key),groupDataKey)
+			byteInfo := s.db.GetData(common.BytesToAddress(key), groupDataKey)
 			info := &Group{}
 			err := msgpack.Unmarshal(byteInfo, &life)
 			if err != nil {
@@ -160,7 +160,7 @@ func (s *Store) GetAvailableGroupInfos(h uint64) []types.GroupI {
 }
 
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	byteData := s.db.GetData(common.HashToAddress(seedHash),groupDataKey)
+	byteData := s.db.GetData(common.HashToAddress(seedHash), groupDataKey)
 	if byteData != nil {
 
 		var data Group
@@ -173,8 +173,8 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	return nil
 }
 
-func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI{
-	byteData := s.db.GetData(common.HashToAddress(seedHash),groupHeaderKey)
+func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
+	byteData := s.db.GetData(common.HashToAddress(seedHash), groupHeaderKey)
 	if byteData != nil {
 		var data GroupHeader
 		err := msgpack.Unmarshal(byteData, &data)

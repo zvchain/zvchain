@@ -90,13 +90,13 @@ func (rm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *type
 }
 
 // GenerateReward generate the reward transaction for the group who just validate a block
-func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, groupID []byte, totalValue uint64, packFee uint64) (*types.Reward, *types.Transaction, error) {
+func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, gSeed common.Hash, totalValue uint64, packFee uint64) (*types.Reward, *types.Transaction, error) {
 	buffer := &bytes.Buffer{}
 	// Write version
 	buffer.WriteByte(rewardVersion)
 
 	// Write groupId
-	buffer.Write(groupID)
+	buffer.Write(gSeed.Bytes())
 	// pack fee
 	buffer.Write(common.Uint64ToByte(packFee))
 
@@ -119,13 +119,13 @@ func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 	transaction.GasPrice = types.NewBigInt(0)
 	transaction.GasLimit = types.NewBigInt(0)
 	transaction.Hash = transaction.GenHash()
-	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, GroupID: groupID, TotalValue: totalValue}, transaction, nil
+	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, Group: gSeed, TotalValue: totalValue}, transaction, nil
 }
 
 // ParseRewardTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
 func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) (groupId []byte, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
 	reader := bytes.NewReader(transaction.ExtraData)
-	groupID := make([]byte, common.GroupIDLength)
+	gSeed := make([]byte, common.HashLength)
 	version, e := reader.ReadByte()
 	if e != nil {
 		err = e
@@ -135,8 +135,8 @@ func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) 
 		err = fmt.Errorf("reward version error")
 		return
 	}
-	if _, e := reader.Read(groupID); e != nil {
-		err = fmt.Errorf("read group id error:%v", e)
+	if _, e := reader.Read(gSeed); e != nil {
+		err = fmt.Errorf("read group seed error:%v", e)
 		return
 	}
 	pf := make([]byte, 8)

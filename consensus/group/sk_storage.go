@@ -21,13 +21,18 @@ import (
 	"sync"
 )
 
+const (
+	prefixMSK         = "msk_"
+	prefixEncryptedSK = "enc_"
+)
+
 type skStorage struct {
 	file    string
 	seckeys map[string]groupsig.Seckey
 	lock    sync.RWMutex
 }
 
-func newSkStoage(file string) *skStorage {
+func newSkStorage(file string) *skStorage {
 	return &skStorage{
 		file:    file,
 		seckeys: make(map[string]groupsig.Seckey),
@@ -47,4 +52,11 @@ func (store *skStorage) getSeckey(prefix string, hash common.Hash) (groupsig.Sec
 		return v, true
 	}
 	return groupsig.Seckey{}, false
+}
+
+func (store *skStorage) GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
+	if sk, ok := store.getSeckey(prefixMSK, seed); ok {
+		return sk
+	}
+	return groupsig.Seckey{}
 }

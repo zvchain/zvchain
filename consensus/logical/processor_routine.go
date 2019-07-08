@@ -16,12 +16,10 @@
 package logical
 
 import (
-	"fmt"
 	"sync/atomic"
 	time2 "time"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
@@ -39,7 +37,7 @@ func (p *Processor) getReleaseRoutineName() string {
 	return "release_routine_" + p.getPrefix()
 }
 
-// checkSelfCastRoutine check if the current group cast block
+// checkSelfCastRoutine check if the current verifyGroup cast block
 func (p *Processor) checkSelfCastRoutine() bool {
 	if !atomic.CompareAndSwapInt32(&p.isCasting, 0, 1) {
 		return false
@@ -89,7 +87,7 @@ func (p *Processor) checkSelfCastRoutine() bool {
 	if worker != nil && worker.workingOn(top, castHeight) {
 		return false
 	}
-	blog.debug("topHeight=%v, topHash=%v, topCurTime=%v, castHeight=%v, expireTime=%v", top.Height, top.Hash.ShortS(), top.CurTime, castHeight, expireTime)
+	blog.debug("topHeight=%v, topHash=%v, topCurTime=%v, castHeight=%v, expireTime=%v", top.Height, top.Hash, top.CurTime, castHeight, expireTime)
 	worker = newVRFWorker(p.getSelfMinerDO(), top, castHeight, expireTime, p.ts)
 	p.setVrfWorker(worker)
 	p.blockProposal()
@@ -109,118 +107,10 @@ func (p *Processor) releaseRoutine() bool {
 	if topHeight <= model.Param.CreateGroupInterval {
 		return true
 	}
-	// Groups that are currently highly disbanded should not be deleted from
-	// the cache immediately, delaying the deletion of a build cycle. Ensure that
-	// the block built on the eve of the dissolution of the group is valid
-	groups := p.globalGroups.DismissGroups(topHeight - model.Param.CreateGroupInterval)
-	ids := make([]groupsig.ID, 0)
-	for _, g := range groups {
-		ids = append(ids, g.GroupID)
-	}
 
 	p.blockContexts.cleanVerifyContext(topHeight)
 
 	blog := newBizLog("releaseRoutine")
-
-	if len(ids) > 0 {
-		blog.debug("clean group %v\n", len(ids))
-		p.globalGroups.removeGroups(ids)
-		p.belongGroups.leaveGroups(ids)
-		for _, g := range groups {
-			gid := g.GroupID
-			blog.debug("DissolveGroupNet staticGroup gid %v ", gid.ShortS())
-			p.NetServer.ReleaseGroupNet(gid.GetHexString())
-			p.joiningGroups.RemoveGroup(g.GInfo.GroupHash())
-		}
-	}
-
-	// Release the group network of the uncompleted group and the corresponding dummy group
-	p.joiningGroups.forEach(func(gc *GroupContext) bool {
-		if gc.gInfo == nil || gc.is == GisGroupInitDone {
-			return true
-		}
-		gis := &gc.gInfo.GI
-		gHash := gis.GetHash()
-		if gis.ReadyTimeout(topHeight) {
-			blog.debug("DissolveGroupNet dummyGroup from joiningGroups gHash %v", gHash.ShortS())
-			p.NetServer.ReleaseGroupNet(gHash.Hex())
-
-			initedGroup := p.globalGroups.GetInitedGroup(gHash)
-			omgied := "nil"
-			if initedGroup != nil {
-				omgied = fmt.Sprintf("OMGIED:%v(%v)", initedGroup.receiveSize(), initedGroup.threshold)
-			}
-
-			waitPieceIds := make([]string, 0)
-			waitIds := make([]groupsig.ID, 0)
-			for _, mem := range gc.gInfo.Mems {
-				if !gc.node.hasPiece(mem) {
-					waitPieceIds = append(waitPieceIds, mem.ShortS())
-					waitIds = append(waitIds, mem)
-				}
-			}
-			// Send info
-			le := &monitor.LogEntry{
-				LogType:  monitor.LogTypeInitGroupRevPieceTimeout,
-				Height:   p.GroupChain.Height(),
-				Hash:     gHash.Hex(),
-				Proposer: "00",
-				Ext:      fmt.Sprintf("MemCnt:%v,Pieces:%v,wait:%v,%v", gc.gInfo.MemberSize(), gc.node.groupInitPool.GetSize(), waitPieceIds, omgied),
-			}
-			if !gc.sendLog && monitor.Instance.IsFirstNInternalNodesInGroup(gc.gInfo.Mems, 50) {
-				monitor.Instance.AddLog(le)
-				gc.sendLog = true
-			}
-
-			msg := &model.ReqSharePieceMessage{
-				GHash: gc.gInfo.GroupHash(),
-			}
-			stdLogger.Debugf("reqSharePieceRoutine:req size %v, ghash=%v", len(waitIds), gc.gInfo.GroupHash().ShortS())
-			if msg.GenSign(p.getDefaultSeckeyInfo(), msg) {
-				for _, receiver := range waitIds {
-					stdLogger.Debugf("reqSharePieceRoutine:req share piece msg from %v, ghash=%v", receiver, gc.gInfo.GroupHash().ShortS())
-					p.NetServer.ReqSharePiece(msg, receiver)
-				}
-			} else {
-				ski := p.getDefaultSeckeyInfo()
-				stdLogger.Debugf("gen req sharepiece sign fail, ski=%v %v", ski.ID.ShortS(), ski.SK.ShortS())
-			}
-
-		}
-		return true
-	})
-	gctx := p.groupManager.getContext()
-	if gctx != nil && gctx.readyTimeout(topHeight) {
-
-		if gctx.isKing() {
-			gHash := "0000"
-			if gctx != nil && gctx.gInfo != nil {
-				gHash = gctx.gInfo.GroupHash().Hex()
-			}
-			// Send info
-			le := &monitor.LogEntry{
-				LogType:  monitor.LogTypeCreateGroupSignTimeout,
-				Height:   p.GroupChain.Height(),
-				Hash:     gHash,
-				Proposer: p.GetMinerID().GetHexString(),
-				Ext:      fmt.Sprintf("%v", gctx.gSignGenerator.Brief()),
-			}
-			if monitor.Instance.IsFirstNInternalNodesInGroup(gctx.kings, 50) {
-				monitor.Instance.AddLog(le)
-			}
-		}
-		p.groupManager.removeContext()
-	}
-
-	p.globalGroups.generator.forEach(func(ig *InitedGroup) bool {
-		hash := ig.gInfo.GroupHash()
-		if ig.gInfo.GI.ReadyTimeout(topHeight) {
-			blog.debug("remove InitedGroup, gHash %v", hash.ShortS())
-			p.NetServer.ReleaseGroupNet(hash.Hex())
-			p.globalGroups.removeInitedGroup(hash)
-		}
-		return true
-	})
 
 	// Release futureVerifyMsg
 	p.futureVerifyMsgs.forEach(func(key common.Hash, arr []interface{}) bool {
@@ -249,14 +139,11 @@ func (p *Processor) releaseRoutine() bool {
 		return true
 	})
 
-	// Clean up the timeout signature public key request
-	cleanSignPkReqRecord()
-
 	for _, h := range p.blockContexts.verifyMsgCaches.Keys() {
 		hash := h.(common.Hash)
 		cache := p.blockContexts.getVerifyMsgCache(hash)
 		if cache != nil && cache.expired() {
-			blog.debug("remove verify cache msg, hash=%v", hash.ShortS())
+			blog.debug("remove verify cache msg, hash=%v", hash)
 			p.blockContexts.removeVerifyMsgCache(hash)
 		}
 	}
@@ -266,21 +153,6 @@ func (p *Processor) releaseRoutine() bool {
 
 func (p *Processor) getUpdateGlobalGroupsRoutineName() string {
 	return "update_global_groups_routine_" + p.getPrefix()
-}
-
-func (p *Processor) updateGlobalGroups() bool {
-	top := p.MainChain.Height()
-	iter := p.GroupChain.NewIterator()
-	for g := iter.Current(); g != nil && !isGroupDissmisedAt(g.Header, top); g = iter.MovePre() {
-		gid := groupsig.DeserializeID(g.ID)
-		if g, _ := p.globalGroups.getGroupFromCache(gid); g != nil {
-			continue
-		}
-		sgi := newSGIFromCoreGroup(g)
-		stdLogger.Infof("updateGlobalGroups:gid=%v, workHeight=%v, topHeight=%v", gid.ShortS(), g.Header.WorkHeight, top)
-		p.acceptGroup(sgi)
-	}
-	return true
 }
 
 func (p *Processor) getUpdateMonitorNodeInfoRoutine() string {

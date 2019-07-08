@@ -21,7 +21,7 @@ import (
 
 // GenesisInfo define genesis group info
 type GenesisInfo struct {
-	Group  Group
+	Group  GroupI
 	VrfPKs [][]byte
 	Pks    [][]byte
 }

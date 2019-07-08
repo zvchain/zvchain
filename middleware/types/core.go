@@ -231,7 +231,7 @@ type Reward struct {
 	TxHash     common.Hash
 	TargetIds  []int32
 	BlockHash  common.Hash
-	GroupID    []byte
+	Group      common.Hash
 	Sign       []byte
 	TotalValue uint64
 	PackFee    uint64

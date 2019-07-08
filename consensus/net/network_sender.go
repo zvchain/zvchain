@@ -164,7 +164,7 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 }
 
 // SendVerifiedCast broadcast the signed message for specified block proposal among group members
-func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage, receiver groupsig.ID) {
+func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage, gSeed common.Hash) {
 	body, e := marshalConsensusVerifyMessage(cvm)
 	if e != nil {
 		logger.Errorf("[peer]Discard send ConsensusVerifyMessage because of marshal error:%s", e.Error())
@@ -177,22 +177,22 @@ func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage,
 	// resulting in no rewards.
 	go ns.send2Self(cvm.SI.GetID(), m)
 
-	go ns.net.SpreadAmongGroup(receiver.GetHexString(), m)
+	go ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 	logger.Debugf("[peer]send VARIFIED_CAST_MSG,hash:%s", cvm.BlockHash.Hex())
 }
 
 // BroadcastNewBlock means network-wide broadcast for the generated block.
 // Based on bandwidth and performance considerations, it only transits the block to all of the proposers and
 // the next verify-group
-func (ns *NetworkServerImpl) BroadcastNewBlock(cbm *model.ConsensusBlockMessage, group *GroupBrief) {
-	body, e := types.MarshalBlock(&cbm.Block)
+func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupBrief) {
+	body, e := types.MarshalBlock(block)
 	if e != nil {
 		logger.Errorf("[peer]Discard send ConsensusBlockMessage because of marshal error:%s", e.Error())
 		return
 	}
 	blockMsg := network.Message{Code: network.NewBlockMsg, Body: body}
 
-	nextVerifyGroupID := group.Gid.GetHexString()
+	nextVerifyGroupID := group.GSeed.Hex()
 	groupMembers := id2String(group.MemIds)
 
 	// Broadcast to a virtual group of heavy nodes
@@ -291,7 +291,7 @@ func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSig
 	}
 	m := network.Message{Code: network.CastRewardSignReq, Body: body}
 
-	gid := groupsig.DeserializeID(msg.Reward.GroupID)
+	gid := groupsig.DeserializeID(msg.Reward.Group)
 
 	network.Logger.Debugf("send SendCastRewardSignReq to %v", gid.GetHexString())
 
@@ -333,7 +333,7 @@ func (ns *NetworkServerImpl) SendGroupPongMessage(msg *model.CreateGroupPongMess
 
 	mems := id2String(group.MemIds)
 
-	ns.net.SpreadToGroup(group.Gid.GetHexString(), mems, m, msg.SI.DataHash.Bytes())
+	ns.net.SpreadToGroup(group.GSeed.Hex(), mems, m, msg.SI.DataHash.Bytes())
 }
 
 // ReqSharePiece requests share piece from the given id

@@ -90,9 +90,8 @@ func (pub Pubkey) GetHexString() string {
 	return PREFIX + common.Bytes2Hex(pub.value.Marshal())
 }
 
-//Export the public key into a short hex string
-func (pub *Pubkey) ShortS() string {
-	return common.ShortHex12(pub.GetHexString())
+func (pub *Pubkey) String() string {
+	return pub.GetHexString()
 }
 
 // SetHexString initializes the public key from the hexadecimal string

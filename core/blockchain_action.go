@@ -41,7 +41,7 @@ type executePostState struct {
 }
 
 // CastBlock cast a block, current casters synchronization operation in the group
-func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, groupid []byte) *types.Block {
+func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, gSeed common.Hash) *types.Block {
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
 	block := new(types.Block)
@@ -73,7 +73,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 		Height:     height,
 		ProveValue: proveValue,
 		Castor:     castor,
-		Group:      groupid,
+		Group:      gSeed,
 		TotalQN:    latestBlock.TotalQN + qn,
 		StateTree:  common.BytesToHash(latestBlock.StateTree.Bytes()),
 		PreHash:    latestBlock.Hash,
@@ -371,7 +371,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err 
 	// try to create group
 	//TODO: use the checker from consensus package [Lei]
 	checker := &group.GroupCreateChecker4Test{}
-	group.RegularCheck(ps.state,checker, chain)
+	group.RegularCheck(ps.state, checker, chain)
 	// Commit to DB
 	return chain.commitBlock(block, ps)
 }

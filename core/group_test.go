@@ -21,6 +21,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"testing"
 )
+
 // TestGroupCreateTxs tests interface types.GroupPacketSender and types.GroupStoreReader
 func TestGroupCreateTxs(t *testing.T) {
 	err := initContext4Test()
@@ -40,7 +41,7 @@ func TestGroupCreateTxs(t *testing.T) {
 	groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
 
 	//Round 1
-	data :=&group.EncryptedSharePiecePacketImpl{}
+	data := &group.EncryptedSharePiecePacketImpl{}
 	data.SeedD = seed
 	data.SenderD = sender
 	data.Pubkey0D = common.Hex2Bytes("65e85ec7613cdb6bc6e40d3b09c1c2efd9556b82a1e4b3db5f75555555555555")
@@ -57,14 +58,14 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	db :=BlockChainImpl.LatestStateDB()
+	db := BlockChainImpl.LatestStateDB()
 	store := group.NewStore(db)
 	pieces, err := store.GetEncryptedPiecePackets(data)
 	if err != nil {
 		t.Fatalf("fail to GetEncryptedPiecePackets %v", err)
 	}
 	if len(pieces) == 0 {
-		t.Fatalf("the length of pieces sould be 1 but got 0" )
+		t.Fatalf("the length of pieces sould be 1 but got 0")
 	}
 
 	// Round 2
@@ -83,20 +84,19 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	db =BlockChainImpl.LatestStateDB()
+	db = BlockChainImpl.LatestStateDB()
 	store = group.NewStore(db)
 	mpks, err := store.GetMpkPackets(mpkData)
 	if err != nil {
 		t.Fatalf("fail to GetMpkPackets %v", err)
 	}
 	if len(mpks) == 0 {
-		t.Fatalf("the length of mpks sould be 1 but got 0" )
+		t.Fatalf("the length of mpks sould be 1 but got 0")
 	}
-
 
 	//Round 3
 	//SendOriginPiecePacket
-	dataOp :=&group.OriginSharePiecePacketImpl{}
+	dataOp := &group.OriginSharePiecePacketImpl{}
 	dataOp.SeedD = seed
 	dataOp.SenderD = sender
 	dataOp.EncSeckeyD = common.Hex2Bytes("65e85ec7613cdb6bc6e40d3b09c1c2efd9556b82a1e4b3db5f755555555544")
@@ -113,34 +113,34 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	db =BlockChainImpl.LatestStateDB()
+	db = BlockChainImpl.LatestStateDB()
 	store = group.NewStore(db)
 	ops, err := store.GetOriginPiecePackets(dataOp)
 	if err != nil {
 		t.Fatalf("fail to GetOriginPiecePackets %v", err)
 	}
 	if len(ops) == 0 {
-		t.Fatalf("the length of ops sould be 1 but got 0" )
+		t.Fatalf("the length of ops sould be 1 but got 0")
 	}
 
-	hasPieceSent := store.HasSentEncryptedPiecePacket(sender,dataOp)
+	hasPieceSent := store.HasSentEncryptedPiecePacket(sender, dataOp)
 	if !hasPieceSent {
-		t.Fatalf("fail to test HasSentEncryptedPiecePacket, should returns ture but got false" )
+		t.Fatalf("fail to test HasSentEncryptedPiecePacket, should returns ture but got false")
 	}
 
-	hasMpkSent := store.HasSentMpkPacket(sender,dataOp)
+	hasMpkSent := store.HasSentMpkPacket(sender, dataOp)
 	if !hasMpkSent {
-		t.Fatalf("fail to test HasSentMpkPacket, should returns ture but got false" )
+		t.Fatalf("fail to test HasSentMpkPacket, should returns ture but got false")
 	}
 
 	isOrgPieceRequired := store.IsOriginPieceRequired(dataOp)
 	if isOrgPieceRequired {
-		t.Fatalf("fail to test IsOriginPieceRequired, should returns false but got true" )
+		t.Fatalf("fail to test IsOriginPieceRequired, should returns false but got true")
 	}
 
-	hasOrgPieceSent := store.HasSentOriginPiecePacket(sender,dataOp)
+	hasOrgPieceSent := store.HasSentOriginPiecePacket(sender, dataOp)
 	if !hasOrgPieceSent {
-		t.Fatalf("fail to test HasSentOriginPiecePacket, should returns ture but got false" )
+		t.Fatalf("fail to test HasSentOriginPiecePacket, should returns ture but got false")
 	}
 
 	//TODO: test GetGroupInfoBySeed()
@@ -149,13 +149,11 @@ func TestGroupCreateTxs(t *testing.T) {
 	//	t.Fatalf("fail to test GetGroupBySeed, should returns object but got nil" )
 	//}
 
-	//TODO: test GetAvailableGroupInfos()
-	//hasOrgPieceSent := store.GetAvailableGroupInfos(3)
+	//TODO: test GetAvailableGroups()
+	//hasOrgPieceSent := store.GetAvailableGroups(3)
 	//if !hasOrgPieceSent {
-	//	t.Fatalf("fail to test GetAvailableGroupInfos, should returns ture but got false" )
+	//	t.Fatalf("fail to test GetAvailableGroups, should returns ture but got false" )
 	//}
 	//
 
 }
-
-

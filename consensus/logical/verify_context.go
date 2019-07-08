@@ -65,16 +65,16 @@ type VerifyContext struct {
 	slots            map[common.Hash]*SlotContext // verification context of each block proposal related to the context, called slot
 	proposers        map[string]common.Hash       // Record the block hash corresponding to each proposer, Used to limit a proposer to work only once at that height
 
-	successSlot *SlotContext     // The slot that has make the consensus finished
-	group       *StaticGroupInfo // Corresponding verify-group info
-	signedNum   int32            // Numbers of signed blocks
-	verifyNum   int32            // Numbers of verified signatures
-	aggrNum     int32            // Numbers of blocks that group-sign recovered
+	successSlot *SlotContext // The slot that has make the consensus finished
+	group       *verifyGroup // Corresponding verification Group info
+	signedNum   int32        // Numbers of signed blocks
+	verifyNum   int32        // Numbers of verified signatures
+	aggrNum     int32        // Numbers of blocks that verifyGroup-sign recovered
 	lock        sync.RWMutex
 	ts          time.TimeService
 }
 
-func newVerifyContext(group *StaticGroupInfo, castHeight uint64, expire time.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
+func newVerifyContext(group *verifyGroup, castHeight uint64, expire time.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
 	ctx := &VerifyContext{
 		prevBH:           preBH,
 		castHeight:       castHeight,
@@ -175,10 +175,9 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 		return fmt.Errorf("block too early: begin %v, now %v", begin, vc.ts.Now())
 	}
 
-	// Check group id
-	gid := groupsig.DeserializeID(bh.Group)
-	if !vc.group.GroupID.IsEqual(gid) {
-		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.GroupID.ShortS(), gid.ShortS())
+	// Check verifyGroup id
+	if vc.group.header.Seed() == bh.Group {
+		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.header.Seed(), bh.Group)
 	}
 
 	// Only sign blocks with higher weights than that have been signed
@@ -200,12 +199,12 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 	}
 	slot := vc.GetSlotByHash(bh.Hash)
 	if slot != nil {
-		if slot.GetSlotStatus() >= slRecoverd {
+		if slot.GetSlotStatus() >= slRecovered {
 			err = fmt.Errorf("slot does not accept piece,slot status %v", slot.slotStatus)
 			return
 		}
 		if _, ok := slot.gSignGenerator.GetWitness(sender); ok {
-			err = fmt.Errorf("duplicate message %v", sender.ShortS())
+			err = fmt.Errorf("duplicate message %v", sender)
 			return
 		}
 	}
@@ -234,7 +233,7 @@ func (vc *VerifyContext) PrepareSlot(bh *types.BlockHeader) (*SlotContext, error
 	if vc.hasSignedMoreWeightThan(bh) {
 		return nil, fmt.Errorf("hasSignedMoreWeightThan")
 	}
-	sc := createSlotContext(bh, model.Param.GetGroupK(vc.group.GetMemberCount()))
+	sc := createSlotContext(bh, int(vc.group.header.Threshold()))
 	if v, ok := vc.proposers[sc.castor.GetHexString()]; ok && vc.castHeight > 1 {
 		if v != bh.Hash {
 			return nil, fmt.Errorf("too many proposals: castor %v", sc.castor.GetHexString())
@@ -337,7 +336,7 @@ func (vc *VerifyContext) checkNotify() *SlotContext {
 		}
 	}
 	if maxBwSlot != nil {
-		blog.debug("select max qn=%v, hash=%v, height=%v, hash=%v, size=%v", maxBwSlot.BH.TotalQN, maxBwSlot.BH.Hash.ShortS(), maxBwSlot.BH.Height, maxBwSlot.BH.Hash.ShortS(), len(qns))
+		blog.debug("select max qn=%v, hash=%v, height=%v, hash=%v, size=%v", maxBwSlot.BH.TotalQN, maxBwSlot.BH.Hash, maxBwSlot.BH.Height, maxBwSlot.BH.Hash, len(qns))
 	}
 	return maxBwSlot
 }

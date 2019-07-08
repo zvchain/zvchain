@@ -158,7 +158,7 @@ func rewardToPB(reward *types.Reward) *tas_middleware_pb.Reward {
 		TxHash:     reward.TxHash.Bytes(),
 		TargetIds:  reward.TargetIds,
 		BlockHash:  reward.BlockHash.Bytes(),
-		GroupId:    reward.GroupID,
+		GroupId:    reward.Group,
 		Sign:       reward.Sign,
 		TotalValue: &reward.TotalValue,
 	}
