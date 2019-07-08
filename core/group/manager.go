@@ -25,17 +25,17 @@ import (
 
 // Manager implements groupContextProvider in package consensus
 type Manager struct {
-	checker types.GroupCreateChecker
-	s types.GroupStoreReader
-	p types.GroupPacketSender
+	checker      types.GroupCreateChecker
+	storeReader  types.GroupStoreReader
+	packetSender types.GroupPacketSender
 }
 
 func (m *Manager)GetGroupStoreReader()types.GroupStoreReader  {
-	return m.s
+	return m.storeReader
 }
 
 func (m *Manager)GetGroupPacketSender()types.GroupPacketSender  {
-	return m.p
+	return m.packetSender
 }
 
 func (m *Manager)RegisterGroupCreateChecker(checker types.GroupCreateChecker)  {
@@ -45,7 +45,7 @@ func (m *Manager)RegisterGroupCreateChecker(checker types.GroupCreateChecker)  {
 func NewManager(chain chainReader,ticker *ticker.GlobalTicker) Manager{
 	store := NewStore(chain.LatestStateDB())
 	packetSender := NewPacketSender(chain)
-	managerImpl := Manager{s:store,p:packetSender}
+	managerImpl := Manager{storeReader: store, packetSender:packetSender}
 	return managerImpl
 }
 
@@ -81,7 +81,7 @@ func tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx ty
 	if err != nil {
 		return
 	}
-	//for _, p := range msg.PenaltyTarget() {
+	//for _, packetSender := range msg.PenaltyTarget() {
 	//	//TODO: reduce stake
 	//}
 	//
