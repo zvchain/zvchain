@@ -44,6 +44,17 @@ func (api *RpcDevImpl) Version() string {
 	return "1"
 }
 
+func (api *RpcDevImpl) ProposalTotalStake(height uint64) (*Result, error) {
+	if mediator.Proc.MinerReader != nil{
+		return failResult("status error")
+
+	}else{
+		totalStake := mediator.Proc.MinerReader.GetTotalStake(height)
+		return successResult(totalStake)
+	}
+}
+
+
 // ConnectedNodes query the information of the connected node
 func (api *RpcDevImpl) ConnectedNodes() (*Result, error) {
 

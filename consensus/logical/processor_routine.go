@@ -299,13 +299,13 @@ func (p *Processor) updateMonitorInfo() bool {
 		GroupHeight: p.GroupChain.Height(),
 		TxPoolCount: int(p.MainChain.GetTransactionPool().TxNum()),
 	}
-	proposer := p.minerReader.getLatestProposeMiner(p.GetMinerID())
+	proposer := p.MinerReader.getLatestProposeMiner(p.GetMinerID())
 	if proposer != nil {
 		ni.Type |= monitor.NtypeProposal
 		ni.PStake = proposer.Stake
 		ni.VrfThreshold = p.GetVrfThreshold(ni.PStake)
 	}
-	verifier := p.minerReader.getLatestLightMiner(p.GetMinerID())
+	verifier := p.MinerReader.getLatestLightMiner(p.GetMinerID())
 	if verifier != nil {
 		ni.Type |= monitor.NtypeVerifier
 	}

@@ -38,7 +38,7 @@ type GroupCreateChecker struct {
 func newGroupCreateChecker(proc *Processor) *GroupCreateChecker {
 	return &GroupCreateChecker{
 		processor: proc,
-		access:    proc.minerReader,
+		access:    proc.MinerReader,
 		curr:      0,
 	}
 }

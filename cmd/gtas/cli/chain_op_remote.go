@@ -165,6 +165,11 @@ func (ca *RemoteChainOpImpl) Nonce(addr string) *Result {
 	return ca.request("nonce", addr)
 }
 
+// ProposalTotalStake query proposal total stake by height
+func (ca *RemoteChainOpImpl) ProposalTotalStake(height uint64) *Result {
+	return ca.request("proposalTotalStake", height)
+}
+
 // MinerInfo query miner info by address
 func (ca *RemoteChainOpImpl) MinerInfo(addr string, detail string) *Result {
 	return ca.request("minerInfo", addr, detail)

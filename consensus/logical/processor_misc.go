@@ -126,7 +126,7 @@ func (p *Processor) setVrfWorker(vrf *vrfWorker) {
 }
 
 func (p *Processor) getSelfMinerDO() *model.SelfMinerDO {
-	md := p.minerReader.getLatestProposeMiner(p.GetMinerID())
+	md := p.MinerReader.getLatestProposeMiner(p.GetMinerID())
 	if md != nil {
 		p.mi.MinerDO = *md
 	}
@@ -134,7 +134,7 @@ func (p *Processor) getSelfMinerDO() *model.SelfMinerDO {
 }
 
 func (p *Processor) canProposalAt(h uint64) bool {
-	miner := p.minerReader.getLatestProposeMiner(p.GetMinerID())
+	miner := p.MinerReader.getLatestProposeMiner(p.GetMinerID())
 	if miner == nil {
 		return false
 	}
@@ -165,19 +165,19 @@ func (p *Processor) CalcBlockHeaderQN(bh *types.BlockHeader) uint64 {
 	if pre == nil {
 		return 0
 	}
-	miner := p.minerReader.getProposeMinerByHeight(castor, pre.Height)
+	miner := p.MinerReader.getProposeMinerByHeight(castor, pre.Height)
 	if miner == nil {
 		stdLogger.Warnf("CalcBHQN getMiner nil id=%v, bh=%v", castor.ShortS(), bh.Hash.ShortS())
 		return 0
 	}
-	totalStake := p.minerReader.getTotalStake(pre.Height)
+	totalStake := p.MinerReader.GetTotalStake(pre.Height)
 	_, qn := vrfSatisfy(pi, miner.Stake, totalStake)
 	return qn
 }
 
 // GetVrfThreshold returns the vrf threshold of current node under the specified stake
 func (p *Processor) GetVrfThreshold(stake uint64) float64 {
-	totalStake := p.minerReader.getTotalStake(p.MainChain.Height())
+	totalStake := p.MinerReader.GetTotalStake(p.MainChain.Height())
 	if totalStake == 0 {
 		return 0
 	}
@@ -198,10 +198,10 @@ func (p *Processor) GetJoinGroupInfo(gid string) *JoinedGroup {
 func (p *Processor) GetAllMinerDOs() []*model.MinerDO {
 	h := p.MainChain.Height()
 	dos := make([]*model.MinerDO, 0)
-	miners := p.minerReader.getAllMinerDOByType(types.MinerTypeProposal, h)
+	miners := p.MinerReader.getAllMinerDOByType(types.MinerTypeProposal, h)
 	dos = append(dos, miners...)
 
-	miners = p.minerReader.getAllMinerDOByType(types.MinerTypeVerify, h)
+	miners = p.MinerReader.getAllMinerDOByType(types.MinerTypeVerify, h)
 	dos = append(dos, miners...)
 	return dos
 }
