@@ -27,7 +27,7 @@ type validator func() error
 
 // intrinsicGas means transaction consumption intrinsic gas
 func intrinsicGas(transaction *types.Transaction) *big.Int {
-	gas := uint64(float32(len(transaction.Data)+len(transaction.ExtraData)) * CodeBytePrice)
+	gas := uint64((len(transaction.Data) + len(transaction.ExtraData)) * CodeBytePrice / CodeBytePricePrecision)
 	gasBig := new(big.Int).SetUint64(TransactionGasCost + gas)
 	return gasBig
 }
