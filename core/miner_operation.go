@@ -81,6 +81,9 @@ func (op *stakeAddOp) Validate() error {
 	if !op.msg.Amount().IsUint64() {
 		return fmt.Errorf("amount type not uint64")
 	}
+	if *op.msg.Operator() != *op.msg.OpTarget() && op.minerType == types.MinerTypeVerify{
+		return fmt.Errorf("could not stake to other's verify node")
+	}
 	return nil
 }
 

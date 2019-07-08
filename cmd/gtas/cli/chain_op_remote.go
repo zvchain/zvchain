@@ -215,6 +215,11 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		bpk.SetHexString(aci.Miner.BPk)
 		pks.Pk = bpk.Serialize()
 		pks.VrfPk = base.Hex2VRFPublicKey(aci.Miner.VrfPk)
+	}else{
+		//if stake to Verify and target is not myself then return error
+		if pks.MType == types.MinerTypeVerify{
+			return opError(fmt.Errorf("you could not stake to other's verify node"))
+		}
 	}
 
 	if stake == 0 {
