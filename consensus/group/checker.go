@@ -195,6 +195,15 @@ func (checker *createChecker) firstHeightOfRound(r *rRange) uint64 {
 	return firstBH.Height
 }
 
+func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
+	for _, s := range senderArray.([]types.SenderI) {
+		if bytes.Equal(s.Sender(), sender) {
+			return true, s
+		}
+	}
+	return false, nil
+}
+
 func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult {
 	era := checker.currEra()
 	if !era.seedExist() {
@@ -224,14 +233,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	needFreeze := make([]groupsig.ID, 0)
 	// Find those who didn't send encrypted share piece
 	for _, mem := range cands {
-		find := false
-		for _, pkt := range piecePkt {
-			if bytes.Equal(pkt.Sender(), mem.ID.Serialize()) {
-				find = true
-				break
-			}
-		}
-		if !find {
+		if ok, _ := findSender(piecePkt, mem.ID.Serialize()); !ok {
 			needFreeze = append(needFreeze, mem.ID)
 		}
 	}
@@ -245,14 +247,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 
 	// Find those who sent the encrypted pieces and didn't send mpk
 	for _, pkt := range piecePkt {
-		find := false
-		for _, mpk := range mpkPkt {
-			if bytes.Equal(mpk.Sender(), pkt.Sender()) {
-				find = true
-				break
-			}
-		}
-		if !find {
+		if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
 			needFreeze = append(needFreeze, groupsig.DeserializeID(pkt.Sender()))
 		} else {
 			availPieces = append(availPieces, pkt)
@@ -364,14 +359,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	// Find those who sent mpk (and of course encrypted piece did) but not sent origin pieces.
 	missOriPieceIds := make([][]byte, 0)
 	for _, mpk := range mpkPacket {
-		find := false
-		for _, ori := range originPacket {
-			if bytes.Equal(ori.Sender(), mpk.Sender()) {
-				find = true
-				break
-			}
-		}
-		if !find {
+		if ok, _ := findSender(originPacket, mpk.Sender()); !ok {
 			missOriPieceIds = append(missOriPieceIds, mpk.Sender())
 		}
 	}
@@ -379,34 +367,25 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	wrongPiecesIds := make([][]byte, 0)
 	// Find those who sent the wrong encrypted pieces
 	for _, ori := range originPacket {
-		var (
-			find = false
-			enc  types.EncryptedSharePiecePacket
-		)
-		for _, enc = range piecePkt {
-			if bytes.Equal(ori.Sender(), enc.Sender()) {
-				find = true
-				break
-			}
-		}
 		// Must not happen
-		if !find {
+		if ok, enc := findSender(piecePkt, ori.Sender()); !ok {
 			panic(fmt.Sprintf("cannot find enc packet of %v", common.ToHex(ori.Sender())))
-		}
-		sharePieces := DeserializeSharePieces(ori.Pieces())
-		encBytes, err := encryptSharePieces(sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys())
-		// Check If the origin pieces and encrypted pieces are equal
-		if err != nil || !bytes.Equal(enc.Pieces(), encBytes) {
-			if err != nil {
-				checker.logger.Errorf("encrypted share pieces error:%v %v", err, common.ToHex(ori.Sender()))
-			}
-			wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
-		} else { // Check if the origin share pieces are modified
-			if ok, err := checkEvil(sharePieces, cands.ids()); !ok || err != nil {
+		} else {
+			sharePieces := DeserializeSharePieces(ori.Pieces())
+			encBytes, err := encryptSharePieces(sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys())
+			// Check If the origin pieces and encrypted pieces are equal
+			if err != nil || !bytes.Equal(enc.(types.EncryptedSharePiecePacket).Pieces(), encBytes) {
 				if err != nil {
-					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
+					checker.logger.Errorf("encrypted share pieces error:%v %v", err, common.ToHex(ori.Sender()))
 				}
 				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
+			} else { // Check if the origin share pieces are modified
+				if ok, err := checkEvil(sharePieces, cands.ids()); !ok || err != nil {
+					if err != nil {
+						checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
+					}
+					wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
+				}
 			}
 		}
 	}
@@ -448,14 +427,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 
 	rewardTargets := make([][]byte, 0)
 	for _, mpk := range mpkPacket {
-		find := false
-		for _, id := range penaltyTargets {
-			if bytes.Equal(id, mpk.Sender()) {
-				find = true
-				break
-			}
-		}
-		if !find {
+		if ok, _ := findSender(penaltyTargets, mpk.Sender()); !ok {
 			rewardTargets = append(rewardTargets, mpk.Sender())
 		}
 	}

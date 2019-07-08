@@ -447,7 +447,9 @@ func (op *minerFreezeOp) Validate() error {
 }
 
 func (op *minerFreezeOp) Operation() error {
-	var remove = false
+	if !op.opVerifyRole() {
+		return fmt.Errorf("not operates a verifier:%v", op.addr.Hex())
+	}
 	miner, err := op.getMiner(op.addr)
 	if err != nil {
 		return err
@@ -458,23 +460,19 @@ func (op *minerFreezeOp) Operation() error {
 	if miner.IsFrozen() {
 		return fmt.Errorf("already in forzen status")
 	}
+	if !miner.IsVerifyRole() {
+		return fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID))
+	}
 
 	// Remove from pool if active
 	if miner.IsActive() {
 		op.removeFromPool(op.addr, miner.Stake)
-		if op.opProposalRole() {
-			remove = true
-		}
 	}
 
 	// Update the miner status
 	miner.UpdateStatus(types.MinerStatusFrozen, op.height)
 	if err := op.setMiner(miner); err != nil {
 		return err
-	}
-	if remove && MinerManagerImpl != nil {
-		// Informs MinerManager the removal address
-		MinerManagerImpl.proposalRemoveCh <- op.addr
 	}
 
 	return nil
@@ -496,17 +494,99 @@ func (op *minerPenaltyOp) Validate() error {
 }
 
 func (op *minerPenaltyOp) Operation() error {
+	if !op.opVerifyRole() {
+		return fmt.Errorf("not operates verifiers")
+	}
 	// Firstly, frozen the targets
 	for _, addr := range op.targets {
-		frozenOp := &minerFreezeOp{baseOperation: op.baseOperation, addr: addr}
-		if err := frozenOp.Operation(); err != nil {
+		miner, err := op.getMiner(addr)
+		if err != nil {
 			return err
 		}
-	}
-	// todo: Secondly, sub the stake of each target
+		if miner == nil {
+			return fmt.Errorf("no miner info")
+		}
+		if !miner.IsVerifyRole() {
+			return fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID))
+		}
 
-	// todo: Thirdly, sub the detail of the stake source of each target
-	// How can the target know that what causes the reduction of his stake ?
+		// Remove from pool if active
+		if miner.IsActive() {
+			op.removeFromPool(addr, miner.Stake)
+		}
+		// Must not happen
+		if miner.Stake < op.value {
+			panic(fmt.Errorf("stake less than punish value:%v %v of %v", miner.Stake, op.value, addr.Hex()))
+		}
+
+		// Sub total stake and update the miner status
+		miner.Stake -= op.value
+		miner.UpdateStatus(types.MinerStatusFrozen, op.height)
+		if err := op.setMiner(miner); err != nil {
+			return err
+		}
+		// Add punishment detail
+		punishmentKey := getDetailKey(punishmentDetailAddr, op.minerType, types.StakePunishment)
+		punishmentDetail, err := op.getDetail(addr, punishmentKey)
+		if err != nil {
+			return err
+		}
+		if punishmentDetail == nil {
+			punishmentDetail = &stakeDetail{
+				Value: op.value,
+			}
+		} else {
+			// Accumulate the punish value
+			punishmentDetail.Value += op.value
+		}
+		punishmentDetail.Height = op.height
+		// Update the punishment detail of target
+		if err := op.setDetail(addr, punishmentKey, punishmentDetail); err != nil {
+			return err
+		}
+
+		// Sub the stake detail
+		normalStakeKey := getDetailKey(addr, op.minerType, types.Staked)
+		normalDetail, err := op.getDetail(addr, normalStakeKey)
+		if err != nil {
+			return err
+		}
+		// Must not happen
+		if normalDetail == nil {
+			panic(fmt.Errorf("penalty can't find detail of the target:%v", addr.Hex()))
+		}
+		if normalDetail.Value > op.value {
+			normalDetail.Value -= op.value
+			normalDetail.Height = op.height
+			if err := op.setDetail(addr, normalStakeKey, normalDetail); err != nil {
+				return err
+			}
+		} else {
+			remain := op.value - normalDetail.Value
+			normalDetail.Value = 0
+			op.removeDetail(addr, normalStakeKey)
+
+			// Need to sub frozen stake detail if remain > 0
+			if remain > 0 {
+				frozenKey := getDetailKey(addr, op.minerType, types.StakeFrozen)
+				frozenDetail, err := op.getDetail(addr, frozenKey)
+				if err != nil {
+					return err
+				}
+				if frozenDetail == nil {
+					panic(fmt.Errorf("penalty can't find frozen detail of target:%v", addr.Hex()))
+				}
+				if frozenDetail.Value < remain {
+					panic(fmt.Errorf("frozen detail value less than remain punish value %v %v %v", frozenDetail.Value, remain, addr.Hex()))
+				}
+				frozenDetail.Value -= remain
+				frozenDetail.Height = op.height
+				if err := op.setDetail(addr, frozenKey, frozenDetail); err != nil {
+					return err
+				}
+			}
+		}
+	}
 
 	// Finally, add the penalty stake to the balance of rewards
 	if len(op.rewards) > 0 {
@@ -514,7 +594,6 @@ func (op *minerPenaltyOp) Operation() error {
 		for _, addr := range op.rewards {
 			op.accountDB.AddBalance(addr, addEach)
 		}
-
 	}
 
 	return nil

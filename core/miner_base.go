@@ -82,6 +82,8 @@ var (
 	rewardStoreAddr = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
 )
 
+var punishmentDetailAddr = common.BigToAddress(big.NewInt(0))
+
 type stakeDetail struct {
 	Value  uint64 // Stake operation amount
 	Height uint64 // Operation height
