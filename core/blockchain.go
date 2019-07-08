@@ -49,7 +49,7 @@ var (
 
 var BlockChainImpl BlockChain
 
-var GroupManager group.Manager
+var GroupManagerImpl group.Manager
 
 var Logger taslog.Logger
 
@@ -229,7 +229,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 
-	GroupManager = group.NewManager(chain,chain.ticker)
+	GroupManagerImpl = group.NewManager(chain,chain.ticker)
 	return nil
 }
 
