@@ -163,7 +163,6 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract, abiJSON string) (*ExecuteResult, bool, []*types.Log, *types.TransactionError) {
 	con.VM = NewTVM(sender, contract, con.LibPath)
 	con.VM.SetGas(int(con.GasLeft))
-	fmt.Println(con.VM.Gas())
 	defer func() {
 		con.VM.DelTVM()
 		con.GasLeft = uint64(con.VM.Gas())
