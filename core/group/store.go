@@ -35,6 +35,7 @@ const (
 var (
 	originPieceReqKey = common.Hex2Bytes("originPieceRequired") //the key for marking origin piece required in current seed
 	groupDataKey          = common.Hex2Bytes("group")               //the key for saving group data in levelDb
+	groupHeaderKey          = common.Hex2Bytes("groupHeader")               //the key for saving group data in levelDb
 )
 
 // Store implements GroupStoreReader
@@ -174,6 +175,16 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 
 func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI{
 	// todo: implement it
+	byteData := s.db.GetData(common.HashToAddress(seedHash),groupHeaderKey)
+	if byteData != nil {
+		var data GroupHeader
+		err := msgpack.Unmarshal(byteData, &data)
+		if err != nil {
+			return nil
+		}
+		return &data
+	}
+
 	return nil
 }
 

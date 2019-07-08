@@ -78,6 +78,10 @@ func saveGroup(db *account.AccountDB, group *Group) error {
 		return err
 	}
 
+	byteHeader, err := msgpack.Marshal(group.Header().(*GroupHeader))
+	if err != nil {
+		return err
+	}
 	life := &groupLife{group.HeaderD.WorkHeight(), group.HeaderD.DismissHeight()}
 	lifeData, err := msgpack.Marshal(life)
 	if err != nil {
@@ -86,6 +90,8 @@ func saveGroup(db *account.AccountDB, group *Group) error {
 
 	db.SetData(common.GroupActiveAddress, group.HeaderD.Seed().Bytes(), lifeData)
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupDataKey, byteData)
+	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupHeaderKey, byteHeader)
+
 	return nil
 }
 
