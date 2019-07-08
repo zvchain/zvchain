@@ -88,23 +88,23 @@ func (ptk *peerTxsHashes) resetSendHashes() {
 	ptk.sendHashes = common.MustNewLRUCache(txPeerMaxLimit)
 }
 
-func (ptk *peerTxsHashes) checkReceivedHashsInHitRate(txs []*types.Transaction)bool {
+func (ptk *peerTxsHashes) checkReceivedHashesInHitRate(txs []*types.Transaction)bool {
 	if ptk.sendHashes.Len() == 0{
 		return true
 	}
 	hasScaned := make(map[common.Hash]struct{})
-	hitHashsLen := 0
+	hitHashesLen := 0
 
 	for _, tx := range txs{
 		if _, ok := hasScaned[tx.Hash]; ok {
 			continue
 		}
 		if ptk.sendHashes.Contains(tx.Hash){
-			hitHashsLen++
+			hitHashesLen++
 		}
 		hasScaned[tx.Hash] = struct{}{}
 	}
-	rate := float64(hitHashsLen) / float64(ptk.sendHashes.Len())
+	rate := float64(hitHashesLen) / float64(ptk.sendHashes.Len())
 	if rate < txHitValidRate{
 		return false
 	}
@@ -411,7 +411,7 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 	}
 
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
-	isEvil := candidateKeys.checkReceivedHashsInHitRate(txs)
+	isEvil := candidateKeys.checkReceivedHashesInHitRate(txs)
 	if isEvil{
 		ts.logger.Errorf("rec tx rate too low,source is %s", nm.Source())
 		peerManagerImpl.addEvilCount(nm.Source())

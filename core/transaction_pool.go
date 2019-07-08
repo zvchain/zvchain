@@ -40,7 +40,7 @@ const (
 	GasLimitPerBlock       = 2000000 // the max gas limit for a block
 )
 
-var evilErrorMap map[error]struct{} = map[error]struct{}{
+var evilErrorMap = map[error]struct{}{
 	ErrHash: 							struct {}{},
 	ErrSign: 							struct {}{},
 	ErrDataSizeTooLong: 				struct {}{},
