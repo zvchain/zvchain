@@ -106,6 +106,9 @@ func (op *stakeAddOp) ParseTransaction() error {
 func (op *stakeAddOp) Operation() error {
 	var add = false
 
+	if op.addSource != op.addTarget && op.minerType == types.MinerTypeVerify{
+		return fmt.Errorf("could not stake to other's verify node")
+	}
 	// Check balance
 	amount := new(big.Int).SetUint64(op.value)
 	if !canTransfer(op.accountDB, op.addSource, amount) {
