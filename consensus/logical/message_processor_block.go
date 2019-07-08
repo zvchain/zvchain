@@ -103,7 +103,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			}
 		}
 	}
-	castorDO := p.MinerReader.getProposeMinerByHeight(castor, preBH.Height)
+	castorDO := p.minerReader.getProposeMinerByHeight(castor, preBH.Height)
 	if castorDO == nil {
 		err = fmt.Errorf("castorDO nil id=%v", castor.ShortS())
 		return

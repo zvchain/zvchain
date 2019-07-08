@@ -45,11 +45,11 @@ func (api *RpcDevImpl) Version() string {
 }
 
 func (api *RpcDevImpl) ProposalTotalStake(height uint64) (*Result, error) {
-	if mediator.Proc.MinerReader != nil{
+	if core.MinerManagerImpl == nil{
 		return failResult("status error")
 
 	}else{
-		totalStake := mediator.Proc.MinerReader.GetTotalStake(height)
+		totalStake := core.MinerManagerImpl.GetProposalTotalStake(height)
 		return successResult(totalStake)
 	}
 }
