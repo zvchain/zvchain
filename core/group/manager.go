@@ -59,7 +59,7 @@ func NewManager(chain chainReader, reader minerReader, genesisInfo *types.Genesi
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
 
-	store := NewStore(chain, gPool)
+	store := NewStore(chain, *gPool)
 	packetSender := NewPacketSender(chain)
 
 	managerImpl := Manager{
