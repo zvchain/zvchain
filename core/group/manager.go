@@ -66,6 +66,12 @@ func (m *Manager) RegularCheck(db *account.AccountDB) {
 	_ = m.poolImpl.adjust(db, ctx.Height())
 }
 
+// ResetTop resets group with top block with parameter bh
+func (m *Manager) ResetToTop(db *account.AccountDB,bh *types.BlockHeader) {
+	m.poolImpl.resetToTop(db, bh.Height)
+}
+
+
 func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
 	if createResult == nil {
@@ -76,9 +82,9 @@ func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreat
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		_ = m.saveGroup(db, newGroup(createResult.GroupInfo()))
+		_ = m.saveGroup(db, newGroup(createResult.GroupInfo(),ctx.Height()))
 	case types.CreateResultMarkEvil:
-		_ = markGroupFail(db, newGroup(createResult.GroupInfo()))
+		_ = markGroupFail(db, newGroup(createResult.GroupInfo(),ctx.Height()))
 	case types.CreateResultFail:
 		// do nothing
 	}

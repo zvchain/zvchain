@@ -15,6 +15,7 @@
 package group
 
 import (
+	lru "github.com/hashicorp/golang-lru"
 	"sort"
 
 	"github.com/vmihailenco/msgpack"
@@ -27,21 +28,26 @@ type groupLife struct {
 	seed  common.Hash
 	begin uint64
 	end   uint64
+	height uint64	// height of group created
+
 }
 
-func newGroupLife(group types.GroupI) *groupLife {
-	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight()}
+func newGroupLife(g types.GroupI) *groupLife {
+	group := g.(*Group)
+	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(),group.height}
 }
 
 type pool struct {
 	active  []*groupLife
 	waiting []*groupLife
+	cache   *lru.Cache
 }
 
 func newPool() *pool {
 	return &pool{
 		active:  make([]*groupLife, 0),
 		waiting: make([]*groupLife, 0),
+		cache:    common.MustNewLRUCache(500),
 	}
 }
 
@@ -81,6 +87,16 @@ func (p *pool) initPool(db *account.AccountDB) error {
 }
 
 func (p *pool) add(db *account.AccountDB, group types.GroupI) error {
+	byteData, err := msgpack.Marshal(group)
+	if err != nil {
+		return err
+	}
+
+	byteHeader, err := msgpack.Marshal(group.Header().(*GroupHeader))
+	if err != nil {
+		return err
+	}
+
 	life := newGroupLife(group)
 	lifeData, err := msgpack.Marshal(life)
 	if err != nil {
@@ -90,44 +106,68 @@ func (p *pool) add(db *account.AccountDB, group types.GroupI) error {
 	p.waiting = append(p.waiting, life)
 	db.SetData(common.GroupWaitingAddress, seed, lifeData)
 
+	p.cache.Add(group.Header().Seed(),group)
+	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
+	db.SetData(common.HashToAddress(group.Header().Seed()), groupHeaderKey, byteHeader)
 	return nil
+}
+
+func (p *pool) resetToTop(db *account.AccountDB, height uint64) {
+	removed := make([]common.Hash,0)
+	// move group from waiting to active
+	peeked := peek(p.waiting)
+	for peeked != nil && peeked.height >= height {
+		removed = append(removed, peeked.seed)
+		p.waiting = removeLast(p.waiting)
+		peeked = peek(p.waiting)
+	}
+
+	// check the active group only if all waiting groups removed
+	if len(p.waiting) == 0 {
+		peeked = peek(p.active)
+		for peeked != nil && peeked.height >= height {
+			removed = append(removed, peeked.seed)
+			p.waiting = removeLast(p.waiting)
+			peeked = peek(p.waiting)
+		}
+	}
+
+	// remove from cache
+	for _, v := range removed {
+		p.cache.Remove(v)
+	}
 }
 
 
 func (p *pool) adjust(db *account.AccountDB, height uint64) error {
 	// move group from waiting to active
-	snapshot := db.Snapshot()
 	peeked := sPeek(p.waiting)
-	//todo: check the bound height
-	for peeked != nil && peeked.begin <= height {
-		p.waiting = shift(p.waiting)
-		err := p.toActive(db, peeked)
-		if err != nil {
-			db.RevertToSnapshot(snapshot)
-			return err
-		}
+	for peeked != nil && peeked.begin >= height {
+		p.waiting = removeFirst(p.waiting)
+		p.toActive(db, peeked)
 		peeked = sPeek(p.waiting)
 	}
+
 	// move group from active to dismiss
 	peeked = sPeek(p.active)
 	for peeked != nil && peeked.end >= height {
-		p.active = shift(p.active)
+		p.active = removeFirst(p.active)
 		p.toDismiss(db, peeked)
 		peeked = sPeek(p.active)
 	}
 	return nil
 }
 
-func (p *pool) toActive(db *account.AccountDB, gl *groupLife) error {
+func (p *pool) toActive(db *account.AccountDB, gl *groupLife) {
 	byteData, err := msgpack.Marshal(gl)
 	if err != nil {
-		return err
+		// this case must not happen
+		panic("failed to marshal group life data")
 	}
-
+	push(p.active,gl)
 	db.RemoveData(common.GroupWaitingAddress, gl.seed.Bytes())
 	db.SetData(common.GroupActiveAddress, gl.seed.Bytes(), byteData)
 
-	return nil
 }
 
 // move the group to dismiss db
@@ -136,12 +176,25 @@ func (p *pool) toDismiss(db *account.AccountDB, gl *groupLife) {
 	db.SetData(common.GroupDismissAddress, gl.seed.Bytes(), []byte{1})
 }
 
-func shift(queue []*groupLife) []*groupLife {
+func removeFirst(queue []*groupLife) []*groupLife {
 	// this case should never happen, we already use the sPeek to check if len is 0
 	if len(queue) == 0 {
 		return nil
 	}
 	return queue[1:]
+}
+
+func removeLast(queue []*groupLife) []*groupLife {
+	// this case should never happen, we already use the peek to check if len is 0
+	if len(queue) == 0 {
+		return nil
+	}
+	return queue[:len(queue)-1]
+
+}
+
+func push(queue []*groupLife, gl *groupLife) []*groupLife {
+	return append(queue,gl)
 }
 
 func sPeek(queue []*groupLife) *groupLife {
@@ -150,3 +203,11 @@ func sPeek(queue []*groupLife) *groupLife {
 	}
 	return queue[0]
 }
+
+func peek(queue []*groupLife) *groupLife {
+	if len(queue) == 0 {
+		return nil
+	}
+	return queue[len(queue)-1]
+}
+
