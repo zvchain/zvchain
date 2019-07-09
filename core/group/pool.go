@@ -16,13 +16,13 @@ package group
 
 import (
 	"bytes"
-	lru "github.com/hashicorp/golang-lru"
 	"sort"
+
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
 )
 
 type groupLife struct {
@@ -55,7 +55,12 @@ func newPool() *pool {
 	}
 }
 
-func (p *pool) initPool(db types.AccountDB) error {
+func (p *pool) initPool(db types.AccountDB, genesisInfo *types.GenesisInfo) error {
+	err := p.initGenesis(db, genesisInfo)
+	if err != nil {
+		return err
+	}
+
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter != nil {
 		for iter.Next() {
@@ -90,7 +95,19 @@ func (p *pool) initPool(db types.AccountDB) error {
 	return nil
 }
 
-func (p *pool) add(db *account.AccountDB, group types.GroupI) error {
+func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error {
+	exist := p.get(db, genesis.Group.Header())
+	if exist == nil {
+		err := p.add(db, genesis.Group)
+		if err != nil {
+			return err
+		}
+		p.adjust(db, 0)
+	}
+	return nil
+}
+
+func (p *pool) add(db types.AccountDB, group types.GroupI) error {
 	byteData, err := msgpack.Marshal(group)
 	if err != nil {
 		return err
@@ -116,7 +133,7 @@ func (p *pool) add(db *account.AccountDB, group types.GroupI) error {
 	return nil
 }
 
-func (p *pool) resetToTop(db *account.AccountDB, height uint64) {
+func (p *pool) resetToTop(db types.AccountDB, height uint64) {
 	removed := make([]common.Hash, 0)
 	// move group from waiting to active
 	peeked := peek(p.waiting)
@@ -142,7 +159,7 @@ func (p *pool) resetToTop(db *account.AccountDB, height uint64) {
 	}
 }
 
-func (p *pool) isMinerExist(db *account.AccountDB, addr common.Address) bool {
+func (p *pool) isMinerExist(db types.AccountDB, addr common.Address) bool {
 	lived := append(p.active, p.waiting...)
 	for _, v := range lived {
 		g := p.get(db, v)
@@ -157,7 +174,7 @@ func (p *pool) isMinerExist(db *account.AccountDB, addr common.Address) bool {
 	return false
 }
 
-func (p *pool) get(db *account.AccountDB, seed types.SeedI) types.GroupI {
+func (p *pool) get(db types.AccountDB, seed types.SeedI) types.GroupI {
 	if g, ok := p.cache.Get(seed.Seed()); ok {
 		return g.(types.GroupI)
 	}
@@ -175,7 +192,7 @@ func (p *pool) get(db *account.AccountDB, seed types.SeedI) types.GroupI {
 	return nil
 }
 
-func (p *pool) adjust(db *account.AccountDB, height uint64) {
+func (p *pool) adjust(db types.AccountDB, height uint64) {
 	// move group from waiting to active
 	peeked := sPeek(p.waiting)
 	for peeked != nil && peeked.begin >= height {
@@ -193,7 +210,7 @@ func (p *pool) adjust(db *account.AccountDB, height uint64) {
 	}
 }
 
-func (p *pool) toActive(db *account.AccountDB, gl *groupLife) {
+func (p *pool) toActive(db types.AccountDB, gl *groupLife) {
 	byteData, err := msgpack.Marshal(gl)
 	if err != nil {
 		// this case must not happen
@@ -206,7 +223,7 @@ func (p *pool) toActive(db *account.AccountDB, gl *groupLife) {
 }
 
 // move the group to dismiss db
-func (p *pool) toDismiss(db *account.AccountDB, gl *groupLife) {
+func (p *pool) toDismiss(db types.AccountDB, gl *groupLife) {
 	db.RemoveData(common.GroupActiveAddress, gl.seed.Bytes())
 	db.SetData(common.GroupDismissAddress, gl.seed.Bytes(), []byte{1})
 }

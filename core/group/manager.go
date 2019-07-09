@@ -23,7 +23,6 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
 )
 
 var logger taslog.Logger
@@ -36,6 +35,7 @@ type Manager struct {
 	packetSenderImpl types.GroupPacketSender
 	minerReaderImpl  minerReader
 	poolImpl         pool
+	genesisGroup     types.GroupI
 }
 
 func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
@@ -50,13 +50,13 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 	m.checkerImpl = checker
 }
 
-func NewManager(chain chainReader, reader minerReader) Manager {
+func NewManager(chain chainReader, reader minerReader, genesisInfo *types.GenesisInfo) Manager {
 	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 
 	store := NewStore(chain)
 	packetSender := NewPacketSender(chain)
 	gPool := newPool()
-	err := gPool.initPool(chain.LatestStateDB())
+	err := gPool.initPool(chain.LatestStateDB(), genesisInfo)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
@@ -70,7 +70,7 @@ func NewManager(chain chainReader, reader minerReader) Manager {
 }
 
 // RegularCheck try to create group, do punishment and refresh active group
-func (m *Manager) RegularCheck(db *account.AccountDB) {
+func (m *Manager) RegularCheck(db types.AccountDB) {
 	ctx := &CheckerContext{m.chain.Height()}
 	m.tryCreateGroup(db, m.checkerImpl, ctx)
 	m.tryDoPunish(db, m.checkerImpl, ctx)
@@ -78,7 +78,7 @@ func (m *Manager) RegularCheck(db *account.AccountDB) {
 }
 
 // ResetTop resets group with top block with parameter bh
-func (m *Manager) ResetToTop(db *account.AccountDB, bh *types.BlockHeader) {
+func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
 	m.poolImpl.resetToTop(db, bh.Height)
 }
 
@@ -87,7 +87,7 @@ func (m *Manager) IsMinerInLiveGroup(addr common.Address) bool {
 	return m.poolImpl.isMinerExist(m.chain.LatestStateDB(), addr)
 }
 
-func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
+func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
 	if createResult == nil {
 		return
@@ -111,7 +111,7 @@ func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreat
 
 }
 
-func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
+func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	msg, err := checker.CheckGroupCreatePunishment(ctx)
 	if err != nil {
 		return
@@ -122,7 +122,7 @@ func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateCh
 	}
 }
 
-func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
+func (m *Manager) saveGroup(db types.AccountDB, group *Group) error {
 	byteData, err := msgpack.Marshal(group)
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
 	return nil
 }
 
-func (m *Manager) frozeMiner(db *account.AccountDB, frozenMiners [][]byte, ctx types.CheckerContext) {
+func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx types.CheckerContext) {
 	for _, p := range frozenMiners {
 		addr := common.BytesToAddress(p)
 		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
@@ -153,6 +153,6 @@ func (m *Manager) frozeMiner(db *account.AccountDB, frozenMiners [][]byte, ctx t
 }
 
 // markGroupFail mark group member should upload origin piece
-func markGroupFail(db *account.AccountDB, group *Group) {
+func markGroupFail(db types.AccountDB, group *Group) {
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte{1})
 }
