@@ -195,3 +195,9 @@ func DeserializePubkeyBytes(bytes []byte) Pubkey {
 	}
 	return pk
 }
+
+func DH(sk *Seckey, pk *Pubkey) *Pubkey {
+	dh := new(Pubkey)
+	dh.value.ScalarMult(&pk.value, &sk.value.v)
+	return dh
+}
