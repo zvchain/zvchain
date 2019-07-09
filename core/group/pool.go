@@ -96,7 +96,7 @@ func (p *pool) initPool(db types.AccountDB, genesisInfo *types.GenesisInfo) erro
 }
 
 func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error {
-	exist := p.get(db, genesis.Group.Header())
+	exist := p.get(db, genesis.Group.Header().Seed())
 	if exist == nil {
 		err := p.add(db, genesis.Group)
 		if err != nil {
@@ -162,7 +162,7 @@ func (p *pool) resetToTop(db types.AccountDB, height uint64) {
 func (p *pool) isMinerExist(db types.AccountDB, addr common.Address) bool {
 	lived := append(p.active, p.waiting...)
 	for _, v := range lived {
-		g := p.get(db, v)
+		g := p.get(db, v.Seed())
 		if g != nil {
 			for _, mem := range g.Members() {
 				if bytes.Equal(addr.Bytes(), mem.ID()) {
@@ -174,12 +174,12 @@ func (p *pool) isMinerExist(db types.AccountDB, addr common.Address) bool {
 	return false
 }
 
-func (p *pool) get(db types.AccountDB, seed types.SeedI) types.GroupI {
-	if g, ok := p.cache.Get(seed.Seed()); ok {
+func (p *pool) get(db types.AccountDB, seed common.Hash) types.GroupI {
+	if g, ok := p.cache.Get(seed); ok {
 		return g.(types.GroupI)
 	}
 
-	byteData := db.GetData(common.HashToAddress(seed.Seed()), groupDataKey)
+	byteData := db.GetData(common.HashToAddress(seed), groupDataKey)
 	if byteData != nil {
 		var gr Group
 		err := msgpack.Unmarshal(byteData, &gr)

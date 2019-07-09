@@ -39,11 +39,12 @@ var (
 
 // Store implements GroupStoreReader
 type Store struct {
-	chain chainReader
+	chain    chainReader
+	poolImpl pool
 }
 
-func NewStore(chain chainReader) types.GroupStoreReader {
-	return &Store{chain}
+func NewStore(chain chainReader, p pool) types.GroupStoreReader {
+	return &Store{chain, p}
 }
 
 // GetEncryptedPiecePackets returns all uploaded encrypted share piece with given seed
@@ -166,34 +167,16 @@ func (s *Store) GetAvailableGroups(h uint64) []types.GroupI {
 
 // GetGroupBySeed returns group with given seed
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupDataKey)
-
-	if byteData != nil {
-
-		var data Group
-		err := msgpack.Unmarshal(byteData, &data)
-		if err != nil {
-			return nil
-		}
-		return &data
-	}
-	return nil
+	return s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
 }
 
 // GetGroupBySeed returns group header with given seed
 func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
-	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupHeaderKey)
-
-	if byteData != nil {
-		var data GroupHeader
-		err := msgpack.Unmarshal(byteData, &data)
-		if err != nil {
-			return nil
-		}
-		return &data
+	g := s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
+	if g == nil {
+		return nil
 	}
-
-	return nil
+	return g.Header()
 }
 
 type txDataKey struct {

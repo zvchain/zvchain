@@ -53,13 +53,15 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 func NewManager(chain chainReader, reader minerReader, genesisInfo *types.GenesisInfo) Manager {
 	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 
-	store := NewStore(chain)
-	packetSender := NewPacketSender(chain)
 	gPool := newPool()
 	err := gPool.initPool(chain.LatestStateDB(), genesisInfo)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
+
+	store := NewStore(chain, gPool)
+	packetSender := NewPacketSender(chain)
+
 	managerImpl := Manager{
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
