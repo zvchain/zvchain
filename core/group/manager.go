@@ -63,7 +63,7 @@ func (m *Manager) RegularCheck(db *account.AccountDB) {
 	ctx := &CheckerContext{m.chain.Height()}
 	m.tryCreateGroup(db, m.checkerImpl, ctx)
 	m.tryDoPunish(db, m.checkerImpl, ctx)
-	_ = freshActiveGroup(db)
+	_ = m.poolImpl.adjust(db, ctx.Height())
 }
 
 func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
@@ -82,7 +82,7 @@ func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreat
 	case types.CreateResultFail:
 		// do nothing
 	}
-	_ = markEvil(db, createResult.FrozenMiners())
+	_ = m.frozeMiner(db, createResult.FrozenMiners(),ctx)
 }
 
 func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
@@ -90,20 +90,7 @@ func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateCh
 	if err != nil {
 		return
 	}
-	for _, p := range msg.PenaltyTarget() {
-		addr := common.BytesToAddress(p)
-		_, err = m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
-		if err != nil {
-			//TODO panic
-		}
-	}
-	//TODO reward
-	//for _, r := range msg.RewardTarget() {
-	//	addr := common.BytesToAddress(r)s
-
-	//	m.minerReaderImpl.MinerPenalty(db, addr,ctx.Height())
-	//}
-
+	_, err = m.minerReaderImpl.MinerPenalty(db, msg, ctx.Height())
 }
 
 func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
@@ -123,16 +110,17 @@ func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
 	return nil
 }
 
-func freshActiveGroup(db *account.AccountDB) error {
-
-	return nil
-}
-
-func markEvil(db *account.AccountDB, frozenMiners [][]byte) error {
-	if frozenMiners == nil || len(frozenMiners) == 0 {
-		return nil
+func (m *Manager) frozeMiner(db *account.AccountDB, frozenMiners [][]byte, ctx types.CheckerContext) error {
+	//if frozenMiners == nil || len(frozenMiners) == 0 {
+	//	return nil
+	//}
+	for _, p := range frozenMiners {
+		addr := common.BytesToAddress(p)
+		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
+		if err != nil {
+			//TODO panic?
+		}
 	}
-	//TODO: call miner interface
 	return nil
 }
 
