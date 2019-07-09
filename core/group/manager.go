@@ -54,7 +54,7 @@ func NewManager(chain chainReader, reader minerReader) Manager {
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
-	managerImpl := Manager{storeReaderImpl: store, packetSenderImpl: packetSender, poolImpl: *gPool, minerReaderImpl:reader}
+	managerImpl := Manager{storeReaderImpl: store, packetSenderImpl: packetSender, poolImpl: *gPool, minerReaderImpl: reader}
 	return managerImpl
 }
 
@@ -82,7 +82,7 @@ func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreat
 	case types.CreateResultFail:
 		// do nothing
 	}
-	_ = m.frozeMiner(db, createResult.FrozenMiners(),ctx)
+	_ = m.frozeMiner(db, createResult.FrozenMiners(), ctx)
 }
 
 func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
