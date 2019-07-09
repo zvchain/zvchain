@@ -86,7 +86,7 @@ func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
 
 // IsMinerInLiveGroup returns if the given miner address existing a group which is not dismissed
 func (m *Manager) MinerLiveGroupCount(addr common.Address, height uint64) int {
-	return m.poolImpl.minerLiveGroupCount(m.chain, addr)
+	return m.poolImpl.minerLiveGroupCount(m.chain, addr, height)
 }
 
 // Height returns count of current group number
