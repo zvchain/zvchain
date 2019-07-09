@@ -20,7 +20,6 @@ import (
 
 	"github.com/zvchain/zvchain/taslog"
 
-	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -84,7 +83,7 @@ func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
 	m.poolImpl.resetToTop(db, bh.Height)
 }
 
-// IsMinerInLiveGroup returns if the given miner address existing a group which is not dismissed
+// IsMinerInLiveGroup returns the count of living groups which contains the given miner address
 func (m *Manager) MinerLiveGroupCount(addr common.Address, height uint64) int {
 	return m.poolImpl.minerLiveGroupCount(m.chain, addr, height)
 }
