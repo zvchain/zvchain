@@ -245,7 +245,7 @@ func (ss *contractCaller) Transition() *result {
 	if contract.Code == "" {
 		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSTvmError)
 	} else {
-		_, logs, err := controller.ExecuteABI(tx.Source, contract, string(tx.Data))
+		_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
 		ret.logs = logs
 		if err != nil {
 			if err.Code == types.SysABIJSONError {

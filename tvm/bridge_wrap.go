@@ -381,22 +381,6 @@ func (tvm *TVM) generateScript(res ABI) string {
 	return bufStr
 }
 
-func (tvm *TVM) executABIVMSucceed(res ABI) error {
-	script := tvm.generateScript(res)
-	result := tvm.executePycode(script, C.PARSE_KIND_FILE)
-	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
-		err := fmt.Errorf("execute error,code=%d,msg=%s", result.ErrorCode, result.Content)
-		fmt.Println(err)
-		return err
-	}
-	return nil
-}
-
-func (tvm *TVM) executeABIKindFile(res ABI) *ExecuteResult {
-	bufStr := tvm.generateScript(res)
-	return tvm.executePycode(bufStr, C.PARSE_KIND_FILE)
-}
-
 func (tvm *TVM) executeABIKindEval(res ABI) *ExecuteResult {
 	bufStr := tvm.generateScript(res)
 	return tvm.executePycode(bufStr, C.PARSE_KIND_EVAL)
