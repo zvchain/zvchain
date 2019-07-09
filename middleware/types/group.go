@@ -146,6 +146,8 @@ type GroupStoreReader interface {
 	GetGroupBySeed(seedHash common.Hash) GroupI
 
 	GetGroupHeaderBySeed(seedHash common.Hash) GroupHeaderI
+
+	MinerLiveGroupCount(addr common.Address, height uint64) int
 }
 
 // 负责建组相关消息转换成交易发送，共识不关注交易类型，只关注数据
