@@ -102,7 +102,7 @@ func (api *RpcGtasImpl) BlockHeight() (*Result, error) {
 
 // GroupHeight query group height
 func (api *RpcGtasImpl) GroupHeight() (*Result, error) {
-	height := core.GroupChainImpl.Height()
+	height := core.GroupManagerImpl.Height()
 	return successResult(height)
 }
 

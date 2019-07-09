@@ -87,6 +87,11 @@ func (m *Manager) IsMinerInLiveGroup(addr common.Address) bool {
 	return m.poolImpl.isMinerExist(m.chain.LatestStateDB(), addr)
 }
 
+// Height returns count of current group number
+func (m *Manager) Height() uint64 {
+	return m.poolImpl.count(m.chain.LatestStateDB())
+}
+
 func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
 	if createResult == nil {

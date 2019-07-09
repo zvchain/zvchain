@@ -292,7 +292,7 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 
 func (api *RpcDevImpl) Dashboard() (*Result, error) {
 	blockHeight := core.BlockChainImpl.Height()
-	groupHeight := core.GroupChainImpl.Height()
+	groupHeight := core.GroupManagerImpl.Height()
 	workNum := len(mediator.Proc.GetCastQualifiedGroups(blockHeight))
 	nodeResult, _ := api.NodeInfo()
 	consResult, _ := api.ConnectedNodes()

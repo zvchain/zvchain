@@ -228,6 +228,17 @@ func (p *pool) toDismiss(db types.AccountDB, gl *groupLife) {
 	db.SetData(common.GroupDismissAddress, gl.seed.Bytes(), []byte{1})
 }
 
+func (p *pool) count(db types.AccountDB) uint64 {
+	rs := len(p.waiting) + len(p.active)
+	iter := db.DataIterator(common.GroupDismissAddress, []byte{})
+	if iter != nil {
+		for iter.Next() {
+			rs++
+		}
+	}
+	return uint64(rs)
+}
+
 func removeFirst(queue []*groupLife) []*groupLife {
 	// this case should never happen, we already use the sPeek to check if len is 0
 	if len(queue) == 0 {

@@ -15,28 +15,29 @@
 package group
 
 import (
-	"github.com/zvchain/zvchain/common"
 	"sort"
 	"strconv"
 	"testing"
+
+	"github.com/zvchain/zvchain/common"
 )
 
 func TestShift(t *testing.T) {
 	queue := make([]*groupLife, 0)
 
-	for i:=0;i<10 ; i++ {
+	for i := 0; i < 10; i++ {
 		ui := uint64(i)
-		gl := &groupLife{common.HexToHash(strconv.Itoa(i)), ui, ui,ui}
-		queue = push(queue,gl)
+		gl := &groupLife{common.HexToHash(strconv.Itoa(i)), ui, ui, ui}
+		queue = push(queue, gl)
 	}
 	t.Log("init queue:")
-	printQueue(t,queue)
+	printQueue(t, queue)
 	t.Log("after remove first:")
 	queue = removeFirst(queue)
-	printQueue(t,queue)
+	printQueue(t, queue)
 	t.Log("after remove last:")
 	queue = removeLast(queue)
-	printQueue(t,queue)
+	printQueue(t, queue)
 	t.Log("peek:")
 	t.Log(peek(queue).height)
 	t.Log("sPeek:")
@@ -46,11 +47,11 @@ func TestShift(t *testing.T) {
 	sort.SliceStable(queue, func(i, j int) bool {
 		return queue[i].end > queue[j].end
 	})
-	printQueue(t,queue)
+	printQueue(t, queue)
 
 }
 
-func printQueue(t *testing.T,queue []*groupLife)  {
+func printQueue(t *testing.T, queue []*groupLife) {
 	for _, v := range queue {
 		t.Log(v.height)
 	}
