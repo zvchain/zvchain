@@ -9,12 +9,12 @@ import (
 )
 
 type txBatchAdder struct {
-	pool       TransactionPool
+	pool       types.TransactionPool
 	routineNum int
 	mu         sync.Mutex
 }
 
-func newTxBatchAdder(pool TransactionPool) *txBatchAdder {
+func newTxBatchAdder(pool types.TransactionPool) *txBatchAdder {
 	return &txBatchAdder{
 		pool:       pool,
 		routineNum: runtime.NumCPU(),

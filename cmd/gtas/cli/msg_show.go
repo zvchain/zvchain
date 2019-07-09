@@ -33,8 +33,7 @@ type applyFunc func()
 type msgShower struct {
 	ticker  *ticker.GlobalTicker
 	out     io.Writer
-	bchain  core.BlockChain
-	gchain  *core.GroupChain
+	bchain  types.BlockChain
 	id      []byte
 	applied bool
 	apply   applyFunc
@@ -47,7 +46,6 @@ func initMsgShower(id []byte, apply applyFunc) {
 		ticker:  ticker.NewGlobalTicker("cli_ticker"),
 		out:     os.Stdout,
 		bchain:  core.BlockChainImpl,
-		gchain:  core.GroupChainImpl,
 		id:      id,
 		apply:   apply,
 		applied: false,
@@ -57,7 +55,6 @@ func initMsgShower(id []byte, apply applyFunc) {
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, ii.onBlockAddSuccess)
 	notify.BUS.Subscribe(notify.BlockSync, ii.blockSync)
-	notify.BUS.Subscribe(notify.GroupSync, ii.groupSync)
 
 	shower = ii
 }
@@ -140,9 +137,4 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 func (ms *msgShower) blockSync(message notify.Message) {
 	cand := message.GetData().(*core.SyncCandidateInfo)
 	ms.showMsg("sync block from %v[height=%v], localHeight=%v, reqHeight %v", cand.Candidate, cand.CandidateHeight, core.BlockChainImpl.Height(), cand.ReqHeight)
-}
-
-func (ms *msgShower) groupSync(message notify.Message) {
-	cand := message.GetData().(*core.SyncCandidateInfo)
-	ms.showMsg("sync group from %v[height=%v], localHeight=%v, reqHeight %v", cand.Candidate, cand.CandidateHeight, core.GroupChainImpl.Height(), cand.ReqHeight)
 }

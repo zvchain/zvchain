@@ -32,11 +32,9 @@ message Transaction{
 
     optional bytes ExtraData  = 8 ;
 
-    optional int32 ExtraDataType  = 9 ;
+    required int32 Type = 9;
 
-    required int32 Type = 10;
-
-    optional bytes Sign = 11;
+    optional bytes Sign = 10;
 }
 
 message TransactionRequestMessage{

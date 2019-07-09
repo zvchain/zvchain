@@ -47,7 +47,7 @@ var (
 	ErrCommitBlockFail = errors.New("commit block fail")
 )
 
-var BlockChainImpl BlockChain
+var BlockChainImpl types.BlockChain
 
 var GroupManagerImpl group.Manager
 
@@ -76,7 +76,7 @@ type FullBlockChain struct {
 
 	stateCache account.AccountDatabase
 
-	transactionPool TransactionPool
+	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
@@ -108,7 +108,7 @@ type FullBlockChain struct {
 
 	ticker *ticker.GlobalTicker // Ticker is a global time ticker
 	ts     time2.TimeService
-	Account
+	types.Account
 }
 
 func getBlockChainConfig() *BlockChainConfig {
@@ -127,7 +127,7 @@ func getBlockChainConfig() *BlockChainConfig {
 	}
 }
 
-func initBlockChain(helper types.ConsensusHelper, minerAccount Account) error {
+func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) error {
 	instance := common.GlobalConf.GetString("instance", "index", "")
 	Logger = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
 	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, instance)

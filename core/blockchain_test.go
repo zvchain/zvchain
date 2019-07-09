@@ -448,7 +448,6 @@ func clear() {
 	fmt.Println("---clear---")
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
-		GroupChainImpl.Close()
 		taslog.Close()
 		BlockChainImpl = nil
 	}
@@ -489,9 +488,8 @@ func initContext4Test() error {
 		return err
 	}
 	BlockChainImpl = nil
-	GroupChainImpl = nil
 
-	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}),getAccount())
+	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}), getAccount())
 
 	clearTicker()
 	return err
@@ -575,7 +573,7 @@ type Account4Test struct {
 	Password string
 }
 
-func (a *Account4Test)MinerSk() string  {
+func (a *Account4Test) MinerSk() string {
 	return a.Sk
 }
 

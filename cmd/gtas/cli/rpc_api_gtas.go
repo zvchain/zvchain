@@ -244,7 +244,7 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
 		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
-		return successResult(convertExecutedTransaction(&core.ExecutedTransaction{
+		return successResult(convertExecutedTransaction(&types.ExecutedTransaction{
 			Receipt:     rc,
 			Transaction: tx,
 		}))

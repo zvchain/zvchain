@@ -86,7 +86,6 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 	ok := mediator.StartMiner()
 
 	fmt.Println("Syncing block and group info from tas net.Waiting...")
-	core.InitGroupSyncer(core.GroupChainImpl, core.BlockChainImpl.(*core.FullBlockChain))
 	core.InitBlockSyncer(core.BlockChainImpl.(*core.FullBlockChain))
 
 	// Auto apply miner role when balance enough
@@ -252,7 +251,7 @@ func (gtas *Gtas) Run() {
 
 // ClearBlock delete local blockchain data
 func ClearBlock() error {
-	err := core.InitCore(mediator.NewConsensusHelper(groupsig.ID{}),nil)
+	err := core.InitCore(mediator.NewConsensusHelper(groupsig.ID{}), nil)
 	if err != nil {
 		return err
 	}
@@ -327,13 +326,20 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	err = core.InitCore(mediator.NewConsensusHelper(minerInfo.ID), &gtas.account)
+	helper := mediator.NewConsensusHelper(minerInfo.ID)
+	err = core.InitCore(helper, &gtas.account)
 	if err != nil {
 		return err
 	}
 	id := minerInfo.ID.GetHexString()
 
-	netCfg := network.NetworkConfig{IsSuper: cfg.super,
+	genesisMembers := make([]string, 0)
+	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
+		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
+	}
+
+	netCfg := network.NetworkConfig{
+		IsSuper:         cfg.super,
 		TestMode:        cfg.testMode,
 		NatAddr:         cfg.natIP,
 		NatPort:         cfg.natPort,
@@ -341,7 +347,7 @@ func (gtas *Gtas) fullInit() error {
 		NodeIDHex:       id,
 		ChainID:         cfg.chainID,
 		ProtocolVersion: common.ProtocolVersion,
-		SeedIDs:         core.GroupChainImpl.GenesisMembers(),
+		SeedIDs:         genesisMembers,
 		PK:              gtas.account.Pk,
 		SK:              gtas.account.Sk,
 	}
@@ -366,9 +372,6 @@ func (gtas *Gtas) fullInit() error {
 	if cfg.enableMonitor || common.GlobalConf.GetBool("gtas", "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
-
-	mediator.Proc.BeginGenesisGroupMember()
-
 	return nil
 }
 

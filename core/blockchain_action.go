@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/monitor"
 	"time"
 
@@ -224,14 +223,6 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 
 	groupValidateResult, err := chain.consensusVerifyBlock(b.Header)
 	if !groupValidateResult {
-		if err == common.ErrSelectGroupNil || err == common.ErrSelectGroupInequal {
-			Logger.Infof("Add block on chain failed: depend on group! trigger group sync")
-			if groupSync != nil {
-				go groupSync.trySyncRoutine()
-			}
-		} else {
-			Logger.Errorf("Fail to validate group sig!Err:%s", err.Error())
-		}
 		return false, fmt.Errorf("consensus verify fail, err=%v", err.Error())
 	}
 	return true, nil
@@ -259,7 +250,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 	}
 
 	topBlock := chain.getLatestBlock()
-	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", b.Header.Hash.ShortS(), b.Header.PreHash.ShortS(), b.Header.Height, b.Header.TotalQN, topBlock.Hash.ShortS(), topBlock.PreHash.ShortS(), topBlock.Height, topBlock.TotalQN)
+	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", b.Header.Hash, b.Header.PreHash, b.Header.Height, b.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
 
 	if chain.HasBlock(bh.Hash) {
 		return types.BlockExisted, ErrBlockExist
@@ -328,7 +319,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 	} else { // there is a fork
 		newTop := chain.queryBlockHeaderByHash(bh.PreHash)
 		old := chain.latestBlock
-		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash.ShortS(), old.Height, old.PreHash.ShortS(), old.TotalQN, bh.Hash.ShortS(), bh.Height, bh.PreHash.ShortS(), bh.TotalQN)
+		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
 		if e := chain.resetTop(newTop); e != nil {
 			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash.Hex(), newTop.Hash.Hex(), newTop.Height)
 			ret = types.AddBlockFailed
@@ -533,11 +524,11 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, 
 		pre := chain.QueryBlockHeaderByHash(firstBH.Header.PreHash)
 		if pre != nil {
 			last := addBlocks[len(addBlocks)-1].Header
-			Logger.Debugf("%v batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", module, localTop.Hash.ShortS(), localTop.Height, localTop.TotalQN, pre.Hash.ShortS(), pre.Height, pre.TotalQN, last.Hash.ShortS(), last.Height, last.TotalQN)
+			Logger.Debugf("%v batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", module, localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
 			chain.ResetTop(pre)
 		} else {
 			// There will fork, we have to deal with it
-			Logger.Debugf("%v batchAdd detect fork from %v: local %v %v, peer %v %v", module, source, localTop.Hash.ShortS(), localTop.Height, firstBH.Header.Hash.ShortS(), firstBH.Header.Height)
+			Logger.Debugf("%v batchAdd detect fork from %v: local %v %v, peer %v %v", module, source, localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
 			go chain.forkProcessor.tryToProcessFork(source, firstBH)
 			return
 		}

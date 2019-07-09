@@ -13,16 +13,15 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package core
+package types
 
 import (
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/vm"
 
 	"math/big"
-
-	"github.com/zvchain/zvchain/middleware/types"
 )
 
 // BlockChain is a interface, encapsulates some methods for manipulating the blockchain
@@ -31,7 +30,7 @@ type BlockChain interface {
 	AccountRepository
 
 	// CastBlock cast a block, current casters synchronization operation in the group
-	CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, groupSeed common.Hash) *types.Block
+	CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, groupSeed common.Hash) *Block
 
 	// AddBlockOnChain add a block on blockchain, there are five cases of return value：
 	// 0, successfully add block on blockchain
@@ -39,7 +38,7 @@ type BlockChain interface {
 	// 1, the block already exist on the blockchain, then we should discard it
 	// 2, the same height block with a larger QN value on the chain, then we should discard it
 	// 3, need adjust the blockchain, there will be a fork
-	AddBlockOnChain(source string, b *types.Block) types.AddBlockResult
+	AddBlockOnChain(source string, b *Block) AddBlockResult
 
 	// TotalQN of chain
 	TotalQN() uint64
@@ -48,31 +47,31 @@ type BlockChain interface {
 	LatestStateDB() *account.AccountDB
 
 	// QueryBlockByHash query the block by hash
-	QueryBlockByHash(hash common.Hash) *types.Block
+	QueryBlockByHash(hash common.Hash) *Block
 
 	// QueryBlockByHeight query the block by height
-	QueryBlockByHeight(height uint64) *types.Block
+	QueryBlockByHeight(height uint64) *Block
 
 	// QueryBlockCeil query first block whose height >= height
-	QueryBlockCeil(height uint64) *types.Block
+	QueryBlockCeil(height uint64) *Block
 
 	// QueryBlockHeaderCeil query first block header whose height >= height
-	QueryBlockHeaderCeil(height uint64) *types.BlockHeader
+	QueryBlockHeaderCeil(height uint64) *BlockHeader
 
 	// QueryBlockFloor query first block whose height <= height
-	QueryBlockFloor(height uint64) *types.Block
+	QueryBlockFloor(height uint64) *Block
 
 	// QueryBlockHeaderFloor query first block header whose height <= height
-	QueryBlockHeaderFloor(height uint64) *types.BlockHeader
+	QueryBlockHeaderFloor(height uint64) *BlockHeader
 
 	// QueryBlockBytesFloor query the block byte slice by height
 	QueryBlockBytesFloor(height uint64) []byte
 
 	// BatchGetBlocksAfterHeight query blocks after the specified height
-	BatchGetBlocksAfterHeight(height uint64, limit int) []*types.Block
+	BatchGetBlocksAfterHeight(height uint64, limit int) []*Block
 
 	// GetTransactionByHash get a transaction by hash
-	GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *types.Transaction
+	GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *Transaction
 
 	// GetTransactionPool return the transaction pool waiting for the block
 	GetTransactionPool() TransactionPool
@@ -81,7 +80,7 @@ type BlockChain interface {
 	IsAdjusting() bool
 
 	// Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later
-	Remove(block *types.Block) bool
+	Remove(block *Block) bool
 
 	// Clear clear blockchain all data
 	Clear() error
@@ -90,7 +89,7 @@ type BlockChain interface {
 	Close()
 
 	// GetRewardManager returns the reward manager
-	GetRewardManager() *RewardManager
+	GetRewardManager() *core.RewardManager
 
 	// GetAccountDBByHash returns account database with specified block hash
 	GetAccountDBByHash(hash common.Hash) (vm.AccountDB, error)
@@ -99,51 +98,45 @@ type BlockChain interface {
 	GetAccountDBByHeight(height uint64) (vm.AccountDB, error)
 
 	// GetConsensusHelper returns consensus helper reference
-	GetConsensusHelper() types.ConsensusHelper
+	GetConsensusHelper() ConsensusHelper
 
 	// Version of chain Id
 	Version() int
 
 	// ResetTop reset the current top block with parameter bh
-	ResetTop(bh *types.BlockHeader)
+	ResetTop(bh *BlockHeader)
 }
 
 // ExecutedTransaction contains the transaction and its receipt
 type ExecutedTransaction struct {
-	Receipt     *types.Receipt
-	Transaction *types.Transaction
+	Receipt     *Receipt
+	Transaction *Transaction
 }
-
-type txSource int
-
-const (
-	txSync txSource = 1
-)
 
 type TransactionPool interface {
 	// PackForCast returns a list of transactions for casting a block
-	PackForCast() []*types.Transaction
+	PackForCast() []*Transaction
 
 	// AddTransaction add new transaction to the transaction pool
-	AddTransaction(tx *types.Transaction) (bool, error)
+	AddTransaction(tx *Transaction) (bool, error)
 
 	// AddTransactions add new transactions to the transaction pool
-	AddTransactions(txs []*types.Transaction, from txSource)
+	AddTransactions(txs []*Transaction)
 
 	// AsyncAddTxs rcv transactions broadcast from other nodes
-	AsyncAddTxs(txs []*types.Transaction)
+	AsyncAddTxs(txs []*Transaction)
 
 	// GetTransaction trys to find a transaction from pool by hash and return it
-	GetTransaction(reward bool, hash common.Hash) *types.Transaction
+	GetTransaction(reward bool, hash common.Hash) *Transaction
 
 	// GetReceipt returns the transaction's recipe by hash
-	GetReceipt(hash common.Hash) *types.Receipt
+	GetReceipt(hash common.Hash) *Receipt
 
 	// GetReceived returns the received transactions in the pool with a limited size
-	GetReceived() []*types.Transaction
+	GetReceived() []*Transaction
 
 	// GetRewardTxs returns all the reward transactions in the pool
-	GetRewardTxs() []*types.Transaction
+	GetRewardTxs() []*Transaction
 
 	// TxNum returns the number of transactions in the pool
 	TxNum() uint64
@@ -152,14 +145,14 @@ type TransactionPool interface {
 	RemoveFromPool(txs []common.Hash)
 
 	// BackToPool will put the transactions back to pool
-	BackToPool(txs []*types.Transaction)
+	BackToPool(txs []*Transaction)
 
 	// RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction
-	RecoverAndValidateTx(tx *types.Transaction) error
+	RecoverAndValidateTx(tx *Transaction) error
 
-	saveReceipts(blockHash common.Hash, receipts types.Receipts) error
+	SaveReceipts(blockHash common.Hash, receipts Receipts) error
 
-	deleteReceipts(txs []common.Hash) error
+	DeleteReceipts(txs []common.Hash) error
 
 	//check transaction hash exist in local
 	IsTransactionExisted(hash common.Hash) (exists bool, where int)
@@ -171,7 +164,7 @@ type GroupInfoI interface {
 
 // VMExecutor is a VM executor
 type VMExecutor interface {
-	Execute(statedb *account.AccountDB, block *types.Block) (types.Receipts, *common.Hash, uint64, error)
+	Execute(statedb *account.AccountDB, block *Block) (Receipts, *common.Hash, uint64, error)
 }
 
 // AccountRepository contains account query interface

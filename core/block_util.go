@@ -109,8 +109,8 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 
 	// genesis balance: just for stakes two roles with minimum required value
 	genesisBalance := big.NewInt(0).SetUint64(2 * minimumStake())
-	for _, mem := range genesisInfo.Group.Members {
-		addr := common.BytesToAddress(mem)
+	for _, mem := range genesisInfo.Group.Members() {
+		addr := common.BytesToAddress(mem.ID())
 		stateDB.SetBalance(addr, genesisBalance)
 	}
 }

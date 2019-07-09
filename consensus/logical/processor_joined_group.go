@@ -30,7 +30,7 @@ package logical
 //	"github.com/zvchain/zvchain/common"
 //	"github.com/zvchain/zvchain/consensus/groupsig"
 //	"github.com/zvchain/zvchain/consensus/model"
-//	"github.com/zvchain/zvchain/storage/tasdb"
+//	"github.com/zvchain/zvchain/skStore/tasdb"
 //)
 //
 //// key suffix definition when store the verifyGroup infos to db

@@ -60,3 +60,7 @@ func (store *skStorage) GetGroupSignatureSeckey(seed common.Hash) groupsig.Secke
 	}
 	return groupsig.Seckey{}
 }
+
+func (store *skStorage) StoreGroupSignatureSeckey(seed common.Hash, sk groupsig.Seckey) {
+	store.storeSeckey(prefixMSK, seed, sk)
+}

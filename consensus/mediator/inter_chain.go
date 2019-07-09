@@ -17,15 +17,12 @@
 package mediator
 
 import (
-	"bytes"
-	"fmt"
 	"math"
 	"math/big"
 
-	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
+	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/consensus/logical"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -42,7 +39,7 @@ func NewConsensusHelper(id groupsig.ID) types.ConsensusHelper {
 
 // GenerateGenesisInfo generate genesis group and pk info of members
 func (helper *ConsensusHelperImpl) GenerateGenesisInfo() *types.GenesisInfo {
-	return logical.GenerateGenesis()
+	return group.GenerateGenesis()
 }
 
 // VRFProve2Value convert the vrf prove to big int
@@ -76,57 +73,9 @@ func (helper *ConsensusHelperImpl) VerifyBlockHeader(bh *types.BlockHeader) (boo
 	return Proc.VerifyBlockHeader(bh)
 }
 
-// CheckGroup check group legality
-func (helper *ConsensusHelperImpl) CheckGroup(g *types.Group) (ok bool, err error) {
-	return Proc.VerifyGroup(g)
-}
-
 // VerifyRewardTransaction verify reward transaction
 func (helper *ConsensusHelperImpl) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err error) {
-	signBytes := tx.Sign
-	if len(signBytes) < common.SignLength {
-		return false, fmt.Errorf("not enough bytes for reward signature, sign =%v", signBytes)
-	}
-
-	groupID, targetIds, blockHash, packFee, err := Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse reward transaction, err =%s", err)
-	}
-
-	var bh *types.BlockHeader
-	if bh = Proc.MainChain.QueryBlockHeaderByHash(blockHash); bh == nil {
-		return false, fmt.Errorf("chain does not have this block, block hash=%v", blockHash)
-	}
-	if !bytes.Equal(groupID, bh.Group) {
-		return false, fmt.Errorf("group id not equal to the block verifier groupId")
-	}
-	rewardShare := Proc.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
-
-	if rewardShare.ForRewardTxPacking != packFee.Uint64() {
-		return false, fmt.Errorf("pack fee error: receive %v, expect %v", packFee.Uint64(), rewardShare.ForRewardTxPacking)
-	}
-	verifyRewards := rewardShare.TotalForVerifier()
-	if verifyRewards/uint64(len(targetIds)) != tx.Value.Uint64() {
-		return false, fmt.Errorf("invalid verify reward, value=%v", tx.Value)
-	}
-
-	group := Proc.GroupChain.GetGroupByID(groupID)
-	if group == nil {
-		return false, common.ErrGroupNil
-	}
-	for _, id := range targetIds {
-		if !group.MemberExist(id) {
-			return false, fmt.Errorf("invalid group member,id=%v", groupsig.DeserializeID(id).GetHexString())
-		}
-	}
-
-	gpk := groupsig.DeserializePubkeyBytes(group.PubKey)
-	gsign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
-	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gsign) {
-		return false, fmt.Errorf("verify reward sign fail, gsign=%v", gsign.GetHexString())
-	}
-
-	return true, nil
+	return Proc.VerifyRewardTransaction(tx)
 }
 
 // EstimatePreHeight estimate pre block's height

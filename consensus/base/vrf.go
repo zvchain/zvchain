@@ -62,12 +62,6 @@ func (vp VRFPrivateKey) GetHexString() string {
 	return common.ToHex(vp)
 }
 
-func (vp VRFProve) ShortS() string {
-	bi := new(big.Int).SetBytes(vp)
-	hex := bi.Text(16)
-	return common.ShortHex12(hex)
-}
-
 // VRFGenerateKey generates a public/private key pair using entropy from rand.
 // If rand is nil, crypto/rand.Reader will be used.
 func VRFGenerateKey(rand io.Reader) (publicKey VRFPublicKey, privateKey VRFPrivateKey, err error) {

@@ -112,7 +112,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 		return
 	}
 	// Save hash to receipt key value pair
-	if err = chain.transactionPool.saveReceipts(bh.Hash, ps.receipts); err != nil {
+	if err = chain.transactionPool.SaveReceipts(bh.Hash, ps.receipts); err != nil {
 		return
 	}
 	// Save current block
@@ -206,7 +206,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		curr = chain.queryBlockHeaderByHash(curr.PreHash)
 	}
 	// Delete receipts corresponding to the transactions in the discard block
-	if err = chain.transactionPool.deleteReceipts(delRecepites); err != nil {
+	if err = chain.transactionPool.DeleteReceipts(delRecepites); err != nil {
 		return err
 	}
 	// Reset the current block
@@ -261,7 +261,7 @@ func (chain *FullBlockChain) removeOrphan(block *types.Block) error {
 		for i, tx := range txs {
 			txHashs[i] = tx.Hash
 		}
-		if err = chain.transactionPool.deleteReceipts(txHashs); err != nil {
+		if err = chain.transactionPool.DeleteReceipts(txHashs); err != nil {
 			return err
 		}
 	}
