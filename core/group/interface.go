@@ -39,6 +39,7 @@ type chainReader interface {
 	LatestStateDB() *account.AccountDB
 	MinerSk() string
 	AddTransactionToPool(tx *types.Transaction) (bool, error)
+	GetAccountDBByHeight(height uint64) (vm.AccountDB, error)
 }
 
 // Round 1 tx data,implement common.EncryptedSharePiecePacket

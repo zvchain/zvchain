@@ -132,10 +132,14 @@ func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 
 // Get available group infos at the given height
 func (s *Store) GetAvailableGroups(h uint64) []types.GroupI {
-	rs := make([]types.GroupI, 0)
-	db := s.chain.LatestStateDB()
-	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
+	db, err := s.chain.GetAccountDBByHeight(h)
+	if err != nil {
+		return nil
+	}
 
+	rs := make([]types.GroupI, 0)
+
+	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter == nil {
 		return nil
 	}
