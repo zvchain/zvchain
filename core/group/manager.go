@@ -18,11 +18,15 @@ package group
 import (
 	"fmt"
 
+	"github.com/zvchain/zvchain/taslog"
+
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
+
+var logger taslog.Logger
 
 // Manager implements groupContextProvider in package consensus
 type Manager struct {
@@ -47,6 +51,8 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 }
 
 func NewManager(chain chainReader, reader minerReader) Manager {
+	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+
 	store := NewStore(chain)
 	packetSender := NewPacketSender(chain)
 	gPool := newPool()
@@ -54,7 +60,12 @@ func NewManager(chain chainReader, reader minerReader) Manager {
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
-	managerImpl := Manager{storeReaderImpl: store, packetSenderImpl: packetSender, poolImpl: *gPool, minerReaderImpl: reader}
+	managerImpl := Manager{
+		storeReaderImpl:  store,
+		packetSenderImpl: packetSender,
+		poolImpl:         *gPool,
+		minerReaderImpl:  reader,
+	}
 	return managerImpl
 }
 
@@ -67,7 +78,7 @@ func (m *Manager) RegularCheck(db *account.AccountDB) {
 }
 
 // ResetTop resets group with top block with parameter bh
-func (m *Manager) ResetToTop(db *account.AccountDB,bh *types.BlockHeader) {
+func (m *Manager) ResetToTop(db *account.AccountDB, bh *types.BlockHeader) {
 	m.poolImpl.resetToTop(db, bh.Height)
 }
 
@@ -75,7 +86,6 @@ func (m *Manager) ResetToTop(db *account.AccountDB,bh *types.BlockHeader) {
 func (m *Manager) IsMinerInLiveGroup(addr common.Address) bool {
 	return m.poolImpl.isMinerExist(m.chain.LatestStateDB(), addr)
 }
-
 
 func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
@@ -87,13 +97,18 @@ func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreat
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		err := m.saveGroup(db, newGroup(createResult.GroupInfo(),ctx.Height()))
+		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height()))
+		if err != nil {
+			// this case must not happen.
+			panic(logger.Error("saveGroup error: %v", err))
+		}
 	case types.CreateResultMarkEvil:
-		_ = markGroupFail(db, newGroup(createResult.GroupInfo(),ctx.Height()))
+		markGroupFail(db, newGroup(createResult.GroupInfo(), ctx.Height()))
 	case types.CreateResultFail:
 		// do nothing
 	}
-	_ = m.frozeMiner(db, createResult.FrozenMiners(), ctx)
+	m.frozeMiner(db, createResult.FrozenMiners(), ctx)
+
 }
 
 func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
@@ -102,6 +117,9 @@ func (m *Manager) tryDoPunish(db *account.AccountDB, checker types.GroupCreateCh
 		return
 	}
 	_, err = m.minerReaderImpl.MinerPenalty(db, msg, ctx.Height())
+	if err != nil {
+		logger.Error("MinerPenalty error: %v", err)
+	}
 }
 
 func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
@@ -109,7 +127,6 @@ func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
 	if err != nil {
 		return err
 	}
-
 	byteHeader, err := msgpack.Marshal(group.Header().(*GroupHeader))
 	if err != nil {
 		return err
@@ -124,22 +141,18 @@ func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
 	return nil
 }
 
-func (m *Manager) frozeMiner(db *account.AccountDB, frozenMiners [][]byte, ctx types.CheckerContext) error {
-	//if frozenMiners == nil || len(frozenMiners) == 0 {
-	//	return nil
-	//}
+func (m *Manager) frozeMiner(db *account.AccountDB, frozenMiners [][]byte, ctx types.CheckerContext) {
 	for _, p := range frozenMiners {
 		addr := common.BytesToAddress(p)
 		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
 		if err != nil {
-			//TODO panic?
+			//todo: should remove this panic? or just print the error?
+			panic(logger.Error("saveGroup error: %v", err))
 		}
 	}
-	return nil
 }
 
 // markGroupFail mark group member should upload origin piece
-func markGroupFail(db *account.AccountDB, group *Group) error {
+func markGroupFail(db *account.AccountDB, group *Group) {
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte{1})
-	return nil
 }

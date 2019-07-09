@@ -224,6 +224,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	chain.transactionPool.BackToPool(recoverTxs)
 
+	GroupManagerImpl.ResetToTop(state,block)
+
 	return nil
 }
 
