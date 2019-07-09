@@ -705,3 +705,106 @@ func TestDoubleAggregate(t *testing.T) {
 	}
 	fmt.Printf(" TestDoubleAggregate end \n")
 }
+
+func TestDH(t *testing.T) {
+	fmt.Printf(" TestDH begin \n")
+	r := base.NewRand()
+	sec1 := *NewSeckeyFromRand(r.Deri(1))
+	pub1 := NewPubkeyFromSeckey(sec1)
+
+	sec2 := *NewSeckeyFromRand(r.Deri(2))
+	pub2 := NewPubkeyFromSeckey(sec2)
+
+	result1 := new(Pubkey)
+	result2 := new(Pubkey)
+
+	result1.value.ScalarMult(&pub2.value, &sec1.value.v)
+	result2.value.ScalarMult(&pub1.value, &sec2.value.v)
+
+	if !result1.IsEqual(*result2) {
+		fmt.Printf(" DH doesn't match \n")
+	}
+	fmt.Printf(" TestDH end \n")
+}
+
+func BenchmarkDH(b *testing.B) {
+	r := base.NewRand()
+	sec1 := *NewSeckeyFromRand(r.Deri(1))
+	//	pub1 := NewPubkeyFromSeckey(sec1)
+
+	sec2 := *NewSeckeyFromRand(r.Deri(2))
+	pub2 := NewPubkeyFromSeckey(sec2)
+
+	result := new(Pubkey)
+
+	for n := 0; n < b.N; n++ {
+		result.value.ScalarMult(&pub2.value, &sec1.value.v)
+	}
+}
+
+func TestGroupSignature(t *testing.T) {
+	fmt.Printf("TestGroupSignature begin \n")
+	msg := []byte("this is test message")
+	n := 9
+	k := 5
+
+	r := base.NewRand()
+	sk := make([]Seckey, n)
+	pk := make([]Pubkey, n)
+	ids := make([]ID, n)
+
+	for i := 0; i < n; i++ {
+		sk[i] = *NewSeckeyFromRand(r.Deri(i))
+		pk[i] = *NewPubkeyFromSeckey(sk[i])
+		err := ids[i].SetLittleEndian([]byte{1, 2, 3, 4, 5, byte(i)})
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	shares := make([][]Seckey, n)
+	for i := 0; i < n; i++ {
+		shares[i] = make([]Seckey, n)
+		msec := sk[i].GetMasterSecretKey(k)
+
+		for j := 0; j < n; j++ {
+			err := shares[i][j].Set(msec, &ids[j])
+			if err != nil {
+				t.Error(err)
+			}
+		}
+	}
+
+	msk := make([]Seckey, n)
+	shareVec := make([]Seckey, n)
+	for j := 0; j < n; j++ {
+		for i := 0; i < n; i++ {
+			shareVec[i] = shares[i][j]
+		}
+		msk[j] = *AggregateSeckeys(shareVec)
+	}
+
+	sigs := make([]Signature, n)
+	for i := 0; i < n; i++ {
+		sigs[i] = Sign(msk[i], msg)
+	}
+
+	gpk := AggregatePubkeys(pk)
+	for m := k; m <= n; m++ {
+		sigVec := make([]Signature, m)
+		idVec := make([]ID, m)
+
+		for i := 0; i < m; i++ {
+			sigVec[i] = sigs[i]
+			idVec[i] = ids[i]
+		}
+		gsig := RecoverSignature(sigVec, idVec)
+
+		fmt.Printf("m = %v, sig = %v\n", m, gsig.Serialize())
+
+		if !VerifySig(*gpk, msg, *gsig) {
+			fmt.Printf("fail to VerifySig when m= %v \n", m)
+		}
+	}
+	fmt.Printf("TestGroupSignature end \n")
+}
