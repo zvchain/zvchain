@@ -30,6 +30,10 @@ type AddBlockOnChainSituation string
 // AddBlockResult is the result of the add-block operation
 type AddBlockResult int8
 
+
+// gasLimitMax expresses the max gasLimit of a transaction
+var gasLimitMax = new(BigInt).SetUint64(500000)
+
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
@@ -47,6 +51,7 @@ const (
 	SysABIJSONError  = 2003
 
 	txFixSize = 200 // Fixed size for each transaction
+
 )
 
 var (
@@ -390,6 +395,12 @@ type BlockWeight struct {
 	PV      *big.Int // Converted from ProveValue field of BlockHeader
 }
 
+
+type CandidateBlockHeader struct {
+	BW    *BlockWeight
+	BH	  *BlockHeader
+}
+
 type PvFunc func(pvBytes []byte) *big.Int
 
 var DefaultPVFunc PvFunc
@@ -410,6 +421,12 @@ func (bw *BlockWeight) Cmp(bw2 *BlockWeight) int {
 		return -1
 	}
 	return bw.PV.Cmp(bw2.PV)
+}
+
+
+func NewCandidateBlockHeader(bh *BlockHeader)*CandidateBlockHeader{
+	bw := NewBlockWeight(bh)
+	return &CandidateBlockHeader{BW:bw,BH:bh}
 }
 
 func NewBlockWeight(bh *BlockHeader) *BlockWeight {

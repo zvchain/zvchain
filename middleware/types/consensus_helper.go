@@ -57,4 +57,5 @@ type ConsensusHelper interface {
 
 	// estimate pre block's height
 	EstimatePreHeight(bh *BlockHeader) uint64
+
 }

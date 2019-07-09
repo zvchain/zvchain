@@ -10,6 +10,11 @@ import (
 
 // trigger trigger an execution
 func (gt *GlobalTicker) trigger(routine *TickerRoutine) bool {
+	defer func(){
+		if routine.rType == rTypeOneTime{
+			gt.RemoveRoutine(routine.id)
+		}
+	}()
 	defer func() {
 		if r := recover(); r != nil {
 			common.DefaultLogger.Errorf("error：%v\n", r)

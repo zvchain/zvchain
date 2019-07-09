@@ -400,10 +400,7 @@ message CastRewardTransSignMessage {
 }
 
 message TopBlockInfo{
-    required	bytes   Hash = 1;
-    required	uint64   TotalQn = 2;
-    required	uint64   Height = 3;
-    required	bytes   PVBig = 4;
+     required BlockHeader TopHeader = 1;
 }
 
 message BlockResponseMsg{

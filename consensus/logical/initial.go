@@ -21,8 +21,6 @@ import (
 	"github.com/zvchain/zvchain/taslog"
 )
 
-const NormalFailed int = -1
-const NormalSuccess int = 0
 
 const ConsensusConfSection = "consensus"
 
