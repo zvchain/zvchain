@@ -58,7 +58,6 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	db := BlockChainImpl.LatestStateDB()
 	store := group.NewStore(BlockChainImpl.(*FullBlockChain))
 	pieces, err := store.GetEncryptedPiecePackets(data)
 	if err != nil {
@@ -84,7 +83,6 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	db = BlockChainImpl.LatestStateDB()
 	store = group.NewStore(BlockChainImpl.(*FullBlockChain))
 	mpks, err := store.GetMpkPackets(mpkData)
 	if err != nil {
@@ -113,7 +111,6 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	db = BlockChainImpl.LatestStateDB()
 	store = group.NewStore(BlockChainImpl.(*FullBlockChain))
 	ops, err := store.GetOriginPiecePackets(dataOp)
 	if err != nil {
