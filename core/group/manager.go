@@ -83,11 +83,6 @@ func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
 	m.poolImpl.resetToTop(db, bh.Height)
 }
 
-// IsMinerInLiveGroup returns the count of living groups which contains the given miner address
-func (m *Manager) MinerLiveGroupCount(addr common.Address, height uint64) int {
-	return m.poolImpl.minerLiveGroupCount(m.chain, addr, height)
-}
-
 // Height returns count of current group number
 func (m *Manager) Height() uint64 {
 	return m.poolImpl.count(m.chain.LatestStateDB())

@@ -150,6 +150,11 @@ func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
 	return g.Header()
 }
 
+// IsMinerInLiveGroup returns the count of living groups which contains the given miner address
+func (s *Store) MinerLiveGroupCount(addr common.Address, height uint64) int {
+	return s.poolImpl.minerLiveGroupCount(s.chain, addr, height)
+}
+
 type txDataKey struct {
 	version  byte
 	dataType byte
