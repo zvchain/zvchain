@@ -158,10 +158,10 @@ func (p *pool) isMinerExist(db *account.AccountDB, addr common.Address) bool {
 }
 
 func (p *pool) get(db *account.AccountDB, seed types.SeedI) types.GroupI {
-	g, _ := p.cache.Get(seed.Seed())
-	if g != nil {
+	if g, ok := p.cache.Get(seed.Seed()); ok {
 		return g.(types.GroupI)
 	}
+
 	byteData :=db.GetData(common.HashToAddress(seed.Seed()), groupDataKey)
 	if byteData != nil {
 		var gr Group
@@ -169,6 +169,7 @@ func (p *pool) get(db *account.AccountDB, seed types.SeedI) types.GroupI {
 		if err != nil {
 			return nil
 		}
+		p.cache.ContainsOrAdd(seed, &gr)
 		return &gr
 	}
 	return nil
