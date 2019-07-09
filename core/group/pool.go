@@ -46,6 +46,7 @@ type pool struct {
 	waitingList     []*groupLife // list of waiting groups
 	groupCache      *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
 	activeListCache *lru.Cache   // cache for active group lists. key is height; value is []*groupLife
+	waitingListCache *lru.Cache   // cache for waiting group lists. key is height; value is []*groupLife
 }
 
 func newPool() *pool {
@@ -53,7 +54,8 @@ func newPool() *pool {
 		activeList:      make([]*groupLife, 0),
 		waitingList:     make([]*groupLife, 0),
 		groupCache:      common.MustNewLRUCache(500),
-		activeListCache: common.MustNewLRUCache(100),
+		activeListCache: common.MustNewLRUCache(500),
+		waitingListCache: common.MustNewLRUCache(500),
 	}
 }
 
@@ -115,11 +117,6 @@ func (p *pool) add(db types.AccountDB, group types.GroupI) error {
 		return err
 	}
 
-	byteHeader, err := msgpack.Marshal(group.Header().(*GroupHeader))
-	if err != nil {
-		return err
-	}
-
 	life := newGroupLife(group)
 	lifeData, err := msgpack.Marshal(life)
 	if err != nil {
@@ -131,7 +128,7 @@ func (p *pool) add(db types.AccountDB, group types.GroupI) error {
 
 	p.groupCache.Add(group.Header().Seed(), group)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
-	db.SetData(common.HashToAddress(group.Header().Seed()), groupHeaderKey, byteHeader)
+
 	return nil
 }
 
@@ -159,22 +156,27 @@ func (p *pool) resetToTop(db types.AccountDB, height uint64) {
 	for _, v := range removed {
 		p.groupCache.Remove(v.Seed())
 		p.activeListCache.Remove(v.height)
+		p.waitingListCache.Remove(v.height)
 	}
 }
 
-func (p *pool) isMinerExist(db types.AccountDB, addr common.Address) bool {
-	lived := append(p.activeList, p.waitingList...)
+func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, height uint64) int {
+	waiting := p.getWaiting(chain,height)
+	active := p.getActives(chain,height)
+
+	lived := append(waiting, active...)
+	count := 0
 	for _, v := range lived {
-		g := p.get(db, v.Seed())
+		g := p.get(chain.LatestStateDB(), v.Seed())
 		if g != nil {
 			for _, mem := range g.Members() {
 				if bytes.Equal(addr.Bytes(), mem.ID()) {
-					return true
+					count ++
 				}
 			}
 		}
 	}
-	return false
+	return count
 }
 
 func (p *pool) get(db types.AccountDB, seed common.Hash) types.GroupI {
@@ -212,6 +214,7 @@ func (p *pool) adjust(db types.AccountDB, height uint64) {
 		peeked = sPeek(p.activeList)
 	}
 
+	p.waitingListCache.Add(height, clone(p.waitingList))
 	p.activeListCache.Add(height, clone(p.activeList))
 }
 
@@ -249,7 +252,34 @@ func (p *pool) getActives(chain chainReader, height uint64) []types.SeedI {
 		}
 		rs = append(rs, &life)
 	}
-	p.groupCache.ContainsOrAdd(height, &rs)
+	p.activeListCache.ContainsOrAdd(height, &rs)
+	return rs
+}
+
+func (p *pool) getWaiting(chain chainReader, height uint64) []types.SeedI {
+	if g, ok := p.waitingListCache.Get(height); ok {
+		return g.([]types.SeedI)
+	}
+	db, err := chain.GetAccountDBByHeight(height)
+	if err != nil {
+		logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+		return nil
+	}
+	iter := db.DataIterator(common.GroupWaitingAddress, []byte{})
+	if iter == nil {
+		return nil
+	}
+	rs := make([]types.SeedI, 0)
+	for iter.Next() {
+		var life groupLife
+		err := msgpack.Unmarshal(iter.Value, &life)
+		if err != nil {
+			logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+			return nil
+		}
+		rs = append(rs, &life)
+	}
+	p.waitingListCache.ContainsOrAdd(height, &rs)
 	return rs
 }
 

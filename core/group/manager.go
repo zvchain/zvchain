@@ -85,8 +85,8 @@ func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
 }
 
 // IsMinerInLiveGroup returns if the given miner address existing a group which is not dismissed
-func (m *Manager) IsMinerInLiveGroup(addr common.Address) bool {
-	return m.poolImpl.isMinerExist(m.chain.LatestStateDB(), addr)
+func (m *Manager) MinerLiveGroupCount(addr common.Address, height uint64) int {
+	return m.poolImpl.minerLiveGroupCount(m.chain, addr)
 }
 
 // Height returns count of current group number
@@ -130,22 +130,7 @@ func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateCheck
 }
 
 func (m *Manager) saveGroup(db types.AccountDB, group *Group) error {
-	byteData, err := msgpack.Marshal(group)
-	if err != nil {
-		return err
-	}
-	byteHeader, err := msgpack.Marshal(group.Header().(*GroupHeader))
-	if err != nil {
-		return err
-	}
-	err = m.poolImpl.add(db, group)
-	if err != nil {
-		return err
-	}
-	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupDataKey, byteData)
-	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupHeaderKey, byteHeader)
-
-	return nil
+	return m.poolImpl.add(db, group)
 }
 
 func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx types.CheckerContext) {
