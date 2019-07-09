@@ -275,7 +275,6 @@ func RecoverSeckey(secs []Seckey, ids []ID) *Seckey {
 	// Input element traversal
 	for i := 0; i < k; i++ {
 		// Compute delta_i depending on ids only
-		// (Why is the initial delta/num/den initial value of 1, and the last diff initial value is 0?)
 		var delta, num, den, diff = big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(0)
 
 		// Range ID
@@ -373,4 +372,54 @@ func (sec *Seckey) Recover(secVec []Seckey, idVec []ID) error {
 	sec.Deserialize(s.Serialize())
 
 	return nil
+}
+
+func CheckSharePiecesValid(shares []Seckey, ids []ID, k int) (bool, error) {
+	if shares == nil || ids == nil {
+		return false, fmt.Errorf("invalid input parameters in CheckSharePiecesValid")
+	}
+	if len(shares) != len(ids) {
+		return false, fmt.Errorf("invalid parameters, shares and ids are not same size")
+	}
+	n := len(shares)
+	if k > n || k <= 0 {
+		return false, fmt.Errorf("invalid threshold k in CheckSharePiecesValid")
+	}
+
+	xs := make([]*big.Int, n)
+	for i := 0; i < n; i++ {
+		// Convert all ids to big.Int and put them in xs slices
+		xs[i] = ids[i].GetBigInt()
+	}
+	for m := k + 1; m < n; m++ {
+		result := big.NewInt(0)
+
+		for i := 0; i < k; i++ {
+			var delta, num, den, diff = big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(0)
+
+			// Range ID
+			for j := 0; j < k; j++ {
+				if j != i {
+					diff.Sub(xs[j], xs[m])
+					num.Mul(num, diff)
+					num.Mod(num, curveOrder)
+
+					diff.Sub(xs[j], xs[i])
+					den.Mul(den, diff)
+					den.Mod(den, curveOrder)
+				}
+			}
+			den.ModInverse(den, curveOrder)
+			delta.Mul(num, den)
+			delta.Mod(delta, curveOrder)
+
+			delta.Mul(delta, shares[i].GetBigInt())
+			result.Add(result, delta)
+			result.Mod(result, curveOrder)
+		}
+		if result.Cmp(shares[m].GetBigInt()) != 0 {
+			return false, nil
+		}
+	}
+	return true, nil
 }
