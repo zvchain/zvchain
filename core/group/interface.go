@@ -41,10 +41,10 @@ type chainReader interface {
 
 // Round 1 tx data,implement common.EncryptedSharePiecePacket
 type EncryptedSharePiecePacketImpl struct {
-	SeedD    common.Hash `msgpack:"se"`           //当前轮的seed
-	SenderD  []byte      `msgpack:"sr,omitempty"` //发送者address. will set from transaction source
-	Pubkey0D []byte      `msgpack:"pb"`           //the gpk share of the miner
-	PiecesD  []byte      `msgpack:"pi"`           //发送者对组内每个人的加密分片
+	SeedD    common.Hash `msgpack:"se"`           // seed
+	SenderD  []byte      `msgpack:"sr,omitempty"` // sender's address. will set from transaction source
+	Pubkey0D []byte      `msgpack:"pb"`           // the gpk share of the miner
+	PiecesD  []byte      `msgpack:"pi"`           // array of encrypted piece for every group member
 }
 
 func (e *EncryptedSharePiecePacketImpl) Seed() common.Hash {
@@ -63,13 +63,12 @@ func (e *EncryptedSharePiecePacketImpl) Pubkey0() []byte {
 	return e.PiecesD
 }
 
-// Round 2 tx data
-// Mpk数据包接口, implement interface types.MpkPacket
+// Round 2 tx data. implement interface types.MpkPacket
 type MpkPacketImpl struct {
-	SeedD   common.Hash `msgpack:"se"`           //当前轮的seed
-	SenderD []byte      `msgpack:"sr,omitempty"` //发送者address
-	MpkD    []byte      `msgpack:"mp"`           // 聚合出来的签名公钥
-	SignD   []byte      `msgpack:"si"`           // 用签名公钥对seed进行签名
+	SeedD   common.Hash `msgpack:"se"`           // seed
+	SenderD []byte      `msgpack:"sr,omitempty"` // sender's address
+	MpkD    []byte      `msgpack:"mp"`           // mpk
+	SignD   []byte      `msgpack:"si"`           // byte data of seed signed by mpk
 }
 
 func (s *MpkPacketImpl) Seed() common.Hash {
@@ -90,10 +89,10 @@ func (s *MpkPacketImpl) Sign() []byte {
 
 // OriginSharePiecePacket implements types.OriginSharePiecePacket.
 type OriginSharePiecePacketImpl struct {
-	SeedD      common.Hash `msgpack:"se"`           //当前轮的seed
-	SenderD    []byte      `msgpack:"sr,omitempty"` //发送者address. will set from transaction source
-	EncSeckeyD []byte      `msgpack:"es"`           //the gpk share of the miner
-	PiecesD    []byte      `msgpack:"pi"`           //发送者对组内每个人的加密分片
+	SeedD      common.Hash `msgpack:"se"`           // seed
+	SenderD    []byte      `msgpack:"sr,omitempty"` // sender's address. will set from transaction source
+	EncSeckeyD []byte      `msgpack:"es"`           // the gpk share of the miner
+	PiecesD    []byte      `msgpack:"pi"`           // array of origin piece for every group member
 }
 
 func (e *OriginSharePiecePacketImpl) Seed() common.Hash {
@@ -152,7 +151,6 @@ func (m *Member) PK() []byte {
 	return m.pk
 }
 
-// 组头部信息接口
 type GroupHeader struct {
 	seed          common.Hash
 	workHeight    uint64

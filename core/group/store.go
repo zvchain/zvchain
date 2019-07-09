@@ -46,8 +46,7 @@ func NewStore(chain chainReader) types.GroupStoreReader {
 	return &Store{chain}
 }
 
-//	返回指定seed的piece数据
-//  共识通过此接口获取所有piece数据，生成自己的签名私钥和签名公钥
+// GetEncryptedPiecePackets returns all uploaded encrypted share piece with given seed
 func (s *Store) GetEncryptedPiecePackets(seed types.SeedI) ([]types.EncryptedSharePiecePacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	rs := make([]types.EncryptedSharePiecePacket, 0, 100) //max group member number is 100
@@ -69,7 +68,7 @@ func (s *Store) GetEncryptedPiecePackets(seed types.SeedI) ([]types.EncryptedSha
 	return rs, nil
 }
 
-// 查询指定sender 和seed 是否有piece数据
+// HasSentEncryptedPiecePacket checks if sender sent the encrypted piece to chain
 func (s *Store) HasSentEncryptedPiecePacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypePiece, common.BytesToAddress(sender))
@@ -77,14 +76,14 @@ func (s *Store) HasSentEncryptedPiecePacket(sender []byte, seed types.SeedI) boo
 	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
+// HasSentEncryptedPiecePacket checks if sender sent the mpk to chain
 func (s *Store) HasSentMpkPacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeMpk, common.BytesToAddress(sender))
 	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
-// 返回所有的建组数据
-// 共识在校验是否建组成时调用
+// GetMpkPackets return all mpk with given seed
 func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeMpk)
@@ -101,13 +100,13 @@ func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 	return mpks, nil
 }
 
-// 返回origin piece 是否需要的标志
+// IsOriginPieceRequired checks if group members should upload origin piece
 func (s *Store) IsOriginPieceRequired(seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	return s.chain.LatestStateDB().GetData(seedAdder, originPieceReqKey) != nil
 }
 
-// 获取所有明文分片
+// GetOriginPiecePackets returns all origin pieces with given seed
 func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiecePacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeOriginPiece)
@@ -124,14 +123,16 @@ func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiec
 	return pieces, nil
 }
 
+// HasSentOriginPiecePacket checks if sender sent the origin piece to chain
 func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeOriginPiece, common.BytesToAddress(sender))
 	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
-// Get available group infos at the given height
+// GetAvailableGroups returns all active groups at the given height
 func (s *Store) GetAvailableGroups(h uint64) []types.GroupI {
+	// TODO: use cache if h is current top height
 	db, err := s.chain.GetAccountDBByHeight(h)
 	if err != nil {
 		return nil
@@ -163,6 +164,7 @@ func (s *Store) GetAvailableGroups(h uint64) []types.GroupI {
 	return rs
 }
 
+// GetGroupBySeed returns group with given seed
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupDataKey)
 
@@ -178,6 +180,7 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	return nil
 }
 
+// GetGroupBySeed returns group header with given seed
 func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
 	byteData := s.chain.LatestStateDB().GetData(common.HashToAddress(seedHash), groupHeaderKey)
 
