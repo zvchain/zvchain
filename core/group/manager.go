@@ -63,12 +63,17 @@ func (m *Manager) RegularCheck(db *account.AccountDB) {
 	ctx := &CheckerContext{m.chain.Height()}
 	m.tryCreateGroup(db, m.checkerImpl, ctx)
 	m.tryDoPunish(db, m.checkerImpl, ctx)
-	_ = m.poolImpl.adjust(db, ctx.Height())
+	m.poolImpl.adjust(db, ctx.Height())
 }
 
 // ResetTop resets group with top block with parameter bh
 func (m *Manager) ResetToTop(db *account.AccountDB,bh *types.BlockHeader) {
 	m.poolImpl.resetToTop(db, bh.Height)
+}
+
+// IsMinerInLiveGroup returns if the given miner address existing a group which is not dismissed
+func (m *Manager) IsMinerInLiveGroup(addr common.Address) bool {
+	return m.poolImpl.isMinerExist(m.chain.LatestStateDB(), addr)
 }
 
 
@@ -82,7 +87,7 @@ func (m *Manager) tryCreateGroup(db *account.AccountDB, checker types.GroupCreat
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		_ = m.saveGroup(db, newGroup(createResult.GroupInfo(),ctx.Height()))
+		err := m.saveGroup(db, newGroup(createResult.GroupInfo(),ctx.Height()))
 	case types.CreateResultMarkEvil:
 		_ = markGroupFail(db, newGroup(createResult.GroupInfo(),ctx.Height()))
 	case types.CreateResultFail:
@@ -109,7 +114,10 @@ func (m *Manager) saveGroup(db *account.AccountDB, group *Group) error {
 	if err != nil {
 		return err
 	}
-	_ = m.poolImpl.add(db, group)
+	err = m.poolImpl.add(db, group)
+	if err != nil {
+		return err
+	}
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupDataKey, byteData)
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), groupHeaderKey, byteHeader)
 

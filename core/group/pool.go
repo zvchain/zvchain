@@ -15,6 +15,7 @@
 package group
 
 import (
+	"bytes"
 	lru "github.com/hashicorp/golang-lru"
 	"sort"
 
@@ -29,7 +30,10 @@ type groupLife struct {
 	begin uint64
 	end   uint64
 	height uint64	// height of group created
+}
 
+func (gl *groupLife)Seed() common.Hash {
+	return gl.seed
 }
 
 func newGroupLife(g types.GroupI) *groupLife {
@@ -138,8 +142,40 @@ func (p *pool) resetToTop(db *account.AccountDB, height uint64) {
 	}
 }
 
+func (p *pool) isMinerExist(db *account.AccountDB, addr common.Address) bool {
+	lived := append(p.active, p.waiting...)
+	for _, v := range lived {
+		g := p.get(db, v)
+		if g != nil {
+			for _, mem := range g.Members() {
+				if bytes.Equal(addr.Bytes(), mem.ID()){
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
 
-func (p *pool) adjust(db *account.AccountDB, height uint64) error {
+func (p *pool) get(db *account.AccountDB, seed types.SeedI) types.GroupI {
+	g, _ := p.cache.Get(seed.Seed())
+	if g != nil {
+		return g.(types.GroupI)
+	}
+	byteData :=db.GetData(common.HashToAddress(seed.Seed()), groupDataKey)
+	if byteData != nil {
+		var gr Group
+		err := msgpack.Unmarshal(byteData, &gr)
+		if err != nil {
+			return nil
+		}
+		return &gr
+	}
+	return nil
+}
+
+
+func (p *pool) adjust(db *account.AccountDB, height uint64) {
 	// move group from waiting to active
 	peeked := sPeek(p.waiting)
 	for peeked != nil && peeked.begin >= height {
@@ -155,7 +191,6 @@ func (p *pool) adjust(db *account.AccountDB, height uint64) error {
 		p.toDismiss(db, peeked)
 		peeked = sPeek(p.active)
 	}
-	return nil
 }
 
 func (p *pool) toActive(db *account.AccountDB, gl *groupLife) {
