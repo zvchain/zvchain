@@ -170,7 +170,7 @@ func decryptSharePiecesWithMyPK(bs [][]byte, encSks []groupsig.Seckey, selfPK gr
 }
 
 // checkEvil returns true if the cipher data is fake. otherwise return false.
-func checkEvil(encryptedPieces []byte, ids []groupsig.ID, originPieces []groupsig.Seckey, encSk groupsig.Seckey, peerPKs []groupsig.Pubkey) (bool, error) {
+func checkEvil(encryptedPieces []byte, originPieces []groupsig.Seckey, encSk groupsig.Seckey, peerPKs []groupsig.Pubkey) (bool, error) {
 	if !encSk.IsValid() || encryptedPieces == nil || originPieces == nil {
 		return false, errors.New("invalid input parameters in checkEvil")
 	}

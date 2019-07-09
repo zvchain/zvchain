@@ -96,7 +96,7 @@ func TestSharePiecesCryptogram(t *testing.T) {
 		if !b {
 			fmt.Printf("fail to check share pieces valid. i= %v \n", j)
 		}
-		b, err = checkEvil(cs[j], ids, shares[j], sks[j], pks)
+		b, err = checkEvil(cs[j], shares[j], sks[j], pks)
 		if err != nil {
 			t.Error(err)
 		}
