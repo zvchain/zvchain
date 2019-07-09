@@ -24,7 +24,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/storage/vm"
 	"github.com/zvchain/zvchain/tvm"
 )
 
@@ -56,7 +55,7 @@ type stateTransition interface {
 	GasUsed() *big.Int       // Total gas use during the transition
 }
 
-func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
+func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
 	base := newTransitionContext(db, tx, bh)
 
 	if tx.IsReward() {
@@ -84,7 +83,7 @@ func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockH
 
 type transitionContext struct {
 	// Input
-	accountDB vm.AccountDB
+	accountDB types.AccountDB
 	bh        *types.BlockHeader
 	tx        *types.Transaction
 	source    common.Address
@@ -117,11 +116,11 @@ func (r *result) setError(err error, status types.ReceiptStatus) {
 	r.transitionStatus = status
 }
 
-func newTransitionContext(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) *transitionContext {
+func newTransitionContext(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) *transitionContext {
 	return &transitionContext{accountDB: db, tx: tx, bh: bh}
 }
 
-func checkState(db vm.AccountDB, tx *types.Transaction, height uint64) error {
+func checkState(db types.AccountDB, tx *types.Transaction, height uint64) error {
 	if !validGasPrice(&tx.GasPrice.Int, height) {
 		return errGasPriceTooLow
 	}
@@ -324,7 +323,7 @@ func (ss *rewardExecutor) ParseTransaction() error {
 		ss.blockHeight = bh.Height
 	}
 	// Check if there is a reward transaction of the same block already executed
-	if rm.contain(ss.blockHash.Bytes(), ss.accountDB) {
+	if rm.HasRewardedOfBlock(ss.blockHash, ss.accountDB) {
 		return fmt.Errorf("reward transaction already executed:%v", ss.blockHash.Hex())
 	}
 	ss.proposal = common.BytesToAddress(ss.bh.Castor)
@@ -343,7 +342,7 @@ func (ss *rewardExecutor) Transition() *result {
 	ss.accountDB.AddBalance(ss.proposal, ss.packFee)
 
 	// Mark reward tx of the block has been executed
-	BlockChainImpl.GetRewardManager().put(ss.blockHash.Bytes(), ss.tx.Hash.Bytes(), ss.accountDB)
+	BlockChainImpl.GetRewardManager().MarkBlockRewarded(ss.blockHash, ss.tx.Hash, ss.accountDB)
 	return ret
 }
 
@@ -357,7 +356,7 @@ func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
 	}
 }
 
-func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
+func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
 	var (
 		err error
 		ret = newResult()
@@ -410,7 +409,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	transactions := make([]*types.Transaction, 0)
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
-	rm := executor.bc.GetRewardManager()
+	rm := executor.bc.GetRewardManager().(*rewardManager)
 	totalGasUsed := uint64(0)
 	for _, tx := range txs {
 		if pack && time.Since(beginTime).Seconds() > float64(ProposerPackageTime) {
@@ -487,7 +486,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
 
-func validateNonce(accountDB vm.AccountDB, transaction *types.Transaction) bool {
+func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bool {
 	if transaction.Type == types.TransactionTypeReward || IsTestTransaction(transaction) {
 		return true
 	}
@@ -499,7 +498,7 @@ func validateNonce(accountDB vm.AccountDB, transaction *types.Transaction) bool 
 	return true
 }
 
-func createContract(accountDB vm.AccountDB, transaction *types.Transaction) (common.Address, error) {
+func createContract(accountDB types.AccountDB, transaction *types.Transaction) (common.Address, error) {
 	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Source[:], common.Uint64ToByte(transaction.Nonce))))
 
 	if accountDB.GetCodeHash(contractAddr) != (common.Hash{}) {
@@ -522,14 +521,14 @@ func validGasPrice(gasPrice *big.Int, height uint64) bool {
 	return true
 }
 
-func canTransfer(db vm.AccountDB, addr common.Address, amount *big.Int) bool {
+func canTransfer(db types.AccountDB, addr common.Address, amount *big.Int) bool {
 	if amount.Sign() == -1 {
 		return false
 	}
 	return db.GetBalance(addr).Cmp(amount) >= 0
 }
 
-func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int) {
+func transfer(db types.AccountDB, sender, recipient common.Address, amount *big.Int) {
 	// Escape if amount is zero
 	if amount.Sign() <= 0 {
 		return

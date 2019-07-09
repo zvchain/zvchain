@@ -16,17 +16,14 @@
 package types
 
 import (
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/core"
-	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/storage/vm"
-
 	"math/big"
+
+	"github.com/zvchain/zvchain/common"
 )
 
 // BlockChain is a interface, encapsulates some methods for manipulating the blockchain
 type BlockChain interface {
-	vm.ChainReader
+	ChainReader
 	AccountRepository
 
 	// CastBlock cast a block, current casters synchronization operation in the group
@@ -44,7 +41,7 @@ type BlockChain interface {
 	TotalQN() uint64
 
 	// LatestStateDB returns chain's last account database
-	LatestStateDB() *account.AccountDB
+	LatestStateDB() AccountDB
 
 	// QueryBlockByHash query the block by hash
 	QueryBlockByHash(hash common.Hash) *Block
@@ -89,13 +86,13 @@ type BlockChain interface {
 	Close()
 
 	// GetRewardManager returns the reward manager
-	GetRewardManager() *core.RewardManager
+	GetRewardManager() RewardManager
 
 	// GetAccountDBByHash returns account database with specified block hash
-	GetAccountDBByHash(hash common.Hash) (vm.AccountDB, error)
+	GetAccountDBByHash(hash common.Hash) (AccountDB, error)
 
 	// GetAccountDBByHeight returns account database with specified block height
-	GetAccountDBByHeight(height uint64) (vm.AccountDB, error)
+	GetAccountDBByHeight(height uint64) (AccountDB, error)
 
 	// GetConsensusHelper returns consensus helper reference
 	GetConsensusHelper() ConsensusHelper
@@ -105,6 +102,15 @@ type BlockChain interface {
 
 	// ResetTop reset the current top block with parameter bh
 	ResetTop(bh *BlockHeader)
+}
+
+type RewardManager interface {
+	GetRewardTransactionByBlockHash(blockHash common.Hash) *Transaction
+	GenerateReward(targetIds []int32, blockHash common.Hash, gSeed common.Hash, totalValue uint64, packFee uint64) (*Reward, *Transaction, error)
+	ParseRewardTransaction(transaction *Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error)
+	CalculateCastRewardShare(height uint64, gasFee uint64) *CastRewardShare
+	HasRewardedOfBlock(blockHash common.Hash, accountdb AccountDB) bool
+	MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb AccountDB)
 }
 
 // ExecutedTransaction contains the transaction and its receipt
@@ -164,7 +170,7 @@ type GroupInfoI interface {
 
 // VMExecutor is a VM executor
 type VMExecutor interface {
-	Execute(statedb *account.AccountDB, block *Block) (Receipts, *common.Hash, uint64, error)
+	Execute(statedb AccountDB, block *Block) (Receipts, *common.Hash, uint64, error)
 }
 
 // AccountRepository contains account query interface

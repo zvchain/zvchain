@@ -16,13 +16,12 @@
 /*
 	Package vm is used as the vm call chain
 */
-package vm
+package types
 
 import (
 	"math/big"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/trie"
 )
 
@@ -72,9 +71,9 @@ type AccountDB interface {
 
 type ChainReader interface {
 	Height() uint64
-	QueryTopBlock() *types.BlockHeader
-	QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
-	QueryBlockHeaderByHeight(height uint64) *types.BlockHeader
+	QueryTopBlock() *BlockHeader
+	QueryBlockHeaderByHash(hash common.Hash) *BlockHeader
+	QueryBlockHeaderByHeight(height uint64) *BlockHeader
 	HasBlock(hash common.Hash) bool
 	HasHeight(height uint64) bool
 }

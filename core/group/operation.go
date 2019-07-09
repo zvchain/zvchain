@@ -21,7 +21,6 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 )
 
 type CheckerContext struct {
@@ -38,7 +37,7 @@ type Operation interface {
 	Operation() error        // Do the operation
 }
 
-func newBaseOperation(db vm.AccountDB, tx types.Transaction, height uint64, checker types.GroupCreateChecker) *baseOperation {
+func newBaseOperation(db types.AccountDB, tx types.Transaction, height uint64, checker types.GroupCreateChecker) *baseOperation {
 	return &baseOperation{
 		accountDB: db,
 		tx:        tx,
@@ -48,14 +47,14 @@ func newBaseOperation(db vm.AccountDB, tx types.Transaction, height uint64, chec
 }
 
 type baseOperation struct {
-	accountDB vm.AccountDB
+	accountDB types.AccountDB
 	tx        types.Transaction
 	height    uint64
 	checker   types.GroupCreateChecker
 }
 
 // NewOperation creates the mOperation instance base on msg type
-func (m *Manager) NewOperation(db vm.AccountDB, tx types.Transaction, height uint64) Operation {
+func (m *Manager) NewOperation(db types.AccountDB, tx types.Transaction, height uint64) Operation {
 	baseOp := newBaseOperation(db, tx, height, m.checkerImpl)
 	var operation Operation
 	switch tx.Type {

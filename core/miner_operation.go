@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 )
 
@@ -43,7 +42,7 @@ type mOperation interface {
 type sysMinerOpType int8
 
 // newOperation creates the mOperation instance base on msg type
-func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) mOperation {
+func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64) mOperation {
 	baseOp := newBaseOperation(db, msg, height)
 	var operation mOperation
 

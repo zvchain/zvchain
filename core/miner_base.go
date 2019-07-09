@@ -21,7 +21,6 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 )
 
@@ -163,7 +162,7 @@ func getPoolKey(prefix []byte, address common.Address) []byte {
 	return buf.Bytes()
 }
 
-func getMiner(db vm.AccountDB, address common.Address, mType types.MinerType) (*types.Miner, error) {
+func getMiner(db types.AccountDB, address common.Address, mType types.MinerType) (*types.Miner, error) {
 	data := db.GetData(address, getMinerKey(mType))
 	if data != nil && len(data) > 0 {
 		var miner types.Miner
@@ -185,7 +184,7 @@ func parseDetail(value []byte) (*stakeDetail, error) {
 	return &detail, nil
 }
 
-func getDetail(db vm.AccountDB, address common.Address, detailKey []byte) (*stakeDetail, error) {
+func getDetail(db types.AccountDB, address common.Address, detailKey []byte) (*stakeDetail, error) {
 	data := db.GetData(address, detailKey)
 	if data != nil && len(data) > 0 {
 		return parseDetail(data)
@@ -193,7 +192,7 @@ func getDetail(db vm.AccountDB, address common.Address, detailKey []byte) (*stak
 	return nil, nil
 }
 
-func getProposalTotalStake(db vm.AccountDBTS) uint64 {
+func getProposalTotalStake(db types.AccountDBTS) uint64 {
 	totalStakeBytes := db.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
 	totalStake := uint64(0)
 	if len(totalStakeBytes) > 0 {
@@ -204,13 +203,13 @@ func getProposalTotalStake(db vm.AccountDBTS) uint64 {
 
 type baseOperation struct {
 	minerType types.MinerType
-	accountDB vm.AccountDB
-	minerPool vm.AccountDBTS
-	msg       vm.MinerOperationMessage
+	accountDB types.AccountDB
+	minerPool types.AccountDBTS
+	msg       types.MinerOperationMessage
 	height    uint64
 }
 
-func newBaseOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) *baseOperation {
+func newBaseOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64) *baseOperation {
 	return &baseOperation{
 		accountDB: db,
 		minerPool: db.AsAccountDBTS(),

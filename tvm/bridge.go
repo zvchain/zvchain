@@ -26,7 +26,6 @@ import (
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 	"github.com/zvchain/zvchain/taslog"
 )
 
@@ -131,7 +130,7 @@ func RemoveData(key *C.char) {
 	controller.AccountDB.RemoveData(address, []byte(C.GoString(key)))
 }
 
-func executeMinerOperation(msg vm.MinerOperationMessage) bool {
+func executeMinerOperation(msg types.MinerOperationMessage) bool {
 	success, err := controller.mm.ExecuteOperation(controller.AccountDB, msg, controller.BlockHeader.Height)
 	if err != nil {
 		logger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())

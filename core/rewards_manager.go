@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 	"sync"
 )
@@ -58,30 +57,38 @@ const (
 
 const rewardVersion = 1
 
-// RewardManager manage the reward transactions
-type RewardManager struct {
+// rewardManager manage the reward transactions
+type rewardManager struct {
 	lock sync.RWMutex
 }
 
-func newRewardManager() *RewardManager {
-	manager := &RewardManager{}
+func newRewardManager() *rewardManager {
+	manager := &rewardManager{}
 	return manager
 }
 
-func getRewardData(db vm.AccountDBTS, key []byte) []byte {
+func getRewardData(db types.AccountDBTS, key []byte) []byte {
 	return db.GetDataSafe(rewardStoreAddr, key)
 }
 
-func setRewardData(db vm.AccountDBTS, key, value []byte) {
+func setRewardData(db types.AccountDBTS, key, value []byte) {
 	db.SetDataSafe(rewardStoreAddr, key, value)
 }
 
-func (rm *RewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
+func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
 	return getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHashByte) != nil
 }
+func (rm *rewardManager) HasRewardedOfBlock(blockHash common.Hash, accountdb types.AccountDB) bool {
+	value := getRewardData(accountdb.AsAccountDBTS(), blockHash.Bytes())
+	return value != nil
+}
 
-func (rm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
-	transactionHash := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHash)
+func (rm *rewardManager) MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb types.AccountDB) {
+	setRewardData(accountdb.AsAccountDBTS(), blockHash.Bytes(), transactionHash.Bytes())
+}
+
+func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) *types.Transaction {
+	transactionHash := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHash.Bytes())
 	if transactionHash == nil {
 		return nil
 	}
@@ -90,7 +97,7 @@ func (rm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *type
 }
 
 // GenerateReward generate the reward transaction for the group who just validate a block
-func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, gSeed common.Hash, totalValue uint64, packFee uint64) (*types.Reward, *types.Transaction, error) {
+func (rm *rewardManager) GenerateReward(targetIds []int32, blockHash common.Hash, gSeed common.Hash, totalValue uint64, packFee uint64) (*types.Reward, *types.Transaction, error) {
 	buffer := &bytes.Buffer{}
 	// Write version
 	buffer.WriteByte(rewardVersion)
@@ -123,7 +130,7 @@ func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 }
 
 // ParseRewardTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
-func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
+func (rm *rewardManager) ParseRewardTransaction(transaction *types.Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
 	reader := bytes.NewReader(transaction.ExtraData)
 	gSeedBytes := make([]byte, common.HashLength)
 	version, e := reader.ReadByte()
@@ -176,30 +183,18 @@ func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) 
 	return gSeed, ids, blockHash, new(big.Int).SetUint64(common.ByteToUint64(pf)), nil
 }
 
-func (rm *RewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {
+func (rm *rewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {
 	return common.BytesToHash(tx.Data)
 }
 
-func (rm *RewardManager) contain(blockHash []byte, accountdb vm.AccountDB) bool {
-	value := getRewardData(accountdb.AsAccountDBTS(), blockHash)
-	if value != nil {
-		return true
-	}
-	return false
-}
-
-func (rm *RewardManager) put(blockHash []byte, transactionHash []byte, accountdb vm.AccountDB) {
-	setRewardData(accountdb.AsAccountDBTS(), blockHash, transactionHash)
-}
-
-func (rm *RewardManager) blockRewards(height uint64) uint64 {
+func (rm *rewardManager) blockRewards(height uint64) uint64 {
 	if height > noRewardsHeight {
 		return 0
 	}
 	return initialRewards >> (height / halveRewardsPeriod)
 }
 
-func (rm *RewardManager) userNodesRewards(height uint64) uint64 {
+func (rm *rewardManager) userNodesRewards(height uint64) uint64 {
 	rewards := rm.blockRewards(height)
 	if rewards == 0 {
 		return 0
@@ -207,7 +202,7 @@ func (rm *RewardManager) userNodesRewards(height uint64) uint64 {
 	return rewards * userNodeWeight / totalNodeWeight
 }
 
-func (rm *RewardManager) daemonNodesRewards(height uint64) uint64 {
+func (rm *rewardManager) daemonNodesRewards(height uint64) uint64 {
 	rewards := rm.blockRewards(height)
 	if rewards == 0 {
 		return 0
@@ -216,7 +211,7 @@ func (rm *RewardManager) daemonNodesRewards(height uint64) uint64 {
 	return rewards * daemonNodeWeight / totalNodeWeight
 }
 
-func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
+func (rm *rewardManager) minerNodesRewards(height uint64) uint64 {
 	rewards := rm.blockRewards(height)
 	if rewards == 0 {
 		return 0
@@ -229,34 +224,34 @@ func (rm *RewardManager) minerNodesRewards(height uint64) uint64 {
 }
 
 // CalculateCastorRewards Calculate castor's rewards in a block
-func (rm *RewardManager) calculateCastorRewards(height uint64) uint64 {
+func (rm *rewardManager) calculateCastorRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
 	return minerNodesRewards * castorRewardsWeight / totalRewardsWeight
 }
 
 // calculatePackedRewards Calculate castor's reword that packed a reward transaction
-func (rm *RewardManager) calculatePackedRewards(height uint64) uint64 {
+func (rm *rewardManager) calculatePackedRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
 	return minerNodesRewards * packedRewardsWeight / totalRewardsWeight
 }
 
 // calculateVerifyRewards Calculate verify-node's rewards in a block
-func (rm *RewardManager) calculateVerifyRewards(height uint64) uint64 {
+func (rm *rewardManager) calculateVerifyRewards(height uint64) uint64 {
 	minerNodesRewards := rm.minerNodesRewards(height)
 	return minerNodesRewards * verifyRewardsWeight / totalRewardsWeight
 }
 
 // calculateGasFeeVerifyRewards Calculate verify-node's gas fee rewards
-func (rm *RewardManager) calculateGasFeeVerifyRewards(gasFee uint64) uint64 {
+func (rm *rewardManager) calculateGasFeeVerifyRewards(gasFee uint64) uint64 {
 	return gasFee * gasFeeVerifyRewardsWeight / gasFeeTotalRewardsWeight
 }
 
 // calculateGasFeeCastorRewards Calculate castor's gas fee rewards
-func (rm *RewardManager) calculateGasFeeCastorRewards(gasFee uint64) uint64 {
+func (rm *rewardManager) calculateGasFeeCastorRewards(gasFee uint64) uint64 {
 	return gasFee * gasFeeCastorRewardsWeight / gasFeeTotalRewardsWeight
 }
 
-func (rm *RewardManager) CalculateCastRewardShare(height uint64, gasFee uint64) *types.CastRewardShare {
+func (rm *rewardManager) CalculateCastRewardShare(height uint64, gasFee uint64) *types.CastRewardShare {
 	return &types.CastRewardShare{
 		ForBlockProposal:   rm.calculateCastorRewards(height),
 		ForBlockVerify:     rm.calculateVerifyRewards(height),

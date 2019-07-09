@@ -99,7 +99,7 @@ type FullBlockChain struct {
 
 	consensusHelper types.ConsensusHelper
 
-	rewardManager *RewardManager
+	rewardManager *rewardManager
 
 	forkProcessor *forkProcessor
 	config        *BlockChainConfig
@@ -334,7 +334,7 @@ func (chain *FullBlockChain) Close() {
 }
 
 // GetRewardManager returns the reward manager
-func (chain *FullBlockChain) GetRewardManager() *RewardManager {
+func (chain *FullBlockChain) GetRewardManager() types.RewardManager {
 	return chain.rewardManager
 }
 

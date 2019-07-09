@@ -26,19 +26,19 @@ import (
 )
 
 type groupLife struct {
-	seed  common.Hash
-	begin uint64
-	end   uint64
-	height uint64	// height of group created
+	seed   common.Hash
+	begin  uint64
+	end    uint64
+	height uint64 // height of group created
 }
 
-func (gl *groupLife)Seed() common.Hash {
+func (gl *groupLife) Seed() common.Hash {
 	return gl.seed
 }
 
 func newGroupLife(g types.GroupI) *groupLife {
 	group := g.(*Group)
-	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(),group.height}
+	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.height}
 }
 
 type pool struct {
@@ -51,11 +51,11 @@ func newPool() *pool {
 	return &pool{
 		active:  make([]*groupLife, 0),
 		waiting: make([]*groupLife, 0),
-		cache:    common.MustNewLRUCache(500),
+		cache:   common.MustNewLRUCache(500),
 	}
 }
 
-func (p *pool) initPool(db *account.AccountDB) error {
+func (p *pool) initPool(db types.AccountDB) error {
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter != nil {
 		for iter.Next() {
@@ -110,14 +110,14 @@ func (p *pool) add(db *account.AccountDB, group types.GroupI) error {
 	p.waiting = append(p.waiting, life)
 	db.SetData(common.GroupWaitingAddress, seed, lifeData)
 
-	p.cache.Add(group.Header().Seed(),group)
+	p.cache.Add(group.Header().Seed(), group)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupHeaderKey, byteHeader)
 	return nil
 }
 
 func (p *pool) resetToTop(db *account.AccountDB, height uint64) {
-	removed := make([]common.Hash,0)
+	removed := make([]common.Hash, 0)
 	// move group from waiting to active
 	peeked := peek(p.waiting)
 	for peeked != nil && peeked.height >= height {
@@ -142,13 +142,13 @@ func (p *pool) resetToTop(db *account.AccountDB, height uint64) {
 	}
 }
 
-func (p *pool) isMinerExist(db *account.AccountDB, addr common.Address) bool {
+func (p *pool) isMinerExist(db types.AccountDB, addr common.Address) bool {
 	lived := append(p.active, p.waiting...)
 	for _, v := range lived {
 		g := p.get(db, v)
 		if g != nil {
 			for _, mem := range g.Members() {
-				if bytes.Equal(addr.Bytes(), mem.ID()){
+				if bytes.Equal(addr.Bytes(), mem.ID()) {
 					return true
 				}
 			}
@@ -157,12 +157,12 @@ func (p *pool) isMinerExist(db *account.AccountDB, addr common.Address) bool {
 	return false
 }
 
-func (p *pool) get(db *account.AccountDB, seed types.SeedI) types.GroupI {
+func (p *pool) get(db types.AccountDB, seed types.SeedI) types.GroupI {
 	g, _ := p.cache.Get(seed.Seed())
 	if g != nil {
 		return g.(types.GroupI)
 	}
-	byteData :=db.GetData(common.HashToAddress(seed.Seed()), groupDataKey)
+	byteData := db.GetData(common.HashToAddress(seed.Seed()), groupDataKey)
 	if byteData != nil {
 		var gr Group
 		err := msgpack.Unmarshal(byteData, &gr)
@@ -173,7 +173,6 @@ func (p *pool) get(db *account.AccountDB, seed types.SeedI) types.GroupI {
 	}
 	return nil
 }
-
 
 func (p *pool) adjust(db *account.AccountDB, height uint64) {
 	// move group from waiting to active
@@ -199,7 +198,7 @@ func (p *pool) toActive(db *account.AccountDB, gl *groupLife) {
 		// this case must not happen
 		panic("failed to marshal group life data")
 	}
-	push(p.active,gl)
+	push(p.active, gl)
 	db.RemoveData(common.GroupWaitingAddress, gl.seed.Bytes())
 	db.SetData(common.GroupActiveAddress, gl.seed.Bytes(), byteData)
 
@@ -229,7 +228,7 @@ func removeLast(queue []*groupLife) []*groupLife {
 }
 
 func push(queue []*groupLife, gl *groupLife) []*groupLife {
-	return append(queue,gl)
+	return append(queue, gl)
 }
 
 func sPeek(queue []*groupLife) *groupLife {
@@ -245,4 +244,3 @@ func peek(queue []*groupLife) *groupLife {
 	}
 	return queue[len(queue)-1]
 }
-

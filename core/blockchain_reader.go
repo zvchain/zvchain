@@ -24,7 +24,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/storage/vm"
 )
 
 // Height of chain
@@ -72,7 +71,7 @@ func (chain *FullBlockChain) IsAdjusting() bool {
 }
 
 // LatestStateDB returns chain's last account database
-func (chain *FullBlockChain) LatestStateDB() *account.AccountDB {
+func (chain *FullBlockChain) LatestStateDB() types.AccountDB {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 	return chain.latestStateDB
@@ -259,7 +258,7 @@ func (chain *FullBlockChain) GetNonce(address common.Address) uint64 {
 }
 
 // GetAccountDBByHash returns account database with specified block hash
-func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (vm.AccountDB, error) {
+func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
@@ -268,7 +267,7 @@ func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (vm.AccountDB,
 }
 
 // GetAccountDBByHeight returns account database with specified block height
-func (chain *FullBlockChain) GetAccountDBByHeight(height uint64) (vm.AccountDB, error) {
+func (chain *FullBlockChain) GetAccountDBByHeight(height uint64) (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 

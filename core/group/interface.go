@@ -18,13 +18,11 @@ package group
 import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/storage/vm"
 )
 
 type minerReader interface {
-	MinerFrozen(accountDB vm.AccountDB, miner common.Address, height uint64) (success bool, err error)
-	MinerPenalty(accountDB vm.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error)
+	MinerFrozen(accountDB types.AccountDB, miner common.Address, height uint64) (success bool, err error)
+	MinerPenalty(accountDB types.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error)
 }
 
 type chainReader interface {
@@ -35,10 +33,10 @@ type chainReader interface {
 	HasBlock(hash common.Hash) bool
 	HasHeight(height uint64) bool
 
-	LatestStateDB() *account.AccountDB
+	LatestStateDB() types.AccountDB
 	MinerSk() string
 	AddTransactionToPool(tx *types.Transaction) (bool, error)
-	GetAccountDBByHeight(height uint64) (vm.AccountDB, error)
+	GetAccountDBByHeight(height uint64) (types.AccountDB, error)
 }
 
 // Round 1 tx data,implement common.EncryptedSharePiecePacket
@@ -130,7 +128,7 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 type Group struct {
 	HeaderD  types.GroupHeaderI
 	MembersD []types.MemberI
-	height   uint64						// the height of group created
+	height   uint64 // the height of group created
 }
 
 func (g *Group) Header() types.GroupHeaderI {

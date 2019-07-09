@@ -18,6 +18,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/middleware"
 	"os"
 	"time"
 
@@ -38,7 +39,6 @@ import (
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 	"github.com/zvchain/zvchain/taslog"
