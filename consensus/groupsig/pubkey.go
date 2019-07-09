@@ -16,6 +16,7 @@
 package groupsig
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/zvchain/zvchain/common"
@@ -58,18 +59,21 @@ func (pub Pubkey) Serialize() []byte {
 
 // MarshalJSON marshal the public key
 func (pub Pubkey) MarshalJSON() ([]byte, error) {
-	str := "\"" + pub.GetHexString() + "\""
-	return []byte(str), nil
+	bs, err := json.Marshal(pub.GetHexString())
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }
 
 // UnmarshalJSON unmarshal the public key
 func (pub *Pubkey) UnmarshalJSON(data []byte) error {
-	str := string(data[:])
-	if len(str) < 2 {
-		return fmt.Errorf("data size less than min")
+	var hex string
+	err := json.Unmarshal(data, &hex)
+	if err != nil {
+		return err
 	}
-	str = str[1 : len(str)-1]
-	return pub.SetHexString(str)
+	return pub.SetHexString(hex)
 }
 
 //Check the public key is valid

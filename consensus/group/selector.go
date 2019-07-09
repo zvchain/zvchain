@@ -31,6 +31,9 @@ func newCandidateSelector(cands []*model.MinerDO, rand []byte) *candidateSelecto
 	list := list.New()
 	stake := uint64(0)
 	for _, c := range cands {
+		if c.Stake == 0 {
+			continue
+		}
 		list.PushBack(c)
 		stake += c.Stake
 	}
@@ -39,6 +42,9 @@ func newCandidateSelector(cands []*model.MinerDO, rand []byte) *candidateSelecto
 
 // fts implements the selecting algorithm with FTS(Follow the Satoshi)
 func (cs *candidateSelector) fts(num int) []*model.MinerDO {
+	if num > cs.list.Len() {
+		num = cs.list.Len()
+	}
 	rand := base.RandFromBytes(cs.rand)
 	result := make([]*model.MinerDO, 0)
 	for len(result) < num {

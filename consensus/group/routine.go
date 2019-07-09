@@ -78,6 +78,9 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 		packetSender:  provider.GetGroupPacketSender(),
 		store:         newSkStorage("groupstore" + common.GlobalConf.GetString("instance", "index", "")),
 	}
+	top := chain.QueryTopBlock()
+	routine.UpdateContext(top)
+
 	provider.RegisterGroupCreateChecker(checker)
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, routine.onBlockAddSuccess)
@@ -106,14 +109,27 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 
 // UpdateEra updates the era info base on current block header
 func (routine *createRoutine) UpdateContext(bh *types.BlockHeader) {
-	curEra := routine.currEra()
+	routine.lock.Lock()
+	defer routine.lock.Unlock()
+
 	sh := seedHeight(bh.Height)
 	seedBH := routine.chain.QueryBlockHeaderByHeight(sh)
-	if curEra.sameEra(sh, seedBH) {
-		return
+	if routine.ctx != nil {
+		curEra := routine.currEra()
+		if curEra.sameEra(sh, seedBH) {
+			return
+		}
 	}
+	seedBlockHash := common.Hash{}
+	if seedBH != nil {
+		seedBlockHash = seedBH.Hash
+	}
+	routine.logger.Debugf("new create context: era:%v-%v", sh, seedBlockHash)
 	routine.ctx = newCreateContext(newEra(sh, seedBH))
-	routine.selectCandidates()
+	err := routine.selectCandidates()
+	if err != nil {
+		routine.logger.Debugf("select candidates:%v", err)
+	}
 }
 
 func (routine *createRoutine) selectCandidates() error {
@@ -171,6 +187,9 @@ func (routine *createRoutine) selectCandidates() error {
 }
 
 func (routine *createRoutine) CheckAndSendEncryptedPiecePacket(bh *types.BlockHeader) error {
+	routine.lock.Lock()
+	defer routine.lock.Unlock()
+
 	era := routine.currEra()
 	if !era.seedExist() {
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
@@ -209,6 +228,9 @@ func (routine *createRoutine) CheckAndSendEncryptedPiecePacket(bh *types.BlockHe
 }
 
 func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error {
+	routine.lock.Lock()
+	defer routine.lock.Unlock()
+
 	era := routine.currEra()
 	if !era.seedExist() {
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
@@ -276,6 +298,9 @@ func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error
 }
 
 func (routine *createRoutine) CheckAndSendOriginPiecePacket(bh *types.BlockHeader) error {
+	routine.lock.Lock()
+	defer routine.lock.Unlock()
+
 	era := routine.currEra()
 	if !era.seedExist() {
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
