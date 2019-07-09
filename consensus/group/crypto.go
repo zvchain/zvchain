@@ -16,26 +16,184 @@
 package group
 
 import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
+	"errors"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
+	"io"
 )
 
-func encryptSharePieces(pieces []groupsig.Seckey, encSK groupsig.Seckey, peerPKs []groupsig.Pubkey) ([]byte, error) {
-	return nil, nil
+func getEncryptKey(sk *groupsig.Seckey, pk *groupsig.Pubkey) ([]byte, error) {
+	if !sk.IsValid() || !pk.IsValid() {
+		return nil, errors.New("invalid input parameter in getEncryptKey")
+	}
+	dh := groupsig.DH(sk, pk)
+	key := sha256.Sum256(dh.Serialize())
+	return key[:], nil
+}
+
+func encryptAESCTR(key []byte, iv []byte, plainText []byte) ([]byte, error) {
+	if key == nil || iv == nil || plainText == nil {
+		return nil, errors.New("invalid input parameter in encryptAESCTR")
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(iv) != block.BlockSize() {
+		return nil, errors.New("cipher.NewCTR: IV length must equal block size")
+	}
+	ctr := cipher.NewCTR(block, iv)
+	cipherText := make([]byte, len(plainText))
+	ctr.XORKeyStream(cipherText, plainText)
+	return cipherText, nil
+}
+
+func batchEncryptPieces(iv []byte, pieces []groupsig.Seckey, selfSK groupsig.Seckey, peerPKs []groupsig.Pubkey) ([]byte, error) {
+	n := len(pieces)
+	buff := make([]byte, n*32)
+	for i := 0; i < len(pieces); i++ {
+		key, err := getEncryptKey(&selfSK, &peerPKs[i])
+		if err != nil {
+			return nil, err
+		}
+
+		piece := pieces[i].Serialize() // len(piece) <= 32
+		pt := make([]byte, 32)
+		copy(pt[32-len(piece):32], piece) //make sure 32-byte-alignment
+		ct, err := encryptAESCTR(key, iv, pt)
+		if err != nil {
+			return nil, err
+		}
+		copy(buff[i*32:], ct)
+	}
+	return buff, nil
+}
+
+func encryptSharePieces(pieces []groupsig.Seckey, selfSK groupsig.Seckey, peerPKs []groupsig.Pubkey) ([]byte, error) {
+	if !selfSK.IsValid() || pieces == nil || peerPKs == nil {
+		return nil, errors.New("invalid input parameter in encryptSharePieces")
+	}
+	if len(pieces) != len(peerPKs) {
+		return nil, errors.New("pieces and peerPks are not same length ")
+	}
+	n := len(pieces)
+	buff := make([]byte, aes.BlockSize+n*32+128)
+
+	iv := buff[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
+	}
+
+	cps, err := batchEncryptPieces(iv, pieces, selfSK, peerPKs)
+	if err != nil {
+		return nil, err
+	}
+	copy(buff[aes.BlockSize:], cps)
+
+	selfPk := groupsig.NewPubkeyFromSeckey(selfSK)
+	copy(buff[aes.BlockSize+n*32:], selfPk.Serialize())
+	return buff, nil
 }
 
 func decryptSharePiecesWithMySK(bs [][]byte, selfSK groupsig.Seckey, index int) ([]groupsig.Seckey, error) {
-	return []groupsig.Seckey{}, nil
+	if bs == nil || !selfSK.IsValid() {
+		return nil, errors.New("invalid parameters in decryptSharePiecesWithMySK")
+	}
+	m := len(bs)
+	n := (len(bs[0]) - aes.BlockSize - 128) / 32
+
+	if index >= n || index < 0 {
+		return nil, errors.New("invalid index in decryptSharePiecesWithMySK")
+	}
+
+	pieces := make([]groupsig.Seckey, m)
+	for j := 0; j < m; j++ {
+		nj := (len(bs[j]) - aes.BlockSize - 128) / 32
+		if nj != n {
+			return nil, errors.New("encrypted piece buffers are not same size")
+		}
+		iv := bs[j][:aes.BlockSize]
+		pk := groupsig.DeserializePubkeyBytes(bs[j][aes.BlockSize+n*32:])
+
+		key, err := getEncryptKey(&selfSK, &pk)
+		if err != nil {
+			return nil, err
+		}
+
+		ct := bs[j][aes.BlockSize+index*32 : aes.BlockSize+(index+1)*32]
+		pt, err := encryptAESCTR(key, iv, ct) // encrypt and decrypt are same in AES CTR method
+		_ = pieces[j].Deserialize(pt)
+	}
+	return pieces, nil
 }
 
 func decryptSharePiecesWithMyPK(bs [][]byte, encSks []groupsig.Seckey, selfPK groupsig.Pubkey, index int) ([]groupsig.Seckey, error) {
-	return []groupsig.Seckey{}, nil
+	if bs == nil || encSks == nil || !selfPK.IsValid() {
+		return nil, errors.New("invalid parameters in decryptSharePiecesWithMyPK")
+	}
+	if len(bs) != len(encSks) {
+		return nil, errors.New("bs and encSks are not same size")
+	}
+	m := len(bs)
+	n := (len(bs[0]) - aes.BlockSize - 128) / 32
+
+	if index >= n || index < 0 {
+		return nil, errors.New("invalid index in decryptSharePiecesWithMyPK")
+	}
+
+	pieces := make([]groupsig.Seckey, m)
+	for j := 0; j < m; j++ {
+		nj := (len(bs[j]) - aes.BlockSize - 128) / 32
+		if nj != n {
+			return nil, errors.New("encrypted piece buffers are not same size")
+		}
+		iv := bs[j][:aes.BlockSize]
+
+		key, err := getEncryptKey(&encSks[j], &selfPK)
+		if err != nil {
+			return nil, err
+		}
+
+		ct := bs[j][aes.BlockSize+index*32 : aes.BlockSize+(index+1)*32]
+		pt, err := encryptAESCTR(key, iv, ct) // encrypt and decrypt are same in AES CTR method
+		_ = pieces[j].Deserialize(pt)
+	}
+	return pieces, nil
 }
 
+// checkEvil returns true if the cipher data is fake. otherwise return false.
 func checkEvil(encryptedPieces []byte, ids []groupsig.ID, originPieces []groupsig.Seckey, encSk groupsig.Seckey, peerPKs []groupsig.Pubkey) (bool, error) {
+	if !encSk.IsValid() || encryptedPieces == nil || originPieces == nil {
+		return false, errors.New("invalid input parameters in checkEvil")
+	}
+	n := len(originPieces)
+	if len(encryptedPieces) != (aes.BlockSize + n*32 + 128) {
+		return true, nil
+	}
+	pk := groupsig.NewPubkeyFromSeckey(encSk)
+	bytePk := pk.Serialize()
+	if !bytes.Equal(bytePk, encryptedPieces[aes.BlockSize+n*32:]) {
+		return true, nil
+	}
+	iv := encryptedPieces[:aes.BlockSize]
+
+	cps, err := batchEncryptPieces(iv, originPieces, encSk, peerPKs)
+	if err != nil {
+		return false, err
+	}
+
+	if !bytes.Equal(encryptedPieces[aes.BlockSize:aes.BlockSize+n*32], cps) {
+		return true, nil
+	}
+
 	return false, nil
 }
 

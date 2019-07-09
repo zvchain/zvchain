@@ -374,6 +374,8 @@ func (sec *Seckey) Recover(secVec []Seckey, idVec []ID) error {
 	return nil
 }
 
+// CheckSharePiecesValid returns true if all share pieces are valid, otherwise return false
+// Parameter:   k   threshold of BLS
 func CheckSharePiecesValid(shares []Seckey, ids []ID, k int) (bool, error) {
 	if shares == nil || ids == nil {
 		return false, fmt.Errorf("invalid input parameters in CheckSharePiecesValid")
