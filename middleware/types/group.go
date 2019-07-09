@@ -140,8 +140,8 @@ type GroupStoreReader interface {
 
 	HasSentOriginPiecePacket(sender []byte, seed SeedI) bool
 
-	// Get available group infos at the given height
-	GetAvailableGroups(h uint64) []GroupI
+	// Get available groups' seed at the given height
+	GetAvailableGroupSeeds(height uint64) []SeedI
 
 	GetGroupBySeed(seedHash common.Hash) GroupI
 

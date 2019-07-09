@@ -131,38 +131,10 @@ func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
-// GetAvailableGroups returns all active groups at the given height
-func (s *Store) GetAvailableGroups(h uint64) []types.GroupI {
-	// TODO: use cache if h is current top height
-	db, err := s.chain.GetAccountDBByHeight(h)
-	if err != nil {
-		return nil
-	}
+// GetAvailableGroupSeeds returns all activeList groups at the given height
+func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
+	return s.poolImpl.getActives(s.chain, height)
 
-	rs := make([]types.GroupI, 0)
-
-	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
-	if iter == nil {
-		return nil
-	}
-	for iter.Next() {
-		var life groupLife
-		err := msgpack.Unmarshal(iter.Value, &life)
-		if err != nil {
-			return nil
-		}
-		if life.begin <= h && h <= life.end {
-			key := iter.Key
-			byteInfo := db.GetData(common.BytesToAddress(key), groupDataKey)
-			info := &Group{}
-			err := msgpack.Unmarshal(byteInfo, &life)
-			if err != nil {
-				return nil
-			}
-			rs = append(rs, info)
-		}
-	}
-	return rs
 }
 
 // GetGroupBySeed returns group with given seed
