@@ -15,7 +15,10 @@
 
 package network
 
-import "C"
+import (
+	"C"
+	"unsafe"
+)
 
 //export OnP2PRecved
 func OnP2PRecved(id uint64, session uint32, data []byte) {
@@ -49,4 +52,9 @@ func OnP2PDisconnected(id uint64, session uint32, p2pCode uint32) {
 //export OnP2PSendWaited
 func OnP2PSendWaited(session uint32, peerID uint64) {
 	netCore.onSendWaited(peerID, session)
+}
+
+//export OnP2PLoginSign
+func OnP2PLoginSign() unsafe.Pointer {
+	return P2PLoginSign()
 }

@@ -49,23 +49,11 @@ type Controller struct {
 	VMStack     []*TVM
 	GasLeft     uint64
 	mm          MinerManager
-	gcm         GroupChainManager
 }
 
 // MinerManager MinerManager is the interface of the miner manager
 type MinerManager interface {
-	GetMinerByID(id []byte, ttype byte, accountdb vm.AccountDB) *types.Miner
-	GetLatestCancelStakeHeight(from []byte, miner *types.Miner, accountdb vm.AccountDB) uint64
-	RefundStake(from []byte, miner *types.Miner, accountdb vm.AccountDB) (uint64, bool)
-	CancelStake(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
-	ReduceStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
-	AddStake(id []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB, height uint64) bool
-	AddStakeDetail(from []byte, miner *types.Miner, amount uint64, accountdb vm.AccountDB) bool
-}
-
-// GroupChainManager GroupChainManager is the interface of the GroupChain manager
-type GroupChainManager interface {
-	WhetherMemberInActiveGroup(id []byte, currentHeight uint64) bool
+	ExecuteOperation(accountdb vm.AccountDB, msg vm.MinerOperationMessage, height uint64) (success bool, err error)
 }
 
 // NewController New a TVM controller
@@ -75,7 +63,7 @@ func NewController(accountDB vm.AccountDB,
 	transaction ControllerTransactionInterface,
 	gasUsed uint64,
 	libPath string,
-	manager MinerManager, chainManager GroupChainManager) *Controller {
+	manager MinerManager) *Controller {
 	if controller == nil {
 		controller = &Controller{}
 	}
@@ -91,7 +79,6 @@ func NewController(accountDB vm.AccountDB,
 	controller.VMStack = make([]*TVM, 0)
 	controller.GasLeft = transaction.GetGasLimit() - gasUsed
 	controller.mm = manager
-	controller.gcm = chainManager
 	return controller
 }
 
@@ -100,6 +87,7 @@ func (con *Controller) Deploy(contract *Contract) error {
 	con.VM = NewTVM(con.Transaction.GetSource(), contract, con.LibPath)
 	defer func() {
 		con.VM.DelTVM()
+		con.GasLeft = uint64(con.VM.Gas())
 	}()
 	con.VM.SetGas(int(con.GasLeft))
 	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue()}
@@ -112,7 +100,6 @@ func (con *Controller) Deploy(contract *Contract) error {
 	if err != nil {
 		return err
 	}
-	con.GasLeft = uint64(con.VM.Gas())
 	return nil
 }
 
@@ -143,7 +130,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 	}
 
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
-	libLen,result, err := con.VM.CreateContractInstance(msg)
+	libLen, result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return false, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
@@ -154,7 +141,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 		return false, nil, types.TxErrorABIJSONErr
 	}
 
-	if !con.VM.VerifyABI(result.Abi, abi){
+	if !con.VM.VerifyABI(result.Abi, abi) {
 		return false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
 			checkABI failed. abi:%s
 		`, abi.FuncName))
@@ -199,7 +186,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		return nil, false, nil, types.TxErrorABIJSONErr
 	}
 
-	if !con.VM.VerifyABI(executeResult.Abi, abi){
+	if !con.VM.VerifyABI(executeResult.Abi, abi) {
 		return nil, false, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
 			checkABI failed. abi:%s
 		`, abi.FuncName))

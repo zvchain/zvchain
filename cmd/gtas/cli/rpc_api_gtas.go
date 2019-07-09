@@ -60,11 +60,15 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 	if !validateTxType(txRaw.TxType) {
 		return failResult("Not supported txType")
 	}
-	if txRaw.TxType == types.TransactionTypeTransfer || txRaw.TxType == types.TransactionTypeContractCall {
+
+	// Check the address for the specified tx types
+	switch txRaw.TxType {
+	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
 		if !validateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}
 	}
+
 	trans := txRawToTransaction(txRaw)
 
 	trans.Hash = trans.GenHash()
@@ -137,21 +141,79 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
 	return successResult(block)
 }
 
-func (api *RpcGtasImpl) MinerInfo(addr string) (*Result, error) {
+func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	if !validateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	morts := make([]MortGage, 0)
-	id := common.HexToAddress(addr).Bytes()
-	heavyInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeHeavy, nil)
-	if heavyInfo != nil {
-		morts = append(morts, *NewMortGageFromMiner(heavyInfo))
+	if detail != "" && detail != "all" && !validateAddress(strings.TrimSpace(detail)) {
+		return failResult("Wrong detail address format")
 	}
-	lightInfo := core.MinerManagerImpl.GetMinerByID(id, types.MinerTypeLight, nil)
-	if lightInfo != nil {
-		morts = append(morts, *NewMortGageFromMiner(lightInfo))
+
+	mTypeString := func(mt types.MinerType) string {
+		if types.IsVerifyRole(mt) {
+			return "verifier"
+		} else if types.IsProposalRole(mt) {
+			return "proposal"
+		}
+		return "unknown"
 	}
-	return successResult(morts)
+	statusString := func(st types.StakeStatus) string {
+		if st == types.Staked {
+			return "normal"
+		} else if st == types.StakeFrozen {
+			return "frozen"
+		}
+		return "unknown"
+	}
+	convertDetails := func(dts []*types.StakeDetail) []*StakeDetail {
+		details := make([]*StakeDetail, 0)
+		for _, d := range dts {
+			dt := &StakeDetail{
+				Value:        uint64(common.RA2TAS(d.Value)),
+				UpdateHeight: d.UpdateHeight,
+				MType:        mTypeString(d.MType),
+				Status:       statusString(d.Status),
+			}
+			details = append(details, dt)
+		}
+		return details
+	}
+
+	minerDetails := &MinerStakeDetails{}
+	morts := make([]*MortGage, 0)
+	address := common.HexToAddress(addr)
+	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	if proposalInfo != nil {
+		morts = append(morts, NewMortGageFromMiner(proposalInfo))
+	}
+	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
+	if verifierInfo != nil {
+		morts = append(morts, NewMortGageFromMiner(verifierInfo))
+	}
+	minerDetails.Overview = morts
+	// Get details
+	switch detail {
+	case "":
+
+	case "all":
+		detailsMap := core.MinerManagerImpl.GetAllStakeDetails(address)
+		m := make(map[string][]*StakeDetail)
+		if detailsMap != nil{
+			for from, ds := range detailsMap {
+				dts := convertDetails(ds)
+				m[from] = dts
+			}
+			minerDetails.Details = m
+		}
+
+	default:
+		details := core.MinerManagerImpl.GetStakeDetails(address, common.HexToAddress(detail))
+		m := make(map[string][]*StakeDetail)
+		dts := convertDetails(details)
+		m[detail] = dts
+		minerDetails.Details = m
+	}
+	return successResult(minerDetails)
 }
 
 func (api *RpcGtasImpl) TransDetail(h string) (*Result, error) {
@@ -216,7 +278,7 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 		account.Type = 1
 		account.StateData = make(map[string]interface{})
 
-		iter := accoundDb.DataIterator(common.HexToAddress(hash), "")
+		iter := accoundDb.DataIterator(common.HexToAddress(hash), []byte{})
 		for iter.Next() {
 			k := string(iter.Key[:])
 			v := string(iter.Value[:])
@@ -249,14 +311,14 @@ func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*R
 
 	var resultData interface{}
 	if count == 0 {
-		value := state.GetData(address, key)
+		value := state.GetData(address, []byte(key))
 		if value != nil {
 			tmp := make(map[string]interface{})
 			tmp["value"] = string(value)
 			resultData = tmp
 		}
 	} else {
-		iter := state.DataIterator(address, key)
+		iter := state.DataIterator(address, []byte(key))
 		if iter != nil {
 			tmp := make([]map[string]interface{}, 0)
 			for iter.Next() {
@@ -281,12 +343,4 @@ func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*R
 	} else {
 		return failResult("query does not have data")
 	}
-}
-
-// PledgeDetail query the pledge details of the given account.
-// from: the miner address who launches the pledge, optional.
-// to: the miner address who was pledged, required.
-// All pledge detail will be returned if the from param is empty
-func (api *RpcGtasImpl) PledgeDetail(from, to string) (*Result, error) {
-	return &Result{}, nil
 }

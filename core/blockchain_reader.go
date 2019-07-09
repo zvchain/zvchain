@@ -272,6 +272,12 @@ func (chain *FullBlockChain) GetAccountDBByHeight(height uint64) (vm.AccountDB, 
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
+	if chain.latestBlock == nil{
+		return  nil, fmt.Errorf("current block is nil")
+	}
+	if height > chain.latestBlock.Height{
+		height = chain.latestBlock.Height
+	}
 	h := height
 	header := chain.queryBlockHeaderByHeightFloor(height)
 	if header == nil {

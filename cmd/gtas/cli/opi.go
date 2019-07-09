@@ -36,9 +36,9 @@ type txRawData struct {
 	Gasprice  uint64 `json:"gasprice"`
 	TxType    int    `json:"tx_type"`
 	Nonce     uint64 `json:"nonce"`
-	Data      string `json:"data"`
+	Data      []byte `json:"data"`
 	Sign      string `json:"sign"`
-	ExtraData string `json:"extra_data"`
+	ExtraData []byte `json:"extra_data"`
 }
 
 func opError(err error) *Result {
@@ -75,7 +75,7 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 	}
 
 	return &types.Transaction{
-		Data:      []byte(tx.Data),
+		Data:      tx.Data,
 		Value:     types.NewBigInt(tx.Value),
 		Nonce:     tx.Nonce,
 		Target:    target,
@@ -83,7 +83,7 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 		GasLimit:  types.NewBigInt(tx.Gas),
 		GasPrice:  types.NewBigInt(tx.Gasprice),
 		Sign:      sign,
-		ExtraData: []byte(tx.ExtraData),
+		ExtraData: tx.ExtraData,
 	}
 }
 
@@ -119,21 +119,19 @@ type chainOp interface {
 	// Nonce query Balance by address
 	Nonce(addr string) *Result
 	// MinerInfo query miner info by address
-	MinerInfo(addr string) *Result
+	MinerInfo(addr string, detail string) *Result
 
 	BlockHeight() *Result
 
 	GroupHeight() *Result
 
-	ApplyMiner(mtype int, stake uint64, gas, gasprice uint64) *Result
+	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *Result
 
-	AbortMiner(mtype int, gas, gasprice uint64) *Result
+	MinerAbort(mtype int, gas, gasprice uint64) *Result
 
-	RefundMiner(mtype int, addrStr string, gas, gasprice uint64) *Result
+	StakeRefund(target string, mtype int, gas, gasprice uint64) *Result
 
-	MinerStake(mtype int, addrStr string, refundValue, gas, gasprice uint64) *Result
-
-	MinerCancelStake(mtype int, addrStr string, refundValue, gas, gasprice uint64) *Result
+	StakeReduce(target string, mtype int, value, gas, gasprice uint64) *Result
 
 	TxInfo(hash string) *Result
 

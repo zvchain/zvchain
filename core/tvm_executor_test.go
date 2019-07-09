@@ -52,8 +52,15 @@ func init() {
 		panic(fmt.Sprintf("Init block chain error! Error:%s", err.Error()))
 	}
 	accountdb = account.NewDatabase(statedb)
-
 	Logger = taslog.GetLogger("")
+
+	executor = &TVMExecutor{
+		bc: &FullBlockChain{
+			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
+			rewardManager:   newRewardManager(),
+		},
+	}
+	BlockChainImpl = executor.bc
 }
 
 func randomAddress() common.Address {
@@ -142,21 +149,38 @@ func TestReadWriteFile(t *testing.T) {
 
 func Test_validGasPrice(t *testing.T) {
 	if validGasPrice(big.NewInt(1), 1) {
-		t.Errorf("validGasPrice error, wanned false, got true!")
+		t.Errorf("validGasPrice error -2, wanned false, got true!")
 	}
 	if validGasPrice(big.NewInt(1), 100000000) {
-		t.Errorf("validGasPrice error, wanned false, got true!")
+		t.Errorf("validGasPrice error -1, wanned false, got true!")
 	}
-	if !validGasPrice(big.NewInt(200), 1) {
-		t.Errorf("validGasPrice error, wanned true, got false!")
+	if !validGasPrice(big.NewInt(500), 1) {
+		t.Errorf("validGasPrice error 0, wanned true, got false!")
 	}
-	if validGasPrice(big.NewInt(399), 30000000) {
-		t.Errorf("validGasPrice error, wanned false, got true!")
+	if validGasPrice(big.NewInt(999), 30000000) {
+		t.Errorf("validGasPrice error 1, wanned false, got true!")
 	}
-	if !validGasPrice(big.NewInt(400), 30000000) {
-		t.Errorf("validGasPrice error, wanned true, got false!")
+	if !validGasPrice(big.NewInt(1000), 30000000) {
+		t.Errorf("validGasPrice error 2, wanned true, got false!")
 	}
-	if !validGasPrice(big.NewInt(800), 60000000) {
-		t.Errorf("validGasPrice error, wanned true, got false!")
+	if validGasPrice(big.NewInt(1999), 60000000) {
+		t.Errorf("validGasPrice error 3, wanned true, got false!")
 	}
+	if !validGasPrice(big.NewInt(2000), 60000000) {
+		t.Errorf("validGasPrice error 3, wanned true, got false!")
+	}
+	if validGasPrice(big.NewInt(3999), 90000000) {
+		t.Errorf("validGasPrice error 3, wanned true, got false!")
+	}
+
+	if validGasPrice(big.NewInt(3999), 120000000) {
+		t.Errorf("validGasPrice error 3, wanned true, got false!")
+	}
+
+	if !validGasPrice(big.NewInt(4000), 120000000) {
+		t.Errorf("validGasPrice error 3, wanned true, got false!")
+	}
+
 }
+
+

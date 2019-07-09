@@ -141,11 +141,13 @@ func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) {
 
 func (fp *forkProcessor) reqPieceTimeout(id string) {
 	fp.logger.Debugf("req piece from %v timeout", id)
+
+	fp.lock.Lock()
+	defer fp.lock.Unlock()
+
 	if fp.syncCtx == nil {
 		return
 	}
-	fp.lock.Lock()
-	defer fp.lock.Unlock()
 
 	if fp.syncCtx.target != id {
 		return
@@ -193,7 +195,9 @@ func (fp *forkProcessor) requestPieceBlock(topHash common.Hash) {
 
 	// Start ticker
 	fp.chain.ticker.RegisterOneTimeRoutine(fp.timeoutTickerName(fp.syncCtx.target), func() bool {
-		fp.reqPieceTimeout(fp.syncCtx.target)
+		if fp.syncCtx != nil {
+			fp.reqPieceTimeout(fp.syncCtx.target)
+		}
 		return true
 	}, reqPieceTimeout)
 }
