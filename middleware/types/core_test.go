@@ -24,7 +24,7 @@ import (
 )
 
 func TestTransaction(t *testing.T) {
-	transaction := &Transaction{Value: NewBigInt(5000), Nonce: 2, GasLimit: NewBigInt(1000000000), GasPrice: NewBigInt(0), ExtraDataType: 0}
+	transaction := &Transaction{Value: NewBigInt(5000), Nonce: 2, GasLimit: NewBigInt(1000000000), GasPrice: NewBigInt(0)}
 	addr := common.HexToAddress("0xff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")
 	transaction.Source = &addr
 	fmt.Println(&addr)

@@ -293,7 +293,7 @@ func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 			return fmt.Errorf("active miner cann't reduce stake to below bound")
 		}
 	} else if miner.IsPrepare() {
-		if op.opVerifyRole() && GroupChainImpl.WhetherMemberInActiveGroup(op.cancelTarget.Bytes(), op.height) {
+		if op.opVerifyRole() && GroupManagerImpl.IsMinerInLiveGroup(op.cancelTarget) {
 			return fmt.Errorf("miner still in active groups, cannot reduce stake")
 		}
 	} else {

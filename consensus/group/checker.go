@@ -21,21 +21,20 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/taslog"
 	"math"
 )
 
 type createChecker struct {
-	chain       core.BlockChain
+	chain       types.BlockChain
 	ctx         *createContext
 	storeReader types.GroupStoreReader
 	minerReader minerReader
 	logger      taslog.Logger
 }
 
-func newCreateChecker(reader minerReader, chain core.BlockChain, store types.GroupStoreReader) *createChecker {
+func newCreateChecker(reader minerReader, chain types.BlockChain, store types.GroupStoreReader) *createChecker {
 	return &createChecker{
 		chain:       chain,
 		storeReader: store,
@@ -372,7 +371,13 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 			panic(fmt.Sprintf("cannot find enc packet of %v", common.ToHex(ori.Sender())))
 		} else {
 			sharePieces := DeserializeSharePieces(ori.Pieces())
-			if ok, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), cands.ids(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); !ok || err != nil {
+			if ok, err := groupsig.CheckSharePiecesValid(sharePieces, cands.ids(), cands.threshold()); err != nil || !ok {
+				if err != nil {
+					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
+				}
+				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
+			}
+			if ok, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); !ok || err != nil {
 				if err != nil {
 					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
 				}

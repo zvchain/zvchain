@@ -110,10 +110,9 @@ type Transaction struct {
 	GasPrice *BigInt     `msgpack:"gp"`
 	Hash     common.Hash `msgpack:"h"`
 
-	ExtraData     []byte          `msgpack:"ed"`
-	ExtraDataType int8            `msgpack:"et,omitempty"`
-	Sign          []byte          `msgpack:"si"`  // The Sign of the sender
-	Source        *common.Address `msgpack:"src"` // Sender address, recovered from sign
+	ExtraData []byte          `msgpack:"ed"`
+	Sign      []byte          `msgpack:"si"`  // The Sign of the sender
+	Source    *common.Address `msgpack:"src"` // Sender address, recovered from sign
 }
 
 func (tx *Transaction) GetNonce() uint64 {
@@ -148,7 +147,6 @@ func (tx *Transaction) GenHash() common.Hash {
 	if tx.ExtraData != nil {
 		buffer.Write(tx.ExtraData)
 	}
-	buffer.WriteByte(byte(tx.ExtraDataType))
 
 	return common.BytesToHash(common.Sha256(buffer.Bytes()))
 }

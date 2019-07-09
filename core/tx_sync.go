@@ -352,5 +352,5 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 	}
 
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
-	ts.pool.AddTransactions(txs, txSync)
+	ts.pool.AddTransactions(txs)
 }

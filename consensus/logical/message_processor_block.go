@@ -143,7 +143,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		vctx.markSignedBlock(bh)
 
 		// trigger the cached messages from other members that come ahead of the proposal message
-		p.castVerifyCh <- bh.Hash
+		p.castVerifyCh <- bh
 		ok = true
 	} else {
 		err = fmt.Errorf("gen sign fail")

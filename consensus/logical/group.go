@@ -63,7 +63,10 @@ func (vg *verifyGroup) hasMember(id groupsig.ID) bool {
 }
 
 func (vg *verifyGroup) getMemberIndex(id groupsig.ID) int {
-	return vg.memIndex[id.GetHexString()]
+	if v, ok := vg.memIndex[id.GetHexString()]; ok {
+		return v
+	}
+	return -1
 }
 
 func (vg *verifyGroup) getMemberAt(idx int) *member {
@@ -84,21 +87,22 @@ func (vg *verifyGroup) memberSize() int {
 	return len(vg.members)
 }
 
-type skReader interface {
+type skStorage interface {
 	GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey
+	StoreGroupSignatureSeckey(seed common.Hash, sk groupsig.Seckey)
 }
 
 type groupReader struct {
-	reader   types.GroupStoreReader
-	skReader skReader
-	cache    *lru.Cache
+	reader  types.GroupStoreReader
+	skStore skStorage
+	cache   *lru.Cache
 }
 
-func newGroupReader(reader types.GroupStoreReader, skReader skReader) *groupReader {
+func newGroupReader(reader types.GroupStoreReader, skReader skStorage) *groupReader {
 	return &groupReader{
-		reader:   reader,
-		skReader: skReader,
-		cache:    common.MustNewLRUCache(50),
+		reader:  reader,
+		skStore: skReader,
+		cache:   common.MustNewLRUCache(50),
 	}
 }
 
@@ -143,5 +147,5 @@ func (gr *groupReader) getAvailableGroupsByHeight(h uint64) []*verifyGroup {
 }
 
 func (gr *groupReader) getGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
-	return gr.skReader.GetGroupSignatureSeckey(seed)
+	return gr.skStore.GetGroupSignatureSeckey(seed)
 }

@@ -123,9 +123,9 @@ func (rm *RewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 }
 
 // ParseRewardTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
-func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) (groupId []byte, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
+func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
 	reader := bytes.NewReader(transaction.ExtraData)
-	gSeed := make([]byte, common.HashLength)
+	gSeedBytes := make([]byte, common.HashLength)
 	version, e := reader.ReadByte()
 	if e != nil {
 		err = e
@@ -135,7 +135,7 @@ func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) 
 		err = fmt.Errorf("reward version error")
 		return
 	}
-	if _, e := reader.Read(gSeed); e != nil {
+	if _, e := reader.Read(gSeedBytes); e != nil {
 		err = fmt.Errorf("read group seed error:%v", e)
 		return
 	}
@@ -156,23 +156,24 @@ func (rm *RewardManager) ParseRewardTransaction(transaction *types.Transaction) 
 		targetIdxs = append(targetIdxs, common.ByteToUInt16(idx))
 	}
 
-	group := GroupChainImpl.GetGroupByID(groupID)
+	gSeed = common.BytesToHash(gSeedBytes)
+	group := GroupManagerImpl.GetGroupStoreReader().GetGroupBySeed(gSeed)
 	if group == nil {
-		err = fmt.Errorf("group is nil, id=%v", common.ToHex(groupID))
+		err = fmt.Errorf("group is nil, gseed=%v", gSeed)
 		return
 	}
 	ids := make([][]byte, 0)
 
 	for _, idx := range targetIdxs {
-		if idx > uint16(len(group.Members)) {
-			err = fmt.Errorf("target index exceed: group size %v, index %v", len(group.Members), idx)
+		if idx > uint16(len(group.Members())) {
+			err = fmt.Errorf("target index exceed: group size %v, index %v", len(group.Members()), idx)
 			return
 		}
-		ids = append(ids, group.Members[idx])
+		ids = append(ids, group.Members()[idx].ID())
 	}
 
 	blockHash = rm.parseRewardBlockHash(transaction)
-	return groupID, ids, blockHash, new(big.Int).SetUint64(common.ByteToUint64(pf)), nil
+	return gSeed, ids, blockHash, new(big.Int).SetUint64(common.ByteToUint64(pf)), nil
 }
 
 func (rm *RewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {

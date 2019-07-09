@@ -67,36 +67,6 @@ func UnMarshalBlockHeader(bytes []byte) (*BlockHeader, error) {
 	return header, nil
 }
 
-// UnMarshalMember deserialize from []byte to *Member
-func UnMarshalMember(b []byte) (*Member, error) {
-	member := new(tas_middleware_pb.Member)
-	e := proto.Unmarshal(b, member)
-	if e != nil {
-		logger.Errorf("UnMarshalMember error:%s\n", e.Error())
-		return nil, e
-	}
-	m := pbToMember(member)
-	return m, nil
-}
-
-// UnMarshalGroup deserialize from []byte to *Group
-func UnMarshalGroup(b []byte) (*Group, error) {
-	group := new(tas_middleware_pb.Group)
-	e := proto.Unmarshal(b, group)
-	if e != nil {
-		logger.Errorf("UnMarshalGroup error:%s\n", e.Error())
-		return nil, e
-	}
-	g := PbToGroup(group)
-	return g, nil
-}
-
-// MarshalTransaction serialize *Transaction
-func MarshalTransaction(t *Transaction) ([]byte, error) {
-	transaction := transactionToPb(t)
-	return proto.Marshal(transaction)
-}
-
 // MarshalTransactions serialize []*Transaction
 func MarshalTransactions(txs []*Transaction) ([]byte, error) {
 	transactions := TransactionsToPb(txs)
@@ -122,16 +92,30 @@ func MarshalBlockHeader(b *BlockHeader) ([]byte, error) {
 	return proto.Marshal(block)
 }
 
-// MarshalMember serialize *Member
-func MarshalMember(m *Member) ([]byte, error) {
-	member := memberToPb(m)
-	return proto.Marshal(member)
+func ensureUint64(ptr *uint64) uint64 {
+	if ptr == nil {
+		return 0
+	}
+	return *ptr
+}
+func ensureInt32(ptr *int32) int32 {
+	if ptr == nil {
+		return 0
+	}
+	return *ptr
+}
+func ensureInt64(ptr *int64) int64 {
+	if ptr == nil {
+		return 0
+	}
+	return *ptr
 }
 
-// MarshalGroup serialize *Group
-func MarshalGroup(g *Group) ([]byte, error) {
-	group := GroupToPb(g)
-	return proto.Marshal(group)
+func byteToHash(b []byte) common.Hash {
+	if len(b) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(b)
 }
 
 func pbToTransaction(t *tas_middleware_pb.Transaction) *Transaction {
@@ -148,9 +132,18 @@ func pbToTransaction(t *tas_middleware_pb.Transaction) *Transaction {
 	gasLimit := new(BigInt).SetBytesWithSign(t.GasLimit)
 	gasPrice := new(BigInt).SetBytesWithSign(t.GasPrice)
 
-	transaction := &Transaction{Data: t.Data, Value: value, Nonce: *t.Nonce,
-		Target: target, GasLimit: gasLimit, GasPrice: gasPrice, Hash: common.BytesToHash(t.Hash),
-		ExtraData: t.ExtraData, ExtraDataType: int8(*t.ExtraDataType), Type: int8(*t.Type), Sign: t.Sign}
+	transaction := &Transaction{
+		Data:      t.Data,
+		Value:     value,
+		Nonce:     ensureUint64(t.Nonce),
+		Target:    target,
+		GasLimit:  gasLimit,
+		GasPrice:  gasPrice,
+		Hash:      byteToHash(t.Hash),
+		ExtraData: t.ExtraData,
+		Type:      int8(ensureInt32(t.Type)),
+		Sign:      t.Sign,
+	}
 	return transaction
 }
 
@@ -170,10 +163,26 @@ func PbToBlockHeader(h *tas_middleware_pb.BlockHeader) *BlockHeader {
 	if h == nil {
 		return nil
 	}
-	header := BlockHeader{Hash: common.BytesToHash(h.Hash), Height: *h.Height, PreHash: common.BytesToHash(h.PreHash), Elapsed: *h.Elapsed,
-		ProveValue: h.ProveValue, CurTime: time2.Int64ToTimeStamp(*h.CurTime), Castor: h.Castor, Group: h.GroupId, Signature: h.Signature,
-		Nonce: *h.Nonce, TxTree: common.BytesToHash(h.TxTree), ReceiptTree: common.BytesToHash(h.ReceiptTree), StateTree: common.BytesToHash(h.StateTree),
-		ExtraData: h.ExtraData, TotalQN: *h.TotalQN, Random: h.Random, GasFee: *h.GasFee}
+
+	header := BlockHeader{
+		Hash:        byteToHash(h.Hash),
+		Height:      ensureUint64(h.Height),
+		PreHash:     byteToHash(h.PreHash),
+		Elapsed:     ensureInt32(h.Elapsed),
+		ProveValue:  h.ProveValue,
+		CurTime:     time2.Int64ToTimeStamp(ensureInt64(h.CurTime)),
+		Castor:      h.Castor,
+		Group:       byteToHash(h.GroupId),
+		Signature:   h.Signature,
+		Nonce:       ensureInt32(h.Nonce),
+		TxTree:      byteToHash(h.TxTree),
+		ReceiptTree: byteToHash(h.ReceiptTree),
+		StateTree:   byteToHash(h.StateTree),
+		ExtraData:   h.ExtraData,
+		TotalQN:     ensureUint64(h.TotalQN),
+		Random:      h.Random,
+		GasFee:      ensureUint64(h.GasFee),
+	}
 	return &header
 }
 
@@ -187,49 +196,6 @@ func PbToBlock(b *tas_middleware_pb.Block) *Block {
 	return &block
 }
 
-func PbToGroupHeader(g *tas_middleware_pb.GroupHeader) *GroupHeader {
-	header := GroupHeader{
-		Hash:          common.BytesToHash(g.Hash),
-		Parent:        g.Parent,
-		PreGroup:      g.PreGroup,
-		Authority:     *g.Authority,
-		Name:          *g.Name,
-		BeginTime:     time2.Int64ToTimeStamp(*g.BeginTime),
-		MemberRoot:    common.BytesToHash(g.MemberRoot),
-		CreateHeight:  *g.CreateHeight,
-		ReadyHeight:   *g.ReadyHeight,
-		WorkHeight:    *g.WorkHeight,
-		DismissHeight: *g.DismissHeight,
-		Extends:       *g.Extends,
-	}
-	return &header
-}
-
-func PbToGroup(g *tas_middleware_pb.Group) *Group {
-	group := Group{
-		Header:      PbToGroupHeader(g.Header),
-		ID:          g.Id,
-		Members:     g.Members,
-		PubKey:      g.PubKey,
-		Signature:   g.Signature,
-		GroupHeight: *g.GroupHeight,
-	}
-	return &group
-}
-
-func PbToGroups(g *tas_middleware_pb.GroupSlice) []*Group {
-	result := make([]*Group, 0)
-	for _, group := range g.Groups {
-		result = append(result, PbToGroup(group))
-	}
-	return result
-}
-
-func pbToMember(m *tas_middleware_pb.Member) *Member {
-	member := Member{ID: m.Id, PubKey: m.PubKey}
-	return &member
-}
-
 func transactionToPb(t *Transaction) *tas_middleware_pb.Transaction {
 	if t == nil {
 		return nil
@@ -240,11 +206,19 @@ func transactionToPb(t *Transaction) *tas_middleware_pb.Transaction {
 	if t.Target != nil {
 		target = t.Target.Bytes()
 	}
-	et := int32(t.ExtraDataType)
 	tp := int32(t.Type)
-	transaction := tas_middleware_pb.Transaction{Data: t.Data, Value: t.Value.GetBytesWithSign(), Nonce: &t.Nonce,
-		Target: target, GasLimit: t.GasLimit.GetBytesWithSign(), GasPrice: t.GasPrice.GetBytesWithSign(), Hash: t.Hash.Bytes(),
-		ExtraData: t.ExtraData, ExtraDataType: &et, Type: &tp, Sign: t.Sign}
+	transaction := tas_middleware_pb.Transaction{
+		Data:      t.Data,
+		Value:     t.Value.GetBytesWithSign(),
+		Nonce:     &t.Nonce,
+		Target:    target,
+		GasLimit:  t.GasLimit.GetBytesWithSign(),
+		GasPrice:  t.GasPrice.GetBytesWithSign(),
+		Hash:      t.Hash.Bytes(),
+		ExtraData: t.ExtraData,
+		Type:      &tp,
+		Sign:      t.Sign,
+	}
 	return &transaction
 }
 
@@ -262,10 +236,25 @@ func TransactionsToPb(txs []*Transaction) []*tas_middleware_pb.Transaction {
 
 func BlockHeaderToPb(h *BlockHeader) *tas_middleware_pb.BlockHeader {
 	ts := h.CurTime.Unix()
-	header := tas_middleware_pb.BlockHeader{Hash: h.Hash.Bytes(), Height: &h.Height, PreHash: h.PreHash.Bytes(), Elapsed: &h.Elapsed,
-		ProveValue: h.ProveValue, CurTime: &ts, Castor: h.Castor, GroupId: h.Group, Signature: h.Signature,
-		Nonce: &h.Nonce, TxTree: h.TxTree.Bytes(), ReceiptTree: h.ReceiptTree.Bytes(), StateTree: h.StateTree.Bytes(),
-		ExtraData: h.ExtraData, TotalQN: &h.TotalQN, Random: h.Random, GasFee: &h.GasFee}
+	header := tas_middleware_pb.BlockHeader{
+		Hash:        h.Hash.Bytes(),
+		Height:      &h.Height,
+		PreHash:     h.PreHash.Bytes(),
+		Elapsed:     &h.Elapsed,
+		ProveValue:  h.ProveValue,
+		CurTime:     &ts,
+		Castor:      h.Castor,
+		GroupId:     h.Group.Bytes(),
+		Signature:   h.Signature,
+		Nonce:       &h.Nonce,
+		TxTree:      h.TxTree.Bytes(),
+		ReceiptTree: h.ReceiptTree.Bytes(),
+		StateTree:   h.StateTree.Bytes(),
+		ExtraData:   h.ExtraData,
+		TotalQN:     &h.TotalQN,
+		Random:      h.Random,
+		GasFee:      &h.GasFee,
+	}
 	return &header
 }
 
@@ -277,40 +266,4 @@ func BlockToPb(b *Block) *tas_middleware_pb.Block {
 	transactions := TransactionsToPb(b.Transactions)
 	block := tas_middleware_pb.Block{Header: header, Transactions: transactions}
 	return &block
-}
-
-func GroupToPbHeader(g *GroupHeader) *tas_middleware_pb.GroupHeader {
-	t := g.BeginTime.Unix()
-	header := tas_middleware_pb.GroupHeader{
-		Hash:          g.Hash.Bytes(),
-		Parent:        g.Parent,
-		PreGroup:      g.PreGroup,
-		Authority:     &g.Authority,
-		Name:          &g.Name,
-		BeginTime:     &t,
-		MemberRoot:    g.MemberRoot.Bytes(),
-		CreateHeight:  &g.CreateHeight,
-		ReadyHeight:   &g.ReadyHeight,
-		WorkHeight:    &g.WorkHeight,
-		DismissHeight: &g.DismissHeight,
-		Extends:       &g.Extends,
-	}
-	return &header
-}
-
-func GroupToPb(g *Group) *tas_middleware_pb.Group {
-	group := tas_middleware_pb.Group{
-		Header:      GroupToPbHeader(g.Header),
-		Id:          g.ID,
-		Members:     g.Members,
-		PubKey:      g.PubKey,
-		Signature:   g.Signature,
-		GroupHeight: &g.GroupHeight,
-	}
-	return &group
-}
-
-func memberToPb(m *Member) *tas_middleware_pb.Member {
-	member := tas_middleware_pb.Member{Id: m.ID, PubKey: m.PubKey}
-	return &member
 }

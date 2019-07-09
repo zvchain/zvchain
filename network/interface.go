@@ -22,32 +22,13 @@ const (
 	*********************** range from 1 to 9999 ***********************
 	**/
 
-	GroupPing       uint32 = 1
-	GroupPong       uint32 = 2
-	CreateGroupaRaw uint32 = 3
-	CreateGroupSign uint32 = 4
-
-	GroupInitMsg uint32 = 5
-
-	KeyPieceMsg uint32 = 6
-
-	SignPubkeyMsg uint32 = 7
-
-	GroupInitDoneMsg uint32 = 8
-
-	AskSignPkMsg    uint32 = 9
-	AnswerSignPkMsg uint32 = 10
-
-	ReqSharePiece      uint32 = 11
-	ResponseSharePiece uint32 = 12
-
 	//the following six messages are used for casting block
-	CastVerifyMsg         uint32 = 14 // The proposal sends the proposal msg to the verifier
-	VerifiedCastMsg       uint32 = 15 // The verifier sends the verified msg to the verifier group.
-	CastRewardSignReq     uint32 = 16 // Verifier reward: the verifier sends the piece request msg to the other verifiers.
-	CastRewardSignGot     uint32 = 17 // Verifier reward: the verifies sends the piece response msg to the other verifiers.
-	ReqProposalBlock      uint32 = 19 // The verifies sends the request to the proposal to get the block
-	ResponseProposalBlock uint32 = 20 // The proposal sends the response to the verifies to deliver the block
+	CastVerifyMsg         uint32 = 1 // The proposal sends the proposal msg to the verifier
+	VerifiedCastMsg       uint32 = 2 // The verifier sends the verified msg to the verifier group.
+	CastRewardSignReq     uint32 = 3 // Verifier reward: the verifier sends the piece request msg to the other verifiers.
+	CastRewardSignGot     uint32 = 4 // Verifier reward: the verifies sends the piece response msg to the other verifiers.
+	ReqProposalBlock      uint32 = 5 // The verifies sends the request to the proposal to get the block
+	ResponseProposalBlock uint32 = 6 // The proposal sends the response to the verifies to deliver the block
 
 	/*********************** chain message code ***********************
 	************************* range from 10000 to 19999 **************

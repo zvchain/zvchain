@@ -13,6 +13,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// Package group implements the group creation protocol
 package group
 
 import (
@@ -20,31 +21,28 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math"
 )
 
 const (
-	groupMemberMin        = 80
-	groupMemberMax        = 100
-	threshold             = 51
-	recvPieceMinRatio     = 0.8
-	memberMaxJoinGroupNum = 5
+	threshold             = 51  // BLS threshold, percentage number which should divide by 100
+	recvPieceMinRatio     = 0.8 // The minimum ratio of the number of participants in the final group-creation to the expected number of nodes
+	memberMaxJoinGroupNum = 5   // Maximum number of group one miner can participate in
 )
 
 func candidateCount(totalN int) int {
-	if totalN >= groupMemberMax {
-		return groupMemberMax
-	} else if totalN < groupMemberMin {
+	if totalN >= model.Param.GroupMemberMax {
+		return model.Param.GroupMemberMax
+	} else if totalN < model.Param.GroupMemberMin {
 		return 0
 	}
 	return totalN
 }
 
 func candidateEnough(n int) bool {
-	return n >= groupMemberMin
+	return n >= model.Param.GroupMemberMin
 }
 
 func pieceEnough(pieceNum, candidateNum int) bool {
@@ -73,7 +71,7 @@ type createRoutine struct {
 
 var routine *createRoutine
 
-func InitRoutine(reader minerReader, chain core.BlockChain, provider groupContextProvider) *skStorage {
+func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
 	routine = &createRoutine{
 		createChecker: checker,

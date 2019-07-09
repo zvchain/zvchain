@@ -89,12 +89,12 @@ func TestGenerateGenesisGroup(t *testing.T) {
 		pieces[i] = generateSharePiece(miner, candidates, seed)
 	}
 
-	pks := make([]groupsig.Pubkey, candidates.size())
+	pk0s := make([]groupsig.Pubkey, candidates.size())
 	for i, piece := range pieces {
-		pks[i] = piece.pubkey
+		pk0s[i] = piece.pubkey
 	}
 	// Aggregates the group pubkey
-	gpk := groupsig.AggregatePubkeys(pks)
+	gpk := groupsig.AggregatePubkeys(pk0s)
 
 	minerSks := make([]groupsig.Seckey, candidates.size())
 	minerPks := make([]groupsig.Pubkey, candidates.size())
@@ -140,11 +140,19 @@ func TestGenerateGenesisGroup(t *testing.T) {
 		Pks:       basePks,
 	}
 
-	jsonString, err := json.Marshal(groupInfo)
+	jsonBytes, err := json.Marshal(groupInfo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(jsonString)
+	t.Log(string(jsonBytes))
 
-	ioutil.WriteFile(keyFile, jsonString, 666)
+	msks := make([]string, candidates.size())
+	for i, msk := range minerSks {
+		msks[i] = msk.GetHexString()
+	}
+	mskString := strings.Join(msks, ",")
+	t.Log(mskString)
+
+	ioutil.WriteFile("genesis_group.info", jsonBytes, 666)
+	ioutil.WriteFile("genesis_msk.info", []byte(mskString), 666)
 }

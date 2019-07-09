@@ -17,16 +17,12 @@ package group
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"strings"
-	"time"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/consensus/model"
-	zvtime "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
+	"io/ioutil"
+	"strings"
 )
 
 // GenesisDefaultGroupInfo represent for the basic info of the genesis verifyGroup
@@ -47,20 +43,16 @@ type genesisGroupMarshal struct {
 	Pks       []groupsig.Pubkey
 }
 
-// genesisGroupInfo parsed from GenesisDefaultGroupInfo or config file which is singleton
-var genesisGroupInfo *genesisGroupMarshal
-
-func getGenesisGroupInfo() *genesisGroupMarshal {
-	if genesisGroupInfo == nil {
-		f := common.GlobalConf.GetSectionManager("consensus").GetString("genesis_sgi_conf", "genesis_sgi.config")
-		genesisGroupInfo = genGenesisStaticGroupInfo(f)
-	}
-	return genesisGroupInfo
-}
+var genesisGroupInfo *types.GenesisInfo
 
 // GenerateGenesis generate genesis verifyGroup info for chain use
 func GenerateGenesis() *types.GenesisInfo {
-	genesis := getGenesisGroupInfo()
+	if genesisGroupInfo != nil {
+		return genesisGroupInfo
+	}
+
+	f := common.GlobalConf.GetSectionManager("consensus").GetString("genesis_group_info", "genesis_group.info")
+	genesis := genGenesisStaticGroupInfo(f)
 	gHeader := &groupHeader{
 		seed:          genesis.Seed,
 		workHeight:    0,
@@ -83,28 +75,13 @@ func GenerateGenesis() *types.GenesisInfo {
 	for i, vpk := range genesis.Pks {
 		pks[i] = vpk.Serialize()
 	}
-	return &types.GenesisInfo{
+	info := &types.GenesisInfo{
 		Group:  coreGroup,
 		VrfPKs: vrfPKs,
 		Pks:    pks,
 	}
-}
-
-func generateGenesisGroupHeader(memIds []groupsig.ID) *types.GroupHeader {
-	gh := &types.GroupHeader{
-		Name:          "TAS genesis verifyGroup",
-		Authority:     777,
-		BeginTime:     zvtime.TimeToTimeStamp(time.Now()),
-		CreateHeight:  0,
-		ReadyHeight:   1,
-		WorkHeight:    0,
-		DismissHeight: common.MaxUint64,
-		MemberRoot:    model.GenMemberRootByIds(memIds),
-		Extends:       "",
-	}
-
-	gh.Hash = gh.GenHash()
-	return gh
+	genesisGroupInfo = info
+	return info
 }
 
 func genGenesisStaticGroupInfo(f string) *genesisGroupMarshal {

@@ -25,7 +25,7 @@ func (pool *txPool) saveReceipt(txHash common.Hash, dataBytes []byte) error {
 	return pool.receiptDb.AddKv(pool.batch, txHash.Bytes(), dataBytes)
 }
 
-func (pool *txPool) saveReceipts(bhash common.Hash, receipts types.Receipts) error {
+func (pool *txPool) SaveReceipts(bhash common.Hash, receipts types.Receipts) error {
 	if nil == receipts || 0 == len(receipts) {
 		return nil
 	}
@@ -41,7 +41,7 @@ func (pool *txPool) saveReceipts(bhash common.Hash, receipts types.Receipts) err
 	return nil
 }
 
-func (pool *txPool) deleteReceipts(txs []common.Hash) error {
+func (pool *txPool) DeleteReceipts(txs []common.Hash) error {
 	if nil == txs || 0 == len(txs) {
 		return nil
 	}

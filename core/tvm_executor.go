@@ -348,10 +348,10 @@ func (ss *rewardExecutor) Transition() *result {
 }
 
 type TVMExecutor struct {
-	bc BlockChain
+	bc types.BlockChain
 }
 
-func NewTVMExecutor(bc BlockChain) *TVMExecutor {
+func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
 	return &TVMExecutor{
 		bc: bc,
 	}

@@ -61,7 +61,7 @@ func (chain *FullBlockChain) GetTransactionByHash(onlyReward, needSource bool, h
 }
 
 // GetTransactionPool return the transaction pool waiting for the block
-func (chain *FullBlockChain) GetTransactionPool() TransactionPool {
+func (chain *FullBlockChain) GetTransactionPool() types.TransactionPool {
 	return chain.transactionPool
 }
 

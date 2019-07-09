@@ -22,7 +22,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -82,10 +81,10 @@ type castBlockContexts struct {
 	reservedVctx    *lru.Cache // uint64 -> *VerifyContext, Store the verifyContext that already has the checked out block, to be broadcast
 	verifyMsgCaches *lru.Cache // hash -> *verifyMsgCache, Cache verification message
 	recentCasted    *lru.Cache // height -> *castedBlock
-	chain           core.BlockChain
+	chain           types.BlockChain
 }
 
-func newCastBlockContexts(chain core.BlockChain) *castBlockContexts {
+func newCastBlockContexts(chain types.BlockChain) *castBlockContexts {
 	return &castBlockContexts{
 		proposed:        common.MustNewLRUCache(20),
 		heightVctxs:     common.MustNewLRUCacheWithEvictCB(20, heightVctxEvitCallback),

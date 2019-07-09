@@ -16,6 +16,8 @@
 package logical
 
 import (
+	"fmt"
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -90,38 +92,50 @@ func (p *Processor) GetAllMinerDOs() []*model.MinerDO {
 	return dos
 }
 
-func (p *Processor) checkProveRoot(bh *types.BlockHeader) (bool, error) {
-	//exist, ok, err := p.proveChecker.getPRootResult(bh.Hash)
-	//if exist {
-	//	return ok, err
-	//}
-	//slog := taslog.NewSlowLog("checkProveRoot-" + bh.Hash.ShortS(), 0.6)
-	//defer func() {
-	//	slog.Log("hash=%v, height=%v", bh.Hash.String(), bh.Height)
-	//}()
-	//slog.AddStage("queryBlockHeader")
-	//preBH := p.MainChain.QueryBlockHeaderByHash(bh.PreHash)
-	//slog.EndStage()
-	//if preBH == nil {
-	//	return false, errors.New(fmt.Sprintf("preBlock is nil,hash %v", bh.PreHash.ShortS()))
-	//}
-	//gid := groupsig.DeserializeID(bh.Group)
-	//
-	//slog.AddStage("getGroup")
-	//verifyGroup := p.GetGroup(gid)
-	//slog.EndStage()
-	//if !verifyGroup.Group.isValid() {
-	//	return false, errors.New(fmt.Sprintf("verifyGroup is invalid, gid %v", gid))
-	//}
+func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err error) {
+	signBytes := tx.Sign
+	if len(signBytes) < common.SignLength {
+		return false, fmt.Errorf("not enough bytes for reward signature, sign =%v", signBytes)
+	}
 
-	//slog.AddStage("genProveHash")
-	//if _, root := p.proveChecker.genProveHashs(bh.Height, preBH.Random, verifyGroup.GetMembers()); root == bh.ProveRoot {
-	//	slog.EndStage()
-	//	p.proveChecker.addPRootResult(bh.Hash, true, nil)
-	//	return true, nil
-	//} else {
-	//	//panic(fmt.Errorf("check prove fail, hash=%v, height=%v", bh.Hash.String(), bh.Height))
-	//	//return false, errors.New(fmt.Sprintf("proveRoot expect %v, receive %v", bh.ProveRoot.String(), root.String()))
-	//}
+	gSeed, targetIds, blockHash, packFee, err := p.MainChain.GetRewardManager().ParseRewardTransaction(tx)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse reward transaction, err =%s", err)
+	}
+
+	var bh *types.BlockHeader
+	if bh = p.MainChain.QueryBlockHeaderByHash(blockHash); bh == nil {
+		return false, fmt.Errorf("chain does not have this block, block hash=%v", blockHash)
+	}
+	if gSeed != bh.Group {
+		return false, fmt.Errorf("group seed not equal to the block verifier")
+	}
+	rewardShare := p.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
+
+	if rewardShare.ForRewardTxPacking != packFee.Uint64() {
+		return false, fmt.Errorf("pack fee error: receive %v, expect %v", packFee.Uint64(), rewardShare.ForRewardTxPacking)
+	}
+	verifyRewards := rewardShare.TotalForVerifier()
+	if verifyRewards/uint64(len(targetIds)) != tx.Value.Uint64() {
+		return false, fmt.Errorf("invalid verify reward, value=%v", tx.Value)
+	}
+
+	group := p.groupReader.getGroupBySeed(gSeed)
+	if group == nil {
+		return false, common.ErrGroupNil
+	}
+	for _, id := range targetIds {
+		mid := groupsig.DeserializeID(id)
+		if !mid.IsValid() || !group.hasMember(mid) {
+			return false, fmt.Errorf("invalid group member,id=%v", mid)
+		}
+	}
+
+	gpk := groupsig.DeserializePubkeyBytes(group.header.PublicKey())
+	gSign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
+	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gSign) {
+		return false, fmt.Errorf("verify reward sign fail, gSign=%v", gSign.GetHexString())
+	}
+
 	return true, nil
 }

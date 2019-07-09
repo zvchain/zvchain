@@ -18,11 +18,13 @@
 package logical
 
 import (
+	"bytes"
 	group2 "github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"io/ioutil"
+	"strings"
 
 	"fmt"
-	"strings"
 	"sync/atomic"
 
 	"github.com/zvchain/zvchain/common"
@@ -56,8 +58,7 @@ type Processor struct {
 
 	ready bool // Whether it has been initialized
 
-	MainChain  core.BlockChain  // Blockchain access interface
-	GroupChain *core.GroupChain // Groupchain access interface
+	MainChain types.BlockChain // Blockchain access interface
 
 	vrf atomic.Value // VrfWorker
 
@@ -96,7 +97,6 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.futureVerifyMsgs = NewFutureMessageHolder()
 	p.futureRewardReqs = NewFutureMessageHolder()
 	p.MainChain = core.BlockChainImpl
-	p.GroupChain = core.GroupChainImpl
 	p.mi = &mi
 
 	p.castVerifyCh = make(chan *types.BlockHeader, 5)
@@ -110,7 +110,6 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.isCasting = 0
 
 	p.minerReader = newMinerPoolReader(p, core.MinerManagerImpl)
-	pkPoolInit(p.minerReader)
 
 	p.Ticker = ticker.NewGlobalTicker("consensus")
 
@@ -125,11 +124,6 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, p.onBlockAddSuccess)
 	notify.BUS.Subscribe(notify.GroupAddSucc, p.onGroupAddSuccess)
-
-	jgFile := conf.GetString(ConsensusConfSection, "joined_group_store", "")
-	if strings.TrimSpace(jgFile) == "" {
-		jgFile = "joined_group.config." + common.GlobalConf.GetString("instance", "index", "")
-	}
 
 	return true
 }
@@ -203,7 +197,7 @@ func (p *Processor) Start() bool {
 	p.Ticker.StartTickerRoutine(p.getUpdateMonitorNodeInfoRoutine(), false)
 
 	p.triggerCastCheck()
-	p.prepareMiner()
+	p.initGenesisMember()
 	p.ready = true
 	return true
 }
@@ -213,16 +207,19 @@ func (p *Processor) Stop() {
 	return
 }
 
-func (p *Processor) prepareMiner() {
-
-	topHeight := p.MainChain.QueryTopBlock().Height
-
-	groups := p.groupReader.getAvailableGroupsByHeight(topHeight)
-	stdLogger.Infof("current group size:%v", len(groups))
-	for _, g := range groups {
-		// Genesis group
-		if g.header.WorkHeight() == 0 && g.hasMember(p.GetMinerID()) {
+func (p *Processor) initGenesisMember() {
+	genesisGroup := group2.GenerateGenesis()
+	for i, mem := range genesisGroup.Group.Members() {
+		if bytes.Equal(mem.ID(), p.GetMinerID().Serialize()) {
 			p.genesisMember = true
+			msks, err := ioutil.ReadFile("genesis_msk.info")
+			if err != nil {
+				panic(fmt.Errorf("genesis miner reader genesis_msk.info fail:%v", err))
+			}
+			arr := strings.Split(string(msks), ",")
+			var sk groupsig.Seckey
+			sk.SetHexString(arr[i])
+			p.groupReader.skStore.StoreGroupSignatureSeckey(genesisGroup.Group.Header().Seed(), sk)
 			break
 		}
 	}
