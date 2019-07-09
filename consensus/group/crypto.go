@@ -236,6 +236,18 @@ func generateEncryptedSharePiecePacket(miner *model.SelfMinerDO, encSeckey group
 
 }
 
+func deserializeSharePieces(pieceData []byte) []groupsig.Seckey {
+	secks := make([]groupsig.Seckey, 0)
+	reader := bytes.NewReader(pieceData)
+
+	bs := make([]byte, groupsig.SkLength)
+
+	for n, _ := reader.Read(bs); n == groupsig.SkLength; n, _ = reader.Read(bs) {
+		secks = append(secks, *groupsig.DeserializeSeckey(bs))
+	}
+	return secks
+}
+
 func generateEncryptedSeckey() groupsig.Seckey {
 	return *groupsig.NewSeckeyFromRand(base.NewRand())
 }

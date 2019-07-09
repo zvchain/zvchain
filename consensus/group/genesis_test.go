@@ -75,7 +75,7 @@ func generateSharePiece(miner *model.SelfMinerDO, cands candidates, seed common.
 }
 
 func TestGenerateGenesisGroup(t *testing.T) {
-	keyFile := "key_file"
+	keyFile := "key_file_test"
 	seed := common.Hash{}
 	miners := createMinerDOs(keyFile)
 	if len(miners) == 0 {
@@ -153,6 +153,6 @@ func TestGenerateGenesisGroup(t *testing.T) {
 	mskString := strings.Join(msks, ",")
 	t.Log(mskString)
 
-	ioutil.WriteFile("genesis_group.info", jsonBytes, 666)
-	ioutil.WriteFile("genesis_msk.info", []byte(mskString), 666)
+	ioutil.WriteFile("genesis_group.info", jsonBytes, 0666)
+	ioutil.WriteFile("genesis_msk.info", []byte(mskString), 0666)
 }

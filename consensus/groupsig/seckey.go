@@ -16,6 +16,7 @@
 package groupsig
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -29,6 +30,8 @@ import (
 var curveOrder = bncurve.Order // Curve integer field
 var fieldOrder = bncurve.P
 var bitLength = curveOrder.BitLen()
+
+const SkLength = 32
 
 // Seckey -- represented by a big.Int modulo curveOrder
 type Seckey struct {
@@ -87,17 +90,20 @@ func DeserializeSeckey(bs []byte) *Seckey {
 }
 
 func (sec Seckey) MarshalJSON() ([]byte, error) {
-	str := "\"" + sec.GetHexString() + "\""
-	return []byte(str), nil
+	bs, err := json.Marshal(sec.GetHexString())
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }
 
 func (sec *Seckey) UnmarshalJSON(data []byte) error {
-	str := string(data[:])
-	if len(str) < 2 {
-		return fmt.Errorf("data size less than min")
+	var hex string
+	err := json.Unmarshal(data, &hex)
+	if err != nil {
+		return err
 	}
-	str = str[1 : len(str)-1]
-	return sec.SetHexString(str)
+	return sec.SetHexString(hex)
 }
 
 // SetLittleEndian initializes the private key by byte slice (Little-Endian)

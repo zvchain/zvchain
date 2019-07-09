@@ -24,6 +24,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/taslog"
 	"math"
+	"sync"
 )
 
 type createChecker struct {
@@ -32,6 +33,7 @@ type createChecker struct {
 	storeReader types.GroupStoreReader
 	minerReader minerReader
 	logger      taslog.Logger
+	lock        sync.RWMutex
 }
 
 func newCreateChecker(reader minerReader, chain types.BlockChain, store types.GroupStoreReader) *createChecker {
@@ -108,6 +110,9 @@ func (checker *createChecker) currEra() *era {
 }
 
 func (checker *createChecker) CheckEncryptedPiecePacket(packet types.EncryptedSharePiecePacket, ctx types.CheckerContext) error {
+	checker.lock.RLock()
+	defer checker.lock.RUnlock()
+
 	seed := packet.Seed()
 	era := checker.currEra()
 	if !era.seedExist() {
@@ -142,6 +147,9 @@ func (checker *createChecker) CheckEncryptedPiecePacket(packet types.EncryptedSh
 }
 
 func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.CheckerContext) error {
+	checker.lock.RLock()
+	defer checker.lock.RUnlock()
+
 	seed := packet.Seed()
 	era := checker.currEra()
 	if !era.seedExist() {
@@ -204,6 +212,9 @@ func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
 }
 
 func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult {
+	checker.lock.RLock()
+	defer checker.lock.RUnlock()
+
 	era := checker.currEra()
 	if !era.seedExist() {
 		return errCreateResult(fmt.Errorf("seed not exists:%v", era.seedHeight))
@@ -275,6 +286,9 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 }
 
 func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePiecePacket, ctx types.CheckerContext) error {
+	checker.lock.RLock()
+	defer checker.lock.RUnlock()
+
 	seed := packet.Seed()
 	era := checker.currEra()
 	if !era.seedExist() {
@@ -320,6 +334,9 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 }
 
 func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error) {
+	checker.lock.RLock()
+	defer checker.lock.RUnlock()
+
 	era := checker.currEra()
 	if !era.seedExist() {
 		return nil, fmt.Errorf("seed not exists:%v", era.seedHeight)
@@ -370,14 +387,14 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		if ok, enc := findSender(piecePkt, ori.Sender()); !ok {
 			panic(fmt.Sprintf("cannot find enc packet of %v", common.ToHex(ori.Sender())))
 		} else {
-			sharePieces := DeserializeSharePieces(ori.Pieces())
+			sharePieces := deserializeSharePieces(ori.Pieces())
 			if ok, err := groupsig.CheckSharePiecesValid(sharePieces, cands.ids(), cands.threshold()); err != nil || !ok {
 				if err != nil {
 					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
 				}
 				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
 			}
-			if ok, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); !ok || err != nil {
+			if evil, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); evil || err != nil {
 				if err != nil {
 					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
 				}
