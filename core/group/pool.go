@@ -42,19 +42,19 @@ func newGroupLife(g types.GroupI) *groupLife {
 }
 
 type pool struct {
-	activeList      []*groupLife // list of active groups
-	waitingList     []*groupLife // list of waiting groups
-	groupCache      *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
-	activeListCache *lru.Cache   // cache for active group lists. key is height; value is []*groupLife
+	activeList       []*groupLife // list of active groups
+	waitingList      []*groupLife // list of waiting groups
+	groupCache       *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
+	activeListCache  *lru.Cache   // cache for active group lists. key is height; value is []*groupLife
 	waitingListCache *lru.Cache   // cache for waiting group lists. key is height; value is []*groupLife
 }
 
 func newPool() *pool {
 	return &pool{
-		activeList:      make([]*groupLife, 0),
-		waitingList:     make([]*groupLife, 0),
-		groupCache:      common.MustNewLRUCache(500),
-		activeListCache: common.MustNewLRUCache(500),
+		activeList:       make([]*groupLife, 0),
+		waitingList:      make([]*groupLife, 0),
+		groupCache:       common.MustNewLRUCache(500),
+		activeListCache:  common.MustNewLRUCache(500),
 		waitingListCache: common.MustNewLRUCache(500),
 	}
 }
@@ -161,8 +161,8 @@ func (p *pool) resetToTop(db types.AccountDB, height uint64) {
 }
 
 func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, height uint64) int {
-	waiting := p.getWaiting(chain,height)
-	active := p.getActives(chain,height)
+	waiting := p.getWaiting(chain, height)
+	active := p.getActives(chain, height)
 
 	lived := append(waiting, active...)
 	count := 0
@@ -171,7 +171,7 @@ func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, heigh
 		if g != nil {
 			for _, mem := range g.Members() {
 				if bytes.Equal(addr.Bytes(), mem.ID()) {
-					count ++
+					count++
 				}
 			}
 		}
@@ -281,6 +281,11 @@ func (p *pool) getWaiting(chain chainReader, height uint64) []types.SeedI {
 	}
 	p.waitingListCache.ContainsOrAdd(height, &rs)
 	return rs
+}
+
+func (p *pool) groupsBefore(chain chainReader, height uint64, limit int) []types.GroupI {
+	//TODO: implement it
+	return nil
 }
 
 // move the group to dismiss db

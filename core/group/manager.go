@@ -93,6 +93,20 @@ func (m *Manager) Height() uint64 {
 	return m.poolImpl.count(m.chain.LatestStateDB())
 }
 
+func (m *Manager) GroupsBefore(height uint64, limit int) []types.GroupI {
+	return m.poolImpl.groupsBefore(m.chain, height, limit)
+}
+
+// Height returns count of current group number
+func (m *Manager) WaitingGroupCount() int {
+	return len(m.poolImpl.waitingList)
+}
+
+// Height returns count of current group number
+func (m *Manager) ActiveGroupCount() int {
+	return len(m.poolImpl.activeList)
+}
+
 func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
 	if createResult == nil {
