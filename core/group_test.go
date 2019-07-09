@@ -31,7 +31,7 @@ func TestGroupCreateTxs(t *testing.T) {
 
 	defer clear()
 	castor := new([]byte)
-	groupId := new([]byte)
+
 	var block *types.Block
 	account := getAccount()
 
@@ -52,14 +52,14 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to SendEncryptedPiecePacket %v", err)
 	}
 
-	block = BlockChainImpl.CastBlock(1, common.Hex2Bytes("11"), 0, *castor, *groupId)
+	block = BlockChainImpl.CastBlock(1, common.Hex2Bytes("11"), 0, *castor, seed)
 	// 上链
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
 	db := BlockChainImpl.LatestStateDB()
-	store := group.NewStore(db)
+	store := group.NewStore(BlockChainImpl.(*FullBlockChain))
 	pieces, err := store.GetEncryptedPiecePackets(data)
 	if err != nil {
 		t.Fatalf("fail to GetEncryptedPiecePackets %v", err)
@@ -79,13 +79,13 @@ func TestGroupCreateTxs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to SendMpkPacket: %v", err)
 	}
-	block = BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 1, *castor, *groupId)
+	block = BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 1, *castor, seed)
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
 	db = BlockChainImpl.LatestStateDB()
-	store = group.NewStore(db)
+	store = group.NewStore(BlockChainImpl.(*FullBlockChain))
 	mpks, err := store.GetMpkPackets(mpkData)
 	if err != nil {
 		t.Fatalf("fail to GetMpkPackets %v", err)
@@ -107,14 +107,14 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to SendOriginPiecePacket: %v", err)
 	}
 
-	block = BlockChainImpl.CastBlock(3, common.Hex2Bytes("13"), 2, *castor, *groupId)
+	block = BlockChainImpl.CastBlock(3, common.Hex2Bytes("13"), 2, *castor, seed)
 	// 上链
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
 	db = BlockChainImpl.LatestStateDB()
-	store = group.NewStore(db)
+	store = group.NewStore(BlockChainImpl.(*FullBlockChain))
 	ops, err := store.GetOriginPiecePackets(dataOp)
 	if err != nil {
 		t.Fatalf("fail to GetOriginPiecePackets %v", err)

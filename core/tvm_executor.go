@@ -207,7 +207,7 @@ type groupOperator struct {
 }
 
 func (ss *groupOperator) ParseTransaction() error {
-	ss.groupOp = group.NewOperation(ss.accountDB, *ss.tx, ss.bh.Height)
+	ss.groupOp = GroupManagerImpl.NewOperation(ss.accountDB, *ss.tx, ss.bh.Height)
 	return ss.groupOp.ParseTransaction()
 }
 
