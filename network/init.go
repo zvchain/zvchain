@@ -80,14 +80,14 @@ func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig 
 			return err
 		}
 		listenAddr = net.UDPAddr{IP: listenIP, Port: self.Port}
-		seedId := ""
+		seedID := ""
 		if len(networkConfig.SeedIDs) > 0 {
-			seedId = networkConfig.SeedIDs[0]
+			seedID = networkConfig.SeedIDs[0]
 		}
-		Logger.Errorf("Seed ID:%v ", seedId)
+		Logger.Errorf("Seed ID:%v ", seedID)
 
 		if !networkConfig.IsSuper {
-			bnNode := NewNode(NewNodeID(seedId), net.ParseIP(networkConfig.SeedAddr), seedPort)
+			bnNode := NewNode(NewNodeID(seedID), net.ParseIP(networkConfig.SeedAddr), seedPort)
 			if bnNode.ID != self.ID {
 				seeds = append(seeds, bnNode)
 			}

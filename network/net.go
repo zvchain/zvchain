@@ -825,7 +825,10 @@ func (nc *NetCore) handlePong(req *MsgPong, p *Peer) error {
 	p.setRemoteVerifyResult(req.VerifyResult)
 	Logger.Debugf("Pong from:%v, VerifyResult:%v, RemoteVerifyResult:%v,isAuthSucceed:%v",
 		p.ID.GetHexString(), p.verifyResult, p.remoteVerifyResult, p.isAuthSucceed)
-
+	if !req.VerifyResult {
+		p.resetRemoteVerifyContext()
+		go nc.ping(p.ID, nil)
+	}
 	return nil
 }
 
