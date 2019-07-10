@@ -132,8 +132,15 @@ func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 
 // GetAvailableGroupSeeds returns all activeList groups at the given height
 func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
-	return s.poolImpl.getActives(s.chain, height)
-
+	gls := s.poolImpl.getActives(s.chain, height)
+	if gls != nil {
+		rs := make([]types.SeedI, 0, len(gls))
+		for _, v := range gls {
+			rs = append(rs, v)
+		}
+		return rs
+	}
+	return nil
 }
 
 // GetGroupBySeed returns group with given seed

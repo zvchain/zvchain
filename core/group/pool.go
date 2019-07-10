@@ -230,9 +230,9 @@ func (p *pool) toActive(db types.AccountDB, gl *groupLife) {
 	db.SetData(common.GroupActiveAddress, gl.seed.Bytes(), byteData)
 }
 
-func (p *pool) getActives(chain chainReader, height uint64) []types.SeedI {
+func (p *pool) getActives(chain chainReader, height uint64) []*groupLife {
 	if g, ok := p.activeListCache.Get(height); ok {
-		return g.([]types.SeedI)
+		return g.([]*groupLife)
 	}
 	db, err := chain.GetAccountDBByHeight(height)
 	if err != nil {
@@ -243,7 +243,7 @@ func (p *pool) getActives(chain chainReader, height uint64) []types.SeedI {
 	if iter == nil {
 		return nil
 	}
-	rs := make([]types.SeedI, 0)
+	rs := make([]*groupLife, 0)
 	for iter.Next() {
 		var life groupLife
 		err := msgpack.Unmarshal(iter.Value, &life)
@@ -257,9 +257,9 @@ func (p *pool) getActives(chain chainReader, height uint64) []types.SeedI {
 	return rs
 }
 
-func (p *pool) getWaiting(chain chainReader, height uint64) []types.SeedI {
+func (p *pool) getWaiting(chain chainReader, height uint64) []*groupLife {
 	if g, ok := p.waitingListCache.Get(height); ok {
-		return g.([]types.SeedI)
+		return g.([]*groupLife)
 	}
 	db, err := chain.GetAccountDBByHeight(height)
 	if err != nil {
@@ -270,7 +270,7 @@ func (p *pool) getWaiting(chain chainReader, height uint64) []types.SeedI {
 	if iter == nil {
 		return nil
 	}
-	rs := make([]types.SeedI, 0)
+	rs := make([]*groupLife, 0)
 	for iter.Next() {
 		var life groupLife
 		err := msgpack.Unmarshal(iter.Value, &life)
