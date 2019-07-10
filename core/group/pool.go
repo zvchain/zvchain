@@ -60,11 +60,6 @@ func newPool() *pool {
 }
 
 func (p *pool) initPool(db types.AccountDB) error {
-	//err := p.initGenesis(db, genesisInfo)
-	//if err != nil {
-	//	return err
-	//}
-
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter != nil {
 		for iter.Next() {
@@ -109,7 +104,6 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 		}
 		p.adjust(db, 0)
 		p.activeListCache.Add(uint64(0), clone(p.activeList))
-		p.activeListCache.Add(uint64(1), clone(p.activeList))
 	}
 	return nil
 }
