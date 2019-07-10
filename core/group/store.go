@@ -32,8 +32,8 @@ const (
 )
 
 var (
-	originPieceReqKey = common.Hex2Bytes("originPieceRequired") //the key for marking origin piece required in current Seed
-	groupDataKey      = common.Hex2Bytes("group")               //the key for saving group data in levelDb
+	originPieceReqKey = []byte("originPieceRequired") //the key for marking origin piece required in current Seed
+	groupDataKey      = []byte("group")               //the key for saving group data in levelDb
 )
 
 // Store implements GroupStoreReader
