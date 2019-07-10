@@ -137,5 +137,7 @@ func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 	if ok, err := p.chain.AddTransactionToPool(tx); err != nil || !ok {
 		return common.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err)
 	}
+
+	logger.Debug("[group] sendTransaction success. type = %d, data = %v ",tx.Type, tx.Data)
 	return nil
 }

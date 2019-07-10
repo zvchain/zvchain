@@ -125,9 +125,10 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 }
 
 type Group struct {
-	HeaderD  *GroupHeader
-	MembersD []*Member
-	Height   uint64 // the Height of group created
+	HeaderD  *groupHeader
+	MembersD []*member
+	Height   uint64          // the Height of group created
+	members  []types.MemberI // cache for interface function Members()
 }
 
 func (g *Group) Header() types.GroupHeaderI {
@@ -135,27 +136,23 @@ func (g *Group) Header() types.GroupHeaderI {
 }
 
 func (g *Group) Members() []types.MemberI {
-	rs := make([]types.MemberI, 0, len(g.MembersD))
-	for _, v := range g.MembersD {
-		rs = append(rs, v)
-	}
-	return rs
+	return g.members
 }
 
-type Member struct {
+type member struct {
 	Id []byte
 	Pk []byte
 }
 
-func (m *Member) ID() []byte {
+func (m *member) ID() []byte {
 	return m.Id
 }
 
-func (m *Member) PK() []byte {
+func (m *member) PK() []byte {
 	return m.Pk
 }
 
-type GroupHeader struct {
+type groupHeader struct {
 	SeedD          common.Hash
 	WorkHeightD    uint64
 	DismissHeightD uint64
@@ -163,35 +160,37 @@ type GroupHeader struct {
 	ThresholdD     uint32
 }
 
-func (g *GroupHeader) Seed() common.Hash {
+func (g *groupHeader) Seed() common.Hash {
 	return g.SeedD
 }
 
-func (g *GroupHeader) WorkHeight() uint64 {
+func (g *groupHeader) WorkHeight() uint64 {
 	return g.WorkHeightD
 }
 
-func (g *GroupHeader) DismissHeight() uint64 {
+func (g *groupHeader) DismissHeight() uint64 {
 	return g.DismissHeightD
 }
 
-func (g *GroupHeader) PublicKey() []byte {
+func (g *groupHeader) PublicKey() []byte {
 	return g.PublicKeyD
 }
-func (g *GroupHeader) Threshold() uint32 {
+func (g *groupHeader) Threshold() uint32 {
 	return g.ThresholdD
 }
 
 func newGroup(i types.GroupI, height uint64) *Group {
-	header := &GroupHeader{i.Header().Seed(),
+	header := &groupHeader{i.Header().Seed(),
 		i.Header().WorkHeight(),
 		i.Header().DismissHeight(),
 		i.Header().PublicKey(),
 		i.Header().Threshold()}
-	members := make([]*Member, 0)
+	members := make([]*member, 0)
+	membersI := make([]types.MemberI, 0, len(i.Members()))
 	for _, m := range i.Members() {
-		mem := &Member{m.ID(), m.PK()}
+		mem := &member{m.ID(), m.PK()}
 		members = append(members, mem)
+		membersI = append(membersI, mem)
 	}
-	return &Group{header, members, height}
+	return &Group{header, members, height,membersI}
 }
