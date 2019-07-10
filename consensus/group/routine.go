@@ -19,6 +19,7 @@ package group
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -71,15 +72,18 @@ type createRoutine struct {
 
 var routine *createRoutine
 
-func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider) *skStorage {
+func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, miner *model.SelfMinerDO) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
 	routine = &createRoutine{
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
-		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", ""))),
+		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", "")), base.Data2CommonHash(miner.SK.Serialize()).Bytes()),
 	}
 	top := chain.QueryTopBlock()
-	routine.UpdateContext(top)
+	routine.updateContext(top)
+
+	routine.store.initAndLoad()
+	go routine.store.loop()
 
 	provider.RegisterGroupCreateChecker(checker)
 
@@ -91,24 +95,32 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 	block := message.GetData().(*types.Block)
 	bh := block.Header
 
-	routine.UpdateContext(bh)
-	err := routine.CheckAndSendEncryptedPiecePacket(bh)
+	routine.store.blockAddCh <- bh.Height
+
+	routine.updateContext(bh)
+	err := routine.checkAndSendEncryptedPiecePacket(bh)
 	if err != nil {
 		routine.logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+	} else {
+		routine.logger.Debugf("checkAndSendEncryptedPiecePacket sent encrypted packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 	}
-	err = routine.CheckAndSendMpkPacket(bh)
+	err = routine.checkAndSendMpkPacket(bh)
 	if err != nil {
 		routine.logger.Errorf("check and send mpk error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+	} else {
+		routine.logger.Debugf("checkAndSendMpkPacket sent mpk packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 	}
-	err = routine.CheckAndSendOriginPiecePacket(bh)
+	err = routine.checkAndSendOriginPiecePacket(bh)
 	if err != nil {
 		routine.logger.Errorf("check and send origin piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+	} else {
+		routine.logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 	}
 
 }
 
 // UpdateEra updates the era info base on current block header
-func (routine *createRoutine) UpdateContext(bh *types.BlockHeader) {
+func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
@@ -175,7 +187,7 @@ func (routine *createRoutine) selectCandidates() error {
 	return nil
 }
 
-func (routine *createRoutine) CheckAndSendEncryptedPiecePacket(bh *types.BlockHeader) error {
+func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHeader) error {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
@@ -184,7 +196,7 @@ func (routine *createRoutine) CheckAndSendEncryptedPiecePacket(bh *types.BlockHe
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.encPieceRange.inRange(bh.Height) {
-		return fmt.Errorf("height not in the encrypted-piece round")
+		return fmt.Errorf("expireHeight not in the encrypted-piece round")
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if !mInfo.CanJoinGroup() {
@@ -204,7 +216,7 @@ func (routine *createRoutine) CheckAndSendEncryptedPiecePacket(bh *types.BlockHe
 
 	// Generate encrypted share piece
 	packet := generateEncryptedSharePiecePacket(mInfo, encSk, era.Seed(), routine.ctx.cands)
-	routine.store.storeSeckey(prefixEncryptedSK, era.Seed(), encSk)
+	routine.store.storeSeckey(era.Seed(), nil, &encSk, bh.Height+expireHeightGap)
 
 	// Send the piece packet
 	err := routine.packetSender.SendEncryptedPiecePacket(packet)
@@ -216,7 +228,7 @@ func (routine *createRoutine) CheckAndSendEncryptedPiecePacket(bh *types.BlockHe
 	return nil
 }
 
-func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error {
+func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) error {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
@@ -225,7 +237,7 @@ func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.mpkRange.inRange(bh.Height) {
-		return fmt.Errorf("height not in the mpk round")
+		return fmt.Errorf("expireHeight not in the mpk round")
 	}
 
 	mInfo := routine.minerReader.SelfMinerInfo()
@@ -266,7 +278,7 @@ func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error
 	if err != nil {
 		return fmt.Errorf("genearte msk error:%v", err)
 	}
-	routine.store.storeSeckey(prefixMSK, era.Seed(), *msk)
+	routine.store.storeSeckey(era.Seed(), msk, nil, bh.Height+expireHeightGap)
 
 	mpk := groupsig.NewPubkeyFromSeckey(*msk)
 	// Generate encrypted share piece
@@ -286,7 +298,7 @@ func (routine *createRoutine) CheckAndSendMpkPacket(bh *types.BlockHeader) error
 	return nil
 }
 
-func (routine *createRoutine) CheckAndSendOriginPiecePacket(bh *types.BlockHeader) error {
+func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeader) error {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
@@ -295,7 +307,7 @@ func (routine *createRoutine) CheckAndSendOriginPiecePacket(bh *types.BlockHeade
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.oriPieceRange.inRange(bh.Height) {
-		return fmt.Errorf("height not in the encrypted-piece round")
+		return fmt.Errorf("expireHeight not in the encrypted-piece round")
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if !mInfo.CanJoinGroup() {
@@ -324,13 +336,13 @@ func (routine *createRoutine) CheckAndSendOriginPiecePacket(bh *types.BlockHeade
 		return fmt.Errorf("has sent origin pieces")
 	}
 
-	encSk, ok := routine.store.getSeckey(prefixEncryptedSK, era.Seed())
-	if !ok {
+	ski := routine.store.getSkInfo(era.Seed())
+	if ski == nil {
 		return fmt.Errorf("has no encrypted seckey")
 	}
 
 	// Generate origin share piece
-	sp := generateSharePiecePacket(mInfo, encSk, era.Seed(), routine.ctx.cands)
+	sp := generateSharePiecePacket(mInfo, ski.encSk, era.Seed(), routine.ctx.cands)
 	packet := &originSharePiecePacket{sharePiecePacket: sp}
 
 	// Send the piece packet
