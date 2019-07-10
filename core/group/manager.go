@@ -166,7 +166,7 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 
 func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	msg, err := checker.CheckGroupCreatePunishment(ctx)
-	logger.Debugf("CheckGroupCreatePunishment msg: %v, err: ",msg,err)
+	logger.Debugf("CheckGroupCreatePunishment msg: %v, err:%v ",msg,err)
 	if err != nil {
 		return
 	}
