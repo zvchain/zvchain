@@ -29,7 +29,7 @@ type groupLife struct {
 	seed   common.Hash
 	begin  uint64
 	end    uint64
-	height uint64 // height of group created
+	height uint64 // Height of group created
 }
 
 func (gl *groupLife) Seed() common.Hash {
@@ -37,16 +37,15 @@ func (gl *groupLife) Seed() common.Hash {
 }
 
 func newGroupLife(group Group) *groupLife {
-	//group := g.(*Group)
-	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.height}
+	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.Height}
 }
 
 type pool struct {
 	activeList       []*groupLife // list of active groups
 	waitingList      []*groupLife // list of waiting groups
 	groupCache       *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
-	activeListCache  *lru.Cache   // cache for active group lists. key is height; value is []*groupLife
-	waitingListCache *lru.Cache   // cache for waiting group lists. key is height; value is []*groupLife
+	activeListCache  *lru.Cache   // cache for active group lists. key is Height; value is []*groupLife
+	waitingListCache *lru.Cache   // cache for waiting group lists. key is Height; value is []*groupLife
 }
 
 func newPool() *pool {
@@ -59,11 +58,11 @@ func newPool() *pool {
 	}
 }
 
-func (p *pool) initPool(db types.AccountDB, genesisInfo *types.GenesisInfo) error {
-	err := p.initGenesis(db, genesisInfo)
-	if err != nil {
-		return err
-	}
+func (p *pool) initPool(db types.AccountDB) error {
+	//err := p.initGenesis(db, genesisInfo)
+	//if err != nil {
+	//	return err
+	//}
 
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter != nil {
@@ -182,9 +181,9 @@ func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, heigh
 	return count
 }
 
-func (p *pool) get(db types.AccountDB, seed common.Hash) types.GroupI {
+func (p *pool) get(db types.AccountDB, seed common.Hash) *Group {
 	if g, ok := p.groupCache.Get(seed); ok {
-		return g.(types.GroupI)
+		return g.(*Group)
 	}
 
 	byteData := db.GetData(common.HashToAddress(seed), groupDataKey)
@@ -217,7 +216,7 @@ func (p *pool) adjust(db types.AccountDB, height uint64) {
 		peeked = sPeek(p.activeList)
 	}
 
-	p.waitingListCache.Add(height, clone(p.waitingList))
+	p.waitingListCache.Add(height, p.waitingList)
 	p.activeListCache.Add(height, clone(p.activeList))
 }
 
@@ -234,11 +233,12 @@ func (p *pool) toActive(db types.AccountDB, gl *groupLife) {
 
 func (p *pool) getActives(chain chainReader, height uint64) []*groupLife {
 	if g, ok := p.activeListCache.Get(height); ok {
-		return g.([]*groupLife)
+		gl := g.([]*groupLife)
+		return gl
 	}
 	db, err := chain.GetAccountDBByHeight(height)
 	if err != nil {
-		logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+		logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
 		return nil
 	}
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
@@ -250,22 +250,23 @@ func (p *pool) getActives(chain chainReader, height uint64) []*groupLife {
 		var life groupLife
 		err := msgpack.Unmarshal(iter.Value, &life)
 		if err != nil {
-			logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+			logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
 			return nil
 		}
 		rs = append(rs, &life)
 	}
-	p.activeListCache.ContainsOrAdd(height, &rs)
+	p.activeListCache.ContainsOrAdd(height, rs)
 	return rs
 }
 
 func (p *pool) getWaiting(chain chainReader, height uint64) []*groupLife {
 	if g, ok := p.waitingListCache.Get(height); ok {
-		return g.([]*groupLife)
+		gl := g.([]*groupLife)
+		return gl
 	}
 	db, err := chain.GetAccountDBByHeight(height)
 	if err != nil {
-		logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+		logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
 		return nil
 	}
 	iter := db.DataIterator(common.GroupWaitingAddress, []byte{})
@@ -277,12 +278,12 @@ func (p *pool) getWaiting(chain chainReader, height uint64) []*groupLife {
 		var life groupLife
 		err := msgpack.Unmarshal(iter.Value, &life)
 		if err != nil {
-			logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+			logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
 			return nil
 		}
 		rs = append(rs, &life)
 	}
-	p.waitingListCache.ContainsOrAdd(height, &rs)
+	p.waitingListCache.ContainsOrAdd(height, rs)
 	return rs
 }
 

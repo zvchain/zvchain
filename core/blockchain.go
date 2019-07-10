@@ -204,6 +204,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.executor = NewTVMExecutor(chain)
 
 	chain.latestBlock = chain.loadCurrentBlock()
+
+	GroupManagerImpl = group.NewManager(chain)
+
 	if nil != chain.latestBlock {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
@@ -226,11 +229,12 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)
+	GroupManagerImpl.InitManager(MinerManagerImpl)
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 
-	genesisInfo := chain.consensusHelper.GenerateGenesisInfo()
-	GroupManagerImpl = group.NewManager(chain, MinerManagerImpl, genesisInfo)
+
+
 	return nil
 }
 
@@ -272,6 +276,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 
 	genesisInfo := chain.consensusHelper.GenerateGenesisInfo()
 	setupGenesisStateDB(stateDB, genesisInfo)
+	GroupManagerImpl.InitGenesis(stateDB, genesisInfo)
 
 	miners := make([]*types.Miner, 0)
 	for i, member := range genesisInfo.Group.Members() {

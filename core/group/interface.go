@@ -41,7 +41,7 @@ type chainReader interface {
 
 // Round 1 tx data,implement common.EncryptedSharePiecePacket
 type EncryptedSharePiecePacketImpl struct {
-	SeedD    common.Hash `msgpack:"se"`           // seed
+	SeedD    common.Hash `msgpack:"se"`           // Seed
 	SenderD  []byte      `msgpack:"sr,omitempty"` // sender's address. will set from transaction source
 	Pubkey0D []byte      `msgpack:"pb"`           // the gpk share of the miner
 	PiecesD  []byte      `msgpack:"pi"`           // array of encrypted piece for every group member
@@ -65,10 +65,10 @@ func (e *EncryptedSharePiecePacketImpl) Pubkey0() []byte {
 
 // Round 2 tx data. implement interface types.MpkPacket
 type MpkPacketImpl struct {
-	SeedD   common.Hash `msgpack:"se"`           // seed
+	SeedD   common.Hash `msgpack:"se"`           // Seed
 	SenderD []byte      `msgpack:"sr,omitempty"` // sender's address
 	MpkD    []byte      `msgpack:"mp"`           // mpk
-	SignD   []byte      `msgpack:"si"`           // byte data of seed signed by mpk
+	SignD   []byte      `msgpack:"si"`           // byte data of Seed signed by mpk
 }
 
 func (s *MpkPacketImpl) Seed() common.Hash {
@@ -89,7 +89,7 @@ func (s *MpkPacketImpl) Sign() []byte {
 
 // OriginSharePiecePacket implements types.OriginSharePiecePacket.
 type OriginSharePiecePacketImpl struct {
-	SeedD      common.Hash `msgpack:"se"`           // seed
+	SeedD      common.Hash `msgpack:"se"`           // Seed
 	SenderD    []byte      `msgpack:"sr,omitempty"` // sender's address. will set from transaction source
 	EncSeckeyD []byte      `msgpack:"es"`           // the gpk share of the miner
 	PiecesD    []byte      `msgpack:"pi"`           // array of origin piece for every group member
@@ -125,9 +125,9 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 }
 
 type Group struct {
-	HeaderD  types.GroupHeaderI
-	MembersD []types.MemberI
-	height   uint64 // the height of group created
+	HeaderD  *GroupHeader
+	MembersD []*Member
+	Height   uint64 // the Height of group created
 }
 
 func (g *Group) Header() types.GroupHeaderI {
@@ -135,47 +135,51 @@ func (g *Group) Header() types.GroupHeaderI {
 }
 
 func (g *Group) Members() []types.MemberI {
-	return g.MembersD
+	rs := make([]types.MemberI, 0, len(g.MembersD))
+	for _, v := range g.MembersD {
+		rs = append(rs, v)
+	}
+	return rs
 }
 
 type Member struct {
-	id []byte
-	pk []byte
+	Id []byte
+	Pk []byte
 }
 
 func (m *Member) ID() []byte {
-	return m.id
+	return m.Id
 }
 
 func (m *Member) PK() []byte {
-	return m.pk
+	return m.Pk
 }
 
 type GroupHeader struct {
-	seed          common.Hash
-	workHeight    uint64
-	dismissHeight uint64
-	publicKey     []byte
-	threshold     uint32
+	SeedD          common.Hash
+	WorkHeightD    uint64
+	DismissHeightD uint64
+	PublicKeyD     []byte
+	ThresholdD     uint32
 }
 
 func (g *GroupHeader) Seed() common.Hash {
-	return g.seed
+	return g.SeedD
 }
 
 func (g *GroupHeader) WorkHeight() uint64 {
-	return g.workHeight
+	return g.WorkHeightD
 }
 
 func (g *GroupHeader) DismissHeight() uint64 {
-	return g.dismissHeight
+	return g.DismissHeightD
 }
 
 func (g *GroupHeader) PublicKey() []byte {
-	return g.publicKey
+	return g.PublicKeyD
 }
 func (g *GroupHeader) Threshold() uint32 {
-	return g.threshold
+	return g.ThresholdD
 }
 
 func newGroup(i types.GroupI, height uint64) *Group {
@@ -184,7 +188,7 @@ func newGroup(i types.GroupI, height uint64) *Group {
 		i.Header().DismissHeight(),
 		i.Header().PublicKey(),
 		i.Header().Threshold()}
-	members := make([]types.MemberI, 0)
+	members := make([]*Member, 0)
 	for _, m := range i.Members() {
 		mem := &Member{m.ID(), m.PK()}
 		members = append(members, mem)

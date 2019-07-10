@@ -49,15 +49,9 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 	m.checkerImpl = checker
 }
 
-func NewManager(chain chainReader, reader minerReader, genesisInfo *types.GenesisInfo) Manager {
+func NewManager(chain chainReader) Manager {
 	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
-
 	gPool := newPool()
-	err := gPool.initPool(chain.LatestStateDB(), genesisInfo)
-	if err != nil {
-		panic(fmt.Sprintf("failed to init group manager pool %v", err))
-	}
-
 	store := NewStore(chain, *gPool)
 	packetSender := NewPacketSender(chain)
 
@@ -66,9 +60,25 @@ func NewManager(chain chainReader, reader minerReader, genesisInfo *types.Genesi
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
 		poolImpl:         *gPool,
-		minerReaderImpl:  reader,
+		//minerReaderImpl:  reader,
 	}
 	return managerImpl
+}
+
+func (m *Manager) InitManager(minerReader minerReader) {
+	m.minerReaderImpl = minerReader
+	err := m.poolImpl.initPool(m.chain.LatestStateDB())
+	if err != nil {
+		panic(fmt.Sprintf("failed to init group manager pool %v", err))
+	}
+
+}
+
+func (m *Manager) InitGenesis(db types.AccountDB, genesisInfo *types.GenesisInfo) {
+	err := m.poolImpl.initGenesis(db, genesisInfo)
+	if err != nil {
+		panic(fmt.Sprintf("failed to init InitGenesis %v", err))
+	}
 }
 
 // RegularCheck try to create group, do punishment and refresh active group
@@ -107,17 +117,17 @@ func (m *Manager) ActiveGroupCount() int {
 	return len(m.poolImpl.activeList)
 }
 
-// GetAvailableGroupSeeds gets available groups' seed at the given height
+// GetAvailableGroupSeeds gets available groups' Seed at the given Height
 func (m *Manager) GetAvailableGroupSeeds(height uint64) []types.SeedI {
 	return m.storeReaderImpl.GetAvailableGroupSeeds(height)
 }
 
-// GetGroupBySeed returns the group info of the given seed
+// GetGroupBySeed returns the group info of the given Seed
 func (m *Manager) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	return m.storeReaderImpl.GetGroupBySeed(seedHash)
 }
 
-// GetGroupHeaderBySeed returns the group header info of the given seed
+// GetGroupHeaderBySeed returns the group header info of the given Seed
 func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
 	return m.storeReaderImpl.GetGroupHeaderBySeed(seedHash)
 }

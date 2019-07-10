@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	originPieceReqKey = common.Hex2Bytes("originPieceRequired") //the key for marking origin piece required in current seed
+	originPieceReqKey = common.Hex2Bytes("originPieceRequired") //the key for marking origin piece required in current Seed
 	groupDataKey      = common.Hex2Bytes("group")               //the key for saving group data in levelDb
 )
 
@@ -46,14 +46,14 @@ func NewStore(chain chainReader, p pool) types.GroupStoreReader {
 	return &Store{chain, p}
 }
 
-// GetEncryptedPiecePackets returns all uploaded encrypted share piece with given seed
+// GetEncryptedPiecePackets returns all uploaded encrypted share piece with given Seed
 func (s *Store) GetEncryptedPiecePackets(seed types.SeedI) ([]types.EncryptedSharePiecePacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	rs := make([]types.EncryptedSharePiecePacket, 0, 100) //max group member number is 100
 	prefix := getKeyPrefix(dataTypePiece)
 	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
 	if iter == nil {
-		return nil, errors.New("no pieces uploaded for this seed")
+		return nil, errors.New("no pieces uploaded for this Seed")
 	}
 	for iter.Next() {
 		if !bytes.HasPrefix(iter.Key, prefix) {
@@ -85,7 +85,7 @@ func (s *Store) HasSentMpkPacket(sender []byte, seed types.SeedI) bool {
 	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
-// GetMpkPackets return all mpk with given seed
+// GetMpkPackets return all mpk with given Seed
 func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeMpk)
@@ -111,7 +111,7 @@ func (s *Store) IsOriginPieceRequired(seed types.SeedI) bool {
 	return s.chain.LatestStateDB().GetData(seedAdder, originPieceReqKey) != nil
 }
 
-// GetOriginPiecePackets returns all origin pieces with given seed
+// GetOriginPiecePackets returns all origin pieces with given Seed
 func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiecePacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeOriginPiece)
@@ -138,7 +138,7 @@ func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
 }
 
-// GetAvailableGroupSeeds returns all activeList groups at the given height
+// GetAvailableGroupSeeds returns all activeList groups at the given Height
 func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
 	gls := s.poolImpl.getActives(s.chain, height)
 	if gls != nil {
@@ -151,12 +151,12 @@ func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
 	return nil
 }
 
-// GetGroupBySeed returns group with given seed
+// GetGroupBySeed returns group with given Seed
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	return s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
 }
 
-// GetGroupBySeed returns group header with given seed
+// GetGroupBySeed returns group header with given Seed
 func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
 	g := s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
 	if g == nil {
