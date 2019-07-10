@@ -214,9 +214,10 @@ func (ss *contractCreator) Transition() *result {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		err := controller.Deploy(contract)
+		//TODO: support logs
+		_, _, err := controller.Deploy(contract)
 		if err != nil {
-			ret.setError(err, types.RSTvmError)
+			//TODO: return status
 		} else {
 			Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
 		}

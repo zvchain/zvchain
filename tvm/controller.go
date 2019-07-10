@@ -82,8 +82,20 @@ func NewController(accountDB vm.AccountDB,
 	return controller
 }
 
+func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
+	if result.ResultType == 4/*C.RETURN_TYPE_EXCEPTION*/ {
+		if result.ErrorCode == types.TVMGasNotEnoughError {
+			return types.NewTransactionError(types.TVMGasNotEnoughError, "does not have enough gas to run!")
+		} else {
+			return types.NewTransactionError(types.TVMExecutedError, result.Content)
+		}
+	}
+
+	return nil
+}
+
 // Deploy Deploy a contract instance
-func (con *Controller) Deploy(contract *Contract) error {
+func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log, *types.TransactionError) {
 	con.VM = NewTVM(con.Transaction.GetSource(), contract, con.LibPath)
 	defer func() {
 		con.VM.DelTVM()
@@ -91,16 +103,20 @@ func (con *Controller) Deploy(contract *Contract) error {
 	}()
 	con.VM.SetGas(int(con.GasLeft))
 	msg := Msg{Data: []byte{}, Value: con.Transaction.GetValue()}
-	err := con.VM.Deploy(msg)
 
-	if err != nil {
-		return err
+	result := con.VM.Deploy(msg)
+	transactionError := transactionErrorWith(result)
+	if transactionError != nil {
+		return result, nil, transactionError
 	}
-	err = con.VM.storeData()
-	if err != nil {
-		return err
+
+	result = con.VM.storeData() //store
+	transactionError = transactionErrorWith(result)
+	if transactionError != nil {
+		return result, nil, transactionError
 	}
-	return nil
+
+	return result, con.VM.Logs, nil
 }
 
 func canTransfer(db vm.AccountDB, addr common.Address, amount *big.Int) bool {
@@ -146,18 +162,19 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	}
 
 	con.VM.SetLibLine(libLen)
+
 	result := con.VM.executeABIKindEval(abi) //execute
-	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
-		if result.ErrorCode == types.TVMGasNotEnoughError {
-			return result, nil, types.NewTransactionError(types.TVMGasNotEnoughError, "does not have enough gas to run!")
-		} else {
-			return result, nil, types.NewTransactionError(types.TVMExecutedError, result.Content)
-		}
+	transactionError := transactionErrorWith(result)
+	if transactionError != nil {
+		return result, nil, transactionError
 	}
-	err = con.VM.storeData() //store
-	if err != nil {
-		return nil, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
+
+	result = con.VM.storeData() //store
+	transactionError = transactionErrorWith(result)
+	if transactionError != nil {
+		return result, nil, transactionError
 	}
+
 	return result, con.VM.Logs, nil
 }
 
