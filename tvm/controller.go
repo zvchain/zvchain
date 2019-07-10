@@ -125,7 +125,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		if canTransfer(con.AccountDB, *sender, amount) {
 			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
 		} else {
-			return nil, nil, types.TxErrorBalanceNotEnoughErr
+			return nil, nil, types.NewTransactionError(types.TxErrorBalanceNotEnough, "balance not enough")
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
@@ -136,11 +136,11 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
-		return nil, nil, types.TxErrorABIJSONErr
+		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
 	}
 
 	if !con.VM.VerifyABI(executeResult.Abi, abi) {
-		return nil, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
+		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, fmt.Sprintf(`
 			checkABI failed. abi:%s
 		`, abi.FuncName))
 	}
