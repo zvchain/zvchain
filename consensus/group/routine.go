@@ -142,8 +142,9 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 	if seedBH != nil {
 		seedBlockHash = seedBH.Hash
 	}
-	routine.logger.Debugf("new create context: era:%v-%v", sh, seedBlockHash)
 	routine.ctx = newCreateContext(newEra(sh, seedBH))
+	era := routine.currEra()
+	routine.logger.Debugf("new create context: era:%v-%v %v %v %v %v", sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
 	err := routine.selectCandidates()
 	if err != nil {
 		routine.logger.Debugf("select candidates:%v", err)
@@ -159,6 +160,10 @@ func (routine *createRoutine) selectCandidates() error {
 	routine.ctx.cands = make(candidates, 0)
 
 	era := routine.currEra()
+	if !era.seedExist() {
+		return fmt.Errorf("seed block not exist:%v", era.seedHeight)
+	}
+
 	h := era.seedHeight
 	bh := era.seedBlock
 
@@ -187,9 +192,9 @@ func (routine *createRoutine) selectCandidates() error {
 	for _, m := range selectedCandidates {
 		mems = append(mems, m.ID.GetHexString())
 	}
-	routine.logger.Debugf("selected candidates at seed %v-%v is %v", era.seedHeight, era.Seed().Hex(), mems)
 
 	routine.ctx.cands = selectedCandidates
+	routine.logger.Debugf("selected candidates size %v, at seed %v-%v is %v", routine.ctx.cands.size(), era.seedHeight, era.Seed().Hex(), mems)
 	return nil
 }
 
@@ -336,7 +341,7 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 	}
 	// Whether origin piece required
 	if !routine.storeReader.IsOriginPieceRequired(era) {
-		return false, fmt.Errorf("don't need origin pieces")
+		return false, nil
 	}
 	id := mInfo.ID.Serialize()
 	// Whether sent encrypted pieces

@@ -123,7 +123,7 @@ func (checker *createChecker) CheckEncryptedPiecePacket(packet types.EncryptedSh
 		return fmt.Errorf("seed not equal, expect %v infact %v", era.Seed().Hex(), seed.Hex())
 	}
 	if !era.encPieceRange.inRange(ctx.Height()) {
-		return fmt.Errorf("expireHeight not in the encrypted-piece round")
+		return fmt.Errorf("not in the encrypted-piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
 	sender := groupsig.DeserializeID(packet.Sender())
 
@@ -160,7 +160,7 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 		return fmt.Errorf("seed not equal, expect %v infact %v", era.Seed().Hex(), seed.Hex())
 	}
 	if !era.mpkRange.inRange(ctx.Height()) {
-		return fmt.Errorf("expireHeight not in the mpk round")
+		return fmt.Errorf("not in the mpk round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
 	cands := checker.ctx.cands
 
@@ -230,10 +230,10 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	}
 	first := checker.firstHeightOfRound(era.oriPieceRange)
 	if era.oriPieceRange.inRange(first) {
-		return errCreateResult(fmt.Errorf("not in the origin piece round"))
+		return errCreateResult(fmt.Errorf("not in the origin piece round, curr %v, round %v", ctx.Height(), era.encPieceRange))
 	}
 	if first != ctx.Height() {
-		return errCreateResult(fmt.Errorf("not the first expireHeight of the origin piece round"))
+		return errCreateResult(fmt.Errorf("not the first height of the origin piece round, curr %v, round %v", ctx.Height(), era.encPieceRange))
 	}
 	cands := checker.ctx.cands
 
@@ -302,7 +302,7 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 		return fmt.Errorf("seed not equal, expect %v infact %v", era.Seed().Hex(), seed.Hex())
 	}
 	if !era.oriPieceRange.inRange(ctx.Height()) {
-		return fmt.Errorf("expireHeight not in the encrypted-piece round")
+		return fmt.Errorf("height not in the encrypted-piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
 	sender := groupsig.DeserializeID(packet.Sender())
 	// Was selected
@@ -352,7 +352,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	}
 	first := checker.firstHeightOfRound(era.endRange)
 	if first != ctx.Height() {
-		return nil, fmt.Errorf("not the first expireHeight of the origin piece round")
+		return nil, fmt.Errorf("not the first expireHeight of the origin piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
 	cands := checker.ctx.cands
 

@@ -23,7 +23,7 @@ import (
 
 const (
 	steadyStateBackTrackGap = 5                                                                 //20                                                                // The gap from the present to the steady state
-	roundWindow             = 8                                                                 //80                                                                // The window length of each round
+	roundWindow             = 20                                                                //80                                                                // The window length of each round
 	eraWindow               = (steadyStateBackTrackGap+roundWindow)*3 + steadyStateBackTrackGap // The window length of group-create routine
 	lifeWindow              = 8 * eraWindow                                                     // The life window of a active group
 )
@@ -34,6 +34,10 @@ type rRange struct {
 
 func (r *rRange) inRange(h uint64) bool {
 	return r.begin <= h && r.end >= h
+}
+
+func (r rRange) String() string {
+	return fmt.Sprintf("%v-%v", r.begin, r.end)
 }
 
 func newRange(b uint64) *rRange {

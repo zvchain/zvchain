@@ -194,6 +194,8 @@ func (p *Processor) Start() bool {
 
 	p.triggerCastCheck()
 	p.initLivedGroup()
+	go p.chLoop()
+
 	p.ready = true
 	return true
 }
