@@ -214,10 +214,14 @@ func (ss *contractCreator) Transition() *result {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		//TODO: support logs
-		_, _, err := controller.Deploy(contract)
+		_, logs, err := controller.Deploy(contract)
+		ret.logs = logs
 		if err != nil {
-			ret.setError(err, types.RSTvmError)
+			if err.Code == types.TVMGasNotEnoughError{
+				ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
+			} else {
+				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
+			}
 		}else if canTransfer(ss.accountDB, ss.source, ss.tx.Value.Value()) {
 			transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.tx.Value.Value())
 			Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
