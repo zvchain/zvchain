@@ -103,7 +103,7 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 			return err
 		}
 		p.adjust(db, 0)
-		p.activeListCache.Add(uint64(0), clone(p.activeList))
+		//p.activeListCache.Add(uint64(0), clone(p.activeList))
 	}
 	return nil
 }
@@ -167,8 +167,8 @@ func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, heigh
 	for _, v := range lived {
 		g := p.get(chain.LatestStateDB(), v.Seed())
 		if g != nil {
-			for _, mem := range g.Members() {
-				if bytes.Equal(addr.Bytes(), mem.ID()) {
+			for _, mem := range g.MembersD {
+				if bytes.Equal(addr.Bytes(), mem.Id) {
 					count++
 				}
 			}
