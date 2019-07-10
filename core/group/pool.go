@@ -340,6 +340,11 @@ func removeLast(queue []*groupLife) []*groupLife {
 }
 
 func push(queue []*groupLife, gl *groupLife) []*groupLife {
+	for _, v := range queue {
+		if v.SeedD == gl.SeedD {
+			return queue
+		}
+	}
 	return append(queue, gl)
 }
 
