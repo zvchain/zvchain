@@ -68,6 +68,9 @@ type AccountDB interface {
 	Snapshot() int
 
 	AsAccountDBTS() AccountDBTS
+
+	Transfer(common.Address, common.Address, *big.Int)
+	CanTransfer(common.Address, *big.Int) bool
 }
 
 type ChainReader interface {

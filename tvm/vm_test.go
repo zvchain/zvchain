@@ -162,7 +162,7 @@ func TestVmTest(t *testing.T) {
 	//statedb, _ := core.NewAccountDB(common.Hash{}, core.NewDatabase(db))
 
 	contract := &Contract{ContractName: "test"}
-	vm := NewTVM(nil, contract, "")
+	vm := NewTVM(nil, contract)
 	vm.SetGas(9999999999999999)
 	vm.ContractName = "test"
 	script := `
@@ -215,7 +215,7 @@ func TestTVM_VerifyABI1(t *testing.T) {
 		ContractName:    "Token",
 		ContractAddress: &contractAddr,
 	}
-	vm := NewTVM(&senderAddr, contract, "")
+	vm := NewTVM(&senderAddr, contract)
 	vm.SetGas(9999999999999999)
 	var addr common.Address
 	addr = common.BytesToAddress([]byte("0x123"))
@@ -252,7 +252,7 @@ func TestTVM_VerifyABI2(t *testing.T) {
 		ContractName:    "A",
 		ContractAddress: &contractAddr,
 	}
-	vm := NewTVM(&senderAddr, contract, "")
+	vm := NewTVM(&senderAddr, contract)
 	vm.SetGas(9999999999999999)
 	var addr common.Address
 	addr = common.BytesToAddress([]byte("0x123"))
@@ -281,8 +281,8 @@ func TestTVM_VerifyABI2(t *testing.T) {
 	}
 }
 
-func BenchmarkAdd(b *testing.B) {
-	vm := NewTVM(nil, nil, "")
+func TestBlockHash2(b *testing.T) {
+	vm := NewTVM(nil, nil)
 	vm.SetGas(9999999999999999)
 	script := `
 a = 1
@@ -291,7 +291,7 @@ a = 1
 	script = `
 a += 1
 `
-	for i := 0; i < b.N; i++ { //use b.N for looping
-		vm.ExecuteScriptVMSucceed(script)
-	}
+	//for i := 0; i < b.N; i++ { //use b.N for looping
+	//	vm.ExecuteScriptVMSucceed(script)
+	//}
 }

@@ -25,8 +25,7 @@ import (
 	"github.com/zvchain/zvchain/storage/vm"
 )
 
-// HasLoadPyLibPath HasLoadPyLibPath is the flag that whether load python lib
-var HasLoadPyLibPath = false
+var bridgeInited = false
 
 // ControllerTransactionInterface ControllerTransactionInterface is the interface that match Controller
 type ControllerTransactionInterface interface {
@@ -45,7 +44,6 @@ type Controller struct {
 	AccountDB   vm.AccountDB
 	Reader      vm.ChainReader
 	VM          *TVM
-	LibPath     string
 	VMStack     []*TVM
 	GasLeft     uint64
 	mm          MinerManager
@@ -62,7 +60,6 @@ func NewController(accountDB vm.AccountDB,
 	header *types.BlockHeader,
 	transaction ControllerTransactionInterface,
 	gasUsed uint64,
-	libPath string,
 	manager MinerManager) *Controller {
 	if controller == nil {
 		controller = &Controller{}
@@ -75,7 +72,6 @@ func NewController(accountDB vm.AccountDB,
 	controller.AccountDB = accountDB
 	controller.Reader = chainReader
 	controller.VM = nil
-	controller.LibPath = libPath
 	controller.VMStack = make([]*TVM, 0)
 	controller.GasLeft = transaction.GetGasLimit() - gasUsed
 	controller.mm = manager
@@ -84,7 +80,7 @@ func NewController(accountDB vm.AccountDB,
 
 // Deploy Deploy a contract instance
 func (con *Controller) Deploy(contract *Contract) error {
-	con.VM = NewTVM(con.Transaction.GetSource(), contract, con.LibPath)
+	con.VM = NewTVM(con.Transaction.GetSource(), contract)
 	defer func() {
 		con.VM.DelTVM()
 		con.GasLeft = uint64(con.VM.Gas())
@@ -103,18 +99,9 @@ func (con *Controller) Deploy(contract *Contract) error {
 	return nil
 }
 
-func canTransfer(db vm.AccountDB, addr common.Address, amount *big.Int) bool {
-	return db.GetBalance(addr).Cmp(amount) >= 0
-}
-
-func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int) {
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
-}
-
 // ExecuteABI Execute the contract with abi
 func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, abiJSON string) (bool, []*types.Log, *types.TransactionError) {
-	con.VM = NewTVM(sender, contract, con.LibPath)
+	con.VM = NewTVM(sender, contract)
 	con.VM.SetGas(int(con.GasLeft))
 	defer func() {
 		con.VM.DelTVM()
@@ -122,8 +109,8 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 	}()
 	if con.Transaction.GetValue() > 0 {
 		amount := new(big.Int).SetUint64(con.Transaction.GetValue())
-		if canTransfer(con.AccountDB, *sender, amount) {
-			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
+		if con.AccountDB.CanTransfer(*sender, amount) {
+			con.AccountDB.Transfer(*sender, *con.Transaction.GetTarget(), amount)
 		} else {
 			return false, nil, types.TxErrorBalanceNotEnoughErr
 		}
@@ -161,7 +148,7 @@ func (con *Controller) ExecuteABI(sender *common.Address, contract *Contract, ab
 
 // ExecuteAbiEval Execute the contract with abi and returns result
 func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract, abiJSON string) (*ExecuteResult, bool, []*types.Log, *types.TransactionError) {
-	con.VM = NewTVM(sender, contract, con.LibPath)
+	con.VM = NewTVM(sender, contract)
 	con.VM.SetGas(int(con.GasLeft))
 	defer func() {
 		con.VM.DelTVM()
@@ -169,8 +156,8 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	}()
 	if con.Transaction.GetValue() > 0 {
 		amount := big.NewInt(int64(con.Transaction.GetValue()))
-		if canTransfer(con.AccountDB, *sender, amount) {
-			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
+		if con.AccountDB.CanTransfer(*sender, amount) {
+			con.AccountDB.Transfer(*sender, *con.Transaction.GetTarget(), amount)
 		} else {
 			return nil, false, nil, types.TxErrorBalanceNotEnoughErr
 		}

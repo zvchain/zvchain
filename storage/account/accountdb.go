@@ -272,6 +272,22 @@ func (adb *AccountDB) SetData(addr common.Address, key []byte, value []byte) {
 	}
 }
 
+func (adb *AccountDB) Transfer(sender, recipient common.Address, amount *big.Int) {
+	// Escape if amount is zero
+	if amount.Sign() <= 0 {
+		return
+	}
+	adb.SubBalance(sender, amount)
+	adb.AddBalance(recipient, amount)
+}
+
+func (adb *AccountDB) CanTransfer(addr common.Address, amount *big.Int) bool {
+	if amount.Sign() == -1 {
+		return false
+	}
+	return adb.GetBalance(addr).Cmp(amount) >= 0
+}
+
 // Suicide marks the given account as suicided.
 // This clears the account balance.
 //
