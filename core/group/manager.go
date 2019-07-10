@@ -62,6 +62,7 @@ func NewManager(chain chainReader, reader minerReader, genesisInfo *types.Genesi
 	packetSender := NewPacketSender(chain)
 
 	managerImpl := Manager{
+		chain:            chain,
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
 		poolImpl:         *gPool,

@@ -108,6 +108,8 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 			return err
 		}
 		p.adjust(db, 0)
+		p.activeListCache.Add(uint64(0), clone(p.activeList))
+		p.activeListCache.Add(uint64(1), clone(p.activeList))
 	}
 	return nil
 }
@@ -209,7 +211,7 @@ func (p *pool) adjust(db types.AccountDB, height uint64) {
 
 	// move group from activeList to dismiss
 	peeked = sPeek(p.activeList)
-	for peeked != nil && peeked.end >= height {
+	for peeked != nil && peeked.end <= height {
 		p.activeList = removeFirst(p.activeList)
 		p.toDismiss(db, peeked)
 		peeked = sPeek(p.activeList)
@@ -225,7 +227,7 @@ func (p *pool) toActive(db types.AccountDB, gl *groupLife) {
 		// this case must not happen
 		panic("failed to marshal group life data")
 	}
-	push(p.activeList, gl)
+	p.activeList = push(p.activeList, gl)
 	db.RemoveData(common.GroupWaitingAddress, gl.seed.Bytes())
 	db.SetData(common.GroupActiveAddress, gl.seed.Bytes(), byteData)
 }
