@@ -60,6 +60,8 @@ func newPool() *pool {
 }
 
 func (p *pool) initPool(db types.AccountDB) error {
+	p.activeList = make([]*groupLife, 0)
+	p.waitingList = make([]*groupLife, 0)
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
 	if iter != nil {
 		for iter.Next() {
@@ -103,7 +105,6 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 			return err
 		}
 		p.adjust(db, 0)
-		//p.activeListCache.Add(uint64(0), clone(p.activeList))
 	}
 	return nil
 }
