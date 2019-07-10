@@ -54,16 +54,19 @@ func _deployContract(contractName string, filePath string) string {
 	return contractAddress
 }
 
+func _callContract(contractAddress string, abiJSON string) {
+	tvmCli := NewTvmCli()
+	tvmCli.Call(contractAddress, abiJSON)
+	tvmCli.DeleteTvmCli()
+}
+
 func TestTvmCli_Call(t *testing.T) {
 	contractAddress := _deployContract("Token", "erc20.py")
-
-	tvmCli := NewTvmCli()
 	abiJson := `{
 	"FuncName": "balance_of",
 		"Args": ["0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`
-	tvmCli.Call(contractAddress, abiJson)
-	tvmCli.DeleteTvmCli()
+	_callContract(contractAddress, abiJson)
 }
 
 func TestTvmCli_QueryData(t *testing.T) {
@@ -78,42 +81,38 @@ func TestTvmCli_Call_ContractCallContract(t *testing.T) {
 	erc20Contract := _deployContract("Token", "erc20.py")
 	routerContract := _deployContract("Router", "router.py")
 
-	tvmCli := NewTvmCli()
-	abiJson := fmt.Sprintf(`{
+	abiJSON := fmt.Sprintf(`{
   "FuncName": "call_contract",
   "Args": ["%s","balance_of","0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`, erc20Contract)
-	tvmCli.Call(routerContract, abiJson)
-	tvmCli.DeleteTvmCli()
+	_callContract(routerContract, abiJSON)
 }
 
 func TestTvmCli_Call_ContractCallContract_2(t *testing.T) {
 	receiverContract := _deployContract("Receiver", "receiver.py")
 	routerContract := _deployContract("Router", "router.py")
 
-	tvmCli := NewTvmCli()
-	abiJson := fmt.Sprintf(`{
+	abiJSON := fmt.Sprintf(`{
   "FuncName": "call_contract",
   "Args": ["%s","private_set_name","test"]
 }`, receiverContract)
-	tvmCli.Call(routerContract, abiJson)
-	tvmCli.DeleteTvmCli()
+	_callContract(routerContract, abiJSON)
 }
 
 func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
 	receiverContract := _deployContract("Receiver", "receiver.py")
 	routerContract := _deployContract("Router", "router.py")
 
-	tvmCli := NewTvmCli()
-	abiJson := fmt.Sprintf(`{
+
+	abiJSON := fmt.Sprintf(`{
   "FuncName": "call_contract",
   "Args": ["%s","set_name","test"]
 }`, receiverContract)
-	tvmCli.Call(routerContract, abiJson)
+	_callContract(routerContract, abiJSON)
 
+	tvmCli := NewTvmCli()
 	tvmCli.QueryData(routerContract, "name", 0)
 	tvmCli.QueryData(receiverContract, "name", 0)
-
 	tvmCli.DeleteTvmCli()
 }
 
@@ -233,33 +232,27 @@ func TestTvmCli_Set_Data(t *testing.T)  {
 func TestTvmCli_ExecTime(t *testing.T) {
 	contractAddress := _deployContract("Max", "exectime.py")
 
-	tvmCli := NewTvmCli()
-	abiJson := `{
+	abiJSON := `{
 	"FuncName": "exec1",
 		"Args": [100000]
 }`
 	start := time.Now()
-	tvmCli.Call(contractAddress, abiJson)
+	_callContract(contractAddress, abiJSON)
 	t.Log(time.Since(start).Seconds())
-	tvmCli.DeleteTvmCli()
 
-	tvmCli = NewTvmCli()
-	abiJson = `{
+	abiJSON = `{
 	"FuncName": "exec2",
 		"Args": [100000]
 }`
 	start = time.Now()
-	tvmCli.Call(contractAddress, abiJson)
+	_callContract(contractAddress, abiJSON)
 	t.Log(time.Since(start).Seconds())
-	tvmCli.DeleteTvmCli()
 
-	tvmCli = NewTvmCli()
-	abiJson = `{
+	abiJSON = `{
 	"FuncName": "exec3",
 		"Args": [100000]
 }`
 	start = time.Now()
-	tvmCli.Call(contractAddress, abiJson)
+	_callContract(contractAddress, abiJSON)
 	t.Log(time.Since(start).Seconds())
-	tvmCli.DeleteTvmCli()
 }
