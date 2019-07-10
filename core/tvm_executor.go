@@ -248,7 +248,7 @@ func (ss *contractCaller) Transition() *result {
 		_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
 		ret.logs = logs
 		if err != nil {
-			if err.Code == types.SysABIJSONError {
+			if err.Code == types.TVMCheckABIError {
 				ret.setError(fmt.Errorf(err.Message), types.RSAbiError)
 			} else {
 				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)

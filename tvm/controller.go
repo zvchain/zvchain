@@ -125,7 +125,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		if canTransfer(con.AccountDB, *sender, amount) {
 			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
 		} else {
-			return nil, nil, types.TxErrorBalanceNotEnoughErr
+			return nil, nil, types.NewTransactionError(types.TxErrorBalanceNotEnough, "balance not enough")
 		}
 	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
@@ -136,11 +136,11 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
-		return nil, nil, types.TxErrorABIJSONErr
+		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
 	}
 
 	if !con.VM.VerifyABI(executeResult.Abi, abi) {
-		return nil, nil, types.NewTransactionError(types.SysCheckABIError, fmt.Sprintf(`
+		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, fmt.Sprintf(`
 			checkABI failed. abi:%s
 		`, abi.FuncName))
 	}
@@ -148,7 +148,11 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	con.VM.SetLibLine(libLen)
 	result := con.VM.executeABIKindEval(abi) //execute
 	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
-		return result, nil, types.NewTransactionError(types.TVMExecutedError, fmt.Errorf("C RETURN_TYPE_EXCEPTION").Error())
+		if result.ErrorCode == types.TVMGasNotEnoughError {
+			return result, nil, types.NewTransactionError(types.TVMGasNotEnoughError, "does not have enough gas to run!")
+		} else {
+			return result, nil, types.NewTransactionError(types.TVMExecutedError, result.Content)
+		}
 	}
 	err = con.VM.storeData() //store
 	if err != nil {

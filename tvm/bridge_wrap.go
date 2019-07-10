@@ -132,8 +132,8 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	contract := LoadContract(conAddr)
 	if contract.Code == "" {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
-		result.ErrorCode = types.NoCodeErr
-		result.Content = fmt.Sprint(types.NoCodeErrorMsg, conAddr)
+		result.ErrorCode = types.TVMNoCodeError
+		result.Content = fmt.Sprintf("get code from address %s, but no code!", conAddr)
 		return result
 	}
 
@@ -152,8 +152,8 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	}()
 	if !finished {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
-		result.ErrorCode = types.CallMaxDeepError
-		result.Content = types.CallMaxDeepErrorMsg
+		result.ErrorCode = types.TVMCallMaxDeepError
+		result.Content = fmt.Sprintf("call max deep cannot more than %d", MaxDepth)
 		return result
 	}
 
@@ -171,15 +171,15 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
-		result.ErrorCode = types.ABIJSONError
-		result.Content = types.ABIJSONErrorMsg
+		result.ErrorCode = types.TVMCheckABIError
+		result.Content = abiJSONError.Error()
 		return result
 	}
 
 	if !controller.VM.VerifyABI(executeResult.Abi, abi) {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
-		result.ErrorCode = types.SysCheckABIError
-		result.Content = fmt.Errorf("checkABI failed. abi:%s", abi.FuncName).Error()
+		result.ErrorCode = types.TVMCheckABIError
+		result.Content = fmt.Sprintf("checkABI failed. abi:%s", abi.FuncName)
 		return result
 	}
 	result = controller.VM.executeABIKindEval(abi)

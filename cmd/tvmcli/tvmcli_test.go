@@ -229,3 +229,37 @@ func TestTvmCli_Set_Data(t *testing.T)  {
 	tvmCli.DeleteTvmCli()
 
 }
+
+func TestTvmCli_ExecTime(t *testing.T) {
+	contractAddress := _deployContract("Max", "exectime.py")
+
+	tvmCli := NewTvmCli()
+	abiJson := `{
+	"FuncName": "exec1",
+		"Args": [100000]
+}`
+	start := time.Now()
+	tvmCli.Call(contractAddress, abiJson)
+	t.Log(time.Since(start).Seconds())
+	tvmCli.DeleteTvmCli()
+
+	tvmCli = NewTvmCli()
+	abiJson = `{
+	"FuncName": "exec2",
+		"Args": [100000]
+}`
+	start = time.Now()
+	tvmCli.Call(contractAddress, abiJson)
+	t.Log(time.Since(start).Seconds())
+	tvmCli.DeleteTvmCli()
+
+	tvmCli = NewTvmCli()
+	abiJson = `{
+	"FuncName": "exec3",
+		"Args": [100000]
+}`
+	start = time.Now()
+	tvmCli.Call(contractAddress, abiJson)
+	t.Log(time.Since(start).Seconds())
+	tvmCli.DeleteTvmCli()
+}

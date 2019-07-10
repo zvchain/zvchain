@@ -41,37 +41,19 @@ const (
 	BlockExisted              AddBlockResult = 1  // Means the block already added before
 	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
 )
+
 const (
 	TxErrorBalanceNotEnough = 1
-	TxFailed                = 3
 
-	TVMExecutedError = 1003
-
-	SysCheckABIError = 2002
-	SysABIJSONError  = 2003
+	TVMExecutedError     = 1001
+	TVMGasNotEnoughError = 1002
+	TVMCheckABIError     = 1003
+	TVMCallMaxDeepError  = 1004
+	TVMNoCodeError       = 1005
 
 	txFixSize = 200 // Fixed size for each transaction
-
 )
 
-var (
-	NoCodeErr            = 4
-	NoCodeErrorMsg       = "get code from address %s,but no code!"
-	ABIJSONError         = 2003
-	ABIJSONErrorMsg      = "abi json format error"
-	CallMaxDeepError     = 2004
-	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
-	InitContractError    = 2005
-	InitContractErrorMsg = "contract init error"
-	TargetNilError       = 2006
-	TargetNilErrorMsg    = "target nil error"
-)
-
-var (
-	TxErrorBalanceNotEnoughErr = NewTransactionError(TxErrorBalanceNotEnough, "balance not enough")
-	TxErrorABIJSONErr          = NewTransactionError(SysABIJSONError, "abi json format error")
-	TxErrorFailedErr           = NewTransactionError(TxFailed, "failed")
-)
 
 type TransactionError struct {
 	Code    int
