@@ -226,20 +226,20 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 
 	sh := seedHeight(ctx.Height())
 	if sh != era.seedHeight {
-		return errCreateResult(fmt.Errorf("seed expireHeight not equal:expect %v, infact %v", era.seedHeight, sh))
+		return errCreateResult(fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh))
 	}
 	first := checker.firstHeightOfRound(era.oriPieceRange)
-	if era.oriPieceRange.inRange(first) {
-		return errCreateResult(fmt.Errorf("not in the origin piece round, curr %v, round %v", ctx.Height(), era.encPieceRange))
+	if !era.oriPieceRange.inRange(first) {
+		return errCreateResult(fmt.Errorf("not in the origin piece round, curr %v, round %v, first %v", ctx.Height(), era.oriPieceRange, first))
 	}
 	if first != ctx.Height() {
-		return errCreateResult(fmt.Errorf("not the first height of the origin piece round, curr %v, round %v", ctx.Height(), era.encPieceRange))
+		return errCreateResult(fmt.Errorf("not the first height of the origin piece round, curr %v, round %v, first %v", ctx.Height(), era.oriPieceRange, first))
 	}
 	cands := checker.ctx.cands
 
 	piecePkt, err := checker.storeReader.GetEncryptedPiecePackets(era)
 	if err != nil {
-		return errCreateResult(fmt.Errorf("get encrypted piece error"))
+		return errCreateResult(fmt.Errorf("get encrypted piece error:%v", err))
 	}
 
 	result := &createResult{}
@@ -254,7 +254,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 
 	mpkPkt, err := checker.storeReader.GetMpkPackets(era)
 	if err != nil {
-		return errCreateResult(fmt.Errorf("get mpks error"))
+		return errCreateResult(fmt.Errorf("get mpks error:%v", err))
 	}
 
 	availPieces := make([]types.EncryptedSharePiecePacket, 0)
@@ -348,11 +348,14 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 
 	sh := seedHeight(ctx.Height())
 	if sh != era.seedHeight {
-		return nil, fmt.Errorf("seed expireHeight not equal:expect %v, infact %v", era.seedHeight, sh)
+		return nil, fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
 	}
 	first := checker.firstHeightOfRound(era.endRange)
+	if !era.endRange.inRange(first) {
+		return nil, fmt.Errorf("not in the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
+	}
 	if first != ctx.Height() {
-		return nil, fmt.Errorf("not the first expireHeight of the origin piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
+		return nil, fmt.Errorf("not the first height of the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
 	}
 	cands := checker.ctx.cands
 
