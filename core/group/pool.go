@@ -36,8 +36,8 @@ func (gl *groupLife) Seed() common.Hash {
 	return gl.seed
 }
 
-func newGroupLife(g types.GroupI) *groupLife {
-	group := g.(*Group)
+func newGroupLife(group Group) *groupLife {
+	//group := g.(*Group)
 	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.height}
 }
 
@@ -114,13 +114,13 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 	return nil
 }
 
-func (p *pool) add(db types.AccountDB, group types.GroupI) error {
+func (p *pool) add(db types.AccountDB, group *Group) error {
 	byteData, err := msgpack.Marshal(group)
 	if err != nil {
 		return err
 	}
 
-	life := newGroupLife(group)
+	life := newGroupLife(*group)
 	lifeData, err := msgpack.Marshal(life)
 	if err != nil {
 		return err

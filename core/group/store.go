@@ -56,7 +56,9 @@ func (s *Store) GetEncryptedPiecePackets(seed types.SeedI) ([]types.EncryptedSha
 		return nil, errors.New("no pieces uploaded for this seed")
 	}
 	for iter.Next() {
-
+		if !bytes.HasPrefix(iter.Key, prefix) {
+			break
+		}
 		var data EncryptedSharePiecePacketImpl
 		err := msgpack.Unmarshal(iter.Value, &data)
 		if err != nil {
@@ -90,6 +92,9 @@ func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
 	mpks := make([]types.MpkPacket, 0)
 	for iter.Next() {
+		if !bytes.HasPrefix(iter.Key, prefix) {
+			break
+		}
 		var data MpkPacketImpl
 		err := msgpack.Unmarshal(iter.Value, &data)
 		if err != nil {
@@ -113,6 +118,9 @@ func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiec
 	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
 	pieces := make([]types.OriginSharePiecePacket, 0, 100)
 	for iter.Next() {
+		if !bytes.HasPrefix(iter.Key, prefix) {
+			break
+		}
 		var data OriginSharePiecePacketImpl
 		err := msgpack.Unmarshal(iter.Value, &data)
 		if err != nil {
