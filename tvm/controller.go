@@ -148,7 +148,11 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	con.VM.SetLibLine(libLen)
 	result := con.VM.executeABIKindEval(abi) //execute
 	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
-		return result, nil, types.NewTransactionError(types.TVMExecutedError, fmt.Errorf("C RETURN_TYPE_EXCEPTION").Error())
+		if result.ErrorCode == types.TVMGasNotEnoughError {
+			return result, nil, types.NewTransactionError(types.TVMGasNotEnoughError, "does not have enough gas to run!")
+		} else {
+			return result, nil, types.NewTransactionError(types.TVMExecutedError, result.Content)
+		}
 	}
 	err = con.VM.storeData() //store
 	if err != nil {

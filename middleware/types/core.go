@@ -45,7 +45,8 @@ const (
 	TxErrorBalanceNotEnough = 1
 	TxFailed                = 3
 
-	TVMExecutedError = 1003
+	TVMGasNotEnoughError = 1002
+	TVMExecutedError     = 1003
 
 	SysCheckABIError = 2002
 	SysABIJSONError  = 2003
