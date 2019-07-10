@@ -76,7 +76,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	routine = &createRoutine{
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
-		store:         newSkStorage("groupstore" + common.GlobalConf.GetString("instance", "index", "")),
+		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", ""))),
 	}
 	top := chain.QueryTopBlock()
 	routine.UpdateContext(top)
