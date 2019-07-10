@@ -49,13 +49,6 @@ var (
 	ErrorRandomSign = errors.New("consensus verify fail,random signature error")
 	ErrPkNotExists  = errors.New("consensus verify fail,pk not exists")
 
-	ConsensusError = map[error]struct{}{
-		ErrorBlockHash:  struct{}{},
-		ErrorGroupSign:  struct{}{},
-		ErrorRandomSign: struct{}{},
-		ErrPkNotExists:  struct{}{},
-	}
-
 	ErrPkNil          = errors.New("pk is nil")
 	ErrGroupNotExists = errors.New("group not exists")
 )

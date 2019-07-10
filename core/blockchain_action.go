@@ -263,9 +263,9 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		return types.BlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, b); !ok {
-		if _, ok := ConsensusError[e]; ok {
+		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists{
 			ret = types.AddBlockConsensusFailed
-		}else{
+		} else{
 			ret = types.AddBlockFailed
 		}
 		err = e
