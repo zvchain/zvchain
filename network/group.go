@@ -74,6 +74,7 @@ func (g *Group) rebuildGroup(members []NodeID) {
 // then calculate accelerate link nodes,add to connect list
 func (g *Group) genConnectNodes() {
 
+	g.needConnectNodes = make([]NodeID, 0, 0)
 	sort.Sort(g)
 	peerSize := len(g.members)
 	g.curIndex = 0

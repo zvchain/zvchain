@@ -174,8 +174,16 @@ func (pm *PeerManager) checkPeers() {
 			if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid() {
 				go netServerInstance.netCore.ping(p.ID, nil)
 			}
+			if !p.verifyResult && p.sessionID > 0{
+				pongMsg := MsgPong{Version: 0, VerifyResult: p.verifyResult}
+			
+				packet, _, err := netServerInstance.netCore.encodePacket(MessageType_MessagePong, &pongMsg)
+				if err != nil {
+					return
+				}
+				p.write(packet, P2PMessageCodeBase+uint32(MessageType_MessagePong))
+			}
 		}
-
 	}
 }
 
