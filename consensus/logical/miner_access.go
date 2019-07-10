@@ -126,5 +126,11 @@ func (access *MinerPoolReader) getTotalStake(h uint64) uint64 {
 }
 
 func (access *MinerPoolReader) SelfMinerInfo() *model.SelfMinerDO {
-	return access.process.getSelfMinerDO()
+	mi := *access.process.mi
+	mInfo := access.GetLatestVerifyMiner(mi.ID)
+	if mInfo != nil {
+		mi.MinerDO = *mInfo
+		return &mi
+	}
+	return nil
 }

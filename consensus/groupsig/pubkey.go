@@ -94,7 +94,7 @@ func (pub Pubkey) GetHexString() string {
 	return PREFIX + common.Bytes2Hex(pub.value.Marshal())
 }
 
-func (pub *Pubkey) String() string {
+func (pub Pubkey) String() string {
 	return pub.GetHexString()
 }
 

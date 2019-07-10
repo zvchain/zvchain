@@ -196,10 +196,14 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.encPieceRange.inRange(bh.Height) {
-		return fmt.Errorf("expireHeight not in the encrypted-piece round")
+		return fmt.Errorf("not in the encrypted-piece round")
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
+	if mInfo == nil {
+		return fmt.Errorf("miner is nil")
+	}
 	if !mInfo.CanJoinGroup() {
+		routine.logger.Debugf("miner info:%+v", mInfo.MinerDO)
 		return fmt.Errorf("current miner cann't join group")
 	}
 
@@ -237,10 +241,13 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) error
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.mpkRange.inRange(bh.Height) {
-		return fmt.Errorf("expireHeight not in the mpk round")
+		return fmt.Errorf("not in the mpk round")
 	}
 
 	mInfo := routine.minerReader.SelfMinerInfo()
+	if mInfo == nil {
+		return fmt.Errorf("miner is nil")
+	}
 	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("current miner cann't join group")
 	}
@@ -307,9 +314,12 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.oriPieceRange.inRange(bh.Height) {
-		return fmt.Errorf("expireHeight not in the encrypted-piece round")
+		return fmt.Errorf("not in the encrypted-piece round")
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
+	if mInfo == nil {
+		return fmt.Errorf("miner is nil")
+	}
 	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("current miner cann't join group")
 	}

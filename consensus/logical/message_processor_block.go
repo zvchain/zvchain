@@ -191,7 +191,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 		if err != nil {
 			result = err.Error()
 		}
-		tlog.logEnd("%v:height=%v, hash=%v, preHash=%v, gseed=%v, result=%v", mType, bh.Height, bh.Hash, bh.PreHash, bh.Group, result)
+		tlog.logEnd("height=%v, preHash=%v, gseed=%v, result=%v", bh.Height, bh.PreHash, bh.Group, result)
 		traceLog.Log("PreHash=%v,castor=%v,result=%v", bh.PreHash, ccm.SI.GetID(), result)
 	}()
 	if ccm.GenHash() != ccm.SI.DataHash {
@@ -205,7 +205,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 	}
 
 	// Check if the current node is in the verifyGroup
-	if group.hasMember(p.GetMinerID()) {
+	if !group.hasMember(p.GetMinerID()) {
 		err = fmt.Errorf("don't belong to verifyGroup, gseed=%v, hash=%v, id=%v", bh.Group, bh.Hash, p.GetMinerID())
 		return
 	}

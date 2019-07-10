@@ -176,12 +176,12 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 	}
 
 	// Check verifyGroup id
-	if vc.group.header.Seed() == bh.Group {
+	if vc.group.header.Seed() != bh.Group {
 		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.header.Seed(), bh.Group)
 	}
 
 	// Only sign blocks with higher weights than that have been signed
-	if vc.hasSignedMoreWeightThan(bh) {
+	if vc.castHeight > 1 && vc.hasSignedMoreWeightThan(bh) {
 		max := vc.getSignedMaxWeight()
 		err = fmt.Errorf("have signed a higher qn block %v,This block qn %v", max.String(), bh.TotalQN)
 		return

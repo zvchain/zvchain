@@ -51,3 +51,10 @@ func TestPubkey_UnmarshalJSON(t *testing.T) {
 		t.Errorf("unmarshal error")
 	}
 }
+
+func TestPubkey_String(t *testing.T) {
+	var pk Pubkey
+	pk.SetHexString("0x08d8447b6403991f01b15a20fd444034374458ddd5dc49924135a6877bc94c7a15694df8f82f7917ad226bf14ea3e9eaa1ef7cfb37df198b39da463ed2e66965015da2ede2775f3f9b6339808c514c4e2cb935d5d88e63c430e9acd7f1a4b3022bbcad5c09f2c9e22c2da10c72391940a61fcac29e12a4e3fc3bcd63cdca9083")
+
+	t.Log(pk)
+}

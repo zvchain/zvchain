@@ -193,7 +193,7 @@ func (p *Processor) Start() bool {
 	p.Ticker.StartTickerRoutine(p.getUpdateMonitorNodeInfoRoutine(), false)
 
 	p.triggerCastCheck()
-	p.initGenesisMember()
+	p.initLivedGroup()
 	p.ready = true
 	return true
 }
@@ -203,8 +203,9 @@ func (p *Processor) Stop() {
 	return
 }
 
-func (p *Processor) initGenesisMember() {
+func (p *Processor) initLivedGroup() {
 	genesisGroup := group2.GenerateGenesis()
+
 	for i, mem := range genesisGroup.Group.Members() {
 		if bytes.Equal(mem.ID(), p.GetMinerID().Serialize()) {
 			p.genesisMember = true
@@ -216,8 +217,22 @@ func (p *Processor) initGenesisMember() {
 			var sk groupsig.Seckey
 			sk.SetHexString(arr[i])
 			p.groupReader.skStore.StoreGroupSignatureSeckey(genesisGroup.Group.Header().Seed(), sk, common.MaxUint64)
+
 			break
 		}
+	}
+
+	livedGroupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(p.MainChain.Height())
+	for _, seed := range livedGroupSeeds {
+		g := p.groupReader.getGroupBySeed(seed.Seed())
+		if g == nil {
+			continue
+		}
+		if !g.hasMember(p.GetMinerID()) {
+			continue
+		}
+		// Build group net
+		p.NetServer.BuildGroupNet(genesisGroup.Group.Header().Seed().Hex(), g.getMembers())
 	}
 }
 

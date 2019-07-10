@@ -130,10 +130,7 @@ func (a Address) IsValid() bool {
 	return len(a.Bytes()) > 0
 }
 
-func (a *Address) String() string {
-	if a == nil {
-		return "nil"
-	}
+func (a Address) String() string {
 	return a.Hex()
 }
 
@@ -171,9 +168,9 @@ func (h Hash) IsValid() bool {
 
 // Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
 // without going through the stringer interface used for logging.
-func (h Hash) Format(s fmt.State, c rune) {
-	fmt.Fprintf(s, "%"+string(c), h[:])
-}
+//func (h Hash) Format(s fmt.State, c rune) {
+//	fmt.Fprintf(s, "%"+string(c), h[:])
+//}
 
 // UnmarshalText parses a hash in hex syntax.
 func (h *Hash) UnmarshalText(input []byte) error {
