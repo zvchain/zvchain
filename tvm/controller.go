@@ -120,14 +120,6 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		con.VM.DelTVM()
 		con.GasLeft = uint64(con.VM.Gas())
 	}()
-	if con.Transaction.GetValue() > 0 {
-		amount := big.NewInt(int64(con.Transaction.GetValue()))
-		if canTransfer(con.AccountDB, *sender, amount) {
-			transfer(con.AccountDB, *sender, *con.Transaction.GetTarget(), amount)
-		} else {
-			return nil, nil, types.NewTransactionError(types.TxErrorBalanceNotEnough, "balance not enough")
-		}
-	}
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
 	libLen, executeResult, err := con.VM.CreateContractInstance(msg)
 	if err != nil {

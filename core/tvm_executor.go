@@ -250,19 +250,16 @@ func (ss *contractCaller) Transition() *result {
 		if err != nil {
 			if err.Code == types.TVMCheckABIError {
 				ret.setError(fmt.Errorf(err.Message), types.RSAbiError)
+			}else if err.Code == types.TVMGasNotEnoughError{
+				ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
 			} else {
 				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 			}
-		} else if canTransfer(ss.accountDB, ss.source, tx.Value.Value()) {
-			transfer(ss.accountDB, ss.source, *contract.ContractAddress, tx.Value.Value())
-		} else {
-			ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
 		}
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
 	allUsed := new(big.Int).Sub(tx.GasLimit.Value(), gasLeft)
 	ss.gasUsed = allUsed
-
 	return ret
 }
 
