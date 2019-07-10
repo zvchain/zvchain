@@ -43,7 +43,6 @@ const (
 )
 
 const (
-	TxErrorBalanceNotEnough = 1
 
 	TVMExecutedError     = 1001
 	TVMGasNotEnoughError = 1002
