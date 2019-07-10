@@ -23,18 +23,18 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-const (
-	BaseGasPrice = 2000 //gas price when auto send the transaction
-	BaseGasLimit = 2000 //gas limit when auto send the transaction
-
-)
-
 type PacketSender struct {
 	chain chainReader
+	baseGasPrice *types.BigInt
+	baseGasLimit *types.BigInt
 }
 
 func NewPacketSender(chain chainReader) types.GroupPacketSender {
-	return &PacketSender{chain}
+	return &PacketSender{
+		chain:chain,
+		baseGasPrice:types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_price", 2000))),
+		baseGasLimit:types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_limit", 2000))),
+	}
 }
 
 // SendEncryptedPiecePacket send transaction the miner's encrypted piece  in round one
@@ -113,8 +113,8 @@ func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*t
 	tx := &types.Transaction{}
 	tx.Data = data
 	tx.Type = txType
-	tx.GasPrice = types.NewBigInt(BaseGasPrice)
-	tx.GasLimit = types.NewBigInt(BaseGasLimit)
+	tx.GasPrice = p.baseGasPrice
+	tx.GasLimit = p.baseGasLimit
 	tx.Nonce = p.chain.LatestStateDB().GetNonce(source) + 1
 	tx.Hash = tx.GenHash()
 
