@@ -18,7 +18,6 @@ package common
 import (
 	"crypto/rand"
 	"fmt"
-
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/crypto/chacha20poly1305"
 )

@@ -41,10 +41,10 @@ func Transfer(toAddressStr *C.char, value *C.char) bool {
 	contractAddr := controller.VM.ContractAddress
 	toAddress := common.HexToAddress(C.GoString(toAddressStr))
 
-	if !canTransfer(controller.AccountDB,*contractAddr,transValue) {
+	if !controller.AccountDB.CanTransfer(*contractAddr, transValue) {
 		return false
 	}
-	transfer(controller.AccountDB,*contractAddr,toAddress,transValue)
+	controller.AccountDB.Transfer(*contractAddr, toAddress, transValue)
 	return true
 
 }

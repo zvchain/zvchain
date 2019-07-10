@@ -25,8 +25,7 @@ import (
 	"github.com/zvchain/zvchain/storage/vm"
 )
 
-// HasLoadPyLibPath HasLoadPyLibPath is the flag that whether load python lib
-var HasLoadPyLibPath = false
+var bridgeInited = false
 
 // ControllerTransactionInterface ControllerTransactionInterface is the interface that match Controller
 type ControllerTransactionInterface interface {
@@ -45,7 +44,6 @@ type Controller struct {
 	AccountDB   vm.AccountDB
 	Reader      vm.ChainReader
 	VM          *TVM
-	LibPath     string
 	VMStack     []*TVM
 	GasLeft     uint64
 	mm          MinerManager
@@ -62,7 +60,6 @@ func NewController(accountDB vm.AccountDB,
 	header *types.BlockHeader,
 	transaction ControllerTransactionInterface,
 	gasUsed uint64,
-	libPath string,
 	manager MinerManager) *Controller {
 	if controller == nil {
 		controller = &Controller{}
@@ -75,7 +72,6 @@ func NewController(accountDB vm.AccountDB,
 	controller.AccountDB = accountDB
 	controller.Reader = chainReader
 	controller.VM = nil
-	controller.LibPath = libPath
 	controller.VMStack = make([]*TVM, 0)
 	controller.GasLeft = transaction.GetGasLimit() - gasUsed
 	controller.mm = manager
@@ -83,7 +79,7 @@ func NewController(accountDB vm.AccountDB,
 }
 
 func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
-	if result.ResultType == 4/*C.RETURN_TYPE_EXCEPTION*/ {
+	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
 		if result.ErrorCode == types.TVMGasNotEnoughError {
 			return types.NewTransactionError(types.TVMGasNotEnoughError, "does not have enough gas to run!")
 		} else {
@@ -96,7 +92,7 @@ func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
 
 // Deploy Deploy a contract instance
 func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log, *types.TransactionError) {
-	con.VM = NewTVM(con.Transaction.GetSource(), contract, con.LibPath)
+	con.VM = NewTVM(con.Transaction.GetSource(), contract)
 	defer func() {
 		con.VM.DelTVM()
 		con.GasLeft = uint64(con.VM.Gas())
@@ -130,7 +126,7 @@ func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int
 
 // ExecuteAbiEval Execute the contract with abi and returns result
 func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract, abiJSON string) (*ExecuteResult, []*types.Log, *types.TransactionError) {
-	con.VM = NewTVM(sender, contract, con.LibPath)
+	con.VM = NewTVM(sender, contract)
 	con.VM.SetGas(int(con.GasLeft))
 	defer func() {
 		con.VM.DelTVM()

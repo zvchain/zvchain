@@ -139,7 +139,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 
 	// prepare vm environment
 	remainGas := controller.VM.Gas()
-	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.LibPath, controller.VM.Logs)
+	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.VM.Logs)
 	oneVM.SetGas(remainGas)
 	finished := controller.StoreVMContext(oneVM)
 	defer func() {
@@ -234,21 +234,20 @@ type TVM struct {
 }
 
 // NewTVM new a TVM instance
-func NewTVM(sender *common.Address, contract *Contract, libPath string) *TVM {
+func NewTVM(sender *common.Address, contract *Contract) *TVM {
 	C.tvm_start()
-	C.tvm_set_lib_path(C.CString(libPath))
-	return NewTVMForRetainContext(sender, contract, libPath, make([]*types.Log, 0))
+	return NewTVMForRetainContext(sender, contract, make([]*types.Log, 0))
 }
 
-func NewTVMForRetainContext(sender *common.Address, contract *Contract, libPath string, logs []*types.Log) *TVM {
+func NewTVMForRetainContext(sender *common.Address, contract *Contract, logs []*types.Log) *TVM {
 	tvm := &TVM{
 		contract,
 		sender,
 		logs,
 	}
 
-	if !HasLoadPyLibPath {
-		HasLoadPyLibPath = true
+	if !bridgeInited {
+		bridgeInited = true
 		bridgeInit()
 	}
 	C.tvm_set_gas(1000000)

@@ -103,7 +103,6 @@ func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
 	receiverContract := _deployContract("Receiver", "receiver.py")
 	routerContract := _deployContract("Router", "router.py")
 
-
 	abiJSON := fmt.Sprintf(`{
   "FuncName": "call_contract",
   "Args": ["%s","set_name","test"]
@@ -128,7 +127,7 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	tvmCli := NewTvmCli()
 	state := getState(tvmCli)
 	//addr := "123"
-	state.SetBalance(common.HexToAddress(contract),big.NewInt(100))
+	state.SetBalance(common.HexToAddress(contract), big.NewInt(100))
 	hash, _ := state.Commit(false)
 	tvmCli.database.TrieDB().Commit(hash, false)
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
@@ -136,62 +135,59 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	abiJson := fmt.Sprintf(`{
  "FuncName": "ckeckbalance",
  "Args": ["%s"]
-}`,contract)
-	fmt.Println("checkbalance\t"+contract+"________")
+}`, contract)
+	fmt.Println("checkbalance\t" + contract + "________")
 	tvmCli.Call(contract, abiJson)
 
-	randHash :=  sha256.Sum256([]byte(strconv.Itoa(int(time.Now().UnixNano()))))
-	randAddr := fmt.Sprintf("0x"+"%x",string(randHash[:]))
+	randHash := sha256.Sum256([]byte(strconv.Itoa(int(time.Now().UnixNano()))))
+	randAddr := fmt.Sprintf("0x"+"%x", string(randHash[:]))
 
 	abiJson2 := fmt.Sprintf(`{
 "FuncName": "transfer",
 "Args": ["%s",10]
-}`,randAddr)
-	fmt.Printf("%s___transfer___to___%s\n",contract,randAddr)
+}`, randAddr)
+	fmt.Printf("%s___transfer___to___%s\n", contract, randAddr)
 	tvmCli.Call(contract, abiJson2)
 
 	abiJson3 := fmt.Sprintf(`{
 "FuncName": "ckeckbalance",
 "Args": ["%s"]
-}`,contract)
-	fmt.Println("checkbalance\t"+contract+"________")
+}`, contract)
+	fmt.Println("checkbalance\t" + contract + "________")
 	tvmCli.Call(contract, abiJson3)
-
 
 	abiJson4 := fmt.Sprintf(`{
 "FuncName": "ckeckbalance",
 "Args": ["%s"]
-}`,randAddr)
-	fmt.Println("checkbalance\t"+randAddr+"________")
+}`, randAddr)
+	fmt.Println("checkbalance\t" + randAddr + "________")
 	tvmCli.Call(contract, abiJson4)
-
 
 	abiJson5 := fmt.Sprintf(`{
 "FuncName": "transfer",
 "Args": ["%s",10]
-}`,randAddr)
-	fmt.Printf("%s___transfer___to___%s\n",contract,randAddr)
+}`, randAddr)
+	fmt.Printf("%s___transfer___to___%s\n", contract, randAddr)
 	tvmCli.Call(contract, abiJson5)
 
 	abiJson6 := fmt.Sprintf(`{
 "FuncName": "ckeckbalance",
 "Args": ["%s"]
-}`,contract)
-	fmt.Println("checkbalance\t"+contract+"________")
+}`, contract)
+	fmt.Println("checkbalance\t" + contract + "________")
 	tvmCli.Call(contract, abiJson6)
-
 
 	abiJson7 := fmt.Sprintf(`{
 "FuncName": "ckeckbalance",
 "Args": ["%s"]
-}`,randAddr)
-	fmt.Println("checkbalance\t"+randAddr+"________")
+}`, randAddr)
+	fmt.Println("checkbalance\t" + randAddr + "________")
 	tvmCli.Call(contract, abiJson7)
 
 	tvmCli.DeleteTvmCli()
 }
 
-func TestTvmCli_Set_Data(t *testing.T)  {
+func TestTvmCli_Set_Data(t *testing.T) {
 	contract := _deployContract("Setandget", "setdata.py")
 
 	tvmCli := NewTvmCli()

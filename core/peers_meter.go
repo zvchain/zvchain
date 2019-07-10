@@ -25,58 +25,57 @@ import (
 
 const (
 	evilTimeoutMeterMax = 5
-	evilTimAdd = 10
+	evilTimAdd          = 10
 	maxReqBlockCount    = 16
-	maxEvilCount    = 100
-	eachEvilExpireTime = "1m"
+	maxEvilCount        = 100
+	eachEvilExpireTime  = "1m"
 )
 
 var peerManagerImpl *peerManager
 
 type peerMeter struct {
-	id            	string
-	timeoutMeter  	int
-	mu			  	sync.Mutex
-	reqBlockCount 	int // Maximum number of blocks per request
-	evilCount	  	time.Duration
-	evilExpireTime	time.Time
+	id             string
+	timeoutMeter   int
+	mu             sync.Mutex
+	reqBlockCount  int // Maximum number of blocks per request
+	evilCount      time.Duration
+	evilExpireTime time.Time
 }
 
 func (m *peerMeter) isEvil() bool {
 	return time.Since(m.evilExpireTime) < 0
 }
 
-func (m *peerMeter) addEvilCountWithLock(){
+func (m *peerMeter) addEvilCountWithLock() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.addEvilCount()
 }
 
-func (m *peerMeter) addEvilCount(){
-	if m.evilCount > maxEvilCount{
+func (m *peerMeter) addEvilCount() {
+	if m.evilCount > maxEvilCount {
 		return
 	}
 	m.evilCount++
 	addTime, _ := time.ParseDuration(eachEvilExpireTime)
-	m.evilExpireTime = time.Now().Add(m.evilCount*evilTimAdd *addTime)
+	m.evilExpireTime = time.Now().Add(m.evilCount * evilTimAdd * addTime)
 }
 
-
-func (m *peerMeter) resetEvilCountWithLock(){
+func (m *peerMeter) resetEvilCountWithLock() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.resetEvilCount()
 }
 
-func (m *peerMeter) resetEvilCount(){
-	m.evilCount  = 0
+func (m *peerMeter) resetEvilCount() {
+	m.evilCount = 0
 }
 
 func (m *peerMeter) increaseTimeout() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.timeoutMeter++
-	if m.timeoutMeter >= evilTimeoutMeterMax{
+	if m.timeoutMeter >= evilTimeoutMeterMax {
 		m.addEvilCount()
 		m.timeoutMeter = 0
 	}
@@ -116,9 +115,9 @@ func (bpm *peerManager) getOrAddPeer(id string) *peerMeter {
 	v, exit := bpm.peerMeters.Get(id)
 	if !exit {
 		v = &peerMeter{
-			id:            id,
-			reqBlockCount: maxReqBlockCount,
-			evilExpireTime:time.Now(),
+			id:             id,
+			reqBlockCount:  maxReqBlockCount,
+			evilExpireTime: time.Now(),
 		}
 		if exit, _ = bpm.peerMeters.ContainsOrAdd(id, v); exit {
 			v, _ = bpm.peerMeters.Get(id)
