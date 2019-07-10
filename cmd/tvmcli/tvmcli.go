@@ -204,8 +204,11 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	contract := tvm.LoadContract(_contractAddress)
 	//fmt.Println(contract.Code)
 	sender := common.HexToAddress(DefaultAccounts[0])
-	executeResult, logs, _ := controller.ExecuteAbiEval(&sender, contract, abiJSON)
-	fmt.Println("gas: ", TransactionGasLimitMax-controller.VM.Gas())
+	executeResult, logs, transactionError := controller.ExecuteAbiEval(&sender, contract, abiJSON)
+	if transactionError != nil {
+		fmt.Println(transactionError.Message)
+	}
+	fmt.Println("gas: ", TransactionGasLimitMax - controller.VM.Gas())
 	fmt.Printf("%d logs: \n", len(logs))
 	for _, log := range logs {
 		fmt.Printf("		string: %s, data: %s\n", log.String(), string(log.Data))
