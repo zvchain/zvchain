@@ -41,22 +41,21 @@ const (
 )
 
 var evilErrorMap = map[error]struct{}{
-	ErrHash: 							struct {}{},
-	ErrSign: 							struct {}{},
-	ErrDataSizeTooLong: 				struct {}{},
-	secp256k1.ErrInvalidMsgLen:			struct {}{},
-	secp256k1.ErrRecoverFailed: 		struct {}{},
-	secp256k1.ErrInvalidSignatureLen:   struct {}{},
-	secp256k1.ErrInvalidRecoveryID:     struct {}{},
+	ErrHash:                          struct{}{},
+	ErrSign:                          struct{}{},
+	ErrDataSizeTooLong:               struct{}{},
+	secp256k1.ErrInvalidMsgLen:       struct{}{},
+	secp256k1.ErrRecoverFailed:       struct{}{},
+	secp256k1.ErrInvalidSignatureLen: struct{}{},
+	secp256k1.ErrInvalidRecoveryID:   struct{}{},
 }
 
-
 var (
-	ErrNil     			 = errors.New("nil transaction")
-	ErrHash     	 	 = errors.New("invalid transaction hash")
-	ErrGasPrice 	 	 = errors.New("gas price is too low")
-	ErrSign 		 	 = errors.New("sign error")
-	ErrDataSizeTooLong 	 = errors.New("data size too long")
+	ErrNil             = errors.New("nil transaction")
+	ErrHash            = errors.New("invalid transaction hash")
+	ErrGasPrice        = errors.New("gas price is too low")
+	ErrSign            = errors.New("sign error")
+	ErrDataSizeTooLong = errors.New("data size too long")
 )
 
 type txPool struct {
@@ -119,7 +118,7 @@ func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
 }
 
 // AddTransaction try to add a list of transactions into the tool
-func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) (evilCount int){
+func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) (evilCount int) {
 	if nil == txs || 0 == len(txs) {
 		return
 	}
@@ -127,8 +126,8 @@ func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) (ev
 	for _, tx := range txs {
 		// this error can be ignored
 		_, err := pool.tryAddTransaction(tx, from)
-		if err != nil{
-			if _,ok:=evilErrorMap[err];ok{
+		if err != nil {
+			if _, ok := evilErrorMap[err]; ok {
 				evilCount++
 			}
 		}

@@ -68,7 +68,7 @@ func newTopBlockInfo(topBH *types.BlockHeader) *topBlockInfo {
 	}
 }
 
-func newBlockSyncer(chain *FullBlockChain)*blockSyncer{
+func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 	return &blockSyncer{
 		candidatePool: make(map[string]*types.CandidateBlockHeader),
 		chain:         chain,
@@ -110,10 +110,11 @@ func (bs *blockSyncer) isSyncing() bool {
 	}
 	return candTop.BH.Height > localHeight+50
 }
+
 // get blockheader by candidateID,if this candidateID is evil,then remove it from candidatePool
 func (bs *blockSyncer) getCandidateByCandidateID(candidateID string) *types.CandidateBlockHeader {
 	isEvil := bs.checkEvilAndDelete(candidateID)
-	if isEvil{
+	if isEvil {
 		return nil
 	}
 	maxTop := bs.candidatePool[candidateID]
@@ -180,7 +181,7 @@ func (bs *blockSyncer) getCandidateById(candidateID string) (string, *types.Cand
 		return bs.getCandidate()
 	} else {
 		bh := bs.getCandidateByCandidateID(candidateID)
-		if bh == nil{
+		if bh == nil {
 			return "", bs.getCandidateByCandidateID(candidateID)
 		}
 		return candidateID, bh

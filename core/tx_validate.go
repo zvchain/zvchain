@@ -202,7 +202,7 @@ func contractCreateValidator(tx *types.Transaction) error {
 	if tx.Target != nil {
 		return fmt.Errorf("target should be nil")
 	}
-	return nil
+	return valueValidate(tx)
 }
 
 func contractCallValidator(tx *types.Transaction) error {

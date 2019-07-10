@@ -32,6 +32,7 @@ const (
 	RSBalanceNotEnough
 	RSAbiError
 	RSTvmError
+	RSGasNotEnoughError
 )
 
 type Receipt struct {

@@ -28,13 +28,13 @@ import (
 )
 
 const (
-	TransactionGasCost   uint64 = 400
-	CodeBytePrice               = 19073 //1.9073486328125
-	CodeBytePricePrecision      = 10000
-	MaxCastBlockTime            = time.Second * 2
-	adjustGasPricePeriod        = 30000000
-	adjustGasPriceTimes         = 3
-	initialMinGasPrice          = 500
+	TransactionGasCost     uint64 = 400
+	CodeBytePrice                 = 19073 //1.9073486328125
+	CodeBytePricePrecision        = 10000
+	MaxCastBlockTime              = time.Second * 2
+	adjustGasPricePeriod          = 30000000
+	adjustGasPriceTimes           = 3
+	initialMinGasPrice            = 500
 )
 
 var (
@@ -124,7 +124,7 @@ func checkState(db vm.AccountDB, tx *types.Transaction, height uint64) error {
 		return errGasPriceTooLow
 	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasLimit.Value(), tx.GasPrice.Value())
-	if !canTransfer(db, *tx.Source, gasLimitFee) {
+	if !db.CanTransfer(*tx.Source, gasLimitFee) {
 		return errBalanceNotEnough
 	}
 	if !validateNonce(db, tx) {
@@ -170,11 +170,14 @@ func (ss *txTransfer) ParseTransaction() error {
 
 func (ss *txTransfer) Transition() *result {
 	ret := newResult()
-	if canTransfer(ss.accountDB, ss.source, ss.value) {
-		transfer(ss.accountDB, ss.source, ss.target, ss.value)
-	} else {
-		ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
+	if needTransfer(ss.value) {
+		if ss.accountDB.CanTransfer(ss.source, ss.value) {
+			ss.accountDB.Transfer(ss.source, ss.target, ss.value)
+		} else {
+			ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
+		}
 	}
+
 	return ret
 }
 
@@ -208,19 +211,33 @@ func (ss *contractCreator) ParseTransaction() error {
 
 func (ss *contractCreator) Transition() *result {
 	ret := newResult()
-	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "py"), MinerManagerImpl)
+	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.tx, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
 	contractAddress, txErr := createContract(ss.accountDB, ss.tx)
 	if txErr != nil {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		//TODO: support logs
-		_, _, err := controller.Deploy(contract)
+		_, logs, err := controller.Deploy(contract)
+		ret.logs = logs
 		if err != nil {
-			//TODO: return status
+			if err.Code == types.TVMGasNotEnoughError {
+				ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
+			} else {
+				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
+			}
 		} else {
-			Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
+			if needTransfer(ss.tx.Value.Value()) {
+				if ss.accountDB.CanTransfer(ss.source, ss.tx.Value.Value()) {
+					ss.accountDB.Transfer(ss.source, *contract.ContractAddress, ss.tx.Value.Value())
+					Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
+				} else {
+					ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
+				}
+			} else {
+				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
+			}
 		}
+
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
 	allUsed := new(big.Int).Sub(ss.tx.GasLimit.Value(), gasLeft)
@@ -241,7 +258,7 @@ func (ss *contractCaller) Transition() *result {
 	ret := newResult()
 	tx := ss.tx
 
-	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), common.GlobalConf.GetString("tvm", "pylib", "py"), MinerManagerImpl)
+	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
 	contract := tvm.LoadContract(*tx.Target)
 	if contract.Code == "" {
 		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSTvmError)
@@ -251,19 +268,27 @@ func (ss *contractCaller) Transition() *result {
 		if err != nil {
 			if err.Code == types.TVMCheckABIError {
 				ret.setError(fmt.Errorf(err.Message), types.RSAbiError)
+			} else if err.Code == types.TVMGasNotEnoughError {
+				ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
 			} else {
 				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 			}
-		} else if canTransfer(ss.accountDB, ss.source, tx.Value.Value()) {
-			transfer(ss.accountDB, ss.source, *contract.ContractAddress, tx.Value.Value())
 		} else {
-			ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
+			if needTransfer(ss.tx.Value.Value()) {
+				if ss.accountDB.CanTransfer(ss.source, tx.Value.Value()) {
+					ss.accountDB.Transfer(ss.source, *contract.ContractAddress, tx.Value.Value())
+					Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.Hex(), string(tx.Data))
+				} else {
+					ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
+				}
+			} else {
+				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.Hex(), string(tx.Data))
+			}
 		}
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
 	allUsed := new(big.Int).Sub(tx.GasLimit.Value(), gasLeft)
 	ss.gasUsed = allUsed
-
 	return ret
 }
 
@@ -504,18 +529,9 @@ func validGasPrice(gasPrice *big.Int, height uint64) bool {
 	return true
 }
 
-func canTransfer(db vm.AccountDB, addr common.Address, amount *big.Int) bool {
-	if amount.Sign() == -1 {
+func needTransfer(amount *big.Int) bool {
+	if amount.Sign() <= 0 {
 		return false
 	}
-	return db.GetBalance(addr).Cmp(amount) >= 0
-}
-
-func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int) {
-	// Escape if amount is zero
-	if amount.Sign() <= 0 {
-		return
-	}
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
+	return true
 }

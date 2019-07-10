@@ -21,7 +21,6 @@ import (
 	"github.com/zvchain/zvchain/taslog"
 )
 
-
 const ConsensusConfSection = "consensus"
 
 var consensusLogger taslog.Logger
