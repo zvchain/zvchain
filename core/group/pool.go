@@ -170,6 +170,7 @@ func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, heigh
 			for _, mem := range g.MembersD {
 				if bytes.Equal(addr.Bytes(), mem.Id) {
 					count++
+					break
 				}
 			}
 		}
