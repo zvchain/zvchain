@@ -102,7 +102,8 @@ func (p *pool) initPool(db types.AccountDB, genesisInfo *types.GenesisInfo) erro
 func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error {
 	exist := p.get(db, genesis.Group.Header().Seed())
 	if exist == nil {
-		err := p.add(db, genesis.Group)
+		g := newGroup(genesis.Group, 0)
+		err := p.add(db, g)
 		if err != nil {
 			return err
 		}
