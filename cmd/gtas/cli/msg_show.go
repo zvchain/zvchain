@@ -31,24 +31,26 @@ import (
 type applyFunc func()
 
 type msgShower struct {
-	ticker  *ticker.GlobalTicker
-	out     io.Writer
-	bchain  types.BlockChain
-	id      []byte
-	applied bool
-	apply   applyFunc
+	ticker      *ticker.GlobalTicker
+	out         io.Writer
+	bchain      types.BlockChain
+	groupReader groupInfoReader
+	id          []byte
+	applied     bool
+	apply       applyFunc
 }
 
 var shower *msgShower
 
 func initMsgShower(id []byte, apply applyFunc) {
 	ii := &msgShower{
-		ticker:  ticker.NewGlobalTicker("cli_ticker"),
-		out:     os.Stdout,
-		bchain:  core.BlockChainImpl,
-		id:      id,
-		apply:   apply,
-		applied: false,
+		ticker:      ticker.NewGlobalTicker("cli_ticker"),
+		out:         os.Stdout,
+		bchain:      core.BlockChainImpl,
+		id:          id,
+		apply:       apply,
+		applied:     false,
+		groupReader: getGroupReader(),
 	}
 	ii.ticker.RegisterPeriodicRoutine("cli_print_height", ii.showHeightRoutine, 10)
 	ii.ticker.StartTickerRoutine("cli_print_height", true)
@@ -66,7 +68,7 @@ func (ms *msgShower) showMsg(format string, a ...interface{}) {
 
 func (ms *msgShower) showHeightRoutine() bool {
 	height := ms.bchain.Height()
-	ms.showMsg("local height is %v %v", height, ms.gchain.Height())
+	ms.showMsg("local height is %v %v", height, ms.groupReader.Height())
 
 	if ms.apply != nil && !ms.applied {
 		balance := core.BlockChainImpl.GetBalance(common.BytesToAddress(ms.id))

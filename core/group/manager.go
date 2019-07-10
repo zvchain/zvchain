@@ -92,6 +92,10 @@ func (m *Manager) GroupsBefore(height uint64, limit int) []types.GroupI {
 	return m.poolImpl.groupsBefore(m.chain, height, limit)
 }
 
+func (m *Manager) GroupsAfter(height uint64) []types.GroupI {
+	return nil
+}
+
 // Height returns count of current group number
 func (m *Manager) WaitingGroupCount() int {
 	return len(m.poolImpl.waitingList)
@@ -100,6 +104,21 @@ func (m *Manager) WaitingGroupCount() int {
 // Height returns count of current group number
 func (m *Manager) ActiveGroupCount() int {
 	return len(m.poolImpl.activeList)
+}
+
+// GetAvailableGroupSeeds gets available groups' seed at the given height
+func (m *Manager) GetAvailableGroupSeeds(height uint64) []types.SeedI {
+	return m.storeReaderImpl.GetAvailableGroupSeeds(height)
+}
+
+// GetGroupBySeed returns the group info of the given seed
+func (m *Manager) GetGroupBySeed(seedHash common.Hash) types.GroupI {
+	return m.storeReaderImpl.GetGroupBySeed(seedHash)
+}
+
+// GetGroupHeaderBySeed returns the group header info of the given seed
+func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
+	return m.storeReaderImpl.GetGroupHeaderBySeed(seedHash)
 }
 
 func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {

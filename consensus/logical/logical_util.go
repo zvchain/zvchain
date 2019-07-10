@@ -63,12 +63,3 @@ func calcRandomHash(preBH *types.BlockHeader, height uint64) common.Hash {
 	}
 	return hash
 }
-
-func isGroupDissmisedAt(gh *types.GroupHeader, h uint64) bool {
-	return gh.DismissHeight <= h
-}
-
-// IsGroupWorkQualifiedAt check if the specified verifyGroup is work qualified at the given height
-func IsGroupWorkQualifiedAt(gh *types.GroupHeader, h uint64) bool {
-	return !isGroupDissmisedAt(gh, h) && gh.WorkHeight <= h
-}

@@ -37,18 +37,18 @@ func (p *Processor) triggerCastCheck() {
 func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
 	var hash = calcRandomHash(preBH, height)
 
-	groups := p.groupReader.getAvailableGroupsByHeight(height)
+	groupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(height)
 	// Must not happen
-	if len(groups) == 0 {
-		panic("no available groups")
+	if len(groupSeeds) == 0 {
+		panic("no available groupSeeds")
 	}
 
 	value := hash.Big()
-	index := value.Mod(value, big.NewInt(int64(len(groups))))
+	index := value.Mod(value, big.NewInt(int64(len(groupSeeds))))
 
-	selectedGroup := groups[index.Int64()]
+	selectedGroup := groupSeeds[index.Int64()]
 
-	return selectedGroup.header.Seed()
+	return selectedGroup.Seed()
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {

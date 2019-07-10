@@ -92,16 +92,26 @@ type skStorage interface {
 	StoreGroupSignatureSeckey(seed common.Hash, sk groupsig.Seckey)
 }
 
-type groupReader struct {
-	reader  types.GroupStoreReader
-	skStore skStorage
-	cache   *lru.Cache
+type groupInfoReader interface {
+	// GetAvailableGroupSeeds gets available groups' seed at the given height
+	GetAvailableGroupSeeds(height uint64) []types.SeedI
+	// GetGroupBySeed returns the group info of the given seed
+	GetGroupBySeed(seedHash common.Hash) types.GroupI
+	// GetGroupHeaderBySeed returns the group header info of the given seed
+	GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI
+	Height() uint64
 }
 
-func newGroupReader(reader types.GroupStoreReader, skReader skStorage) *groupReader {
+type groupReader struct {
+	skStore skStorage
+	cache   *lru.Cache
+	reader  groupInfoReader
+}
+
+func newGroupReader(infoReader groupInfoReader, skReader skStorage) *groupReader {
 	return &groupReader{
-		reader:  reader,
 		skStore: skReader,
+		reader:  infoReader,
 		cache:   common.MustNewLRUCache(50),
 	}
 }
@@ -133,19 +143,15 @@ func (gr *groupReader) getGroupBySeed(seed common.Hash) *verifyGroup {
 	return nil
 }
 
-func (gr *groupReader) getAvailableGroupsByHeight(h uint64) []*verifyGroup {
-	gs := gr.reader.GetAvailableGroups(h)
-	gis := make([]*verifyGroup, len(gs))
-	if gs != nil {
-		for i, g := range gs {
-			gi := convertGroupI(g)
-			gis[i] = gi
-			gr.cache.ContainsOrAdd(g.Header().Seed(), gi)
-		}
-	}
-	return gis
+func (gr *groupReader) getAvailableGroupSeedsByHeight(h uint64) []types.SeedI {
+	gs := gr.reader.GetAvailableGroupSeeds(h)
+	return gs
 }
 
 func (gr *groupReader) getGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
 	return gr.skStore.GetGroupSignatureSeckey(seed)
+}
+
+func (gr *groupReader) Height() uint64 {
+	return gr.reader.Height()
 }

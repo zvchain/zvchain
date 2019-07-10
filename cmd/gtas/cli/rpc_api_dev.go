@@ -131,7 +131,7 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 	blockDetail["total_qn"] = bh.TotalQN
 	blockDetail["cur_time"] = bh.CurTime.Local().Format("2006-01-02 15:04:05")
 	blockDetail["castor"] = hex.EncodeToString(bh.Castor)
-	blockDetail["group_id"] = hex.EncodeToString(bh.Group)
+	blockDetail["group_id"] = bh.Group.Hex()
 	blockDetail["signature"] = hex.EncodeToString(bh.Signature)
 	blockDetail["txs"] = len(b.Transactions)
 	blockDetail["elapsed"] = bh.Elapsed
@@ -139,50 +139,18 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 
 	blockDetail["tx_pool_count"] = len(core.BlockChainImpl.GetTransactionPool().GetReceived())
 	blockDetail["tx_pool_total"] = core.BlockChainImpl.GetTransactionPool().TxNum()
-	blockDetail["miner_id"] = mediator.Proc.GetPubkeyInfo().ID.ShortS()
+	blockDetail["miner_id"] = mediator.Proc.GetMinerID().GetHexString()
 	return successResult(blockDetail)
 }
 
 func (api *RpcDevImpl) WorkGroupNum(height uint64) (*Result, error) {
-	groups := mediator.Proc.GetCastQualifiedGroups(height)
+	groups := getGroupReader().ActiveGroupCount()
 	return successResult(groups)
 }
 
-func convertGroup(g *types.Group) map[string]interface{} {
-	gmap := make(map[string]interface{})
-	if g.ID != nil && len(g.ID) != 0 {
-		gmap["group_id"] = groupsig.DeserializeID(g.ID).GetHexString()
-		gmap["g_hash"] = g.Header.Hash.Hex()
-	}
-	gmap["parent"] = groupsig.DeserializeID(g.Header.Parent).GetHexString()
-	gmap["pre"] = groupsig.DeserializeID(g.Header.PreGroup).GetHexString()
-	gmap["begin_height"] = g.Header.WorkHeight
-	gmap["dismiss_height"] = g.Header.DismissHeight
-	gmap["create_height"] = g.Header.CreateHeight
-	gmap["create_time"] = g.Header.BeginTime
-	gmap["mem_size"] = len(g.Members)
-	mems := make([]string, 0)
-	for _, mem := range g.Members {
-		memberStr := groupsig.DeserializeID(mem).GetHexString()
-		mems = append(mems, memberStr[0:6]+"-"+memberStr[len(memberStr)-6:])
-	}
-	gmap["members"] = mems
-	gmap["extends"] = g.Header.Extends
-	return gmap
-}
-
 func (api *RpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
-	groups := core.GroupChainImpl.GetGroupsAfterHeight(height, math.MaxInt64)
-
-	ret := make([]map[string]interface{}, 0)
-	h := height
-	for _, g := range groups {
-		gmap := convertGroup(g)
-		gmap["height"] = h
-		h++
-		ret = append(ret, gmap)
-	}
-	return successResult(ret)
+	api2 := &RpcExplorerImpl{}
+	return api2.ExplorerGroupsAfter(height)
 }
 
 func (api *RpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
@@ -191,14 +159,12 @@ func (api *RpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
 }
 
 func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
-	groups := mediator.Proc.GetCastQualifiedGroupsFromChain(height)
-	ret := make([]map[string]interface{}, 0)
-	h := height
-	for _, g := range groups {
-		gmap := convertGroup(g)
-		gmap["height"] = h
-		h++
-		ret = append(ret, gmap)
+	seeds := getGroupReader().GetAvailableGroupSeeds(height)
+	ret := make([]*Group, 0)
+	for _, seed := range seeds {
+		group := getGroupReader().GetGroupBySeed(seed.Seed())
+		g := convertGroup(group)
+		ret = append(ret, g)
 	}
 	return successResult(ret)
 }
@@ -225,7 +191,7 @@ func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 		} else {
 			proposerStat[p] = 1
 		}
-		g := string(bh.Group)
+		g := bh.Group.Hex()
 		if v, ok := groupStat[g]; ok {
 			groupStat[g] = v + 1
 		} else {
@@ -279,9 +245,9 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 		ni.NType = t
 		ni.MortGages = morts
 
-		wg, ag := p.GetJoinedWorkGroupNums()
-		ni.WGroupNum = wg
-		ni.AGroupNum = ag
+		//wg, ag := p.GetJoinedWorkGroupNums()
+		//ni.WGroupNum = wg
+		//ni.AGroupNum = ag
 
 		ni.TxPoolNum = int(core.BlockChainImpl.GetTransactionPool().TxNum())
 
@@ -293,7 +259,7 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 func (api *RpcDevImpl) Dashboard() (*Result, error) {
 	blockHeight := core.BlockChainImpl.Height()
 	groupHeight := core.GroupManagerImpl.Height()
-	workNum := len(mediator.Proc.GetCastQualifiedGroups(blockHeight))
+	workNum := getGroupReader().ActiveGroupCount()
 	nodeResult, _ := api.NodeInfo()
 	consResult, _ := api.ConnectedNodes()
 	dash := &Dashboard{
@@ -417,7 +383,7 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 	}
 
 	var genReward *RewardTransaction
-	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
+	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash); rewardTx != nil {
 		genReward = convertRewardTransaction(rewardTx)
 	}
 
@@ -498,7 +464,7 @@ func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
 
 func (api *RpcDevImpl) MonitorNodeInfo() (*Result, error) {
 	bh := core.BlockChainImpl.Height()
-	gh := core.GroupChainImpl.LastGroup().GroupHeight
+	gh := getGroupReader().Height()
 
 	ni := &NodeInfo{}
 

@@ -46,7 +46,7 @@ type Processor struct {
 	// miner releted
 	mi            *model.SelfMinerDO // Current miner information
 	genesisMember bool               // Whether current node is one of the genesis verifyGroup members
-	minerReader   *MinerPoolReader   // Miner info reader
+	minerReader   *MinerPoolReader   // Miner info storeReader
 
 	// block generate related
 	blockContexts    *castBlockContexts   // Stores the proposal messages for proposal role and the verification context for verify roles
@@ -86,10 +86,6 @@ func (p Processor) getMinerInfo() *model.SelfMinerDO {
 	return p.mi
 }
 
-func (p Processor) GetPubkeyInfo() model.PubKeyInfo {
-	return model.NewPubKeyInfo(p.mi.GetMinerID(), p.mi.GetDefaultPubKey())
-}
-
 // Init initialize the process engine
 func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.ready = false
@@ -115,7 +111,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 
 	provider := &core.GroupManagerImpl
 	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider)
-	p.groupReader = newGroupReader(provider.GetGroupStoreReader(), sr)
+	p.groupReader = newGroupReader(provider, sr)
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())
@@ -214,7 +210,7 @@ func (p *Processor) initGenesisMember() {
 			p.genesisMember = true
 			msks, err := ioutil.ReadFile("genesis_msk.info")
 			if err != nil {
-				panic(fmt.Errorf("genesis miner reader genesis_msk.info fail:%v", err))
+				panic(fmt.Errorf("genesis miner storeReader genesis_msk.info fail:%v", err))
 			}
 			arr := strings.Split(string(msks), ",")
 			var sk groupsig.Seckey

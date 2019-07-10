@@ -24,6 +24,24 @@ import (
 	"strings"
 )
 
+type groupInfoReader interface {
+	// GetAvailableGroupSeeds gets available groups' seed at the given height
+	GetAvailableGroupSeeds(height uint64) []types.SeedI
+	// GetGroupBySeed returns the group info of the given seed
+	GetGroupBySeed(seedHash common.Hash) types.GroupI
+	// GetGroupHeaderBySeed returns the group header info of the given seed
+	GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI
+	Height() uint64
+
+	GroupsAfter(height uint64) []types.GroupI
+	ActiveGroupCount() int
+	WaitingGroupCount() int
+}
+
+func getGroupReader() groupInfoReader {
+	return &core.GroupManagerImpl
+}
+
 // RpcGtasImpl provides rpc service for users to interact with remote nodes
 type RpcGtasImpl struct {
 }

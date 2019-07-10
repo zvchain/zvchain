@@ -150,24 +150,13 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	availCandidates := make([]*model.MinerDO, 0)
-	groups := routine.storeReader.GetAvailableGroups(h)
-	memJoinedCountMap := make(map[string]int)
-	for _, g := range groups {
-		for _, mem := range g.Members() {
-			hex := common.ToHex(mem.ID())
-			if c, ok := memJoinedCountMap[hex]; !ok {
-				memJoinedCountMap[hex] = 1
-			} else {
-				memJoinedCountMap[hex] = c + 1
-			}
+	for _, m := range allVerifiers {
+		cnt := routine.storeReader.MinerLiveGroupCount(m.ID.ToAddress(), h)
+		if cnt < memberMaxJoinGroupNum {
+			availCandidates = append(availCandidates, m)
 		}
 	}
 
-	for _, verifier := range allVerifiers {
-		if c, ok := memJoinedCountMap[verifier.ID.GetHexString()]; !ok || c < memberMaxJoinGroupNum {
-			availCandidates = append(availCandidates, verifier)
-		}
-	}
 	memberCnt := candidateCount(len(availCandidates))
 	if !candidateEnough(memberCnt) {
 		return fmt.Errorf("not enough candiates in availables:%v", len(availCandidates))

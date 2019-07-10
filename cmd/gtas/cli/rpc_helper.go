@@ -146,3 +146,19 @@ func sendTransaction(trans *types.Transaction) error {
 	}
 	return nil
 }
+
+func convertGroup(g types.GroupI) *Group {
+	mems := make([]string, 0)
+	for _, mem := range g.Members() {
+		memberStr := groupsig.DeserializeID(mem.ID()).GetHexString()
+		mems = append(mems, memberStr)
+	}
+	gh := g.Header()
+	return &Group{
+		Seed:          gh.Seed(),
+		BeginHeight:   gh.WorkHeight(),
+		DismissHeight: gh.DismissHeight(),
+		Threshold:     int32(gh.Threshold()),
+		Members:       mems,
+	}
+}

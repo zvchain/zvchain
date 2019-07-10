@@ -104,9 +104,6 @@ func (p *Processor) broadcastRoutine() bool {
 
 func (p *Processor) releaseRoutine() bool {
 	topHeight := p.MainChain.QueryTopBlock().Height
-	if topHeight <= model.Param.CreateGroupInterval {
-		return true
-	}
 
 	p.blockContexts.cleanVerifyContext(topHeight)
 
@@ -167,7 +164,7 @@ func (p *Processor) updateMonitorInfo() bool {
 
 	ni := &monitor.NodeInfo{
 		BlockHeight: top,
-		GroupHeight: p.GroupChain.Height(),
+		GroupHeight: p.groupReader.Height(),
 		TxPoolCount: int(p.MainChain.GetTransactionPool().TxNum()),
 	}
 	proposer := p.minerReader.getLatestProposeMiner(p.GetMinerID())

@@ -192,12 +192,10 @@ type ExplorerBlockDetail struct {
 }
 
 type Group struct {
-	Height        uint64      `json:"height"`
-	ID            groupsig.ID `json:"id"`
-	PreID         groupsig.ID `json:"pre_id"`
-	ParentID      groupsig.ID `json:"parent_id"`
+	Seed          common.Hash `json:"id"`
 	BeginHeight   uint64      `json:"begin_height"`
 	DismissHeight uint64      `json:"dismiss_height"`
+	Threshold     int32       `json:"threshold"`
 	Members       []string    `json:"members"`
 }
 

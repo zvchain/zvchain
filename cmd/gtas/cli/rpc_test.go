@@ -106,7 +106,6 @@ func TestRPC(t *testing.T) {
 
 func resetDb(dbPath string) error {
 	core.BlockChainImpl.(*core.FullBlockChain).Close()
-	core.GroupChainImpl.Close()
 	taslog.Close()
 	fmt.Println("---reset db---")
 	dir, err := ioutil.ReadDir(".")

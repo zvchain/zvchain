@@ -26,29 +26,34 @@ type SenderI interface {
 	Sender() []byte
 }
 
+// SharePiecePacket contains share piece  data generated during the group-create routine
 type SharePiecePacket interface {
 	SeedI
 	SenderI
 	Pieces() []byte // Encrypted pieces data
 }
+
+// EncryptedSharePiecePacket is encrypted share piece data and only the corresponding receiver can decrypt it
 type EncryptedSharePiecePacket interface {
 	SharePiecePacket
 	Pubkey0() []byte // Initial Pubkey
 }
 
+// OriginSharePiecePacket is the origin share piece data which is not encrypted
 type OriginSharePiecePacket interface {
 	SharePiecePacket
 	EncSeckey() []byte
 }
 
-// Mpk数据包接口
+// MpkPacket contains the signature pubkey of the group which is aggregated from the share pieces received
 type MpkPacket interface {
 	SeedI
-	SenderI       //发送者
-	Mpk() []byte  // 聚合出来的签名公钥
-	Sign() []byte // 用签名公钥对seed进行签名
+	SenderI
+	Mpk() []byte  // Pubkey aggregated
+	Sign() []byte // Signature to the seed signed by the Mpk
 }
 
+// MemberI is the group member interface
 type MemberI interface {
 	ID() []byte
 	PK() []byte
@@ -62,20 +67,21 @@ const (
 	CreateResultFail                             // Error occurs
 )
 
-// 组信息接口
+// GroupI is the group info interface
 type GroupI interface {
 	Header() GroupHeaderI
 	Members() []MemberI
 }
 
+// CreateResult is the group-create result presentation
 type CreateResult interface {
-	Code() CreateResultCode
-	GroupInfo() GroupI
-	FrozenMiners() [][]byte
-	Err() error
+	Code() CreateResultCode // Seen in the CreateResultCode enum above
+	GroupInfo() GroupI      // Return new groupInfo if create success
+	FrozenMiners() [][]byte // Determines miners to be froze
+	Err() error             // Error occurs
 }
 
-// 组头部信息接口
+// GroupHeaderI is the group header info interface
 type GroupHeaderI interface {
 	SeedI
 	WorkHeight() uint64
@@ -84,81 +90,81 @@ type GroupHeaderI interface {
 	Threshold() uint32
 }
 
-// 惩罚消息接口
+// PunishmentMsg is the punishment message when someone cheats
 type PunishmentMsg interface {
-	PenaltyTarget() [][]byte //罚款矿工列表
-	RewardTarget() [][]byte  // 奖励列表
+	PenaltyTarget() [][]byte // Determines miners to be punished
+	RewardTarget() [][]byte  // Determines miners to be rewarded
 }
 
 type CheckerContext interface {
 	Height() uint64
 }
 
-// 链在执行相关交易时调用共识校验接口
+// GroupCreateChecker provides function to check if the group-create related packets are legal
 type GroupCreateChecker interface {
 
-	// 校验一个piece交易是否合法，如果合法，则返回该加密后的piece数据
-	// 链需要把piece数据存储到db
+	// CheckEncryptedPiecePacket checks the encrypted share piece packet
 	CheckEncryptedPiecePacket(packet EncryptedSharePiecePacket, ctx CheckerContext) error
 
-	// 校验一个mpk交易是否合法，如果合法，则返回mpk数据
+	// CheckMpkPacket checks if the mpk packet legal
 	CheckMpkPacket(packet MpkPacket, ctx CheckerContext) error
 
-	// 校验建组是否成功
-	// 若建组成功，则返回数据
+	// CheckGroupCreateResult checks if the group-create is success
 	CheckGroupCreateResult(ctx CheckerContext) CreateResult
 
-	// 检查origin piece
+	// CheckOriginPiecePacket checks the origin share pieces packet is legal
 	CheckOriginPiecePacket(packet OriginSharePiecePacket, ctx CheckerContext) error
 
-	// 检查惩罚
+	// CheckGroupCreatePunishment determines miners to be punished or rewarded
 	CheckGroupCreatePunishment(ctx CheckerContext) (PunishmentMsg, error)
 }
 
-// 建组数据读取接口
+// GroupStoreReader provides function to access the data generated during the routine or group info
 type GroupStoreReader interface {
 
-	// 返回指定seed的piece数据
-	//  共识通过此接口获取所有piece数据，生成自己的签名私钥和签名公钥
+	// GetEncryptedPiecePackets Get the encrypted share packet of the given seed
 	GetEncryptedPiecePackets(seed SeedI) ([]EncryptedSharePiecePacket, error)
 
-	// 查询指定sender 和seed 是否有piece数据
+	// HasSentEncryptedPiecePacket checks if the given sender has sent the packet yet
 	HasSentEncryptedPiecePacket(sender []byte, seed SeedI) bool
 
-	// 查询是否已发送过mpk包
+	// HasSentMpkPacket checks if the given sender has sent the packet yet
 	HasSentMpkPacket(sender []byte, seed SeedI) bool
 
-	// 返回所有的建组数据
-	// 共识在校验是否建组成时调用
+	// GetMpkPackets Get the mpk packet of the given seed
 	GetMpkPackets(seed SeedI) ([]MpkPacket, error)
 
-	// 返回origin piece 是否需要的标志
+	// IsOriginPieceRequired check if origin piece is required of the given seed
 	IsOriginPieceRequired(seed SeedI) bool
 
-	// 获取所有明文分片
+	// GetOriginPiecePackets returns the origin share piece data of the given seed
 	GetOriginPiecePackets(seed SeedI) ([]OriginSharePiecePacket, error)
 
+	// HasSentOriginPiecePacket checks if the given sender has sent the packet yet
 	HasSentOriginPiecePacket(sender []byte, seed SeedI) bool
 
-	// Get available groups' seed at the given height
+	// GetAvailableGroupSeeds gets available groups' seed at the given height
 	GetAvailableGroupSeeds(height uint64) []SeedI
 
+	// GetGroupBySeed returns the group info of the given seed
 	GetGroupBySeed(seedHash common.Hash) GroupI
 
+	// GetGroupHeaderBySeed returns the group header info of the given seed
 	GetGroupHeaderBySeed(seedHash common.Hash) GroupHeaderI
 
+	// MinerLiveGroupCount returns the lived-group number the given address participates in on the given height
 	MinerLiveGroupCount(addr common.Address, height uint64) int
 }
 
-// 负责建组相关消息转换成交易发送，共识不关注交易类型，只关注数据
+// GroupPacketSender provides functions for sending packets
 type GroupPacketSender interface {
 
-	// 发送加密piece分片
+	// SendEncryptedPiecePacket sends the encrypted packet to the pool
 	SendEncryptedPiecePacket(packet EncryptedSharePiecePacket) error
 
-	//发送签名公钥包
+	// SendMpkPacket sends the mpk packet to the pool
 	SendMpkPacket(packet MpkPacket) error
 
-	// 发送明文piece包
+	// SendOriginPiecePacket sends the origin packet to the pool
 	SendOriginPiecePacket(packet OriginSharePiecePacket) error
 }
