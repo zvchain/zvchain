@@ -124,18 +124,18 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 	return s.pieces
 }
 
-type Group struct {
+type group struct {
 	HeaderD  *groupHeader
 	MembersD []*member
 	Height   uint64          // the Height of group created
 	members  []types.MemberI // cache for interface function Members()
 }
 
-func (g *Group) Header() types.GroupHeaderI {
+func (g *group) Header() types.GroupHeaderI {
 	return g.HeaderD
 }
 
-func (g *Group) Members() []types.MemberI {
+func (g *group) Members() []types.MemberI {
 	return g.members
 }
 
@@ -179,7 +179,7 @@ func (g *groupHeader) Threshold() uint32 {
 	return g.ThresholdD
 }
 
-func newGroup(i types.GroupI, height uint64) *Group {
+func newGroup(i types.GroupI, height uint64) *group {
 	header := &groupHeader{i.Header().Seed(),
 		i.Header().WorkHeight(),
 		i.Header().DismissHeight(),
@@ -192,5 +192,5 @@ func newGroup(i types.GroupI, height uint64) *Group {
 		members = append(members, mem)
 		membersI = append(membersI, mem)
 	}
-	return &Group{header, members, height,membersI}
+	return &group{header, members, height,membersI}
 }

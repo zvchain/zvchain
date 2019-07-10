@@ -89,6 +89,17 @@ func (m *Manager) RegularCheck(db types.AccountDB) {
 	m.poolImpl.adjust(db, ctx.Height())
 }
 
+// GroupCreatedInCurrentBlock returns the group data if group is created in current block
+func (m *Manager) GroupCreatedInCurrentBlock() *group {
+	if m.poolImpl.topGroup != nil && m.poolImpl.topGroup.Height == m.chain.Height() {
+		// group just created
+		logger.Debug("new group create in block %d, send the notify", m.chain.Height())
+		return m.poolImpl.topGroup
+	}
+	return nil
+}
+
+
 // ResetTop resets group with top block with parameter bh
 func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
 	m.poolImpl.resetToTop(db, bh.Height)
@@ -167,7 +178,7 @@ func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateCheck
 	}
 }
 
-func (m *Manager) saveGroup(db types.AccountDB, group *Group) error {
+func (m *Manager) saveGroup(db types.AccountDB, group *group) error {
 	return m.poolImpl.add(db, group)
 }
 
@@ -183,6 +194,6 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 }
 
 // markGroupFail mark group member should upload origin piece
-func markGroupFail(db types.AccountDB, group *Group) {
+func markGroupFail(db types.AccountDB, group *group) {
 	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte{1})
 }

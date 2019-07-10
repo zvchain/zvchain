@@ -36,7 +36,7 @@ func (gl *groupLife) Seed() common.Hash {
 	return gl.seed
 }
 
-func newGroupLife(group Group) *groupLife {
+func newGroupLife(group group) *groupLife {
 	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.Height}
 }
 
@@ -46,6 +46,7 @@ type pool struct {
 	groupCache       *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
 	activeListCache  *lru.Cache   // cache for active group lists. key is Height; value is []*groupLife
 	waitingListCache *lru.Cache   // cache for waiting group lists. key is Height; value is []*groupLife
+	topGroup         *group
 }
 
 func newPool() *pool {
@@ -113,7 +114,7 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 	return nil
 }
 
-func (p *pool) add(db types.AccountDB, group *Group) error {
+func (p *pool) add(db types.AccountDB, group *group) error {
 	byteData, err := msgpack.Marshal(group)
 	if err != nil {
 		return err
@@ -130,7 +131,7 @@ func (p *pool) add(db types.AccountDB, group *Group) error {
 
 	p.groupCache.Add(group.Header().Seed(), group)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
-
+	p.topGroup = group
 	return nil
 }
 
@@ -160,6 +161,7 @@ func (p *pool) resetToTop(db types.AccountDB, height uint64) {
 		p.activeListCache.Remove(v.height)
 		p.waitingListCache.Remove(v.height)
 	}
+	p.topGroup = nil
 }
 
 func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, height uint64) int {
@@ -181,14 +183,14 @@ func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, heigh
 	return count
 }
 
-func (p *pool) get(db types.AccountDB, seed common.Hash) *Group {
+func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
 	if g, ok := p.groupCache.Get(seed); ok {
-		return g.(*Group)
+		return g.(*group)
 	}
 
 	byteData := db.GetData(common.HashToAddress(seed), groupDataKey)
 	if byteData != nil {
-		var gr Group
+		var gr group
 		err := msgpack.Unmarshal(byteData, &gr)
 		if err != nil {
 			return nil

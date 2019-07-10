@@ -30,6 +30,17 @@ func (m *BlockOnChainSuccMessage) GetData() interface{} {
 	return m.Block
 }
 
+type GroupOnChainSuccMessage struct {
+	Group types.GroupI
+}
+
+func (m *GroupOnChainSuccMessage) GetRaw() []byte {
+	return []byte{}
+}
+func (m *GroupOnChainSuccMessage) GetData() interface{} {
+	return m.Group
+}
+
 // DefaultMessage is a default implementation of the Message interface.
 // It can meet most of demands abort chain event
 type DefaultMessage struct {
