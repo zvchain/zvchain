@@ -60,7 +60,7 @@ func (e *EncryptedSharePiecePacketImpl) Pieces() []byte {
 }
 
 func (e *EncryptedSharePiecePacketImpl) Pubkey0() []byte {
-	return e.PiecesD
+	return e.Pubkey0D
 }
 
 // Round 2 tx data. implement interface types.MpkPacket
