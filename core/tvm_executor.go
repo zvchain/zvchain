@@ -214,7 +214,8 @@ func (ss *contractCreator) Transition() *result {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		err := controller.Deploy(contract)
+		//TODO: support logs
+		_, _, err := controller.Deploy(contract)
 		if err != nil {
 			ret.setError(err, types.RSTvmError)
 		}else if canTransfer(ss.accountDB, ss.source, ss.tx.Value.Value()) {
