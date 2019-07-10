@@ -546,7 +546,7 @@ func (helper *ConsensusHelperImpl4Test) VerifyBlockHeader(bh *types.BlockHeader)
 	return true, nil
 }
 
-func (helper *ConsensusHelperImpl4Test) CheckGroup(g *types.Group) (ok bool, err error) {
+func (helper *ConsensusHelperImpl4Test) CheckGroup(g *types.GroupI) (ok bool, err error) {
 	return true, nil
 }
 
