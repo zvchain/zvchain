@@ -110,12 +110,8 @@ func (m *Manager) Height() uint64 {
 	return m.poolImpl.count(m.chain.LatestStateDB())
 }
 
-func (m *Manager) GroupsBefore(height uint64, limit int) []types.GroupI {
-	return m.poolImpl.groupsBefore(m.chain, height, limit)
-}
-
 func (m *Manager) GroupsAfter(height uint64) []types.GroupI {
-	return nil
+	return m.poolImpl.groupsAfter(m.chain, height,5)
 }
 
 // Height returns count of current group number

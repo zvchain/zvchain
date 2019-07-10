@@ -289,9 +289,24 @@ func (p *pool) getWaiting(chain chainReader, height uint64) []*groupLife {
 	return rs
 }
 
-func (p *pool) groupsBefore(chain chainReader, height uint64, limit int) []types.GroupI {
-	//TODO: implement it
-	return nil
+
+func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.GroupI {
+	//TODO: optimize it
+	rs := make([]types.GroupI,0,limit)
+	for _, v := range p.waitingList {
+		rs = append(rs, p.get(chain.LatestStateDB(),v.Seed()))
+		if len(rs) >= limit {
+			return rs
+		}
+	}
+	for _, v := range p.activeList {
+		rs = append(rs, p.get(chain.LatestStateDB(),v.Seed()))
+		if len(rs) >= limit {
+			return rs
+		}
+	}
+
+	return rs
 }
 
 // move the group to dismiss db
