@@ -16,6 +16,7 @@
 package core
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -40,6 +41,23 @@ const (
 	tickerSendLocalTop = "send_local_top"
 	tickerSyncNeighbor = "sync_neightbor"
 	tickerSyncTimeout  = "sync_timeout"
+)
+
+var (
+	ErrorBlockHash  = errors.New("consensus verify fail,block hash error")
+	ErrorGroupSign  = errors.New("consensus verify fail,group sign signature error")
+	ErrorRandomSign = errors.New("consensus verify fail,random signature error")
+	ErrPkNotExists  = errors.New("consensus verify fail,pk not exists")
+
+	ConsensusError = map[error]struct{}{
+		ErrorBlockHash:  struct{}{},
+		ErrorGroupSign:  struct{}{},
+		ErrorRandomSign: struct{}{},
+		ErrPkNotExists:  struct{}{},
+	}
+
+	ErrPkNil          = errors.New("pk is nil")
+	ErrGroupNotExists = errors.New("group not exists")
 )
 
 var blockSync *blockSyncer
@@ -167,14 +185,19 @@ func (bs *blockSyncer) checkEvilAndDelete(candidateID string) bool {
 
 func (bs *blockSyncer) checkBlockHeaderAndAddBlack(candidateID string, bh *types.BlockHeader) bool {
 	_, err := BlockChainImpl.GetConsensusHelper().VerifyBlockHeader(bh)
-	if err != nil {
-		delete(bs.candidatePool, candidateID)
-		peerManagerImpl.addEvilCount(candidateID)
-		bs.logger.Debugf("getBestCandidate verify blockHeader error!we will add it to evil,peer is %v", candidateID)
+	if err != nil && (err != ErrGroupNotExists && err != ErrPkNil) {
+		bs.addBlack(candidateID)
 		return false
 	}
 	return true
 }
+
+func (bs *blockSyncer)addBlack(candidateID string){
+	delete(bs.candidatePool, candidateID)
+	peerManagerImpl.addEvilCount(candidateID)
+	bs.logger.Debugf("getBestCandidate verify blockHeader error!we will add it to evil,peer is %v", candidateID)
+}
+
 
 func (bs *blockSyncer) getCandidateById(candidateID string) (string, *types.CandidateBlockHeader) {
 	if candidateID == "" {
@@ -384,11 +407,15 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 		}
 
 		allSuccess := true
-
+		hasAddBlack := false
 		bs.chain.batchAddBlockOnChain(source, "sync", blocks, func(b *types.Block, ret types.AddBlockResult) bool {
 			bs.logger.Debugf("sync block from %v, hash=%v,height=%v,addResult=%v", source, b.Header.Hash.Hex(), b.Header.Height, ret)
 			if ret == types.AddBlockSucc || ret == types.BlockExisted {
 				return true
+			}
+			if ret == types.AddBlockConsensusFailed && !hasAddBlack{
+				hasAddBlack = true
+				bs.addBlack(m.Source())
 			}
 			allSuccess = false
 			return false

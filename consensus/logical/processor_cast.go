@@ -168,7 +168,7 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	gpk := p.getGroupPubKey(groupsig.DeserializeID(bh.GroupID))
 
 	// Group signature verification passed
-	if !slot.VerifyGroupSigns(gpk, vctx.prevBH.Random) {
+	if !slot.VerifyGroupSigns(*gpk, vctx.prevBH.Random) {
 		blog.error("group pub key local check failed, gpk=%v, hash in slot=%v, hash in bh=%v status=%v.",
 			gpk.ShortS(), slot.BH.Hash.ShortS(), bh.Hash.ShortS(), slot.GetSlotStatus())
 		return

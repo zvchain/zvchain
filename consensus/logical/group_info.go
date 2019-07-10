@@ -107,8 +107,8 @@ func (sgi StaticGroupInfo) GetMinerPos(id groupsig.ID) int {
 }
 
 // GetPubKey returns the public key of the group
-func (sgi StaticGroupInfo) GetPubKey() groupsig.Pubkey {
-	return sgi.GroupPK
+func (sgi StaticGroupInfo) GetPubKey() *groupsig.Pubkey {
+	return &sgi.GroupPK
 }
 
 // GetMemberCount returns the member count
