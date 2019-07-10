@@ -98,23 +98,29 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 	routine.store.blockAddCh <- bh.Height
 
 	routine.updateContext(bh)
-	err := routine.checkAndSendEncryptedPiecePacket(bh)
+	ok, err := routine.checkAndSendEncryptedPiecePacket(bh)
 	if err != nil {
 		routine.logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
 	} else {
-		routine.logger.Debugf("checkAndSendEncryptedPiecePacket sent encrypted packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+		if ok {
+			routine.logger.Debugf("checkAndSendEncryptedPiecePacket sent encrypted packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+		}
 	}
-	err = routine.checkAndSendMpkPacket(bh)
+	ok, err = routine.checkAndSendMpkPacket(bh)
 	if err != nil {
 		routine.logger.Errorf("check and send mpk error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
 	} else {
-		routine.logger.Debugf("checkAndSendMpkPacket sent mpk packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+		if ok {
+			routine.logger.Debugf("checkAndSendMpkPacket sent mpk packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+		}
 	}
-	err = routine.checkAndSendOriginPiecePacket(bh)
+	ok, err = routine.checkAndSendOriginPiecePacket(bh)
 	if err != nil {
 		routine.logger.Errorf("check and send origin piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
 	} else {
-		routine.logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+		if ok {
+			routine.logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+		}
 	}
 
 }
@@ -187,33 +193,33 @@ func (routine *createRoutine) selectCandidates() error {
 	return nil
 }
 
-func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHeader) error {
+func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHeader) (bool, error) {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
 	era := routine.currEra()
 	if !era.seedExist() {
-		return fmt.Errorf("seed not exists:%v", era.seedHeight)
+		return false, fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.encPieceRange.inRange(bh.Height) {
-		return fmt.Errorf("not in the encrypted-piece round")
+		return false, nil
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
-		return fmt.Errorf("miner is nil")
+		return false, fmt.Errorf("miner is nil")
 	}
 	if !mInfo.CanJoinGroup() {
 		routine.logger.Debugf("miner info:%+v", mInfo.MinerDO)
-		return fmt.Errorf("current miner cann't join group")
+		return false, fmt.Errorf("current miner cann't join group")
 	}
 
 	// Was selected
 	if !routine.ctx.cands.has(mInfo.ID) {
-		return fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
+		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
 	}
 	// Has sent piece
 	if routine.ctx.sentEncryptedPiecePacket != nil || routine.storeReader.HasSentEncryptedPiecePacket(mInfo.ID.Serialize(), era) {
-		return fmt.Errorf("has sent encrypted pieces")
+		return false, nil
 	}
 
 	encSk := generateEncryptedSeckey()
@@ -225,52 +231,52 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	// Send the piece packet
 	err := routine.packetSender.SendEncryptedPiecePacket(packet)
 	if err != nil {
-		return fmt.Errorf("send packet error:%v", err)
+		return false, fmt.Errorf("send packet error:%v", err)
 	}
 	routine.ctx.sentEncryptedPiecePacket = packet
 
-	return nil
+	return true, nil
 }
 
-func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) error {
+func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool, error) {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
 	era := routine.currEra()
 	if !era.seedExist() {
-		return fmt.Errorf("seed not exists:%v", era.seedHeight)
+		return false, fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.mpkRange.inRange(bh.Height) {
-		return fmt.Errorf("not in the mpk round")
+		return false, nil
 	}
 
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
-		return fmt.Errorf("miner is nil")
+		return false, fmt.Errorf("miner is nil")
 	}
 	if !mInfo.CanJoinGroup() {
-		return fmt.Errorf("current miner cann't join group")
+		return false, fmt.Errorf("current miner cann't join group")
 	}
 
 	cands := routine.ctx.cands
 
 	// Was selected
 	if !cands.has(mInfo.ID) {
-		return fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
+		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
 	}
 
 	// Has sent mpk
 	if routine.ctx.sentMpkPacket != nil || routine.storeReader.HasSentMpkPacket(mInfo.ID.Serialize(), era) {
-		return fmt.Errorf("has sent mpk packet")
+		return false, nil
 	}
 	// Didn't sent share piece
 	if routine.ctx.sentEncryptedPiecePacket == nil && !routine.storeReader.HasSentEncryptedPiecePacket(mInfo.ID.Serialize(), era) {
-		return fmt.Errorf("didn't send encrypted piece")
+		return false, fmt.Errorf("didn't send encrypted piece")
 	}
 
 	encryptedPackets, err := routine.storeReader.GetEncryptedPiecePackets(era)
 	if err != nil {
-		return fmt.Errorf("get receiver piece error:%v", err)
+		return false, fmt.Errorf("get receiver piece error:%v", err)
 	}
 
 	num := len(encryptedPackets)
@@ -278,12 +284,12 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) error
 
 	// Check if the received pieces enough
 	if !pieceEnough(num, cands.size()) {
-		return fmt.Errorf("received piece not enough, recv %v, total %v", num, cands.size())
+		return false, fmt.Errorf("received piece not enough, recv %v, total %v", num, cands.size())
 	}
 
 	msk, err := aggrSignSecKeyWithMySK(encryptedPackets, cands.find(mInfo.ID), mInfo.SK)
 	if err != nil {
-		return fmt.Errorf("genearte msk error:%v", err)
+		return false, fmt.Errorf("genearte msk error:%v", err)
 	}
 	routine.store.storeSeckey(era.Seed(), msk, nil, bh.Height+expireHeightGap)
 
@@ -299,56 +305,56 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) error
 	// Send the piece packet
 	err = routine.packetSender.SendMpkPacket(packet)
 	if err != nil {
-		return fmt.Errorf("send mpk packet error:%v", err)
+		return false, fmt.Errorf("send mpk packet error:%v", err)
 	}
 	routine.ctx.sentMpkPacket = packet
-	return nil
+	return true, nil
 }
 
-func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeader) error {
+func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeader) (bool, error) {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
 	era := routine.currEra()
 	if !era.seedExist() {
-		return fmt.Errorf("seed not exists:%v", era.seedHeight)
+		return false, fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.oriPieceRange.inRange(bh.Height) {
-		return fmt.Errorf("not in the encrypted-piece round")
+		return false, nil
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
-		return fmt.Errorf("miner is nil")
+		return false, fmt.Errorf("miner is nil")
 	}
 	if !mInfo.CanJoinGroup() {
-		return fmt.Errorf("current miner cann't join group")
+		return false, fmt.Errorf("current miner cann't join group")
 	}
 
 	// Was selected
 	if !routine.ctx.cands.has(mInfo.ID) {
-		return fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
+		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
 	}
 	// Whether origin piece required
 	if !routine.storeReader.IsOriginPieceRequired(era) {
-		return fmt.Errorf("don't need origin pieces")
+		return false, fmt.Errorf("don't need origin pieces")
 	}
 	id := mInfo.ID.Serialize()
 	// Whether sent encrypted pieces
 	if !routine.storeReader.HasSentEncryptedPiecePacket(id, era) {
-		return fmt.Errorf("didn't sent encrypted share piece")
+		return false, fmt.Errorf("didn't sent encrypted share piece")
 	}
 	// Whether sent mpk packet
 	if !routine.storeReader.HasSentMpkPacket(id, era) {
-		return fmt.Errorf("didn't sent mpk packet")
+		return false, fmt.Errorf("didn't sent mpk packet")
 	}
 	// Has sent piece
 	if routine.ctx.sentOriginPiecePacket != nil || routine.storeReader.HasSentOriginPiecePacket(id, era) {
-		return fmt.Errorf("has sent origin pieces")
+		return false, nil
 	}
 
 	ski := routine.store.getSkInfo(era.Seed())
 	if ski == nil {
-		return fmt.Errorf("has no encrypted seckey")
+		return false, fmt.Errorf("has no encrypted seckey")
 	}
 
 	// Generate origin share piece
@@ -358,9 +364,9 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 	// Send the piece packet
 	err := routine.packetSender.SendOriginPiecePacket(packet)
 	if err != nil {
-		return fmt.Errorf("send packet error:%v", err)
+		return false, fmt.Errorf("send packet error:%v", err)
 	}
 	routine.ctx.sentOriginPiecePacket = packet
 
-	return nil
+	return true, nil
 }

@@ -22,7 +22,7 @@ import (
 // defines some const params of the consensus engine
 const (
 	// MaxWaitBlockTime is group cast block maximum allowable time, it's 10s
-	MaxGroupBlockTime int = 20
+	MaxGroupBlockTime int = 10
 
 	// MaxWaitBlockTime is Waiting for the maximum time before broadcasting the block,it's 2s
 	MaxWaitBlockTime int = 2
