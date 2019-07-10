@@ -359,7 +359,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err 
 		err = fmt.Errorf("execute transaction fail")
 		return
 	}
-	GroupManagerImpl.RegularCheck(ps.state)
+
 	// Commit to DB
 	return chain.commitBlock(block, ps)
 }

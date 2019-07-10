@@ -480,6 +480,8 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
+	GroupManagerImpl.RegularCheck(accountDB)
+
 	state = accountDB.IntermediateRoot(true)
 
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
