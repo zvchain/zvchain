@@ -230,7 +230,7 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 		} else {
 			Logger.Errorf("Fail to validate group sig!Err:%s", err.Error())
 		}
-		return false, fmt.Errorf("consensus verify fail, err=%v", err.Error())
+		return false, err
 	}
 	return true, nil
 }
@@ -263,7 +263,11 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		return types.BlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, b); !ok {
-		ret = types.AddBlockFailed
+		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists{
+			ret = types.AddBlockConsensusFailed
+		} else{
+			ret = types.AddBlockFailed
+		}
 		err = e
 		return
 	}

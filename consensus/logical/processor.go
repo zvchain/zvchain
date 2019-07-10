@@ -222,7 +222,7 @@ func (p Processor) GetGroup(gid groupsig.ID) *StaticGroupInfo {
 
 // getGroupPubKey get the public key of an ingot group (loaded from
 // the chain when the processer is initialized)
-func (p Processor) getGroupPubKey(gid groupsig.ID) groupsig.Pubkey {
+func (p Processor) getGroupPubKey(gid groupsig.ID) *groupsig.Pubkey {
 	if g, err := p.globalGroups.GetGroupByID(gid); err != nil {
 		// hold it for now
 		panic("GetSelfGroup failed.")

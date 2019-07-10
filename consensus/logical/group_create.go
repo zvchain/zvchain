@@ -232,7 +232,7 @@ func (gm *GroupManager) checkGroupInfo(gInfo *model.ConsensusGroupInitInfo) ([]g
 	gpk := gm.processor.getGroupPubKey(groupsig.DeserializeID(gh.Parent))
 
 	// check the signature of the parent group
-	if !groupsig.VerifySig(gpk, gh.Hash.Bytes(), gInfo.GI.Signature) {
+	if !groupsig.VerifySig(*gpk, gh.Hash.Bytes(), gInfo.GI.Signature) {
 		return nil, false, fmt.Errorf("verify parent sign fail")
 	}
 
