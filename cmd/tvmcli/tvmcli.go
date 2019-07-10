@@ -215,6 +215,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	}
 	if executeResult == nil {
 		fmt.Println("ExecuteAbiEval error")
+		return
 	} else if executeResult.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
 		fmt.Println("error code: ", executeResult.ErrorCode, " error info: ", executeResult.Content)
 	} else {
