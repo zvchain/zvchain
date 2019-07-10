@@ -274,6 +274,10 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 		result.err = fmt.Errorf("receives not enough available share piece(with mpk):%v", len(availPieces))
 		result.code = types.CreateResultFail
 	} else { // Success or evil encountered
+		for _, piece := range availPieces {
+			checker.logger.Debugf("piece pk from %v is %v", common.ToHex(piece.Sender()), groupsig.DeserializePubkeyBytes(piece.Pubkey0()).GetHexString())
+		}
+		taslog.Flush2()
 		gpk := *aggrGroupPubKey(availPieces)
 		gSign := aggrGroupSign(mpkPkt)
 		// Aggregate sign fail, somebody must cheat!

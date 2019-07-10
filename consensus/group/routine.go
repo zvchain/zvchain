@@ -233,6 +233,8 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	packet := generateEncryptedSharePiecePacket(mInfo, encSk, era.Seed(), routine.ctx.cands)
 	routine.store.storeSeckey(era.Seed(), nil, &encSk, bh.Height+expireHeightGap)
 
+	routine.logger.Debugf("pubkey0:%v, %v", bh.Height, groupsig.DeserializePubkeyBytes(packet.Pubkey0()).GetHexString())
+
 	// Send the piece packet
 	err := routine.packetSender.SendEncryptedPiecePacket(packet)
 	if err != nil {
