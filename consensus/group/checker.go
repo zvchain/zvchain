@@ -24,6 +24,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/taslog"
 	"math"
+	"reflect"
 	"sync"
 )
 
@@ -203,9 +204,12 @@ func (checker *createChecker) firstHeightOfRound(r *rRange) uint64 {
 }
 
 func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
-	for _, s := range senderArray.([]types.SenderI) {
-		if bytes.Equal(s.Sender(), sender) {
-			return true, s
+	value := reflect.ValueOf(senderArray)
+	for i := 0; i < value.Len(); i++ {
+		v := value.Index(i)
+		senderI := v.Interface().(types.SenderI)
+		if bytes.Equal(senderI.Sender(), sender) {
+			return true, senderI
 		}
 	}
 	return false, nil

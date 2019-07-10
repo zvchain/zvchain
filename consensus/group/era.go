@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	steadyStateBackTrackGap = 20                                                                // The gap from the present to the steady state
-	roundWindow             = 80                                                                // The window length of each round
+	steadyStateBackTrackGap = 5                                                                 //20                                                                // The gap from the present to the steady state
+	roundWindow             = 8                                                                 //80                                                                // The window length of each round
 	eraWindow               = (steadyStateBackTrackGap+roundWindow)*3 + steadyStateBackTrackGap // The window length of group-create routine
 	lifeWindow              = 8 * eraWindow                                                     // The life window of a active group
 )
