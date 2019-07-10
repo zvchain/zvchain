@@ -217,8 +217,11 @@ func (ss *contractCreator) Transition() *result {
 		err := controller.Deploy(contract)
 		if err != nil {
 			ret.setError(err, types.RSTvmError)
-		} else {
+		}else if canTransfer(ss.accountDB, ss.source, ss.tx.Value.Value()) {
+			transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.tx.Value.Value())
 			Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
+		} else {
+			ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
 		}
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
@@ -255,6 +258,11 @@ func (ss *contractCaller) Transition() *result {
 			} else {
 				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 			}
+		} else if canTransfer(ss.accountDB, ss.source, tx.Value.Value()) {
+			transfer(ss.accountDB, ss.source, *contract.ContractAddress, tx.Value.Value())
+			Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.Hex(),string(tx.Data))
+		} else {
+			ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
 		}
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
