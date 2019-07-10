@@ -39,13 +39,13 @@ func TestShift(t *testing.T) {
 	queue = removeLast(queue)
 	printQueue(t, queue)
 	t.Log("peek:")
-	t.Log(peek(queue).height)
+	t.Log(peek(queue).Height)
 	t.Log("sPeek:")
-	t.Log(sPeek(queue).height)
+	t.Log(sPeek(queue).Height)
 
 	t.Log("after sort:")
 	sort.SliceStable(queue, func(i, j int) bool {
-		return queue[i].end > queue[j].end
+		return queue[i].End > queue[j].End
 	})
 	printQueue(t, queue)
 
@@ -53,6 +53,6 @@ func TestShift(t *testing.T) {
 
 func printQueue(t *testing.T, queue []*groupLife) {
 	for _, v := range queue {
-		t.Log(v.height)
+		t.Log(v.Height)
 	}
 }

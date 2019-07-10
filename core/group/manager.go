@@ -93,7 +93,7 @@ func (m *Manager) RegularCheck(db types.AccountDB) {
 func (m *Manager) GroupCreatedInCurrentBlock() *group {
 	if m.poolImpl.topGroup != nil && m.poolImpl.topGroup.Height == m.chain.Height() {
 		// group just created
-		logger.Debug("new group create in block %d, send the notify", m.chain.Height())
+		logger.Debugf("new group create in block %d, send the notify", m.chain.Height())
 		return m.poolImpl.topGroup
 	}
 	return nil

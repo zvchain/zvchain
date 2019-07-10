@@ -138,6 +138,6 @@ func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 		return common.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err)
 	}
 
-	logger.Debug("[group] sendTransaction success. type = %d, data = %v ",tx.Type, tx.Data)
+	logger.Debugf("[group] sendTransaction success. type = %d, hash = %v ",tx.Type, tx.Hash)
 	return nil
 }
