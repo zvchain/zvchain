@@ -137,8 +137,8 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr string, total
 
 	contract.ContractAddress = &contractAddress
 	controller.VM.SetGas(500000)
-	err = controller.Deploy(&contract)
-	if err != nil {
+	_, _, transactionError := controller.Deploy(&contract)
+	if transactionError != nil {
 		panic("deploy FoundationContract error")
 	}
 	return contract.ContractAddress

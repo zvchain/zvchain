@@ -111,12 +111,13 @@ func (op *stakeAddOp) Operation() error {
 	}
 	// Check balance
 	amount := new(big.Int).SetUint64(op.value)
-	if !op.accountDB.CanTransfer(op.addSource, amount) {
-		return fmt.Errorf("balance not enough")
+	if needTransfer(amount) {
+		if !op.accountDB.CanTransfer(op.addSource, amount) {
+			return fmt.Errorf("balance not enough")
+		}
+		// Sub the balance of source account
+		op.accountDB.SubBalance(op.addSource, amount)
 	}
-	// Sub the balance of source account
-	op.accountDB.SubBalance(op.addSource, amount)
-
 	targetMiner, err := op.getMiner(op.addTarget)
 	if err != nil {
 		return err

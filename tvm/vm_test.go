@@ -150,13 +150,6 @@ const abiJSON2 = `
 }
 `
 
-const evilJSON = `
-{
-    "FuncName": "balance_of",
-    "Args": ["0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd\")\ntas_Token.transfer('0x123',50)\n(\""]
-}
-`
-
 func TestVmTest(t *testing.T) {
 	//db, _ := tasdb.NewMemDatabase()
 	//statedb, _ := core.NewAccountDB(common.Hash{}, core.NewDatabase(db))
@@ -201,10 +194,6 @@ func TestVm(t *testing.T) {
 		Args:     []interface{}{"0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd\")\ntas_Token.transfer('0x123',50)=\n(\""},
 	}
 	fmt.Println(vm.generateScript(abi))
-}
-
-func TestController_ExecuteAbiEval(t *testing.T) {
-
 }
 
 func TestTVM_VerifyABI1(t *testing.T) {
@@ -279,19 +268,4 @@ func TestTVM_VerifyABI2(t *testing.T) {
 	if !vm.VerifyABI(result.Abi, abi) {
 		t.Error("VerifyABI err")
 	}
-}
-
-func TestBlockHash2(b *testing.T) {
-	vm := NewTVM(nil, nil)
-	vm.SetGas(9999999999999999)
-	script := `
-a = 1
-`
-	vm.ExecuteScriptVMSucceed(script)
-	script = `
-a += 1
-`
-	//for i := 0; i < b.N; i++ { //use b.N for looping
-	//	vm.ExecuteScriptVMSucceed(script)
-	//}
 }
