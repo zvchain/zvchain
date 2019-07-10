@@ -89,7 +89,7 @@ func (vg *verifyGroup) memberSize() int {
 
 type skStorage interface {
 	GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey
-	StoreGroupSignatureSeckey(seed common.Hash, sk groupsig.Seckey)
+	StoreGroupSignatureSeckey(seed common.Hash, sk groupsig.Seckey, expireHeight uint64)
 }
 
 type groupInfoReader interface {

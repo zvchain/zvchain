@@ -110,7 +110,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.Ticker = ticker.NewGlobalTicker("consensus")
 
 	provider := &core.GroupManagerImpl
-	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider)
+	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
 
 	if stdLogger != nil {
@@ -215,7 +215,7 @@ func (p *Processor) initGenesisMember() {
 			arr := strings.Split(string(msks), ",")
 			var sk groupsig.Seckey
 			sk.SetHexString(arr[i])
-			p.groupReader.skStore.StoreGroupSignatureSeckey(genesisGroup.Group.Header().Seed(), sk)
+			p.groupReader.skStore.StoreGroupSignatureSeckey(genesisGroup.Group.Header().Seed(), sk, common.MaxUint64)
 			break
 		}
 	}
