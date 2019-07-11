@@ -16,8 +16,6 @@ package group
 
 import (
 	"bytes"
-	"sort"
-
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/vmihailenco/msgpack"
@@ -42,8 +40,8 @@ func newGroupLife(group group) *groupLife {
 
 type pool struct {
 	genesis     *group       // genesis group
-	activeList  []*groupLife // list of active groups
-	waitingList []*groupLife // list of waiting groups
+	//activeList  []*groupLife // list of active groups
+	//waitingList []*groupLife // list of waiting groups
 	groupCache  *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
 	//activeListCache  *lru.Cache   // cache for active group lists. key is Height; value is []*groupLife
 	//waitingListCache *lru.Cache   // cache for waiting group lists. key is Height; value is []*groupLife
@@ -51,8 +49,8 @@ type pool struct {
 
 func newPool() *pool {
 	return &pool{
-		activeList:  make([]*groupLife, 0),
-		waitingList: make([]*groupLife, 0),
+		//activeList:  make([]*groupLife, 0),
+		//waitingList: make([]*groupLife, 0),
 		groupCache:  common.MustNewLRUCache(120),
 		//activeListCache:  common.MustNewLRUCache(500),
 		//waitingListCache: common.MustNewLRUCache(500),
@@ -61,39 +59,6 @@ func newPool() *pool {
 
 func (p *pool) initPool(db types.AccountDB, gen *types.GenesisInfo) error {
 	p.genesis = p.get(db, gen.Group.Header().Seed())
-	p.activeList = make([]*groupLife, 0)
-	p.waitingList = make([]*groupLife, 0)
-	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
-	if iter != nil {
-		for iter.Next() {
-			var life groupLife
-			err := msgpack.Unmarshal(iter.Value, &life)
-			if err != nil {
-				return err
-			}
-			p.activeList = append(p.activeList, &life)
-		}
-	}
-	sort.SliceStable(p.activeList, func(i, j int) bool {
-		return p.activeList[i].End < p.activeList[j].End
-	})
-
-	iter = db.DataIterator(common.GroupWaitingAddress, []byte{})
-	if iter != nil {
-		for iter.Next() {
-			var life groupLife
-			err := msgpack.Unmarshal(iter.Value, &life)
-			if err != nil {
-				return err
-			}
-			p.waitingList = append(p.waitingList, &life)
-		}
-	}
-
-	sort.SliceStable(p.waitingList, func(i, j int) bool {
-		return p.waitingList[i].Begin < p.waitingList[j].Begin
-	})
-
 	return nil
 }
 
@@ -105,7 +70,6 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 		if err != nil {
 			return err
 		}
-		p.adjust(db, 0)
 	}
 	return nil
 }
@@ -117,14 +81,13 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 		return err
 	}
 
-	life := newGroupLife(*group)
-	lifeData, err := msgpack.Marshal(life)
-	if err != nil {
-		return err
-	}
-	seed := group.Header().Seed().Bytes()
-	p.waitingList = append(p.waitingList, life)
-	db.SetData(common.GroupWaitingAddress, seed, lifeData)
+	//life := newGroupLife(*group)
+	//lifeData, err := msgpack.Marshal(life)
+	//if err != nil {
+	//	return err
+	//}
+	//seed := group.Header().Seed().Bytes()
+	//db.SetData(common.GroupWaitingAddress, seed, lifeData)
 
 	p.groupCache.Add(group.Header().Seed(), group)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
@@ -135,31 +98,7 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 }
 
 func (p *pool) resetToTop(db types.AccountDB, height uint64) {
-	removed := make([]*groupLife, 0)
-	// remove group from waitingList
-	peeked := peek(p.waitingList)
-	for peeked != nil && peeked.Height >= height {
-		removed = append(removed, peeked)
-		p.waitingList = removeLast(p.waitingList)
-		peeked = peek(p.waitingList)
-	}
 
-	// remove group from activeGroup
-	if len(p.waitingList) == 0 {
-		peeked = peek(p.activeList)
-		for peeked != nil && peeked.Height >= height {
-			removed = append(removed, peeked)
-			p.activeList = removeLast(p.activeList)
-			peeked = peek(p.waitingList)
-		}
-	}
-
-	// remove from groupCache
-	for _, v := range removed {
-		p.groupCache.Remove(v.Seed())
-		//p.activeListCache.Remove(v.Height)
-		//p.waitingListCache.Remove(v.Height)
-	}
 }
 
 func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, height uint64) int {
@@ -172,16 +111,6 @@ func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, heigh
 				break
 			}
 		}
-		//
-		//g := p.get(chain.LatestStateDB(), v.HeaderD.SeedD)
-		//if g != nil {
-		//	for _, mem := range g.MembersD {
-		//		if bytes.Equal(addr.Bytes(), mem.Id) {
-		//			count++
-		//			break
-		//		}
-		//	}
-		//}
 	}
 	return count
 }
@@ -204,84 +133,42 @@ func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
 	return nil
 }
 
-func (p *pool) adjust(db types.AccountDB, height uint64) {
-	// move group from waitingList to activeList
-	peeked := sPeek(p.waitingList)
-	for peeked != nil && peeked.Begin >= height {
-		p.waitingList = removeFirst(p.waitingList)
-		p.toActive(db, peeked)
-		peeked = sPeek(p.waitingList)
-	}
-
-	// move group from activeList to dismiss
-	peeked = sPeek(p.activeList)
-	for peeked != nil && peeked.End <= height {
-		p.activeList = removeFirst(p.activeList)
-		p.toDismiss(db, peeked)
-		peeked = sPeek(p.activeList)
-	}
-
-	//p.waitingListCache.Add(height, p.waitingList)
-	//p.activeListCache.Add(height, clone(p.activeList))
-}
-
-func (p *pool) toActive(db types.AccountDB, gl *groupLife) {
-	byteData, err := msgpack.Marshal(gl)
-	if err != nil {
-		// this case must not happen
-		panic("failed to marshal group life data")
-	}
-	p.activeList = push(p.activeList, gl)
-	db.RemoveData(common.GroupWaitingAddress, gl.SeedD.Bytes())
-	db.SetData(common.GroupActiveAddress, gl.SeedD.Bytes(), byteData)
-}
-
 func (p *pool) getActives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
-
-	db, err := chain.GetAccountDBByHeight(height)
-	if err != nil {
-		return rs
-	}
+	db := chain.LatestStateDB()
 	current := p.getTopGroup(db)
 
-	for iter := p.get(db, current.HeaderD.SeedD); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
+	for iter := p.get(db, current.HeaderD.PreSeed); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
 		if iter.HeaderD.BlockHeight == 0 {
 			break
 		}
-		if iter.HeaderD.WorkHeightD <= height {
+		if iter.HeaderD.WorkHeightD <= height && iter.HeaderD.BlockHeight <= height {
 			rs = append(rs, iter)
 		}
 	}
 
 	//add p.genesis
-	if p.genesis != nil {
-		rs = append(rs, p.genesis)
-	}
-
+	rs = append(rs, p.genesis)
 	return rs
 }
 
 func (p *pool) getLives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
-	db, err := chain.GetAccountDBByHeight(height)
-	if err != nil {
-		return rs
-	}
+	db := chain.LatestStateDB()
 	current := p.getTopGroup(db)
 
-	for iter := p.get(db, current.HeaderD.SeedD); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
+	for iter := p.get(db, current.HeaderD.PreSeed); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
 		if iter.HeaderD.BlockHeight == 0 {
 			break
 		}
-		rs = append(rs, iter)
+		if iter.HeaderD.BlockHeight <= height {
+			rs = append(rs, iter)
+		}
+
 	}
 
 	//add p.genesis
-	if p.genesis != nil {
-		rs = append(rs, p.genesis)
-	}
-
+	rs = append(rs, p.genesis)
 	return rs
 
 }
@@ -289,37 +176,52 @@ func (p *pool) getLives(chain chainReader, height uint64) []*group {
 func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.GroupI {
 	//TODO: optimize it
 	rs := make([]types.GroupI, 0, limit)
-	for _, v := range p.waitingList {
-		rs = append(rs, p.get(chain.LatestStateDB(), v.Seed()))
-		if len(rs) >= limit {
-			return rs
+	db := chain.LatestStateDB()
+	current := p.getTopGroup(db)
+
+	for iter := p.get(db, current.HeaderD.SeedD); iter != nil; current = iter {
+		if iter.HeaderD.BlockHeight == 0 {
+			break
 		}
 	}
-	for _, v := range p.activeList {
-		rs = append(rs, p.get(chain.LatestStateDB(), v.Seed()))
-		if len(rs) >= limit {
-			return rs
-		}
-	}
+
+	//add p.genesis
+	rs = append(rs, p.genesis)
+	return rs
+
+
+	//for _, v := range p.waitingList {
+	//	rs = append(rs, p.get(chain.LatestStateDB(), v.Seed()))
+	//	if len(rs) >= limit {
+	//		return rs
+	//	}
+	//}
+	//for _, v := range p.activeList {
+	//	rs = append(rs, p.get(chain.LatestStateDB(), v.Seed()))
+	//	if len(rs) >= limit {
+	//		return rs
+	//	}
+	//}
 
 	return rs
 }
 
 // move the group to dismiss db
-func (p *pool) toDismiss(db types.AccountDB, gl *groupLife) {
-	db.RemoveData(common.GroupActiveAddress, gl.SeedD.Bytes())
-	db.SetData(common.GroupDismissAddress, gl.SeedD.Bytes(), []byte{1})
-}
+//func (p *pool) toDismiss(db types.AccountDB, gl *groupLife) {
+//	db.RemoveData(common.GroupActiveAddress, gl.SeedD.Bytes())
+//	db.SetData(common.GroupDismissAddress, gl.SeedD.Bytes(), []byte{1})
+//}
 
 func (p *pool) count(db types.AccountDB) uint64 {
-	rs := len(p.waitingList) + len(p.activeList)
-	iter := db.DataIterator(common.GroupDismissAddress, []byte{})
-	if iter != nil {
-		for iter.Next() {
-			rs++
-		}
-	}
-	return uint64(rs)
+	return p.getTopGroup(db).HeaderD.GroupHeight +1
+	//rs := len(p.waitingList) + len(p.activeList)
+	//iter := db.DataIterator(common.GroupDismissAddress, []byte{})
+	//if iter != nil {
+	//	for iter.Next() {
+	//		rs++
+	//	}
+	//}
+	//return uint64(rs)
 }
 
 func (p *pool) saveTopGroup(db types.AccountDB, byteData []byte) {

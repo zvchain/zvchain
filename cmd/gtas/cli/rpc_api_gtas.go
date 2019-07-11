@@ -35,7 +35,6 @@ type groupInfoReader interface {
 
 	GroupsAfter(height uint64) []types.GroupI
 	ActiveGroupCount() int
-	WaitingGroupCount() int
 }
 
 func getGroupReader() groupInfoReader {
