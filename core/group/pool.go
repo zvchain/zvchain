@@ -147,6 +147,7 @@ func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.
 		if current.HeaderD.BlockHeight == 0 {
 			break
 		}
+		rs = append(rs, current)
 	}
 
 	//add p.genesis
