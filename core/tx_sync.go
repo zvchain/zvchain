@@ -17,7 +17,6 @@ package core
 
 import (
 	"bytes"
-
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -104,6 +103,7 @@ func (ptk *peerTxsHashes) checkReceivedHashesInHitRate(txs []*types.Transaction)
 		}
 		hasScaned[tx.Hash] = struct{}{}
 	}
+
 	rate := float64(hitHashesLen) / float64(ptk.sendHashes.Len())
 	if rate < txHitValidRate {
 		return false
@@ -367,8 +367,6 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 		}
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
-	ts.logger.Debugf("Rcv tx req from %v, size %v", nm.Source(), len(hashs))
-
 	txs := make([]*types.Transaction, 0)
 	for _, txHash := range hashs {
 		tx := BlockChainImpl.GetTransactionByHash(false, false, txHash)
@@ -381,7 +379,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 		ts.logger.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
 		return
 	}
-	ts.logger.Debugf("send transactions to %v size %v", nm.Source(), len(txs))
+	ts.logger.Debugf("Rcv tx req from %v, size %v,send transactions to %v size %v", nm.Source(), len(hashs),nm.Source(), len(txs))
 	message := network.Message{Code: network.TxSyncResponse, Body: body}
 	network.GetNetInstance().Send(nm.Source(), message)
 }
@@ -407,15 +405,6 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 		ts.logger.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
 		return
 	}
-
-	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
-	isEvil := candidateKeys.checkReceivedHashesInHitRate(txs)
-	if isEvil {
-		ts.logger.Errorf("rec tx rate too low,source is %s", nm.Source())
-		peerManagerImpl.addEvilCount(nm.Source())
-		return
-	}
-
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
 	evilCount := ts.pool.AddTransactions(txs, txSync)
 	if evilCount > txValidteErrorLimit {
