@@ -52,7 +52,7 @@ func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) com
 
 	selectedGroup := groupSeeds[index.Int64()]
 
-	stdLogger.Debugf("verify groups at %v: %v, selected %v", height, seeds, selectedGroup.Seed())
+	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupSeeds), height, seeds, selectedGroup.Seed())
 	return selectedGroup.Seed()
 }
 
@@ -268,7 +268,7 @@ func (p *Processor) blockProposal() {
 	proveTraceLog.Log("")
 
 	tLog := newHashTraceLog("CASTBLOCK", bh.Hash, p.GetMinerID())
-	blog.debug("begin proposal, hash=%v, height=%v, qn=%v,, verifyGroup=%v, pi=%v...", bh.Hash, height, qn, gb.GSeed, pi)
+	blog.debug("begin proposal, hash=%v, height=%v, qn=%v,, verifyGroup=%v, pi=%x...", bh.Hash, height, qn, gb.GSeed, pi)
 	tLog.logStart("height=%v,qn=%v, preHash=%v, verifyGroup=%v", bh.Height, qn, bh.PreHash, gb.GSeed)
 
 	if bh.Height > 0 && bh.Height == height && bh.PreHash == worker.baseBH.Hash {

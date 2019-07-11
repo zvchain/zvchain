@@ -105,8 +105,6 @@ func (p *Processor) getBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
 
 func (p *Processor) addFutureVerifyMsg(msg *model.ConsensusCastMessage) {
 	b := msg.BH
-	stdLogger.Debugf("future verifyMsg receive cached! h=%v, hash=%v, preHash=%v\n", b.Height, b.Hash, b.PreHash)
-
 	p.futureVerifyMsgs.addMessage(b.PreHash, msg)
 }
 

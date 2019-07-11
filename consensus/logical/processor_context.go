@@ -212,7 +212,6 @@ func (bctx *castBlockContexts) getOrNewVctx(group *verifyGroup, height uint64, e
 			if height == 1 && expireTime.After(vctx.expireTime) {
 				vctx.expireTime = expireTime
 			}
-			blog.debug("get exist vctx height %v, expire %v", height, vctx.expireTime)
 		}
 	}
 	return vctx

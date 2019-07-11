@@ -183,7 +183,7 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 	// Only sign blocks with higher weights than that have been signed
 	if vc.castHeight > 1 && vc.hasSignedMoreWeightThan(bh) {
 		max := vc.getSignedMaxWeight()
-		err = fmt.Errorf("have signed a higher qn block %v,This block qn %v", max.String(), bh.TotalQN)
+		err = fmt.Errorf("have signed a higher qn block %v,This block qn %v", max, bh.TotalQN)
 		return
 	}
 
@@ -230,8 +230,8 @@ func (vc *VerifyContext) PrepareSlot(bh *types.BlockHeader) (*SlotContext, error
 		return nil, fmt.Errorf("slots is nil")
 	}
 
-	if vc.hasSignedMoreWeightThan(bh) {
-		return nil, fmt.Errorf("hasSignedMoreWeightThan")
+	if vc.hasSignedMoreWeightThan(bh) && vc.castHeight > 1 {
+		return nil, fmt.Errorf("hasSignedMoreWeightThan:%v", vc.getSignedMaxWeight())
 	}
 	sc := createSlotContext(bh, int(vc.group.header.Threshold()))
 	if v, ok := vc.proposers[sc.castor.GetHexString()]; ok && vc.castHeight > 1 {

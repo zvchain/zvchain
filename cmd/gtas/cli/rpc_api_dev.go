@@ -94,7 +94,7 @@ func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
 }
 
 func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
-	if from < to {
+	if from > to {
 		return failResult("param error")
 	}
 	blocks := make([]*Block, 0)

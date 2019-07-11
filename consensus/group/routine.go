@@ -100,7 +100,7 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 	routine.updateContext(bh)
 	ok, err := routine.checkAndSendEncryptedPiecePacket(bh)
 	if err != nil {
-		routine.logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+		routine.logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash)
 	} else {
 		if ok {
 			routine.logger.Debugf("checkAndSendEncryptedPiecePacket sent encrypted packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
@@ -108,7 +108,7 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 	}
 	ok, err = routine.checkAndSendMpkPacket(bh)
 	if err != nil {
-		routine.logger.Errorf("check and send mpk error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+		routine.logger.Errorf("check and send mpk error:%v at %v-%v", err, bh.Height, bh.Hash)
 	} else {
 		if ok {
 			routine.logger.Debugf("checkAndSendMpkPacket sent mpk packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
@@ -116,7 +116,7 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 	}
 	ok, err = routine.checkAndSendOriginPiecePacket(bh)
 	if err != nil {
-		routine.logger.Errorf("check and send origin piece error:%v at %v-%v", err, bh.Height, bh.Hash.Hex())
+		routine.logger.Errorf("check and send origin piece error:%v at %v-%v", err, bh.Height, bh.Hash)
 	} else {
 		if ok {
 			routine.logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
@@ -194,7 +194,7 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	routine.ctx.cands = selectedCandidates
-	routine.logger.Debugf("selected candidates size %v, at seed %v-%v is %v", routine.ctx.cands.size(), era.seedHeight, era.Seed().Hex(), mems)
+	routine.logger.Debugf("selected candidates size %v, at seed %v-%v is %v", routine.ctx.cands.size(), era.seedHeight, era.Seed(), mems)
 	return nil
 }
 
@@ -220,7 +220,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 
 	// Was selected
 	if !routine.ctx.cands.has(mInfo.ID) {
-		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
+		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID)
 	}
 	// Has sent piece
 	if routine.ctx.sentEncryptedPiecePacket != nil || routine.storeReader.HasSentEncryptedPiecePacket(mInfo.ID.Serialize(), era) {
@@ -232,8 +232,6 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	// Generate encrypted share piece
 	packet := generateEncryptedSharePiecePacket(mInfo, encSk, era.Seed(), routine.ctx.cands)
 	routine.store.storeSeckey(era.Seed(), nil, &encSk, bh.Height+expireHeightGap)
-
-	routine.logger.Debugf("pubkey0:%v, %v", bh.Height, groupsig.DeserializePubkeyBytes(packet.Pubkey0()).GetHexString())
 
 	// Send the piece packet
 	err := routine.packetSender.SendEncryptedPiecePacket(packet)
@@ -269,7 +267,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 
 	// Was selected
 	if !cands.has(mInfo.ID) {
-		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
+		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID)
 	}
 
 	// Has sent mpk
@@ -339,7 +337,7 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 
 	// Was selected
 	if !routine.ctx.cands.has(mInfo.ID) {
-		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID.GetHexString())
+		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID)
 	}
 	// Whether origin piece required
 	if !routine.storeReader.IsOriginPieceRequired(era) {

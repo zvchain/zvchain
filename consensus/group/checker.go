@@ -273,11 +273,9 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	if !pieceEnough(len(availPieces), cands.size()) {
 		result.err = fmt.Errorf("receives not enough available share piece(with mpk):%v", len(availPieces))
 		result.code = types.CreateResultFail
+
 	} else { // Success or evil encountered
-		for _, piece := range availPieces {
-			checker.logger.Debugf("piece pk from %v is %v", common.ToHex(piece.Sender()), groupsig.DeserializePubkeyBytes(piece.Pubkey0()).GetHexString())
-		}
-		taslog.Flush2()
+
 		gpk := *aggrGroupPubKey(availPieces)
 		gSign := aggrGroupSign(mpkPkt)
 		// Aggregate sign fail, somebody must cheat!
@@ -290,6 +288,18 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 			checker.ctx.gInfo = result.gInfo
 		}
 	}
+	if result.gInfo != nil {
+		g := result.gInfo
+		routine.logger.Debugf("group create success: seed=%v, workHeight=%v, dismissHeight=%v, threshold=%v, memsize=%v", g.header.Seed(), g.header.WorkHeight(), g.header.DismissHeight(), g.header.Threshold(), len(g.members))
+	}
+	if len(needFreeze) > 0 {
+		frozeMiners := make([]string, 0)
+		for _, m := range needFreeze {
+			frozeMiners = append(frozeMiners, common.ShortHex(m.GetHexString()))
+		}
+		routine.logger.Debugf("froze miners: seedHeight=%v, %v", era.seedHeight, frozeMiners)
+	}
+
 	return result
 }
 
@@ -303,7 +313,7 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 		return fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if era.Seed() != seed {
-		return fmt.Errorf("seed not equal, expect %v infact %v", era.Seed().Hex(), seed.Hex())
+		return fmt.Errorf("seed not equal, expect %v infact %v", era.Seed(), seed)
 	}
 	if !era.oriPieceRange.inRange(ctx.Height()) {
 		return fmt.Errorf("height not in the encrypted-piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
@@ -311,12 +321,12 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 	sender := groupsig.DeserializeID(packet.Sender())
 	// Was selected
 	if !checker.ctx.cands.has(sender) {
-		return fmt.Errorf("miner not selected:%v", sender.GetHexString())
+		return fmt.Errorf("miner not selected:%v", sender)
 	}
 
 	mInfo := checker.minerReader.GetLatestVerifyMiner(sender)
 	if mInfo == nil {
-		return fmt.Errorf("miner not exists:%v", sender.GetHexString())
+		return fmt.Errorf("miner not exists:%v", sender)
 	}
 	if !mInfo.CanJoinGroup() {
 		return fmt.Errorf("miner cann't join group")
@@ -401,13 +411,13 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 			sharePieces := deserializeSharePieces(ori.Pieces())
 			if ok, err := groupsig.CheckSharePiecesValid(sharePieces, cands.ids(), cands.threshold()); err != nil || !ok {
 				if err != nil {
-					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
+					checker.logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
 				}
 				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
 			}
 			if evil, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); evil || err != nil {
 				if err != nil {
-					checker.logger.Errorf("check evil error:%v %v", err, common.ToHex(ori.Sender()))
+					checker.logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
 				}
 				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
 			}
@@ -426,13 +436,13 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		for _, mpk := range mpkPacket {
 			idx := cands.find(groupsig.DeserializeID(mpk.Sender()))
 			if idx < 0 {
-				panic(fmt.Sprintf("cannot find id:%v", common.ToHex(mpk.Sender())))
+				panic(fmt.Sprintf("cannot find id:%v", common.ShortHex(common.ToHex(mpk.Sender()))))
 			}
 
 			msk, err := aggrSignSecKeyWithMyPK(piecePkt, idx, sks, cands[idx].PK)
 			if err != nil {
 				wrongMpkIds = append(wrongMpkIds, mpk.Sender())
-				checker.logger.Errorf("aggregate seckey error:%v %v", err, common.ToHex(mpk.Sender()))
+				checker.logger.Errorf("aggregate seckey error:%v %v", err, common.ShortHex(common.ToHex(mpk.Sender())))
 			} else {
 				pk := groupsig.NewPubkeyFromSeckey(*msk)
 				if !bytes.Equal(pk.Serialize(), mpk.Mpk()) {
@@ -456,6 +466,21 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		}
 	}
 
-	return &punishment{penaltyTargets: penaltyTargets, rewardTargets: rewardTargets}, nil
+	pm := &punishment{penaltyTargets: penaltyTargets, rewardTargets: rewardTargets}
 
+	if len(penaltyTargets) > 0 {
+		mems := make([]string, 0)
+		for _, p := range penaltyTargets {
+			mems = append(mems, common.ShortHex(common.ToHex(p)))
+		}
+		checker.logger.Debugf("punishment at %v penalty target:%v", ctx.Height(), mems)
+	}
+	if len(rewardTargets) > 0 {
+		mems := make([]string, 0)
+		for _, p := range rewardTargets {
+			mems = append(mems, common.ShortHex(common.ToHex(p)))
+		}
+		checker.logger.Debugf("punishment at %v reward target:%v", ctx.Height(), mems)
+	}
+	return pm, nil
 }

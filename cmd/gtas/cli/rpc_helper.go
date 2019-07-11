@@ -160,5 +160,6 @@ func convertGroup(g types.GroupI) *Group {
 		DismissHeight: gh.DismissHeight(),
 		Threshold:     int32(gh.Threshold()),
 		Members:       mems,
+		MemSize:       len(mems),
 	}
 }
