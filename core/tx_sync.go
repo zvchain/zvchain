@@ -371,7 +371,6 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 		}
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
-	ts.logger.Debugf("Rcv tx req from %v, size %v", nm.Source(), len(hashs))
 	txs := make([]*types.Transaction, 0)
 	for _, txHash := range hashs {
 		tx := BlockChainImpl.GetTransactionByHash(false, false, txHash)
@@ -386,7 +385,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 		ts.logger.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
 		return
 	}
-	ts.logger.Debugf("send transactions to %v size %v", nm.Source(), len(txs))
+	ts.logger.Debugf("Rcv tx req from %v, size %v,send transactions to %v size %v", nm.Source(), len(hashs),nm.Source(), len(txs))
 	message := network.Message{Code: network.TxSyncResponse, Body: body}
 	network.GetNetInstance().Send(nm.Source(), message)
 }
