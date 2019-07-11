@@ -18,13 +18,9 @@ package group
 import (
 	"bytes"
 	"fmt"
+	"github.com/boltdb/bolt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"io"
-	"modernc.org/kv"
-	"os"
-	"path/filepath"
-	"sync"
 )
 
 const (
@@ -34,16 +30,9 @@ const (
 )
 
 var (
-	prefixHash         = "hash-"
-	prefixExpireHeight = "expi-"
+	bucketHash         = "hash"
+	bucketExpireHeight = "expire"
 )
-
-var opt = &kv.Options{
-	VerifyDbBeforeOpen:  false,
-	VerifyDbAfterOpen:   true,
-	VerifyDbBeforeClose: true,
-	VerifyDbAfterClose:  false,
-}
 
 type skInfo struct {
 	msk   groupsig.Seckey
@@ -87,80 +76,21 @@ func decodeSkInfoBytes(bs []byte) *skInfo {
 	}
 }
 
-func hashKey(hash common.Hash) []byte {
-	return append([]byte(prefixHash), hash.Bytes()...)
-}
-
-func heightKey(h uint64) []byte {
-	return append([]byte(prefixExpireHeight), common.Uint64ToByte(h)...)
-}
-
 type skStorage struct {
 	file   string
 	encKey []byte
-	db     *kv.DB
+	db     *bolt.DB
 
 	blockAddCh chan uint64
-	mu         sync.Mutex
-}
-
-type lockCloser struct {
-	f    *os.File
-	abs  string
-	once sync.Once
-	err  error
-}
-
-func (lc *lockCloser) Close() error {
-	lc.once.Do(lc.close)
-	return lc.err
-}
-
-func (lc *lockCloser) close() {
-	if err := lc.f.Close(); err != nil {
-		lc.err = err
-	}
-	if err := os.Remove(lc.abs); err != nil {
-		lc.err = err
-	}
-}
-
-func createOrOpenDB(file string) (*kv.DB, error) {
-	lockFile := file + ".lock"
-	_, err := os.Stat(lockFile)
-	if err == nil || os.IsExist(err) {
-		logger.Debugf("remove lock file %v", lockFile)
-		os.Remove(lockFile)
-	}
-
-	opt.Locker = func(name string) (closer io.Closer, e error) {
-		lname := name + ".lock"
-		abs, err := filepath.Abs(lname)
-		if err != nil {
-			return nil, err
-		}
-		f, err := os.OpenFile(abs, os.O_CREATE|os.O_EXCL|os.O_RDONLY, 0666)
-		if os.IsExist(err) {
-			return nil, fmt.Errorf("cannot access DB %q: lock file %q exists", name, abs)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &lockCloser{f: f, abs: abs}, nil
-	}
-
-	_, err = os.Stat(file)
-	if os.IsNotExist(err) {
-		return kv.Create(file, opt)
-	} else {
-		return kv.Open(file, opt)
-	}
 }
 
 func newSkStorage(file string, encKey []byte) *skStorage {
-	db, err := createOrOpenDB(file)
+	db, err := bolt.Open(file, 0666, nil)
 	if err != nil {
-		panic(fmt.Errorf("create db fail:%v in %v", err, file))
+		logger.Error(fmt.Errorf("create db fail:%v in %v", err, file))
+		if db == nil {
+			panic(fmt.Errorf("create db fail:%v in %v", err, file))
+		}
 	}
 	return &skStorage{
 		file:       file,
@@ -179,50 +109,73 @@ func (store *skStorage) loop() {
 	}
 }
 
-func (store *skStorage) flush() {
-
-}
-
 func (store *skStorage) removeExpires(height uint64) {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-
-	iter, _, err := store.db.Seek([]byte(prefixExpireHeight))
-	if err != nil {
-		logger.Errorf("seek error:%v", err)
-		return
-	}
-	err = store.db.BeginTransaction()
-	if err != nil {
-		store.db.Rollback()
-		logger.Errorf("begin transaction error %v", err)
-		return
-	}
-	defer store.db.Commit()
-	for {
-		if k, v, err := iter.Next(); err != nil {
-			break
-		} else {
-			if !bytes.HasPrefix(k, []byte(prefixExpireHeight)) {
-				break
-			}
-			key := k[len(prefixExpireHeight):]
+	delHash := make([]common.Hash, 0)
+	delHeight := make([]uint64, 0)
+	err := store.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketExpireHeight))
+		if b == nil {
+			return nil
+		}
+		c := b.Cursor()
+		min := common.Uint64ToByte(0)
+		max := common.Uint64ToByte(height)
+		for k, v := c.Seek(min); k != nil && bytes.Compare(k, max) <= 0; k, v = c.Next() {
 			hash := common.BytesToHash(v)
-			expireHeight := common.ByteToUInt64(key)
+			expireHeight := common.ByteToUInt64(k)
 			if expireHeight > height {
 				break
 			}
-
-			store.db.Extract(nil, hashKey(hash))
-			store.db.Extract(nil, k)
-			logger.Debugf("delete sk info: %v %v", expireHeight, hash)
+			delHash = append(delHash, hash)
+			delHeight = append(delHeight, expireHeight)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Errorf("remove expire error:%v", err)
+		return
+	}
+	if len(delHeight) > 0 {
+		err = store.db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(bucketExpireHeight))
+			if b == nil {
+				return nil
+			}
+			for _, h := range delHeight {
+				e := b.Delete(common.Uint64ToByte(h))
+				if e != nil {
+					return e
+				}
+				logger.Debugf("remove expire height %v", h)
+			}
+			return nil
+		})
+		if err != nil {
+			logger.Errorf("remove expire height error:%v", err)
+		}
+	}
+	if len(delHash) > 0 {
+		err = store.db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(bucketHash))
+			if b == nil {
+				return nil
+			}
+			for _, h := range delHash {
+				e := b.Delete(h.Bytes())
+				if e != nil {
+					return e
+				}
+				logger.Debugf("remove expire hash %v", h)
+			}
+			return nil
+		})
+		if err != nil {
+			logger.Errorf("remove expire hash error:%v", err)
 		}
 	}
 }
 
 func (store *skStorage) storeSeckey(hash common.Hash, msk *groupsig.Seckey, encSk *groupsig.Seckey, expireHeight uint64) {
-	store.mu.Lock()
-	defer store.mu.Unlock()
 
 	v := store.getSkInfo(hash)
 	if v == nil {
@@ -239,20 +192,24 @@ func (store *skStorage) storeSeckey(hash common.Hash, msk *groupsig.Seckey, encS
 		logger.Errorf("encrypt sk error %v, encSk %v", err, common.ToHex(store.encKey))
 		return
 	}
-	err = store.db.BeginTransaction()
+	err = store.db.Update(func(tx *bolt.Tx) error {
+		b, e := tx.CreateBucketIfNotExists([]byte(bucketHash))
+		if e != nil {
+			return e
+		}
+		return b.Put(hash.Bytes(), encryptedBytes)
+	})
 	if err != nil {
-		store.db.Rollback()
-		logger.Errorf("begin transaction error %v", err)
+		logger.Errorf("store sk info error %v", err)
 		return
 	}
-	defer store.db.Commit()
-
-	err = store.db.Set(hashKey(hash), encryptedBytes)
-	if err != nil {
-		logger.Errorf("store sk info error:%v", err)
-		return
-	}
-	err = store.db.Set(heightKey(expireHeight), hash.Bytes())
+	err = store.db.Update(func(tx *bolt.Tx) error {
+		b, e := tx.CreateBucketIfNotExists([]byte(bucketExpireHeight))
+		if e != nil {
+			return e
+		}
+		return b.Put(common.Uint64ToByte(expireHeight), hash.Bytes())
+	})
 	if err != nil {
 		logger.Errorf("store sk height error:%v", err)
 		return
@@ -261,20 +218,28 @@ func (store *skStorage) storeSeckey(hash common.Hash, msk *groupsig.Seckey, encS
 }
 
 func (store *skStorage) getSkInfo(hash common.Hash) *skInfo {
-	bs, err := store.db.Get(nil, hashKey(hash))
-	if err != nil {
-		logger.Errorf("get skInfo error:%v %v", hash, err)
+	var ski *skInfo
+	err := store.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketHash))
+		if b == nil {
+			return nil
+		}
+		bs := b.Get(hash.Bytes())
+		if bs == nil {
+			return nil
+		}
+		decyptedBytes, e := common.DecryptWithKey(store.encKey, bs)
+		if e != nil {
+			return e
+		}
+		ski = decodeSkInfoBytes(decyptedBytes)
 		return nil
-	}
-	if bs == nil {
-		return nil
-	}
-	decyptedBytes, err := common.DecryptWithKey(store.encKey, bs)
+	})
 	if err != nil {
 		logger.Errorf("decrypt sk info error:%v", err)
 		return nil
 	}
-	return decodeSkInfoBytes(decyptedBytes)
+	return ski
 }
 
 func (store *skStorage) GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
@@ -290,9 +255,7 @@ func (store *skStorage) StoreGroupSignatureSeckey(seed common.Hash, sk groupsig.
 }
 
 func (store *skStorage) Close() error {
-	logger.Debugf("closing db file %v", store.db.Name())
-	store.mu.Lock()
-	defer store.mu.Unlock()
+	logger.Debugf("closing db file %v", store.db.Path())
 
 	return store.db.Close()
 }

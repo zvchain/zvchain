@@ -65,6 +65,7 @@ const (
 	CreateResultSuccess  CreateResultCode = iota // Group create success
 	CreateResultMarkEvil                         // Someone cheat, and mark the origin pieces required
 	CreateResultFail                             // Error occurs
+	CreateResultIdle                             // Idle round, won't start group-create routine
 )
 
 // GroupI is the group info interface

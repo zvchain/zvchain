@@ -116,8 +116,8 @@ func (p *Processor) onGroupAddSuccess(message notify.Message) {
 	stdLogger.Infof("groupAddEventHandler receive message, gSeed=%v, workHeight=%v\n", group.Header().Seed(), group.Header().WorkHeight())
 
 	memIds := make([]groupsig.ID, len(group.Members()))
-	for _, mem := range group.Members() {
-		memIds = append(memIds, groupsig.DeserializeID(mem.ID()))
+	for i, mem := range group.Members() {
+		memIds[i] = groupsig.DeserializeID(mem.ID())
 	}
 	p.NetServer.BuildGroupNet(group.Header().Seed().Hex(), memIds)
 }

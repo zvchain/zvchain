@@ -122,6 +122,9 @@ func (checker *createChecker) CheckEncryptedPiecePacket(packet types.EncryptedSh
 	if !era.encPieceRange.inRange(ctx.Height()) {
 		return fmt.Errorf("not in the encrypted-piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
+	if !routine.shouldCreateGroup() {
+		return fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
+	}
 	sender := groupsig.DeserializeID(packet.Sender())
 
 	// Was selected
@@ -158,6 +161,9 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 	}
 	if !era.mpkRange.inRange(ctx.Height()) {
 		return fmt.Errorf("not in the mpk round, curr %v, round %v", ctx.Height(), era.encPieceRange)
+	}
+	if !routine.shouldCreateGroup() {
+		return fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
 	}
 	cands := checker.ctx.cands
 
@@ -213,34 +219,52 @@ func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
 	return false, nil
 }
 
+func (checker *createChecker) shouldCreateGroup() bool {
+	return checker.ctx != nil && checker.ctx.cands.size() > 0
+}
+
 func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult {
 	checker.lock.RLock()
 	defer checker.lock.RUnlock()
 
+	var result *createResult
+	defer func() {
+		switch result.code {
+
+		}
+	}()
+
 	era := checker.currEra()
 	if !era.seedExist() {
-		return errCreateResult(fmt.Errorf("seed not exists:%v", era.seedHeight))
+		result = idleCreateResult(fmt.Errorf("seed not exists:%v", era.seedHeight))
+		return result
 	}
-
+	if !routine.shouldCreateGroup() {
+		result = idleCreateResult(fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size()))
+		return result
+	}
 	sh := seedHeight(ctx.Height())
 	if sh != era.seedHeight {
-		return errCreateResult(fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh))
+		result = idleCreateResult(fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh))
+		return result
 	}
+
 	first := checker.firstHeightOfRound(era.oriPieceRange, ctx.Height())
 	if !era.oriPieceRange.inRange(first) {
-		return errCreateResult(fmt.Errorf("not in the origin piece round, curr %v, round %v, first %v", ctx.Height(), era.oriPieceRange, first))
+		result = idleCreateResult(fmt.Errorf("not in the origin piece round, curr %v, round %v, first %v", ctx.Height(), era.oriPieceRange, first))
+		return result
 	}
 	if first != ctx.Height() {
-		return errCreateResult(fmt.Errorf("not the first height of the origin piece round, curr %v, round %v, first %v", ctx.Height(), era.oriPieceRange, first))
+		result = idleCreateResult(fmt.Errorf("not the first height of the origin piece round, curr %v, round %v, first %v", ctx.Height(), era.oriPieceRange, first))
+		return result
 	}
 	cands := checker.ctx.cands
 
 	piecePkt, err := checker.storeReader.GetEncryptedPiecePackets(era)
 	if err != nil {
-		return errCreateResult(fmt.Errorf("get encrypted piece error:%v", err))
+		result = errCreateResult(fmt.Errorf("get encrypted piece error:%v", err))
+		return result
 	}
-
-	result := &createResult{}
 
 	needFreeze := make([]groupsig.ID, 0)
 	// Find those who didn't send encrypted share piece
@@ -265,13 +289,15 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 			availPieces = append(availPieces, pkt)
 		}
 	}
+
+	result = &createResult{}
+
 	// All of those who didn't send share piece and those who sent this but not mpk will be frozen
 	result.frozenMiners = needFreeze
 	// Not enough member count
 	if !pieceEnough(len(availPieces), cands.size()) {
 		result.err = fmt.Errorf("receives not enough available share piece(with mpk):%v", len(availPieces))
 		result.code = types.CreateResultFail
-
 	} else { // Success or evil encountered
 
 		gpk := *aggrGroupPubKey(availPieces)
@@ -285,17 +311,6 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 			result.gInfo = generateGroupInfo(mpkPkt, era, gpk, cands.threshold())
 			checker.ctx.gInfo = result.gInfo
 		}
-	}
-	if result.gInfo != nil {
-		g := result.gInfo
-		logger.Debugf("group create success: seed=%v, workHeight=%v, dismissHeight=%v, threshold=%v, memsize=%v", g.header.Seed(), g.header.WorkHeight(), g.header.DismissHeight(), g.header.Threshold(), len(g.members))
-	}
-	if len(needFreeze) > 0 {
-		frozeMiners := make([]string, 0)
-		for _, m := range needFreeze {
-			frozeMiners = append(frozeMiners, common.ShortHex(m.GetHexString()))
-		}
-		logger.Debugf("froze miners: seedHeight=%v, %v", era.seedHeight, frozeMiners)
 	}
 
 	return result
@@ -315,6 +330,9 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 	}
 	if !era.oriPieceRange.inRange(ctx.Height()) {
 		return fmt.Errorf("height not in the encrypted-piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
+	}
+	if !routine.shouldCreateGroup() {
+		return fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
 	}
 	sender := groupsig.DeserializeID(packet.Sender())
 	// Was selected
@@ -362,6 +380,9 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	if sh != era.seedHeight {
 		return nil, fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
 	}
+	if !routine.shouldCreateGroup() {
+		return nil, fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
+	}
 	first := checker.firstHeightOfRound(era.endRange, ctx.Height())
 	if !era.endRange.inRange(first) {
 		return nil, fmt.Errorf("not in the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
@@ -369,6 +390,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	if first != ctx.Height() {
 		return nil, fmt.Errorf("not the first height of the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
 	}
+
 	cands := checker.ctx.cands
 
 	// Whether origin piece required

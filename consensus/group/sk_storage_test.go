@@ -17,34 +17,20 @@ package group
 
 import (
 	"bytes"
+	"github.com/boltdb/bolt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"testing"
+	"time"
 )
-
-func TestOpenDB(t *testing.T) {
-	db, err := createOrOpenDB("testdb")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = db.Set([]byte("123"), []byte("456"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	v, err := db.Get(nil, []byte("123"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(v)
-	db.Close()
-}
 
 func TestStoreSeckey(t *testing.T) {
 	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
 	logger = taslog.GetLoggerByName("testlog")
+	go skStore.loop()
+
 	defer skStore.Close()
 
 	msk := groupsig.DeserializeSeckey(common.FromHex("0x456000000000000000000000000000000000000000000000000000000000789"))
@@ -68,52 +54,9 @@ func TestStoreSeckey(t *testing.T) {
 	t.Log(skiNotExist)
 }
 
-func TestSkStorage_Store(t *testing.T) {
-	logger = taslog.GetLoggerByName("testlog")
+func TestStore(t *testing.T) {
 	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
-	go skStore.loop()
-
-	defer skStore.Close()
-
-	//msk := groupsig.DeserializeSeckey(common.FromHex("0x456000000000000000000000000000000000000000000000000000000000789"))
-	//encSk := groupsig.DeserializeSeckey(common.FromHex("0x234000000000000000000000000000000000000000000000000000000000aaa"))
-	//
-	//for i:=0; i < 100; i++ {
-	//	hash := common.BigToHash(new(big.Int).SetUint64(uint64(i)))
-	//	skStore.storeSeckey(hash, msk, nil, uint64(100)*uint64(i))
-	//	skStore.storeSeckey(hash, nil, encSk, uint64(100)*uint64(i))
-	//}
-
-	iter, err := skStore.db.SeekFirst()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	for {
-		if k, v, err := iter.Next(); err != nil {
-			break
-		} else {
-			if bytes.HasPrefix(k, []byte(prefixHash)) {
-				key := k[len(prefixHash):]
-				decypted, err := common.DecryptWithKey(skStore.encKey, v)
-				if err != nil {
-					t.Error("decryption error ", err)
-				}
-				ski := decodeSkInfoBytes(decypted)
-				t.Log("hash", common.BytesToHash(key), ski.msk.GetHexString(), ski.encSk.GetHexString())
-			} else if bytes.HasPrefix(k, []byte(prefixExpireHeight)) {
-				key := k[len(prefixExpireHeight):]
-				hash := common.BytesToHash(v)
-				t.Log("expire", common.ByteToUInt64(key), hash)
-			}
-		}
-	}
-
-}
-
-func TestSeek(t *testing.T) {
 	logger = taslog.GetLoggerByName("testlog")
-	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
 	go skStore.loop()
 
 	defer skStore.Close()
@@ -123,41 +66,44 @@ func TestSeek(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		hash := common.BigToHash(new(big.Int).SetUint64(uint64(i)))
-		skStore.storeSeckey(hash, msk, nil, uint64(100)*uint64(i))
-		skStore.storeSeckey(hash, nil, encSk, uint64(100)*uint64(i))
-		t.Log(uint64(100) * uint64(i))
+		skStore.storeSeckey(hash, msk, nil, 0)
+		skStore.storeSeckey(hash, nil, encSk, 100*uint64(i))
 	}
 
-	prefix := []byte(prefixExpireHeight)
-	iter, hit, err := skStore.db.Seek(append(prefix, common.Uint64ToByte(500)...))
-	t.Log(hit)
+}
+
+func TestGetSkInfo(t *testing.T) {
+	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
+	logger = taslog.GetLoggerByName("testlog")
+	go skStore.loop()
+
+	defer skStore.Close()
+	for i := 0; i < 100; i++ {
+		hash := common.BigToHash(new(big.Int).SetUint64(uint64(i)))
+		ski := skStore.getSkInfo(hash)
+		if ski == nil {
+			continue
+		}
+		t.Log(ski.msk.GetHexString(), ski.encSk.GetHexString())
+	}
+
+	err := skStore.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketExpireHeight))
+		if b == nil {
+			return nil
+		}
+		c := b.Cursor()
+		min := common.Uint64ToByte(0)
+		max := common.Uint64ToByte(10000)
+		for k, v := c.Seek(min); k != nil && bytes.Compare(k, max) <= 0; k, v = c.Next() {
+			hash := common.BytesToHash(v)
+			expireHeight := common.ByteToUInt64(k)
+			t.Log(expireHeight, hash)
+		}
+		return nil
+	})
 	if err != nil {
 		t.Error(err)
-	}
-	for {
-		if k, v, err := iter.Prev(); err != nil {
-			break
-		} else {
-			if !bytes.HasPrefix(k, prefix) {
-				break
-			}
-			key := k[len(prefixExpireHeight):]
-			hash := common.BytesToHash(v)
-			t.Log("prev", common.ByteToUInt64(key), hash)
-		}
-	}
-	iter, hit, err = skStore.db.Seek(append(prefix, common.Uint64ToByte(1200)...))
-	for {
-		if k, v, err := iter.Next(); err != nil {
-			break
-		} else {
-			if !bytes.HasPrefix(k, prefix) {
-				break
-			}
-			key := k[len(prefixExpireHeight):]
-			hash := common.BytesToHash(v)
-			t.Log("next", common.ByteToUInt64(key), hash)
-		}
 	}
 
 }
@@ -169,19 +115,7 @@ func TestRemoveExpire(t *testing.T) {
 
 	defer skStore.Close()
 
-	skStore.blockAddCh <- 300
+	skStore.blockAddCh <- 7666
 
-	skStore.blockAddCh <- 301
-	skStore.blockAddCh <- 302
-	skStore.blockAddCh <- 750
-	skStore.blockAddCh <- 100000
-
-}
-
-func TestWALName(t *testing.T) {
-	logger = taslog.GetLoggerByName("testlog")
-	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
-	defer skStore.Close()
-
-	t.Log(skStore.db.WALName())
+	time.Sleep(2 * time.Second)
 }

@@ -154,11 +154,6 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 }
 
 func (routine *createRoutine) selectCandidates() error {
-	// Already selected
-	if routine.ctx.cands != nil {
-		return nil
-	}
-
 	routine.ctx.cands = make(candidates, 0)
 
 	era := routine.currEra()
@@ -211,6 +206,9 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	if !era.encPieceRange.inRange(bh.Height) {
 		return false, nil
 	}
+	if !routine.shouldCreateGroup() {
+		return false, nil
+	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
 		return false, fmt.Errorf("miner is nil")
@@ -256,7 +254,9 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	if !era.mpkRange.inRange(bh.Height) {
 		return false, nil
 	}
-
+	if !routine.shouldCreateGroup() {
+		return false, nil
+	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
 		return false, fmt.Errorf("miner is nil")
@@ -327,6 +327,9 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 		return false, fmt.Errorf("seed not exists:%v", era.seedHeight)
 	}
 	if !era.oriPieceRange.inRange(bh.Height) {
+		return false, nil
+	}
+	if !routine.shouldCreateGroup() {
 		return false, nil
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()

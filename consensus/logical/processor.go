@@ -229,6 +229,10 @@ func (p *Processor) initLivedGroup() {
 	livedGroupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(p.MainChain.Height())
 	for _, seed := range livedGroupSeeds {
 		g := p.groupReader.getGroupBySeed(seed.Seed())
+		stdLogger.Debugf("group seed %v", g.header.Seed())
+		for _, mem := range g.members {
+			stdLogger.Debugf("member %v", mem.id)
+		}
 		if g == nil {
 			continue
 		}

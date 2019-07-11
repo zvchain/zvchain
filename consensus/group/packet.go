@@ -183,6 +183,9 @@ func (cr *createResult) Err() error {
 func errCreateResult(err error) *createResult {
 	return &createResult{code: types.CreateResultFail, err: err}
 }
+func idleCreateResult(err error) *createResult {
+	return &createResult{code: types.CreateResultIdle, err: err}
+}
 
 func generateGroupInfo(packets []types.MpkPacket, era *era, gpk groupsig.Pubkey, threshold int) *group {
 	members := make([]types.MemberI, 0)
