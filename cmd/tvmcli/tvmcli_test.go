@@ -276,9 +276,24 @@ func TestTvmCli_TestABI2(t *testing.T)  {
 }`
 	_callContract(contractAddress, abiJSON)
 
+	abiJSON = `{
+	"FuncName": "testutf8",
+		"Args": []
+}`
+	_callContract(contractAddress, abiJSON)
+
+	abiJSON = `{
+	"FuncName": "testutf82",
+		"Args": ["你好，世界"]
+}`
+	_callContract(contractAddress, abiJSON)
+
+
 	tvmCli := NewTvmCli()
 	tvmCli.QueryData(contractAddress, "count", 0)
 	tvmCli.QueryData(contractAddress, "string", 0)
+	tvmCli.QueryData(contractAddress, "utf8", 0)
+	tvmCli.QueryData(contractAddress, "utf82", 0)
 	tvmCli.DeleteTvmCli()
 }
 
