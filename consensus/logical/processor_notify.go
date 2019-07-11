@@ -45,13 +45,13 @@ func (p *Processor) triggerFutureVerifyMsg(bh *types.BlockHeader) {
 	p.removeFutureVerifyMsgs(bh.Hash)
 	mtype := "FUTURE_VERIFY"
 	for _, msg := range futures {
-		tlog := newHashTraceLog(mtype, msg.BH.Hash, msg.SI.GetID())
-		tlog.logStart("size %v", len(futures))
+		tLog := newHashTraceLog(mtype, msg.BH.Hash, msg.SI.GetID())
+		tLog.logStart("size %v", len(futures))
 		verifyTraceLog := monitor.NewPerformTraceLogger("verifyCastMessage", msg.BH.Hash, msg.BH.Height)
 		verifyTraceLog.SetParent("triggerFutureVerifyMsg")
 		ok, err := p.verifyCastMessage(msg, bh)
 		verifyTraceLog.Log("result=%v %v", ok, err)
-		tlog.logEnd("result=%v %v", ok, err)
+		tLog.logEnd("result=%v %v", ok, err)
 	}
 
 }
@@ -62,11 +62,11 @@ func (p *Processor) triggerFutureRewardSign(bh *types.BlockHeader) {
 		return
 	}
 	p.futureRewardReqs.remove(bh.Hash)
-	mtype := "CMCRSR-Future"
+	mType := "CMCRSR-Future"
 	for _, msg := range futures {
-		blog := newBizLog(mtype)
+		tLog := newHashTraceLog(mType, bh.Hash, groupsig.ID{})
 		send, err := p.signCastRewardReq(msg.(*model.CastRewardTransSignReqMessage), bh)
-		blog.debug("send %v, result %v", send, err)
+		tLog.logEnd("send %v, result %v", send, err)
 	}
 }
 

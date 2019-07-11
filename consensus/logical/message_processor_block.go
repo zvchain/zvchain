@@ -365,11 +365,6 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) {
 func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, bh *types.BlockHeader) (send bool, err error) {
 	gSeed := bh.Group
 	reward := &msg.Reward
-	group := p.groupReader.getGroupBySeed(gSeed)
-	if group == nil {
-		err = fmt.Errorf("verifyGroup is nil")
-		return
-	}
 
 	vctx := p.blockContexts.getVctxByHeight(bh.Height)
 	if vctx == nil || vctx.prevBH.Hash != bh.PreHash {
@@ -410,6 +405,8 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 			return
 		}
 
+		group := vctx.group
+
 		mpk := group.getMemberPubkey(msg.SI.GetID())
 		if !msg.VerifySign(mpk) {
 			err = fmt.Errorf("verify sign fail, gseed=%v, uid=%v", gSeed, msg.SI.GetID())
@@ -422,7 +419,8 @@ func (p *Processor) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, 
 		for idx, idIndex := range msg.Reward.TargetIds {
 			mem := group.getMemberAt(int(idIndex))
 			if mem == nil {
-				err = fmt.Errorf("member not exist, idx %v", idIndex)
+				stdLogger.Errorf("reward targets %v: %v", len(msg.Reward.TargetIds), msg.Reward.TargetIds)
+				err = fmt.Errorf("member not exist, idx %v, memsize %v", idIndex, group.memberSize())
 				return
 			}
 			sign := msg.SignedPieces[idx]

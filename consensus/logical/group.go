@@ -49,8 +49,8 @@ func convertGroupI(g types.GroupI) *verifyGroup {
 
 func (vg *verifyGroup) getMembers() []groupsig.ID {
 	ids := make([]groupsig.ID, len(vg.members))
-	for _, mem := range vg.members {
-		ids = append(ids, mem.id)
+	for i, mem := range vg.members {
+		ids[i] = mem.id
 	}
 	return ids
 }

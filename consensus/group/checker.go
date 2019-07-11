@@ -195,10 +195,11 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 	return nil
 }
 
-func (checker *createChecker) firstHeightOfRound(r *rRange) uint64 {
+func (checker *createChecker) firstHeightOfRound(r *rRange, curr uint64) uint64 {
 	firstBH := checker.chain.QueryBlockHeaderCeil(r.begin)
+	// If no block is higher than r.begin, then current height will be the first of the given round
 	if firstBH == nil {
-		return 0
+		return curr
 	}
 	return firstBH.Height
 }
@@ -228,7 +229,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	if sh != era.seedHeight {
 		return errCreateResult(fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh))
 	}
-	first := checker.firstHeightOfRound(era.oriPieceRange)
+	first := checker.firstHeightOfRound(era.oriPieceRange, ctx.Height())
 	if !era.oriPieceRange.inRange(first) {
 		return errCreateResult(fmt.Errorf("not in the origin piece round, curr %v, round %v, first %v", ctx.Height(), era.oriPieceRange, first))
 	}
@@ -364,7 +365,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	if sh != era.seedHeight {
 		return nil, fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
 	}
-	first := checker.firstHeightOfRound(era.endRange)
+	first := checker.firstHeightOfRound(era.endRange, ctx.Height())
 	if !era.endRange.inRange(first) {
 		return nil, fmt.Errorf("not in the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
 	}
