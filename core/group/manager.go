@@ -85,16 +85,16 @@ func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 	ctx := &CheckerContext{bh.Height}
 	m.tryCreateGroup(db, m.checkerImpl, ctx)
 	m.tryDoPunish(db, m.checkerImpl, ctx)
-	// adjust for next block
-	m.poolImpl.adjust(db, ctx.Height()+1)
 }
 
 // GroupCreatedInCurrentBlock returns the group data if group is created in current block
-func (m *Manager) GroupCreatedInCurrentBlock() *group {
+func (m *Manager) GroupCreatedInCurrentBlock(block *types.Block) *group {
 	topGroup := m.poolImpl.getTopGroup(m.chain.LatestStateDB())
-	if topGroup.HeaderD.BlockHeight == m.chain.Height() {
+	if topGroup.HeaderD.BlockHeight == block.Header.Height {
+		logger.Debugf("Notify consensus as group created on %v", topGroup.HeaderD.BlockHeight)
+		logger.Debugf("Member number is  %d", len(topGroup.members))
 		// group just created
-		return m.poolImpl.get(m.chain.LatestStateDB(), topGroup.HeaderD.SeedD)
+		return topGroup
 	}
 	return nil
 }
@@ -114,13 +114,9 @@ func (m *Manager) GroupsAfter(height uint64) []types.GroupI {
 }
 
 // Height returns count of current group number
-func (m *Manager) WaitingGroupCount() int {
-	return len(m.poolImpl.waitingList)
-}
-
-// Height returns count of current group number
 func (m *Manager) ActiveGroupCount() int {
-	return len(m.poolImpl.activeList)
+	return len(m.poolImpl.getActives(m.chain, m.chain.Height()))
+	//return len(m.poolImpl.activeList)
 }
 
 // GetAvailableGroupSeeds gets available groups' Seed at the given Height

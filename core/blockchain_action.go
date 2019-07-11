@@ -467,7 +467,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 
 func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 	notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: remoteBlock})
-	newGroup := GroupManagerImpl.GroupCreatedInCurrentBlock()
+	newGroup := GroupManagerImpl.GroupCreatedInCurrentBlock(remoteBlock)
 	if newGroup != nil {
 		notify.BUS.Publish(notify.GroupAddSucc, &notify.GroupOnChainSuccMessage{Group: newGroup})
 	}
