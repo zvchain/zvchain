@@ -17,6 +17,7 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 
 	"time"
 
@@ -411,9 +412,10 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
 	isEvil := candidateKeys.checkReceivedHashesInHitRate(txs)
 	if isEvil {
+		fmt.Printf("received len = %d,send len = %d",len(txs),candidateKeys.sendHashes.Len())
 		ts.logger.Errorf("rec tx rate too low,source is %s", nm.Source())
-		peerManagerImpl.addEvilCount(nm.Source())
-		return
+		//peerManagerImpl.addEvilCount(nm.Source())
+		//return
 	}
 
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
