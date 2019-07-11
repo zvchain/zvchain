@@ -33,6 +33,7 @@ const (
 	RSAbiError
 	RSTvmError
 	RSGasNotEnoughError
+	RSNoCodeError
 )
 
 type Receipt struct {

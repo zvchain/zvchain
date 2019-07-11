@@ -204,7 +204,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	contract := tvm.LoadContract(_contractAddress)
 	//fmt.Println(contract.Code)
 	sender := common.HexToAddress(DefaultAccounts[0])
-	executeResult, logs, transactionError := controller.ExecuteAbiEval(&sender, contract, abiJSON)
+	executeResult, logs, transactionError := controller.ExecuteAbiEval(&sender, contract, abiJSON,big.NewInt(0))
 	if transactionError != nil {
 		fmt.Println(transactionError.Message)
 	}
