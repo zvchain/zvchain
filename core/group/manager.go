@@ -136,7 +136,6 @@ func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI 
 
 func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
-	logger.Debugf("CheckGroupCreateResult rs: %v %v", createResult.Code(), createResult.Err())
 	if createResult == nil {
 		return
 	}
@@ -161,7 +160,6 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 
 func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	msg, err := checker.CheckGroupCreatePunishment(ctx)
-	logger.Debugf("CheckGroupCreatePunishment msg: %v, err:%v ", msg, err)
 	if err != nil {
 		return
 	}

@@ -69,6 +69,7 @@ type createRoutine struct {
 	*createChecker
 	packetSender types.GroupPacketSender
 	store        *skStorage
+	currID       groupsig.ID
 }
 
 var routine *createRoutine
@@ -81,11 +82,13 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
 		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", "")), base.Data2CommonHash(miner.SK.Serialize()).Bytes()),
+		currID:        miner.ID,
 	}
 	top := chain.QueryTopBlock()
 	routine.updateContext(top)
 
 	go routine.store.loop()
+	go checker.stat.loop()
 
 	provider.RegisterGroupCreateChecker(checker)
 
@@ -140,6 +143,7 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 			return
 		}
 	}
+	routine.stat.increaseEra()
 	seedBlockHash := common.Hash{}
 	if seedBH != nil {
 		seedBlockHash = seedBH.Hash
@@ -150,7 +154,10 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 	err := routine.selectCandidates()
 	if err != nil {
 		logger.Debugf("select candidates:%v", err)
+	} else {
+		routine.stat.increaseShouldCreate()
 	}
+	routine.stat.outCh <- struct{}{}
 }
 
 func (routine *createRoutine) selectCandidates() error {
@@ -209,6 +216,11 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	if !routine.shouldCreateGroup() {
 		return false, nil
 	}
+	// Was selected
+	if !routine.ctx.cands.has(routine.currID) {
+		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+	}
+
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
 		return false, fmt.Errorf("miner is nil")
@@ -218,10 +230,6 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 		return false, fmt.Errorf("current miner cann't join group")
 	}
 
-	// Was selected
-	if !routine.ctx.cands.has(mInfo.ID) {
-		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID)
-	}
 	// Has sent piece
 	if routine.ctx.sentEncryptedPiecePacket != nil || routine.storeReader.HasSentEncryptedPiecePacket(mInfo.ID.Serialize(), era) {
 		return false, nil
@@ -257,19 +265,19 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	if !routine.shouldCreateGroup() {
 		return false, nil
 	}
+	cands := routine.ctx.cands
+
+	// Was selected
+	if !cands.has(routine.currID) {
+		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+	}
+
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
 		return false, fmt.Errorf("miner is nil")
 	}
 	if !mInfo.CanJoinGroup() {
 		return false, fmt.Errorf("current miner cann't join group")
-	}
-
-	cands := routine.ctx.cands
-
-	// Was selected
-	if !cands.has(mInfo.ID) {
-		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID)
 	}
 
 	// Has sent mpk
@@ -332,6 +340,10 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 	if !routine.shouldCreateGroup() {
 		return false, nil
 	}
+	// Was selected
+	if !routine.ctx.cands.has(routine.currID) {
+		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
 		return false, fmt.Errorf("miner is nil")
@@ -340,10 +352,6 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 		return false, fmt.Errorf("current miner cann't join group")
 	}
 
-	// Was selected
-	if !routine.ctx.cands.has(mInfo.ID) {
-		return false, fmt.Errorf("current miner not selected:%v", mInfo.ID)
-	}
 	// Whether origin piece required
 	if !routine.storeReader.IsOriginPieceRequired(era) {
 		return false, nil

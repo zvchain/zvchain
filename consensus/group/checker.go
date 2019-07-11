@@ -32,6 +32,7 @@ type createChecker struct {
 	ctx         *createContext
 	storeReader types.GroupStoreReader
 	minerReader minerReader
+	stat        *createStat
 	lock        sync.RWMutex
 }
 
@@ -40,6 +41,7 @@ func newCreateChecker(reader minerReader, chain types.BlockChain, store types.Gr
 		chain:       chain,
 		storeReader: store,
 		minerReader: reader,
+		stat:        newCreateStat(),
 	}
 }
 
@@ -226,15 +228,37 @@ func (checker *createChecker) shouldCreateGroup() bool {
 func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult {
 	checker.lock.RLock()
 	defer checker.lock.RUnlock()
+	era := checker.currEra()
 
 	var result *createResult
 	defer func() {
-		switch result.code {
-
+		frozeMiners := make([]string, 0)
+		if len(result.frozenMiners) > 0 {
+			for _, m := range result.frozenMiners {
+				frozeMiners = append(frozeMiners, common.ShortHex(m.GetHexString()))
+			}
+			logger.Debugf("froze miners: seedHeight=%v, %v", era.seedHeight, frozeMiners)
 		}
+
+		switch result.code {
+		case types.CreateResultSuccess:
+			if result.gInfo != nil {
+				g := result.gInfo
+				logger.Debugf("group create success: seedHeight=%v, seed=%v, workHeight=%v, dismissHeight=%v, threshold=%v, memsize=%v, candsize=%v", era.seedHeight, g.header.Seed(), g.header.WorkHeight(), g.header.DismissHeight(), g.header.Threshold(), len(g.members), checker.ctx.cands.size())
+			}
+			checker.stat.increaseSuccess()
+		case types.CreateResultIdle:
+			return
+		case types.CreateResultMarkEvil:
+			checker.stat.increaseFail()
+			logger.Debugf("group create fail, mark evil, seedHeight=%v", era.seedHeight)
+		case types.CreateResultFail:
+			checker.stat.increaseFail()
+			logger.Debugf("group create fail, seedHeight=%v, err=%v", era.seedHeight, result.err)
+		}
+		checker.stat.outCh <- struct{}{}
 	}()
 
-	era := checker.currEra()
 	if !era.seedExist() {
 		result = idleCreateResult(fmt.Errorf("seed not exists:%v", era.seedHeight))
 		return result
@@ -367,50 +391,67 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 	return nil
 }
 
-func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error) {
+func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContext) (msg types.PunishmentMsg, err error) {
 	checker.lock.RLock()
 	defer checker.lock.RUnlock()
 
+	needPunish := false
+	defer func() {
+		if needPunish && err != nil {
+			logger.Error(err)
+		}
+	}()
+
 	era := checker.currEra()
 	if !era.seedExist() {
-		return nil, fmt.Errorf("seed not exists:%v", era.seedHeight)
+		err = fmt.Errorf("seed not exists:%v", era.seedHeight)
+		return
 	}
 
 	sh := seedHeight(ctx.Height())
 	if sh != era.seedHeight {
-		return nil, fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
+		err = fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
+		return
 	}
 	if !routine.shouldCreateGroup() {
-		return nil, fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
+		err = fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
+		return
 	}
 	first := checker.firstHeightOfRound(era.endRange, ctx.Height())
 	if !era.endRange.inRange(first) {
-		return nil, fmt.Errorf("not in the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
+		err = fmt.Errorf("not in the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
+		return
 	}
 	if first != ctx.Height() {
-		return nil, fmt.Errorf("not the first height of the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
+		err = fmt.Errorf("not the first height of the end round, curr %v, round %v, first %v", ctx.Height(), era.endRange, first)
+		return
 	}
 
 	cands := checker.ctx.cands
 
 	// Whether origin piece required
 	if !checker.storeReader.IsOriginPieceRequired(era) {
-		return nil, fmt.Errorf("origin piece not required")
+		err = fmt.Errorf("origin piece not required")
+		return
 	}
+	needPunish = true
 
 	originPacket, err := checker.storeReader.GetOriginPiecePackets(era)
 	if err != nil {
-		return nil, fmt.Errorf("get origin packet error:%v", err)
+		err = fmt.Errorf("get origin packet error:%v", err)
+		return
 	}
 
 	piecePkt, err := checker.storeReader.GetEncryptedPiecePackets(era)
 	if err != nil {
-		return nil, fmt.Errorf("get encrypted piece error:%v", err)
+		err = fmt.Errorf("get encrypted piece error:%v", err)
+		return
 	}
 
 	mpkPacket, err := checker.storeReader.GetMpkPackets(era)
 	if err != nil {
-		return nil, fmt.Errorf("get mpk packet error:%v", err)
+		err = fmt.Errorf("get mpk packet error:%v", err)
+		return
 	}
 
 	// Find those who sent mpk (and of course encrypted piece did) but not sent origin pieces.
