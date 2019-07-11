@@ -82,11 +82,11 @@ func (m *Manager) InitGenesis(db types.AccountDB, genesisInfo *types.GenesisInfo
 }
 
 // RegularCheck try to create group, do punishment and refresh active group
-func (m *Manager) RegularCheck(db types.AccountDB) {
-	ctx := &CheckerContext{m.chain.Height()}
+func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
+	ctx := &CheckerContext{bh.Height}
 	m.tryCreateGroup(db, m.checkerImpl, ctx)
 	m.tryDoPunish(db, m.checkerImpl, ctx)
-	m.poolImpl.adjust(db, ctx.Height())
+	m.poolImpl.adjust(db, ctx.Height()+1)
 }
 
 // GroupCreatedInCurrentBlock returns the group data if group is created in current block
