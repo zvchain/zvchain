@@ -23,8 +23,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-
-
 type pool struct {
 	genesis     *group       // genesis group
 	groupCache  *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
@@ -157,39 +155,10 @@ func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.
 	rs = append(rs, p.genesis)
 	return rs
 
-
-	//for _, v := range p.waitingList {
-	//	rs = append(rs, p.get(chain.LatestStateDB(), v.Seed()))
-	//	if len(rs) >= limit {
-	//		return rs
-	//	}
-	//}
-	//for _, v := range p.activeList {
-	//	rs = append(rs, p.get(chain.LatestStateDB(), v.Seed()))
-	//	if len(rs) >= limit {
-	//		return rs
-	//	}
-	//}
-
-	return rs
 }
-
-// move the group to dismiss db
-//func (p *pool) toDismiss(db types.AccountDB, gl *groupLife) {
-//	db.RemoveData(common.GroupActiveAddress, gl.SeedD.Bytes())
-//	db.SetData(common.GroupDismissAddress, gl.SeedD.Bytes(), []byte{1})
-//}
 
 func (p *pool) count(db types.AccountDB) uint64 {
 	return p.getTopGroup(db).HeaderD.GroupHeight +1
-	//rs := len(p.waitingList) + len(p.activeList)
-	//iter := db.DataIterator(common.GroupDismissAddress, []byte{})
-	//if iter != nil {
-	//	for iter.Next() {
-	//		rs++
-	//	}
-	//}
-	//return uint64(rs)
 }
 
 func (p *pool) saveTopGroup(db types.AccountDB, g *group) {
@@ -199,63 +168,4 @@ func (p *pool) saveTopGroup(db types.AccountDB, g *group) {
 func (p *pool) getTopGroup(db types.AccountDB) *group {
 	bs := db.GetData(common.GroupTopAddress, topGroupKey)
 	return p.get(db, common.BytesToHash(bs))
-	//
-	//if bs != nil {
-	//	var g group
-	//	err := msgpack.Unmarshal(bs, &g)
-	//	if err != nil {
-	//		logger.Errorf("getTopGroup error:%v, Height:%v", err)
-	//		return nil
-	//	}
-	//	return &g
-	//}
-	//logger.Errorf("getTopGroup returns nil")
-	//return nil
 }
-
-//
-//func removeFirst(queue []*groupLife) []*groupLife {
-//	// this case should never happen, we already use the sPeek to check if len is 0
-//	if len(queue) == 0 {
-//		return nil
-//	}
-//	return queue[1:]
-//}
-//
-//func removeLast(queue []*groupLife) []*groupLife {
-//	// this case should never happen, we already use the peek to check if len is 0
-//	if len(queue) == 0 {
-//		return nil
-//	}
-//	return queue[:len(queue)-1]
-//
-//}
-//
-//func push(queue []*groupLife, gl *groupLife) []*groupLife {
-//	for _, v := range queue {
-//		if v.SeedD == gl.SeedD {
-//			return queue
-//		}
-//	}
-//	return append(queue, gl)
-//}
-//
-//func sPeek(queue []*groupLife) *groupLife {
-//	if len(queue) == 0 {
-//		return nil
-//	}
-//	return queue[0]
-//}
-//
-//func peek(queue []*groupLife) *groupLife {
-//	if len(queue) == 0 {
-//		return nil
-//	}
-//	return queue[len(queue)-1]
-//}
-//
-//func clone(queue []*groupLife) []*groupLife {
-//	tmp := make([]*groupLife, len(queue))
-//	copy(tmp, queue)
-//	return tmp
-//}
