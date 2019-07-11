@@ -59,6 +59,13 @@ var (
 	GroupDismissAddress = BigToAddress(big.NewInt(5)) //save the groups dismissed
 )
 
+func ShortHex(hex string) string {
+	if len(hex) < 12 {
+		return hex
+	}
+	return hex[:6] + "-" + hex[len(hex)-6:]
+}
+
 // Address data struct
 type Address [AddressLength]byte
 
@@ -131,7 +138,7 @@ func (a Address) IsValid() bool {
 }
 
 func (a Address) String() string {
-	return a.Hex()
+	return ShortHex(a.Hex())
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -214,7 +221,7 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func (h Hash) String() string {
-	return h.Hex()
+	return ShortHex(h.Hex())
 }
 
 // UnprefixedHash allows marshaling a Hash without 0x prefix.

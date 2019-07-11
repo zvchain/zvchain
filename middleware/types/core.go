@@ -351,6 +351,6 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 	}
 }
 
-func (bw *BlockWeight) String() string {
-	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.PV.Uint64())
+func (bw BlockWeight) String() string {
+	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
 }
