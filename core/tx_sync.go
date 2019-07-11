@@ -105,8 +105,10 @@ func (ptk *peerTxsHashes) checkReceivedHashesInHitRate(txs []*types.Transaction)
 		}
 		hasScaned[tx.Hash] = struct{}{}
 	}
+
 	rate := float64(hitHashesLen) / float64(ptk.sendHashes.Len())
 	if rate < txHitValidRate {
+		fmt.Printf("====>send len = %d,hitlen = %d,received len = %d \n",ptk.sendHashes.Len(),hitHashesLen,len(txs))
 		return false
 	}
 	return true
@@ -412,7 +414,7 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
 	isEvil := candidateKeys.checkReceivedHashesInHitRate(txs)
 	if isEvil {
-		fmt.Printf("received len = %d,send len = %d",len(txs),candidateKeys.sendHashes.Len())
+		//fmt.Printf("received len = %d,send len = %d",len(txs),candidateKeys.sendHashes.Len())
 		ts.logger.Errorf("rec tx rate too low,source is %s", nm.Source())
 		//peerManagerImpl.addEvilCount(nm.Source())
 		//return
