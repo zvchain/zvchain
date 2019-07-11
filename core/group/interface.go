@@ -127,8 +127,8 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 type group struct {
 	HeaderD  *groupHeader
 	MembersD []*member
-	Height   uint64          // the Height of group created
-	members  []types.MemberI // cache for interface function Members()
+
+	members []types.MemberI // cache for interface function Members()
 }
 
 func (g *group) Header() types.GroupHeaderI {
@@ -158,7 +158,9 @@ type groupHeader struct {
 	DismissHeightD uint64      `msgpack:"dh"`
 	PublicKeyD     []byte      `msgpack:"pd"`
 	ThresholdD     uint32      `msgpack:"th"`
-	PreSeed        common.Hash `msgpack:"ps"` //seed of pre group
+	PreSeed        common.Hash `msgpack:"ps"` // seed of pre group
+	BlockHeight    uint64      `msgpack:"bh"` // block height when creating
+	GroupHeight    uint64      `msgpack:"gh"` // group height
 }
 
 func (g *groupHeader) Seed() common.Hash {
@@ -180,13 +182,23 @@ func (g *groupHeader) Threshold() uint32 {
 	return g.ThresholdD
 }
 
-func newGroup(i types.GroupI, height uint64, preSeed common.Hash) *group {
+func newGroup(i types.GroupI, bh uint64, top *group) *group {
+	var (
+		preSeed        = common.EmptyHash
+		gh      uint64 = 0
+	)
+	if top != nil {
+		preSeed = top.HeaderD.SeedD
+		gh = top.HeaderD.WorkHeightD
+	}
 	header := &groupHeader{i.Header().Seed(),
 		i.Header().WorkHeight(),
 		i.Header().DismissHeight(),
 		i.Header().PublicKey(),
 		i.Header().Threshold(),
-		preSeed}
+		preSeed,
+		bh,
+		gh}
 	members := make([]*member, 0)
 	membersI := make([]types.MemberI, 0, len(i.Members()))
 	for _, m := range i.Members() {
@@ -194,5 +206,5 @@ func newGroup(i types.GroupI, height uint64, preSeed common.Hash) *group {
 		members = append(members, mem)
 		membersI = append(membersI, mem)
 	}
-	return &group{header, members, height, membersI}
+	return &group{header, members, membersI}
 }

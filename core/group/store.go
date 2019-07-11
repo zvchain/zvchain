@@ -40,10 +40,10 @@ var (
 // Store implements GroupStoreReader
 type Store struct {
 	chain    chainReader
-	poolImpl pool
+	poolImpl *pool
 }
 
-func NewStore(chain chainReader, p pool) types.GroupStoreReader {
+func NewStore(chain chainReader, p *pool) types.GroupStoreReader {
 	return &Store{chain, p}
 }
 
@@ -145,7 +145,7 @@ func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
 	if gls != nil {
 		rs := make([]types.SeedI, 0, len(gls))
 		for _, v := range gls {
-			rs = append(rs, v)
+			rs = append(rs, v.HeaderD)
 		}
 		return rs
 	}

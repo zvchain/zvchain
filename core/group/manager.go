@@ -33,8 +33,7 @@ type Manager struct {
 	storeReaderImpl  types.GroupStoreReader
 	packetSenderImpl types.GroupPacketSender
 	minerReaderImpl  minerReader
-	poolImpl         pool
-	genesisGroup     types.GroupI
+	poolImpl         *pool
 }
 
 func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
@@ -52,22 +51,22 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 func NewManager(chain chainReader) Manager {
 	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 	gPool := newPool()
-	store := NewStore(chain, *gPool)
+	store := NewStore(chain, gPool)
 	packetSender := NewPacketSender(chain)
 
 	managerImpl := Manager{
 		chain:            chain,
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
-		poolImpl:         *gPool,
+		poolImpl:         gPool,
 		//minerReaderImpl:  reader,
 	}
 	return managerImpl
 }
 
-func (m *Manager) InitManager(minerReader minerReader) {
+func (m *Manager) InitManager(minerReader minerReader, gen *types.GenesisInfo) {
 	m.minerReaderImpl = minerReader
-	err := m.poolImpl.initPool(m.chain.LatestStateDB())
+	err := m.poolImpl.initPool(m.chain.LatestStateDB(), gen)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
@@ -93,9 +92,9 @@ func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 // GroupCreatedInCurrentBlock returns the group data if group is created in current block
 func (m *Manager) GroupCreatedInCurrentBlock() *group {
 	topGroup := m.poolImpl.getTopGroup(m.chain.LatestStateDB())
-	if topGroup.Height == m.chain.Height() {
+	if topGroup.HeaderD.BlockHeight == m.chain.Height() {
 		// group just created
-		return m.poolImpl.get(m.chain.LatestStateDB(), topGroup.SeedD)
+		return m.poolImpl.get(m.chain.LatestStateDB(), topGroup.HeaderD.SeedD)
 	}
 	return nil
 }
@@ -150,7 +149,7 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height(), m.poolImpl.getTopGroup(db).SeedD))
+		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height(), m.poolImpl.getTopGroup(db)))
 		if err != nil {
 			// this case must not happen.
 			panic(logger.Error("saveGroup error: %v", err))

@@ -37,10 +37,11 @@ func (gl *groupLife) Seed() common.Hash {
 }
 
 func newGroupLife(group group) *groupLife {
-	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.Height}
+	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.HeaderD.BlockHeight}
 }
 
 type pool struct {
+	genesis     *group       // genesis group
 	activeList  []*groupLife // list of active groups
 	waitingList []*groupLife // list of waiting groups
 	groupCache  *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
@@ -52,13 +53,14 @@ func newPool() *pool {
 	return &pool{
 		activeList:  make([]*groupLife, 0),
 		waitingList: make([]*groupLife, 0),
-		groupCache:  common.MustNewLRUCache(500),
+		groupCache:  common.MustNewLRUCache(120),
 		//activeListCache:  common.MustNewLRUCache(500),
 		//waitingListCache: common.MustNewLRUCache(500),
 	}
 }
 
-func (p *pool) initPool(db types.AccountDB) error {
+func (p *pool) initPool(db types.AccountDB, gen *types.GenesisInfo) error {
+	p.genesis = p.get(db, gen.Group.Header().Seed())
 	p.activeList = make([]*groupLife, 0)
 	p.waitingList = make([]*groupLife, 0)
 	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
@@ -96,10 +98,10 @@ func (p *pool) initPool(db types.AccountDB) error {
 }
 
 func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error {
-	exist := p.get(db, genesis.Group.Header().Seed())
-	if exist == nil {
-		g := newGroup(genesis.Group, 0, common.EmptyHash)
-		err := p.add(db, g)
+	p.genesis = p.get(db, genesis.Group.Header().Seed())
+	if p.genesis == nil {
+		p.genesis = newGroup(genesis.Group, 0, nil)
+		err := p.add(db, p.genesis)
 		if err != nil {
 			return err
 		}
@@ -109,7 +111,7 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 }
 
 func (p *pool) add(db types.AccountDB, group *group) error {
-	logger.Debugf("save group, height is %d, seed is %s", group.Height, group.HeaderD.SeedD)
+	logger.Debugf("save group, height is %d, seed is %s", group.HeaderD.BlockHeight, group.HeaderD.SeedD)
 	byteData, err := msgpack.Marshal(group)
 	if err != nil {
 		return err
@@ -127,7 +129,7 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 	p.groupCache.Add(group.Header().Seed(), group)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
 
-	p.saveTopGroup(db, lifeData)
+	p.saveTopGroup(db, byteData)
 
 	return nil
 }
@@ -161,21 +163,25 @@ func (p *pool) resetToTop(db types.AccountDB, height uint64) {
 }
 
 func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, height uint64) int {
-	waiting := p.getWaiting(chain, height)
-	active := p.getActives(chain, height)
-
-	lived := append(waiting, active...)
+	lived := p.getLives(chain, height)
 	count := 0
-	for _, v := range lived {
-		g := p.get(chain.LatestStateDB(), v.Seed())
-		if g != nil {
-			for _, mem := range g.MembersD {
-				if bytes.Equal(addr.Bytes(), mem.Id) {
-					count++
-					break
-				}
+	for _, g := range lived {
+		for _, mem := range g.MembersD {
+			if bytes.Equal(addr.Bytes(), mem.Id) {
+				count++
+				break
 			}
 		}
+		//
+		//g := p.get(chain.LatestStateDB(), v.HeaderD.SeedD)
+		//if g != nil {
+		//	for _, mem := range g.MembersD {
+		//		if bytes.Equal(addr.Bytes(), mem.Id) {
+		//			count++
+		//			break
+		//		}
+		//	}
+		//}
 	}
 	return count
 }
@@ -230,60 +236,54 @@ func (p *pool) toActive(db types.AccountDB, gl *groupLife) {
 	db.SetData(common.GroupActiveAddress, gl.SeedD.Bytes(), byteData)
 }
 
-func (p *pool) getActives(chain chainReader, height uint64) []*groupLife {
-	//if g, ok := p.activeListCache.Get(height); ok {
-	//	gl := g.([]*groupLife)
-	//	return gl
-	//}
+func (p *pool) getActives(chain chainReader, height uint64) []*group {
+	rs := make([]*group, 0)
+
 	db, err := chain.GetAccountDBByHeight(height)
 	if err != nil {
-		logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
-		return nil
+		return rs
 	}
-	iter := db.DataIterator(common.GroupActiveAddress, []byte{})
-	if iter == nil {
-		return nil
-	}
-	rs := make([]*groupLife, 0)
-	for iter.Next() {
-		var life groupLife
-		err := msgpack.Unmarshal(iter.Value, &life)
-		if err != nil {
-			logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
-			return nil
+	current := p.getTopGroup(db)
+
+	for iter := p.get(db, current.HeaderD.SeedD); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
+		if iter.HeaderD.BlockHeight == 0 {
+			break
 		}
-		rs = append(rs, &life)
+		if iter.HeaderD.WorkHeightD <= height {
+			rs = append(rs, iter)
+		}
 	}
-	//p.activeListCache.ContainsOrAdd(height, rs)
+
+	//add p.genesis
+	if p.genesis != nil {
+		rs = append(rs, p.genesis)
+	}
+
 	return rs
 }
 
-func (p *pool) getWaiting(chain chainReader, height uint64) []*groupLife {
-	//if g, ok := p.waitingListCache.Get(height); ok {
-	//	gl := g.([]*groupLife)
-	//	return gl
-	//}
+func (p *pool) getLives(chain chainReader, height uint64) []*group {
+	rs := make([]*group, 0)
 	db, err := chain.GetAccountDBByHeight(height)
 	if err != nil {
-		logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
-		return nil
+		return rs
 	}
-	iter := db.DataIterator(common.GroupWaitingAddress, []byte{})
-	if iter == nil {
-		return nil
-	}
-	rs := make([]*groupLife, 0)
-	for iter.Next() {
-		var life groupLife
-		err := msgpack.Unmarshal(iter.Value, &life)
-		if err != nil {
-			logger.Errorf("GetAccountDBByHeight error:%v, Height:%v", err, height)
-			return nil
+	current := p.getTopGroup(db)
+
+	for iter := p.get(db, current.HeaderD.SeedD); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
+		if iter.HeaderD.BlockHeight == 0 {
+			break
 		}
-		rs = append(rs, &life)
+		rs = append(rs, iter)
 	}
-	//p.waitingListCache.ContainsOrAdd(height, rs)
+
+	//add p.genesis
+	if p.genesis != nil {
+		rs = append(rs, p.genesis)
+	}
+
 	return rs
+
 }
 
 func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.GroupI {
@@ -326,16 +326,16 @@ func (p *pool) saveTopGroup(db types.AccountDB, byteData []byte) {
 	db.SetData(common.GroupTopAddress, topGroupKey, byteData)
 }
 
-func (p *pool) getTopGroup(db types.AccountDB) *groupLife {
+func (p *pool) getTopGroup(db types.AccountDB) *group {
 	bs := db.GetData(common.GroupTopAddress, topGroupKey)
 	if bs != nil {
-		var life groupLife
-		err := msgpack.Unmarshal(bs, &life)
+		var g group
+		err := msgpack.Unmarshal(bs, &g)
 		if err != nil {
 			logger.Errorf("getTopGroup error:%v, Height:%v", err)
 			return nil
 		}
-		return &life
+		return &g
 	}
 	logger.Errorf("getTopGroup returns nil")
 	return nil

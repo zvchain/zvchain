@@ -229,12 +229,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)
-	GroupManagerImpl.InitManager(MinerManagerImpl)
+	GroupManagerImpl.InitManager(MinerManagerImpl,chain.consensusHelper.GenerateGenesisInfo())
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
-
-
-
 	return nil
 }
 
