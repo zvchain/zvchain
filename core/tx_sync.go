@@ -311,6 +311,7 @@ func (ts *txSyncer) reqTxsRoutine() bool {
 		})
 		ptk.reset()
 		if len(rqs) > 0 {
+			fmt.Printf("===============>send tx req,len = %d \n",len(rqs))
 			go ts.requestTxs(v.(string), &rqs)
 		}
 	}
@@ -371,12 +372,13 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
 	ts.logger.Debugf("Rcv tx req from %v, size %v", nm.Source(), len(hashs))
-
 	txs := make([]*types.Transaction, 0)
 	for _, txHash := range hashs {
 		tx := BlockChainImpl.GetTransactionByHash(false, false, txHash)
 		if tx != nil {
 			txs = append(txs, tx)
+		}else{
+			fmt.Printf("find hash not exists \n")
 		}
 	}
 	body, e := types.MarshalTransactions(txs)
