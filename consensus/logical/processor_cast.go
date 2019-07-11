@@ -42,12 +42,17 @@ func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) com
 	if len(groupSeeds) == 0 {
 		panic("no available groupSeeds")
 	}
+	seeds := make([]string, len(groupSeeds))
+	for _, seed := range groupSeeds {
+		seeds = append(seeds, common.ShortHex(seed.Seed().Hex()))
+	}
 
 	value := hash.Big()
 	index := value.Mod(value, big.NewInt(int64(len(groupSeeds))))
 
 	selectedGroup := groupSeeds[index.Int64()]
 
+	stdLogger.Debugf("verify groups at %v: %v, selected %v", height, seeds, selectedGroup.Seed())
 	return selectedGroup.Seed()
 }
 

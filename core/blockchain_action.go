@@ -235,7 +235,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 
 	defer func() {
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", b.Header.Hash.Hex(), b.Header.Height, err, time.Since(begin).String())
+		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", b.Header.Hash, b.Header.Height, err, time.Since(begin).String())
 	}()
 
 	if b == nil {
@@ -301,7 +301,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 			ret = types.AddBlockSucc
 			return
 		}
-		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash.Hex(), bh.Height, e)
+		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash, bh.Height, e)
 		ret = types.AddBlockFailed
 		err = ErrCommitBlockFail
 		return
@@ -321,7 +321,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		old := chain.latestBlock
 		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
 		if e := chain.resetTop(newTop); e != nil {
-			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash.Hex(), newTop.Hash.Hex(), newTop.Height)
+			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash, newTop.Hash, newTop.Height)
 			ret = types.AddBlockFailed
 			err = fmt.Errorf("reset top err:%v", e)
 			return
@@ -337,7 +337,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 			ret = types.AddBlockSucc
 			return
 		}
-		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash.Hex(), bh.Height, e)
+		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash, bh.Height, e)
 		ret = types.AddBlockFailed
 		err = ErrCommitBlockFail
 		return
@@ -349,7 +349,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err 
 	// Check if all txs exist in the pool to ensure the basic validation is done
 	for _, tx := range block.Transactions {
 		if exist, _ := chain.GetTransactionPool().IsTransactionExisted(tx.Hash); !exist {
-			return false, fmt.Errorf("tx is not in the pool %v", tx.Hash.Hex())
+			return false, fmt.Errorf("tx is not in the pool %v", tx.Hash)
 		}
 	}
 
