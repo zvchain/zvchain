@@ -110,6 +110,7 @@ func (p *pool) initGenesis(db types.AccountDB, genesis *types.GenesisInfo) error
 }
 
 func (p *pool) add(db types.AccountDB, group *group) error {
+	logger.Debugf("save group, height is %d, seed is %s",group.Height, group.HeaderD.SeedD)
 	byteData, err := msgpack.Marshal(group)
 	if err != nil {
 		return err
