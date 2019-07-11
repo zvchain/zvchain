@@ -153,11 +153,12 @@ func (m *member) PK() []byte {
 }
 
 type groupHeader struct {
-	SeedD          common.Hash
-	WorkHeightD    uint64
-	DismissHeightD uint64
-	PublicKeyD     []byte
-	ThresholdD     uint32
+	SeedD          common.Hash `msgpack:"se"`
+	WorkHeightD    uint64      `msgpack:"wh"`
+	DismissHeightD uint64      `msgpack:"dh"`
+	PublicKeyD     []byte      `msgpack:"pd"`
+	ThresholdD     uint32      `msgpack:"th"`
+	PreSeed        common.Hash `msgpack:"ps"` //seed of pre group
 }
 
 func (g *groupHeader) Seed() common.Hash {
@@ -179,12 +180,13 @@ func (g *groupHeader) Threshold() uint32 {
 	return g.ThresholdD
 }
 
-func newGroup(i types.GroupI, height uint64) *group {
+func newGroup(i types.GroupI, height uint64, preSeed common.Hash) *group {
 	header := &groupHeader{i.Header().Seed(),
 		i.Header().WorkHeight(),
 		i.Header().DismissHeight(),
 		i.Header().PublicKey(),
-		i.Header().Threshold()}
+		i.Header().Threshold(),
+		preSeed}
 	members := make([]*member, 0)
 	membersI := make([]types.MemberI, 0, len(i.Members()))
 	for _, m := range i.Members() {
@@ -192,5 +194,5 @@ func newGroup(i types.GroupI, height uint64) *group {
 		members = append(members, mem)
 		membersI = append(membersI, mem)
 	}
-	return &group{header, members, height,membersI}
+	return &group{header, members, height, membersI}
 }

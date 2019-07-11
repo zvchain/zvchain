@@ -57,6 +57,7 @@ var (
 	GroupActiveAddress  = BigToAddress(big.NewInt(3)) //save the current active groups
 	GroupWaitingAddress = BigToAddress(big.NewInt(4)) //save the groups waiting active
 	GroupDismissAddress = BigToAddress(big.NewInt(5)) //save the groups dismissed
+	GroupTopAddress     = BigToAddress(big.NewInt(6)) //save the current top group
 )
 
 func ShortHex(hex string) string {

@@ -24,16 +24,16 @@ import (
 )
 
 type PacketSender struct {
-	chain chainReader
+	chain        chainReader
 	baseGasPrice *types.BigInt
 	baseGasLimit *types.BigInt
 }
 
 func NewPacketSender(chain chainReader) types.GroupPacketSender {
 	return &PacketSender{
-		chain:chain,
-		baseGasPrice:types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_price", 2000))),
-		baseGasLimit:types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_limit", 2000))),
+		chain:        chain,
+		baseGasPrice: types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_price", 2000))),
+		baseGasLimit: types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_limit", 2000))),
 	}
 }
 
@@ -138,6 +138,6 @@ func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 		return common.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err)
 	}
 
-	logger.Debugf("[group] sendTransaction success. type = %d, hash = %v ",tx.Type, tx.Hash)
+	logger.Debugf("[group] sendTransaction success. type = %d, hash = %v ", tx.Type, tx.Hash)
 	return nil
 }

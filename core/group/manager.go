@@ -86,19 +86,16 @@ func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 	ctx := &CheckerContext{bh.Height}
 	m.tryCreateGroup(db, m.checkerImpl, ctx)
 	m.tryDoPunish(db, m.checkerImpl, ctx)
+	// adjust for next block
 	m.poolImpl.adjust(db, ctx.Height()+1)
 }
 
 // GroupCreatedInCurrentBlock returns the group data if group is created in current block
 func (m *Manager) GroupCreatedInCurrentBlock() *group {
-	if m.poolImpl.topGroup != nil {
-		logger.Debugf("GroupCreatedInCurrentBlock top group height is %d, chain block height is %d",m.poolImpl.topGroup.Height, m.chain.Height())
-	}
-
-	if m.poolImpl.topGroup != nil && m.poolImpl.topGroup.Height == m.chain.Height(){
+	topGroup := m.poolImpl.getTopGroup(m.chain.LatestStateDB())
+	if topGroup.Height == m.chain.Height() {
 		// group just created
-		logger.Debugf("new group create in block %d, send the notify", m.chain.Height())
-		return m.poolImpl.topGroup
+		return m.poolImpl.get(m.chain.LatestStateDB(), topGroup.SeedD)
 	}
 	return nil
 }
@@ -153,7 +150,7 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height()+1))
+		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height(), m.poolImpl.getTopGroup(db).SeedD))
 		if err != nil {
 			// this case must not happen.
 			panic(logger.Error("saveGroup error: %v", err))
@@ -184,6 +181,7 @@ func (m *Manager) saveGroup(db types.AccountDB, group *group) error {
 }
 
 func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx types.CheckerContext) {
+	logger.Debugf("frozeMiner: %v", frozenMiners)
 	for _, p := range frozenMiners {
 		addr := common.BytesToAddress(p)
 		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())

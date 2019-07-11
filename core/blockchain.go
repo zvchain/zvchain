@@ -291,6 +291,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	stateDB.SetNonce(common.GroupActiveAddress, 1)
 	stateDB.SetNonce(common.GroupWaitingAddress, 1)
 	stateDB.SetNonce(common.GroupDismissAddress, 1)
+	stateDB.SetNonce(common.GroupTopAddress, 1)
 
 	root, _ := stateDB.Commit(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())

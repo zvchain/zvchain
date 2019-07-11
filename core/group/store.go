@@ -34,6 +34,7 @@ const (
 var (
 	originPieceReqKey = []byte("originPieceRequired") //the key for marking origin piece required in current Seed
 	groupDataKey      = []byte("group")               //the key for saving group data in levelDb
+	topGroupKey       = []byte("topGroup")            //the key for saving top group data in levelDb
 )
 
 // Store implements GroupStoreReader
