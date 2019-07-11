@@ -480,7 +480,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
-	GroupManagerImpl.RegularCheck(accountDB)
+	GroupManagerImpl.RegularCheck(accountDB, bh)
 
 	state = accountDB.IntermediateRoot(true)
 
