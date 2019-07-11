@@ -143,10 +143,8 @@ func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.
 	//TODO: optimize it
 	rs := make([]types.GroupI, 0, limit)
 	db := chain.LatestStateDB()
-	current := p.getTopGroup(db)
-
-	for iter := p.get(db, current.HeaderD.SeedD); iter != nil; current = iter {
-		if iter.HeaderD.BlockHeight == 0 {
+	for current := p.getTopGroup(db) ; current != nil; current = p.get(db, current.HeaderD.PreSeed) {
+		if current.HeaderD.BlockHeight == 0 {
 			break
 		}
 	}
