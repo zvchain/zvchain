@@ -238,50 +238,40 @@ func (p *pool) toActive(db types.AccountDB, gl *groupLife) {
 
 func (p *pool) getActives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
-
-	db, err := chain.GetAccountDBByHeight(height)
-	if err != nil {
-		return rs
-	}
+	db := chain.LatestStateDB()
 	current := p.getTopGroup(db)
 
 	for iter := p.get(db, current.HeaderD.SeedD); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
 		if iter.HeaderD.BlockHeight == 0 {
 			break
 		}
-		if iter.HeaderD.WorkHeightD <= height {
+		if iter.HeaderD.WorkHeightD <= height && iter.HeaderD.BlockHeight <= height {
 			rs = append(rs, iter)
 		}
 	}
 
 	//add p.genesis
-	if p.genesis != nil {
-		rs = append(rs, p.genesis)
-	}
-
+	rs = append(rs, p.genesis)
 	return rs
 }
 
 func (p *pool) getLives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
-	db, err := chain.GetAccountDBByHeight(height)
-	if err != nil {
-		return rs
-	}
+	db := chain.LatestStateDB()
 	current := p.getTopGroup(db)
 
 	for iter := p.get(db, current.HeaderD.SeedD); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
 		if iter.HeaderD.BlockHeight == 0 {
 			break
 		}
-		rs = append(rs, iter)
+		if iter.HeaderD.BlockHeight <= height {
+			rs = append(rs, iter)
+		}
+
 	}
 
 	//add p.genesis
-	if p.genesis != nil {
-		rs = append(rs, p.genesis)
-	}
-
+	rs = append(rs, p.genesis)
 	return rs
 
 }
