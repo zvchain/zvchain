@@ -22,7 +22,6 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/taslog"
 	"math"
 	"reflect"
 	"sync"
@@ -33,7 +32,6 @@ type createChecker struct {
 	ctx         *createContext
 	storeReader types.GroupStoreReader
 	minerReader minerReader
-	logger      taslog.Logger
 	lock        sync.RWMutex
 }
 
@@ -42,7 +40,6 @@ func newCreateChecker(reader minerReader, chain types.BlockChain, store types.Gr
 		chain:       chain,
 		storeReader: store,
 		minerReader: reader,
-		logger:      taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", "")),
 	}
 }
 
@@ -291,14 +288,14 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	}
 	if result.gInfo != nil {
 		g := result.gInfo
-		routine.logger.Debugf("group create success: seed=%v, workHeight=%v, dismissHeight=%v, threshold=%v, memsize=%v", g.header.Seed(), g.header.WorkHeight(), g.header.DismissHeight(), g.header.Threshold(), len(g.members))
+		logger.Debugf("group create success: seed=%v, workHeight=%v, dismissHeight=%v, threshold=%v, memsize=%v", g.header.Seed(), g.header.WorkHeight(), g.header.DismissHeight(), g.header.Threshold(), len(g.members))
 	}
 	if len(needFreeze) > 0 {
 		frozeMiners := make([]string, 0)
 		for _, m := range needFreeze {
 			frozeMiners = append(frozeMiners, common.ShortHex(m.GetHexString()))
 		}
-		routine.logger.Debugf("froze miners: seedHeight=%v, %v", era.seedHeight, frozeMiners)
+		logger.Debugf("froze miners: seedHeight=%v, %v", era.seedHeight, frozeMiners)
 	}
 
 	return result
@@ -412,13 +409,13 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 			sharePieces := deserializeSharePieces(ori.Pieces())
 			if ok, err := groupsig.CheckSharePiecesValid(sharePieces, cands.ids(), cands.threshold()); err != nil || !ok {
 				if err != nil {
-					checker.logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
+					logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
 				}
 				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
 			}
 			if evil, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); evil || err != nil {
 				if err != nil {
-					checker.logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
+					logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
 				}
 				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
 			}
@@ -443,7 +440,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 			msk, err := aggrSignSecKeyWithMyPK(piecePkt, idx, sks, cands[idx].PK)
 			if err != nil {
 				wrongMpkIds = append(wrongMpkIds, mpk.Sender())
-				checker.logger.Errorf("aggregate seckey error:%v %v", err, common.ShortHex(common.ToHex(mpk.Sender())))
+				logger.Errorf("aggregate seckey error:%v %v", err, common.ShortHex(common.ToHex(mpk.Sender())))
 			} else {
 				pk := groupsig.NewPubkeyFromSeckey(*msk)
 				if !bytes.Equal(pk.Serialize(), mpk.Mpk()) {
@@ -474,14 +471,14 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		for _, p := range penaltyTargets {
 			mems = append(mems, common.ShortHex(common.ToHex(p)))
 		}
-		checker.logger.Debugf("punishment at %v penalty target:%v", ctx.Height(), mems)
+		logger.Debugf("punishment at %v penalty target:%v", ctx.Height(), mems)
 	}
 	if len(rewardTargets) > 0 {
 		mems := make([]string, 0)
 		for _, p := range rewardTargets {
 			mems = append(mems, common.ShortHex(common.ToHex(p)))
 		}
-		checker.logger.Debugf("punishment at %v reward target:%v", ctx.Height(), mems)
+		logger.Debugf("punishment at %v reward target:%v", ctx.Height(), mems)
 	}
 	return pm, nil
 }

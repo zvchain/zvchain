@@ -10,31 +10,36 @@ require (
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
 	github.com/codeskyblue/go-sh v0.0.0-20190412065543-76bd3d59ff27
 	github.com/davecgh/go-spew v1.1.1
+	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/glacjay/goini v0.0.0-20161120062552-fd3024d87ee2
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gogo/protobuf v1.2.1
 	github.com/gohouse/converter v0.0.3 // indirect
 	github.com/gohouse/gorose v1.0.5
 	github.com/golang/protobuf v1.3.1
-	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f // indirect
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c
-	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/minio/sha256-simd v0.1.0
 	github.com/peterh/liner v1.1.0
 	github.com/pmylund/sortutil v0.0.0-20120526081524-abeda66eb583
+	github.com/remyoudompheng/bigfft v0.0.0-20190512091148-babf20351dd7 // indirect
 	github.com/rs/cors v1.6.0
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
-	golang.org/x/arch v0.0.0-20190312162104-788fe5ffcd8c // indirect
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 	golang.org/x/sys v0.0.0-20190523142557-0e01d883c5c5
-	golang.org/x/tools v0.0.0-20190708203411-c8855242db9c // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/fatih/set.v0 v0.2.1
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
+	modernc.org/fileutil v1.0.0 // indirect
+	modernc.org/internal v1.0.0 // indirect
+	modernc.org/kv v1.0.0
+	modernc.org/lldb v1.0.0 // indirect
+	modernc.org/mathutil v1.0.0 // indirect
+	modernc.org/sortutil v1.0.0 // indirect
+	modernc.org/zappy v1.0.0 // indirect
 )

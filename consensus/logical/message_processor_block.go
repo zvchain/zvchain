@@ -184,7 +184,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 	tlog := newHashTraceLog(mType, bh.Hash, si.GetID())
 	castor := groupsig.DeserializeID(bh.Castor)
 
-	tlog.logStart("%height=%v, castor=%v", bh.Height, castor)
+	tlog.logStart("height=%v, castor=%v", bh.Height, castor)
 
 	defer func() {
 		result := "signed"

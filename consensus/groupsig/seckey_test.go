@@ -51,3 +51,9 @@ func TestSeckey_UnmarshalJSON(t *testing.T) {
 		t.Errorf("unmarshal error")
 	}
 }
+
+func TestSeckey_GetHexString(t *testing.T) {
+	var sk Seckey
+	t.Log(sk)
+	t.Log(sk.GetHexString())
+}

@@ -24,6 +24,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/taslog"
 	"math"
 )
 
@@ -71,9 +72,11 @@ type createRoutine struct {
 }
 
 var routine *createRoutine
+var logger taslog.Logger
 
 func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, miner *model.SelfMinerDO) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
+	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 	routine = &createRoutine{
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
@@ -82,7 +85,6 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	top := chain.QueryTopBlock()
 	routine.updateContext(top)
 
-	routine.store.initAndLoad()
 	go routine.store.loop()
 
 	provider.RegisterGroupCreateChecker(checker)
@@ -100,26 +102,26 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 	routine.updateContext(bh)
 	ok, err := routine.checkAndSendEncryptedPiecePacket(bh)
 	if err != nil {
-		routine.logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash)
+		logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash)
 	} else {
 		if ok {
-			routine.logger.Debugf("checkAndSendEncryptedPiecePacket sent encrypted packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+			logger.Debugf("checkAndSendEncryptedPiecePacket sent encrypted packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 		}
 	}
 	ok, err = routine.checkAndSendMpkPacket(bh)
 	if err != nil {
-		routine.logger.Errorf("check and send mpk error:%v at %v-%v", err, bh.Height, bh.Hash)
+		logger.Errorf("check and send mpk error:%v at %v-%v", err, bh.Height, bh.Hash)
 	} else {
 		if ok {
-			routine.logger.Debugf("checkAndSendMpkPacket sent mpk packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+			logger.Debugf("checkAndSendMpkPacket sent mpk packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 		}
 	}
 	ok, err = routine.checkAndSendOriginPiecePacket(bh)
 	if err != nil {
-		routine.logger.Errorf("check and send origin piece error:%v at %v-%v", err, bh.Height, bh.Hash)
+		logger.Errorf("check and send origin piece error:%v at %v-%v", err, bh.Height, bh.Hash)
 	} else {
 		if ok {
-			routine.logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
+			logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 		}
 	}
 
@@ -144,10 +146,10 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 	}
 	routine.ctx = newCreateContext(newEra(sh, seedBH))
 	era := routine.currEra()
-	routine.logger.Debugf("new create context: era:%v-%v %v %v %v %v", sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
+	logger.Debugf("new create context: era:%v-%v %v %v %v %v", sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
 	err := routine.selectCandidates()
 	if err != nil {
-		routine.logger.Debugf("select candidates:%v", err)
+		logger.Debugf("select candidates:%v", err)
 	}
 }
 
@@ -194,7 +196,7 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	routine.ctx.cands = selectedCandidates
-	routine.logger.Debugf("selected candidates size %v, at seed %v-%v is %v", routine.ctx.cands.size(), era.seedHeight, era.Seed(), mems)
+	logger.Debugf("selected candidates size %v, at seed %v-%v is %v", routine.ctx.cands.size(), era.seedHeight, era.Seed(), mems)
 	return nil
 }
 
@@ -214,7 +216,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 		return false, fmt.Errorf("miner is nil")
 	}
 	if !mInfo.CanJoinGroup() {
-		routine.logger.Debugf("miner info:%+v", mInfo.MinerDO)
+		logger.Debugf("miner info:%+v", mInfo.MinerDO)
 		return false, fmt.Errorf("current miner cann't join group")
 	}
 
@@ -285,7 +287,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	}
 
 	num := len(encryptedPackets)
-	routine.logger.Debugf("get encrypted pieces size %v", num)
+	logger.Debugf("get encrypted pieces size %v", num)
 
 	// Check if the received pieces enough
 	if !pieceEnough(num, cands.size()) {

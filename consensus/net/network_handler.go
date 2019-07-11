@@ -59,7 +59,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			s := debug.Stack()
 			logger.Errorf(string(s))
 		}
-		if err != nil {
+		if err != nil && logger != nil {
 			logger.Error(err)
 		}
 	}()

@@ -193,8 +193,8 @@ func (p *Processor) Start() bool {
 	p.Ticker.StartTickerRoutine(p.getUpdateMonitorNodeInfoRoutine(), false)
 
 	p.triggerCastCheck()
-	p.initLivedGroup()
 	go p.chLoop()
+	p.initLivedGroup()
 
 	p.ready = true
 	return true
@@ -202,6 +202,7 @@ func (p *Processor) Start() bool {
 
 // Stop is reserved interface
 func (p *Processor) Stop() {
+	p.groupReader.skStore.Close()
 	return
 }
 
@@ -215,6 +216,7 @@ func (p *Processor) initLivedGroup() {
 			if err != nil {
 				panic(fmt.Errorf("genesis miner storeReader genesis_msk.info fail:%v", err))
 			}
+			stdLogger.Debugf("store genesis member msk")
 			arr := strings.Split(string(msks), ",")
 			var sk groupsig.Seckey
 			sk.SetHexString(arr[i])
@@ -233,8 +235,9 @@ func (p *Processor) initLivedGroup() {
 		if !g.hasMember(p.GetMinerID()) {
 			continue
 		}
+		stdLogger.Debugf("build group net %v", seed.Seed())
 		// Build group net
-		p.NetServer.BuildGroupNet(genesisGroup.Group.Header().Seed().Hex(), g.getMembers())
+		p.NetServer.BuildGroupNet(seed.Seed().Hex(), g.getMembers())
 	}
 }
 

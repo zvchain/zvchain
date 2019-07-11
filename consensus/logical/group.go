@@ -20,6 +20,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/middleware/types"
+	"io"
 )
 
 type member struct {
@@ -88,6 +89,7 @@ func (vg *verifyGroup) memberSize() int {
 }
 
 type skStorage interface {
+	io.Closer
 	GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey
 	StoreGroupSignatureSeckey(seed common.Hash, sk groupsig.Seckey, expireHeight uint64)
 }
