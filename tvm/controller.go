@@ -18,8 +18,6 @@ package tvm
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/vm"
@@ -113,15 +111,6 @@ func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log,
 	}
 
 	return result, con.VM.Logs, nil
-}
-
-func canTransfer(db vm.AccountDB, addr common.Address, amount *big.Int) bool {
-	return db.GetBalance(addr).Cmp(amount) >= 0
-}
-
-func transfer(db vm.AccountDB, sender, recipient common.Address, amount *big.Int) {
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
 }
 
 // ExecuteAbiEval Execute the contract with abi and returns result
