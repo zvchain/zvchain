@@ -141,6 +141,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	if ps.evictedTxs != nil {
 		removeTxs = append(removeTxs, ps.evictedTxs...)
 	}
+	fmt.Printf("remove from tx pool,len = %d \n",removeTxs)
 	chain.transactionPool.RemoveFromPool(removeTxs)
 
 	ok = true
