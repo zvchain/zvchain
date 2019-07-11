@@ -217,27 +217,22 @@ func (ss *contractCreator) Transition() *result {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		_, logs, err := controller.Deploy(contract)
-		ret.logs = logs
-		if err != nil {
-			if err.Code == types.TVMGasNotEnoughError {
-				ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
-			} else {
-				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
-			}
-		} else {
-			if needTransfer(ss.tx.Value.Value()) {
-				if ss.accountDB.CanTransfer(ss.source, ss.tx.Value.Value()) {
-					ss.accountDB.Transfer(ss.source, *contract.ContractAddress, ss.tx.Value.Value())
-					Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
+		isTransferSuccess := transfer(ss.accountDB,ss.source, *contract.ContractAddress, ss.tx.Value.Value())
+		if !isTransferSuccess{
+			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.Hex()), types.RSBalanceNotEnough)
+		}else {
+			_, logs, err := controller.Deploy(contract)
+			ret.logs = logs
+			if err != nil {
+				if err.Code == types.TVMGasNotEnoughError {
+					ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
 				} else {
-					ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
+					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
 				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
 			}
 		}
-
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
 	allUsed := new(big.Int).Sub(ss.tx.GasLimit.Value(), gasLeft)
@@ -261,25 +256,21 @@ func (ss *contractCaller) Transition() *result {
 	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
 	contract := tvm.LoadContract(*tx.Target)
 	if contract.Code == "" {
-		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSTvmError)
+		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSNoCodeError)
 	} else {
-		_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
-		ret.logs = logs
-		if err != nil {
-			if err.Code == types.TVMCheckABIError {
-				ret.setError(fmt.Errorf(err.Message), types.RSAbiError)
-			} else if err.Code == types.TVMGasNotEnoughError {
-				ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
-			} else {
-				ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
-			}
-		} else {
-			if needTransfer(ss.tx.Value.Value()) {
-				if ss.accountDB.CanTransfer(ss.source, tx.Value.Value()) {
-					ss.accountDB.Transfer(ss.source, *contract.ContractAddress, tx.Value.Value())
-					Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.Hex(), string(tx.Data))
+		isTransferSuccess := transfer(ss.accountDB,*tx.Source, *contract.ContractAddress, tx.Value.Value())
+		if !isTransferSuccess{
+			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.Hex()), types.RSBalanceNotEnough)
+		}else{
+			_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
+			ret.logs = logs
+			if err != nil {
+				if err.Code == types.TVMCheckABIError {
+					ret.setError(fmt.Errorf(err.Message), types.RSAbiError)
+				} else if err.Code == types.TVMGasNotEnoughError {
+					ret.setError(fmt.Errorf(err.Message), types.RSGasNotEnoughError)
 				} else {
-					ret.setError(errBalanceNotEnough, types.RSBalanceNotEnough)
+					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
 				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.Hex(), string(tx.Data))
@@ -534,4 +525,16 @@ func needTransfer(amount *big.Int) bool {
 		return false
 	}
 	return true
+}
+
+
+func transfer(accountDB vm.AccountDB,source common.Address, target common.Address, amount*big.Int)bool{
+	if !needTransfer(amount){
+		return true
+	}
+	if accountDB.CanTransfer(source, amount) {
+		accountDB.Transfer(source, target, amount)
+		return true
+	}
+	return false
 }
