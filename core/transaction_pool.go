@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common/secp256k1"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -39,10 +40,22 @@ const (
 	GasLimitPerBlock       = 2000000 // the max gas limit for a block
 )
 
+var evilErrorMap = map[error]struct{}{
+	ErrHash:                          struct{}{},
+	ErrSign:                          struct{}{},
+	ErrDataSizeTooLong:               struct{}{},
+	secp256k1.ErrInvalidMsgLen:       struct{}{},
+	secp256k1.ErrRecoverFailed:       struct{}{},
+	secp256k1.ErrInvalidSignatureLen: struct{}{},
+	secp256k1.ErrInvalidRecoveryID:   struct{}{},
+}
+
 var (
-	ErrNil      = errors.New("nil transaction")
-	ErrHash     = errors.New("invalid transaction hash")
-	ErrGasPrice = errors.New("gas price is too low")
+	ErrNil             = errors.New("nil transaction")
+	ErrHash            = errors.New("invalid transaction hash")
+	ErrGasPrice        = errors.New("gas price is too low")
+	ErrSign            = errors.New("sign error")
+	ErrDataSizeTooLong = errors.New("data size too long")
 )
 
 type txPool struct {
@@ -105,15 +118,23 @@ func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
 }
 
 // AddTransaction try to add a list of transactions into the tool
-func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) {
+func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) (evilCount int) {
 	if nil == txs || 0 == len(txs) {
 		return
 	}
+
 	for _, tx := range txs {
 		// this error can be ignored
-		_, _ = pool.tryAddTransaction(tx, from)
+		_, err := pool.tryAddTransaction(tx, from)
+		if err != nil {
+			if _, ok := evilErrorMap[err]; ok {
+				evilCount++
+			}
+		}
 	}
 	notify.BUS.Publish(notify.TxPoolAddTxs, &txPoolAddMessage{txs: txs, txSrc: from})
+
+	return evilCount
 }
 
 // AddTransaction try to add a list of transactions into the tool asynchronously

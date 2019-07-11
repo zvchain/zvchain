@@ -122,7 +122,7 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr string, total
 	transaction.Source = &addr
 	transaction.Value = &types.BigInt{Int: *big.NewInt(0)}
 	transaction.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}
-	controller := tvm.NewController(stateDB, nil, nil, transaction, 0, "./py", nil)
+	controller := tvm.NewController(stateDB, nil, nil, transaction, 0, nil)
 	contract := tvm.Contract{
 		Code:         code,
 		ContractName: "Foundation",
@@ -137,8 +137,8 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr string, total
 
 	contract.ContractAddress = &contractAddress
 	controller.VM.SetGas(500000)
-	err = controller.Deploy(&contract)
-	if err != nil {
+	_, _, transactionError := controller.Deploy(&contract)
+	if transactionError != nil {
 		panic("deploy FoundationContract error")
 	}
 	return contract.ContractAddress

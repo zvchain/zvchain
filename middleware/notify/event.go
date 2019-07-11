@@ -23,16 +23,6 @@ const (
 
 	NewBlock = "new_block"
 
-	NewBlockHeader = "new_block_header"
-
-	BlockBodyReq = "block_body_req"
-
-	BlockBody = "block_body"
-
-	StateInfoReq = "state_info_req"
-
-	StateInfo = "state_info"
-
 	BlockReq = "block_req"
 
 	BlockResponse = "block_response"

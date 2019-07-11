@@ -107,8 +107,8 @@ func (sgi StaticGroupInfo) GetMinerPos(id groupsig.ID) int {
 }
 
 // GetPubKey returns the public key of the group
-func (sgi StaticGroupInfo) GetPubKey() groupsig.Pubkey {
-	return sgi.GroupPK
+func (sgi StaticGroupInfo) GetPubKey() *groupsig.Pubkey {
+	return &sgi.GroupPK
 }
 
 // GetMemberCount returns the member count
@@ -336,6 +336,7 @@ func (gg *GlobalGroups) GetGroupByID(id groupsig.ID) (g *StaticGroupInfo, err er
 			stdLogger.Debugf("^^^^^^^^^^^^^^^^^^GetGroupByID cached groupid %v\n", g.GroupID.ShortS())
 		}
 		g = &StaticGroupInfo{}
+		err = fmt.Errorf("nil group")
 	}
 	return
 }

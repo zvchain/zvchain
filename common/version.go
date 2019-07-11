@@ -29,10 +29,10 @@ package common
 //const GtasVersion = "0.8.2"		//time sync and adjustment
 //const GtasVersion = "0.9.0" //add pledge agency function, verifiers ignore the correctness of transactions in block
 //const GtasVersion = "0.9.3" // add comments
-const GtasVersion = "0.9.6" // add comments
+const GtasVersion = "0.9.7" // add comments
 
 const ConsensusVersion = 1
 
-const ChainDataVersion = 8
+const ChainDataVersion = 9
 
 const ProtocolVersion = 1

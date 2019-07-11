@@ -8,7 +8,11 @@ import (
 
 // trigger trigger an execution
 func (gt *GlobalTicker) trigger(routine *TickerRoutine) bool {
-
+	defer func() {
+		if routine.rType == rTypeOneTime {
+			gt.RemoveRoutine(routine.id)
+		}
+	}()
 	t := gt.ticker
 	lastTicker := atomic.LoadUint64(&routine.lastTicker)
 
