@@ -136,6 +136,12 @@ func (g *group) Header() types.GroupHeaderI {
 }
 
 func (g *group) Members() []types.MemberI {
+	if g.members == nil {
+		g.members = make([]types.MemberI, len(g.MembersD))
+		for k, v := range g.MembersD {
+			g.members[k] = v
+		}
+	}
 	return g.members
 }
 
@@ -189,7 +195,7 @@ func newGroup(i types.GroupI, bh uint64, top *group) *group {
 	)
 	if top != nil {
 		preSeed = top.HeaderD.SeedD
-		gh = top.HeaderD.WorkHeightD
+		gh = top.HeaderD.GroupHeight+1
 	}
 	header := &groupHeader{i.Header().Seed(),
 		i.Header().WorkHeight(),
