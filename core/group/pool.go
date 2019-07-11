@@ -23,37 +23,16 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-type groupLife struct {
-	SeedD  common.Hash
-	Begin  uint64
-	End    uint64
-	Height uint64 // Height of group created
-}
 
-func (gl *groupLife) Seed() common.Hash {
-	return gl.SeedD
-}
-
-func newGroupLife(group group) *groupLife {
-	return &groupLife{group.Header().Seed(), group.Header().WorkHeight(), group.Header().DismissHeight(), group.HeaderD.BlockHeight}
-}
 
 type pool struct {
 	genesis     *group       // genesis group
-	//activeList  []*groupLife // list of active groups
-	//waitingList []*groupLife // list of waiting groups
 	groupCache  *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
-	//activeListCache  *lru.Cache   // cache for active group lists. key is Height; value is []*groupLife
-	//waitingListCache *lru.Cache   // cache for waiting group lists. key is Height; value is []*groupLife
 }
 
 func newPool() *pool {
 	return &pool{
-		//activeList:  make([]*groupLife, 0),
-		//waitingList: make([]*groupLife, 0),
 		groupCache:  common.MustNewLRUCache(120),
-		//activeListCache:  common.MustNewLRUCache(500),
-		//waitingListCache: common.MustNewLRUCache(500),
 	}
 }
 
@@ -81,18 +60,10 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 		return err
 	}
 
-	//life := newGroupLife(*group)
-	//lifeData, err := msgpack.Marshal(life)
-	//if err != nil {
-	//	return err
-	//}
-	//seed := group.Header().Seed().Bytes()
-	//db.SetData(common.GroupWaitingAddress, seed, lifeData)
-
 	p.groupCache.Add(group.Header().Seed(), group)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
 
-	p.saveTopGroup(db, byteData)
+	p.saveTopGroup(db, group)
 
 	return nil
 }
@@ -136,14 +107,13 @@ func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
 func (p *pool) getActives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
 	db := chain.LatestStateDB()
-	current := p.getTopGroup(db)
 
-	for iter := p.get(db, current.HeaderD.PreSeed); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
-		if iter.HeaderD.BlockHeight == 0 {
+	for current := p.getTopGroup(db) ; current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
+		if current.HeaderD.BlockHeight == 0 {
 			break
 		}
-		if iter.HeaderD.WorkHeightD <= height && iter.HeaderD.BlockHeight <= height {
-			rs = append(rs, iter)
+		if current.HeaderD.WorkHeightD <= height && current.HeaderD.BlockHeight <= height {
+			rs = append(rs, current)
 		}
 	}
 
@@ -155,16 +125,14 @@ func (p *pool) getActives(chain chainReader, height uint64) []*group {
 func (p *pool) getLives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
 	db := chain.LatestStateDB()
-	current := p.getTopGroup(db)
 
-	for iter := p.get(db, current.HeaderD.PreSeed); iter != nil && iter.HeaderD.DismissHeightD > height; current = iter {
-		if iter.HeaderD.BlockHeight == 0 {
+	for current := p.getTopGroup(db) ; current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
+		if current.HeaderD.BlockHeight == 0 {
 			break
 		}
-		if iter.HeaderD.BlockHeight <= height {
-			rs = append(rs, iter)
+		if current.HeaderD.BlockHeight <= height {
+			rs = append(rs, current)
 		}
-
 	}
 
 	//add p.genesis
@@ -224,67 +192,70 @@ func (p *pool) count(db types.AccountDB) uint64 {
 	//return uint64(rs)
 }
 
-func (p *pool) saveTopGroup(db types.AccountDB, byteData []byte) {
-	db.SetData(common.GroupTopAddress, topGroupKey, byteData)
+func (p *pool) saveTopGroup(db types.AccountDB, g *group) {
+	db.SetData(common.GroupTopAddress, topGroupKey, g.HeaderD.SeedD.Bytes())
 }
 
 func (p *pool) getTopGroup(db types.AccountDB) *group {
 	bs := db.GetData(common.GroupTopAddress, topGroupKey)
-	if bs != nil {
-		var g group
-		err := msgpack.Unmarshal(bs, &g)
-		if err != nil {
-			logger.Errorf("getTopGroup error:%v, Height:%v", err)
-			return nil
-		}
-		return &g
-	}
-	logger.Errorf("getTopGroup returns nil")
-	return nil
+	return p.get(db, common.BytesToHash(bs))
+	//
+	//if bs != nil {
+	//	var g group
+	//	err := msgpack.Unmarshal(bs, &g)
+	//	if err != nil {
+	//		logger.Errorf("getTopGroup error:%v, Height:%v", err)
+	//		return nil
+	//	}
+	//	return &g
+	//}
+	//logger.Errorf("getTopGroup returns nil")
+	//return nil
 }
 
-func removeFirst(queue []*groupLife) []*groupLife {
-	// this case should never happen, we already use the sPeek to check if len is 0
-	if len(queue) == 0 {
-		return nil
-	}
-	return queue[1:]
-}
-
-func removeLast(queue []*groupLife) []*groupLife {
-	// this case should never happen, we already use the peek to check if len is 0
-	if len(queue) == 0 {
-		return nil
-	}
-	return queue[:len(queue)-1]
-
-}
-
-func push(queue []*groupLife, gl *groupLife) []*groupLife {
-	for _, v := range queue {
-		if v.SeedD == gl.SeedD {
-			return queue
-		}
-	}
-	return append(queue, gl)
-}
-
-func sPeek(queue []*groupLife) *groupLife {
-	if len(queue) == 0 {
-		return nil
-	}
-	return queue[0]
-}
-
-func peek(queue []*groupLife) *groupLife {
-	if len(queue) == 0 {
-		return nil
-	}
-	return queue[len(queue)-1]
-}
-
-func clone(queue []*groupLife) []*groupLife {
-	tmp := make([]*groupLife, len(queue))
-	copy(tmp, queue)
-	return tmp
-}
+//
+//func removeFirst(queue []*groupLife) []*groupLife {
+//	// this case should never happen, we already use the sPeek to check if len is 0
+//	if len(queue) == 0 {
+//		return nil
+//	}
+//	return queue[1:]
+//}
+//
+//func removeLast(queue []*groupLife) []*groupLife {
+//	// this case should never happen, we already use the peek to check if len is 0
+//	if len(queue) == 0 {
+//		return nil
+//	}
+//	return queue[:len(queue)-1]
+//
+//}
+//
+//func push(queue []*groupLife, gl *groupLife) []*groupLife {
+//	for _, v := range queue {
+//		if v.SeedD == gl.SeedD {
+//			return queue
+//		}
+//	}
+//	return append(queue, gl)
+//}
+//
+//func sPeek(queue []*groupLife) *groupLife {
+//	if len(queue) == 0 {
+//		return nil
+//	}
+//	return queue[0]
+//}
+//
+//func peek(queue []*groupLife) *groupLife {
+//	if len(queue) == 0 {
+//		return nil
+//	}
+//	return queue[len(queue)-1]
+//}
+//
+//func clone(queue []*groupLife) []*groupLife {
+//	tmp := make([]*groupLife, len(queue))
+//	copy(tmp, queue)
+//	return tmp
+//}
