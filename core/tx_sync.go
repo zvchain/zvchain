@@ -17,8 +17,6 @@ package core
 
 import (
 	"bytes"
-	"fmt"
-
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -108,7 +106,6 @@ func (ptk *peerTxsHashes) checkReceivedHashesInHitRate(txs []*types.Transaction)
 
 	rate := float64(hitHashesLen) / float64(ptk.sendHashes.Len())
 	if rate < txHitValidRate {
-		fmt.Printf("====>send len = %d,hitlen = %d,received len = %d \n",ptk.sendHashes.Len(),hitHashesLen,len(txs))
 		return false
 	}
 	return true
@@ -311,7 +308,6 @@ func (ts *txSyncer) reqTxsRoutine() bool {
 		})
 		ptk.reset()
 		if len(rqs) > 0 {
-			fmt.Printf("===============>send tx req,len = %d \n",len(rqs))
 			go ts.requestTxs(v.(string), &rqs)
 		}
 	}
@@ -376,8 +372,6 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 		tx := BlockChainImpl.GetTransactionByHash(false, false, txHash)
 		if tx != nil {
 			txs = append(txs, tx)
-		}else{
-			fmt.Printf("find hash not exists \n")
 		}
 	}
 	body, e := types.MarshalTransactions(txs)
@@ -411,16 +405,6 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 		ts.logger.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
 		return
 	}
-
-	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
-	isEvil := candidateKeys.checkReceivedHashesInHitRate(txs)
-	if isEvil {
-		//fmt.Printf("received len = %d,send len = %d",len(txs),candidateKeys.sendHashes.Len())
-		ts.logger.Errorf("rec tx rate too low,source is %s", nm.Source())
-		//peerManagerImpl.addEvilCount(nm.Source())
-		//return
-	}
-
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
 	evilCount := ts.pool.AddTransactions(txs, txSync)
 	if evilCount > txValidteErrorLimit {
