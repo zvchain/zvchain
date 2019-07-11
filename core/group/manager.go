@@ -91,7 +91,11 @@ func (m *Manager) RegularCheck(db types.AccountDB) {
 
 // GroupCreatedInCurrentBlock returns the group data if group is created in current block
 func (m *Manager) GroupCreatedInCurrentBlock() *group {
-	if m.poolImpl.topGroup != nil && m.poolImpl.topGroup.Height == m.chain.Height() {
+	if m.poolImpl.topGroup != nil {
+		logger.Debugf("GroupCreatedInCurrentBlock top group height is %d, chain block height is %d",m.poolImpl.topGroup.Height, m.chain.Height())
+	}
+
+	if m.poolImpl.topGroup != nil && m.poolImpl.topGroup.Height == m.chain.Height(){
 		// group just created
 		logger.Debugf("new group create in block %d, send the notify", m.chain.Height())
 		return m.poolImpl.topGroup
@@ -149,13 +153,13 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 	}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height()))
+		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height()+1))
 		if err != nil {
 			// this case must not happen.
 			panic(logger.Error("saveGroup error: %v", err))
 		}
 	case types.CreateResultMarkEvil:
-		markGroupFail(db, newGroup(createResult.GroupInfo(), ctx.Height()))
+		markGroupFail(db, createResult.GroupInfo())
 	case types.CreateResultFail:
 		// do nothing
 	}
@@ -191,6 +195,6 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 }
 
 // markGroupFail mark group member should upload origin piece
-func markGroupFail(db types.AccountDB, group *group) {
-	db.SetData(common.HashToAddress(group.HeaderD.Seed()), originPieceReqKey, []byte{1})
+func markGroupFail(db types.AccountDB, group types.GroupI) {
+	db.SetData(common.HashToAddress(group.Header().Seed()), originPieceReqKey, []byte{1})
 }
