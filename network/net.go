@@ -736,11 +736,11 @@ func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *byte
 			netCore.bufferPool.freeBuffer(b)
 		}
 	}
-	if msgBuffer.Len() < packetSize {
+	msgBytes := msgBuffer.Bytes()
+	if len(msgBytes) < packetSize {
 		p.addRecvDataToHead(msgBuffer)
 		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
 	}
-	msgBytes := msgBuffer.Bytes()
 
 	data := msgBytes[PacketHeadSize : PacketHeadSize+msgLen]
 
