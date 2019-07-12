@@ -110,7 +110,7 @@ func (m *Manager) Height() uint64 {
 }
 
 func (m *Manager) GroupsAfter(height uint64) []types.GroupI {
-	return m.poolImpl.groupsAfter(m.chain, height, 5)
+	return m.poolImpl.groupsAfter(m.chain, height, common.MaxInt64)
 }
 
 // Height returns count of current group number
