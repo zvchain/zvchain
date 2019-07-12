@@ -47,7 +47,7 @@ var cfg = &minerConfig{
 func TestRPC(t *testing.T) {
 	gtas := NewGtas()
 	gtas.config = cfg
-	gtas.simpleInit("tas.ini")
+	gtas.simpleInit("zv.ini")
 	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
 
 	aop, err := newAccountOp("keystore")

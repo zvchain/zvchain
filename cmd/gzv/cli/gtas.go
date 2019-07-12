@@ -141,7 +141,7 @@ func (gtas *Gtas) Run() {
 	go gtas.exit(ctrlC, quitChan)
 	app := kingpin.New("gzv", "A blockchain application.")
 	app.HelpFlag.Short('h')
-	configFile := app.Flag("config", "Config file").Default("tas.ini").String()
+	configFile := app.Flag("config", "Config file").Default("zv.ini").String()
 	_ = app.Flag("metrics", "enable metrics").Bool()
 	_ = app.Flag("dashboard", "enable metrics dashboard").Bool()
 	pprofPort := app.Flag("pprof", "enable pprof").Default("23333").Uint()
