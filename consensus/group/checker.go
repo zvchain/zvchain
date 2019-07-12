@@ -246,14 +246,14 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 				g := result.gInfo
 				logger.Debugf("group create success: seedHeight=%v, seed=%v, workHeight=%v, dismissHeight=%v, threshold=%v, memsize=%v, candsize=%v", era.seedHeight, g.header.Seed(), g.header.WorkHeight(), g.header.DismissHeight(), g.header.Threshold(), len(g.members), checker.ctx.cands.size())
 			}
-			checker.stat.increaseSuccess()
+			checker.stat.markStatus(era.seedHeight, createStatusSuccess)
 		case types.CreateResultIdle:
 			return
 		case types.CreateResultMarkEvil:
-			checker.stat.increaseFail()
+			checker.stat.markStatus(era.seedHeight, createStatusFail)
 			logger.Debugf("group create fail, mark evil, seedHeight=%v", era.seedHeight)
 		case types.CreateResultFail:
-			checker.stat.increaseFail()
+			checker.stat.markStatus(era.seedHeight, createStatusFail)
 			logger.Debugf("group create fail, seedHeight=%v, err=%v", era.seedHeight, result.err)
 		}
 		checker.stat.outCh <- struct{}{}

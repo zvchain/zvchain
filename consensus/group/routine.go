@@ -143,19 +143,19 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 			return
 		}
 	}
-	routine.stat.increaseEra()
+
 	seedBlockHash := common.Hash{}
 	if seedBH != nil {
 		seedBlockHash = seedBH.Hash
 	}
 	routine.ctx = newCreateContext(newEra(sh, seedBH))
 	era := routine.currEra()
+	routine.stat.markStatus(era.seedHeight, createStatusIdle)
+
 	logger.Debugf("new create context: era:%v-%v %v %v %v %v", sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
 	err := routine.selectCandidates()
 	if err != nil {
 		logger.Debugf("select candidates:%v", err)
-	} else {
-		routine.stat.increaseShouldCreate()
 	}
 	routine.stat.outCh <- struct{}{}
 }
