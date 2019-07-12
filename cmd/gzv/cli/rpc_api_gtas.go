@@ -89,7 +89,7 @@ func (api *RpcGtasImpl) Balance(account string) (*Result, error) {
 
 	balance := common.RA2TAS(b.Uint64())
 	return &Result{
-		Message: fmt.Sprintf("The balance of account: %s is %v TAS", account, balance),
+		Message: fmt.Sprintf("The balance of account: %s is %v ZVC", account, balance),
 		Data:    balance,
 	}, nil
 }

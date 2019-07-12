@@ -32,7 +32,7 @@ const (
 	RA  uint64 = 1
 	KRA        = 1000
 	MRA        = 1000000
-	TAS        = 1000000000
+	ZVC        = 1000000000
 )
 
 var (
@@ -68,8 +68,8 @@ func ParseCoin(s string) (uint64, error) {
 			unit = KRA
 		case "mra":
 			unit = MRA
-		case "tas":
-			unit = TAS
+		case "zvc":
+			unit = ZVC
 		}
 	}
 	//fmt.Println(re.FindAllString(s, -1))
@@ -77,13 +77,13 @@ func ParseCoin(s string) (uint64, error) {
 }
 
 func TAS2RA(v uint64) uint64 {
-	return v * TAS
+	return v * ZVC
 }
 
 func Value2RA(v float64) uint64 {
-	return uint64(v * float64(TAS))
+	return uint64(v * float64(ZVC))
 }
 
 func RA2TAS(v uint64) float64 {
-	return float64(v) / float64(TAS)
+	return float64(v) / float64(ZVC)
 }

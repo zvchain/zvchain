@@ -195,7 +195,7 @@ func (gtas *Gtas) Run() {
 
 	switch command {
 	case versionCmd.FullCommand():
-		fmt.Println("Gzv Version:", common.GtasVersion)
+		fmt.Println("gzv Version:", common.GtasVersion)
 		os.Exit(0)
 	case consoleCmd.FullCommand():
 		err := ConsoleInit(*keystore, *remoteHost, *remotePort, *showRequest, *rpcPort)

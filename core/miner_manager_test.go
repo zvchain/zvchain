@@ -19,8 +19,8 @@ func TestMinerManager_MaxStake(t *testing.T) {
 			cur = len(maxs) - 1
 		}
 		max := maximumStake(uint64(i * 5000000))
-		if max != maxs[cur]*common.TAS {
-			t.Errorf("max stake wanted:%d, got %d", maxs[cur]*common.TAS, max)
+		if max != maxs[cur]*common.ZVC {
+			t.Errorf("max stake wanted:%d, got %d", maxs[cur]*common.ZVC, max)
 		}
 	}
 }
@@ -79,9 +79,9 @@ var (
 		source:        &src,
 		target:        &target,
 		mType:         types.MinerTypeProposal,
-		stakeAddValue: 2000 * common.TAS,
-		originBalance: 3000 * common.TAS,
-		reduceValue:   1000 * common.TAS,
+		stakeAddValue: 2000 * common.ZVC,
+		originBalance: 3000 * common.ZVC,
+		reduceValue:   1000 * common.ZVC,
 	}
 	accountDB vm.AccountDB
 )

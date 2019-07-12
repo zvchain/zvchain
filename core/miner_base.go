@@ -34,7 +34,7 @@ var (
 )
 
 const (
-	MinMinerStake             = 500 * common.TAS // minimal token of miner can stake
+	MinMinerStake             = 500 * common.ZVC // minimal token of miner can stake
 	MaxMinerStakeAdjustPeriod = 5000000          // maximal token of miner can stake
 	initialMinerNodesAmount   = 200              // The number initial of miner nodes envisioned
 	MoreMinerNodesPerHalfYear = 12               // The number of increasing nodes per half year
@@ -55,7 +55,7 @@ func maximumStake(height uint64) uint64 {
 		period = stakeAdjustTimes
 	}
 	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerHalfYear
-	return tokenReleased(height) / nodeAmount * common.TAS
+	return tokenReleased(height) / nodeAmount * common.ZVC
 }
 
 func tokenReleased(height uint64) uint64 {
