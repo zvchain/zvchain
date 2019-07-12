@@ -139,9 +139,9 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 	if createResult == nil {
 		return
 	}
-	if createResult.Err() != nil {
-		return
-	}
+	//if createResult.Err() != nil {
+	//	return
+	//}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
 		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height(), m.poolImpl.getTopGroup(db)))
@@ -154,7 +154,9 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 	case types.CreateResultFail:
 		// do nothing
 	}
-	m.frozeMiner(db, createResult.FrozenMiners(), ctx)
+	if len(createResult.FrozenMiners()) > 0 {
+		m.frozeMiner(db, createResult.FrozenMiners(), ctx)
+	}
 
 }
 
