@@ -32,6 +32,7 @@ const (
 	RSBalanceNotEnough
 	RSAbiError
 	RSTvmError
+	RSParseFail
 )
 
 type Receipt struct {

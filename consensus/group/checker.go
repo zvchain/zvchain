@@ -237,7 +237,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 			for _, m := range result.frozenMiners {
 				frozeMiners = append(frozeMiners, common.ShortHex(m.GetHexString()))
 			}
-			logger.Debugf("froze miners: seedHeight=%v, %v", era.seedHeight, frozeMiners)
+			logger.Debugf("froze miners: seedHeight=%v,curr=%v %v", era.seedHeight, ctx.Height(), frozeMiners)
 		}
 
 		switch result.code {

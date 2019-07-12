@@ -58,26 +58,22 @@ type stateTransition interface {
 func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
 	base := newTransitionContext(db, tx, bh)
 
-	if tx.IsReward() {
-		return &rewardExecutor{transitionContext: base}
-	} else {
-		base.source = *tx.Source
-		base.intrinsicGasUsed = intrinsicGas(tx)
-		base.gasUsed = base.intrinsicGasUsed
-		switch tx.Type {
-		case types.TransactionTypeTransfer:
-			return &txTransfer{transitionContext: base}
-		case types.TransactionTypeContractCreate:
-			return &contractCreator{transitionContext: base}
-		case types.TransactionTypeContractCall:
-			return &contractCaller{transitionContext: base}
-		case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
-			return &minerStakeOperator{transitionContext: base}
-		case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
-			return &groupOperator{transitionContext: base}
-		default:
-			return &unSupported{typ: tx.Type}
-		}
+	base.source = *tx.Source
+	base.intrinsicGasUsed = intrinsicGas(tx)
+	base.gasUsed = base.intrinsicGasUsed
+	switch tx.Type {
+	case types.TransactionTypeTransfer:
+		return &txTransfer{transitionContext: base}
+	case types.TransactionTypeContractCreate:
+		return &contractCreator{transitionContext: base}
+	case types.TransactionTypeContractCall:
+		return &contractCaller{transitionContext: base}
+	case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
+		return &minerStakeOperator{transitionContext: base}
+	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
+		return &groupOperator{transitionContext: base}
+	default:
+		return &unSupported{typ: tx.Type}
 	}
 }
 
@@ -356,50 +352,55 @@ func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
 	}
 }
 
-func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
-	var (
-		err error
-		ret = newResult()
-	)
+func doTransition(accountDB types.AccountDB, ss stateTransition) *result {
+	snapshot := accountDB.Snapshot()
+	ret := ss.Transition()
+	if ret.err != nil {
+		// Revert any state changes when error occurs
+		accountDB.RevertToSnapshot(snapshot)
+	}
+	return ret
+}
 
-	// Check state related condition on the non-reward tx type
-	if !tx.IsReward() {
-		if err = checkState(accountDB, tx, bh.Height); err != nil {
-			Logger.Errorf("state transition check state error:tx %v %v", tx.Hash.Hex(), err)
+func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
+	var ret *result
+
+	// Reward tx is treated different from others
+	if tx.IsReward() {
+		executor := &rewardExecutor{transitionContext: newTransitionContext(accountDB, tx, bh)}
+		// Reward tx should be removed from pool and not contained in the block when parse error
+		if err := executor.ParseTransaction(); err != nil {
 			return nil, err
 		}
-	}
+		ret = doTransition(accountDB, executor)
+	} else {
+		// Check state related condition on the non-reward tx type
+		// Should be removed from pool and not contained in the block when error
+		if err := checkState(accountDB, tx, bh.Height); err != nil {
+			return nil, err
+		}
+		ss := newStateTransition(accountDB, tx, bh)
 
-	ss := newStateTransition(accountDB, tx, bh)
-
-	// pre consume the gas limit for the normal transaction types
-	if tx.Source != nil {
+		// pre consume the gas limit for the normal transaction types
 		gasLimitFee := new(big.Int).Mul(tx.GasLimit.Value(), tx.GasPrice.Value())
 		accountDB.SubBalance(*tx.Source, gasLimitFee)
-	}
 
-	// Shouldn't return when ParseTransaction error for ddos risk concern
-	if err = ss.ParseTransaction(); err != nil {
-		Logger.Errorf("state transition parse error:tx %v %v", tx.Hash.Hex(), err)
-	} else {
-		// Create the snapshot, and the stateDB will roll back to the the snapshot if error occurs
-		// during transaction process
-		snapshot := accountDB.Snapshot()
-		ret = ss.Transition()
-		if ret.err != nil {
-			// Revert any state changes when error occurs
-			accountDB.RevertToSnapshot(snapshot)
-			Logger.Errorf("state transition error:tx %v, err:%v", tx.Hash.Hex(), ret.err)
+		// Shouldn't return when ParseTransaction error for ddos risk concern
+		if err := ss.ParseTransaction(); err != nil {
+			ret = newResult()
+			ret.setError(err, types.RSParseFail)
+		} else {
+			ret = doTransition(accountDB, ss)
 		}
-	}
 
-	// refund the gas left
-	if tx.Source != nil && tx.GasLimit.Cmp(ss.GasUsed()) > 0 {
-		refund := new(big.Int).Sub(tx.GasLimit.Value(), ss.GasUsed())
-		accountDB.AddBalance(*tx.Source, refund.Mul(refund, tx.GasPrice.Value()))
+		// refund the gas left
+		if tx.GasLimit.Cmp(ss.GasUsed()) > 0 {
+			refund := new(big.Int).Sub(tx.GasLimit.Value(), ss.GasUsed())
+			accountDB.AddBalance(*tx.Source, refund.Mul(refund, tx.GasPrice.Value()))
+		}
+		ret.cumulativeGasUsed = ss.GasUsed()
 	}
-	ret.cumulativeGasUsed = ss.GasUsed()
-	return ret, err
+	return ret, nil
 }
 
 // Execute executes all types transactions and returns the receipts
@@ -426,10 +427,13 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		// Apply transaction
 		ret, err := applyStateTransition(accountDB, tx, bh)
 		if err != nil {
-			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
+			Logger.Errorf("apply transaction error and will be removed: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
 			// transaction will be remove from pool when error happens
 			evictedTxs = append(evictedTxs, tx.Hash)
 			continue
+		}
+		if ret.err != nil {
+			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
 		}
 
 		// Accumulate gas fee
