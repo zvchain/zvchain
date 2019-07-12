@@ -106,8 +106,7 @@ type accountObject struct {
 
 // empty returns whether the account is considered empty.
 func (ao *accountObject) empty() bool {
-	//return ao.data.Nonce == 0 && ao.data.Balance.Sign() == 0 && bytes.Equal(ao.data.CodeHash, emptyCodeHash[:])
-	return false
+	return ao.data.Nonce == 0 && ao.data.Balance.Sign() == 0 && bytes.Equal(ao.data.CodeHash, emptyCodeHash[:]) && len(ao.cachedStorage) == 0
 }
 
 // Account is the consensus representation of accounts.

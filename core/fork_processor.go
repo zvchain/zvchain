@@ -82,8 +82,8 @@ func initForkProcessor(chain *FullBlockChain) *forkProcessor {
 func (fp *forkProcessor) targetTop(id string, bh *types.BlockHeader) *topBlockInfo {
 	targetTop := blockSync.getPeerTopBlock(id)
 	tb := newTopBlockInfo(bh)
-	if targetTop != nil && targetTop.MoreWeight(&tb.BlockWeight) {
-		return targetTop
+	if targetTop != nil && targetTop.BW.MoreWeight(&tb.BlockWeight) {
+		return newTopBlockInfo(targetTop.BH)
 	}
 	return tb
 }
@@ -141,11 +141,13 @@ func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) {
 
 func (fp *forkProcessor) reqPieceTimeout(id string) {
 	fp.logger.Debugf("req piece from %v timeout", id)
+
+	fp.lock.Lock()
+	defer fp.lock.Unlock()
+
 	if fp.syncCtx == nil {
 		return
 	}
-	fp.lock.Lock()
-	defer fp.lock.Unlock()
 
 	if fp.syncCtx.target != id {
 		return

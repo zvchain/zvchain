@@ -30,11 +30,15 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 )
 
+const (
+	TransactionGasLimitMax = 500000
+)
+
 type Transaction struct {
 	tvm.ControllerTransactionInterface
 }
 
-func (Transaction) GetGasLimit() uint64 { return 500000 }
+func (Transaction) GetGasLimit() uint64 { return TransactionGasLimitMax }
 func (Transaction) GetValue() uint64    { return 0 }
 func (Transaction) GetSource() *common.Address {
 	address := common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
@@ -149,7 +153,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 	transaction := Transaction{}
-	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, transaction, 0, "../py", nil)
+	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, transaction, 0, nil)
 
 	nonce := state.GetNonce(*transaction.GetSource())
 	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.GetSource()[:], common.Uint64ToByte(nonce))))
@@ -171,9 +175,8 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	state.SetCode(contractAddress, jsonBytes)
 
 	contract.ContractAddress = &contractAddress
-	controller.VM.SetGas(500000)
 	controller.Deploy(&contract)
-	fmt.Println("gas: ", 500000-controller.VM.Gas())
+	fmt.Println("gas: ", TransactionGasLimitMax-controller.VM.Gas())
 
 	hash, error := state.Commit(false)
 	t.database.TrieDB().Commit(hash, false)
@@ -189,7 +192,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 
-	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, Transaction{}, 0, "../py", nil)
+	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, Transaction{}, 0, nil)
 
 	//abi := tvm.ABI{}
 	//abiJsonError := json.Unmarshal([]byte(abiJSON), &abi)
@@ -201,9 +204,11 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	contract := tvm.LoadContract(_contractAddress)
 	//fmt.Println(contract.Code)
 	sender := common.HexToAddress(DefaultAccounts[0])
-	controller.VM.SetGas(500000)
-	executeResult, _, logs, _ := controller.ExecuteAbiEval(&sender, contract, abiJSON)
-	fmt.Println("gas: ", 500000-controller.VM.Gas())
+	executeResult, logs, transactionError := controller.ExecuteAbiEval(&sender, contract, abiJSON,big.NewInt(0))
+	if transactionError != nil {
+		fmt.Println(transactionError.Message)
+	}
+	fmt.Println("gas: ", TransactionGasLimitMax - controller.VM.Gas())
 	fmt.Printf("%d logs: \n", len(logs))
 	for _, log := range logs {
 		fmt.Printf("		string: %s, data: %s\n", log.String(), string(log.Data))
@@ -232,7 +237,7 @@ func (t *TvmCli) ExportAbi(contractName string, contractCode string) {
 		//Code: contractCode,
 		//ContractAddress: &contractAddress,
 	}
-	vm := tvm.NewTVM(nil, &contract, "../py")
+	vm := tvm.NewTVM(nil, &contract)
 	defer func() {
 		vm.DelTVM()
 	}()

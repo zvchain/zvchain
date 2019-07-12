@@ -25,8 +25,11 @@ function buildp2p() {
     if [[ `uname -s` = "Darwin" ]]; then
         cp ${basepath}/network/p2p/darwin/libp2pcore.a $basepath/network/&&
         cp ${basepath}/network/p2p/p2p_api.h $basepath/network/
-    else
+    elif [[ `uname -s` = "Linux" ]]; then
         cp ${basepath}/network/p2p/linux/libp2pcore.a $basepath/network/&&
+        cp ${basepath}/network/p2p/p2p_api.h $basepath/network/
+    else
+        cp ${basepath}/network/p2p/windows/libp2pcore.a $basepath/network/&&
         cp ${basepath}/network/p2p/p2p_api.h $basepath/network/
     fi
     if [ $? -ne 0 ];then

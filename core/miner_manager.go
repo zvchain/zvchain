@@ -218,6 +218,9 @@ func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Ad
 func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]*types.StakeDetail {
 	iter := BlockChainImpl.LatestStateDB().DataIterator(address, prefixDetail)
 	ret := make(map[string][]*types.StakeDetail)
+	if iter == nil{
+		return nil
+	}
 	for iter.Next() {
 		// finish the iterator
 		if !bytes.HasPrefix(iter.Key, prefixDetail) {

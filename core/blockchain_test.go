@@ -81,7 +81,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 
 	nonce := uint64(1)
 	// 交易1
-	tx := genTestTx(200, "100", nonce, 1)
+	tx := genTestTx(500, "100", nonce, 1)
 	var sign = common.BytesToSign(tx.Sign)
 	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
 	src := pk.GetAddress()
@@ -105,14 +105,14 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine([]byte("1"), common.Uint64ToByte(0))))
 	//交易2
 	nonce++
-	_, err = txpool.AddTransaction(genTestTx(200, "2", nonce, 1))
+	_, err = txpool.AddTransaction(genTestTx(500, "2", nonce, 1))
 	if err != nil {
 		t.Fatalf("fail to AddTransaction %v", err)
 	}
 
 	//交易3 执行失败的交易
 	nonce++
-	_, err = txpool.AddTransaction(genTestTx(200, "2", nonce, 1))
+	_, err = txpool.AddTransaction(genTestTx(500, "2", nonce, 1))
 	if err != nil {
 		t.Fatalf("fail to AddTransaction %v", err)
 	}

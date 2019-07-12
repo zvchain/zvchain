@@ -106,6 +106,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	exeTraceLog := monitor.NewPerformTraceLogger("Execute", common.Hash{}, height)
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
+	block.Header.CurTime = chain.ts.Now()
 	statehash, evitTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
 	exeTraceLog.SetEnd()
 
@@ -116,8 +117,6 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.StateTree = common.BytesToHash(statehash.Bytes())
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
-	// Curtime setting after txs executed. More accuracy
-	block.Header.CurTime = chain.ts.Now()
 	block.Header.Elapsed = int32(block.Header.CurTime.Since(latestBlock.CurTime))
 	if block.Header.Elapsed < 0 {
 		Logger.Errorf("cur time is before pre time:height=%v, curtime=%v, pretime=%v", height, block.Header.CurTime, latestBlock.CurTime)
@@ -256,7 +255,11 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		return types.BlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, b); !ok {
-		ret = types.AddBlockFailed
+		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists{
+			ret = types.AddBlockConsensusFailed
+		} else{
+			ret = types.AddBlockFailed
+		}
 		err = e
 		return
 	}

@@ -20,6 +20,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"sync"
 )
@@ -134,7 +135,7 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		tLog.log("preHash=%v, height=%v, result=%v %v", bh.PreHash, bh.Height, ok, err)
 	}()
 	if bh.Hash != bh.GenHash() {
-		err = fmt.Errorf("block hash error")
+		err = core.ErrorBlockHash
 		return
 	}
 	if preBH.Hash != bh.PreHash {
@@ -156,20 +157,20 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
 	pPubkey := p.getProposerPubKeyInBlock(bh)
 	if pPubkey == nil {
-		err = fmt.Errorf("getProposerPubKeyInBlock fail in VerifyBlock")
+		err = core.ErrPkNotExists
 		return
 	}
 	pubArray := [2]groupsig.Pubkey{*pPubkey, gpk}
 	aggSign := groupsig.DeserializeSign(bh.Signature)
 	b := groupsig.VerifyAggregateSig(pubArray[:], bh.Hash.Bytes(), *aggSign)
 	if !b {
-		err = fmt.Errorf("signature verify fail")
+		err = core.ErrorGroupSign
 		return
 	}
 	randomSig := groupsig.DeserializeSign(bh.Random)
 	b = groupsig.VerifySig(gpk, preBH.Random, *randomSig)
 	if !b {
-		err = fmt.Errorf("random verify fail")
+		err = core.ErrorRandomSign
 		return
 	}
 	ok = true
@@ -190,12 +191,16 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 	}
 
 	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
-	ppk := p.getProposerPubKeyInBlock(bh)
-	if ppk == nil {
-		err = fmt.Errorf("getProposerPubKeyInBlock fail in VerifyBlockHeader")
+	if gpk == nil{
+		err = core.ErrGroupNotExists
 		return
 	}
-	pkArray := [2]groupsig.Pubkey{*ppk, gpk}
+	ppk := p.getProposerPubKeyInBlock(bh)
+	if ppk == nil {
+		err = core.ErrPkNil
+		return
+	}
+	pkArray := [2]groupsig.Pubkey{*ppk, *gpk}
 	aggSign := groupsig.DeserializeSign(bh.Signature)
 	b := groupsig.VerifyAggregateSig(pkArray[:], bh.Hash.Bytes(), *aggSign)
 	if !b {

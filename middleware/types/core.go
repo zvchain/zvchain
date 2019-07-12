@@ -30,42 +30,26 @@ type AddBlockOnChainSituation string
 // AddBlockResult is the result of the add-block operation
 type AddBlockResult int8
 
+// gasLimitMax expresses the max gasLimit of a transaction
+var gasLimitMax = new(BigInt).SetUint64(500000)
+
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
+	AddBlockConsensusFailed   AddBlockResult = -2 // Means the consensus is fail
 	AddBlockSucc              AddBlockResult = 0  // Means success
 	BlockExisted              AddBlockResult = 1  // Means the block already added before
 	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
 )
+
 const (
-	TxErrorBalanceNotEnough = 1
-	TxFailed                = 3
-
-	TVMExecutedError = 1003
-
-	SysCheckABIError = 2002
-	SysABIJSONError  = 2003
+	TVMExecutedError     = 1001
+	TVMGasNotEnoughError = 1002
+	TVMCheckABIError     = 1003
+	TVMCallMaxDeepError  = 1004
+	TVMNoCodeError       = 1005
 
 	txFixSize = 200 // Fixed size for each transaction
-)
-
-var (
-	NoCodeErr            = 4
-	NoCodeErrorMsg       = "get code from address %s,but no code!"
-	ABIJSONError         = 2003
-	ABIJSONErrorMsg      = "abi json format error"
-	CallMaxDeepError     = 2004
-	CallMaxDeepErrorMsg  = "call max deep cannot more than 8"
-	InitContractError    = 2005
-	InitContractErrorMsg = "contract init error"
-	TargetNilError       = 2006
-	TargetNilErrorMsg    = "target nil error"
-)
-
-var (
-	TxErrorBalanceNotEnoughErr = NewTransactionError(TxErrorBalanceNotEnough, "balance not enough")
-	TxErrorABIJSONErr          = NewTransactionError(SysABIJSONError, "abi json format error")
-	TxErrorFailedErr           = NewTransactionError(TxFailed, "failed")
 )
 
 type TransactionError struct {
@@ -321,6 +305,11 @@ type BlockWeight struct {
 	PV      *big.Int // Converted from ProveValue field of BlockHeader
 }
 
+type CandidateBlockHeader struct {
+	BW *BlockWeight
+	BH *BlockHeader
+}
+
 type PvFunc func(pvBytes []byte) *big.Int
 
 var DefaultPVFunc PvFunc
@@ -341,6 +330,11 @@ func (bw *BlockWeight) Cmp(bw2 *BlockWeight) int {
 		return -1
 	}
 	return bw.PV.Cmp(bw2.PV)
+}
+
+func NewCandidateBlockHeader(bh *BlockHeader) *CandidateBlockHeader {
+	bw := NewBlockWeight(bh)
+	return &CandidateBlockHeader{BW: bw, BH: bh}
 }
 
 func NewBlockWeight(bh *BlockHeader) *BlockWeight {

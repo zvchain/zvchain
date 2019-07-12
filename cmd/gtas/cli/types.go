@@ -129,7 +129,7 @@ type StakeDetail struct {
 }
 
 type MinerStakeDetails struct {
-	Overview []*MortGage               `json:"overview"`
+	Overview []*MortGage               `json:"overview,omitempty"`
 	Details  map[string][]*StakeDetail `json:"details,omitempty"`
 }
 

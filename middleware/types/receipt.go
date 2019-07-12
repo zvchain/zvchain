@@ -32,6 +32,8 @@ const (
 	RSBalanceNotEnough
 	RSAbiError
 	RSTvmError
+	RSGasNotEnoughError
+	RSNoCodeError
 	RSParseFail
 )
 
