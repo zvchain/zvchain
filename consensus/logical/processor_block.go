@@ -186,21 +186,18 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 
 	group := p.groupReader.getGroupHeaderBySeed(bh.Group)
 	if group == nil {
-		err = fmt.Errorf("get group is nil:%v", bh.Group)
+		err = core.ErrGroupNotExists
 		return
 	}
 
 	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
-	if gpk == nil{
-		err = core.ErrGroupNotExists
-		return
-	}
+
 	ppk := p.getProposerPubKeyInBlock(bh)
 	if ppk == nil {
 		err = core.ErrPkNil
 		return
 	}
-	pkArray := [2]groupsig.Pubkey{*ppk, *gpk}
+	pkArray := [2]groupsig.Pubkey{*ppk, gpk}
 	aggSign := groupsig.DeserializeSign(bh.Signature)
 	b := groupsig.VerifyAggregateSig(pkArray[:], bh.Hash.Bytes(), *aggSign)
 	if !b {

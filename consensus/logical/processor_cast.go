@@ -165,7 +165,7 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	gpk := groupsig.DeserializePubkeyBytes(vctx.group.header.PublicKey())
 
 	// Group signature verification passed
-	if !slot.VerifyGroupSigns(*gpk, vctx.prevBH.Random) {
+	if !slot.VerifyGroupSigns(gpk, vctx.prevBH.Random) {
 		result = "verify group sig fail"
 		return
 	}

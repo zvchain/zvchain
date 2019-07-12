@@ -279,6 +279,10 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		err = fmt.Errorf("don't belong to verifyGroup, gseed=%v, hash=%v, id=%v", gSeed, bh.Hash, p.GetMinerID())
 		return
 	}
+	if !vctx.group.hasMember(cvm.SI.GetID()) {
+		err = fmt.Errorf("sender doesn't belong the verifyGroup, gseed=%v, hash=%v, id=%v", gSeed, bh.Hash, cvm.SI.GetID())
+		return
+	}
 
 	if !p.blockOnChain(vctx.prevBH.Hash) {
 		err = fmt.Errorf("pre not on chain:hash=%v", vctx.prevBH.Hash)
@@ -302,7 +306,7 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 	}
 
 	if !cvm.VerifySign(pk) {
-		err = fmt.Errorf("verify sign fail")
+		err = fmt.Errorf("verify sign fail, gseed=%v, id=%v", gSeed, cvm.SI.GetID())
 		return
 	}
 	if !groupsig.VerifySig(pk, vctx.prevBH.Random, cvm.RandomSign) {

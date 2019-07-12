@@ -235,10 +235,10 @@ func (ss *contractCreator) Transition() *result {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		isTransferSuccess := transfer(ss.accountDB,ss.source, *contract.ContractAddress, ss.tx.Value.Value())
-		if !isTransferSuccess{
+		isTransferSuccess := transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.tx.Value.Value())
+		if !isTransferSuccess {
 			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.Hex()), types.RSBalanceNotEnough)
-		}else {
+		} else {
 			_, logs, err := controller.Deploy(contract)
 			ret.logs = logs
 			if err != nil {
@@ -276,10 +276,10 @@ func (ss *contractCaller) Transition() *result {
 	if contract.Code == "" {
 		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSNoCodeError)
 	} else {
-		isTransferSuccess := transfer(ss.accountDB,*tx.Source, *contract.ContractAddress, tx.Value.Value())
-		if !isTransferSuccess{
+		isTransferSuccess := transfer(ss.accountDB, *tx.Source, *contract.ContractAddress, tx.Value.Value())
+		if !isTransferSuccess {
 			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.Hex()), types.RSBalanceNotEnough)
-		}else{
+		} else {
 			_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
 			ret.logs = logs
 			if err != nil {
@@ -451,7 +451,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 			continue
 		}
 		if ret.err != nil {
-			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
+			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, ret.err)
 		}
 
 		// Accumulate gas fee
@@ -555,9 +555,8 @@ func needTransfer(amount *big.Int) bool {
 	return true
 }
 
-
-func transfer(accountDB types.AccountDB,source common.Address, target common.Address, amount*big.Int)bool{
-	if !needTransfer(amount){
+func transfer(accountDB types.AccountDB, source common.Address, target common.Address, amount *big.Int) bool {
+	if !needTransfer(amount) {
 		return true
 	}
 	if accountDB.CanTransfer(source, amount) {

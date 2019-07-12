@@ -213,6 +213,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	if !era.encPieceRange.inRange(bh.Height) {
 		return false, nil
 	}
+
 	if !routine.shouldCreateGroup() {
 		return false, nil
 	}

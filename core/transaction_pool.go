@@ -104,14 +104,14 @@ func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
 }
 
 // AddTransaction try to add a list of transactions into the tool
-func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) (evilCount int) {
+func (pool *txPool) AddTransactions(txs []*types.Transaction) (evilCount int) {
 	if nil == txs || 0 == len(txs) {
 		return
 	}
 
 	for _, tx := range txs {
 		// this error can be ignored
-		_, err := pool.tryAddTransaction(tx, from)
+		_, err := pool.tryAddTransaction(tx)
 		if err != nil {
 			if _, ok := evilErrorMap[err]; ok {
 				evilCount++
