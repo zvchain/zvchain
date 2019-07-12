@@ -18,7 +18,7 @@ package cli
 import (
 	"net"
 
-	"github.com/zvchain/zvchain/cmd/gtas/rpc"
+	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 
 	"fmt"
 	"strings"

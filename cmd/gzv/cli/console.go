@@ -219,7 +219,7 @@ type connectCmd struct {
 
 func genConnectCmd() *connectCmd {
 	c := &connectCmd{
-		baseCmd: *genBaseCmd("connect", "connect to one tas node"),
+		baseCmd: *genBaseCmd("connect", "connect to one ZV node"),
 	}
 	c.fs.StringVar(&c.host, "host", "", "the node ip")
 	c.fs.IntVar(&c.port, "port", 8101, "the node port, default is 8101")
@@ -322,7 +322,7 @@ func genGasBaseCmd(n string, h string) *gasBaseCmd {
 func (c *gasBaseCmd) parseGasPrice() bool {
 	gp, err := common.ParseCoin(c.gasPriceStr)
 	if err != nil {
-		output(fmt.Sprintf("%v:%v, correct example: 100RA,100kRA,1mRA,1TAS", err, c.gasPriceStr))
+		output(fmt.Sprintf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, c.gasPriceStr))
 		return false
 	}
 	c.gasPrice = gp
@@ -348,11 +348,11 @@ type sendTxCmd struct {
 
 func genSendTxCmd() *sendTxCmd {
 	c := &sendTxCmd{
-		gasBaseCmd: *genGasBaseCmd("sendtx", "send a transaction to the tas system"),
+		gasBaseCmd: *genGasBaseCmd("sendtx", "send a transaction to the ZV system"),
 	}
 	c.initBase()
 	c.fs.StringVar(&c.to, "to", "", "the transaction receiver address")
-	c.fs.Float64Var(&c.value, "value", 0.0, "transfer value in tas unit")
+	c.fs.Float64Var(&c.value, "value", 0.0, "transfer value in ZVC unit")
 	c.fs.StringVar(&c.data, "data", "", "transaction data")
 	c.fs.StringVar(&c.extraData, "extra", "", "transaction extra data, user defined")
 	c.fs.Uint64Var(&c.nonce, "nonce", 0, "nonce, optional. will use default nonce on chain if not specified")
@@ -461,7 +461,7 @@ func genStakeAddCmd() *stakeAddCmd {
 		gasBaseCmd: *genGasBaseCmd("stakeadd", "add stake for the target miner"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of tas, default 500TAS")
+	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of ZVC, default 500ZVC")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
 	c.fs.StringVar(&c.target, "target", "", "stake add target address, default the operator if not specified")
 	return c
@@ -557,7 +557,7 @@ func genStakeReduceCmd() *stakeReduceCmd {
 	c.initBase()
 	c.fs.IntVar(&c.mtype, "type", 0, "receiver's type: 0=verify node, 1=proposal node, default 0")
 	c.fs.StringVar(&c.target, "target", "", "reduce target address, default the operator if not specified")
-	c.fs.Uint64Var(&c.value, "value", 0, "reduce value, default 0TAS")
+	c.fs.Uint64Var(&c.value, "value", 0, "reduce value, default 0ZVC")
 	return c
 }
 
@@ -680,7 +680,7 @@ func (c *exportKeyCmd) parse(args []string) bool {
 }
 
 var cmdNewAccount = genNewAccountCmd()
-var cmdExit = genBaseCmd("exit", "quit  gtas")
+var cmdExit = genBaseCmd("exit", "quit  gzv")
 var cmdHelp = genBaseCmd("help", "show help info")
 var cmdAccountList = genBaseCmd("accountlist", "list the account of the keystore")
 var cmdUnlock = genUnlockCmd()
@@ -825,7 +825,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		if ep == ":0" {
 			ep = "not connected"
 		}
-		input, err := line.Prompt(fmt.Sprintf("gtas:%v > ", ep))
+		input, err := line.Prompt(fmt.Sprintf("gzv:%v > ", ep))
 		if err != nil {
 			if err == liner.ErrPromptAborted {
 				line.Close()

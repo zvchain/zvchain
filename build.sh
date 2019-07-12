@@ -39,13 +39,13 @@ function buildp2p() {
 
 git submodule sync
 git submodule update --init
-if [[ $1x = "gtas"x ]]; then
-    echo building gtas ...
+if [[ $1x = "gzv"x ]]; then
+    echo building gzv ...
     buildtvm
     buildp2p
 
-    go build -o ${output_dir}/gtas $basepath/cmd/gtas &&
-    echo build gtas successfully...
+    go build -o ${output_dir}/gzv $basepath/cmd/gzv &&
+    echo build gzv successfully...
 
 elif [[ $1x = "tvmcli"x ]]; then
     buildtvm
