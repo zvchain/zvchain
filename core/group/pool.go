@@ -16,6 +16,7 @@ package group
 
 import (
 	"bytes"
+
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/vmihailenco/msgpack"
@@ -24,13 +25,13 @@ import (
 )
 
 type pool struct {
-	genesis     *group       // genesis group
-	groupCache  *lru.Cache   // cache for groups. key is types.Seedi; value is types.Groupi
+	genesis    *group     // genesis group
+	groupCache *lru.Cache // cache for groups. key is types.Seedi; value is types.Groupi
 }
 
 func newPool() *pool {
 	return &pool{
-		groupCache:  common.MustNewLRUCache(120),
+		groupCache: common.MustNewLRUCache(120),
 	}
 }
 
@@ -106,7 +107,7 @@ func (p *pool) getActives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
 	db := chain.LatestStateDB()
 
-	for current := p.getTopGroup(db) ; current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
+	for current := p.getTopGroup(db); current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
 		if current.HeaderD.BlockHeight == 0 {
 			break
 		}
@@ -124,7 +125,7 @@ func (p *pool) getLives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
 	db := chain.LatestStateDB()
 
-	for current := p.getTopGroup(db) ; current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
+	for current := p.getTopGroup(db); current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
 		if current.HeaderD.BlockHeight == 0 {
 			break
 		}
@@ -141,23 +142,26 @@ func (p *pool) getLives(chain chainReader, height uint64) []*group {
 
 func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.GroupI {
 	//TODO: optimize it
-	rs := make([]types.GroupI, 0, limit)
+	rs := make([]types.GroupI, 0)
 	db := chain.LatestStateDB()
-	for current := p.getTopGroup(db) ; current != nil; current = p.get(db, current.HeaderD.PreSeed) {
-		if current.HeaderD.BlockHeight == 0 {
+	for current := p.getTopGroup(db); current != nil; current = p.get(db, current.HeaderD.PreSeed) {
+		if current.HeaderD.GroupHeight < height {
 			break
 		}
 		rs = append(rs, current)
+		if current.HeaderD.BlockHeight == 0 {
+			break
+		}
 	}
-
-	//add p.genesis
-	rs = append(rs, p.genesis)
+	rs = revert(rs)
+	if limit < len(rs) {
+		return rs[0:limit]
+	}
 	return rs
-
 }
 
 func (p *pool) count(db types.AccountDB) uint64 {
-	return p.getTopGroup(db).HeaderD.GroupHeight +1
+	return p.getTopGroup(db).HeaderD.GroupHeight + 1
 }
 
 func (p *pool) saveTopGroup(db types.AccountDB, g *group) {
@@ -167,4 +171,14 @@ func (p *pool) saveTopGroup(db types.AccountDB, g *group) {
 func (p *pool) getTopGroup(db types.AccountDB) *group {
 	bs := db.GetData(common.GroupTopAddress, topGroupKey)
 	return p.get(db, common.BytesToHash(bs))
+}
+
+func revert(s []types.GroupI) []types.GroupI {
+	if s == nil {
+		return nil
+	}
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
 }

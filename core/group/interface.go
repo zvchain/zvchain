@@ -195,7 +195,7 @@ func newGroup(i types.GroupI, bh uint64, top *group) *group {
 	)
 	if top != nil {
 		preSeed = top.HeaderD.SeedD
-		gh = top.HeaderD.GroupHeight+1
+		gh = top.HeaderD.GroupHeight + 1
 	}
 	header := &groupHeader{i.Header().Seed(),
 		i.Header().WorkHeight(),
