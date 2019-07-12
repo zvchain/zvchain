@@ -262,6 +262,10 @@ const (
 	MaxUint64 = 1<<64 - 1
 )
 
+var (
+	MaxBigUint64 = big.NewInt(0).SetUint64(MaxUint64)
+)
+
 var InstanceIndex int
 
 type AccountData struct {

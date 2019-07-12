@@ -142,8 +142,11 @@ func executeMinerOperation(msg vm.MinerOperationMessage) bool {
 
 //export MinerStake
 func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
+	if _type != int(types.MinerTypeProposal) && _type != int(types.MinerTypeVerify) {
+		return false
+	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
-	if !ok {
+	if !ok || value.Sign() <= 0 || value.Cmp(common.MaxBigUint64) > 0 {
 		return false
 	}
 	mPks := &types.MinerPks{
@@ -169,8 +172,11 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 
 //export MinerCancelStake
 func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
+	if _type != int(types.MinerTypeProposal) && _type != int(types.MinerTypeVerify) {
+		return false
+	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
-	if !ok {
+	if !ok || value.Sign() <= 0 || value.Cmp(common.MaxBigUint64) > 0 {
 		return false
 	}
 	payload := []byte{byte(_type)}
