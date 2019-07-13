@@ -45,7 +45,6 @@ func (p *PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePiece
 	data.SenderD = packet.Sender()
 	data.Pubkey0D = packet.Pubkey0()
 	data.PiecesD = packet.Pieces()
-
 	byteData, err := msgpack.Marshal(data)
 	if err != nil {
 		return
@@ -58,6 +57,8 @@ func (p *PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePiece
 	if err != nil {
 		return
 	}
+	// print the message to console
+	fmt.Printf("auto send bad group piece, hash = %v \n", tx.Hash.Hex())
 	return nil
 }
 
@@ -82,6 +83,8 @@ func (p *PacketSender) SendMpkPacket(packet types.MpkPacket) (err error) {
 	if err != nil {
 		return
 	}
+	// print the message to console
+	fmt.Printf("auto send group mpk, hash = %v \n", tx.Hash.Hex())
 	return nil
 }
 
@@ -106,6 +109,8 @@ func (p PacketSender) SendOriginPiecePacket(packet types.OriginSharePiecePacket)
 	if err != nil {
 		return
 	}
+	// print the message to console
+	fmt.Printf("auto send group origin piece, hash = %v \n", tx.Hash.Hex())
 	return nil
 }
 
