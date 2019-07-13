@@ -378,6 +378,9 @@ func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeade
 		ski := model.NewSecKeyInfo(p.GetMinerID(), p.groupReader.getGroupSignatureSeckey(group.header.Seed()))
 		if msg.GenSign(ski, msg) {
 			p.NetServer.SendCastRewardSignReq(msg)
+
+			stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", reward.TxHash.Hex(), ski.SK.GetHexString(), p.GetMinerID(), msg.SI.DataSign.GetHexString(), group.header.Seed())
+
 			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
 		} else {
 			blog.error("genSign fail, id=%v, sk=%v", ski.ID, ski.SK)

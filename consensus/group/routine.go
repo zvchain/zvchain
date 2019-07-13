@@ -249,6 +249,13 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	}
 	routine.ctx.sentEncryptedPiecePacket = packet
 
+	pkt := packet.(*encryptedSharePiecePacket)
+	logger.Debugf("send encrypted share piece: %v %v %v %v", pkt.sender, pkt.seed, pkt.pubkey0.GetHexString(), common.ToHex(pkt.Pieces()))
+	for i, p := range pkt.pieces {
+		logger.Debugf("receiver %v %v is %v", i, routine.ctx.cands[i], p.GetHexString())
+
+	}
+
 	return true, nil
 }
 
@@ -324,6 +331,9 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 		return false, fmt.Errorf("send mpk packet error:%v", err)
 	}
 	routine.ctx.sentMpkPacket = packet
+
+	logger.Debugf("send mpk: %v %v %v %v msk:", packet.sender, packet.seed, packet.mPk.GetHexString(), msk.GetHexString(), packet.sign.GetHexString())
+
 	return true, nil
 }
 

@@ -251,7 +251,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 			return
 		case types.CreateResultMarkEvil:
 			checker.stat.markStatus(era.seedHeight, createStatusFail)
-			logger.Debugf("group create fail, mark evil, seedHeight=%v", era.seedHeight)
+			logger.Debugf("group create fail, mark evil, seedHeight=%v %v %v", era.seedHeight, era.Seed(), result.err)
 		case types.CreateResultFail:
 			checker.stat.markStatus(era.seedHeight, createStatusFail)
 			logger.Debugf("group create fail, seedHeight=%v, err=%v", era.seedHeight, result.err)
@@ -320,12 +320,22 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	result.frozenMiners = needFreeze
 	// Not enough member count
 	if !pieceEnough(len(availPieces), cands.size()) {
-		result.err = fmt.Errorf("receives not enough available share piece(with mpk):%v", len(availPieces))
+		result.err = fmt.Errorf("receives not enough available share piece(with mpk):%v, enc pieces:%v", len(availPieces), len(piecePkt))
 		result.code = types.CreateResultFail
 	} else { // Success or evil encountered
 
+		for _, piece := range availPieces {
+			logger.Debugf("check create result, avail pieces: %v %v %v %v %v", era.Seed(), common.ShortHex(common.ToHex(piece.Sender())), piece.Seed(), common.ToHex(piece.Pubkey0()), common.ToHex(piece.Pieces()))
+		}
+		for _, mpk := range mpkPkt {
+			logger.Debugf("check create result, mpk:%v %v %v %v", common.ShortHex(common.ToHex(mpk.Sender())), mpk.Seed(), common.ToHex(mpk.Mpk()), common.ToHex(mpk.Sign()))
+		}
+
 		gpk := *aggrGroupPubKey(availPieces)
+		logger.Debugf("check create result, gpk:%v", gpk.GetHexString())
 		gSign := aggrGroupSign(mpkPkt)
+		logger.Debugf("check create result, gSing:%v", gSign.GetHexString())
+
 		// Aggregate sign fail, somebody must cheat!
 		if !groupsig.VerifySig(gpk, era.Seed().Bytes(), *gSign) {
 			result.err = fmt.Errorf("verify group sig fail")
