@@ -32,7 +32,7 @@ func TestParseCoin_Correct(t *testing.T) {
 	runParseCoin("232ra", 232, t)
 	runParseCoin("232kra", 232000, t)
 	runParseCoin("232mra", 232000000, t)
-	runParseCoin("232tas", 232000000000, t)
+	runParseCoin("232zvc", 232000000000, t)
 }
 
 func runParseCoinWrong(s string, t *testing.T) {

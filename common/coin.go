@@ -40,7 +40,7 @@ var (
 	ErrIllegalStr = fmt.Errorf("illegal gasprice string")
 )
 
-var re, _ = regexp.Compile("^([0-9]+)(ra|kra|mra|tas)$")
+var re, _ = regexp.Compile("^([0-9]+)(ra|kra|mra|zvc)$")
 
 // ParseCoin parses string to amount
 func ParseCoin(s string) (uint64, error) {
