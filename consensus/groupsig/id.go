@@ -65,7 +65,15 @@ func (id *ID) SetLittleEndian(buf []byte) error {
 
 // Deserialize construct a ID with the input byte array
 func (id *ID) Deserialize(b []byte) error {
-	return id.value.Deserialize(b)
+	length := len(b)
+	bytes := b
+	if length < Idlength {
+		bytes = make([]byte, Idlength)
+		copy(bytes[Idlength-length:], b)
+	} else if length > Idlength {
+		bytes = b[length-Idlength:]
+	}
+	return id.value.Deserialize(bytes)
 }
 
 // GetBigInt export ID into a big integer

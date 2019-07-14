@@ -56,4 +56,5 @@ func TestSeckey_GetHexString(t *testing.T) {
 	var sk Seckey
 	t.Log(sk)
 	t.Log(sk.GetHexString())
+	t.Log(len(sk.Serialize()))
 }

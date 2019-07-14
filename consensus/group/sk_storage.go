@@ -42,12 +42,8 @@ type skInfo struct {
 func (si *skInfo) toBytes() []byte {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteByte(skEncVersion)
-	mskBytes := make([]byte, groupsig.SkLength)
-	copy(mskBytes, si.msk.Serialize())
-	buf.Write(mskBytes)
-	encBytes := make([]byte, groupsig.SkLength)
-	copy(encBytes, si.encSk.Serialize())
-	buf.Write(encBytes)
+	buf.Write(si.msk.Serialize())
+	buf.Write(si.encSk.Serialize())
 	return buf.Bytes()
 }
 

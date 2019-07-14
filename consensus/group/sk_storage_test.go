@@ -33,13 +33,13 @@ func TestStoreSeckey(t *testing.T) {
 
 	defer skStore.Close()
 
-	msk := groupsig.DeserializeSeckey(common.FromHex("0x456000000000000000000000000000000000000000000000000000000000789"))
-	encSk := groupsig.DeserializeSeckey(common.FromHex("0x234000000000000000000000000000000000000000000000000000000000aaa"))
+	msk := groupsig.DeserializeSeckey(common.FromHex("0x64b59f9ff74d2143a70d7e3c18edaef5750974bc08e5e34b3c57f8b95ea2a8"))
+	encSk := groupsig.DeserializeSeckey(common.FromHex("0x64b59f9ff74d2143a70d7e3c18edaef5750974bc08e5e34b3c57f8b95ea2a8"))
 	t.Log(msk.GetHexString())
 
 	hash := common.HexToHash("0x123")
-	skStore.storeSeckey(hash, msk, nil, 0)
-	skStore.storeSeckey(hash, nil, encSk, 0)
+	skStore.storeSeckey(hash, msk, nil, 1020)
+	skStore.storeSeckey(hash, nil, encSk, 1030)
 
 	ski := skStore.getSkInfo(hash)
 	t.Log(ski.msk.GetHexString())

@@ -43,3 +43,33 @@ func TestVerifySig(t *testing.T) {
 
 	t.Log(VerifySig(gpk, hash.Bytes(), sign))
 }
+
+func TestSKRecover(t *testing.T) {
+	sks := "0x64b59f9ff74d2143a70d7e3c18edaef5750974bc08e5e34b3c57f8b95ea2a8"
+	pks := "0x2295308fd6ba3783fac06d83eb83d4a7cd2850c4eff03451e10288506f7d549026be374d220a07b8de2ad2b953badafd42be7b0e88d947bb26ff264b64c24ed02f53da70cce2c7e55b6486f630723fb19a5ffd35465855028b7439993784a02c238633b93852e17fa2d011501cc89428be1c8619f7dd7ba6b32b38bd7ead09a8"
+	signs := "0x0a2706f4fd597a3d0585f22a2be9d4367971fed626182857d77887cd9e39afa001"
+	datas := "0xd7b61f93d478db97aecfcdbbc4f22987099b6f062afeaa39b28af6cbf3e5e9a5"
+
+	var (
+		sk   Seckey
+		pk   Pubkey
+		sig  Signature
+		data common.Hash
+	)
+
+	sk.SetHexString(sks)
+
+	t.Log(len(sk.Serialize()))
+	pk.SetHexString(pks)
+	sig.SetHexString(signs)
+	data = common.HexToHash(datas)
+
+	if data.Hex() != datas {
+		t.Errorf("hash diff")
+	}
+
+	pkRecover := NewPubkeyFromSeckey(sk)
+	if !pkRecover.IsEqual(pk) {
+		t.Errorf("pk recover:%v", pkRecover.GetHexString())
+	}
+}

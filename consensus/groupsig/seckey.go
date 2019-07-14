@@ -53,7 +53,17 @@ type SeckeyMapID map[string]Seckey
 
 // Serialize converts the private key into byte slices (Little-Endian)
 func (sec Seckey) Serialize() []byte {
-	return sec.value.Serialize()
+	bytes := sec.value.Serialize()
+	if len(bytes) == SkLength {
+		return bytes
+	}
+	if len(bytes) > SkLength {
+		// hold it for now
+		panic("Seckey Serialize error: should be 32 bytes")
+	}
+	buff := make([]byte, SkLength)
+	copy(buff[SkLength-len(bytes):], bytes)
+	return buff
 }
 
 // GetBigInt convert the private key to big.int
@@ -80,7 +90,15 @@ func (sec Seckey) GetHexString() string {
 
 // Deserialize initializes the private key by byte slice
 func (sec *Seckey) Deserialize(b []byte) error {
-	return sec.value.Deserialize(b)
+	length := len(b)
+	bytes := b
+	if length < SkLength {
+		bytes = make([]byte, SkLength)
+		copy(bytes[SkLength-length:], b)
+	} else if length > SkLength {
+		bytes = b[length-SkLength:]
+	}
+	return sec.value.Deserialize(bytes)
 }
 
 func DeserializeSeckey(bs []byte) *Seckey {
