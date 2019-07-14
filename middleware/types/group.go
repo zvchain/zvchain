@@ -76,6 +76,7 @@ type GroupI interface {
 
 // CreateResult is the group-create result presentation
 type CreateResult interface {
+	SeedI
 	Code() CreateResultCode // Seen in the CreateResultCode enum above
 	GroupInfo() GroupI      // Return new groupInfo if create success
 	FrozenMiners() [][]byte // Determines miners to be froze

@@ -150,7 +150,7 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 			panic(logger.Error("saveGroup error: %v", err))
 		}
 	case types.CreateResultMarkEvil:
-		markGroupFail(db, createResult.GroupInfo())
+		markGroupFail(db, createResult)
 	case types.CreateResultFail:
 		// do nothing
 	}
@@ -188,6 +188,6 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 }
 
 // markGroupFail mark group member should upload origin piece
-func markGroupFail(db types.AccountDB, group types.GroupI) {
-	db.SetData(common.HashToAddress(group.Header().Seed()), originPieceReqKey, []byte{1})
+func markGroupFail(db types.AccountDB, seed types.SeedI) {
+	db.SetData(common.HashToAddress(seed.Seed()), originPieceReqKey, []byte{1})
 }

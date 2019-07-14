@@ -297,41 +297,45 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 			needFreeze = append(needFreeze, mem.ID)
 		}
 	}
+	result = &createResult{seed: era.Seed()}
+
+	// If not enough share piece, then freeze those who didn't send share piece only
+	if !pieceEnough(len(piecePkt), cands.size()) {
+		result.frozenMiners = needFreeze
+		result.err = fmt.Errorf("receives not enough share piece:%v, candsize:%v", len(piecePkt), cands.size())
+		result.code = types.CreateResultFail
+		return result
+	}
 
 	mpkPkt, err := checker.storeReader.GetMpkPackets(era)
 	if err != nil {
 		return errCreateResult(fmt.Errorf("get mpks error:%v", err))
 	}
 
-	availPieces := make([]types.EncryptedSharePiecePacket, 0)
-
 	// Find those who sent the encrypted pieces and didn't send mpk
 	for _, pkt := range piecePkt {
 		if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
 			needFreeze = append(needFreeze, groupsig.DeserializeID(pkt.Sender()))
-		} else {
-			availPieces = append(availPieces, pkt)
 		}
 	}
 
-	result = &createResult{}
-
 	// All of those who didn't send share piece and those who sent this but not mpk will be frozen
 	result.frozenMiners = needFreeze
-	// Not enough member count
-	if !pieceEnough(len(availPieces), cands.size()) {
-		result.err = fmt.Errorf("receives not enough available share piece(with mpk):%v, enc pieces:%v", len(availPieces), len(piecePkt))
+
+	// Not enough mpk
+	if len(mpkPkt) < cands.threshold() {
+		result.err = fmt.Errorf("receives not enough mpk:%v, threshold:%v", len(mpkPkt), cands.threshold())
 		result.code = types.CreateResultFail
 	} else { // Success or evil encountered
 
-		for _, piece := range availPieces {
+		for _, piece := range piecePkt {
 			logger.Debugf("check create result, avail pieces: %v %v %v %v %v", era.Seed(), common.ShortHex(common.ToHex(piece.Sender())), piece.Seed(), common.ToHex(piece.Pubkey0()), common.ToHex(piece.Pieces()))
 		}
 		for _, mpk := range mpkPkt {
 			logger.Debugf("check create result, mpk:%v %v %v %v", common.ShortHex(common.ToHex(mpk.Sender())), mpk.Seed(), common.ToHex(mpk.Mpk()), common.ToHex(mpk.Sign()))
 		}
 
-		gpk := *aggrGroupPubKey(availPieces)
+		gpk := *aggrGroupPubKey(piecePkt)
 		logger.Debugf("check create result, gpk:%v", gpk.GetHexString())
 		gSign := aggrGroupSign(mpkPkt)
 		logger.Debugf("check create result, gSing:%v", gSign.GetHexString())

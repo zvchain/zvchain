@@ -150,9 +150,14 @@ func (g *group) Members() []types.MemberI {
 
 type createResult struct {
 	code         types.CreateResultCode
+	seed         common.Hash
 	gInfo        *group
 	frozenMiners []groupsig.ID
 	err          error
+}
+
+func (cr *createResult) Seed() common.Hash {
+	return cr.seed
 }
 
 func (cr *createResult) Code() types.CreateResultCode {

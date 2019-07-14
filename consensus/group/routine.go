@@ -303,7 +303,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	}
 
 	num := len(encryptedPackets)
-	logger.Debugf("get encrypted pieces size %v", num)
+	logger.Debugf("get encrypted pieces size %v at %v-%v", num, era.seedHeight, era.Seed())
 
 	// Check if the received pieces enough
 	if !pieceEnough(num, cands.size()) {
