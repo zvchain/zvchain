@@ -59,9 +59,8 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 		return err
 	}
 
-	p.groupCache.Add(group.Header().Seed(), group)
 	db.SetData(common.HashToAddress(group.Header().Seed()), groupDataKey, byteData)
-
+	p.groupCache.Add(group.Header().Seed(), group)
 	p.saveTopGroup(db, group)
 
 	return nil
@@ -144,7 +143,7 @@ func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.
 	rs := make([]types.GroupI, 0)
 	db := chain.LatestStateDB()
 	for current := p.getTopGroup(db); current != nil; current = p.get(db, current.HeaderD.PreSeed) {
-		if current.HeaderD.GroupHeight < height {
+		if current.HeaderD.GroupHeight() < height {
 			break
 		}
 		rs = append(rs, current)
@@ -160,7 +159,7 @@ func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.
 }
 
 func (p *pool) count(db types.AccountDB) uint64 {
-	return p.getTopGroup(db).HeaderD.GroupHeight + 1
+	return p.getTopGroup(db).HeaderD.GroupHeight() + 1
 }
 
 func (p *pool) saveTopGroup(db types.AccountDB, g *group) {

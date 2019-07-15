@@ -113,6 +113,7 @@ type groupHeader struct {
 	dismissHeight uint64
 	gpk           groupsig.Pubkey
 	threshold     uint32
+	groupHeight   uint64
 }
 
 func (gh *groupHeader) Seed() common.Hash {
@@ -133,6 +134,10 @@ func (gh *groupHeader) PublicKey() []byte {
 
 func (gh *groupHeader) Threshold() uint32 {
 	return gh.threshold
+}
+
+func (gh *groupHeader) GroupHeight() uint64 {
+	return gh.groupHeight
 }
 
 type group struct {

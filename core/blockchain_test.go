@@ -623,6 +623,9 @@ func (g *GroupHeader4Test) PublicKey() []byte {
 func (g *GroupHeader4Test) Threshold() uint32 {
 	return uint32(1)
 }
+func (g *GroupHeader4Test) GroupHeight() uint64 {
+	return uint64(1)
+}
 
 type member4Test struct {
 	Id []byte

@@ -166,7 +166,7 @@ type groupHeader struct {
 	ThresholdD     uint32      `msgpack:"th"`
 	PreSeed        common.Hash `msgpack:"ps"` // seed of pre group
 	BlockHeight    uint64      `msgpack:"bh"` // block height when creating
-	GroupHeight    uint64      `msgpack:"gh"` // group height
+	GroupHeightD   uint64      `msgpack:"gh"` // group height
 }
 
 func (g *groupHeader) Seed() common.Hash {
@@ -187,6 +187,9 @@ func (g *groupHeader) PublicKey() []byte {
 func (g *groupHeader) Threshold() uint32 {
 	return g.ThresholdD
 }
+func (g *groupHeader) GroupHeight() uint64 {
+	return g.GroupHeightD
+}
 
 func newGroup(i types.GroupI, bh uint64, top *group) *group {
 	var (
@@ -195,7 +198,7 @@ func newGroup(i types.GroupI, bh uint64, top *group) *group {
 	)
 	if top != nil {
 		preSeed = top.HeaderD.SeedD
-		gh = top.HeaderD.GroupHeight + 1
+		gh = top.HeaderD.GroupHeight() + 1
 	}
 	header := &groupHeader{i.Header().Seed(),
 		i.Header().WorkHeight(),

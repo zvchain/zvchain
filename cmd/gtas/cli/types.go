@@ -198,6 +198,7 @@ type Group struct {
 	Threshold     int32       `json:"threshold"`
 	Members       []string    `json:"members"`
 	MemSize       int         `json:"mem_size"`
+	GroupHeight   uint64      `json:"group_height"`
 }
 
 type MinerRewardBalance struct {

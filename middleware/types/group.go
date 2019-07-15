@@ -90,6 +90,7 @@ type GroupHeaderI interface {
 	DismissHeight() uint64
 	PublicKey() []byte
 	Threshold() uint32
+	GroupHeight() uint64
 }
 
 // PunishmentMsg is the punishment message when someone cheats
