@@ -15,44 +15,29 @@
 package group
 
 import (
-	"sort"
-	"strconv"
+	"github.com/zvchain/zvchain/middleware/types"
 	"testing"
-
-	"github.com/zvchain/zvchain/common"
 )
 
-func TestShift(t *testing.T) {
-	queue := make([]*groupLife, 0)
+func TestRevert(t *testing.T) {
+	queue := make([]types.GroupI, 0)
 
 	for i := 0; i < 10; i++ {
 		ui := uint64(i)
-		gl := &groupLife{common.HexToHash(strconv.Itoa(i)), ui, ui, ui}
-		queue = push(queue, gl)
+		gl := newGroup4Test(ui)
+		queue = append(queue,gl)
 	}
-	t.Log("init queue:")
-	printQueue(t, queue)
-	t.Log("after remove first:")
-	queue = removeFirst(queue)
-	printQueue(t, queue)
-	t.Log("after remove last:")
-	queue = removeLast(queue)
-	printQueue(t, queue)
-	t.Log("peek:")
-	t.Log(peek(queue).Height)
-	t.Log("sPeek:")
-	t.Log(sPeek(queue).Height)
 
-	t.Log("after sort:")
-	sort.SliceStable(queue, func(i, j int) bool {
-		return queue[i].End > queue[j].End
-	})
-	printQueue(t, queue)
-
+	re := revert(queue)
+	for ii, v := range re {
+		if uint64(ii) != 9 - v.Header().WorkHeight() {
+			t.Error("revert failed")
+		}
+	}
 }
 
-func printQueue(t *testing.T, queue []*groupLife) {
-	for _, v := range queue {
-		t.Log(v.Height)
-	}
+
+func newGroup4Test(height uint64) *group {
+	header := &groupHeader{WorkHeightD:height}
+	return &group{HeaderD:header}
 }
