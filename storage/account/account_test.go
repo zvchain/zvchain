@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	common.InitConf("../../cmd/gtas/cli/tas.ini")
+	common.InitConf("../../cmd/gzv/cli/zv.ini")
 	instance := common.GlobalConf.GetString("instance", "index", "")
 	debugLog = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
 }
