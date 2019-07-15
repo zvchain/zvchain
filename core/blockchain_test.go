@@ -525,10 +525,10 @@ type ConsensusHelperImpl4Test struct {
 func (helper *ConsensusHelperImpl4Test) GenerateGenesisInfo() *types.GenesisInfo {
 	info := &types.GenesisInfo{}
 	info.Group = &group4Test{&GroupHeader4Test{}}
-	info.VrfPKs = make([][]byte,0)
-	info.Pks = make([][]byte,0)
-	info.VrfPKs = append(info.VrfPKs,common.FromHex("vrfPks"))
-	info.Pks = append(info.Pks,common.FromHex("Pks"))
+	info.VrfPKs = make([][]byte, 0)
+	info.Pks = make([][]byte, 0)
+	info.VrfPKs = append(info.VrfPKs, common.FromHex("vrfPks"))
+	info.Pks = append(info.Pks, common.FromHex("Pks"))
 	return info
 }
 
@@ -588,8 +588,6 @@ type KeyStoreRaw4Test struct {
 	IsMiner bool
 }
 
-
-
 type group4Test struct {
 	header types.GroupHeaderI
 }
@@ -599,7 +597,7 @@ func (g *group4Test) Header() types.GroupHeaderI {
 }
 
 func (g *group4Test) Members() []types.MemberI {
-	members := make([]types.MemberI,0)
+	members := make([]types.MemberI, 0)
 	mem := &member4Test{
 		common.FromHex("0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676"),
 		common.FromHex("0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676")}
@@ -607,9 +605,7 @@ func (g *group4Test) Members() []types.MemberI {
 	return members
 }
 
-
 type GroupHeader4Test struct {
-
 }
 
 func (g *GroupHeader4Test) Seed() common.Hash {
@@ -622,7 +618,7 @@ func (g *GroupHeader4Test) DismissHeight() uint64 {
 	return uint64(1)
 }
 func (g *GroupHeader4Test) PublicKey() []byte {
-	return make([]byte,0)
+	return make([]byte, 0)
 }
 func (g *GroupHeader4Test) Threshold() uint32 {
 	return uint32(1)
@@ -643,18 +639,19 @@ func (m *member4Test) PK() []byte {
 
 type GroupCreateChecker4Test struct {
 }
-func (g *GroupCreateChecker4Test) CheckEncryptedPiecePacket(packet types.EncryptedSharePiecePacket, ctx types.CheckerContext) error{
+
+func (g *GroupCreateChecker4Test) CheckEncryptedPiecePacket(packet types.EncryptedSharePiecePacket, ctx types.CheckerContext) error {
 	return nil
 }
-func (g *GroupCreateChecker4Test) CheckMpkPacket(packet types.MpkPacket, ctx types.CheckerContext) error{
+func (g *GroupCreateChecker4Test) CheckMpkPacket(packet types.MpkPacket, ctx types.CheckerContext) error {
 	return nil
 }
-func (g *GroupCreateChecker4Test) CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult{
+func (g *GroupCreateChecker4Test) CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult {
 	return nil
 }
-func (g *GroupCreateChecker4Test) CheckOriginPiecePacket(packet types.OriginSharePiecePacket, ctx types.CheckerContext) error{
+func (g *GroupCreateChecker4Test) CheckOriginPiecePacket(packet types.OriginSharePiecePacket, ctx types.CheckerContext) error {
 	return nil
 }
-func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error){
-	return nil,fmt.Errorf("do not need punishment")
+func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error) {
+	return nil, fmt.Errorf("do not need punishment")
 }

@@ -16,10 +16,11 @@
 package core
 
 import (
+	"testing"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/middleware/types"
-	"testing"
 )
 
 // TestGroupCreateTxs tests interface types.GroupPacketSender and types.GroupStoreReader
@@ -40,7 +41,6 @@ func TestGroupCreateTxs(t *testing.T) {
 	sender := common.HexToAddress(account.Address).Bytes()
 	groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
 
-
 	//Round 1
 	data := &group.EncryptedSharePiecePacketImpl{}
 	data.SeedD = seed
@@ -59,7 +59,7 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store := group.NewStore(BlockChainImpl.(*FullBlockChain),nil)
+	store := group.NewStore(BlockChainImpl.(*FullBlockChain), nil)
 	pieces, err := store.GetEncryptedPiecePackets(data)
 	if err != nil {
 		t.Fatalf("fail to GetEncryptedPiecePackets %v", err)
@@ -84,7 +84,7 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store = group.NewStore(BlockChainImpl.(*FullBlockChain),nil)
+	store = group.NewStore(BlockChainImpl.(*FullBlockChain), nil)
 	mpks, err := store.GetMpkPackets(mpkData)
 	if err != nil {
 		t.Fatalf("fail to GetMpkPackets %v", err)
@@ -112,7 +112,7 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store = group.NewStore(BlockChainImpl.(*FullBlockChain),nil)
+	store = group.NewStore(BlockChainImpl.(*FullBlockChain), nil)
 	ops, err := store.GetOriginPiecePackets(dataOp)
 	if err != nil {
 		t.Fatalf("fail to GetOriginPiecePackets %v", err)
@@ -152,6 +152,5 @@ func TestGroupCreateTxs(t *testing.T) {
 	//if !hasOrgPieceSent {
 	//	t.Fatalf("fail to test GetAvailableGroupSeeds, should returns ture but got false" )
 	//}
-
 
 }
