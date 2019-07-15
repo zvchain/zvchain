@@ -141,7 +141,6 @@ func (p *pool) getLives(chain chainReader, height uint64) []*group {
 }
 
 func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.GroupI {
-	//TODO: optimize it
 	rs := make([]types.GroupI, 0)
 	db := chain.LatestStateDB()
 	for current := p.getTopGroup(db); current != nil; current = p.get(db, current.HeaderD.PreSeed) {

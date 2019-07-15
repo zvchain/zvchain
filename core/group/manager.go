@@ -181,8 +181,7 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 		addr := common.BytesToAddress(p)
 		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
 		if err != nil {
-			//todo: should remove this panic? or just print the error?
-			panic(logger.Error("saveGroup error: %v", err))
+			logger.Error("MinerFrozen error: %v", err)
 		}
 	}
 }
