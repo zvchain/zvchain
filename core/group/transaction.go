@@ -17,6 +17,7 @@ package group
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/notify"
 
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
@@ -58,7 +59,7 @@ func (p *PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePiece
 		return
 	}
 	// print the message to console
-	fmt.Printf("auto send bad group piece, hash = %v \n", tx.Hash.Hex())
+	printToConsole(fmt.Sprintf("auto send bad group piece, hash = %v \n", tx.Hash.Hex()))
 	return nil
 }
 
@@ -84,7 +85,7 @@ func (p *PacketSender) SendMpkPacket(packet types.MpkPacket) (err error) {
 		return
 	}
 	// print the message to console
-	fmt.Printf("auto send group mpk, hash = %v \n", tx.Hash.Hex())
+	printToConsole(fmt.Sprintf("auto send group mpk, hash = %v \n", tx.Hash.Hex()))
 	return nil
 }
 
@@ -110,7 +111,7 @@ func (p PacketSender) SendOriginPiecePacket(packet types.OriginSharePiecePacket)
 		return
 	}
 	// print the message to console
-	fmt.Printf("auto send group origin piece, hash = %v \n", tx.Hash.Hex())
+	printToConsole(fmt.Sprintf("auto send group origin piece, hash = %v \n", tx.Hash.Hex()))
 	return nil
 }
 
@@ -145,4 +146,19 @@ func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 
 	logger.Debugf("[group] sendTransaction success. type = %d, hash = %v ", tx.Type, tx.Hash)
 	return nil
+}
+
+func printToConsole(msg string) {
+	notify.BUS.Publish(notify.MessageToConsole, &consoleMsg{msg})
+}
+
+type consoleMsg struct {
+	msg string
+}
+
+func (m *consoleMsg) GetRaw() []byte {
+	return []byte{}
+}
+func (m *consoleMsg) GetData() interface{} {
+	return m.msg
 }

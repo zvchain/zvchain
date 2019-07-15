@@ -57,6 +57,7 @@ func initMsgShower(id []byte, apply applyFunc) {
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, ii.onBlockAddSuccess)
 	notify.BUS.Subscribe(notify.BlockSync, ii.blockSync)
+	notify.BUS.Subscribe(notify.MessageToConsole, ii.messageToConsole)
 
 	shower = ii
 }
@@ -139,4 +140,8 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 func (ms *msgShower) blockSync(message notify.Message) {
 	cand := message.GetData().(*core.SyncCandidateInfo)
 	ms.showMsg("sync block from %v[height=%v], localHeight=%v, reqHeight %v", cand.Candidate, cand.CandidateHeight, core.BlockChainImpl.Height(), cand.ReqHeight)
+}
+
+func (ms *msgShower) messageToConsole(message notify.Message) {
+	ms.showMsg(message.GetData().(string))
 }

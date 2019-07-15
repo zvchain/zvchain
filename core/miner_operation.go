@@ -25,8 +25,9 @@ import (
 
 // Duration definition related to miner operation
 const (
-	oneDayBlocks = 86400 / 3        // Blocks generated in one day on average, used when status transforms from Frozen to Prepare
-	twoDayBlocks = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
+	oneHourBlocks = 86400 / 3 / 24   // Blocks generated in one hour on average, used when status transforms from Frozen to Prepare
+	oneDayBlocks  = 86400 / 3        // Blocks generated in one day on average
+	twoDayBlocks  = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
 )
 
 // mOperation define some functions on miner operation
@@ -232,8 +233,8 @@ func (op *minerAbortOp) Operation() error {
 		return fmt.Errorf("already in prepare status")
 	}
 	// Frozen miner must wait for 1day after frozen
-	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneDayBlocks {
-		return fmt.Errorf("frozen miner can't abort less than 1days since frozen")
+	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneHourBlocks {
+		return fmt.Errorf("frozen miner can't abort less than 1 hour since frozen")
 	}
 	// Remove from pool if active
 	if miner.IsActive() {
