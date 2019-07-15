@@ -709,14 +709,13 @@ func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *byte
 
 	msgType := MessageType(binary.BigEndian.Uint32(headerBytes[:PacketTypeSize]))
 	msgLen := binary.BigEndian.Uint32(headerBytes[PacketTypeSize:PacketHeadSize])
-	packetSize := int(msgLen + PacketHeadSize)
+	sizeUint64 := uint64(msgLen) + PacketHeadSize //to avoid uint32 overflow
 
 	Logger.Debugf("[decodePacket] session:%vpacketSize: %vmsgType:%v, msgLen:%v, bufSize:%v buffer address:%p ",
-		p.sessionID, packetSize, msgType, msgLen, header.Len(), header)
+		p.sessionID, sizeUint64, msgType, msgLen, header.Len(), header)
 
 	const MaxPacketSize = 16 * 1024 * 1024
-
-	if packetSize > MaxPacketSize || packetSize <= 0 {
+	if sizeUint64 > MaxPacketSize || sizeUint64 <= 0 {
 		Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
 		p.resetData()
 		return MessageType_MessageNone, 0, nil, nil, errBadPacket
@@ -724,6 +723,7 @@ func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *byte
 
 	msgBuffer := header
 
+	packetSize := int(sizeUint64)
 	if msgBuffer.Cap() < packetSize {
 		msgBuffer = nc.bufferPool.getBuffer(packetSize)
 		msgBuffer.Write(headerBytes)
