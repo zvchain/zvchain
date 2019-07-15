@@ -91,7 +91,10 @@ func setup() {
 	if err != nil {
 		panic("init fail " + err.Error())
 	}
-	db := BlockChainImpl.LatestStateDB()
+	db,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		panic("init fail " + err.Error())
+	}
 	db.SetBalance(src, new(big.Int).SetUint64(ctx.originBalance))
 	db.SetBalance(target, new(big.Int).SetUint64(ctx.originBalance))
 	accountDB = db

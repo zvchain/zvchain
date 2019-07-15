@@ -260,7 +260,10 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
-	accoundDb := core.BlockChainImpl.LatestStateDB()
+	accoundDb,err := core.BlockChainImpl.LatestStateDB()
+	if err != nil{
+		return failResult("Get status failed")
+	}
 	if accoundDb == nil {
 		return nil, nil
 	}

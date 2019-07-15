@@ -77,11 +77,21 @@ func setRewardData(db vm.AccountDBTS, key, value []byte) {
 }
 
 func (rm *RewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
-	return getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHashByte) != nil
+	accountDB,error := BlockChainImpl.LatestStateDB()
+	if error !=  nil{
+		common.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+		return false
+	}
+	return getRewardData(accountDB.AsAccountDBTS(), blockHashByte) != nil
 }
 
 func (rm *RewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
-	transactionHash := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHash)
+	accountDB,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		common.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+		return nil
+	}
+	transactionHash := getRewardData(accountDB.AsAccountDBTS(), blockHash)
 	if transactionHash == nil {
 		return nil
 	}
