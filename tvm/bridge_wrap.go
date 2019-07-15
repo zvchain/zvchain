@@ -182,12 +182,15 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = fmt.Sprintf("checkABI failed. abi:%s", abi.FuncName)
 		return result
 	}
-	result = controller.VM.executeABIKindEval(abi)
+	finalResult := controller.VM.executeABIKindEval(abi)
+	if finalResult.ResultType == C.RETURN_TYPE_EXCEPTION {
+		return finalResult
+	}
+	result = controller.VM.storeData()
 	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
 		return result
 	}
-	result = controller.VM.storeData()
-	return result
+	return finalResult
 }
 
 func bridgeInit() {

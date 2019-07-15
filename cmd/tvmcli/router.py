@@ -6,9 +6,9 @@ class Router(object):
 
     @register.public(str, str, str, str)
     def call_contract(self, addr, func_name, value):
-        self.name = 'tt'
+        self.name = 'router1'
         event.emit(addr=addr)
         if func_name == "set_name":
-            return Contract(addr).set_name(value)
+            print("py print", Contract(addr).set_name(value))
         else:
-            return Contract(addr).private_set_name(value)
+            print("py print", Contract(addr).private_set_name(value))
