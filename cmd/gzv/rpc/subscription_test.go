@@ -228,7 +228,7 @@ func waitForMessages(t *testing.T, in *json.Decoder, successes chan<- jsonSucces
 // TestSubscriptionMultipleNamespaces ensures that subscriptions can exists
 // for multiple different namespaces.
 func TestSubscriptionMultipleNamespaces(t *testing.T) {
-	common.InitConf("tas.ini")
+	common.InitConf("zv.ini")
 	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
 	var (
 		namespaces             = []string{"eth", "shh", "bzz"}

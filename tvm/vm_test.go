@@ -29,7 +29,7 @@ import account
 class Token(object):
     def __init__(self):
         self.name = 'Tas Token'
-        self.symbol = "TAS"
+        self.symbol = "ZVC"
         self.decimal = 3
 
         self.totalSupply = 100000

@@ -4,7 +4,7 @@ import os
 import re
 import subprocess
 
-ignore_paths = ['.*/deploy', '.*/lib', '.*/tvm/py', '.*/tvm/ctvm', '.*/cmd/gtas/fronted*']
+ignore_paths = ['.*/deploy', '.*/lib', '.*/tvm/py', '.*/tvm/ctvm', '.*/cmd/gzv/fronted*']
 
 
 def get_dirs(root):
