@@ -98,7 +98,7 @@ func newCastBlockContexts(chain types.BlockChain) *castBlockContexts {
 
 func heightVctxEvitCallback(k, v interface{}) {
 	ctx := v.(*VerifyContext)
-	stdLogger.Debugf("evitVctx: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
+	stdLogger.Debugf("evitVctx: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.getSignedMaxWeight(), ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
 }
 
 func (bctx *castBlockContexts) removeReservedVctx(height uint64) {
@@ -241,7 +241,7 @@ func (bctx *castBlockContexts) cleanVerifyContext(height uint64) {
 			ctx.Clear()
 			bctx.removeReservedVctx(ctx.castHeight)
 			bctx.heightVctxs.Remove(h)
-			stdLogger.Debugf("cleanVerifyContext: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
+			stdLogger.Debugf("cleanVerifyContext: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.getSignedMaxWeight(), ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
 		}
 	}
 }

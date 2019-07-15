@@ -198,8 +198,13 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	routine.ctx.cands = selectedCandidates
+	routine.ctx.selected = routine.ctx.cands.has(routine.currID)
 	logger.Debugf("selected candidates size %v, at seed %v-%v is %v", routine.ctx.cands.size(), era.seedHeight, era.Seed(), mems)
 	return nil
+}
+
+func (routine *createRoutine) selected() bool {
+	return routine.ctx.selected
 }
 
 func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHeader) (bool, error) {
@@ -218,7 +223,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 		return false, nil
 	}
 	// Was selected
-	if !routine.ctx.cands.has(routine.currID) {
+	if !routine.selected() {
 		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
 	}
 
@@ -252,7 +257,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	pkt := packet.(*encryptedSharePiecePacket)
 	logger.Debugf("send encrypted share piece: %v %v %v %v", pkt.sender, pkt.seed, pkt.pubkey0.GetHexString(), common.ToHex(pkt.Pieces()))
 	for i, p := range pkt.pieces {
-		logger.Debugf("receiver %v %v is %v", i, routine.ctx.cands[i], p.GetHexString())
+		logger.Debugf("receiver %v %v is %v", i, routine.ctx.cands[i].ID, p.GetHexString())
 
 	}
 
@@ -276,7 +281,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	cands := routine.ctx.cands
 
 	// Was selected
-	if !cands.has(routine.currID) {
+	if !routine.selected() {
 		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
 	}
 
@@ -332,7 +337,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	}
 	routine.ctx.sentMpkPacket = packet
 
-	logger.Debugf("send mpk: %v %v %v %v msk:", packet.sender, packet.seed, packet.mPk.GetHexString(), msk.GetHexString(), packet.sign.GetHexString())
+	logger.Debugf("send mpk: %v %v %v %v msk: %v", packet.sender, packet.seed, packet.mPk.GetHexString(), msk.GetHexString(), packet.sign.GetHexString())
 
 	return true, nil
 }
@@ -352,7 +357,7 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 		return false, nil
 	}
 	// Was selected
-	if !routine.ctx.cands.has(routine.currID) {
+	if !routine.selected() {
 		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()

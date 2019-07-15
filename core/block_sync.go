@@ -162,6 +162,7 @@ func (bs *blockSyncer) getCandidate() (string, *types.CandidateBlockHeader) {
 	}
 	ok := bs.checkBlockHeaderAndAddBlack(currentCandidateId, maxWeightBlock.BH)
 	if !ok {
+		bs.logger.Warnf("add black %v for %v %v", currentCandidateId, maxWeightBlock.BH.Height, maxWeightBlock.BH.Hash)
 		return bs.getCandidate()
 	}
 	return currentCandidateId, maxWeightBlock
@@ -185,12 +186,11 @@ func (bs *blockSyncer) checkBlockHeaderAndAddBlack(candidateID string, bh *types
 	return true
 }
 
-func (bs *blockSyncer)addBlack(candidateID string){
+func (bs *blockSyncer) addBlack(candidateID string) {
 	delete(bs.candidatePool, candidateID)
 	peerManagerImpl.addEvilCount(candidateID)
 	bs.logger.Debugf("getBestCandidate verify blockHeader error!we will add it to evil,peer is %v", candidateID)
 }
-
 
 func (bs *blockSyncer) getCandidateById(candidateID string) (string, *types.CandidateBlockHeader) {
 	if candidateID == "" {
@@ -214,6 +214,7 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	return nil
 }
 func (bs *blockSyncer) trySyncRoutine() bool {
+	bs.candidatePoolDump()
 	return bs.syncFrom("")
 }
 
@@ -315,7 +316,7 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	if top.Height == 0 {
 		return false
 	}
-	bs.logger.Debugf("Send local %d,%v to neighbor!", top.TotalQN, top.Hash.Hex())
+	bs.logger.Debugf("Send local %d-%v, %v to neighbor!", top.TotalQN, top.Height, top.Hash.Hex())
 	body, e := marshalTopBlockInfo(top)
 	if e != nil {
 		bs.logger.Errorf("marshal blockInfo error:%s", e.Error())
@@ -340,6 +341,8 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
 
 	source := bnm.Source()
 	peerManagerImpl.heardFromPeer(source)
+
+	bs.logger.Debugf("recv block notify from %v, header %v %v", bnm.Source(), blockHeader.Height, blockHeader.Hash)
 
 	bs.addCandidatePool(source, blockHeader)
 }
@@ -406,7 +409,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 			if ret == types.AddBlockSucc || ret == types.BlockExisted {
 				return true
 			}
-			if ret == types.AddBlockConsensusFailed && !hasAddBlack{
+			if ret == types.AddBlockConsensusFailed && !hasAddBlack {
 				hasAddBlack = true
 				bs.addBlack(m.Source())
 			}
@@ -481,7 +484,7 @@ func marshalBlockMsgResponse(bmr *blockResponseMessage) ([]byte, error) {
 func (bs *blockSyncer) candidatePoolDump() {
 	bs.logger.Debugf("Candidate Pool Dump:")
 	for id, topBlockInfo := range bs.candidatePool {
-		bs.logger.Debugf("Candidate id:%s,totalQn:%d, pv:%v, height:%d,topHash:%s", id, topBlockInfo.BH.TotalQN, topBlockInfo.BW.PV, topBlockInfo.BH.Height, topBlockInfo.BH.Hash.Hex())
+		bs.logger.Debugf("Candidate id:%s,totalQn:%d, height:%d,topHash:%s, evil:%v", id, topBlockInfo.BH.TotalQN, topBlockInfo.BH.Height, topBlockInfo.BH.Hash.Hex(), peerManagerImpl.isEvil(id))
 	}
 }
 
