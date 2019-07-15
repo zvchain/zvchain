@@ -281,14 +281,16 @@ builtins.register = Register()
 
 }
 
-func (t *TvmCli) QueryData(address string, key string, count int) {
+func (t *TvmCli) QueryData(address string, key string, count int) map[string]string {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 
 	hexAddr := common.HexToAddress(address)
+	result := make(map[string]string)
 	if count == 0 {
 		value := state.GetData(hexAddr, []byte(key))
 		if value != nil {
+			result[key] = string(value)
 			fmt.Println("key:", key, "value:", string(value))
 		}
 	} else {
@@ -300,6 +302,7 @@ func (t *TvmCli) QueryData(address string, key string, count int) {
 					continue
 				}
 				v := string(iter.Value[:])
+				result[k] = v
 				fmt.Println("key:", k, "value:", v)
 				count--
 				if count <= 0 {
@@ -308,4 +311,5 @@ func (t *TvmCli) QueryData(address string, key string, count int) {
 			}
 		}
 	}
+	return result
 }
