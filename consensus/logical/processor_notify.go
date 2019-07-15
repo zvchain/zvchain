@@ -28,11 +28,12 @@ func (p *Processor) chLoop() {
 	for {
 		select {
 		case bh := <-p.castVerifyCh:
-			p.verifyCachedMsg(bh.Hash)
-		case bh := <-p.futureVerifyCh:
-			p.triggerFutureVerifyMsg(bh)
-		case bh := <-p.futureRewardCh:
-			p.triggerFutureRewardSign(bh)
+			go p.verifyCachedMsg(bh.Hash)
+		case bh := <-p.blockAddCh:
+			go p.checkSelfCastRoutine()
+			go p.triggerFutureVerifyMsg(bh)
+			go p.triggerFutureRewardSign(bh)
+			p.blockContexts.removeProposed(bh.Hash)
 		}
 	}
 }
@@ -99,15 +100,11 @@ func (p *Processor) onBlockAddSuccess(message notify.Message) {
 	}
 
 	traceLog := monitor.NewPerformTraceLogger("onBlockAddSuccess", bh.Hash, bh.Height)
-	// start to check next proposal routine immediately
-	go p.checkSelfCastRoutine()
 
 	traceLog.Log("block onchain cost %v", p.ts.Now().Local().Sub(bh.CurTime.Local()).String())
 
-	p.futureVerifyCh <- bh
-	p.futureRewardCh <- bh
+	p.blockAddCh <- bh
 
-	p.blockContexts.removeProposed(bh.Hash)
 }
 
 // onGroupAddSuccess handles the event of verifyGroup add-on-chain

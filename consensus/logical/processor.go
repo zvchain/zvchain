@@ -67,9 +67,8 @@ type Processor struct {
 
 	isCasting int32 // Proposal check status: 0 idle, 1 casting
 
-	castVerifyCh   chan *types.BlockHeader
-	futureVerifyCh chan *types.BlockHeader
-	futureRewardCh chan *types.BlockHeader
+	castVerifyCh chan *types.BlockHeader
+	blockAddCh   chan *types.BlockHeader
 
 	groupReader *groupReader
 
@@ -96,8 +95,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.mi = &mi
 
 	p.castVerifyCh = make(chan *types.BlockHeader, 5)
-	p.futureVerifyCh = make(chan *types.BlockHeader, 5)
-	p.futureRewardCh = make(chan *types.BlockHeader, 5)
+	p.blockAddCh = make(chan *types.BlockHeader, 5)
 
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()

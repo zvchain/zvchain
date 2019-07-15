@@ -52,6 +52,7 @@ type createContext struct {
 	sentOriginPiecePacket    types.OriginSharePiecePacket
 	gInfo                    types.GroupI
 	cands                    candidates
+	selected                 bool
 }
 
 type candidates []*model.MinerDO
@@ -146,6 +147,7 @@ func (checker *createChecker) CheckEncryptedPiecePacket(packet types.EncryptedSh
 	if checker.storeReader.HasSentEncryptedPiecePacket(packet.Sender(), era) {
 		return fmt.Errorf("has sent encrypted pieces")
 	}
+	logger.Debugf("receive encrypted share piece from %v at %v", common.ShortHex(common.ToHex(packet.Sender())), era.Seed())
 	return nil
 }
 
@@ -196,6 +198,7 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 	if !checker.storeReader.HasSentEncryptedPiecePacket(packet.Sender(), era) {
 		return fmt.Errorf("didn't send encrypted piece")
 	}
+	logger.Debugf("receive mpk from %v at %v", common.ShortHex(common.ToHex(packet.Sender())), era.Seed())
 
 	return nil
 }
@@ -338,7 +341,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 		gpk := *aggrGroupPubKey(piecePkt)
 		logger.Debugf("check create result, gpk:%v", gpk.GetHexString())
 		gSign := aggrGroupSign(mpkPkt)
-		logger.Debugf("check create result, gSing:%v", gSign.GetHexString())
+		logger.Debugf("check create result, gSign:%v", gSign.GetHexString())
 
 		// Aggregate sign fail, somebody must cheat!
 		if !groupsig.VerifySig(gpk, era.Seed().Bytes(), *gSign) {
@@ -402,6 +405,8 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 	if checker.storeReader.HasSentOriginPiecePacket(id, era) {
 		return fmt.Errorf("has sent origin pieces")
 	}
+	logger.Debugf("receive origin share piece from %v at %v", common.ShortHex(common.ToHex(packet.Sender())), era.Seed())
+
 	return nil
 }
 
