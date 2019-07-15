@@ -167,7 +167,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	}
 
 	abi := ABI{}
-	abiJSON := fmt.Sprintf(`{"FuncName": "%s", "Args": ["%s"]}`, funcName, params)
+	abiJSON := fmt.Sprintf(`{"FuncName": "%s", "Args": %s}`, funcName, params)
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
