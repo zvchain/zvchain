@@ -124,6 +124,17 @@ func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
 	tvmCli.DeleteTvmCli()
 }
 
+func TestTvmCli_Call_ContractCallContract_4(t *testing.T) {
+	receiverContract := _deployContract("Receiver", "receiver.py")
+	routerContract := _deployContract("Router", "router.py")
+
+	abiJSON := fmt.Sprintf(`{
+  "FuncName": "call_contract2",
+  "Args": ["%s",3]
+}`, receiverContract)
+	_callContract(routerContract, abiJSON)
+}
+
 func getState(cli *TvmCli) *account.AccountDB {
 	stateHash := cli.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), cli.database)
@@ -262,7 +273,7 @@ func TestTvmCli_ExecTime(t *testing.T) {
 	t.Log(time.Since(start).Seconds())
 }
 
-func TestTvmCli_TestABI(t *testing.T)  {
+func TestTvmCli_TestABI(t *testing.T) {
 	contractAddress := _deployContract("TestABI", "testabi.py")
 	abiJSON := `{
 	"FuncName": "exec1",
@@ -271,7 +282,7 @@ func TestTvmCli_TestABI(t *testing.T)  {
 	_callContract(contractAddress, abiJSON)
 }
 
-func TestTvmCli_TestABI2(t *testing.T)  {
+func TestTvmCli_TestABI2(t *testing.T) {
 	contractAddress := _deployContract("TestABI", "testabi2.py")
 	abiJSON := `{
 	"FuncName": "testint",
@@ -297,7 +308,7 @@ func TestTvmCli_TestABI2(t *testing.T)  {
 	tvmCli.DeleteTvmCli()
 }
 
-func TestTvmCli_TestBigInt(t *testing.T)  {
+func TestTvmCli_TestBigInt(t *testing.T) {
 	contractAddress := _deployContract("TestBigInt", "testbigint.py")
 	abiJSON := `{
 	"FuncName": "save",
@@ -325,4 +336,3 @@ func TestTvmCli_TestBigInt(t *testing.T)  {
 	}
 	tvmCli.DeleteTvmCli()
 }
-
