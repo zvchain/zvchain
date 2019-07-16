@@ -351,7 +351,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 			needFreezeMpk = append(needFreezeMpk, groupsig.DeserializeID(pkt.Sender()))
 		}
 	}
-	if !checker.shouldFreeze(era.encPieceRange, len(needFreezeMpk), len(piecePkt)) {
+	if !checker.shouldFreeze(era.mpkRange, len(needFreezeMpk), len(piecePkt)) {
 		needFreezeMpk = make([]groupsig.ID, 0)
 	}
 
