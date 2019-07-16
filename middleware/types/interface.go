@@ -102,6 +102,10 @@ type BlockChain interface {
 
 	// ResetTop reset the current top block with parameter bh
 	ResetTop(bh *BlockHeader)
+
+	// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
+	// will be included
+	CountBlocksInRange(startHeight uint64, endHeight uint64) uint64
 }
 
 type RewardManager interface {

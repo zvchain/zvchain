@@ -291,3 +291,11 @@ func (chain *FullBlockChain) BatchGetBlocksAfterHeight(height uint64, limit int)
 	defer chain.rwLock.RUnlock()
 	return chain.batchGetBlocksAfterHeight(height, limit)
 }
+
+// CountBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
+// will be included
+func (chain *FullBlockChain) CountBlocksInRange(startHeight uint64, endHeight uint64) uint64 {
+	chain.rwLock.RLock()
+	defer chain.rwLock.RUnlock()
+	return chain.countBlocksInRange(startHeight, endHeight)
+}

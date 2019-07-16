@@ -407,6 +407,31 @@ func (chain *FullBlockChain) batchGetBlocksAfterHeight(h uint64, limit int) []*t
 	return blocks
 }
 
+// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
+// will be included
+func (chain *FullBlockChain) countBlocksInRange(startHeight uint64, endHeight uint64) uint64 {
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(startHeight)) {
+		return 0
+	}
+
+	var cnt uint64 = 0
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height > endHeight {
+			break
+		}
+
+		if !iter.Next() {
+			break
+		}
+		cnt++
+	}
+	return cnt
+}
+
 func (chain *FullBlockChain) queryBlockHeaderByHeight(height uint64) *types.BlockHeader {
 	hash := chain.queryBlockHash(height)
 	if hash != nil {

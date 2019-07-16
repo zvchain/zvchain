@@ -27,6 +27,9 @@ import (
 	"sync"
 )
 
+const noFreezeDropRate = 0.5		//will not freeze miner if block drop rate bigger than value in this round
+
+
 type createChecker struct {
 	chain       types.BlockChain
 	ctx         *createContext
@@ -224,6 +227,15 @@ func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
 	return false, nil
 }
 
+func (checker *createChecker) calculateDropRate(startHeight uint64, endHeight uint64) float64 {
+	if endHeight < startHeight {
+		return 0
+	}
+	realCount := checker.chain.CountBlocksInRange(startHeight,endHeight)
+	rate := float64(realCount) / float64(endHeight -startHeight +1 )
+	return 1 - rate
+}
+
 func (checker *createChecker) shouldCreateGroup() bool {
 	return checker.ctx != nil && checker.ctx.cands.size() > 0
 }
@@ -295,9 +307,11 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 
 	needFreeze := make([]groupsig.ID, 0)
 	// Find those who didn't send encrypted share piece
-	for _, mem := range cands {
-		if ok, _ := findSender(piecePkt, mem.ID.Serialize()); !ok {
-			needFreeze = append(needFreeze, mem.ID)
+	if checker.calculateDropRate(era.encPieceRange.begin,era.encPieceRange.end) < noFreezeDropRate {
+		for _, mem := range cands {
+			if ok, _ := findSender(piecePkt, mem.ID.Serialize()); !ok {
+				needFreeze = append(needFreeze, mem.ID)
+			}
 		}
 	}
 	result = &createResult{seed: era.Seed()}
@@ -316,12 +330,13 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	}
 
 	// Find those who sent the encrypted pieces and didn't send mpk
-	for _, pkt := range piecePkt {
-		if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
-			needFreeze = append(needFreeze, groupsig.DeserializeID(pkt.Sender()))
+	if checker.calculateDropRate(era.mpkRange.begin,era.mpkRange.end) < noFreezeDropRate {
+		for _, pkt := range piecePkt {
+			if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
+				needFreeze = append(needFreeze, groupsig.DeserializeID(pkt.Sender()))
+			}
 		}
 	}
-
 	// All of those who didn't send share piece and those who sent this but not mpk will be frozen
 	result.frozenMiners = needFreeze
 
