@@ -18,17 +18,18 @@ package group
 import (
 	"bytes"
 	"fmt"
+	"math"
+	"reflect"
+	"sync"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
-	"math"
-	"reflect"
-	"sync"
 )
 
-const noFreezeDropRate = 0.5		//will not freeze miner if block drop rate bigger than value in this round
-
+const noFreezeMissingRate = 0.5 //will not freeze miner if piece/mpk missing rate bigger than value in this round
+const noFreezeDropRate = 0.5    //will not freeze miner if block drop rate bigger than value in this round
 
 type createChecker struct {
 	chain       types.BlockChain
@@ -227,12 +228,23 @@ func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
 	return false, nil
 }
 
-func (checker *createChecker) calculateDropRate(startHeight uint64, endHeight uint64) float64 {
+func (checker *createChecker) shouldFreeze(rang *rRange, missingNum int, requiredNum int) bool {
+	if float32(missingNum)/float32(requiredNum) > noFreezeMissingRate {
+		return false
+	}
+	dropRate := checker.calculateDropRate(rang.begin, rang.end)
+	if dropRate > noFreezeDropRate {
+		return false
+	}
+	return true
+}
+
+func (checker *createChecker) calculateDropRate(startHeight uint64, endHeight uint64) float32 {
 	if endHeight < startHeight {
 		return 0
 	}
-	realCount := checker.chain.CountBlocksInRange(startHeight,endHeight)
-	rate := float64(realCount) / float64(endHeight -startHeight +1 )
+	realCount := checker.chain.CountBlocksInRange(startHeight, endHeight)
+	rate := float32(realCount) / float32(endHeight-startHeight+1)
 	return 1 - rate
 }
 
@@ -305,20 +317,23 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 		return result
 	}
 
-	needFreeze := make([]groupsig.ID, 0)
+	needFreezePiece := make([]groupsig.ID, 0)
+
 	// Find those who didn't send encrypted share piece
-	if checker.calculateDropRate(era.encPieceRange.begin,era.encPieceRange.end) < noFreezeDropRate {
-		for _, mem := range cands {
-			if ok, _ := findSender(piecePkt, mem.ID.Serialize()); !ok {
-				needFreeze = append(needFreeze, mem.ID)
-			}
+	for _, mem := range cands {
+		if ok, _ := findSender(piecePkt, mem.ID.Serialize()); !ok {
+			needFreezePiece = append(needFreezePiece, mem.ID)
 		}
+	}
+
+	if !checker.shouldFreeze(era.encPieceRange, len(needFreezePiece), cands.size()) {
+		needFreezePiece = make([]groupsig.ID, 0)
 	}
 	result = &createResult{seed: era.Seed()}
 
 	// If not enough share piece, then freeze those who didn't send share piece only
 	if !pieceEnough(len(piecePkt), cands.size()) {
-		result.frozenMiners = needFreeze
+		result.frozenMiners = needFreezePiece
 		result.err = fmt.Errorf("receives not enough share piece:%v, candsize:%v", len(piecePkt), cands.size())
 		result.code = types.CreateResultFail
 		return result
@@ -330,15 +345,18 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	}
 
 	// Find those who sent the encrypted pieces and didn't send mpk
-	if checker.calculateDropRate(era.mpkRange.begin,era.mpkRange.end) < noFreezeDropRate {
-		for _, pkt := range piecePkt {
-			if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
-				needFreeze = append(needFreeze, groupsig.DeserializeID(pkt.Sender()))
-			}
+	needFreezeMpk := make([]groupsig.ID, 0)
+	for _, pkt := range piecePkt {
+		if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
+			needFreezeMpk = append(needFreezeMpk, groupsig.DeserializeID(pkt.Sender()))
 		}
 	}
+	if !checker.shouldFreeze(era.encPieceRange, len(needFreezeMpk), len(piecePkt)) {
+		needFreezeMpk = make([]groupsig.ID, 0)
+	}
+
 	// All of those who didn't send share piece and those who sent this but not mpk will be frozen
-	result.frozenMiners = needFreeze
+	result.frozenMiners = append(needFreezePiece, needFreezeMpk...)
 
 	// Not enough mpk
 	if len(mpkPkt) < cands.threshold() {
