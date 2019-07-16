@@ -74,3 +74,12 @@ func TestFts_Distribution(t *testing.T) {
 		t.Log(mem.ID.GetHexString(), float64(mem.Stake)/float64(totalStake), float64(selected)/float64(testCount))
 	}
 }
+
+func BenchmarkFts(b *testing.B) {
+	cands := genRandomMiners(10000)
+	for i := 0; i < b.N; i++ {
+		rand := common.FromHex("0x1237")
+		selector := newCandidateSelector(cands, rand)
+		selector.fts(100)
+	}
+}

@@ -19,7 +19,6 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c
-	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20170921033129-f5072df9c550
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/minio/sha256-simd v0.1.0
 	github.com/peterh/liner v1.1.0
