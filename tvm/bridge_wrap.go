@@ -128,6 +128,12 @@ type ExecuteResult struct {
 // CallContract Execute the function of a contract which python code store in contractAddr
 func CallContract(contractAddr string, funcName string, params string) *ExecuteResult {
 	result := &ExecuteResult{}
+	if !common.ValidateAddress(contractAddr) {
+		result.ResultType = C.RETURN_TYPE_EXCEPTION
+		result.ErrorCode = types.TVMNoCodeError
+		result.Content = fmt.Sprintf("invalid address %s!", contractAddr)
+		return result
+	}
 	conAddr := common.HexToAddress(contractAddr)
 	contract := LoadContract(conAddr)
 	if contract.Code == "" {

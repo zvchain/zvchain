@@ -34,6 +34,10 @@ var logger = taslog.GetLoggerByIndex(taslog.TvmConfig, strconv.FormatInt(int64(c
 
 //export Transfer
 func Transfer(toAddressStr *C.char, value *C.char) bool {
+	minerAddrString := C.GoString(toAddressStr)
+	if !common.ValidateAddress(minerAddrString) {
+		return false
+	}
 	transValue, ok := big.NewInt(0).SetString(C.GoString(value), 10)
 	if !ok {
 		return false
@@ -142,7 +146,8 @@ func executeMinerOperation(msg vm.MinerOperationMessage) bool {
 
 //export MinerStake
 func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
-	if _type != int(types.MinerTypeProposal) && _type != int(types.MinerTypeVerify) {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
 		return false
 	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
@@ -157,7 +162,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 		logger.Errorf("encode payload error:%v", err)
 		return false
 	}
-	target := common.HexToAddress(C.GoString(minerAddr))
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,
@@ -172,7 +177,8 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 
 //export MinerCancelStake
 func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
-	if _type != int(types.MinerTypeProposal) && _type != int(types.MinerTypeVerify) {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
 		return false
 	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
@@ -180,7 +186,7 @@ func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 		return false
 	}
 	payload := []byte{byte(_type)}
-	target := common.HexToAddress(C.GoString(minerAddr))
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,
@@ -194,8 +200,12 @@ func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 
 //export MinerRefundStake
 func MinerRefundStake(minerAddr *C.char, _type int) bool {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
+		return false
+	}
 	payload := []byte{byte(_type)}
-	target := common.HexToAddress(C.GoString(minerAddr))
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,
