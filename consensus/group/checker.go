@@ -28,7 +28,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-const noFreezeMissingRate = 0.5 //will not freeze miner if piece/mpk missing rate bigger than value in this round
+const doFreezeMissingRate = 0.5 //will do freeze directly if piece/mpk missing rate less than value in this round
 const noFreezeDropRate = 0.5    //will not freeze miner if block drop rate bigger than value in this round
 
 type createChecker struct {
@@ -229,8 +229,8 @@ func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
 }
 
 func (checker *createChecker) shouldFreeze(rang *rRange, missingNum int, requiredNum int) bool {
-	if float32(missingNum)/float32(requiredNum) > noFreezeMissingRate {
-		return false
+	if float32(missingNum)/float32(requiredNum) < doFreezeMissingRate {
+		return true
 	}
 	dropRate := checker.calculateDropRate(rang.begin, rang.end)
 	if dropRate > noFreezeDropRate {
@@ -320,15 +320,14 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 	needFreezePiece := make([]groupsig.ID, 0)
 
 	// Find those who didn't send encrypted share piece
-	for _, mem := range cands {
-		if ok, _ := findSender(piecePkt, mem.ID.Serialize()); !ok {
-			needFreezePiece = append(needFreezePiece, mem.ID)
+	if checker.shouldFreeze(era.encPieceRange, len(piecePkt), cands.size()) {
+		for _, mem := range cands {
+			if ok, _ := findSender(piecePkt, mem.ID.Serialize()); !ok {
+				needFreezePiece = append(needFreezePiece, mem.ID)
+			}
 		}
 	}
 
-	if !checker.shouldFreeze(era.encPieceRange, len(needFreezePiece), cands.size()) {
-		needFreezePiece = make([]groupsig.ID, 0)
-	}
 	result = &createResult{seed: era.Seed()}
 
 	// If not enough share piece, then freeze those who didn't send share piece only
@@ -346,13 +345,12 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 
 	// Find those who sent the encrypted pieces and didn't send mpk
 	needFreezeMpk := make([]groupsig.ID, 0)
-	for _, pkt := range piecePkt {
-		if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
-			needFreezeMpk = append(needFreezeMpk, groupsig.DeserializeID(pkt.Sender()))
+	if checker.shouldFreeze(era.mpkRange, len(mpkPkt), len(piecePkt)) {
+		for _, pkt := range piecePkt {
+			if ok, _ := findSender(mpkPkt, pkt.Sender()); !ok {
+				needFreezeMpk = append(needFreezeMpk, groupsig.DeserializeID(pkt.Sender()))
+			}
 		}
-	}
-	if !checker.shouldFreeze(era.mpkRange, len(needFreezeMpk), len(piecePkt)) {
-		needFreezeMpk = make([]groupsig.ID, 0)
 	}
 
 	// All of those who didn't send share piece and those who sent this but not mpk will be frozen
