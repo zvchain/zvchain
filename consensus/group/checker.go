@@ -28,8 +28,8 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-const doFreezeMissingRate = 0.5 //will do freeze directly if piece/mpk missing rate less than value in this round
-const noFreezeDropRate = 0.5    //will not freeze miner if block drop rate bigger than value in this round
+const doFreezeReceivedRate = 0.5 //will do freeze directly if piece/mpk received rate bigger than value in this round
+const noFreezeDropRate = 0.5     //will not freeze miner if block drop rate bigger than value in this round
 
 type createChecker struct {
 	chain       types.BlockChain
@@ -228,8 +228,8 @@ func findSender(senderArray interface{}, sender []byte) (bool, types.SenderI) {
 	return false, nil
 }
 
-func (checker *createChecker) shouldFreeze(rang *rRange, missingNum int, requiredNum int) bool {
-	if float32(missingNum)/float32(requiredNum) < doFreezeMissingRate {
+func (checker *createChecker) shouldFreeze(rang *rRange, receivedNum int, requiredNum int) bool {
+	if float32(receivedNum)/float32(requiredNum) > doFreezeReceivedRate {
 		return true
 	}
 	dropRate := checker.calculateDropRate(rang.begin, rang.end)
