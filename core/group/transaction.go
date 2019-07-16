@@ -59,7 +59,7 @@ func (p *PacketSender) SendEncryptedPiecePacket(packet types.EncryptedSharePiece
 		return
 	}
 	// print the message to console
-	printToConsole(fmt.Sprintf("auto send bad group piece, hash = %v \n", tx.Hash.Hex()))
+	printToConsole(fmt.Sprintf("auto send group piece, hash = %v \n", tx.Hash.Hex()))
 	return nil
 }
 
