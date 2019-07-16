@@ -687,67 +687,10 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 
 func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *bytes.Buffer, error) {
 
-	header := p.popData()
-	if header == nil {
-		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
-	}
+	msgType, packetSize, packetBuffer, data, err := p.decodePacket()
 
-	for header.Len() < PacketHeadSize && !p.isEmpty() {
-		b := p.popData()
-		if b != nil && b.Len() > 0 {
-			header.Write(b.Bytes())
-			netCore.bufferPool.freeBuffer(b)
-		}
-	}
-
-	headerBytes := header.Bytes()
-
-	if len(headerBytes) < PacketHeadSize {
-		p.addRecvDataToHead(header)
-		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
-	}
-
-	msgType := MessageType(binary.BigEndian.Uint32(headerBytes[:PacketTypeSize]))
-	msgLen := binary.BigEndian.Uint32(headerBytes[PacketTypeSize:PacketHeadSize])
-	packetSize := int(msgLen + PacketHeadSize)
-
-	Logger.Debugf("[decodePacket] session:%vpacketSize: %vmsgType:%v, msgLen:%v, bufSize:%v buffer address:%p ",
-		p.sessionID, packetSize, msgType, msgLen, header.Len(), header)
-
-	const MaxPacketSize = 16 * 1024 * 1024
-
-	if packetSize > MaxPacketSize || packetSize <= 0 {
-		Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
-		p.resetData()
-		return MessageType_MessageNone, 0, nil, nil, errBadPacket
-	}
-
-	msgBuffer := header
-
-	if msgBuffer.Cap() < packetSize {
-		msgBuffer = nc.bufferPool.getBuffer(packetSize)
-		msgBuffer.Write(headerBytes)
-
-	}
-	for msgBuffer.Len() < packetSize && !p.isEmpty() {
-		b := p.popData()
-		if b != nil && b.Len() > 0 {
-			msgBuffer.Write(b.Bytes())
-			netCore.bufferPool.freeBuffer(b)
-		}
-	}
-	msgBytes := msgBuffer.Bytes()
-	if len(msgBytes) < packetSize {
-		p.addRecvDataToHead(msgBuffer)
-		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
-	}
-
-	data := msgBytes[PacketHeadSize : PacketHeadSize+msgLen]
-
-	if msgBuffer.Len() > packetSize {
-		buf := nc.bufferPool.getBuffer(len(msgBytes) - packetSize)
-		buf.Write(msgBytes[packetSize:])
-		p.addRecvDataToHead(buf)
+	if err != nil {
+		return msgType, packetSize, nil, packetBuffer, err
 	}
 
 	var req proto.Message
@@ -767,16 +710,16 @@ func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *byte
 	case MessageType_MessageRelayNode:
 		req = new(MsgRelay)
 	default:
-		return msgType, packetSize, nil, msgBuffer, fmt.Errorf("unknown type: %d", msgType)
+		return msgType, packetSize, nil, packetBuffer, fmt.Errorf("unknown type: %d", msgType)
 	}
 
-	err := proto.Unmarshal(data, req)
+	err = proto.Unmarshal(data, req)
 
 	if msgType != MessageType_MessageData {
 		nc.flowMeter.recv(P2PMessageCodeBase+int64(msgType), int64(packetSize))
 	}
 
-	return msgType, packetSize, req, msgBuffer, err
+	return msgType, packetSize, req, packetBuffer, err
 }
 
 func (nc *NetCore) handlePing(req *MsgPing, p *Peer) error {

@@ -18,6 +18,7 @@ package network
 import (
 	"bytes"
 	"container/list"
+	"encoding/binary"
 	"math"
 	"net"
 	"sync"
@@ -153,6 +154,81 @@ func (p *Peer) popData() *bytes.Buffer {
 	p.recvList.Remove(p.recvList.Front())
 
 	return buf
+}
+
+func (p *Peer) decodePacket() (MessageType, int, *bytes.Buffer, []byte, error) {
+	header := p.popData()
+	if header == nil {
+		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
+	}
+
+	for header.Len() < PacketHeadSize && !p.isEmpty() {
+		b := p.popData()
+		if b != nil && b.Len() > 0 {
+			header.Write(b.Bytes())
+			netCore.bufferPool.freeBuffer(b)
+		}
+	}
+
+	headerBytes := header.Bytes()
+
+	if len(headerBytes) < PacketHeadSize {
+		p.addRecvDataToHead(header)
+		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
+	}
+
+	msgType := MessageType(binary.BigEndian.Uint32(headerBytes[:PacketTypeSize]))
+	msgLen := binary.BigEndian.Uint32(headerBytes[PacketTypeSize:PacketHeadSize])
+
+	const MaxMsgLen = 16 * 1024 * 1024
+
+	if msgLen > MaxMsgLen || msgLen <= 0 {
+		Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
+		p.resetData()
+		return MessageType_MessageNone, 0, nil, nil, errBadPacket
+	}
+
+	packetSize := int(msgLen + PacketHeadSize)
+
+	//packetSize := int(msgLen + PacketHeadSize)
+	//
+	//if packetSize > MaxMsgLen || packetSize <= 0 {
+	//	Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
+	//	p.resetData()
+	//	return MessageType_MessageNone, 0, nil, nil,errBadPacket
+	//}
+
+	Logger.Debugf("[decodePacket] session:%vpacketSize: %vmsgType:%v, msgLen:%v, bufSize:%v buffer address:%p ",
+		p.sessionID, packetSize, msgType, msgLen, header.Len(), header)
+
+	msgBuffer := header
+
+	if msgBuffer.Cap() < packetSize {
+		msgBuffer = netCore.bufferPool.getBuffer(packetSize)
+		msgBuffer.Write(headerBytes)
+
+	}
+	for msgBuffer.Len() < packetSize && !p.isEmpty() {
+		b := p.popData()
+		if b != nil && b.Len() > 0 {
+			msgBuffer.Write(b.Bytes())
+			netCore.bufferPool.freeBuffer(b)
+		}
+	}
+	msgBytes := msgBuffer.Bytes()
+	if len(msgBytes) < packetSize {
+		p.addRecvDataToHead(msgBuffer)
+		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
+	}
+
+	if msgBuffer.Len() > packetSize {
+		buf := netCore.bufferPool.getBuffer(len(msgBytes) - packetSize)
+		buf.Write(msgBytes[packetSize:])
+		p.addRecvDataToHead(buf)
+	}
+
+	data := msgBytes[PacketHeadSize:packetSize]
+	return msgType, packetSize, msgBuffer, data, nil
 }
 
 func (p *Peer) onSendWaited() {
