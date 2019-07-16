@@ -114,7 +114,10 @@ func sourceRecover(tx *types.Transaction) error {
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
 func stateValidate(tx *types.Transaction) error {
-	accountDB := BlockChainImpl.LatestStateDB()
+	accountDB,err := BlockChainImpl.LatestStateDB()
+	if err != nil{
+		return fmt.Errorf("fail get last state db,error = %v",err.Error())
+	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance := accountDB.GetBalance(*tx.Source)
 	src := tx.Source.Hex()

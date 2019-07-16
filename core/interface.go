@@ -45,7 +45,7 @@ type BlockChain interface {
 	TotalQN() uint64
 
 	// LatestStateDB returns chain's last account database
-	LatestStateDB() *account.AccountDB
+	LatestStateDB() (*account.AccountDB,error)
 
 	// QueryBlockByHash query the block by hash
 	QueryBlockByHash(hash common.Hash) *types.Block

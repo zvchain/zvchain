@@ -86,12 +86,17 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
 	src := pk.GetAddress()
 	balance := uint64(100000000)
-	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(balance))
+
+	stateDB ,err := BlockChainImpl.LatestStateDB()
+	if err != nil{
+		t.Fatalf("get status error!")
+	}
+	stateDB.AddBalance(src, new(big.Int).SetUint64(balance))
 	if err != nil {
 		t.Fatalf("error")
 	}
 
-	balance2 := BlockChainImpl.LatestStateDB().GetBalance(src).Uint64()
+	balance2 := stateDB.GetBalance(src).Uint64()
 	if balance2 != balance {
 		t.Fatalf("set balance fail")
 	}
@@ -161,7 +166,12 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	sign = common.BytesToSign(transaction.Sign)
 	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
 	src = pk.GetAddress()
-	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111222))
+
+	stateDB,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		t.Fatalf("status failed")
+	}
+	stateDB.AddBalance(src, new(big.Int).SetUint64(111111111222))
 	_, err = txpool.AddTransaction(transaction)
 	if err != nil {
 		t.Fatalf("fail to AddTransaction")

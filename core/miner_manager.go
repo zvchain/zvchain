@@ -83,7 +83,12 @@ func (mm *MinerManager) ExecuteOperation(accountDB vm.AccountDB, msg vm.MinerOpe
 
 // GetMiner return the latest miner info stored in db of the given address and the miner type
 func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
-	miner, err := getMiner(BlockChainImpl.LatestStateDB(), address, mType)
+	accontDB,err := BlockChainImpl.LatestStateDB()
+	if err != nil {
+		Logger.Errorf("get accontDB failed,error = %v",err.Error())
+		return nil
+	}
+	miner, err := getMiner(accontDB, address, mType)
 	if err != nil {
 		Logger.Errorf("get miner by id error:%v", err)
 		return nil
@@ -147,7 +152,11 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 }
 
 func (mm *MinerManager) getStakeDetail(address, source common.Address, status types.StakeStatus, mType types.MinerType) *types.StakeDetail {
-	db := BlockChainImpl.LatestStateDB()
+	db,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		Logger.Errorf("get accountdb failed,error = %v",error.Error())
+		return  nil
+	}
 	key := getDetailKey(source, mType, status)
 	detail, err := getDetail(db, address, key)
 	if err != nil {
@@ -191,8 +200,13 @@ func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Ad
 
 // GetAllStakeDetails returns all stake details of the given account
 func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]*types.StakeDetail {
-	iter := BlockChainImpl.LatestStateDB().DataIterator(address, prefixDetail)
 	ret := make(map[string][]*types.StakeDetail)
+	accontDB,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		Logger.Errorf("get accountdb failed,err = %v",error.Error())
+		return ret
+	}
+	iter := accontDB.DataIterator(address, prefixDetail)
 	if iter == nil{
 		return nil
 	}
@@ -228,11 +242,14 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 }
 
 func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
-	accountDB := BlockChainImpl.LatestStateDB()
-
+	mp := make(map[string]struct{})
+	accountDB,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		Logger.Errorf("get accountdb failed,error = %v",error.Error())
+		return mp
+	}
 	prefix := prefixPoolProposal
 	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
-	mp := make(map[string]struct{})
 	for iter != nil && iter.Next() {
 		if !bytes.HasPrefix(iter.Key, prefix) {
 			break

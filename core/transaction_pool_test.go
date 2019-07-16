@@ -38,7 +38,12 @@ func TestCreatePool(t *testing.T) {
 	sign := common.BytesToSign(transaction.Sign)
 	pk, err := sign.RecoverPubkey(transaction.Hash.Bytes())
 	src := pk.GetAddress()
-	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111222))
+
+	accountDB,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		t.Fatalf("fail get account db")
+	}
+	accountDB.AddBalance(src, new(big.Int).SetUint64(111111111222))
 
 	_, err = pool.AddTransaction(transaction)
 	if err != nil {
@@ -85,7 +90,12 @@ func TestContainer(t *testing.T) {
 		t.Fatalf("error")
 	}
 	src := pk.GetAddress()
-	BlockChainImpl.LatestStateDB().AddBalance(src, new(big.Int).SetUint64(111111111111111111))
+
+	accountDB,err:=BlockChainImpl.LatestStateDB()
+	if err != nil{
+		t.Fatalf("get status failed")
+	}
+	accountDB.AddBalance(src, new(big.Int).SetUint64(111111111111111111))
 
 	_, err = pool.AddTransaction(transaction1)
 	if err != nil {
