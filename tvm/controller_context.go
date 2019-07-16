@@ -18,7 +18,7 @@ package tvm
 var controller *Controller // vm controller
 
 // MaxDepth max depth of running stack
-const MaxDepth int = 8
+const MaxDepth int = 5
 
 // StoreVMContext Store VM Context
 func (con *Controller) StoreVMContext(newTvm *TVM) bool {

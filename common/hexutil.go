@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"regexp"
 	"strconv"
 )
 
@@ -230,4 +231,10 @@ func ShortHex12(hex string) string {
 		return hex
 	}
 	return hex[0:6] + "-" + hex[s-6:]
+}
+
+var addrReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
+
+func ValidateAddress(addr string) bool {
+	return addrReg.MatchString(addr)
 }
