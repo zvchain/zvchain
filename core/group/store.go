@@ -154,7 +154,11 @@ func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
 
 // GetGroupBySeed returns group with given Seed
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	return s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
+	gp := s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
+	if gp == nil{
+		return nil
+	}
+	return gp
 }
 
 // GetGroupBySeed returns group header with given Seed
