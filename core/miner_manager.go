@@ -83,9 +83,10 @@ func (mm *MinerManager) ExecuteOperation(accountDB vm.AccountDB, msg vm.MinerOpe
 
 // GetMiner return the latest miner info stored in db of the given address and the miner type
 func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
-	accontDB,error := BlockChainImpl.LatestStateDB()
-	if error != nil {
-		Logger.Errorf("get accontDB failed,error = %v",error.Error())
+	accontDB,err := BlockChainImpl.LatestStateDB()
+	if err != nil {
+		Logger.Errorf("get accontDB failed,error = %v",err.Error())
+		return nil
 	}
 	miner, err := getMiner(accontDB, address, mType)
 	if err != nil {
