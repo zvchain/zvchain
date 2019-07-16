@@ -458,11 +458,11 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		return
 	}
 
-	sh := seedHeight(ctx.Height())
-	if sh != era.seedHeight {
-		err = fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
-		return
-	}
+	//sh := seedHeight(ctx.Height())
+	//if sh != era.seedHeight {
+	//	err = fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
+	//	return
+	//}
 	if !routine.shouldCreateGroup() {
 		err = fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
 		return

@@ -483,6 +483,8 @@ func marshalBlockMsgResponse(bmr *blockResponseMessage) ([]byte, error) {
 
 func (bs *blockSyncer) candidatePoolDump() {
 	bs.logger.Debugf("Candidate Pool Dump:")
+	bs.lock.RLock()
+	defer bs.lock.RUnlock()
 	for id, topBlockInfo := range bs.candidatePool {
 		bs.logger.Debugf("Candidate id:%s,totalQn:%d, height:%d,topHash:%s, evil:%v", id, topBlockInfo.BH.TotalQN, topBlockInfo.BH.Height, topBlockInfo.BH.Hash.Hex(), peerManagerImpl.isEvil(id))
 	}
