@@ -126,12 +126,20 @@ func (m *Manager) GetAvailableGroupSeeds(height uint64) []types.SeedI {
 
 // GetGroupBySeed returns the group info of the given Seed
 func (m *Manager) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	return m.storeReaderImpl.GetGroupBySeed(seedHash)
+	g := m.storeReaderImpl.GetGroupBySeed(seedHash)
+	if g == nil {
+		return nil
+	}
+	return g
 }
 
 // GetGroupHeaderBySeed returns the group header info of the given Seed
 func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
-	return m.storeReaderImpl.GetGroupHeaderBySeed(seedHash)
+	gh := m.storeReaderImpl.GetGroupHeaderBySeed(seedHash)
+	if gh == nil {
+		return nil
+	}
+	return gh
 }
 
 func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
