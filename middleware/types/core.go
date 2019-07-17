@@ -74,6 +74,11 @@ const (
 	TransactionTypeStakeReduce = 6
 	TransactionTypeStakeRefund = 7
 
+	// Group operation related type
+	TransactionTypeGroupPiece       = 9  //group member upload his encrypted share piece
+	TransactionTypeGroupMpk         = 10 //group member upload his mpk
+	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
+
 	TransactionTypeToBeRemoved = -1
 )
 
@@ -89,10 +94,9 @@ type Transaction struct {
 	GasPrice *BigInt     `msgpack:"gp"`
 	Hash     common.Hash `msgpack:"h"`
 
-	ExtraData     []byte          `msgpack:"ed"`
-	ExtraDataType int8            `msgpack:"et,omitempty"`
-	Sign          []byte          `msgpack:"si"`  // The Sign of the sender
-	Source        *common.Address `msgpack:"src"` // Sender address, recovered from sign
+	ExtraData []byte          `msgpack:"ed"`
+	Sign      []byte          `msgpack:"si"`  // The Sign of the sender
+	Source    *common.Address `msgpack:"src"` // Sender address, recovered from sign
 }
 
 func (tx *Transaction) GetNonce() uint64 {
@@ -127,7 +131,6 @@ func (tx *Transaction) GenHash() common.Hash {
 	if tx.ExtraData != nil {
 		buffer.Write(tx.ExtraData)
 	}
-	buffer.WriteByte(byte(tx.ExtraDataType))
 
 	return common.BytesToHash(common.Sha256(buffer.Bytes()))
 }
@@ -210,7 +213,7 @@ type Reward struct {
 	TxHash     common.Hash
 	TargetIds  []int32
 	BlockHash  common.Hash
-	GroupID    []byte
+	Group      common.Hash
 	Sign       []byte
 	TotalValue uint64
 	PackFee    uint64
@@ -226,7 +229,7 @@ type BlockHeader struct {
 	TotalQN     uint64         // QN of the entire chain
 	CurTime     time.TimeStamp // Current block time
 	Castor      []byte         // Proposer ID
-	GroupID     []byte         // Verify group ID，binary representation of groupsig.ID
+	Group       common.Hash    // Verify group hash，hash of the seed block
 	Signature   []byte         // Group signature from consensus
 	Nonce       int32          // Salt
 	TxTree      common.Hash    // Transaction Merkel root hash
@@ -255,7 +258,7 @@ func (bh *BlockHeader) GenHash() common.Hash {
 
 	buf.Write(bh.Castor)
 
-	buf.Write(bh.GroupID)
+	buf.Write(bh.Group.Bytes())
 
 	buf.Write(common.Int32ToByte(bh.Nonce))
 
@@ -293,78 +296,6 @@ func (b *Block) GetTransactionHashs() []common.Hash {
 		hashs = append(hashs, tx.Hash)
 	}
 	return hashs
-}
-
-// Member is used for one member of groups
-type Member struct {
-	ID     []byte
-	PubKey []byte
-}
-
-// GroupHeader is the group header info
-type GroupHeader struct {
-	Hash          common.Hash // Group header hash
-	Parent        []byte      // Parent group ID, which create the current group
-	PreGroup      []byte      // Previous group ID on group chain
-	Authority     uint64      // The authority given by the parent group
-	Name          string      // The name given by the parent group
-	BeginTime     time.TimeStamp
-	MemberRoot    common.Hash // Group members list root hash
-	CreateHeight  uint64      // Height of the group created
-	ReadyHeight   uint64      // Latest height of ready
-	WorkHeight    uint64      // Height of work
-	DismissHeight uint64      // Height of dismiss
-	Extends       string      // Extend data
-}
-
-func (gh *GroupHeader) GenHash() common.Hash {
-	buf := bytes.Buffer{}
-	buf.Write(gh.Parent)
-	buf.Write(gh.PreGroup)
-	buf.Write(common.Uint64ToByte(gh.Authority))
-	buf.WriteString(gh.Name)
-
-	buf.Write(gh.MemberRoot.Bytes())
-	buf.Write(common.Uint64ToByte(gh.CreateHeight))
-	buf.Write(common.Uint64ToByte(gh.ReadyHeight))
-	buf.Write(common.Uint64ToByte(gh.WorkHeight))
-	buf.Write(common.Uint64ToByte(gh.DismissHeight))
-	buf.WriteString(gh.Extends)
-	return common.BytesToHash(common.Sha256(buf.Bytes()))
-}
-
-// DismissedAt checks if the group dismissed at the given height
-func (gh *GroupHeader) DismissedAt(h uint64) bool {
-	return gh.DismissHeight <= h
-}
-
-// WorkAt checks if the group can working at the given height
-func (gh *GroupHeader) WorkAt(h uint64) bool {
-	return !gh.DismissedAt(h) && gh.WorkHeight <= h
-}
-
-// Group is the whole group info
-type Group struct {
-	Header      *GroupHeader
-	ID          []byte
-	PubKey      []byte
-	Signature   []byte
-	Members     [][]byte // Member id list
-	GroupHeight uint64
-}
-
-func (g *Group) MemberExist(id []byte) bool {
-	for _, mem := range g.Members {
-		if bytes.Equal(mem, id) {
-			return true
-		}
-	}
-	return false
-}
-
-type StateNode struct {
-	Key   []byte
-	Value []byte
 }
 
 // BlockWeight denotes the weight of one block
@@ -414,6 +345,6 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 	}
 }
 
-func (bw *BlockWeight) String() string {
-	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.PV.Uint64())
+func (bw BlockWeight) String() string {
+	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
 }

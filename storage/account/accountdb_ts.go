@@ -17,8 +17,8 @@ package account
 
 import (
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/trie"
-	"github.com/zvchain/zvchain/storage/vm"
 )
 
 func (adb *AccountDB) GetDataSafe(address common.Address, key []byte) []byte {
@@ -45,6 +45,6 @@ func (adb *AccountDB) DataIteratorSafe(address common.Address, prefix []byte) *t
 	return adb.DataIterator(address, prefix)
 }
 
-func (adb *AccountDB) AsAccountDBTS() vm.AccountDBTS {
+func (adb *AccountDB) AsAccountDBTS() types.AccountDBTS {
 	return adb
 }

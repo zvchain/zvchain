@@ -24,6 +24,23 @@ import (
 	"strings"
 )
 
+type groupInfoReader interface {
+	// GetAvailableGroupSeeds gets available groups' seed at the given height
+	GetAvailableGroupSeeds(height uint64) []types.SeedI
+	// GetGroupBySeed returns the group info of the given seed
+	GetGroupBySeed(seedHash common.Hash) types.GroupI
+	// GetGroupHeaderBySeed returns the group header info of the given seed
+	GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI
+	Height() uint64
+
+	GroupsAfter(height uint64) []types.GroupI
+	ActiveGroupCount() int
+}
+
+func getGroupReader() groupInfoReader {
+	return &core.GroupManagerImpl
+}
+
 // RpcGtasImpl provides rpc service for users to interact with remote nodes
 type RpcGtasImpl struct {
 }
@@ -102,7 +119,7 @@ func (api *RpcGtasImpl) BlockHeight() (*Result, error) {
 
 // GroupHeight query group height
 func (api *RpcGtasImpl) GroupHeight() (*Result, error) {
-	height := core.GroupChainImpl.Height()
+	height := core.GroupManagerImpl.Height()
 	return successResult(height)
 }
 
@@ -247,7 +264,7 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
 		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
-		return successResult(convertExecutedTransaction(&core.ExecutedTransaction{
+		return successResult(convertExecutedTransaction(&types.ExecutedTransaction{
 			Receipt:     rc,
 			Transaction: tx,
 		}))

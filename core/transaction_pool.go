@@ -23,7 +23,6 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/tasdb"
 )
@@ -66,26 +65,13 @@ type txPool struct {
 
 	receiptDb          *tasdb.PrefixedDatabase
 	batch              tasdb.Batch
-	chain              BlockChain
+	chain              types.BlockChain
 	gasPriceLowerBound *types.BigInt
 	lock               sync.RWMutex
 }
 
-type txPoolAddMessage struct {
-	txs   []*types.Transaction
-	txSrc txSource
-}
-
-func (m *txPoolAddMessage) GetRaw() []byte {
-	panic("implement me")
-}
-
-func (m *txPoolAddMessage) GetData() interface{} {
-	panic("implement me")
-}
-
 // newTransactionPool returns a new transaction tool object
-func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase) TransactionPool {
+func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase) types.TransactionPool {
 	pool := &txPool{
 		receiptDb:          receiptDb,
 		batch:              chain.batch,
@@ -100,40 +86,38 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 	return pool
 }
 
-func (pool *txPool) tryAddTransaction(tx *types.Transaction, from txSource) (bool, error) {
+func (pool *txPool) tryAddTransaction(tx *types.Transaction) (bool, error) {
 	if err := pool.RecoverAndValidateTx(tx); err != nil {
-		Logger.Debugf("tryAddTransaction err %v, from %v, hash %v, sign %v", err.Error(), from, tx.Hash.Hex(), tx.HexSign())
+		Logger.Debugf("tryAddTransaction err %v, hash %v, sign %v", err.Error(), tx.Hash.Hex(), tx.HexSign())
 		return false, err
 	}
 	b, err := pool.tryAdd(tx)
 	if err != nil {
-		Logger.Debugf("tryAdd tx fail: from %v, hash=%v, type=%v, err=%v", from, tx.Hash.Hex(), tx.Type, err)
+		Logger.Debugf("tryAdd tx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
 	}
 	return b, err
 }
 
 // AddTransaction try to add a transaction into the tool
 func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
-	return pool.tryAddTransaction(tx, 0)
+	return pool.tryAddTransaction(tx)
 }
 
 // AddTransaction try to add a list of transactions into the tool
-func (pool *txPool) AddTransactions(txs []*types.Transaction, from txSource) (evilCount int) {
+func (pool *txPool) AddTransactions(txs []*types.Transaction) (evilCount int) {
 	if nil == txs || 0 == len(txs) {
 		return
 	}
 
 	for _, tx := range txs {
 		// this error can be ignored
-		_, err := pool.tryAddTransaction(tx, from)
+		_, err := pool.tryAddTransaction(tx)
 		if err != nil {
 			if _, ok := evilErrorMap[err]; ok {
 				evilCount++
 			}
 		}
 	}
-	notify.BUS.Publish(notify.TxPoolAddTxs, &txPoolAddMessage{txs: txs, txSrc: from})
-
 	return evilCount
 }
 

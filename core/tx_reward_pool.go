@@ -22,12 +22,12 @@ import (
 )
 
 type rewardPool struct {
-	bm             *RewardManager
+	bm             *rewardManager
 	pool           *lru.Cache // Is an LRU cache that stores the mapping of transaction hashes to transaction pointer
 	blockHashIndex *lru.Cache // Is an LRU cache that stores the mapping of block hashes to slice of transaction pointer
 }
 
-func newRewardPool(pm *RewardManager, size int) *rewardPool {
+func newRewardPool(pm *rewardManager, size int) *rewardPool {
 	return &rewardPool{
 		pool:           common.MustNewLRUCache(size),
 		blockHashIndex: common.MustNewLRUCache(size),

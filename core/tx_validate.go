@@ -198,6 +198,16 @@ func stakeRefundValidator(tx *types.Transaction) error {
 	return nil
 }
 
+func groupValidator(tx *types.Transaction) error {
+	if len(tx.Data) == 0 {
+		return fmt.Errorf("data is empty")
+	}
+	if tx.Target != nil {
+		return fmt.Errorf("target should be nil")
+	}
+	return nil
+}
+
 func contractCreateValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
@@ -267,6 +277,8 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
+			case types.TransactionTypeGroupPiece,types.TransactionTypeGroupMpk,types.TransactionTypeGroupOriginPiece:
+				err = groupValidator(tx)
 			}
 			if err != nil {
 				return err

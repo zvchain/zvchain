@@ -406,7 +406,7 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 		return
 	}
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
-	evilCount := ts.pool.AddTransactions(txs, txSync)
+	evilCount := ts.pool.AddTransactions(txs)
 	if evilCount > txValidteErrorLimit {
 		ts.logger.Errorf("rec tx evil count over limit,count is %d", evilCount)
 		peerManagerImpl.addEvilCount(nm.Source())

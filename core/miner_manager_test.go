@@ -4,7 +4,6 @@ import (
 	json2 "encoding/json"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 	"testing"
 )
@@ -83,7 +82,7 @@ var (
 		originBalance: 3000 * common.ZVC,
 		reduceValue:   1000 * common.ZVC,
 	}
-	accountDB vm.AccountDB
+	accountDB types.AccountDB
 )
 
 func setup() {
@@ -95,8 +94,8 @@ func setup() {
 	if error != nil{
 		panic("init fail " + err.Error())
 	}
-	db.SetBalance(src, new(big.Int).SetUint64(ctx.originBalance))
-	db.SetBalance(target, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(src, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(target, new(big.Int).SetUint64(ctx.originBalance))
 	accountDB = db
 }
 

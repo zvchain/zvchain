@@ -18,15 +18,12 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"github.com/zvchain/zvchain/storage/account"
 	"sync"
 
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/storage/vm"
-
-	"github.com/zvchain/zvchain/middleware/ticker"
 )
 
 const (
@@ -60,13 +57,8 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 	go MinerManagerImpl.listenProposalUpdate()
 }
 
-// ExecuteOperation execute the miner operation
-func (mm *MinerManager) ExecuteOperation(accountDB vm.AccountDB, msg vm.MinerOperationMessage, height uint64) (success bool, err error) {
-	operation := newOperation(accountDB.(*account.AccountDB), msg, height)
-	if operation == nil {
-		err = fmt.Errorf("new operation nil")
-		return
-	}
+func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.AccountDB) (success bool, err error) {
+
 	if err = operation.Validate(); err != nil {
 		return
 	}
@@ -79,6 +71,39 @@ func (mm *MinerManager) ExecuteOperation(accountDB vm.AccountDB, msg vm.MinerOpe
 		return
 	}
 	return true, nil
+
+}
+
+// ExecuteOperation execute the miner operation
+func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.MinerOperationMessage, height uint64) (success bool, err error) {
+	operation := newOperation(accountDB, msg, height)
+	return mm.executeOperation(operation, accountDB)
+}
+
+// FreezeMiner execute the miner frozen operation
+func (mm *MinerManager) MinerFrozen(accountDB types.AccountDB, miner common.Address, height uint64) (success bool, err error) {
+	base := newBaseOperation(accountDB, nil, height)
+	base.minerType = types.MinerTypeVerify
+	operation := &minerFreezeOp{baseOperation: base, addr: miner}
+	return mm.executeOperation(operation, accountDB)
+}
+
+func (mm *MinerManager) MinerPenalty(accountDB types.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error) {
+	base := newBaseOperation(accountDB, nil, height)
+	base.minerType = types.MinerTypeVerify
+	operation := &minerPenaltyOp{
+		baseOperation: base,
+		targets:       make([]common.Address, len(penalty.PenaltyTarget())),
+		rewards:       make([]common.Address, len(penalty.RewardTarget())),
+		value:         minimumStake(),
+	}
+	for i, id := range penalty.PenaltyTarget() {
+		operation.targets[i] = common.BytesToAddress(id)
+	}
+	for i, id := range penalty.RewardTarget() {
+		operation.rewards[i] = common.BytesToAddress(id)
+	}
+	return mm.executeOperation(operation, accountDB)
 }
 
 // GetMiner return the latest miner info stored in db of the given address and the miner type
@@ -315,7 +340,7 @@ func (mm *MinerManager) updateProposalAddressRoutine() bool {
 	return true
 }
 
-func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db vm.AccountDB) {
+func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.AccountDB) {
 	pks := &types.MinerPks{
 		MType: miner.Type,
 		Pk:    miner.PublicKey,
@@ -342,7 +367,7 @@ func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db vm.AccountDB
 	db.SetNonce(addr, nonce+1)
 }
 
-func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB vm.AccountDB) {
+func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.AccountDB) {
 	for _, miner := range miners {
 		// Add as verifier
 		miner.Type = types.MinerTypeVerify

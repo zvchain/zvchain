@@ -16,7 +16,6 @@
 package logical
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -82,10 +81,10 @@ func (p *Processor) doAddOnChain(block *types.Block) (result int8) {
 	rlog := newRtLog("doAddOnChain")
 	result = int8(p.MainChain.AddBlockOnChain("", block))
 
-	rlog.log("height=%v, hash=%v, result=%v.", bh.Height, bh.Hash.ShortS(), result)
+	rlog.log("height=%v, hash=%v, result=%v.", bh.Height, bh.Hash, result)
 	castor := groupsig.DeserializeID(bh.Castor)
 	tlog := newHashTraceLog("doAddOnChain", bh.Hash, castor)
-	tlog.log("result=%v,castor=%v", result, castor.ShortS())
+	tlog.log("result=%v,castor=%v", result, castor)
 
 	if result == -1 {
 		p.removeFutureVerifyMsgs(block.Header.Hash)
@@ -107,8 +106,6 @@ func (p *Processor) getBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
 
 func (p *Processor) addFutureVerifyMsg(msg *model.ConsensusCastMessage) {
 	b := msg.BH
-	stdLogger.Debugf("future verifyMsg receive cached! h=%v, hash=%v, preHash=%v\n", b.Height, b.Hash.ShortS(), b.PreHash.ShortS())
-
 	p.futureVerifyMsgs.addMessage(b.PreHash, msg)
 }
 
@@ -128,20 +125,14 @@ func (p *Processor) removeFutureVerifyMsgs(hash common.Hash) {
 }
 
 func (p *Processor) blockPreview(bh *types.BlockHeader) string {
-	return fmt.Sprintf("hash=%v, height=%v, curTime=%v, preHash=%v, preTime=%v", bh.Hash.ShortS(), bh.Height, bh.CurTime, bh.PreHash.ShortS(), bh.CurTime.Add(-int64(bh.Elapsed)))
-}
-
-func (p *Processor) prepareForCast(sgi *StaticGroupInfo) {
-	// Establish a group network
-	p.NetServer.BuildGroupNet(sgi.GroupID.GetHexString(), sgi.GetMembers())
+	return fmt.Sprintf("hash=%v, height=%v, curTime=%v, preHash=%v, preTime=%v", bh.Hash, bh.Height, bh.CurTime, bh.PreHash, bh.CurTime.Add(-int64(bh.Elapsed)))
 }
 
 // VerifyBlock check if the block is legal, it will take the pre-block into consideration
 func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader) (ok bool, err error) {
-	tlog := newMsgTraceLog("VerifyBlock", bh.Hash.ShortS(), "")
+	tLog := newHashTraceLog("VerifyBlock", bh.Hash, groupsig.ID{})
 	defer func() {
-		tlog.log("preHash=%v, height=%v, result=%v %v", bh.PreHash.ShortS(), bh.Height, ok, err)
-		newBizLog("VerifyBlock").info("hash=%v, preHash=%v, height=%v, result=%v %v", bh.Hash.ShortS(), bh.PreHash.ShortS(), bh.Height, ok, err)
+		tLog.log("preHash=%v, height=%v, result=%v %v", bh.PreHash, bh.Height, ok, err)
 	}()
 	if bh.Hash != bh.GenHash() {
 		err = core.ErrorBlockHash
@@ -152,13 +143,18 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		return
 	}
 
-	ok2, group, err2 := p.isCastLegal(bh, preBH)
-	if !ok2 {
-		err = err2
+	err = p.isCastLegal(bh, preBH)
+	if err != nil {
 		return
 	}
 
-	gpk := group.GroupPK
+	group := p.groupReader.getGroupHeaderBySeed(bh.Group)
+	if group == nil {
+		err = fmt.Errorf("get group is nil:%v", bh.Group)
+		return
+	}
+
+	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
 	pPubkey := p.getProposerPubKeyInBlock(bh)
 	if pPubkey == nil {
 		err = core.ErrPkNotExists
@@ -171,8 +167,8 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		err = core.ErrorGroupSign
 		return
 	}
-	rsig := groupsig.DeserializeSign(bh.Random)
-	b = groupsig.VerifySig(gpk, preBH.Random, *rsig)
+	randomSig := groupsig.DeserializeSign(bh.Random)
+	b = groupsig.VerifySig(gpk, preBH.Random, *randomSig)
 	if !b {
 		err = core.ErrorRandomSign
 		return
@@ -181,61 +177,32 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 	return
 }
 
-// VerifyBlockHeader mainly check the group signature of the block
+// VerifyBlockHeader mainly check the verifyGroup signature of the block
 func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error) {
 	if bh.Hash != bh.GenHash() {
 		err = fmt.Errorf("block hash error")
 		return
 	}
 
-	gid := groupsig.DeserializeID(bh.GroupID)
-	gpk := p.getGroupPubKey(gid)
-	if gpk == nil{
+	group := p.groupReader.getGroupHeaderBySeed(bh.Group)
+	if group == nil {
 		err = core.ErrGroupNotExists
 		return
 	}
+
+	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
+
 	ppk := p.getProposerPubKeyInBlock(bh)
 	if ppk == nil {
 		err = core.ErrPkNil
 		return
 	}
-	pkArray := [2]groupsig.Pubkey{*ppk, *gpk}
+	pkArray := [2]groupsig.Pubkey{*ppk, gpk}
 	aggSign := groupsig.DeserializeSign(bh.Signature)
 	b := groupsig.VerifyAggregateSig(pkArray[:], bh.Hash.Bytes(), *aggSign)
 	if !b {
 		err = fmt.Errorf("signature verify fail")
 		return
-	}
-	ok = true
-	return
-}
-
-// VerifyGroup check whether the give group is legal
-func (p *Processor) VerifyGroup(g *types.Group) (ok bool, err error) {
-	if len(g.Signature) == 0 {
-		return false, fmt.Errorf("sign is empty")
-	}
-	mems := make([]groupsig.ID, len(g.Members))
-	for idx, mem := range g.Members {
-		mems[idx] = groupsig.DeserializeID(mem)
-	}
-	gInfo := &model.ConsensusGroupInitInfo{
-		GI: model.ConsensusGroupInitSummary{
-			Signature: *groupsig.DeserializeSign(g.Signature),
-			GHeader:   g.Header,
-		},
-		Mems: mems,
-	}
-
-	// Check head and signature
-	if _, ok, err := p.groupManager.checkGroupInfo(gInfo); ok {
-		gpk := groupsig.DeserializePubkeyBytes(g.PubKey)
-		gid := groupsig.NewIDFromPubkey(gpk).Serialize()
-		if !bytes.Equal(gid, g.ID) {
-			return false, fmt.Errorf("gid error, expect %v, receive %v", gid, g.ID)
-		}
-	} else {
-		return false, err
 	}
 	ok = true
 	return

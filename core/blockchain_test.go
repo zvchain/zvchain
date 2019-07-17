@@ -122,10 +122,10 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("fail to AddTransaction %v", err)
 	}
 	castor := new([]byte)
-	groupid := new([]byte)
+	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
 	// 铸块1
-	block := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, *groupid)
+	block := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, groupid)
 
 	fmt.Printf("block.Header.CurTime = %v \n", block.Header.CurTime)
 	time.Sleep(time.Second * 2)
@@ -180,7 +180,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	//txpool.AddTransaction(genContractTx(1, 20000000, "1", contractAddr.GetHexString(), 3, 0, []byte(`{"FuncName": "Test", "Args": [10.123, "ten", [1, 2], {"key":"value", "key2":"value2"}]}`), nil, 0))
 	fmt.Println(contractAddr.Hex())
 	// 铸块2
-	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("123"), 0, *castor, *groupid)
+	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("123"), 0, *castor, groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add empty block")
@@ -206,7 +206,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 
 	// 铸块3 空块
-	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("125"), 0, *castor, *groupid)
+	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("125"), 0, *castor, groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block3) {
 		t.Fatalf("fail to add empty block")
@@ -217,7 +217,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("add block3 failed")
 	}
 
-	block4 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("126"), 0, *castor, *groupid)
+	block4 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("126"), 0, *castor, groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block4) {
 		t.Fatalf("fail to add empty block")
@@ -228,7 +228,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("add block3 failed")
 	}
 
-	block5 := BlockChainImpl.CastBlock(5, common.Hex2Bytes("126"), 0, *castor, *groupid)
+	block5 := BlockChainImpl.CastBlock(5, common.Hex2Bytes("126"), 0, *castor, groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block5) {
 		t.Fatalf("fail to add empty block")
@@ -249,7 +249,7 @@ func TestBlockChain_CastingBlock(t *testing.T) {
 	}
 	defer clear()
 	castor := []byte{1, 2}
-	group := []byte{3, 4}
+	group := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 	block1 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("1"), 1, castor, group)
 	if nil == block1 {
 		t.Fatalf("fail to cast block1")
@@ -265,20 +265,20 @@ func TestBlockChain_GetBlockMessage(t *testing.T) {
 	}
 	defer clear()
 	castor := new([]byte)
-	groupid := new([]byte)
-	block1 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("125"), 0, *castor, *groupid)
+	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
+	block1 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("125"), 0, *castor, groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block1) {
 		t.Fatalf("fail to add empty block")
 	}
 
-	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("1256"), 0, *castor, *groupid)
+	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("1256"), 0, *castor, groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add empty block")
 	}
 
-	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("1257"), 0, *castor, *groupid)
+	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("1257"), 0, *castor, groupid)
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block3) {
 		t.Fatalf("fail to add empty block")
@@ -311,11 +311,11 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 	defer clear()
 
 	castor := new([]byte)
-	groupid := new([]byte)
+	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
 	var i uint64
 	for i = 1; i < 2000; i++ {
-		block := BlockChainImpl.CastBlock(i, common.Hex2Bytes(strconv.FormatInt(int64(i), 10)), 0, *castor, *groupid)
+		block := BlockChainImpl.CastBlock(i, common.Hex2Bytes(strconv.FormatInt(int64(i), 10)), 0, *castor, groupid)
 
 		if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
 			t.Fatalf("fail to add empty block")
@@ -366,9 +366,9 @@ func TestBlockChain_StateTree(t *testing.T) {
 	}
 
 	castor := new([]byte)
-	groupid := new([]byte)
+	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
-	block0 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, *groupid)
+	block0 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, groupid)
 	// 上链
 
 	if 0 != BlockChainImpl.AddBlockOnChain(source, block0) {
@@ -385,7 +385,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	_, _ = txpool.AddTransaction(genTestTx(123457, "1", 2, 3))
 
 	// 铸块1
-	block := BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 0, *castor, *groupid)
+	block := BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 0, *castor, groupid)
 	if nil == block {
 		t.Fatalf("fail to cast new block")
 	}
@@ -397,7 +397,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	}
 
 	// 铸块2
-	block2 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("22"), 0, *castor, *groupid)
+	block2 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("22"), 0, *castor, groupid)
 	if nil == block2 {
 		t.Fatalf("fail to cast new block")
 	}
@@ -411,7 +411,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	fmt.Printf("state: %d\n", chain.latestBlock.StateTree)
 
 	// 铸块3
-	block3 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("12"), 0, *castor, *groupid)
+	block3 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("12"), 0, *castor, groupid)
 	if nil == block3 {
 		t.Fatalf("fail to cast new block")
 	}
@@ -458,7 +458,6 @@ func clear() {
 	fmt.Println("---clear---")
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
-		GroupChainImpl.Close()
 		taslog.Close()
 		BlockChainImpl = nil
 	}
@@ -468,7 +467,8 @@ func clear() {
 		return
 	}
 	for _, d := range dir {
-		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore")) {
+		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore") ||
+			strings.HasPrefix(d.Name(), "database")) {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
@@ -498,11 +498,30 @@ func initContext4Test() error {
 		return err
 	}
 	BlockChainImpl = nil
-	GroupChainImpl = nil
-	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}))
 
+	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}), getAccount())
+	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
 	clearTicker()
 	return err
+}
+
+func getAccount() *Account4Test {
+	var ksr = new(KeyStoreRaw4Test)
+
+	ksr.Key = common.Hex2Bytes("A8cmFJACR7VqbbuKwDYu/zj/hn6hcox97ujw2TNvCYk=")
+	secKey := new(common.PrivateKey)
+	if !secKey.ImportKey(ksr.Key) {
+		fmt.Errorf("failed to import key")
+		return nil
+	}
+
+	account := &Account4Test{
+		Sk:       secKey.Hex(),
+		Pk:       secKey.GetPubKey().Hex(),
+		Address:  secKey.GetPubKey().GetAddress().Hex(),
+		Password: "Password",
+	}
+	return account
 }
 
 func NewConsensusHelper4Test(id groupsig.ID) types.ConsensusHelper {
@@ -514,7 +533,13 @@ type ConsensusHelperImpl4Test struct {
 }
 
 func (helper *ConsensusHelperImpl4Test) GenerateGenesisInfo() *types.GenesisInfo {
-	return &types.GenesisInfo{}
+	info := &types.GenesisInfo{}
+	info.Group = &group4Test{&GroupHeader4Test{}}
+	info.VrfPKs = make([][]byte, 0)
+	info.Pks = make([][]byte, 0)
+	info.VrfPKs = append(info.VrfPKs, common.FromHex("vrfPks"))
+	info.Pks = append(info.Pks, common.FromHex("Pks"))
+	return info
 }
 
 func (helper *ConsensusHelperImpl4Test) VRFProve2Value(prove []byte) *big.Int {
@@ -537,7 +562,7 @@ func (helper *ConsensusHelperImpl4Test) VerifyBlockHeader(bh *types.BlockHeader)
 	return true, nil
 }
 
-func (helper *ConsensusHelperImpl4Test) CheckGroup(g *types.Group) (ok bool, err error) {
+func (helper *ConsensusHelperImpl4Test) CheckGroup(g *types.GroupI) (ok bool, err error) {
 	return true, nil
 }
 
@@ -555,4 +580,91 @@ func (helper *ConsensusHelperImpl4Test) EstimatePreHeight(bh *types.BlockHeader)
 
 func (helper *ConsensusHelperImpl4Test) CalculateQN(bh *types.BlockHeader) uint64 {
 	return uint64(11)
+}
+
+type Account4Test struct {
+	Address  string
+	Pk       string
+	Sk       string
+	Password string
+}
+
+func (a *Account4Test) MinerSk() string {
+	return a.Sk
+}
+
+type KeyStoreRaw4Test struct {
+	Key     []byte
+	IsMiner bool
+}
+
+type group4Test struct {
+	header types.GroupHeaderI
+}
+
+func (g *group4Test) Header() types.GroupHeaderI {
+	return g.header
+}
+
+func (g *group4Test) Members() []types.MemberI {
+	members := make([]types.MemberI, 0)
+	mem := &member4Test{
+		common.FromHex("0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676"),
+		common.FromHex("0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676")}
+	members = append(members, mem)
+	return members
+}
+
+type GroupHeader4Test struct {
+}
+
+func (g *GroupHeader4Test) Seed() common.Hash {
+	return common.EmptyHash
+}
+func (g *GroupHeader4Test) WorkHeight() uint64 {
+	return uint64(1)
+}
+func (g *GroupHeader4Test) DismissHeight() uint64 {
+	return uint64(1)
+}
+func (g *GroupHeader4Test) PublicKey() []byte {
+	return make([]byte, 0)
+}
+func (g *GroupHeader4Test) Threshold() uint32 {
+	return uint32(1)
+}
+func (g *GroupHeader4Test) GroupHeight() uint64 {
+	return uint64(1)
+}
+
+type member4Test struct {
+	Id []byte
+	Pk []byte
+}
+
+func (m *member4Test) ID() []byte {
+	return m.Id
+}
+
+func (m *member4Test) PK() []byte {
+	return m.Pk
+}
+
+type GroupCreateChecker4Test struct {
+}
+
+func (g *GroupCreateChecker4Test) CheckEncryptedPiecePacket(packet types.EncryptedSharePiecePacket, ctx types.CheckerContext) error {
+	return nil
+}
+func (g *GroupCreateChecker4Test) CheckMpkPacket(packet types.MpkPacket, ctx types.CheckerContext) error {
+	return nil
+}
+func (g *GroupCreateChecker4Test) CheckGroupCreateResult(ctx types.CheckerContext) types.CreateResult {
+	return nil
+}
+func (g *GroupCreateChecker4Test) CheckOriginPiecePacket(packet types.OriginSharePiecePacket, ctx types.CheckerContext) error {
+	return nil
+}
+func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error) {
+	return nil, fmt.Errorf("do not need punishment")
 }
