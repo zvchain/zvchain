@@ -40,10 +40,10 @@ const miningPoolAddr = "0x6d880ddbcfb24180901d1ea709bb027cd86f79936d5ed23ece70bd
 const circulatesAddr = "0xebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3"    // address of circulates in pre-distribution
 const userNodeAddress = "0xe30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139"   // address of official reserved user node address
 const daemonNodeAddress = "0xae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122" // address of official reserved daemon node address
-const teamFoundationToken = 750000000 * common.TAS                                             // amount of tokens that belong to team
-const businessFoundationToken = 250000000 * common.TAS                                         // amount of tokens that belongs to business
-const miningPoolToken = 425000000 * common.TAS                                                 // amount of tokens that belongs to mining pool
-const circulatesToken = 75000000 * common.TAS                                                  // amount of tokens that belongs to circulates
+const teamFoundationToken = 750000000 * common.ZVC                                             // amount of tokens that belong to team
+const businessFoundationToken = 250000000 * common.ZVC                                         // amount of tokens that belongs to business
+const miningPoolToken = 425000000 * common.ZVC                                                 // amount of tokens that belongs to mining pool
+const circulatesToken = 75000000 * common.ZVC                                                  // amount of tokens that belongs to circulates
 
 // IsTestTransaction is used for performance testing. We will not check the nonce if a transaction is sent from
 // a testing account.

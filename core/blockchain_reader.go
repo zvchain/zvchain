@@ -71,10 +71,13 @@ func (chain *FullBlockChain) IsAdjusting() bool {
 }
 
 // LatestStateDB returns chain's last account database
-func (chain *FullBlockChain) LatestStateDB() types.AccountDB {
+func (chain *FullBlockChain) LatestStateDB()(types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
-	return chain.latestStateDB
+	lastBlockHeader := chain.QueryTopBlock()
+	preRoot := common.BytesToHash(lastBlockHeader.StateTree.Bytes())
+	state, err := account.NewAccountDB(preRoot, chain.stateCache)
+	return state,err
 }
 
 // QueryTopBlock returns the latest block header

@@ -85,7 +85,7 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 	}
 	ok := mediator.StartMiner()
 
-	fmt.Println("Syncing block and group info from tas net.Waiting...")
+	fmt.Println("Syncing block and group info from ZV net.Waiting...")
 	core.InitBlockSyncer(core.BlockChainImpl.(*core.FullBlockChain))
 
 	// Auto apply miner role when balance enough
@@ -138,9 +138,9 @@ func (gtas *Gtas) Run() {
 	ctrlC := signals()
 	quitChan := make(chan bool)
 	go gtas.exit(ctrlC, quitChan)
-	app := kingpin.New("GTAS", "A blockchain application.")
+	app := kingpin.New("gzv", "A blockchain application.")
 	app.HelpFlag.Short('h')
-	configFile := app.Flag("config", "Config file").Default("tas.ini").String()
+	configFile := app.Flag("config", "Config file").Default("zv.ini").String()
 	_ = app.Flag("metrics", "enable metrics").Bool()
 	_ = app.Flag("dashboard", "enable metrics dashboard").Bool()
 	pprofPort := app.Flag("pprof", "enable pprof").Default("23333").Uint()
@@ -149,14 +149,14 @@ func (gtas *Gtas) Run() {
 	*statisticsEnable = false
 
 	// Console
-	consoleCmd := app.Command("console", "start gtas console")
+	consoleCmd := app.Command("console", "start gzv console")
 	showRequest := consoleCmd.Flag("show", "show the request json").Short('v').Bool()
 	remoteHost := consoleCmd.Flag("host", "the node host address to connect").Short('i').String()
 	remotePort := consoleCmd.Flag("port", "the node host port to connect").Short('p').Default("8101").Int()
-	rpcPort := consoleCmd.Flag("rpcport", "gtas console will listen at the port for wallet service").Short('r').Default("0").Int()
+	rpcPort := consoleCmd.Flag("rpcport", "gzv console will listen at the port for wallet service").Short('r').Default("0").Int()
 
 	// Version
-	versionCmd := app.Command("version", "show gtas version")
+	versionCmd := app.Command("version", "show gzv version")
 
 	// Mine
 	mineCmd := app.Command("miner", "miner start")
@@ -171,9 +171,9 @@ func (gtas *Gtas) Run() {
 	passWd := mineCmd.Flag("password", "login password").Default("123").String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
-		fmt.Println("Welcome to be a tas propose miner!")
+		fmt.Println("Welcome to be a ZV propose miner!")
 	} else if *apply == "light" {
-		fmt.Println("Welcome to be a tas verify miner!")
+		fmt.Println("Welcome to be a ZV verify miner!")
 	}
 
 	// In test mode, P2P NAT is closed
@@ -194,7 +194,7 @@ func (gtas *Gtas) Run() {
 
 	switch command {
 	case versionCmd.FullCommand():
-		fmt.Println("Gtas Version:", common.GtasVersion)
+		fmt.Println("gzv Version:", common.GtasVersion)
 		os.Exit(0)
 	case consoleCmd.FullCommand():
 		err := ConsoleInit(*keystore, *remoteHost, *remotePort, *showRequest, *rpcPort)

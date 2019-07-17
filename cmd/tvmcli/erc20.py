@@ -1,6 +1,6 @@
 class Token(object):
     def __init__(self):
-        self.name = 'Tas Token'
+        self.name = 'ZVC Token'
         self.symbol = "TAS"
         self.decimal = 3
 

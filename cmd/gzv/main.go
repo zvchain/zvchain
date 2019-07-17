@@ -18,7 +18,7 @@ package main
 import (
 	"runtime/debug"
 
-	"github.com/zvchain/zvchain/cmd/gtas/cli"
+	"github.com/zvchain/zvchain/cmd/gzv/cli"
 )
 
 func main() {

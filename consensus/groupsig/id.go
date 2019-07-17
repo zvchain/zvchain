@@ -147,7 +147,7 @@ func NewIDFromInt(i int) *ID {
 	return NewIDFromBigInt(big.NewInt(int64(i)))
 }
 
-// NewIDFromAddress create ID from TAS 160-bit address (FP254 curve 256 bit or
+// NewIDFromAddress create ID from ZV 160-bit address (FP254 curve 256 bit or
 // FP382 curve 384 bit)
 //
 // Bncurve.ID and common.Address do not support two-way back and forth conversions

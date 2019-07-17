@@ -128,6 +128,12 @@ type ExecuteResult struct {
 // CallContract Execute the function of a contract which python code store in contractAddr
 func CallContract(contractAddr string, funcName string, params string) *ExecuteResult {
 	result := &ExecuteResult{}
+	if !common.ValidateAddress(contractAddr) {
+		result.ResultType = C.RETURN_TYPE_EXCEPTION
+		result.ErrorCode = types.TVMNoCodeError
+		result.Content = fmt.Sprintf("invalid address %s!", contractAddr)
+		return result
+	}
 	conAddr := common.HexToAddress(contractAddr)
 	contract := LoadContract(conAddr)
 	if contract.Code == "" {
@@ -167,7 +173,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	}
 
 	abi := ABI{}
-	abiJSON := fmt.Sprintf(`{"FuncName": "%s", "Args": ["%s"]}`, funcName, params)
+	abiJSON := fmt.Sprintf(`{"FuncName": "%s", "Args": %s}`, funcName, params)
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
@@ -182,12 +188,15 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = fmt.Sprintf("checkABI failed. abi:%s", abi.FuncName)
 		return result
 	}
-	result = controller.VM.executeABIKindEval(abi)
+	finalResult := controller.VM.executeABIKindEval(abi)
+	if finalResult.ResultType == C.RETURN_TYPE_EXCEPTION {
+		return finalResult
+	}
+	result = controller.VM.storeData()
 	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
 		return result
 	}
-	result = controller.VM.storeData()
-	return result
+	return finalResult
 }
 
 func bridgeInit() {

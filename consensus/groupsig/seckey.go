@@ -258,7 +258,7 @@ func ShareSeckey(msec []Seckey, id ID) *Seckey {
 }
 
 // ShareSeckeyByAddr generating a private key fragment for the address
-// by the master private key slice and the TAS address
+// by the master private key slice and the ZV address
 func ShareSeckeyByAddr(msec []Seckey, addr common.Address) *Seckey {
 	id := NewIDFromAddress(addr)
 	if id == nil {

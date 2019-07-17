@@ -179,7 +179,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		assetFile := ""
 		if r.URL.Path == "/" {
-			assetFile = "cmd/gtas/fronted/c.html"
+			assetFile = "cmd/gzv/fronted/c.html"
 		} else {
 			if r.URL.Path[0] == '/' {
 				assetFile = r.URL.Path[1:]

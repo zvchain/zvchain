@@ -457,9 +457,18 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		// Accumulate gas fee
 		cumulativeGas := uint64(0)
 		if ret.cumulativeGasUsed != nil {
+			cumulativeGas = ret.cumulativeGasUsed.Uint64()
+			totalGasUsed += cumulativeGas
+			if totalGasUsed > GasLimitPerBlock {
+				// Revert snapshot in case total gas used exceeds the limit and break the loop
+				// The tx just executed won't be packed into the block
+				accountDB.RevertToSnapshot(snapshot)
+				Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitPerBlock)
+				break
+			}
+
 			fee := big.NewInt(0).Mul(ret.cumulativeGasUsed, tx.GasPrice.Value())
 			gasFee += fee.Uint64()
-			cumulativeGas = ret.cumulativeGasUsed.Uint64()
 		}
 
 		// Set nonce of the source
@@ -467,14 +476,6 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 			accountDB.SetNonce(*tx.Source, tx.Nonce)
 		}
 
-		totalGasUsed += cumulativeGas
-		if totalGasUsed > GasLimitPerBlock {
-			// Revert snapshot in case total gas used exceeds the limit and break the loop
-			// The tx just executed won't be packed into the block
-			accountDB.RevertToSnapshot(snapshot)
-			Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitPerBlock)
-			break
-		}
 		// New receipt
 		idx := len(transactions)
 		transactions = append(transactions, tx)

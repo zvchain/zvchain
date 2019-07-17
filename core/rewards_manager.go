@@ -26,10 +26,10 @@ import (
 )
 
 const (
-	initialRewards     = 62 * common.TAS         // the initial rewards of one block released
+	initialRewards     = 62 * common.ZVC         // the initial rewards of one block released
 	halveRewardsPeriod = 30000000                // the period of halve block rewards
 	halveRewardsTimes  = 3                       // the times of halve block rewards
-	tokensOfMiners     = 3500000000 * common.TAS // total amount of tokens belonging to miners
+	tokensOfMiners     = 3500000000 * common.ZVC // total amount of tokens belonging to miners
 	noRewardsHeight    = 120000000
 )
 
@@ -76,19 +76,25 @@ func setRewardData(db types.AccountDBTS, key, value []byte) {
 }
 
 func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
-	return getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHashByte) != nil
+	accountDB,error := BlockChainImpl.LatestStateDB()
+	if error !=  nil{
+		common.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+		return false
+	}
+	return getRewardData(accountDB.AsAccountDBTS(), blockHashByte) != nil
 }
 func (rm *rewardManager) HasRewardedOfBlock(blockHash common.Hash, accountdb types.AccountDB) bool {
 	value := getRewardData(accountdb.AsAccountDBTS(), blockHash.Bytes())
 	return value != nil
 }
 
-func (rm *rewardManager) MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb types.AccountDB) {
-	setRewardData(accountdb.AsAccountDBTS(), blockHash.Bytes(), transactionHash.Bytes())
-}
-
-func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) *types.Transaction {
-	transactionHash := getRewardData(BlockChainImpl.LatestStateDB().AsAccountDBTS(), blockHash.Bytes())
+func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
+	accountDB,error := BlockChainImpl.LatestStateDB()
+	if error != nil{
+		common.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+		return nil
+	}
+	transactionHash := getRewardData(accountDB.AsAccountDBTS(), blockHash)
 	if transactionHash == nil {
 		return nil
 	}

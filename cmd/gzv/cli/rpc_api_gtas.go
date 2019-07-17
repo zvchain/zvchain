@@ -106,7 +106,7 @@ func (api *RpcGtasImpl) Balance(account string) (*Result, error) {
 
 	balance := common.RA2TAS(b.Uint64())
 	return &Result{
-		Message: fmt.Sprintf("The balance of account: %s is %v TAS", account, balance),
+		Message: fmt.Sprintf("The balance of account: %s is %v ZVC", account, balance),
 		Data:    balance,
 	}, nil
 }
@@ -277,7 +277,10 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
-	accoundDb := core.BlockChainImpl.LatestStateDB()
+	accoundDb,err := core.BlockChainImpl.LatestStateDB()
+	if err != nil{
+		return failResult("Get status failed")
+	}
 	if accoundDb == nil {
 		return nil, nil
 	}
