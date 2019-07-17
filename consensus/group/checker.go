@@ -505,14 +505,14 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	}
 
 	// Find those who sent mpk (and of course encrypted piece did) but not sent origin pieces.
-	missOriPieceIds := make([][]byte, 0)
+	missOriPieceIds := make([]types.SenderI, 0)
 	for _, mpk := range mpkPacket {
 		if ok, _ := findSender(originPacket, mpk.Sender()); !ok {
-			missOriPieceIds = append(missOriPieceIds, mpk.Sender())
+			missOriPieceIds = append(missOriPieceIds, mpk)
 		}
 	}
 
-	wrongPiecesIds := make([][]byte, 0)
+	wrongPiecesIds := make([]types.SenderI, 0)
 	// Find those who sent the wrong encrypted pieces
 	for _, ori := range originPacket {
 		// Must not happen
@@ -524,18 +524,18 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 				if err != nil {
 					logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
 				}
-				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
+				wrongPiecesIds = append(wrongPiecesIds, ori)
 			}
 			if evil, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); evil || err != nil {
 				if err != nil {
 					logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
 				}
-				wrongPiecesIds = append(wrongPiecesIds, ori.Sender())
+				wrongPiecesIds = append(wrongPiecesIds, ori)
 			}
 		}
 	}
 
-	wrongMpkIds := make([][]byte, 0)
+	wrongMpkIds := make([]types.SenderI, 0)
 	// If someone didn't send origin piece, then we can't decrypt the encrypted-share piece and so we can't find out those who
 	// gave the wrong mpk
 	if len(missOriPieceIds) == 0 {
@@ -552,12 +552,12 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 
 			msk, err := aggrSignSecKeyWithMyPK(piecePkt, idx, sks, cands[idx].PK)
 			if err != nil {
-				wrongMpkIds = append(wrongMpkIds, mpk.Sender())
+				wrongMpkIds = append(wrongMpkIds, mpk)
 				logger.Errorf("aggregate seckey error:%v %v", err, common.ShortHex(common.ToHex(mpk.Sender())))
 			} else {
 				pk := groupsig.NewPubkeyFromSeckey(*msk)
 				if !bytes.Equal(pk.Serialize(), mpk.Mpk()) {
-					wrongMpkIds = append(wrongMpkIds, mpk.Sender())
+					wrongMpkIds = append(wrongMpkIds, mpk)
 				}
 			}
 
@@ -565,7 +565,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	}
 
 	// Take apart the penalty targets and reward targets
-	penaltyTargets := make([][]byte, 0)
+	penaltyTargets := make([]types.SenderI, 0)
 	penaltyTargets = append(penaltyTargets, missOriPieceIds...)
 	penaltyTargets = append(penaltyTargets, wrongPiecesIds...)
 	penaltyTargets = append(penaltyTargets, wrongMpkIds...)
@@ -577,12 +577,16 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		}
 	}
 
-	pm := &punishment{penaltyTargets: penaltyTargets, rewardTargets: rewardTargets}
+	penaltyTargetBytes := make([][]byte, len(penaltyTargets))
+	for k, v := range penaltyTargets {
+		penaltyTargetBytes[k] = v.Sender()
+	}
+	pm := &punishment{penaltyTargets: penaltyTargetBytes, rewardTargets: rewardTargets}
 
 	if len(penaltyTargets) > 0 {
 		mems := make([]string, 0)
 		for _, p := range penaltyTargets {
-			mems = append(mems, common.ShortHex(common.ToHex(p)))
+			mems = append(mems, common.ShortHex(common.ToHex(p.Sender())))
 		}
 		logger.Debugf("punishment at %v penalty target:%v", ctx.Height(), mems)
 	}

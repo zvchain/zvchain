@@ -152,7 +152,7 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 	era := routine.currEra()
 	routine.stat.markStatus(era.seedHeight, createStatusIdle)
 
-	logger.Debugf("new create context: era:%v-%v %v %v %v %v", sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
+	logger.Debugf("new create context: era:%v %v-%v %v %v %v %v",  bh.Height, sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
 	err := routine.selectCandidates()
 	if err != nil {
 		logger.Debugf("select candidates:%v", err)
