@@ -46,7 +46,7 @@ type RpcGtasImpl struct {
 }
 
 func (api *RpcGtasImpl) Namespace() string {
-	return "Gtas"
+	return "Gzv"
 }
 
 func (api *RpcGtasImpl) Version() string {
