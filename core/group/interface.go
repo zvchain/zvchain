@@ -124,6 +124,7 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 	return s.pieces
 }
 
+// group implements the types.GroupI
 type group struct {
 	HeaderD  *groupHeader
 	MembersD []*member
@@ -158,12 +159,13 @@ func (m *member) PK() []byte {
 	return m.Pk
 }
 
+// groupHeader implements the types.GroupHeaderI
 type groupHeader struct {
-	SeedD          common.Hash `msgpack:"se"`
-	WorkHeightD    uint64      `msgpack:"wh"`
-	DismissHeightD uint64      `msgpack:"dh"`
-	PublicKeyD     []byte      `msgpack:"pd"`
-	ThresholdD     uint32      `msgpack:"th"`
+	SeedD          common.Hash `msgpack:"se"` // seed of current group, unique
+	WorkHeightD    uint64      `msgpack:"wh"` // the block height of group start to work
+	DismissHeightD uint64      `msgpack:"dh"` // the block height of group dismiss
+	PublicKeyD     []byte      `msgpack:"pd"` // group's public key
+	ThresholdD     uint32      `msgpack:"th"` // the threshold number to validate a block for this group
 	PreSeed        common.Hash `msgpack:"ps"` // seed of pre group
 	BlockHeight    uint64      `msgpack:"bh"` // block height when creating
 	GroupHeightD   uint64      `msgpack:"gh"` // group height

@@ -45,15 +45,14 @@ func (api *RpcDevImpl) Version() string {
 }
 
 func (api *RpcDevImpl) ProposalTotalStake(height uint64) (*Result, error) {
-	if core.MinerManagerImpl == nil{
+	if core.MinerManagerImpl == nil {
 		return failResult("status error")
 
-	}else{
+	} else {
 		totalStake := core.MinerManagerImpl.GetProposalTotalStake(height)
 		return successResult(totalStake)
 	}
 }
-
 
 // ConnectedNodes query the information of the connected node
 func (api *RpcDevImpl) ConnectedNodes() (*Result, error) {
@@ -154,7 +153,7 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 	return successResult(blockDetail)
 }
 
-func (api *RpcDevImpl) WorkGroupNum(height uint64) (*Result, error) {
+func (api *RpcDevImpl) WorkGroupNum() (*Result, error) {
 	groups := getGroupReader().ActiveGroupCount()
 	return successResult(groups)
 }
