@@ -66,7 +66,11 @@ func NewManager(chain chainReader) Manager {
 
 func (m *Manager) InitManager(minerReader minerReader, gen *types.GenesisInfo) {
 	m.minerReaderImpl = minerReader
-	err := m.poolImpl.initPool(m.chain.LatestStateDB(), gen)
+	db,err := m.chain.LatestStateDB()
+	if err != nil {
+		panic(fmt.Sprintf("failed to init group manager pool %v", err))
+	}
+	err = m.poolImpl.initPool(db, gen)
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
@@ -89,7 +93,11 @@ func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 
 // GroupCreatedInCurrentBlock returns the group data if group is created in current block
 func (m *Manager) GroupCreatedInCurrentBlock(block *types.Block) *group {
-	topGroup := m.poolImpl.getTopGroup(m.chain.LatestStateDB())
+	db, err := m.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get state db in GroupCreatedInCurrentBlock", err)
+	}
+	topGroup := m.poolImpl.getTopGroup(db)
 	if topGroup.HeaderD.BlockHeight == block.Header.Height {
 		logger.Debugf("Notify consensus as group created on %v", topGroup.HeaderD.BlockHeight)
 		logger.Debugf("Member number is  %d", len(topGroup.members))
@@ -106,7 +114,12 @@ func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
 
 // Height returns count of current group number
 func (m *Manager) Height() uint64 {
-	return m.poolImpl.count(m.chain.LatestStateDB())
+	db, err := m.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return 0
+	}
+	return m.poolImpl.count(db)
 }
 
 func (m *Manager) GroupsAfter(height uint64) []types.GroupI {

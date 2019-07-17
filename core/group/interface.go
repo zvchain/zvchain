@@ -33,7 +33,7 @@ type chainReader interface {
 	HasBlock(hash common.Hash) bool
 	HasHeight(height uint64) bool
 
-	LatestStateDB() types.AccountDB
+	LatestStateDB() (types.AccountDB, error)
 	MinerSk() string
 	AddTransactionToPool(tx *types.Transaction) (bool, error)
 	GetAccountDBByHeight(height uint64) (types.AccountDB, error)

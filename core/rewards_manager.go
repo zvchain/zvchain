@@ -88,13 +88,17 @@ func (rm *rewardManager) HasRewardedOfBlock(blockHash common.Hash, accountdb typ
 	return value != nil
 }
 
-func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash []byte) *types.Transaction {
+func (rm *rewardManager) MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb types.AccountDB) {
+	setRewardData(accountdb.AsAccountDBTS(), blockHash.Bytes(), transactionHash.Bytes())
+}
+
+func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) *types.Transaction {
 	accountDB,error := BlockChainImpl.LatestStateDB()
 	if error != nil{
 		common.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
 		return nil
 	}
-	transactionHash := getRewardData(accountDB.AsAccountDBTS(), blockHash)
+	transactionHash := getRewardData(accountDB.AsAccountDBTS(), blockHash.Bytes())
 	if transactionHash == nil {
 		return nil
 	}

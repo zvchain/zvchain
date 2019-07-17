@@ -105,7 +105,11 @@ func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
 
 func (p *pool) getActives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
-	db := chain.LatestStateDB()
+	db, err := chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db", err)
+		return nil
+	}
 
 	for current := p.getTopGroup(db); current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
 		if current.HeaderD.BlockHeight == 0 {
@@ -123,7 +127,11 @@ func (p *pool) getActives(chain chainReader, height uint64) []*group {
 
 func (p *pool) getLives(chain chainReader, height uint64) []*group {
 	rs := make([]*group, 0)
-	db := chain.LatestStateDB()
+	db, err := chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db", err)
+		return nil
+	}
 
 	for current := p.getTopGroup(db); current != nil && current.HeaderD.DismissHeightD > height; current = p.get(db, current.HeaderD.PreSeed) {
 		if current.HeaderD.BlockHeight == 0 {
@@ -142,7 +150,11 @@ func (p *pool) getLives(chain chainReader, height uint64) []*group {
 
 func (p *pool) groupsAfter(chain chainReader, height uint64, limit int) []types.GroupI {
 	rs := make([]types.GroupI, 0)
-	db := chain.LatestStateDB()
+	db, err := chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db", err)
+		return nil
+	}
 	for current := p.getTopGroup(db); current != nil; current = p.get(db, current.HeaderD.PreSeed) {
 		if current.HeaderD.GroupHeight() < height {
 			break

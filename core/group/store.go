@@ -52,7 +52,12 @@ func (s *Store) GetEncryptedPiecePackets(seed types.SeedI) ([]types.EncryptedSha
 	seedAdder := common.HashToAddress(seed.Seed())
 	rs := make([]types.EncryptedSharePiecePacket, 0, 100) //max group member number is 100
 	prefix := getKeyPrefix(dataTypePiece)
-	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return nil, err
+	}
+	iter := db.DataIterator(seedAdder, prefix)
 	if iter == nil {
 		return nil, errors.New("no pieces uploaded for this Seed")
 	}
@@ -76,21 +81,36 @@ func (s *Store) HasSentEncryptedPiecePacket(sender []byte, seed types.SeedI) boo
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypePiece, common.BytesToAddress(sender))
 	//return s.db.Exist(seedAdder, key.toByte())
-	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return false
+	}
+	return db.GetData(seedAdder, key.toByte()) != nil
 }
 
 // HasSentEncryptedPiecePacket checks if sender sent the mpk to chain
 func (s *Store) HasSentMpkPacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeMpk, common.BytesToAddress(sender))
-	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return false
+	}
+	return db.GetData(seedAdder, key.toByte()) != nil
 }
 
 // GetMpkPackets return all mpk with given Seed
 func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeMpk)
-	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return nil, err
+	}
+	iter := db.DataIterator(seedAdder, prefix)
 	mpks := make([]types.MpkPacket, 0)
 	for iter.Next() {
 		if !bytes.HasPrefix(iter.Key, prefix) {
@@ -109,14 +129,24 @@ func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 // IsOriginPieceRequired checks if group members should upload origin piece
 func (s *Store) IsOriginPieceRequired(seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
-	return s.chain.LatestStateDB().GetData(seedAdder, originPieceReqKey) != nil
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return false
+	}
+	return db.GetData(seedAdder, originPieceReqKey) != nil
 }
 
 // GetOriginPiecePackets returns all origin pieces with given Seed
 func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiecePacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeOriginPiece)
-	iter := s.chain.LatestStateDB().DataIterator(seedAdder, prefix)
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return nil, err
+	}
+	iter := db.DataIterator(seedAdder, prefix)
 	pieces := make([]types.OriginSharePiecePacket, 0, 100)
 	for iter.Next() {
 		if !bytes.HasPrefix(iter.Key, prefix) {
@@ -136,7 +166,12 @@ func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiec
 func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeOriginPiece, common.BytesToAddress(sender))
-	return s.chain.LatestStateDB().GetData(seedAdder, key.toByte()) != nil
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return false
+	}
+	return db.GetData(seedAdder, key.toByte()) != nil
 }
 
 // GetAvailableGroupSeeds returns all activeList groups at the given Height
@@ -154,7 +189,13 @@ func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
 
 // GetGroupBySeed returns group with given Seed
 func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	gp := s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return nil
+	}
+
+	gp := s.poolImpl.get(db, seedHash)
 	if gp == nil{
 		return nil
 	}
@@ -163,7 +204,12 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 
 // GetGroupBySeed returns group header with given Seed
 func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
-	g := s.poolImpl.get(s.chain.LatestStateDB(), seedHash)
+	db, err := s.chain.LatestStateDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return nil
+	}
+	g := s.poolImpl.get(db, seedHash)
 	if g == nil {
 		return nil
 	}
