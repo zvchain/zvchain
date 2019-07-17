@@ -45,6 +45,7 @@ var (
 	ErrPreNotExist     = errors.New("pre block not exist")
 	ErrLocalMoreWeight = errors.New("local more weight")
 	ErrCommitBlockFail = errors.New("commit block fail")
+	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
 
 var BlockChainImpl types.BlockChain
