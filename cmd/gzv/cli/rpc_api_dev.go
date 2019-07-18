@@ -191,8 +191,11 @@ func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
 	ret := make([]*Group, 0)
 	for _, seed := range seeds {
 		group := getGroupReader().GetGroupBySeed(seed.Seed())
-		g := convertGroup(group)
-		ret = append(ret, g)
+		if group != nil {
+			g := convertGroup(group)
+			ret = append(ret, g)
+		}
+
 	}
 	return successResult(ret)
 }
