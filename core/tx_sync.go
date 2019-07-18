@@ -365,6 +365,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 			ts.logger.Warnf("Rcv tx req,but count exceeds limit")
 			return
 		}
+		count++
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
 	txs := make([]*types.Transaction, 0)
