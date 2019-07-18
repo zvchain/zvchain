@@ -7,7 +7,7 @@
 //
 //   This program is distributed in the hope that it will be useful,
 //   but WITHOUT ANY WARRANTY; without even the implied warranty of
-//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See themarshalTopBlockInfo
 //   GNU General Public License for more details.
 //
 //   You should have received a copy of the GNU General Public License
@@ -329,7 +329,7 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 
 func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
 	bnm := notify.AsDefault(msg)
-	if peerManagerImpl.getOrAddPeer(bnm.Source()).isEvil() {
+	if peerManagerImpl.isPeerExists(bnm.Source()) && peerManagerImpl.getOrAddPeer(bnm.Source()).isEvil() {
 		bs.logger.Warnf("block sync this source is is in evil...source is is %v\n", bnm.Source())
 		return
 	}
