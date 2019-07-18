@@ -97,7 +97,9 @@ func _doLog(t string, k string, sender string, format string, params ...interfac
 	} else {
 		s = fmt.Sprintf(format, params...)
 	}
-	consensusLogger.Infof("%v,#%v#,%v,%v", t, k, sender, s)
+	if consensusLogger != nil {
+		consensusLogger.Infof("%v,#%v#,%v,%v", t, k, sender, s)
+	}
 }
 
 func (mtl *msgTraceLog) log(format string, params ...interface{}) {

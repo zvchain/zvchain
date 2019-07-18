@@ -88,7 +88,7 @@ func (p *Processor) doAddOnChain(block *types.Block) (result int8) {
 
 	if result == -1 {
 		p.removeFutureVerifyMsgs(block.Header.Hash)
-		p.futureRewardReqs.remove(block.Header.Hash)
+		p.rewardHandler.futureRewardReqs.remove(block.Header.Hash)
 	}
 
 	return result
@@ -99,7 +99,7 @@ func (p *Processor) blockOnChain(h common.Hash) bool {
 	return p.MainChain.HasBlock(h)
 }
 
-func (p *Processor) getBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
+func (p *Processor) GetBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
 	b := p.MainChain.QueryBlockHeaderByHash(hash)
 	return b
 }

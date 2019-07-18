@@ -19,7 +19,6 @@ import (
 	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -32,7 +31,7 @@ func (p *Processor) chLoop() {
 		case bh := <-p.blockAddCh:
 			go p.checkSelfCastRoutine()
 			go p.triggerFutureVerifyMsg(bh)
-			go p.triggerFutureRewardSign(bh)
+			go p.rewardHandler.TriggerFutureRewardSign(bh)
 			p.blockContexts.removeProposed(bh.Hash)
 		}
 	}
@@ -55,20 +54,6 @@ func (p *Processor) triggerFutureVerifyMsg(bh *types.BlockHeader) {
 		tLog.logEnd("result=%v %v", ok, err)
 	}
 
-}
-
-func (p *Processor) triggerFutureRewardSign(bh *types.BlockHeader) {
-	futures := p.futureRewardReqs.getMessages(bh.Hash)
-	if futures == nil || len(futures) == 0 {
-		return
-	}
-	p.futureRewardReqs.remove(bh.Hash)
-	mType := "CMCRSR-Future"
-	for _, msg := range futures {
-		tLog := newHashTraceLog(mType, bh.Hash, groupsig.ID{})
-		send, err := p.signCastRewardReq(msg.(*model.CastRewardTransSignReqMessage), bh)
-		tLog.logEnd("send %v, result %v", send, err)
-	}
 }
 
 // onBlockAddSuccess handle the event of block add-on-chain
