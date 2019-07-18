@@ -40,6 +40,7 @@ const (
 var (
 	ProposerPackageTime = MaxCastBlockTime
 	GasLimitForPackage  = uint64(GasLimitPerBlock)
+	IgnoreVmCall = false
 )
 
 var (
