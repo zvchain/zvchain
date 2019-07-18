@@ -179,6 +179,8 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 			return "normal"
 		} else if st == types.StakeFrozen {
 			return "frozen"
+		}else if st == types.StakePunishment{
+			return "punish"
 		}
 		return "unknown"
 	}
