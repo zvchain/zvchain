@@ -519,17 +519,14 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		if ok, enc := findSender(piecePkt, ori.Sender()); !ok {
 			panic(fmt.Sprintf("cannot find enc packet of %v", common.ToHex(ori.Sender())))
 		} else {
+			encPacket := enc.(types.EncryptedSharePiecePacket)
 			sharePieces := deserializeSharePieces(ori.Pieces())
-			if ok, err := groupsig.CheckSharePiecesValid(sharePieces, cands.ids(), cands.threshold()); err != nil || !ok {
-				if err != nil {
-					logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
-				}
+			if ok, err := groupsig.CheckSharePiecesValid(sharePieces, cands.ids(), cands.threshold(), groupsig.DeserializePubkeyBytes(encPacket.Pubkey0())); err != nil || !ok {
+				logger.Errorf("CheckSharePiecesValid fail:%v %v %v", ok, err, common.ShortHex(common.ToHex(ori.Sender())))
 				wrongPiecesIds = append(wrongPiecesIds, ori)
 			}
-			if evil, err := checkEvil(enc.(types.EncryptedSharePiecePacket).Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); evil || err != nil {
-				if err != nil {
-					logger.Errorf("check evil error:%v %v", err, common.ShortHex(common.ToHex(ori.Sender())))
-				}
+			if evil, err := checkEvil(encPacket.Pieces(), sharePieces, *groupsig.DeserializeSeckey(ori.EncSeckey()), cands.pubkeys()); evil || err != nil {
+				logger.Errorf("checkEvil fail:%v, %v %v", ok, err, common.ShortHex(common.ToHex(ori.Sender())))
 				wrongPiecesIds = append(wrongPiecesIds, ori)
 			}
 		}
