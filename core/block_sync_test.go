@@ -5,6 +5,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	tas_middleware_test "github.com/zvchain/zvchain/core/test"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/taslog"
 	"io/ioutil"
 	"math/big"
@@ -20,11 +21,11 @@ func init(){
 	resetDb()
 	initContext4Test()
 	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
-
 	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
 	blockSyncForTest.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, "1")
 	initPeerManager()
 	types.DefaultPVFunc = PvFuncTest
+	insertBlocks()
 }
 func TestGetBestCandidate(t *testing.T) {
 	for i := 0; i < 100; i++ {
@@ -93,7 +94,33 @@ func TestTopBlockInfoNotifyHandler(t *testing.T){
 }
 
 func TestBlockReqHandler(t *testing.T){
+	var ReqHeight uint64 = 10
+	ReqSize := 10
+	blocks := BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	if len(blocks) !=10{
+		t.Fatalf("expect 10,bug got %d",len(blocks))
+	}
 
+	ReqHeight = 0
+	ReqSize = 16
+	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	if len(blocks) !=16{
+		t.Fatalf("expect 16,bug got %d",len(blocks))
+	}
+
+	ReqHeight = 83
+	ReqSize = 16
+	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	if len(blocks) !=16{
+		t.Fatalf("expect 16,bug got %d",len(blocks))
+	}
+
+	ReqHeight = 99
+	ReqSize = 16
+	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	if len(blocks) !=16{
+		t.Fatalf("expect 16,bug got %d",len(blocks))
+	}
 }
 
 
@@ -114,16 +141,19 @@ func resetDb() error {
 	return nil
 }
 
-func insertBlocks(blocks []*types.Block){
+func insertBlocks(){
+	blocks := GenBlocks()
+	stateDB,_ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	exc := &executePostState{state: stateDB}
 	for i:=0;i<len(blocks);i++{
-
+		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i],exc)
 	}
 }
 
 func GenBlocks()[]*types.Block{
 	blocks := []*types.Block{}
 	for i:= 0;i<100;i++{
-		bh := tas_middleware_test.NewRandomFullBlockHeader(uint64(i+1))
+		bh := tas_middleware_test.NewRandomFullBlockHeader(uint64(i))
 		blocks = append(blocks,&types.Block{Header:bh})
 	}
 	return blocks
