@@ -220,6 +220,14 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 		return false, ErrLocalMoreWeight
 	}
 
+	blockSize := 0
+	for _, v := range b.Transactions {
+		blockSize +=v.Size()
+	}
+	if blockSize > txAccumulateSizeMaxPerBlock {
+		return false, ErrBlockSizeLimit
+	}
+
 	groupValidateResult, err := chain.consensusVerifyBlock(b.Header)
 	if !groupValidateResult {
 		return false, fmt.Errorf("consensus verify fail, err=%v", err.Error())

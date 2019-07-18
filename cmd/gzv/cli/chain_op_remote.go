@@ -64,7 +64,7 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 	}
 
 	param := RPCReqObj{
-		Method:  "Gtas_" + method,
+		Method:  "Gzv_" + method,
 		Params:  params[:],
 		ID:      1,
 		Jsonrpc: "2.0",
