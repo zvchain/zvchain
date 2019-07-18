@@ -12,8 +12,18 @@ import (
 	"strconv"
 	"time"
 )
-
-
+var(
+	errorHashs = []common.Hash{
+		nil,
+		common.Hash{},
+		common.BytesToHash([]byte("i am evil.")),
+		common.BigToHash(big.NewInt(11111)),
+		common.BytesToHash([]byte("&^&^%%$%#))()SDDD")),
+		common.BigToHash(big.NewInt(-11111111)),
+		common.BigToHash(big.NewInt(00000000000000)),
+		common.BytesToHash([]byte("0x999999132323222222222222222222222222222222222222222222222222222222222222222222222222")),
+	}
+)
 func NewNilHeaderMessage(source string)*notify.DefaultMessage{
 	return notify.NewDefaultMessage(nil, source, 0, 0)
 }
@@ -34,11 +44,11 @@ func GenErrorDefaultMessage(source int)*notify.DefaultMessage{
 func NewRandomFullBlockHeader(height uint64)*types.BlockHeader{
 	return &types.BlockHeader{
 		Hash:common.BigToHash(big.NewInt(int64(rand.Intn(10000)))),
-		Height: uint64(rand.Intn(10000)),
+		Height: height,
 		PreHash:common.BigToHash(big.NewInt(int64(rand.Intn(10000)))),
 		Elapsed:     int32(rand.Intn(10000)),
 		ProveValue: big.NewInt(int64(rand.Intn(10000))).Bytes(),
-		TotalQN : uint64(rand.Intn(10000)),         // QN of the entire chain
+		TotalQN : uint64(rand.Intn(10000)),
 		CurTime : time2.TimeToTimeStamp(time.Now()),
 		Castor:      big.NewInt(int64(rand.Intn(10000))).Bytes(),
 		Group  : common.BigToHash(big.NewInt(int64(rand.Intn(10000)))),
@@ -52,3 +62,8 @@ func NewRandomFullBlockHeader(height uint64)*types.BlockHeader{
 		GasFee :uint64(rand.Intn(10000)),
 	}
 }
+
+func NewNilBlockHeader()*types.BlockHeader{
+	return &types.BlockHeader{}
+}
+

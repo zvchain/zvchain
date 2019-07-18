@@ -115,12 +115,17 @@ func TestBlockReqHandler(t *testing.T){
 		t.Fatalf("expect 16,bug got %d",len(blocks))
 	}
 
+	//max height is 99
 	ReqHeight = 99
 	ReqSize = 16
 	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
-	if len(blocks) !=16{
-		t.Fatalf("expect 16,bug got %d",len(blocks))
+	if len(blocks) !=1{
+		t.Fatalf("expect 1,bug got %d",len(blocks))
 	}
+}
+
+func TestBlockResponseMsgHandler(t *testing.T){
+
 }
 
 
