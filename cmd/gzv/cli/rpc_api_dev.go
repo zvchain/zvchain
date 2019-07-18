@@ -94,7 +94,7 @@ func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, 
 
 	balance := common.RA2TAS(b.Uint64())
 	return &Result{
-		Message: fmt.Sprintf("The balance of account: %s is %v TAS", account, balance),
+		Message: fmt.Sprintf("The balance of account: %s is %v ZVC", account, balance),
 		Data:    balance,
 	}, nil
 }
