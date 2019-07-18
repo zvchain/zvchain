@@ -244,9 +244,12 @@ func (pool *txPool) packTx() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
 	accuSize := 0
 	pool.bonPool.forEach(func(tx *types.Transaction) bool {
-		txs = append(txs, tx)
 		accuSize += tx.Size()
-		return accuSize < txAccumulateSizeMaxPerBlock
+		if accuSize < txAccumulateSizeMaxPerBlock{
+			txs = append(txs, tx)
+			return true
+		}
+		return false
 	})
 
 	if accuSize < txAccumulateSizeMaxPerBlock {
@@ -255,9 +258,12 @@ func (pool *txPool) packTx() []*types.Transaction {
 			if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) < 0 {
 				return true
 			}
-			txs = append(txs, tx)
 			accuSize = accuSize + tx.Size()
-			return accuSize < txAccumulateSizeMaxPerBlock
+			if accuSize < txAccumulateSizeMaxPerBlock {
+				txs = append(txs, tx)
+				return true
+			}
+			return false
 		})
 	}
 	return txs
