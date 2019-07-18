@@ -1,12 +1,15 @@
 package tas_middleware_test
 
 import (
+	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
+	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
 	"math/rand"
 	time2 "github.com/zvchain/zvchain/middleware/time"
+	"strconv"
 	"time"
 )
 
@@ -16,15 +19,19 @@ func NewNilHeaderMessage(source string)*notify.DefaultMessage{
 }
 
 
-func GenErrorDefaultMessage(){
-	bh := NewRandomFullBlockHeader()
-	types.BlockHeaderToPb(bh)
-	types.marshalTopBlockInfo
-	return notify.DefaultMessage()
+func GenErrorDefaultMessage(source int)*notify.DefaultMessage{
+	bh := NewRandomFullBlockHeader(uint64(rand.Intn(10000)))
+	blockHeader := types.BlockHeaderToPb(bh)
+
+	blockInfo := tas_middleware_pb.TopBlockInfo{TopHeader: blockHeader}
+
+	bt,_ := proto.Marshal(&blockInfo)
+
+	return notify.NewDefaultMessage(bt,strconv.Itoa(source),uint16(rand.Intn(100)),uint16(rand.Intn(100)))
 }
 
 
-func NewRandomFullBlockHeader()*types.BlockHeader{
+func NewRandomFullBlockHeader(height uint64)*types.BlockHeader{
 	return &types.BlockHeader{
 		Hash:common.BigToHash(big.NewInt(int64(rand.Intn(10000)))),
 		Height: uint64(rand.Intn(10000)),

@@ -1,24 +1,32 @@
 package core
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	tas_middleware_test "github.com/zvchain/zvchain/core/test"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/taslog"
+	"io/ioutil"
 	"math/big"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 )
 
 var blockSyncForTest *blockSyncer
 
 func init(){
-	blockSyncForTest = newBlockSyncer(nil)
+	resetDb()
+	initContext4Test()
+	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
+
+	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
 	blockSyncForTest.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, "1")
 	initPeerManager()
+	types.DefaultPVFunc = PvFuncTest
 }
 func TestGetBestCandidate(t *testing.T) {
-	types.DefaultPVFunc = PvFuncTest
 	for i := 0; i < 100; i++ {
 		blockSync.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
 		peerManagerImpl.getOrAddPeer(strconv.Itoa(i))
@@ -69,10 +77,54 @@ func TestTopBlockInfoNotifyHandler(t *testing.T){
 		t.Fatalf("expect nil,but got data")
 	}
 
+	//add
 	for i:=0;i<100;i++{
+		msg := tas_middleware_test.GenErrorDefaultMessage(i)
+		blockSyncForTest.topBlockInfoNotifyHandler(msg)
+	}
+
+	//check
+	for i:=0;i<100;i++{
+		isPeerExists := peerManagerImpl.isPeerExists(strconv.Itoa(i))
+		if !isPeerExists{
+			t.Fatalf("expect got data,but got nil")
+		}
+	}
+}
+
+func TestBlockReqHandler(t *testing.T){
+
+}
+
+
+func resetDb() error {
+	dir, err := ioutil.ReadDir(".")
+	if err != nil {
+		return err
+	}
+	for _, d := range dir {
+		if d.IsDir() && strings.HasPrefix(d.Name(), "d_") {
+			fmt.Printf("deleting folder: %s \n", d.Name())
+			err = os.RemoveAll(d.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func insertBlocks(blocks []*types.Block){
+	for i:=0;i<len(blocks);i++{
 
 	}
 }
 
-
-
+func GenBlocks()[]*types.Block{
+	blocks := []*types.Block{}
+	for i:= 0;i<100;i++{
+		bh := tas_middleware_test.NewRandomFullBlockHeader(uint64(i+1))
+		blocks = append(blocks,&types.Block{Header:bh})
+	}
+	return blocks
+}
