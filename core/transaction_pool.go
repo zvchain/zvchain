@@ -245,7 +245,7 @@ func (pool *txPool) packTx() []*types.Transaction {
 	accuSize := 0
 	pool.bonPool.forEach(func(tx *types.Transaction) bool {
 		accuSize += tx.Size()
-		if accuSize < txAccumulateSizeMaxPerBlock{
+		if accuSize <= txAccumulateSizeMaxPerBlock{
 			txs = append(txs, tx)
 			return true
 		}
@@ -259,7 +259,7 @@ func (pool *txPool) packTx() []*types.Transaction {
 				return true
 			}
 			accuSize = accuSize + tx.Size()
-			if accuSize < txAccumulateSizeMaxPerBlock {
+			if accuSize <= txAccumulateSizeMaxPerBlock {
 				txs = append(txs, tx)
 				return true
 			}
