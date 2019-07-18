@@ -98,7 +98,7 @@ type MortGage struct {
 	Stake       uint64 `json:"stake"`
 	ApplyHeight uint64 `json:"apply_height"`
 	Type        string `json:"type"`
-	Status      string `json:"status"`
+	Status      string `json:"miner_status"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
@@ -125,7 +125,7 @@ type StakeDetail struct {
 	Value        uint64 `json:"value"`
 	UpdateHeight uint64 `json:"update_height"`
 	MType        string `json:"m_type"`
-	Status       string `json:"status"`
+	Status       string `json:"stake_status"`
 }
 
 type MinerStakeDetails struct {
