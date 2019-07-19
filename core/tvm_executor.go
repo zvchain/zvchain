@@ -40,7 +40,7 @@ const (
 var (
 	ProposerPackageTime = MaxCastBlockTime
 	GasLimitForPackage  = uint64(GasLimitPerBlock)
-	IgnoreVmCall = false
+	IgnoreVmCall        = false
 )
 
 var (
@@ -516,7 +516,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 }
 
 func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bool {
-	if transaction.Type == types.TransactionTypeReward || IsTestTransaction(transaction) {
+	if transaction.Type == types.TransactionTypeReward {
 		return true
 	}
 	nonce := accountDB.GetNonce(*transaction.Source)
