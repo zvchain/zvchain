@@ -400,7 +400,7 @@ func (sec *Seckey) Recover(secVec []Seckey, idVec []ID) error {
 
 // CheckSharePiecesValid returns true if all share pieces are valid, otherwise return false
 // Parameter:   k   threshold of BLS
-func CheckSharePiecesValid(shares []Seckey, ids []ID, k int) (bool, error) {
+func CheckSharePiecesValid(shares []Seckey, ids []ID, k int, pk0 Pubkey) (bool, error) {
 	if shares == nil || ids == nil {
 		return false, fmt.Errorf("invalid input parameters in CheckSharePiecesValid")
 	}
@@ -446,6 +446,36 @@ func CheckSharePiecesValid(shares []Seckey, ids []ID, k int) (bool, error) {
 		if result.Cmp(shares[m].GetBigInt()) != 0 {
 			return false, nil
 		}
+	}
+
+	//check pk0 valid
+	a0 := big.NewInt(0)
+	for i := 0; i < k; i++ {
+		var delta, num, den, diff = big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(0)
+
+		// Range ID
+		for j := 0; j < k; j++ {
+			if j != i {
+				num.Mul(num, xs[j])
+				num.Mod(num, curveOrder)
+
+				diff.Sub(xs[j], xs[i])
+				den.Mul(den, diff)
+				den.Mod(den, curveOrder)
+			}
+		}
+		den.ModInverse(den, curveOrder)
+		delta.Mul(num, den)
+		delta.Mod(delta, curveOrder)
+
+		delta.Mul(delta, shares[i].GetBigInt())
+		a0.Add(a0, delta)
+		a0.Mod(a0, curveOrder)
+	}
+	sk0 := NewSeckeyFromBigInt(a0)
+	pk := NewPubkeyFromSeckey(*sk0)
+	if !pk.IsEqual(pk0) {
+		return false, nil
 	}
 	return true, nil
 }
