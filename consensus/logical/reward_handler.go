@@ -39,7 +39,7 @@ func NewRewardHandler(pi ProcessorInterface) *RewardHandler {
 
 // OnMessageCastRewardSign receives signed messages for the reward transaction from verifyGroup members
 // If threshold signature received and the verifyGroup signature recovered successfully, the node will submit the reward transaction to the pool
-func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) {
+func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) error {
 	mType := "OMCRS"
 
 	tLog := newHashTraceLog(mType, msg.BlockHash, msg.SI.GetID())
@@ -60,31 +60,31 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 	bh := rh.processor.GetBlockHeaderByHash(msg.BlockHash)
 	if bh == nil {
 		err = fmt.Errorf("block not exist, hash=%v", msg.BlockHash)
-		return
+		return err
 	}
 
 	gSeed := bh.Group
 	group := rh.processor.GetGroupBySeed(gSeed)
 	if group == nil {
 		err = fmt.Errorf("verifyGroup is nil")
-		return
+		return err
 	}
 	pk := group.getMemberPubkey(msg.SI.GetID())
 	if !msg.VerifySign(pk) {
 		err = fmt.Errorf("verify sign fail, pk=%v, id=%v", pk, msg.SI.GetID())
-		return
+		return err
 	}
 
 	vctx := rh.processor.GetVctxByHeight(bh.Height)
 	if vctx == nil || vctx.prevBH.Hash != bh.PreHash {
 		err = fmt.Errorf("vctx is nil")
-		return
+		return err
 	}
 
 	slot := vctx.GetSlotByHash(bh.Hash)
 	if slot == nil {
 		err = fmt.Errorf("slot is nil")
-		return
+		return err
 	}
 
 	// Try to add the signature to the verifyGroup sign generator of the slot related to the block
@@ -95,16 +95,17 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		_, err2 := rh.processor.AddTransaction(slot.rewardTrans)
 		send = true
 		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v, ret=%v", slot.rewardTrans.Hash, err2)
-
+		return nil
 	} else {
 		err = fmt.Errorf("accept %v, recover %v, %v", accept, recover, slot.rewardGSignGen.Brief())
+		return err
 	}
 }
 
 // OnMessageCastRewardSignReq handles reward transaction signature requests
 // It signs the message if and only if the block of the transaction already added on chain,
 // otherwise the message will be cached util the condition met
-func (rh *RewardHandler) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
+func (rh *RewardHandler) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) error {
 	mType := "OMCRSR"
 	reward := &msg.Reward
 	tLog := newHashTraceLog(mType, reward.BlockHash, msg.SI.GetID())
@@ -126,11 +127,11 @@ func (rh *RewardHandler) OnMessageCastRewardSignReq(msg *model.CastRewardTransSi
 		err = fmt.Errorf("future reward request receive and cached, hash=%v", reward.BlockHash)
 		msg.ReceiveTime = time.Now()
 		rh.futureRewardReqs.addMessage(reward.BlockHash, msg)
-		return
+		return err
 	}
 
 	send, err = rh.signCastRewardReq(msg, bh)
-	return
+	return err
 }
 
 func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMessage, bh *types.BlockHeader) (send bool, err error) {

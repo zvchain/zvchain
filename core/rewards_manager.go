@@ -62,7 +62,7 @@ type rewardManager struct {
 	lock sync.RWMutex
 }
 
-func newRewardManager() *rewardManager {
+func NewRewardManager() *rewardManager {
 	manager := &rewardManager{}
 	return manager
 }

@@ -1,55 +1,192 @@
 package logical
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"gopkg.in/fatih/set.v0"
 	"testing"
 
 	"github.com/zvchain/zvchain/consensus/model"
 )
 
 type ProcessorTest struct {
+	ProcessorInterface
 
+	sk []groupsig.Seckey
+	pk []groupsig.Pubkey
+	ids []groupsig.ID
+	msk []groupsig.Seckey
+	mpk []groupsig.Pubkey
+	sigs []groupsig.Signature
+
+	blockHeader *types.BlockHeader
+	verifyGroup *verifyGroup
+	verifyContext *VerifyContext
 }
 
-func (*ProcessorTest) GetMinerID() groupsig.ID {
-	panic("implement me")
+func NewProcessorTest() *ProcessorTest {
+	pt := &ProcessorTest{}
+
+	n := 9
+	k := 5
+
+	// [1]
+	r := base.NewRand()
+	sk := make([]groupsig.Seckey, n)
+	pk := make([]groupsig.Pubkey, n)
+	ids := make([]groupsig.ID, n)
+	mpk := make([]groupsig.Pubkey, n)
+
+	for i := 0; i < n; i++ {
+		sk[i] = *groupsig.NewSeckeyFromRand(r.Deri(i))
+		pk[i] = *groupsig.NewPubkeyFromSeckey(sk[i])
+		err := ids[i].SetLittleEndian([]byte{1, 2, 3, 4, 5, byte(i)})
+		if err != nil {
+			panic("")
+		}
+	}
+
+	shares := make([][]groupsig.Seckey, n)
+	for i := 0; i < n; i++ {
+		shares[i] = make([]groupsig.Seckey, n)
+		msec := sk[i].GetMasterSecretKey(k)
+
+		for j := 0; j < n; j++ {
+			err := shares[i][j].Set(msec, &ids[j])
+			if err != nil {
+				panic("")
+			}
+		}
+	}
+
+	//for i := 0; i < n; i++ {
+	//	shares[0][i]
+	//}
+
+	msk := make([]groupsig.Seckey, n)
+	shareVec := make([]groupsig.Seckey, n)
+	for j := 0; j < n; j++ {
+		for i := 0; i < n; i++ {
+			shareVec[i] = shares[i][j]
+		}
+		msk[j] = *groupsig.AggregateSeckeys(shareVec)
+		mpk[j] = *groupsig.NewPubkeyFromSeckey(msk[j])
+	}
+
+	sigs := make([]groupsig.Signature, n)
+	for i := 0; i < n; i++ {
+		sigs[i] = groupsig.Sign(msk[i], common.BytesToHash([]byte("test")).Bytes())
+	}
+	//gpk := groupsig.AggregatePubkeys(pk)
+
+	var gsig *groupsig.Signature
+	for m := k; m <= n; m++ {
+		sigVec := make([]groupsig.Signature, m)
+		idVec := make([]groupsig.ID, m)
+
+		for i := 0; i < m; i++ {
+			sigVec[i] = sigs[i]
+			idVec[i] = ids[i]
+		}
+		gsig = groupsig.RecoverSignature(sigVec, idVec)
+	}
+
+	pt.sk = sk
+	pt.pk = pk
+	pt.ids = ids
+	pt.msk = msk
+	pt.mpk = mpk
+	pt.sigs = sigs
+
+	// [2]
+	signArray := [2]groupsig.Signature{groupsig.Sign(pt.sk[0], common.BytesToHash([]byte("test")).Bytes()), *gsig}
+	aggSign := groupsig.AggregateSigs(signArray[:])
+	pt.blockHeader = &types.BlockHeader{
+		Hash: common.BytesToHash([]byte("test")),
+		Castor: pt.ids[0].Serialize(),
+		Signature: aggSign.Serialize(),
+	}
+
+	// [3]
+	mems := make([]*member, n)
+	memIndex := make(map[string]int)
+	for i := 0; i < n; i++ {
+		mems[i] = &member{id: groupsig.DeserializeID(pt.ids[i].Serialize()), pk: groupsig.DeserializePubkeyBytes(pt.mpk[i].Serialize())}
+		memIndex[mems[i].id.GetHexString()] = i
+	}
+	pt.verifyGroup = &verifyGroup{
+		//header:   g.Header(),
+		memIndex: memIndex,
+		members:  mems,
+	}
+
+	// [4]
+	pt.verifyContext = &VerifyContext{
+		prevBH:           &types.BlockHeader{},
+		castHeight:       0,
+		group:            pt.verifyGroup,
+		expireTime:       0,
+		consensusStatus:  svWorking,
+		slots:            make(map[common.Hash]*SlotContext),
+		//ts:               time.TSInstance,
+		//createTime:       time.TSInstance.Now(),
+		proposers:        make(map[string]common.Hash),
+		signedBlockHashs: set.New(set.ThreadSafe),
+	}
+	pt.verifyContext.slots[pt.blockHeader.Hash] = &SlotContext{
+		BH:                  pt.blockHeader,
+		castor:              pt.ids[0],
+		pSign:               groupsig.Sign(pt.sk[0], common.BytesToHash([]byte("test")).Bytes()),
+		slotStatus:          slWaiting,
+		gSignGenerator:      model.NewGroupSignGenerator(int(k)),
+		rSignGenerator:      model.NewGroupSignGenerator(int(k)),
+		signedRewardTxHashs: set.New(set.ThreadSafe),
+	}
+	for i := 0; i < n; i++ {
+		pt.verifyContext.slots[pt.blockHeader.Hash].AcceptVerifyPiece(pt.ids[i], pt.sigs[i], pt.sigs[i])
+	}
+
+	return pt
+}
+
+func (pt *ProcessorTest) GetMinerID() groupsig.ID {
+	return pt.ids[0]
 }
 
 func (*ProcessorTest) GetRewardManager() types.RewardManager {
-	panic("implement me")
+	return core.NewRewardManager()
 }
 
-func (*ProcessorTest) GetBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
-	return nil
+func (pt *ProcessorTest) GetBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
+	return pt.blockHeader
 }
 
-func (*ProcessorTest) GetVctxByHeight(height uint64) *VerifyContext {
-	panic("implement me")
+func (pt *ProcessorTest) GetVctxByHeight(height uint64) *VerifyContext {
+	return pt.verifyContext
 }
 
-func (*ProcessorTest) GetGroupBySeed(seed common.Hash) *verifyGroup {
-	panic("implement me")
+func (pt *ProcessorTest) GetGroupBySeed(seed common.Hash) *verifyGroup {
+	return pt.verifyGroup
 }
 
-func (*ProcessorTest) GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
-	panic("implement me")
+func (pt *ProcessorTest) GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
+	return pt.msk[0]
 }
 
 func (*ProcessorTest) AddTransaction(tx *types.Transaction) (bool, error) {
 	panic("implement me")
 }
 
-func (*ProcessorTest) AddMessage(hash common.Hash, msg interface{}) {
-	panic("implement me")
-}
-
 func (*ProcessorTest) SendCastRewardSign(msg *model.CastRewardTransSignMessage) {
-	panic("implement me")
+	fmt.Println("SendCastRewardSign")
 }
 
 func TestRewardHandler_OnMessageCastRewardSign(t *testing.T) {
+	pt := NewProcessorTest()
 	type fields struct {
 		processor        ProcessorInterface
 		futureRewardReqs *FutureMessageHolder
@@ -65,14 +202,14 @@ func TestRewardHandler_OnMessageCastRewardSign(t *testing.T) {
 		{
 			name: "test1",
 			fields: fields{
-				processor: &ProcessorTest{
-
-				},
+				processor: pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
 				msg: &model.CastRewardTransSignMessage {
-
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
+					},
 				},
 			},
 		},
@@ -82,11 +219,15 @@ func TestRewardHandler_OnMessageCastRewardSign(t *testing.T) {
 			processor:        tt.fields.processor,
 			futureRewardReqs: tt.fields.futureRewardReqs,
 		}
-		rh.OnMessageCastRewardSign(tt.args.msg)
+		err := rh.OnMessageCastRewardSign(tt.args.msg)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
 func TestRewardHandler_OnMessageCastRewardSignReq(t *testing.T) {
+	pt := NewProcessorTest()
 	type fields struct {
 		processor        ProcessorInterface
 		futureRewardReqs *FutureMessageHolder
@@ -99,13 +240,35 @@ func TestRewardHandler_OnMessageCastRewardSignReq(t *testing.T) {
 		fields fields
 		args   args
 	}{
-		// TODO: Add test cases.
+		{
+			name: "test1",
+			fields: fields{
+				processor: pt,
+				futureRewardReqs: NewFutureMessageHolder(),
+			},
+			args: args{
+				msg: &model.CastRewardTransSignReqMessage {
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
+					},
+					Reward: types.Reward{
+						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
+						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+
+					},
+					SignedPieces: pt.sigs,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		rh := &RewardHandler{
 			processor:        tt.fields.processor,
 			futureRewardReqs: tt.fields.futureRewardReqs,
 		}
-		rh.OnMessageCastRewardSignReq(tt.args.msg)
+		err := rh.OnMessageCastRewardSignReq(tt.args.msg)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
