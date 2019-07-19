@@ -211,14 +211,14 @@ func (fp *forkProcessor) findCommonAncestor(piece []common.Hash) *common.Hash {
 	return nil
 }
 
-func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message) {
+func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message)error {
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
 	pieceReq, err := unMarshalChainPieceInfo(m.Body())
 	if err != nil {
 		fp.logger.Errorf("unMarshalChainPieceInfo err %v", err)
-		return
+		return fmt.Errorf("unMarshalChainPieceInfo err %v", err)
 	}
 
 	fp.logger.Debugf("Rcv chain piece block req from:%s, pieceSize %v, reqCnt %v", source, len(pieceReq.ChainPiece), pieceReq.ReqCnt)
@@ -244,6 +244,7 @@ func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message) {
 		}
 	}
 	fp.sendChainPieceBlock(source, response)
+	return nil
 }
 
 func (fp *forkProcessor) sendChainPieceBlock(targetID string, msg *chainPieceBlockMsg) {
@@ -280,7 +281,7 @@ func (fp *forkProcessor) getNextSyncHash() *common.Hash {
 	return nil
 }
 
-func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) {
+func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
 	m := notify.AsDefault(msg)
 
 	fp.lock.Lock()
@@ -291,12 +292,12 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) {
 	ctx := fp.syncCtx
 	if ctx == nil {
 		fp.logger.Debugf("ctx is nil: source=%v", source)
-		return
+		return fmt.Errorf("ctx is nil: source=%v", source)
 	}
 	chainPieceBlockMsg, e := unmarshalChainPieceBlockMsg(m.Body())
 	if e != nil {
 		fp.logger.Warnf("Unmarshal chain piece block msg error:%d", e.Error())
-		return
+		return fmt.Errorf("Unmarshal chain piece block msg error:%d", e.Error())
 	}
 
 	blocks := chainPieceBlockMsg.Blocks
@@ -325,7 +326,7 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) {
 		}
 		if !sameFork {
 			fp.logger.Debugf("Unexpected chain piece block from %s, expect from %s, blocksize %v", source, ctx.target, len(blocks))
-			return
+			return fmt.Errorf("Unexpected chain piece block from %s, expect from %s, blocksize %v", source, ctx.target, len(blocks))
 		}
 		fp.logger.Debugf("upexpected target blocks, buf same fork!target=%v, expect=%v, blocksize %v", source, ctx.target, len(blocks))
 	}
@@ -335,7 +336,7 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) {
 	}()
 
 	if ctx.lastReqPiece == nil {
-		return
+		return fmt.Errorf("lastReqPiece is nil")
 	}
 
 	// Giving a piece to go is not enough to find a common ancestor, continue to request a piece
@@ -349,7 +350,7 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) {
 	} else {
 		if len(blocks) == 0 {
 			fp.logger.Errorf("from %v, find ancesotr, but blocks is empty!", source)
-			return
+			return fmt.Errorf("from %v, find ancesotr, but blocks is empty!", source)
 		}
 		ancestorBH := blocks[0].Header
 		if !fp.chain.HasBlock(ancestorBH.Hash) {
@@ -365,6 +366,7 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) {
 			}
 		}
 	}
+	return nil
 }
 
 func unMarshalChainPieceInfo(b []byte) (*chainPieceReq, error) {

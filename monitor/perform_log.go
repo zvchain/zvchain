@@ -64,14 +64,18 @@ func (btl *blockTraceLogs) addLog(log *PerformTraceLogger) {
 	}
 }
 
-func (btl *blockTraceLogs) onBlockAddSuccess(message notify.Message) {
+func (btl *blockTraceLogs) onBlockAddSuccess(message notify.Message) error{
 	block := message.GetData().(*types.Block)
 
+	var(
+		err error
+		bs []byte
+	)
 	hash := block.Header.Hash.Hex()
 	if v, ok := btl.logs.Get(hash); ok {
 		logs := v.([]*PerformTraceLogger)
 		for _, log := range logs {
-			bs, err := json.Marshal(log)
+			bs, err = json.Marshal(log)
 			if err!=nil{
 				traceLogger.Errorf("onBlockAddSuccess Marshal log error,error is %v",err)
 			}else{
@@ -80,6 +84,7 @@ func (btl *blockTraceLogs) onBlockAddSuccess(message notify.Message) {
 		}
 		btl.logs.Remove(hash)
 	}
+	return err
 }
 
 func NewPerformTraceLogger(name string, hash common.Hash, height uint64) *PerformTraceLogger {
