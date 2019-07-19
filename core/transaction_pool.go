@@ -21,7 +21,7 @@ import (
 	"github.com/zvchain/zvchain/common/secp256k1"
 	"sync"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -258,6 +258,16 @@ func (pool *txPool) packTx() []*types.Transaction {
 			if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) < 0 {
 				return true
 			}
+
+			// ignore the vm call
+			if IgnoreVmCall {
+				if tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall {
+					return true
+				}
+			}
+
+			txs = append(txs, tx)
+
 			accuSize = accuSize + tx.Size()
 			if accuSize <= txAccumulateSizeMaxPerBlock {
 				txs = append(txs, tx)
