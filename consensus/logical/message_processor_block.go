@@ -376,7 +376,7 @@ func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReq
 // OnMessageCastRewardSign receives signed messages for the reward transaction from verifyGroup members
 // If threshold signature received and the verifyGroup signature recovered successfully, the node will submit the reward transaction to the pool
 func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) {
-	p.OnMessageCastRewardSign(msg)
+	p.rewardHandler.OnMessageCastRewardSign(msg)
 }
 
 // OnMessageReqProposalBlock handles block body request from the verify verifyGroup members

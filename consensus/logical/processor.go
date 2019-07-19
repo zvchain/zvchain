@@ -102,6 +102,10 @@ func (p *Processor) SendCastRewardSign(msg *model.CastRewardTransSignMessage) {
 	p.NetServer.SendCastRewardSign(msg)
 }
 
+func (p *Processor) SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
+	p.NetServer.SendCastRewardSignReq(msg)
+}
+
 func (p Processor) getPrefix() string {
 	return p.GetMinerID().GetHexString()
 }

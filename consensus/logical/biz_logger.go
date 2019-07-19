@@ -37,7 +37,9 @@ func (bl *bizLog) info(format string, p ...interface{}) {
 }
 
 func (bl *bizLog) debug(format string, p ...interface{}) {
-	stdLogger.Debugf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
+	if stdLogger != nil {
+		stdLogger.Debugf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
+	}
 }
 
 func (bl *bizLog) warn(format string, p ...interface{}) {
@@ -45,7 +47,9 @@ func (bl *bizLog) warn(format string, p ...interface{}) {
 }
 
 func (bl *bizLog) error(format string, p ...interface{}) {
-	stdLogger.Errorf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
+	if stdLogger != nil {
+		stdLogger.Errorf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
+	}
 }
 
 type rtLog struct {

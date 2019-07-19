@@ -13,6 +13,28 @@ import (
 	"github.com/zvchain/zvchain/consensus/model"
 )
 
+type GroupHanderTest struct {
+
+}
+func (g *GroupHanderTest) Seed() common.Hash {
+	return common.Hash{}
+}
+func (g *GroupHanderTest) WorkHeight() uint64 {
+	return uint64(0)
+}
+func (g *GroupHanderTest) DismissHeight() uint64 {
+	return uint64(0)
+}
+func (g *GroupHanderTest) PublicKey() []byte {
+	return make([]byte, 0)
+}
+func (g *GroupHanderTest) Threshold() uint32 {
+	return uint32(5)
+}
+func (g *GroupHanderTest) GroupHeight() uint64 {
+	return uint64(0)
+}
+
 type ProcessorTest struct {
 	ProcessorInterface
 
@@ -119,7 +141,7 @@ func NewProcessorTest() *ProcessorTest {
 		memIndex[mems[i].id.GetHexString()] = i
 	}
 	pt.verifyGroup = &verifyGroup{
-		//header:   g.Header(),
+		header:   &GroupHanderTest{},
 		memIndex: memIndex,
 		members:  mems,
 	}
@@ -185,8 +207,11 @@ func (*ProcessorTest) SendCastRewardSign(msg *model.CastRewardTransSignMessage) 
 	fmt.Println("SendCastRewardSign")
 }
 
-func TestRewardHandler_OnMessageCastRewardSign(t *testing.T) {
-	pt := NewProcessorTest()
+func (*ProcessorTest) SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
+	fmt.Println("SendCastRewardSignReq")
+}
+
+func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T) {
 	type fields struct {
 		processor        ProcessorInterface
 		futureRewardReqs *FutureMessageHolder
@@ -208,17 +233,17 @@ func TestRewardHandler_OnMessageCastRewardSign(t *testing.T) {
 			args: args{
 				msg: &model.CastRewardTransSignMessage {
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
+						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[1], pt.msk[1]),
 					},
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
-		rh := &RewardHandler{
-			processor:        tt.fields.processor,
-			futureRewardReqs: tt.fields.futureRewardReqs,
-		}
+		//rh := &RewardHandler{
+		//	processor:        tt.fields.processor,
+		//	futureRewardReqs: tt.fields.futureRewardReqs,
+		//}
 		err := rh.OnMessageCastRewardSign(tt.args.msg)
 		if err != nil {
 			t.Error(err)
@@ -226,8 +251,19 @@ func TestRewardHandler_OnMessageCastRewardSign(t *testing.T) {
 	}
 }
 
-func TestRewardHandler_OnMessageCastRewardSignReq(t *testing.T) {
+func TestRewardHandler_OnMessageCastRewardSign(t *testing.T) {
 	pt := NewProcessorTest()
+	rh := &RewardHandler{
+		processor:        pt,
+		futureRewardReqs: NewFutureMessageHolder(),
+	}
+	slotContext := pt.GetVctxByHeight(0).slots[pt.GetBlockHeaderByHash(common.Hash{}).Hash]
+	slotContext.setSlotStatus(slSuccess)
+	rh.reqRewardTransSign(pt.GetVctxByHeight(0), pt.GetBlockHeaderByHash(common.Hash{}))
+	_OnMessageCastRewardSign(pt, rh, t)
+}
+
+func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testing.T) {
 	type fields struct {
 		processor        ProcessorInterface
 		futureRewardReqs *FutureMessageHolder
@@ -262,13 +298,23 @@ func TestRewardHandler_OnMessageCastRewardSignReq(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		rh := &RewardHandler{
-			processor:        tt.fields.processor,
-			futureRewardReqs: tt.fields.futureRewardReqs,
-		}
+		//rh := &RewardHandler{
+		//	processor:        tt.fields.processor,
+		//	futureRewardReqs: tt.fields.futureRewardReqs,
+		//}
 		err := rh.OnMessageCastRewardSignReq(tt.args.msg)
 		if err != nil {
 			t.Error(err)
 		}
 	}
 }
+
+func TestRewardHandler_OnMessageCastRewardSignReq(t *testing.T) {
+	pt := NewProcessorTest()
+	rh := &RewardHandler{
+		processor:        pt,
+		futureRewardReqs: NewFutureMessageHolder(),
+	}
+	_OnMessageCastRewardSignReq(pt, rh, t)
+}
+

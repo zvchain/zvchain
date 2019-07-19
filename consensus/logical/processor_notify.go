@@ -75,7 +75,7 @@ func (p *Processor) onBlockAddSuccess(message notify.Message) {
 			if vctx.isWorking() {
 				vctx.markCastSuccess()
 			}
-			p.reqRewardTransSign(vctx, bh)
+			p.rewardHandler.reqRewardTransSign(vctx, bh)
 		}
 	}
 

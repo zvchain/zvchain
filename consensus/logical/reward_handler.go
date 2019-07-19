@@ -2,6 +2,7 @@ package logical
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
@@ -21,6 +22,7 @@ type ProcessorInterface interface {
 	AddTransaction(tx *types.Transaction) (bool, error)
 
 	SendCastRewardSign(msg *model.CastRewardTransSignMessage)
+	SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage)
 }
 
 
@@ -97,7 +99,11 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v, ret=%v", slot.rewardTrans.Hash, err2)
 		return nil
 	} else {
-		err = fmt.Errorf("accept %v, recover %v, %v", accept, recover, slot.rewardGSignGen.Brief())
+		if slot.rewardGSignGen != nil {
+			err = fmt.Errorf("accept %v, recover %v, %v", accept, recover, slot.rewardGSignGen.Brief())
+		} else {
+			err = fmt.Errorf("accept %v, recover %v", accept, recover)
+		}
 		return err
 	}
 }
@@ -262,4 +268,85 @@ func (rh *RewardHandler) TriggerFutureRewardSign(bh *types.BlockHeader) {
 		send, err := rh.signCastRewardReq(msg.(*model.CastRewardTransSignReqMessage), bh)
 		tLog.logEnd("send %v, result %v", send, err)
 	}
+}
+
+// reqRewardTransSign generates a reward transaction based on the signature pieces received locally,
+// and broadcast it to other members of the verifyGroup for signature.
+//
+// After the block verification consensus, the verifyGroup should issue a corresponding reward transaction consensus
+// to make sure that 51% of the verified-member can get the reward
+func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeader) {
+	blog := newBizLog("reqRewardTransSign")
+	blog.debug("start, bh=%v", rh.blockPreview(bh))
+	slot := vctx.GetSlotByHash(bh.Hash)
+	if slot == nil {
+		blog.error("slot is nil")
+		return
+	}
+	if !slot.gSignGenerator.Recovered() {
+		blog.error("slot not recovered")
+		return
+	}
+	if !slot.IsSuccess() && !slot.IsVerified() {
+		blog.error("slot not verified or success,status=%v", slot.GetSlotStatus())
+		return
+	}
+	// If you sign yourself, you don't have to send it again
+	if slot.hasSignedRewardTx() {
+		blog.warn("has signed reward tx")
+		return
+	}
+
+	group := vctx.group
+
+	targetIDIndexs := make([]int32, 0)
+	signs := make([]groupsig.Signature, 0)
+	idHexs := make([]string, 0)
+
+	threshold := group.header.Threshold()
+	for idx, mem := range group.getMembers() {
+		if sig, ok := slot.gSignGenerator.GetWitness(mem); ok {
+			signs = append(signs, sig)
+			targetIDIndexs = append(targetIDIndexs, int32(idx))
+			idHexs = append(idHexs, mem.GetHexString())
+			if len(signs) >= int(threshold) {
+				break
+			}
+		}
+	}
+	rewardShare := rh.processor.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
+
+	reward, tx, err := rh.processor.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
+	if err != nil {
+		err = fmt.Errorf("failed to generate reward %s", err)
+		return
+	}
+	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash, reward.TargetIds, bh.Height)
+
+	tLog := newHashTraceLog("REWARD_REQ", bh.Hash, rh.processor.GetMinerID())
+	tLog.log("txHash=%v, targetIds=%v", reward.TxHash, strings.Join(idHexs, ","))
+
+	if slot.setRewardTrans(tx) {
+		msg := &model.CastRewardTransSignReqMessage{
+			Reward:       *reward,
+			SignedPieces: signs,
+		}
+		ski := model.NewSecKeyInfo(rh.processor.GetMinerID(), rh.processor.GetGroupSignatureSeckey(group.header.Seed()))
+		if msg.GenSign(ski, msg) {
+			rh.processor.SendCastRewardSignReq(msg)
+
+			if stdLogger != nil {
+				stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", reward.TxHash.Hex(), ski.SK.GetHexString(), rh.processor.GetMinerID(), msg.SI.DataSign.GetHexString(), group.header.Seed())
+			}
+
+			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
+		} else {
+			blog.error("genSign fail, id=%v, sk=%v", ski.ID, ski.SK)
+		}
+	}
+
+}
+
+func (rh *RewardHandler) blockPreview(bh *types.BlockHeader) string {
+	return fmt.Sprintf("hash=%v, height=%v, curTime=%v, preHash=%v, preTime=%v", bh.Hash, bh.Height, bh.CurTime, bh.PreHash, bh.CurTime.Add(-int64(bh.Elapsed)))
 }

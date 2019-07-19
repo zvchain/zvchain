@@ -124,10 +124,6 @@ func (p *Processor) removeFutureVerifyMsgs(hash common.Hash) {
 	p.futureVerifyMsgs.remove(hash)
 }
 
-func (p *Processor) blockPreview(bh *types.BlockHeader) string {
-	return fmt.Sprintf("hash=%v, height=%v, curTime=%v, preHash=%v, preTime=%v", bh.Hash, bh.Height, bh.CurTime, bh.PreHash, bh.CurTime.Add(-int64(bh.Elapsed)))
-}
-
 // VerifyBlock check if the block is legal, it will take the pre-block into consideration
 func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader) (ok bool, err error) {
 	tLog := newHashTraceLog("VerifyBlock", bh.Hash, groupsig.ID{})
