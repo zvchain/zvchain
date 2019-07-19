@@ -296,8 +296,8 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
 	}
 	chainPieceBlockMsg, e := unmarshalChainPieceBlockMsg(m.Body())
 	if e != nil {
-		fp.logger.Warnf("Unmarshal chain piece block msg error:%d", e.Error())
-		return fmt.Errorf("Unmarshal chain piece block msg error:%d", e.Error())
+		fp.logger.Warnf("Unmarshal chain piece block msg error:%s", e.Error())
+		return fmt.Errorf("Unmarshal chain piece block msg error:%s", e.Error())
 	}
 
 	blocks := chainPieceBlockMsg.Blocks

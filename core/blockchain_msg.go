@@ -32,8 +32,8 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 	source := m.Source()
 	block, e := types.UnMarshalBlock(m.Body())
 	if e != nil {
-		Logger.Warnf("UnMarshal block error:%d", e.Error())
-		return fmt.Errorf("UnMarshal block error:%d", e.Error())
+		Logger.Warnf("UnMarshal block error:%s", e.Error())
+		return fmt.Errorf("UnMarshal block error:%s", e.Error())
 	}
 
 	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))

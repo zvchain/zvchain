@@ -148,7 +148,10 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
 	bts,_:=proto.Marshal(&message)
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
-	blockSyncForTest.blockResponseMsgHandler(msg)
+	err := blockSyncForTest.blockResponseMsgHandler(msg)
+	if  err != nil{
+		t.Fatalf("except err nil,but got error")
+	}
 
 
 	//error protobuf format
@@ -156,7 +159,10 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	errorMsg := tas_middleware_test.BlockResponseMsg{Blocks: errorPbblocks}
 	bts,_ = proto.Marshal(&errorMsg)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
-	blockSyncForTest.blockResponseMsgHandler(msg)
+	err = blockSyncForTest.blockResponseMsgHandler(msg)
+	if  err != nil{
+		t.Fatalf("except err nil,but got error")
+	}
 }
 
 
