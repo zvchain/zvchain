@@ -45,6 +45,4 @@ const (
 	TxSyncNotify   = "tx_sync_notify"
 	TxSyncReq      = "tx_sync_req"
 	TxSyncResponse = "tx_sync_response"
-
-	TxPoolAddTxs = "tx_pool_add_txs"
 )

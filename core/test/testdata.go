@@ -9,9 +9,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	time2 "github.com/zvchain/zvchain/middleware/time"
 	"strconv"
-	"time"
 )
 var(
 	errorHashs = []common.Hash{
@@ -86,7 +84,7 @@ func NewRandomFullBlockHeader(height uint64)*types.BlockHeader{
 		Elapsed:     int32(rand.Intn(10000)),
 		ProveValue: big.NewInt(int64(rand.Intn(10000))).Bytes(),
 		TotalQN : uint64(rand.Intn(10000)),
-		CurTime : time2.TimeToTimeStamp(time.Now()),
+		CurTime : -111111,
 		Castor:      big.NewInt(int64(rand.Intn(10000))).Bytes(),
 		Group  : common.BigToHash(big.NewInt(int64(rand.Intn(10000)))),
 		Signature :big.NewInt(int64(rand.Intn(10000))).Bytes(),
@@ -155,4 +153,21 @@ func GeneErrorBlockHeaders()[]*types.BlockHeader{
 		bhs = append(bhs,NewRandomErrorBlockHeader())
 	}
 	return bhs
+}
+
+
+func MarshalNilSyncRequest() ([]byte, error) {
+	pbr := &SyncRequest{
+	}
+	return proto.Marshal(pbr)
+}
+
+func MarshalErorSyncRequest() ([]byte, error) {
+	var height int64 =  100
+	var size  int64 = -10
+	pbr := &SyncRequest{
+		ReqHeight: &height,
+		ReqSize: &size,
+	}
+	return proto.Marshal(pbr)
 }

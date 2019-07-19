@@ -96,6 +96,22 @@ func TestTopBlockInfoNotifyHandler(t *testing.T){
 }
 
 func TestBlockReqHandler(t *testing.T){
+	bts,_ := tas_middleware_test.MarshalNilSyncRequest()
+	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+
+	err := blockSyncForTest.blockReqHandler(msg)
+	if err == nil{
+		t.Fatalf("except got error,but got nil")
+	}
+
+	bts,_ = tas_middleware_test.MarshalErorSyncRequest()
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+
+	err = blockSyncForTest.blockReqHandler(msg)
+	if err == nil{
+		t.Fatalf("except got error,but got nil")
+	}
+
 	var ReqHeight uint64 = 10
 	ReqSize := 10
 	blocks := BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
