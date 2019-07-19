@@ -31,23 +31,23 @@ func init(){
 }
 func TestGetBestCandidate(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		blockSync.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
+		blockSyncForTest.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
 		peerManagerImpl.getOrAddPeer(strconv.Itoa(i))
 	}
 	for i := 0; i < 50; i++ {
 		peerManagerImpl.addEvilCount(strconv.Itoa(i))
 	}
-	blockSync.getCandidateById("")
+	blockSyncForTest.getCandidateById("")
 
-	if len(blockSync.candidatePool) != 50 {
+	if len(blockSyncForTest.candidatePool) != 50 {
 		t.Fatalf("expect len is %d,but got %d", 50, peerManagerImpl.peerMeters.Len())
 	}
 
-	sc, _ := blockSync.getCandidateById("51")
+	sc, _ := blockSyncForTest.getCandidateById("51")
 	if sc == "" {
 		t.Fatalf("expect get source,but got '' ")
 	}
-	sc, _ = blockSync.getCandidateById("49")
+	sc, _ = blockSyncForTest.getCandidateById("49")
 	if sc != "" {
 		t.Fatalf("expect get '',but got %s ", sc)
 	}
@@ -55,7 +55,7 @@ func TestGetBestCandidate(t *testing.T) {
 	for i := 50; i < 100; i++ {
 		peerManagerImpl.addEvilCount(strconv.Itoa(i))
 	}
-	sc, _ = blockSync.getCandidateById("")
+	sc, _ = blockSyncForTest.getCandidateById("")
 	if sc != "" {
 		t.Fatalf("expect get '',but got %s ", sc)
 	}
@@ -166,7 +166,19 @@ func TestBlockResponseMsgHandler(t *testing.T){
 }
 
 
+func TestNewBlockHandler(t *testing.T){
+	blocks := tas_middleware_test.GenBlocks()
+	pbblocks := blocksToPb(blocks)
+	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
+	bts,_:=proto.Marshal(&message)
+	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 
+
+	err := BlockChainImpl.(*FullBlockChain).newBlockHandler(msg)
+	if err != nil{
+		t.Fatalf("except got no error,but got error")
+	}
+}
 
 func resetDb() error {
 	dir, err := ioutil.ReadDir(".")
