@@ -80,38 +80,14 @@ func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) 
 // ExplorerGroupsAfter is used in the blockchain browser to
 // query groups after the specified height
 func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) {
-	groups := core.GroupChainImpl.GetGroupsAfterHeight(height, common.MaxInt64)
+	groups := getGroupReader().GroupsAfter(height)
 
-	ret := make([]map[string]interface{}, 0)
-	h := height
+	ret := make([]*Group, 0)
 	for _, g := range groups {
-		gmap := explorerConvertGroup(g)
-		gmap["height"] = h
-		h++
-		ret = append(ret, gmap)
+		group := convertGroup(g)
+		ret = append(ret, group)
 	}
 	return successResult(ret)
-}
-
-func explorerConvertGroup(g *types.Group) map[string]interface{} {
-	gmap := make(map[string]interface{})
-	if g.ID != nil && len(g.ID) != 0 {
-		gmap["id"] = groupsig.DeserializeID(g.ID).GetHexString()
-		gmap["hash"] = g.Header.Hash
-	}
-	gmap["parent_id"] = groupsig.DeserializeID(g.Header.Parent).GetHexString()
-	gmap["pre_id"] = groupsig.DeserializeID(g.Header.PreGroup).GetHexString()
-	gmap["begin_time"] = g.Header.BeginTime
-	gmap["create_height"] = g.Header.CreateHeight
-	gmap["work_height"] = g.Header.WorkHeight
-	gmap["dismiss_height"] = g.Header.DismissHeight
-	mems := make([]string, 0)
-	for _, mem := range g.Members {
-		memberStr := groupsig.DeserializeID(mem).GetHexString()
-		mems = append(mems, memberStr)
-	}
-	gmap["members"] = mems
-	return gmap
 }
 
 // ExplorerBlockReward export reward transaction by block height
@@ -143,7 +119,7 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 	share := rm.CalculateCastRewardShare(bh.Height, bh.GasFee)
 	ret.ProposalReward = share.ForBlockProposal + packedReward
 	ret.ProposalGasFeeReward = share.FeeForProposer
-	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash.Bytes()); rewardTx != nil {
+	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash); rewardTx != nil {
 		genReward := convertRewardTransaction(rewardTx)
 		genReward.Success = true
 		ret.VerifierReward = *genReward

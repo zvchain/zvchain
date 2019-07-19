@@ -30,14 +30,14 @@ func (m *BlockOnChainSuccMessage) GetData() interface{} {
 	return m.Block
 }
 
-type GroupMessage struct {
-	Group *types.Group
+type GroupOnChainSuccMessage struct {
+	Group types.GroupI
 }
 
-func (m *GroupMessage) GetRaw() []byte {
+func (m *GroupOnChainSuccMessage) GetRaw() []byte {
 	return []byte{}
 }
-func (m *GroupMessage) GetData() interface{} {
+func (m *GroupOnChainSuccMessage) GetData() interface{} {
 	return m.Group
 }
 

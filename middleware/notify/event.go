@@ -39,8 +39,8 @@ const (
 
 	Group = "group"
 
-	BlockSync = "block_sync"
-	GroupSync = "group_sync"
+	BlockSync        = "block_sync"
+	MessageToConsole = "message_to_console"
 
 	TxSyncNotify   = "tx_sync_notify"
 	TxSyncReq      = "tx_sync_req"

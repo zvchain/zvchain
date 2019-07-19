@@ -34,6 +34,7 @@ const (
 	RSTvmError
 	RSGasNotEnoughError
 	RSNoCodeError
+	RSParseFail
 )
 
 type Receipt struct {

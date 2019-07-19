@@ -41,22 +41,21 @@ func convertTransaction(tx *types.Transaction) *Transaction {
 		value = tx.Value.Uint64()
 	}
 	trans := &Transaction{
-		Hash:          tx.Hash,
-		Source:        tx.Source,
-		Target:        tx.Target,
-		Type:          tx.Type,
-		GasLimit:      gasLimit,
-		GasPrice:      gasPrice,
-		Data:          tx.Data,
-		ExtraData:     string(tx.ExtraData),
-		ExtraDataType: tx.ExtraDataType,
-		Nonce:         tx.Nonce,
-		Value:         common.RA2TAS(value),
+		Hash:      tx.Hash,
+		Source:    tx.Source,
+		Target:    tx.Target,
+		Type:      tx.Type,
+		GasLimit:  gasLimit,
+		GasPrice:  gasPrice,
+		Data:      tx.Data,
+		ExtraData: string(tx.ExtraData),
+		Nonce:     tx.Nonce,
+		Value:     common.RA2TAS(value),
 	}
 	return trans
 }
 
-func convertExecutedTransaction(executed *core.ExecutedTransaction) *ExecutedTransaction {
+func convertExecutedTransaction(executed *types.ExecutedTransaction) *ExecutedTransaction {
 	rec := &Receipt{
 		Status:            int(executed.Receipt.Status),
 		CumulativeGasUsed: executed.Receipt.CumulativeGasUsed,
@@ -82,7 +81,7 @@ func convertBlockHeader(b *types.Block) *Block {
 		CurTime: bh.CurTime.Local(),
 		PreTime: bh.PreTime().Local(),
 		Castor:  groupsig.DeserializeID(bh.Castor),
-		GroupID: groupsig.DeserializeID(bh.GroupID),
+		Group:   bh.Group,
 		Prove:   common.ToHex(bh.ProveValue),
 		TotalQN: bh.TotalQN,
 		TxNum:   uint64(len(b.Transactions)),
@@ -99,7 +98,7 @@ func convertRewardTransaction(tx *types.Transaction) *RewardTransaction {
 	if tx.Type != types.TransactionTypeReward {
 		return nil
 	}
-	gid, ids, bhash, packFee, err := mediator.Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
+	gSeed, ids, bhash, packFee, err := mediator.Proc.MainChain.GetRewardManager().ParseRewardTransaction(tx)
 	if err != nil {
 		return nil
 	}
@@ -110,7 +109,7 @@ func convertRewardTransaction(tx *types.Transaction) *RewardTransaction {
 	return &RewardTransaction{
 		Hash:      tx.Hash,
 		BlockHash: bhash,
-		GroupID:   groupsig.DeserializeID(gid),
+		GroupSeed: gSeed,
 		TargetIDs: targets,
 		Value:     tx.Value.Uint64(),
 		PackFee:   packFee.Uint64(),
@@ -146,4 +145,25 @@ func sendTransaction(trans *types.Transaction) error {
 		return err
 	}
 	return nil
+}
+
+func convertGroup(g types.GroupI) *Group {
+
+	mems := make([]string, 0)
+	for _, mem := range g.Members() {
+		memberStr := groupsig.DeserializeID(mem.ID()).GetHexString()
+		mems = append(mems, memberStr)
+	}
+	gh := g.Header()
+
+	return &Group{
+		Seed:          gh.Seed(),
+		BeginHeight:   gh.WorkHeight(),
+		DismissHeight: gh.DismissHeight(),
+		Threshold:     int32(gh.Threshold()),
+		Members:       mems,
+		MemSize:       len(mems),
+		GroupHeight:   gh.GroupHeight(),
+	}
+
 }

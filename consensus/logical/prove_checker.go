@@ -17,19 +17,19 @@ package logical
 
 import (
 	"bytes"
+	"github.com/zvchain/zvchain/middleware/types"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 )
 
 type proveChecker struct {
 	proposalVrfHashs *lru.Cache // Recently proposed vrf prove hash
 	proveRootCaches  *lru.Cache // Full account verification cache
-	chain            core.BlockChain
+	chain            types.BlockChain
 }
 
 type prootCheckResult struct {
@@ -37,7 +37,7 @@ type prootCheckResult struct {
 	err error
 }
 
-func newProveChecker(chain core.BlockChain) *proveChecker {
+func newProveChecker(chain types.BlockChain) *proveChecker {
 	return &proveChecker{
 		proveRootCaches:  common.MustNewLRUCache(50),
 		proposalVrfHashs: common.MustNewLRUCache(50),

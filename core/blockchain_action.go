@@ -40,7 +40,7 @@ type executePostState struct {
 }
 
 // CastBlock cast a block, current casters synchronization operation in the group
-func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, groupid []byte) *types.Block {
+func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, gSeed common.Hash) *types.Block {
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
 	block := new(types.Block)
@@ -72,7 +72,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 		Height:     height,
 		ProveValue: proveValue,
 		Castor:     castor,
-		GroupID:    groupid,
+		Group:      gSeed,
 		TotalQN:    latestBlock.TotalQN + qn,
 		StateTree:  common.BytesToHash(latestBlock.StateTree.Bytes()),
 		PreHash:    latestBlock.Hash,
@@ -220,17 +220,17 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 		return false, ErrLocalMoreWeight
 	}
 
+	blockSize := 0
+	for _, v := range b.Transactions {
+		blockSize +=v.Size()
+	}
+	if blockSize > txAccumulateSizeMaxPerBlock {
+		return false, ErrBlockSizeLimit
+	}
+
 	groupValidateResult, err := chain.consensusVerifyBlock(b.Header)
 	if !groupValidateResult {
-		if err == common.ErrSelectGroupNil || err == common.ErrSelectGroupInequal {
-			Logger.Infof("Add block on chain failed: depend on group! trigger group sync")
-			if groupSync != nil {
-				go groupSync.trySyncRoutine()
-			}
-		} else {
-			Logger.Errorf("Fail to validate group sig!Err:%s", err.Error())
-		}
-		return false, err
+		return false, fmt.Errorf("consensus verify fail, err=%v", err.Error())
 	}
 	return true, nil
 }
@@ -242,7 +242,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 
 	defer func() {
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", b.Header.Hash.Hex(), b.Header.Height, err, time.Since(begin).String())
+		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", b.Header.Hash, b.Header.Height, err, time.Since(begin).String())
 	}()
 
 	if b == nil {
@@ -257,7 +257,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 	}
 
 	topBlock := chain.getLatestBlock()
-	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", b.Header.Hash.ShortS(), b.Header.PreHash.ShortS(), b.Header.Height, b.Header.TotalQN, topBlock.Hash.ShortS(), topBlock.PreHash.ShortS(), topBlock.Height, topBlock.TotalQN)
+	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", b.Header.Hash, b.Header.PreHash, b.Header.Height, b.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
 
 	if chain.HasBlock(bh.Hash) {
 		return types.BlockExisted, ErrBlockExist
@@ -312,7 +312,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 			ret = types.AddBlockSucc
 			return
 		}
-		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash.Hex(), bh.Height, e)
+		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash, bh.Height, e)
 		ret = types.AddBlockFailed
 		err = ErrCommitBlockFail
 		return
@@ -330,9 +330,9 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 	} else { // there is a fork
 		newTop := chain.queryBlockHeaderByHash(bh.PreHash)
 		old := chain.latestBlock
-		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash.ShortS(), old.Height, old.PreHash.ShortS(), old.TotalQN, bh.Hash.ShortS(), bh.Height, bh.PreHash.ShortS(), bh.TotalQN)
+		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
 		if e := chain.resetTop(newTop); e != nil {
-			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash.Hex(), newTop.Hash.Hex(), newTop.Height)
+			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash, newTop.Hash, newTop.Height)
 			ret = types.AddBlockFailed
 			err = fmt.Errorf("reset top err:%v", e)
 			return
@@ -348,7 +348,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 			ret = types.AddBlockSucc
 			return
 		}
-		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash.Hex(), bh.Height, e)
+		Logger.Warnf("insert block fail, hash=%v, height=%v, err=%v", bh.Hash, bh.Height, e)
 		ret = types.AddBlockFailed
 		err = ErrCommitBlockFail
 		return
@@ -360,7 +360,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err 
 	// Check if all txs exist in the pool to ensure the basic validation is done
 	for _, tx := range block.Transactions {
 		if exist, _ := chain.GetTransactionPool().IsTransactionExisted(tx.Hash); !exist {
-			return false, fmt.Errorf("tx is not in the pool %v", tx.Hash.Hex())
+			return false, fmt.Errorf("tx is not in the pool %v", tx.Hash)
 		}
 	}
 
@@ -478,6 +478,10 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 
 func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 	notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: remoteBlock})
+	newGroup := GroupManagerImpl.GroupCreatedInCurrentBlock(remoteBlock)
+	if newGroup != nil {
+		notify.BUS.Publish(notify.GroupAddSucc, &notify.GroupOnChainSuccMessage{Group: newGroup})
+	}
 }
 
 func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) {
@@ -535,11 +539,11 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, 
 		pre := chain.QueryBlockHeaderByHash(firstBH.Header.PreHash)
 		if pre != nil {
 			last := addBlocks[len(addBlocks)-1].Header
-			Logger.Debugf("%v batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", module, localTop.Hash.ShortS(), localTop.Height, localTop.TotalQN, pre.Hash.ShortS(), pre.Height, pre.TotalQN, last.Hash.ShortS(), last.Height, last.TotalQN)
+			Logger.Debugf("%v batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", module, localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
 			chain.ResetTop(pre)
 		} else {
 			// There will fork, we have to deal with it
-			Logger.Debugf("%v batchAdd detect fork from %v: local %v %v, peer %v %v", module, source, localTop.Hash.ShortS(), localTop.Height, firstBH.Header.Hash.ShortS(), firstBH.Header.Height)
+			Logger.Debugf("%v batchAdd detect fork from %v: local %v %v, peer %v %v", module, source, localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
 			go chain.forkProcessor.tryToProcessFork(source, firstBH)
 			return
 		}

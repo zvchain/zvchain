@@ -112,7 +112,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 		return
 	}
 	// Save hash to receipt key value pair
-	if err = chain.transactionPool.saveReceipts(bh.Hash, ps.receipts); err != nil {
+	if err = chain.transactionPool.SaveReceipts(bh.Hash, ps.receipts); err != nil {
 		return
 	}
 	// Save current block
@@ -206,7 +206,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		curr = chain.queryBlockHeaderByHash(curr.PreHash)
 	}
 	// Delete receipts corresponding to the transactions in the discard block
-	if err = chain.transactionPool.deleteReceipts(delRecepites); err != nil {
+	if err = chain.transactionPool.DeleteReceipts(delRecepites); err != nil {
 		return err
 	}
 	// Reset the current block
@@ -223,6 +223,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.updateLatestBlock(state, block)
 
 	chain.transactionPool.BackToPool(recoverTxs)
+
+	GroupManagerImpl.ResetToTop(state,block)
 
 	return nil
 }
@@ -259,7 +261,7 @@ func (chain *FullBlockChain) removeOrphan(block *types.Block) error {
 		for i, tx := range txs {
 			txHashs[i] = tx.Hash
 		}
-		if err = chain.transactionPool.deleteReceipts(txHashs); err != nil {
+		if err = chain.transactionPool.DeleteReceipts(txHashs); err != nil {
 			return err
 		}
 	}
@@ -403,6 +405,31 @@ func (chain *FullBlockChain) batchGetBlocksAfterHeight(h uint64, limit int) []*t
 		cnt++
 	}
 	return blocks
+}
+
+// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
+// will be included
+func (chain *FullBlockChain) countBlocksInRange(startHeight uint64, endHeight uint64) uint64 {
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(startHeight)) {
+		return 0
+	}
+
+	var cnt uint64 = 0
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height > endHeight {
+			break
+		}
+
+		if !iter.Next() {
+			break
+		}
+		cnt++
+	}
+	return cnt
 }
 
 func (chain *FullBlockChain) queryBlockHeaderByHeight(height uint64) *types.BlockHeader {

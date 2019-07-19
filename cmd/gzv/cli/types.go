@@ -98,7 +98,7 @@ type MortGage struct {
 	Stake       uint64 `json:"stake"`
 	ApplyHeight uint64 `json:"apply_height"`
 	Type        string `json:"type"`
-	Status      string `json:"status"`
+	Status      string `json:"miner_status"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
@@ -125,7 +125,7 @@ type StakeDetail struct {
 	Value        uint64 `json:"value"`
 	UpdateHeight uint64 `json:"update_height"`
 	MType        string `json:"m_type"`
-	Status       string `json:"status"`
+	Status       string `json:"stake_status"`
 }
 
 type MinerStakeDetails struct {
@@ -159,7 +159,7 @@ type Block struct {
 	CurTime     time.Time   `json:"cur_time"`
 	PreTime     time.Time   `json:"pre_time"`
 	Castor      groupsig.ID `json:"castor"`
-	GroupID     groupsig.ID `json:"group_id"`
+	Group       common.Hash `json:"group_id"`
 	Prove       string      `json:"prove"`
 	TotalQN     uint64      `json:"total_qn"`
 	Qn          uint64      `json:"qn"`
@@ -192,13 +192,13 @@ type ExplorerBlockDetail struct {
 }
 
 type Group struct {
-	Height        uint64      `json:"height"`
-	ID            groupsig.ID `json:"id"`
-	PreID         groupsig.ID `json:"pre_id"`
-	ParentID      groupsig.ID `json:"parent_id"`
+	Seed          common.Hash `json:"id"`
 	BeginHeight   uint64      `json:"begin_height"`
 	DismissHeight uint64      `json:"dismiss_height"`
+	Threshold     int32       `json:"threshold"`
 	Members       []string    `json:"members"`
+	MemSize       int         `json:"mem_size"`
+	GroupHeight   uint64      `json:"group_height"`
 }
 
 type MinerRewardBalance struct {
@@ -224,8 +224,7 @@ type Transaction struct {
 	GasPrice uint64      `json:"gas_price"`
 	Hash     common.Hash `json:"hash"`
 
-	ExtraData     string `json:"extra_data"`
-	ExtraDataType int8   `json:"extra_data_type"`
+	ExtraData string `json:"extra_data"`
 }
 
 type Receipt struct {
@@ -247,7 +246,7 @@ type ExecutedTransaction struct {
 type RewardTransaction struct {
 	Hash         common.Hash   `json:"hash"`
 	BlockHash    common.Hash   `json:"block_hash"`
-	GroupID      groupsig.ID   `json:"group_id"`
+	GroupSeed    common.Hash   `json:"group_id"`
 	TargetIDs    []groupsig.ID `json:"target_ids"`
 	Value        uint64        `json:"value"`
 	PackFee      uint64        `json:"pack_fee"`

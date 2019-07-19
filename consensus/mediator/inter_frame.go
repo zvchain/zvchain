@@ -46,6 +46,5 @@ func StartMiner() bool {
 // StopMiner ends the miner process and no longer participate in the consensus
 func StopMiner() {
 	Proc.Stop()
-	Proc.Finalize()
 	return
 }

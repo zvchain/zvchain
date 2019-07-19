@@ -216,7 +216,7 @@ func newPendingContainer(limit int) *pendingContainer {
 	return s
 }
 
-func newSimpleContainer(pendingLimit int, queueLimit int, chain BlockChain) *simpleContainer {
+func newSimpleContainer(pendingLimit int, queueLimit int, chain types.BlockChain) *simpleContainer {
 	c := &simpleContainer{
 		lock:       sync.RWMutex{},
 		chain:      chain.(*FullBlockChain),

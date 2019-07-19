@@ -26,31 +26,38 @@ import (
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 	"github.com/zvchain/zvchain/taslog"
 )
 
 var logger = taslog.GetLoggerByIndex(taslog.TvmConfig, strconv.FormatInt(int64(common.InstanceIndex), 10))
 
 //export Transfer
-func Transfer(toAddressStr *C.char, value *C.char) bool {
+func Transfer(toAddress *C.char, value *C.char) bool {
+	toAddressStr := C.GoString(toAddress)
+	if !common.ValidateAddress(toAddressStr) {
+		return false
+	}
 	transValue, ok := big.NewInt(0).SetString(C.GoString(value), 10)
 	if !ok {
 		return false
 	}
 	contractAddr := controller.VM.ContractAddress
-	toAddress := common.HexToAddress(C.GoString(toAddressStr))
+	to := common.HexToAddress(toAddressStr)
 
 	if !controller.AccountDB.CanTransfer(*contractAddr, transValue) {
 		return false
 	}
-	controller.AccountDB.Transfer(*contractAddr, toAddress, transValue)
+	controller.AccountDB.Transfer(*contractAddr, to, transValue)
 	return true
 
 }
 
 //export GetBalance
 func GetBalance(addressC *C.char) *C.char {
+	toAddressStr := C.GoString(addressC)
+	if !common.ValidateAddress(toAddressStr) {
+		return C.CString("0")
+	}
 	address := common.HexToAddress(C.GoString(addressC))
 	value := controller.AccountDB.GetBalance(address)
 	return C.CString(value.String())
@@ -132,7 +139,7 @@ func RemoveData(key *C.char) {
 	controller.AccountDB.RemoveData(address, []byte(C.GoString(key)))
 }
 
-func executeMinerOperation(msg vm.MinerOperationMessage) bool {
+func executeMinerOperation(msg types.MinerOperationMessage) bool {
 	success, err := controller.mm.ExecuteOperation(controller.AccountDB, msg, controller.BlockHeader.Height)
 	if err != nil {
 		logger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())
@@ -142,8 +149,12 @@ func executeMinerOperation(msg vm.MinerOperationMessage) bool {
 
 //export MinerStake
 func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
+		return false
+	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
-	if !ok {
+	if !ok || value.Sign() <= 0 || value.Cmp(common.MaxBigUint64) > 0 {
 		return false
 	}
 	mPks := &types.MinerPks{
@@ -154,7 +165,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 		logger.Errorf("encode payload error:%v", err)
 		return false
 	}
-	target := common.HexToAddress(C.GoString(minerAddr))
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,
@@ -169,12 +180,16 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 
 //export MinerCancelStake
 func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
+		return false
+	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
-	if !ok {
+	if !ok || value.Sign() <= 0 || value.Cmp(common.MaxBigUint64) > 0 {
 		return false
 	}
 	payload := []byte{byte(_type)}
-	target := common.HexToAddress(C.GoString(minerAddr))
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,
@@ -188,8 +203,12 @@ func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 
 //export MinerRefundStake
 func MinerRefundStake(minerAddr *C.char, _type int) bool {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
+		return false
+	}
 	payload := []byte{byte(_type)}
-	target := common.HexToAddress(C.GoString(minerAddr))
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,

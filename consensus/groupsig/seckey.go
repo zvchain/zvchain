@@ -16,6 +16,7 @@
 package groupsig
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -29,6 +30,8 @@ import (
 var curveOrder = bncurve.Order // Curve integer field
 var fieldOrder = bncurve.P
 var bitLength = curveOrder.BitLen()
+
+const SkLength = 32
 
 // Seckey -- represented by a big.Int modulo curveOrder
 type Seckey struct {
@@ -50,7 +53,17 @@ type SeckeyMapID map[string]Seckey
 
 // Serialize converts the private key into byte slices (Little-Endian)
 func (sec Seckey) Serialize() []byte {
-	return sec.value.Serialize()
+	bytes := sec.value.Serialize()
+	if len(bytes) == SkLength {
+		return bytes
+	}
+	if len(bytes) > SkLength {
+		// hold it for now
+		panic("Seckey Serialize error: should be 32 bytes")
+	}
+	buff := make([]byte, SkLength)
+	copy(buff[SkLength-len(bytes):], bytes)
+	return buff
 }
 
 // GetBigInt convert the private key to big.int
@@ -75,28 +88,40 @@ func (sec Seckey) GetHexString() string {
 	return sec.getHex()
 }
 
-func (sec *Seckey) ShortS() string {
-	str := sec.GetHexString()
-	return common.ShortHex12(str)
-}
-
 // Deserialize initializes the private key by byte slice
 func (sec *Seckey) Deserialize(b []byte) error {
-	return sec.value.Deserialize(b)
+	length := len(b)
+	bytes := b
+	if length < SkLength {
+		bytes = make([]byte, SkLength)
+		copy(bytes[SkLength-length:], b)
+	} else if length > SkLength {
+		bytes = b[length-SkLength:]
+	}
+	return sec.value.Deserialize(bytes)
+}
+
+func DeserializeSeckey(bs []byte) *Seckey {
+	var sk Seckey
+	sk.Deserialize(bs)
+	return &sk
 }
 
 func (sec Seckey) MarshalJSON() ([]byte, error) {
-	str := "\"" + sec.GetHexString() + "\""
-	return []byte(str), nil
+	bs, err := json.Marshal(sec.GetHexString())
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }
 
 func (sec *Seckey) UnmarshalJSON(data []byte) error {
-	str := string(data[:])
-	if len(str) < 2 {
-		return fmt.Errorf("data size less than min")
+	var hex string
+	err := json.Unmarshal(data, &hex)
+	if err != nil {
+		return err
 	}
-	str = str[1 : len(str)-1]
-	return sec.SetHexString(str)
+	return sec.SetHexString(hex)
 }
 
 // SetLittleEndian initializes the private key by byte slice (Little-Endian)
@@ -274,7 +299,6 @@ func RecoverSeckey(secs []Seckey, ids []ID) *Seckey {
 	// Input element traversal
 	for i := 0; i < k; i++ {
 		// Compute delta_i depending on ids only
-		// (Why is the initial delta/num/den initial value of 1, and the last diff initial value is 0?)
 		var delta, num, den, diff = big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(0)
 
 		// Range ID
@@ -372,4 +396,86 @@ func (sec *Seckey) Recover(secVec []Seckey, idVec []ID) error {
 	sec.Deserialize(s.Serialize())
 
 	return nil
+}
+
+// CheckSharePiecesValid returns true if all share pieces are valid, otherwise return false
+// Parameter:   k   threshold of BLS
+func CheckSharePiecesValid(shares []Seckey, ids []ID, k int, pk0 Pubkey) (bool, error) {
+	if shares == nil || ids == nil {
+		return false, fmt.Errorf("invalid input parameters in CheckSharePiecesValid")
+	}
+	if len(shares) != len(ids) {
+		return false, fmt.Errorf("invalid parameters, shares and ids are not same size")
+	}
+	n := len(shares)
+	if k > n || k <= 0 {
+		return false, fmt.Errorf("invalid threshold k in CheckSharePiecesValid")
+	}
+
+	xs := make([]*big.Int, n)
+	for i := 0; i < n; i++ {
+		// Convert all ids to big.Int and put them in xs slices
+		xs[i] = ids[i].GetBigInt()
+	}
+	for m := k + 1; m < n; m++ {
+		result := big.NewInt(0)
+
+		for i := 0; i < k; i++ {
+			var delta, num, den, diff = big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(0)
+
+			// Range ID
+			for j := 0; j < k; j++ {
+				if j != i {
+					diff.Sub(xs[j], xs[m])
+					num.Mul(num, diff)
+					num.Mod(num, curveOrder)
+
+					diff.Sub(xs[j], xs[i])
+					den.Mul(den, diff)
+					den.Mod(den, curveOrder)
+				}
+			}
+			den.ModInverse(den, curveOrder)
+			delta.Mul(num, den)
+			delta.Mod(delta, curveOrder)
+
+			delta.Mul(delta, shares[i].GetBigInt())
+			result.Add(result, delta)
+			result.Mod(result, curveOrder)
+		}
+		if result.Cmp(shares[m].GetBigInt()) != 0 {
+			return false, nil
+		}
+	}
+
+	//check pk0 valid
+	a0 := big.NewInt(0)
+	for i := 0; i < k; i++ {
+		var delta, num, den, diff = big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(0)
+
+		// Range ID
+		for j := 0; j < k; j++ {
+			if j != i {
+				num.Mul(num, xs[j])
+				num.Mod(num, curveOrder)
+
+				diff.Sub(xs[j], xs[i])
+				den.Mul(den, diff)
+				den.Mod(den, curveOrder)
+			}
+		}
+		den.ModInverse(den, curveOrder)
+		delta.Mul(num, den)
+		delta.Mod(delta, curveOrder)
+
+		delta.Mul(delta, shares[i].GetBigInt())
+		a0.Add(a0, delta)
+		a0.Mod(a0, curveOrder)
+	}
+	sk0 := NewSeckeyFromBigInt(a0)
+	pk := NewPubkeyFromSeckey(*sk0)
+	if !pk.IsEqual(pk0) {
+		return false, nil
+	}
+	return true, nil
 }

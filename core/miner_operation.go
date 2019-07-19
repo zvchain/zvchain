@@ -20,14 +20,14 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 	"math/big"
 )
 
 // Duration definition related to miner operation
 const (
-	oneDayBlocks = 86400 / 3        // Blocks generated in one day on average, used when status transforms from Frozen to Prepare
-	twoDayBlocks = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
+	oneHourBlocks = 86400 / 3 / 24   // Blocks generated in one hour on average, used when status transforms from Frozen to Prepare
+	oneDayBlocks  = 86400 / 3        // Blocks generated in one day on average
+	twoDayBlocks  = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
 )
 
 // mOperation define some functions on miner operation
@@ -40,10 +40,13 @@ type mOperation interface {
 	Operation() error        // Do the operation
 }
 
+type sysMinerOpType int8
+
 // newOperation creates the mOperation instance base on msg type
-func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) mOperation {
+func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64) mOperation {
 	baseOp := newBaseOperation(db, msg, height)
 	var operation mOperation
+
 	switch msg.OpType() {
 	case types.TransactionTypeStakeAdd:
 		operation = &stakeAddOp{baseOperation: baseOp}
@@ -56,6 +59,7 @@ func newOperation(db vm.AccountDB, msg vm.MinerOperationMessage, height uint64) 
 	default:
 		operation = &unSupported{typ: msg.OpType()}
 	}
+
 	return operation
 }
 
@@ -229,8 +233,8 @@ func (op *minerAbortOp) Operation() error {
 		return fmt.Errorf("already in prepare status")
 	}
 	// Frozen miner must wait for 1day after frozen
-	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneDayBlocks {
-		return fmt.Errorf("frozen miner can't abort less than 1days since frozen")
+	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneHourBlocks {
+		return fmt.Errorf("frozen miner can't abort less than 1 hour since frozen")
 	}
 	// Remove from pool if active
 	if miner.IsActive() {
@@ -293,7 +297,7 @@ func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 			return fmt.Errorf("active miner cann't reduce stake to below bound")
 		}
 	} else if miner.IsPrepare() {
-		if op.opVerifyRole() && GroupChainImpl.WhetherMemberInActiveGroup(op.cancelTarget.Bytes(), op.height) {
+		if op.opVerifyRole() && GroupManagerImpl.GetGroupStoreReader().MinerLiveGroupCount(op.cancelTarget, op.height) > 0 {
 			return fmt.Errorf("miner still in active groups, cannot reduce stake")
 		}
 	} else {
@@ -428,4 +432,173 @@ func (op *stakeRefundOp) Operation() error {
 	op.accountDB.AddBalance(op.refundSource, new(big.Int).SetUint64(frozenDetail.Value))
 	return nil
 
+}
+
+// minerFreezeOp freeze the miner, which can cause miner status transfer to Frozen
+// and quit mining.
+// It was called by the group-create routine when the miner didn't participate in the process completely
+type minerFreezeOp struct {
+	*baseOperation
+	addr common.Address
+}
+
+func (op *minerFreezeOp) ParseTransaction() error {
+	return nil
+}
+
+func (op *minerFreezeOp) Validate() error {
+	return nil
+}
+
+func (op *minerFreezeOp) Operation() error {
+	if !op.opVerifyRole() {
+		return fmt.Errorf("not operates a verifier:%v", op.addr.Hex())
+	}
+	miner, err := op.getMiner(op.addr)
+	if err != nil {
+		return err
+	}
+	if miner == nil {
+		return fmt.Errorf("no miner info")
+	}
+	if miner.IsFrozen() {
+		return fmt.Errorf("already in forzen status")
+	}
+	if !miner.IsVerifyRole() {
+		return fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID))
+	}
+
+	// Remove from pool if active
+	if miner.IsActive() {
+		op.removeFromPool(op.addr, miner.Stake)
+	}
+
+	// Update the miner status
+	miner.UpdateStatus(types.MinerStatusFrozen, op.height)
+	if err := op.setMiner(miner); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type minerPenaltyOp struct {
+	*baseOperation
+	targets []common.Address
+	rewards []common.Address
+	value   uint64
+}
+
+func (op *minerPenaltyOp) ParseTransaction() error {
+	return nil
+}
+
+func (op *minerPenaltyOp) Validate() error {
+	return nil
+}
+
+func (op *minerPenaltyOp) Operation() error {
+	if !op.opVerifyRole() {
+		return fmt.Errorf("not operates verifiers")
+	}
+	// Firstly, frozen the targets
+	for _, addr := range op.targets {
+		miner, err := op.getMiner(addr)
+		if err != nil {
+			return err
+		}
+		if miner == nil {
+			return fmt.Errorf("no miner info")
+		}
+		if !miner.IsVerifyRole() {
+			return fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID))
+		}
+
+		// Remove from pool if active
+		if miner.IsActive() {
+			op.removeFromPool(addr, miner.Stake)
+		}
+		// Must not happen
+		if miner.Stake < op.value {
+			panic(fmt.Errorf("stake less than punish value:%v %v of %v", miner.Stake, op.value, addr.Hex()))
+		}
+
+		// Sub total stake and update the miner status
+		miner.Stake -= op.value
+		miner.UpdateStatus(types.MinerStatusFrozen, op.height)
+		if err := op.setMiner(miner); err != nil {
+			return err
+		}
+		// Add punishment detail
+		punishmentKey := getDetailKey(punishmentDetailAddr, op.minerType, types.StakePunishment)
+		punishmentDetail, err := op.getDetail(addr, punishmentKey)
+		if err != nil {
+			return err
+		}
+		if punishmentDetail == nil {
+			punishmentDetail = &stakeDetail{
+				Value: op.value,
+			}
+		} else {
+			// Accumulate the punish value
+			punishmentDetail.Value += op.value
+		}
+		punishmentDetail.Height = op.height
+		// Update the punishment detail of target
+		if err := op.setDetail(addr, punishmentKey, punishmentDetail); err != nil {
+			return err
+		}
+
+		// Sub the stake detail
+		normalStakeKey := getDetailKey(addr, op.minerType, types.Staked)
+		normalDetail, err := op.getDetail(addr, normalStakeKey)
+		if err != nil {
+			return err
+		}
+		// Must not happen
+		if normalDetail == nil {
+			panic(fmt.Errorf("penalty can't find detail of the target:%v", addr.Hex()))
+		}
+		if normalDetail.Value > op.value {
+			normalDetail.Value -= op.value
+			normalDetail.Height = op.height
+			if err := op.setDetail(addr, normalStakeKey, normalDetail); err != nil {
+				return err
+			}
+		} else {
+			remain := op.value - normalDetail.Value
+			normalDetail.Value = 0
+			op.removeDetail(addr, normalStakeKey)
+
+			// Need to sub frozen stake detail if remain > 0
+			if remain > 0 {
+				frozenKey := getDetailKey(addr, op.minerType, types.StakeFrozen)
+				frozenDetail, err := op.getDetail(addr, frozenKey)
+				if err != nil {
+					return err
+				}
+				if frozenDetail == nil {
+					panic(fmt.Errorf("penalty can't find frozen detail of target:%v", addr.Hex()))
+				}
+				if frozenDetail.Value < remain {
+					panic(fmt.Errorf("frozen detail value less than remain punish value %v %v %v", frozenDetail.Value, remain, addr.Hex()))
+				}
+				frozenDetail.Value -= remain
+				frozenDetail.Height = op.height
+				if err := op.setDetail(addr, frozenKey, frozenDetail); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Finally, add the penalty stake to the balance of rewards
+	if len(op.rewards) > 0 {
+		addEach := new(big.Int).SetUint64(op.value * uint64(len(op.targets)) / uint64(len(op.rewards)))
+		for _, addr := range op.rewards {
+			op.accountDB.AddBalance(addr, addEach)
+		}
+	}
+
+	return nil
 }

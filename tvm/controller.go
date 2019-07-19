@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/vm"
 )
 
 var bridgeInited = false
@@ -39,8 +38,8 @@ type ControllerTransactionInterface interface {
 type Controller struct {
 	BlockHeader *types.BlockHeader
 	Transaction ControllerTransactionInterface
-	AccountDB   vm.AccountDB
-	Reader      vm.ChainReader
+	AccountDB   types.AccountDB
+	Reader      types.ChainReader
 	VM          *TVM
 	VMStack     []*TVM
 	GasLeft     uint64
@@ -49,12 +48,12 @@ type Controller struct {
 
 // MinerManager MinerManager is the interface of the miner manager
 type MinerManager interface {
-	ExecuteOperation(accountdb vm.AccountDB, msg vm.MinerOperationMessage, height uint64) (success bool, err error)
+	ExecuteOperation(accountdb types.AccountDB, msg types.MinerOperationMessage, height uint64) (success bool, err error)
 }
 
 // NewController New a TVM controller
-func NewController(accountDB vm.AccountDB,
-	chainReader vm.ChainReader,
+func NewController(accountDB types.AccountDB,
+	chainReader types.ChainReader,
 	header *types.BlockHeader,
 	transaction ControllerTransactionInterface,
 	gasUsed uint64,

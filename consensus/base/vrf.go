@@ -16,6 +16,7 @@
 package base
 
 import (
+	"encoding/json"
 	"io"
 	"math/big"
 
@@ -36,6 +37,24 @@ const (
 
 // VRFPublicKey is the type of Ed25519 public keys.
 type VRFPublicKey ed25519.PublicKey
+
+func (vp *VRFPublicKey) UnmarshalJSON(data []byte) error {
+	var hex string
+	err := json.Unmarshal(data, &hex)
+	if err != nil {
+		return err
+	}
+	*vp = Hex2VRFPublicKey(hex)
+	return nil
+}
+
+func (vp VRFPublicKey) MarshalJSON() ([]byte, error) {
+	bs, err := json.Marshal(vp.GetHexString())
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
+}
 
 // VRFPrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
 type VRFPrivateKey ed25519.PrivateKey
@@ -60,12 +79,6 @@ func Hex2VRFPrivateKey(hex string) VRFPrivateKey {
 
 func (vp VRFPrivateKey) GetHexString() string {
 	return common.ToHex(vp)
-}
-
-func (vp VRFProve) ShortS() string {
-	bi := new(big.Int).SetBytes(vp)
-	hex := bi.Text(16)
-	return common.ShortHex12(hex)
 }
 
 // VRFGenerateKey generates a public/private key pair using entropy from rand.

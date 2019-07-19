@@ -49,8 +49,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             field: 'begin_height',
             type: 'desc'
         }
-        ,cols: [[{field:'height',title: '高度', sort: true, width:140}, {field:'group_id',title: '组id', width:140}, {field:'g_hash', title: '组hash', width:140},
-            {field:'parent', title: '父亲组', width:140},{field:'pre', title: '上一组', width:140},{field:'create_height', title: '创建高度', width: 100},
+        ,cols: [[{field:'id',title: '组seed', width:140}, {field:'threshold',title: '门限', width:80},
             {field:'begin_height', title: '生效高度', width: 100},{field:'dismiss_height', title: '解散高度', width:100},{field:'mem_size', title: '成员数量', width:100},
             {field:'members', title: '成员列表'}]] //设置表头
         ,data: groups
@@ -64,8 +63,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             field: 'begin_height',
             type: 'desc'
         }
-        ,cols: [[{field:'height',title: '高度', sort: true, width:140}, {field:'group_id',title: '组id', width:140}, {field:'g_hash', title: '组hash', width:140},
-            {field:'parent', title: '父亲组', width:140},{field:'pre', title: '上一组', width:140},{field:'create_height', title: '创建高度', width: 100},
+        ,cols: [[{field:'id',title: '组seed', width:140}, {field:'threshold',title: '门限', width:80},
             {field:'begin_height', title: '生效高度', width: 100},{field:'dismiss_height', title: '解散高度', width:100},{field:'mem_size', title: '成员数量', width:100},
             {field:'members', title: '成员列表'}]] //设置表头
         ,data: groups
@@ -282,16 +280,12 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
                 if (rdata.result !== undefined && rdata.result != null && rdata.result.message == 'success'){
                     retArr = rdata.result.data;
                     for(i = 0; i < retArr.length; i++) {
-                        if (!groupIds.has(retArr[i]["group_id"])) {
+                        if (!groupIds.has(retArr[i]["id"])) {
                             groups.push(retArr[i]);
                             if (groups.length > 100) {
                                 groups.shift()
                             }
-                            groupIds.add(retArr[i]["group_id"])
-                        }
-                        h = retArr[i]["height"];
-                        if (h > last_sync_group) {
-                            last_sync_group = h
+                            groupIds.add(retArr[i]["id"])
                         }
                     }
                     group_table.reload({

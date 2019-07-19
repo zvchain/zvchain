@@ -320,7 +320,7 @@ func (m *MsgNeighbors) GetExpiration() uint64 {
 
 type MsgData struct {
 	DataType     DataType `protobuf:"varint,1,opt,name=DataType,proto3,enum=network.DataType" json:"DataType,omitempty"`
-	GroupID      string   `protobuf:"bytes,2,opt,name=GroupID,proto3" json:"GroupID,omitempty"`
+	GroupID      string   `protobuf:"bytes,2,opt,name=Group,proto3" json:"Group,omitempty"`
 	Expiration   uint64   `protobuf:"varint,3,opt,name=Expiration,proto3" json:"Expiration,omitempty"`
 	MessageID    uint64   `protobuf:"varint,4,opt,name=MessageID,proto3" json:"MessageID,omitempty"`
 	BizMessageID []byte   `protobuf:"bytes,5,opt,name=BizMessageID,proto3" json:"BizMessageID,omitempty"`
@@ -1838,7 +1838,7 @@ func (m *MsgData) Unmarshal(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field GroupID", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Group", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
