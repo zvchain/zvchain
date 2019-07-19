@@ -2,8 +2,10 @@ package core
 
 import (
 	"fmt"
+	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
 	tas_middleware_test "github.com/zvchain/zvchain/core/test"
+	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/taslog"
@@ -125,8 +127,23 @@ func TestBlockReqHandler(t *testing.T){
 }
 
 func TestBlockResponseMsgHandler(t *testing.T){
+	blocks := tas_middleware_test.GenBlocks()
+	pbblocks := blocksToPb(blocks)
+	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
+	bts,_:=proto.Marshal(&message)
+	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	blockSyncForTest.blockResponseMsgHandler(msg)
 
+
+	//error protobuf format
+	errorPbblocks := blocksToErrorPb(blocks)
+	errorMsg := tas_middleware_test.BlockResponseMsg{Blocks: errorPbblocks}
+	bts,_ = proto.Marshal(&errorMsg)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	blockSyncForTest.blockResponseMsgHandler(msg)
 }
+
+
 
 
 func resetDb() error {
@@ -162,4 +179,60 @@ func GenBlocks()[]*types.Block{
 		blocks = append(blocks,&types.Block{Header:bh})
 	}
 	return blocks
+}
+
+
+func blocksToPb(blocks[]*types.Block)[]*tas_middleware_pb.Block{
+	pbblocks := make([]*tas_middleware_pb.Block, 0)
+	for _, b := range blocks {
+		pb := types.BlockToPb(b)
+		pbblocks = append(pbblocks, pb)
+	}
+	return pbblocks
+}
+
+func blocksToErrorPb(blocks[]*types.Block)[]*tas_middleware_test.Block{
+	pbblocks := make([]*tas_middleware_test.Block, 0)
+	for _, b := range blocks {
+		pb := BlockToErrorPb(b)
+		pbblocks = append(pbblocks, pb)
+	}
+	return pbblocks
+}
+
+
+func BlockToErrorPb(b *types.Block) *tas_middleware_test.Block {
+	if b == nil {
+		return nil
+	}
+	header := BlockHeaderToErrorPb(b.Header)
+	block := tas_middleware_test.Block{Header: header}
+	return &block
+}
+
+
+
+func BlockHeaderToErrorPb(h *types.BlockHeader) *tas_middleware_test.BlockHeader {
+	ts := h.CurTime.Unix()
+	str := "............."
+	header := tas_middleware_test.BlockHeader{
+		Hash:        h.Hash.Bytes(),
+		Height:      &str,
+		PreHash:     h.PreHash.Bytes(),
+		Elapsed:     &h.Elapsed,
+		ProveValue:  h.ProveValue,
+		CurTime:     &ts,
+		Castor:      h.Castor,
+		GroupId:     h.Group.Bytes(),
+		Signature:   h.Signature,
+		Nonce:       &h.Nonce,
+		TxTree:      h.TxTree.Bytes(),
+		ReceiptTree: h.ReceiptTree.Bytes(),
+		StateTree:   h.StateTree.Bytes(),
+		ExtraData:   h.ExtraData,
+		TotalQN:     &h.TotalQN,
+		Random:      h.Random,
+		GasFee:      &h.GasFee,
+	}
+	return &header
 }
