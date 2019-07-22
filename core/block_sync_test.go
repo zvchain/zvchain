@@ -20,6 +20,7 @@ import (
 
 var blockSyncForTest *blockSyncer
 
+var lastBlockHash common.Hash
 func init(){
 	resetDb()
 	initContext4Test()
@@ -148,6 +149,7 @@ func TestBlockReqHandler(t *testing.T){
 
 func TestBlockResponseMsgHandler(t *testing.T){
 	//error blocks
+	insertCorrectHashBlocks()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
@@ -184,6 +186,18 @@ func TestBlockResponseMsgHandler(t *testing.T){
 
 	//tx sign error
 	blocks = tas_middleware_test.GenHashCorrectBlocks()
+	pbblocks = blocksToPb(blocks)
+	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
+	bts,_=proto.Marshal(&message)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	err = blockSyncForTest.blockResponseMsgHandler(msg)
+	if  err != nil{
+		t.Fatalf("except err nil,but got error")
+	}
+
+
+	//correct block hash
+	blocks = tas_middleware_test.GenHashCorrectBlocksByFirstHash(lastBlockHash)
 	pbblocks = blocksToPb(blocks)
 	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
 	bts,_=proto.Marshal(&message)
@@ -232,7 +246,29 @@ func insertBlocks(){
 	exc := &executePostState{state: stateDB}
 	for i:=0;i<len(blocks);i++{
 		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i],exc)
+		lastBlockHash = blocks[i].Header.Hash
 	}
+}
+
+func insertCorrectHashBlocks(){
+	blocks := GenCorrectBlocks()
+	stateDB,_ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	exc := &executePostState{state: stateDB}
+	for i:=0;i<len(blocks);i++{
+		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i],exc)
+		lastBlockHash = blocks[i].Header.Hash
+	}
+}
+
+
+func GenCorrectBlocks()[]*types.Block{
+	blocks := []*types.Block{}
+	for i:= 0;i<100;i++{
+		bh := tas_middleware_test.NewRandomFullBlockHeader(uint64(i))
+		bh.Hash = bh.GenHash()
+		blocks = append(blocks,&types.Block{Header:bh})
+	}
+	return blocks
 }
 
 func GenBlocks()[]*types.Block{
