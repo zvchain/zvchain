@@ -143,6 +143,7 @@ func TestBlockReqHandler(t *testing.T){
 }
 
 func TestBlockResponseMsgHandler(t *testing.T){
+	//error blocks
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
@@ -158,6 +159,30 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	errorPbblocks := blocksToErrorPb(blocks)
 	errorMsg := tas_middleware_test.BlockResponseMsg{Blocks: errorPbblocks}
 	bts,_ = proto.Marshal(&errorMsg)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	err = blockSyncForTest.blockResponseMsgHandler(msg)
+	if  err != nil{
+		t.Fatalf("except err nil,but got error")
+	}
+
+
+
+	//only txs
+	blocks = tas_middleware_test.GenOnlyHasTransBlocks()
+	pbblocks = BlockToPbOnlyTxs(blocks)
+	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
+	bts,_=proto.Marshal(&message)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	err = blockSyncForTest.blockResponseMsgHandler(msg)
+	if  err == nil{
+		t.Fatalf("except got,but got nil")
+	}
+
+	//tx sign error
+	blocks = tas_middleware_test.GenHashCorrectBlocks()
+	pbblocks = blocksToPb(blocks)
+	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
+	bts,_=proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 	if  err != nil{
@@ -224,6 +249,56 @@ func blocksToPb(blocks[]*types.Block)[]*tas_middleware_pb.Block{
 	}
 	return pbblocks
 }
+
+func BlockToPbOnlyTxs(blocks[]*types.Block) []*tas_middleware_pb.Block {
+	pbblocks := make([]*tas_middleware_pb.Block, 0)
+	for _, b := range blocks {
+		transactions := TransactionsToPb(b.Transactions)
+		block := tas_middleware_pb.Block{Transactions: transactions}
+		pbblocks = append(pbblocks,&block)
+	}
+	return pbblocks
+}
+
+
+func TransactionsToPb(txs []*types.Transaction) []*tas_middleware_pb.Transaction {
+	if txs == nil {
+		return nil
+	}
+	transactions := make([]*tas_middleware_pb.Transaction, 0)
+	for _, t := range txs {
+		transaction := transactionToPb(t)
+		transactions = append(transactions, transaction)
+	}
+	return transactions
+}
+
+func transactionToPb(t *types.Transaction) *tas_middleware_pb.Transaction {
+	if t == nil {
+		return nil
+	}
+	var (
+		target []byte
+	)
+	if t.Target != nil {
+		target = t.Target.Bytes()
+	}
+	tp := int32(t.Type)
+	transaction := tas_middleware_pb.Transaction{
+		Data:      t.Data,
+		Value:     t.Value.GetBytesWithSign(),
+		Nonce:     &t.Nonce,
+		Target:    target,
+		GasLimit:  t.GasLimit.GetBytesWithSign(),
+		GasPrice:  t.GasPrice.GetBytesWithSign(),
+		Hash:      t.Hash.Bytes(),
+		ExtraData: t.ExtraData,
+		Type:      &tp,
+		Sign:      t.Sign,
+	}
+	return &transaction
+}
+
 
 func blocksToErrorPb(blocks[]*types.Block)[]*tas_middleware_test.Block{
 	pbblocks := make([]*tas_middleware_test.Block, 0)

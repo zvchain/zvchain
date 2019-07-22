@@ -99,9 +99,16 @@ func NewRandomFullBlockHeader(height uint64)*types.BlockHeader{
 }
 
 
-func NewBlock(bh *types.BlockHeader)*types.Block{
+func NewBlock(bh *types.BlockHeader,txs []*types.Transaction)*types.Block{
 	return &types.Block{
 		Header : bh,
+		Transactions:txs,
+	}
+}
+
+func NewBlockWithTxs(txs []*types.Transaction)*types.Block{
+	return &types.Block{
+		Transactions:txs,
 	}
 }
 
@@ -109,10 +116,45 @@ func GenBlocks()[]*types.Block{
 	blocks := []*types.Block{}
 	bhs := GenErrorBlockHeaders()
 	for _,data := range bhs{
-		blocks = append(blocks,NewBlock(data))
+		blocks = append(blocks,NewBlock(data,nil))
 	}
 	return blocks
 }
+
+func GenOnlyHasTransBlocks()[]*types.Block{
+	blocks := []*types.Block{}
+
+	txs := []*types.Transaction{}
+	tx := &types.Transaction{Nonce:100}
+	txs = append(txs,tx)
+	for i :=0;i<10;i++{
+		blocks = append(blocks,NewBlockWithTxs(txs))
+	}
+	return blocks
+}
+
+
+func GenHashCorrectBlocks()[]*types.Block{
+	blocks := []*types.Block{}
+	txs := []*types.Transaction{}
+	bhs := GeneCorrectBlockHeaders()
+	nonce:=0
+	for _,data := range bhs{
+		target := common.HexToAddress("0x999")
+		sign := []byte{}
+		for i :=0;i<65;i++{
+			sign = append(sign,0)
+		}
+		tx  :=  &types.Transaction{Type:0,Value:types.NewBigInt(10),Nonce:uint64(nonce),Target:&target,GasLimit:types.NewBigInt(uint64(10000)+uint64(nonce)),GasPrice:types.NewBigInt(uint64(500)+uint64(nonce)),Sign:sign}
+		tx.Hash = tx.GenHash()
+		nonce++
+		txs = append(txs,tx)
+		blocks = append(blocks,NewBlock(data,txs))
+		txs = []*types.Transaction{}
+	}
+	return blocks
+}
+
 
 func GenErrorBlockHeaders()[]*types.BlockHeader{
 	bhs := []*types.BlockHeader{}
@@ -123,6 +165,28 @@ func GenErrorBlockHeaders()[]*types.BlockHeader{
 
 func NewNilBlockHeader()*types.BlockHeader{
 	return &types.BlockHeader{}
+}
+
+
+func NewCorrectBlockHeader(hash common.Hash,preHash common.Hash)*types.BlockHeader{
+	return &types.BlockHeader{
+		Hash:hash,
+		Height:errorUint64[rand.Intn(len(errorUint64))],
+		PreHash:preHash,
+		Elapsed:errorInt32[rand.Intn(len(errorInt32))],
+		ProveValue:errorBytes[rand.Intn(len(errorBytes))],
+		TotalQN:errorUint64[rand.Intn(len(errorUint64))],
+		Castor:errorBytes[rand.Intn(len(errorBytes))],
+		Group:errorHashs[rand.Intn(len(errorHashs))],
+		Signature:errorBytes[rand.Intn(len(errorBytes))],
+		Nonce :errorInt32[rand.Intn(len(errorInt32))],
+		TxTree:errorHashs[rand.Intn(len(errorHashs))],
+		ReceiptTree:errorHashs[rand.Intn(len(errorHashs))],
+		StateTree :errorHashs[rand.Intn(len(errorHashs))],
+		ExtraData:errorBytes[rand.Intn(len(errorBytes))],
+		Random:errorBytes[rand.Intn(len(errorBytes))],
+		GasFee:errorUint64[rand.Intn(len(errorUint64))],
+	}
 }
 
 func NewRandomErrorBlockHeader()*types.BlockHeader{
@@ -155,6 +219,18 @@ func GeneErrorBlockHeaders()[]*types.BlockHeader{
 	return bhs
 }
 
+
+func GeneCorrectBlockHeaders()[]*types.BlockHeader{
+	bhs := []*types.BlockHeader{}
+	hash := errorHashs[rand.Intn(len(errorHashs))]
+	preHash := hash
+	for i := 0;i<200;i++{
+		bhs = append(bhs,NewCorrectBlockHeader(hash,preHash))
+		preHash = hash
+		hash = errorHashs[rand.Intn(len(errorHashs))]
+	}
+	return bhs
+}
 
 func MarshalNilSyncRequest() ([]byte, error) {
 	pbr := &SyncRequest{
