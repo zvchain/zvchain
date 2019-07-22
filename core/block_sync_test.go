@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/base"
 	tas_middleware_test "github.com/zvchain/zvchain/core/test"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -63,7 +64,10 @@ func TestGetBestCandidate(t *testing.T) {
 }
 
 func PvFuncTest(pvBytes []byte) *big.Int {
-	return new(big.Int)
+	if len(pvBytes) == 0 {
+		return big.NewInt(0)
+	}
+	return base.VRFProof2hash(base.VRFProve(pvBytes)).Big()
 }
 
 

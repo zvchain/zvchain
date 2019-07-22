@@ -142,7 +142,7 @@ func GenHashCorrectBlocks()[]*types.Block{
 	for _,data := range bhs{
 		target := common.HexToAddress("0x999")
 		sign := []byte{}
-		for i :=0;i<65;i++{
+		for i :=0;i<20;i++{
 			sign = append(sign,0)
 		}
 		tx  :=  &types.Transaction{Type:0,Value:types.NewBigInt(10),Nonce:uint64(nonce),Target:&target,GasLimit:types.NewBigInt(uint64(10000)+uint64(nonce)),GasPrice:types.NewBigInt(uint64(500)+uint64(nonce)),Sign:sign}
