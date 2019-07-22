@@ -32,7 +32,7 @@ const (
 	txNofifyInterval    = 5
 	txNotifyRoutine     = "ts_notify"
 	tickerTxSyncTimeout = "sync_tx_timeout"
-	txNotifyGap         = 60 * time.Second
+	txNotifyGap         = 60
 	txMaxNotifyPerTime  = 50
 
 	txReqRoutine  = "ts_req"

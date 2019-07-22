@@ -87,12 +87,17 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 	var doInsertOrReplace = func() {
 		newTxNode := newOrderByNonceTx(tx)
 		existSource := s.waitingMap[*tx.Source].Get(newTxNode)[0]
-		if existSource != nil && existSource.(*orderByNonceTx).item.GasPrice.Cmp(tx.GasPrice.Value()) < 0 {
-			s.size--
-			s.waitingMap[*tx.Source].Delete(existSource)
+
+		if existSource != nil {
+			if existSource.(*orderByNonceTx).item.GasPrice.Cmp(tx.GasPrice.Value()) < 0 {
+				//replace the existing one
+				s.waitingMap[*tx.Source].Delete(existSource)
+				s.waitingMap[*tx.Source].Insert(newTxNode)
+			}
+		} else {
+			s.size++
+			s.waitingMap[*tx.Source].Insert(newTxNode)
 		}
-		s.size++
-		s.waitingMap[*tx.Source].Insert(newTxNode)
 	}
 
 	if tx.Nonce == stateNonce+1 {
