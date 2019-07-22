@@ -27,7 +27,6 @@ func init(){
 	blockSyncForTest.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, "1")
 	initPeerManager()
 	types.DefaultPVFunc = PvFuncTest
-	insertBlocks()
 }
 func TestGetBestCandidate(t *testing.T) {
 	for i := 0; i < 100; i++ {
@@ -96,6 +95,7 @@ func TestTopBlockInfoNotifyHandler(t *testing.T){
 }
 
 func TestBlockReqHandler(t *testing.T){
+	insertBlocks()
 	bts,_ := tas_middleware_test.MarshalNilSyncRequest()
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 
