@@ -85,6 +85,56 @@ func execute(t *testing.T, tx types.Transaction) {
 	BlockChainImpl.(*FullBlockChain).latestStateDB.SetNonce(*tx.Source, tx.Nonce)
 }
 
+func Test_push(t *testing.T) {
+	t1 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d881"), Nonce: 1, GasPrice: types.NewBigInt(20000), GasLimit: gasLimit, Source: &addr1}
+	t2 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882"), Nonce: 1, GasPrice: types.NewBigInt(19999), GasLimit: gasLimit, Source: &addr1}
+	t3 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d883"), Nonce: 2, GasPrice: types.NewBigInt(20000), GasLimit: gasLimit, Source: &addr1}
+
+	err := initContext4Test()
+	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
+	if err != nil {
+		t.Fatalf("failed to initContext4Test")
+	}
+
+	container = newSimpleContainer(10, 3, BlockChainImpl)
+
+	_ = container.push(t1)
+	_ = container.push(t2)
+	_ = container.push(t3)
+
+	rs := make([]*types.Transaction,3)
+	for i, tx := range container.asSlice(3) {
+		rs[i] = tx
+		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
+	}
+	if rs[0].Hash != t1.Hash {
+		t.Error("push test fail")
+	}
+	if rs[1].Hash != t3.Hash {
+		t.Error("push test fail")
+	}
+
+	container = newSimpleContainer(10, 3, BlockChainImpl)
+
+	_ = container.push(t2)
+	_ = container.push(t1)
+	_ = container.push(t3)
+
+	rs = make([]*types.Transaction,3)
+	for i, tx := range container.asSlice(3) {
+		rs[i] = tx
+		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
+	}
+	if rs[0].Hash != t1.Hash {
+		t.Error("push test fail")
+	}
+	if rs[1].Hash != t3.Hash {
+		t.Error("push test fail")
+	}
+
+}
+
+
 func Test_simpleContainer_forEach(t *testing.T) {
 	err := initContext4Test()
 	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")

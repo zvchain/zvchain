@@ -140,3 +140,16 @@ func TestRecoverSignatureSigs(t *testing.T) {
 	}
 
 }
+
+func TestSignAndVerify(t *testing.T) {
+	var msk Seckey
+	var mpk Pubkey
+	msk.SetHexString("0x2932e91eb13ef59f0cec914169da092bf5628ba0c3a0e3e1c039dd1951871f1d")
+	mpk.SetHexString("0x169dcf2f252322b117c500db3eb8f86c4266aae226b5550838a3f3c5496dfe4b21a082666c202d505acd0a892f7e49d112a45344a5476e0fc85cf8600238b0351d86b3b3a2ed06d8a2a4f7c5d3f772d9a77a54d7d60ec06e92bf717be4f1ee9e0204bcfba515b65c207cdbde5d15d371d8378ef64ef04c1f78e08eceb8b8068a")
+	// Generate encrypted share piece
+
+	sig := Sign(msk, []byte("123"))
+	if !VerifySig(mpk, []byte("123"), sig) {
+		t.Fatal("verify fail")
+	}
+}

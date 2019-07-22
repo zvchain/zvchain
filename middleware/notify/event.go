@@ -33,12 +33,6 @@ const (
 
 	ChainPieceBlock = "chain_piece_block"
 
-	GroupHeight = "group_height"
-
-	GroupReq = "group_req"
-
-	Group = "group"
-
 	BlockSync        = "block_sync"
 	MessageToConsole = "message_to_console"
 
