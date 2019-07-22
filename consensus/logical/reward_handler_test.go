@@ -46,6 +46,7 @@ type ProcessorTest struct {
 	sigs []groupsig.Signature
 
 	blockHeader *types.BlockHeader
+	blockHeader2 *types.BlockHeader
 	verifyGroup *verifyGroup
 	verifyContext *VerifyContext
 }
@@ -132,6 +133,12 @@ func NewProcessorTest() *ProcessorTest {
 		Castor: pt.ids[0].Serialize(),
 		Signature: aggSign.Serialize(),
 	}
+	pt.blockHeader2 = &types.BlockHeader{
+		Hash: common.BytesToHash([]byte("test")),
+		Castor: pt.ids[0].Serialize(),
+		Signature: aggSign.Serialize(),
+		Group: common.HexToHash("0x2"),
+	}
 
 	// [3]
 	mems := make([]*member, n)
@@ -184,6 +191,11 @@ func (*ProcessorTest) GetRewardManager() types.RewardManager {
 }
 
 func (pt *ProcessorTest) GetBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
+	if common.HexToHash("0x1") == hash {
+		return nil
+	} else if common.HexToHash("0x2") == hash {
+		return pt.blockHeader2
+	}
 	return pt.blockHeader
 }
 
@@ -192,7 +204,10 @@ func (pt *ProcessorTest) GetVctxByHeight(height uint64) *VerifyContext {
 }
 
 func (pt *ProcessorTest) GetGroupBySeed(seed common.Hash) *verifyGroup {
-	return pt.verifyGroup
+	if common.HexToHash("0x0") == seed {
+		return pt.verifyGroup
+	}
+	return nil
 }
 
 func (pt *ProcessorTest) GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
@@ -200,7 +215,8 @@ func (pt *ProcessorTest) GetGroupSignatureSeckey(seed common.Hash) groupsig.Seck
 }
 
 func (*ProcessorTest) AddTransaction(tx *types.Transaction) (bool, error) {
-	panic("implement me")
+	fmt.Println("AddTransaction")
+	return true, nil
 }
 
 func (*ProcessorTest) SendCastRewardSign(msg *model.CastRewardTransSignMessage) {
@@ -225,7 +241,7 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		args   args
 	}{
 		{
-			name: "test1",
+			name: "block not exist",
 			fields: fields{
 				processor: pt,
 				futureRewardReqs: NewFutureMessageHolder(),
@@ -234,6 +250,64 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 				msg: &model.CastRewardTransSignMessage {
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[1], pt.msk[1]),
+					},
+					BlockHash: common.HexToHash("0x1"),
+				},
+			},
+		},
+		{
+			name: "group not exist",
+			fields: fields{
+				processor: pt,
+				futureRewardReqs: NewFutureMessageHolder(),
+			},
+			args: args{
+				msg: &model.CastRewardTransSignMessage {
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[2], pt.msk[2]),
+					},
+					BlockHash: common.HexToHash("0x2"),
+				},
+			},
+		},
+		{
+			name: "test1",
+			fields: fields{
+				processor: pt,
+				futureRewardReqs: NewFutureMessageHolder(),
+			},
+			args: args{
+				msg: &model.CastRewardTransSignMessage {
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[3], pt.msk[3]),
+					},
+				},
+			},
+		},
+		{
+			name: "test1",
+			fields: fields{
+				processor: pt,
+				futureRewardReqs: NewFutureMessageHolder(),
+			},
+			args: args{
+				msg: &model.CastRewardTransSignMessage {
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[4], pt.msk[4]),
+					},
+				},
+			},
+		},
+		{
+			name: "test1",
+			fields: fields{
+				processor: pt,
+				futureRewardReqs: NewFutureMessageHolder(),
+			},
+			args: args{
+				msg: &model.CastRewardTransSignMessage {
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[5], pt.msk[5]),
 					},
 				},
 			},

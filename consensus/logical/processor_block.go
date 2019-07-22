@@ -17,12 +17,13 @@ package logical
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
-	"sync"
 )
 
 // FutureMessageHolder store some messages non-processable currently and may be processed in the future
