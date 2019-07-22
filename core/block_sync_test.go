@@ -64,7 +64,7 @@ func TestGetBestCandidate(t *testing.T) {
 }
 
 func PvFuncTest(pvBytes []byte) *big.Int {
-	if len(pvBytes) == 0 {
+	if len(pvBytes) != 81 {
 		return big.NewInt(0)
 	}
 	return base.VRFProof2hash(base.VRFProve(pvBytes)).Big()
