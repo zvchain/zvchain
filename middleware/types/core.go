@@ -146,6 +146,9 @@ func (tx *Transaction) RecoverSource() error {
 		return nil
 	}
 	sign := common.BytesToSign(tx.Sign)
+	if sign == nil{
+		return fmt.Errorf("BytesToSign fail, sign=%x",tx.Sign)
+	}
 	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
 	if err == nil {
 		src := pk.GetAddress()
