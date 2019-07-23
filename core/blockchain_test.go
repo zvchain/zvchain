@@ -45,11 +45,7 @@ func TestPath(t *testing.T) {
 }
 
 func TestBlockChain_AddBlock(t *testing.T) {
-	err := initContext4Test()
-	defer clear()
-	if err != nil {
-		t.Fatalf("failed to initContext4Test")
-	}
+
 
 	//BlockChainImpl.Clear()
 
