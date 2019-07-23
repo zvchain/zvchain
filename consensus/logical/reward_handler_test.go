@@ -14,8 +14,8 @@ import (
 )
 
 type GroupHanderTest struct {
-
 }
+
 func (g *GroupHanderTest) Seed() common.Hash {
 	return common.Hash{}
 }
@@ -38,17 +38,17 @@ func (g *GroupHanderTest) GroupHeight() uint64 {
 type ProcessorTest struct {
 	ProcessorInterface
 
-	sk []groupsig.Seckey
-	pk []groupsig.Pubkey
-	ids []groupsig.ID
-	msk []groupsig.Seckey
-	mpk []groupsig.Pubkey
-	sigs []groupsig.Signature
+	sk    []groupsig.Seckey
+	pk    []groupsig.Pubkey
+	ids   []groupsig.ID
+	msk   []groupsig.Seckey
+	mpk   []groupsig.Pubkey
+	sigs  []groupsig.Signature
 	sigs2 []groupsig.Signature
 
-	blockHeader *types.BlockHeader
-	blockHeader2 *types.BlockHeader
-	verifyGroup *verifyGroup
+	blockHeader   *types.BlockHeader
+	blockHeader2  *types.BlockHeader
+	verifyGroup   *verifyGroup
 	verifyContext *VerifyContext
 }
 
@@ -135,15 +135,15 @@ func NewProcessorTest() *ProcessorTest {
 	signArray := [2]groupsig.Signature{groupsig.Sign(pt.sk[0], common.BytesToHash([]byte("test")).Bytes()), *gsig}
 	aggSign := groupsig.AggregateSigs(signArray[:])
 	pt.blockHeader = &types.BlockHeader{
-		Hash: common.BytesToHash([]byte("test")),
-		Castor: pt.ids[0].Serialize(),
+		Hash:      common.BytesToHash([]byte("test")),
+		Castor:    pt.ids[0].Serialize(),
 		Signature: aggSign.Serialize(),
 	}
 	pt.blockHeader2 = &types.BlockHeader{
-		Hash: common.BytesToHash([]byte("test")),
-		Castor: pt.ids[0].Serialize(),
+		Hash:      common.BytesToHash([]byte("test")),
+		Castor:    pt.ids[0].Serialize(),
 		Signature: aggSign.Serialize(),
-		Group: common.HexToHash("0x2"),
+		Group:     common.HexToHash("0x2"),
 	}
 
 	// [3]
@@ -161,12 +161,12 @@ func NewProcessorTest() *ProcessorTest {
 
 	// [4]
 	pt.verifyContext = &VerifyContext{
-		prevBH:           &types.BlockHeader{},
-		castHeight:       0,
-		group:            pt.verifyGroup,
-		expireTime:       0,
-		consensusStatus:  svWorking,
-		slots:            make(map[common.Hash]*SlotContext),
+		prevBH:          &types.BlockHeader{},
+		castHeight:      0,
+		group:           pt.verifyGroup,
+		expireTime:      0,
+		consensusStatus: svWorking,
+		slots:           make(map[common.Hash]*SlotContext),
 		//ts:               time.TSInstance,
 		//createTime:       time.TSInstance.Now(),
 		proposers:        make(map[string]common.Hash),
@@ -210,7 +210,7 @@ func (pt *ProcessorTest) GetVctxByHeight(height uint64) *VerifyContext {
 }
 
 func (pt *ProcessorTest) GetGroupBySeed(seed common.Hash) *verifyGroup {
-	if common.HexToHash("0x0") == seed {
+	if common.HexToHash("0x0") == seed || common.HexToHash("0x03") == seed {
 		return pt.verifyGroup
 	}
 	return nil
@@ -249,11 +249,11 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		{
 			name: "ok",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignMessage {
+				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[4], pt.msk[4]),
 					},
@@ -263,11 +263,11 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		{
 			name: "block not exist",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignMessage {
+				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[1], pt.msk[1]),
 					},
@@ -278,11 +278,11 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		{
 			name: "group not exist",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignMessage {
+				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[2], pt.msk[2]),
 					},
@@ -293,11 +293,11 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		{
 			name: "data sign error 1",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignMessage {
+				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0x0"), pt.ids[3], pt.msk[3]),
 					},
@@ -307,11 +307,11 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		{
 			name: "data sign error 2",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignMessage {
+				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[5], pt.msk[4]),
 					},
@@ -321,11 +321,11 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		{
 			name: "data sign error 3",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignMessage {
+				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[4], pt.msk[5]),
 					},
@@ -375,17 +375,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "ok",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -394,17 +394,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "block not exist",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 						BlockHash: common.HexToHash("0x1"),
 					},
 					SignedPieces: pt.sigs,
@@ -414,17 +414,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "group not exist 1",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 						BlockHash: common.HexToHash("0x2"),
 					},
 					SignedPieces: pt.sigs,
@@ -434,18 +434,18 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "group not exist 2",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
-						Group: common.HexToHash("0x1"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						Group:     common.HexToHash("0x1"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -454,19 +454,19 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "group not exist 3",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
 						BlockHash: common.HexToHash("0x2"),
-						Group: common.HexToHash("0x2"),
+						Group:     common.HexToHash("0x2"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -475,17 +475,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "sing data error 1",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[0], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -494,17 +494,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "sing data error 2",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[1], pt.msk[0]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -513,17 +513,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "sing data error 3",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0x1"), pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -532,17 +532,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "tx hash not exist",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash("0x1"), pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x1"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x1"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -551,17 +551,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "ids error",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{1,1,1,1,1,1,1,1,1},
-						TxHash: common.HexToHash("0x7a3273d8ea535b1007076ecd4c01f0b54763b7d2d1352adf7c5b3a3af599039e"),
+						TargetIds: []int32{1, 1, 1, 1, 1, 1, 1, 1, 1},
+						TxHash:    common.HexToHash("0x7a3273d8ea535b1007076ecd4c01f0b54763b7d2d1352adf7c5b3a3af599039e"),
 					},
 					SignedPieces: pt.sigs2,
 				},
@@ -570,17 +570,17 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		{
 			name: "signed pieces error",
 			fields: fields{
-				processor: pt,
+				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
 			},
 			args: args{
-				msg: &model.CastRewardTransSignReqMessage {
+				msg: &model.CastRewardTransSignReqMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs2,
 				},
@@ -609,4 +609,3 @@ func TestRewardHandler_OnMessageCastRewardSignReq(t *testing.T) {
 	}
 	_OnMessageCastRewardSignReq(pt, rh, t)
 }
-

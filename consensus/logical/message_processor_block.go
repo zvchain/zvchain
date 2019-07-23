@@ -155,7 +155,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 // OnMessageCast handles the message from the proposer
 // Note that, if the pre-block of the block present int the message isn't on the blockchain, it will caches the message
 // and trigger it after the pre-block added on chain
-func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
+func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 	bh := &ccm.BH
 	traceLog := monitor.NewPerformTraceLogger("OnMessageCast", bh.Hash, bh.Height)
 
@@ -169,7 +169,6 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 		Ext:      fmt.Sprintf("external:qn:%v,totalQN:%v", 0, bh.TotalQN),
 	}
 	group := p.groupReader.getGroupBySeed(bh.Group)
-	var err error
 	if group == nil {
 		err = fmt.Errorf("GetSelfGroup failed")
 		return
@@ -240,7 +239,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 	defer verifyTraceLog.Log("")
 
 	_, err = p.verifyCastMessage(ccm, preBH)
-
+	return
 }
 
 func (p *Processor) verifyCachedMsg(hash common.Hash) {
