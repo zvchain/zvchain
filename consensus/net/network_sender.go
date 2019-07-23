@@ -78,7 +78,7 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 			continue
 		}
 		m := network.Message{Code: network.CastVerifyMsg, Body: body}
-		go ns.net.Send(mem.GetHexString(), m)
+		ns.net.Send(mem.GetHexString(), m)
 	}
 }
 
@@ -94,9 +94,9 @@ func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage,
 	// The verification message needs to be sent to itself, otherwise
 	// it will not contain its own signature in its own fragment,
 	// resulting in no rewards.
-	go ns.send2Self(cvm.SI.GetID(), m)
+	ns.send2Self(cvm.SI.GetID(), m)
 
-	go ns.net.SpreadAmongGroup(gSeed.Hex(), m)
+	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 	logger.Debugf("[peer]send VARIFIED_CAST_MSG,hash:%s", cvm.BlockHash.Hex())
 }
 
@@ -131,13 +131,13 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 		}
 	}
 
-	go ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))
+	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))
 
 	// Broadcast to the next group of light nodes
 	//
 	// Prevent duplicate broadcasts
 	if len(validGroupMembers) > 0 {
-		go ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, []byte(blockMsg.Hash()))
+		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, []byte(blockMsg.Hash()))
 	}
 
 }
@@ -155,7 +155,7 @@ func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSig
 
 	network.Logger.Debugf("send SendCastRewardSignReq to %v", gSeed.Hex())
 
-	go ns.send2Self(msg.SI.GetID(), m)
+	ns.send2Self(msg.SI.GetID(), m)
 
 	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 }
