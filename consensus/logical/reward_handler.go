@@ -46,7 +46,7 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 
 	tLog := newHashTraceLog(mType, msg.BlockHash, msg.SI.GetID())
 
-	tLog.logStart("txHash=%v", msg.ReqHash)
+	tLog.logStart("blockHash=%v", msg.BlockHash)
 
 	var (
 		send bool
@@ -243,8 +243,8 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 	send = true
 	// Sign yourself
 	signMsg := &model.CastRewardTransSignMessage{
-		ReqHash:   reward.TxHash,
 		BlockHash: reward.BlockHash,
+		ReqHash:   reward.TxHash,
 		GSeed:     gSeed,
 		Launcher:  msg.SI.GetID(),
 	}
