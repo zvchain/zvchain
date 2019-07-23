@@ -110,6 +110,9 @@ type Peer struct {
 	isPinged       bool
 	source         PeerSource
 
+	//groups which need this peer
+	groupIDs 		map[string]bool
+
 	bytesReceived   int
 	bytesSend       int
 	sendWaitCount   int
@@ -126,7 +129,7 @@ type Peer struct {
 
 func newPeer(ID NodeID, sessionID uint32) *Peer {
 
-	p := &Peer{ID: ID, sessionID: sessionID, sendList: newSendList(), recvList: list.New(), source: PeerSourceUnkown}
+	p := &Peer{ID: ID, sessionID: sessionID, sendList: newSendList(), recvList: list.New(), groupIDs: map[string]bool{}}
 
 	return p
 }
@@ -135,6 +138,9 @@ func (p *Peer) addRecvData(data []byte) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	if data == nil || len(data) == 0 {
+		return
+	}
 	b := netCore.bufferPool.getBuffer(len(data))
 	b.Write(data)
 	p.recvList.PushBack(b)
@@ -157,6 +163,27 @@ func (p *Peer) popData() *bytes.Buffer {
 	p.recvList.Remove(p.recvList.Front())
 
 	return buf
+}
+
+func (p *Peer) addGroup(gID string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	_,existed := p.groupIDs[gID]
+	if !existed {
+		p.groupIDs[gID] = true
+	}
+}
+
+func (p *Peer) removeGroup(gID string){
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	delete(p.groupIDs,gID)
+}
+
+func (p *Peer) isGroupEmpty() bool{
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	return len(p.groupIDs) == 0
 }
 
 func (p *Peer) decodePacket() (MessageType, int, *bytes.Buffer, []byte, error) {
@@ -193,15 +220,7 @@ func (p *Peer) decodePacket() (MessageType, int, *bytes.Buffer, []byte, error) {
 
 	packetSize := int(msgLen + PacketHeadSize)
 
-	//packetSize := int(msgLen + PacketHeadSize)
-	//
-	//if packetSize > MaxMsgLen || packetSize <= 0 {
-	//	Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
-	//	p.resetData()
-	//	return MessageType_MessageNone, 0, nil, nil,errBadPacket
-	//}
-
-	Logger.Debugf("[decodePacket] session:%vpacketSize: %vmsgType:%v, msgLen:%v, bufSize:%v buffer address:%p ",
+	Logger.Debugf("[decodePacket]session:%v, packetSize:%v, msgType:%v, msgLen:%v, bufSize:%v, buffer address:%p ",
 		p.sessionID, packetSize, msgType, msgLen, header.Len(), header)
 
 	msgBuffer := header

@@ -23,7 +23,7 @@ func TestPeerAuth(t *testing.T) {
 
 }
 
-func InitNetwork() bool {
+func InitTestNetwork() bool {
 	SK, _ := common.GenerateKey("")
 	PK := SK.GetPubKey()
 	ID := PK.GetAddress()
@@ -48,8 +48,35 @@ func InitNetwork() bool {
 	return true
 }
 
-func TestDecodePacket(t *testing.T) {
-	if InitNetwork() == false {
+
+func TestDecodePacketNil(t *testing.T) {
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
+	p := newPeer(NewNodeID(""), 0)
+
+
+	p.addRecvData(nil)
+
+
+	msgType, packetSize, _, _, err := p.decodePacket()
+
+	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	if err != nil {
+		t.Fatalf("decode error:%v", err)
+	}
+	if msgType != 2 {
+		t.Fatalf("msgType wrong")
+	}
+
+	if packetSize != 1024+8 {
+		t.Fatalf("packetSize wrong")
+	}
+}
+
+
+func TestDecodePacket2BuffersEq8(t *testing.T) {
+	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(NewNodeID(""), 0)
@@ -58,7 +85,69 @@ func TestDecodePacket(t *testing.T) {
 
 	packet := encodePacket(2, 1024, pdata)
 
-	p.addRecvData(packet.Bytes())
+	p.addRecvData(packet.Bytes()[0:4])
+	p.addRecvData(packet.Bytes()[4:8])
+	p.addRecvData(packet.Bytes()[8:])
+
+	msgType, packetSize, _, _, err := p.decodePacket()
+
+	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	if err != nil {
+		t.Fatalf("decode error:%v", err)
+	}
+	if msgType != 2 {
+		t.Fatalf("msgType wrong")
+	}
+
+	if packetSize != 1024+8 {
+		t.Fatalf("packetSize wrong")
+	}
+}
+
+
+func TestDecodePacket2BuffersLess8(t *testing.T) {
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
+	p := newPeer(NewNodeID(""), 0)
+
+	pdata := make([]byte, 1024, 1024)
+
+	packet := encodePacket(2, 1024, pdata)
+
+	p.addRecvData(packet.Bytes()[0:4])
+	p.addRecvData(packet.Bytes()[4:7])
+
+
+	msgType, packetSize, _, _, err := p.decodePacket()
+
+	fmt.Printf("type :%v,size %v,remain size:%v\n", msgType, packetSize,p.getDataSize())
+	if err != errPacketTooSmall {
+		t.Fatalf("decode error:%v", err)
+	}
+	if msgType != 0 {
+		t.Fatalf("msgType wrong")
+	}
+
+	if p.getDataSize() != 7 {
+		t.Fatalf("packetSize wrong")
+	}
+
+}
+
+func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
+	p := newPeer(NewNodeID(""), 0)
+
+	pdata := make([]byte, 1024, 1024)
+
+	packet := encodePacket(2, 1024, pdata)
+
+	p.addRecvData(packet.Bytes()[0:4])
+	p.addRecvData(packet.Bytes()[4:7])
+	p.addRecvData(packet.Bytes()[7:])
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
@@ -77,16 +166,16 @@ func TestDecodePacket(t *testing.T) {
 }
 
 func TestDecodePacketSmall(t *testing.T) {
-	if InitNetwork() == false {
+	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(NewNodeID(""), 0)
 
 	pdata := make([]byte, 1024, 1024)
 
-	packet := encodePacket(2, 2024, pdata)
+	packet := encodePacket(2, 1024, pdata)
 
-	p.addRecvData(packet.Bytes())
+	p.addRecvData(packet.Bytes()[:512])
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
@@ -104,8 +193,64 @@ func TestDecodePacketSmall(t *testing.T) {
 
 }
 
+func TestDecodePacket16M(t *testing.T) {
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
+	p := newPeer(NewNodeID(""), 0)
+	dataSize :=uint32(16*1024*1024)
+	pdata := make([]byte, dataSize, dataSize)
+
+	packet := encodePacket(2, dataSize, pdata)
+
+	p.addRecvData(packet.Bytes())
+
+	msgType, packetSize, _, _, err := p.decodePacket()
+
+	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	if err != nil {
+		t.Fatalf("decode error:%v", err)
+	}
+	if msgType != 2{
+		t.Fatalf("msgType wrong")
+	}
+
+	if uint32(packetSize) != dataSize + 8 {
+		t.Fatalf("packetSize wrong")
+	}
+
+}
+
+func TestDecodePacketOver16M(t *testing.T) {
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
+	p := newPeer(NewNodeID(""), 0)
+	dataSize :=uint32(18*1024*1024)
+	pdata := make([]byte, dataSize, dataSize)
+
+	packet := encodePacket(2, dataSize, pdata)
+
+	p.addRecvData(packet.Bytes())
+
+	msgType, packetSize, _, _, err := p.decodePacket()
+
+	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	if err != nil {
+		t.Fatalf("decode error:%v", err)
+	}
+	if msgType != 0{
+		t.Fatalf("msgType wrong")
+	}
+
+	if uint32(packetSize) != 0 {
+		t.Fatalf("packetSize wrong")
+	}
+
+}
+
 func TestDecodePacketOverflow(t *testing.T) {
-	if InitNetwork() == false {
+	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(NewNodeID(""), 0)
@@ -133,7 +278,7 @@ func TestDecodePacketOverflow(t *testing.T) {
 }
 
 func TestDecodePacketBigBuffer(t *testing.T) {
-	if InitNetwork() == false {
+	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(NewNodeID(""), 0)
@@ -163,12 +308,13 @@ func TestDecodePacketBigBuffer(t *testing.T) {
 	}
 
 }
+
 func encodePacket(pType int, len uint32, pdata []byte) *bytes.Buffer {
 
 	length := len
 	bufferSize := int(length + PacketHeadSize)
-	if bufferSize > 16*1024*1024 {
-		bufferSize = 16 * 1024 * 1024
+	if bufferSize > 64*1024*1024 {
+		bufferSize = 64 * 1024 * 1024
 	}
 	b := netCore.bufferPool.getBuffer(bufferSize)
 

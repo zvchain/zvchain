@@ -355,7 +355,7 @@ func (gtas *Gtas) fullInit() error {
 		SK:              gtas.account.Sk,
 	}
 
-	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)
+	err = network.Init(&common.GlobalConf, chandler.MessageHandler, netCfg)
 
 	if err != nil {
 		return err

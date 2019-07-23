@@ -653,7 +653,7 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	if p == nil || p.isEmpty() {
 		return nil
 	}
-	msgType, packetSize, msg, buf, err := nc.decodePacket(p)
+	msgType, packetSize, msg, buf, err := nc.decodeMessage(p)
 
 	if err != nil {
 		return err
@@ -685,7 +685,7 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	return err
 }
 
-func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *bytes.Buffer, error) {
+func (nc *NetCore) decodeMessage(p *Peer) (MessageType, int, proto.Message, *bytes.Buffer, error) {
 
 	msgType, packetSize, packetBuffer, data, err := p.decodePacket()
 
@@ -801,6 +801,7 @@ func (nc *NetCore) handleFindNode(req *MsgFindNode, p *Peer) error {
 	return nil
 }
 func (nc *NetCore) handleRelayTest(req *MsgRelay, p *Peer) error {
+
 	TestNodeID := NodeID{}
 	TestNodeID.SetBytes(req.NodeID)
 	TestPeer := nc.peerManager.peerByID(TestNodeID)
@@ -839,16 +840,20 @@ func (nc *NetCore) handleNeighbors(req *MsgNeighbors, p *Peer) error {
 	return nil
 }
 
-func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
+func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
+	if expired(req.Expiration) {
+		Logger.Infof("message expired!")
+		return errExpired
+	}
 	srcNodeID := NodeID{}
 	srcNodeID.SetBytes(req.SrcNodeID)
 	dstNodeID := NodeID{}
 	dstNodeID.SetBytes(req.DestNodeID)
 
-	Logger.Debugf("data from:%v  len:%v DataType:%v messageId:%X ,BizMessageID:%v ,"+
-		"RelayCount:%v  unhandleDataMsg:%v code:%v messageInfo:%v",
-		srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, req.BizMessageID,
-		req.RelayCount, nc.unhandledDataMsg, req.MessageCode, req.MessageInfo)
+	//Logger.Debugf("data from:%v, len:%v, DataType:%v, messageId:%X, BizMessageID:%v, "+
+	//	"RelayCount:%v, unhandleDataMsg:%v, code:%v,messageInfo:%v",
+	//	srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, req.BizMessageID,
+	//	req.RelayCount, nc.unhandledDataMsg, req.MessageCode, req.MessageInfo)
 
 	statistics.AddCount("net.handleData", uint32(req.DataType), uint64(len(req.Data)))
 	if req.DataType == DataType_DataNormal {
@@ -856,21 +861,18 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
 			var dataBuffer = nc.bufferPool.getBuffer(len(packet))
 			dataBuffer.Write(packet)
 
-			Logger.Debugf("[Relay]Relay message DataType:%v messageId:%X DestNodeId：%v SrcNodeId：%v RelayCount:%v",
-				req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
+			//Logger.Debugf("[Relay]Relay message DataType:%v, messageId:%X, DestNodeId:%v, SrcNodeId:%v, RelayCount:%v",
+			//	req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
 
 			nc.peerManager.write(dstNodeID, nil, dataBuffer, uint32(req.MessageCode), false)
 
 		} else {
 			nc.onHandleDataMessage(req, srcNodeID)
 		}
-		return
+		return nil
 	}
 
-	if expired(req.Expiration) {
-		Logger.Infof("message expired!")
-		return
-	}
+
 
 	forwarded := false
 
@@ -883,7 +885,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
 	}
 
 	if forwarded {
-		return
+		return nil
 	}
 
 	nc.messageManager.forward(req.MessageID)
@@ -913,17 +915,20 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
 			dataBuffer = nc.bufferPool.getBuffer(len(packet))
 			dataBuffer.Write(packet)
 		}
-		Logger.Debugf("Forwarded message DataType:%v messageId:%X DestNodeId：%v SrcNodeId：%v RelayCount:%v",
-			req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
 
-		if req.DataType == DataType_DataGroup {
-			nc.groupManager.groupBroadcast(req.GroupID, dataBuffer, uint32(req.MessageCode))
-		} else if req.DataType == DataType_DataGlobal {
-			nc.peerManager.broadcast(dataBuffer, uint32(req.MessageCode))
-		} else if req.DataType == DataType_DataGlobalRandom {
-			nc.peerManager.broadcastRandom(dataBuffer, uint32(req.MessageCode))
+		if dataBuffer != nil {
+			Logger.Debugf("Forwarded message DataType:%v messageId:%X DestNodeId：%v SrcNodeId：%v RelayCount:%v",
+				req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
+			if req.DataType == DataType_DataGroup {
+				nc.groupManager.groupBroadcast(req.GroupID, dataBuffer, uint32(req.MessageCode))
+			} else if req.DataType == DataType_DataGlobal {
+				nc.peerManager.broadcast(dataBuffer, uint32(req.MessageCode))
+			} else if req.DataType == DataType_DataGlobalRandom {
+				nc.peerManager.broadcastRandom(dataBuffer, uint32(req.MessageCode))
+			}
 		}
 	}
+	return  nil
 }
 
 func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
