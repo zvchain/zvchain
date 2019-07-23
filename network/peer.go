@@ -60,6 +60,9 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
 	sign := common.BytesToSign(pa.Sign)
+	if sign == nil{
+		return false, ""
+	}
 
 	result := pubkey.Verify(hash.Bytes(), sign)
 

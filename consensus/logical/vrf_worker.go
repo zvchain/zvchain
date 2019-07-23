@@ -141,7 +141,7 @@ func vrfVerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader, miner *mode
 	}
 	if ok, qn := vrfSatisfy(pi, miner.Stake, totalStake); ok {
 		if bh.TotalQN != qn+preBH.TotalQN {
-			return false, fmt.Errorf("qn error.bh hash=%v, height=%v, qn=%v,totalQN=%v, preBH totalQN=%v", bh.Hash.ShortS(), bh.Height, qn, bh.TotalQN, preBH.TotalQN)
+			return false, fmt.Errorf("qn error.bh hash=%v, height=%v, qn=%v,totalQN=%v, preBH totalQN=%v", bh.Hash, bh.Height, qn, bh.TotalQN, preBH.TotalQN)
 		}
 		return true, nil
 	}

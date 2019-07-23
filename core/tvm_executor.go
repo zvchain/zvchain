@@ -17,13 +17,13 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/core/group"
 	"math/big"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/storage/vm"
 	"github.com/zvchain/zvchain/tvm"
 )
 
@@ -40,6 +40,7 @@ const (
 var (
 	ProposerPackageTime = MaxCastBlockTime
 	GasLimitForPackage  = uint64(GasLimitPerBlock)
+	IgnoreVmCall        = false
 )
 
 var (
@@ -56,33 +57,31 @@ type stateTransition interface {
 	GasUsed() *big.Int       // Total gas use during the transition
 }
 
-func newStateTransition(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
+func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
 	base := newTransitionContext(db, tx, bh)
 
-	if tx.IsReward() {
-		return &rewardExecutor{transitionContext: base}
-	} else {
-		base.source = *tx.Source
-		base.intrinsicGasUsed = intrinsicGas(tx)
-		base.gasUsed = base.intrinsicGasUsed
-		switch tx.Type {
-		case types.TransactionTypeTransfer:
-			return &txTransfer{transitionContext: base}
-		case types.TransactionTypeContractCreate:
-			return &contractCreator{transitionContext: base}
-		case types.TransactionTypeContractCall:
-			return &contractCaller{transitionContext: base}
-		case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
-			return &minerStakeOperator{transitionContext: base}
-		default:
-			return &unSupported{typ: tx.Type}
-		}
+	base.source = *tx.Source
+	base.intrinsicGasUsed = intrinsicGas(tx)
+	base.gasUsed = base.intrinsicGasUsed
+	switch tx.Type {
+	case types.TransactionTypeTransfer:
+		return &txTransfer{transitionContext: base}
+	case types.TransactionTypeContractCreate:
+		return &contractCreator{transitionContext: base}
+	case types.TransactionTypeContractCall:
+		return &contractCaller{transitionContext: base}
+	case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
+		return &minerStakeOperator{transitionContext: base}
+	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
+		return &groupOperator{transitionContext: base}
+	default:
+		return &unSupported{typ: tx.Type}
 	}
 }
 
 type transitionContext struct {
 	// Input
-	accountDB vm.AccountDB
+	accountDB types.AccountDB
 	bh        *types.BlockHeader
 	tx        *types.Transaction
 	source    common.Address
@@ -115,11 +114,11 @@ func (r *result) setError(err error, status types.ReceiptStatus) {
 	r.transitionStatus = status
 }
 
-func newTransitionContext(db vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) *transitionContext {
+func newTransitionContext(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) *transitionContext {
 	return &transitionContext{accountDB: db, tx: tx, bh: bh}
 }
 
-func checkState(db vm.AccountDB, tx *types.Transaction, height uint64) error {
+func checkState(db types.AccountDB, tx *types.Transaction, height uint64) error {
 	if !validGasPrice(&tx.GasPrice.Int, height) {
 		return errGasPriceTooLow
 	}
@@ -201,6 +200,26 @@ func (ss *minerStakeOperator) Transition() *result {
 	return ret
 }
 
+// minerStakeOperator handles all transactions related to group create
+type groupOperator struct {
+	*transitionContext
+	groupOp group.Operation // Real group operation interface
+}
+
+func (ss *groupOperator) ParseTransaction() error {
+	ss.groupOp = GroupManagerImpl.NewOperation(ss.accountDB, *ss.tx, ss.bh.Height)
+	return ss.groupOp.ParseTransaction()
+}
+
+func (ss *groupOperator) Transition() *result {
+	ret := newResult()
+	err := ss.groupOp.Operation()
+	if err != nil {
+		ret.setError(err, types.RSFail)
+	}
+	return ret
+}
+
 type contractCreator struct {
 	*transitionContext
 }
@@ -217,10 +236,10 @@ func (ss *contractCreator) Transition() *result {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		isTransferSuccess := transfer(ss.accountDB,ss.source, *contract.ContractAddress, ss.tx.Value.Value())
-		if !isTransferSuccess{
+		isTransferSuccess := transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.tx.Value.Value())
+		if !isTransferSuccess {
 			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.Hex()), types.RSBalanceNotEnough)
-		}else {
+		} else {
 			_, logs, err := controller.Deploy(contract)
 			ret.logs = logs
 			if err != nil {
@@ -258,10 +277,10 @@ func (ss *contractCaller) Transition() *result {
 	if contract.Code == "" {
 		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSNoCodeError)
 	} else {
-		isTransferSuccess := transfer(ss.accountDB,*tx.Source, *contract.ContractAddress, tx.Value.Value())
-		if !isTransferSuccess{
+		isTransferSuccess := transfer(ss.accountDB, *tx.Source, *contract.ContractAddress, tx.Value.Value())
+		if !isTransferSuccess {
 			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.Hex()), types.RSBalanceNotEnough)
-		}else{
+		} else {
 			_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
 			ret.logs = logs
 			if err != nil {
@@ -319,7 +338,7 @@ func (ss *rewardExecutor) ParseTransaction() error {
 		ss.blockHeight = bh.Height
 	}
 	// Check if there is a reward transaction of the same block already executed
-	if rm.contain(ss.blockHash.Bytes(), ss.accountDB) {
+	if rm.HasRewardedOfBlock(ss.blockHash, ss.accountDB) {
 		return fmt.Errorf("reward transaction already executed:%v", ss.blockHash.Hex())
 	}
 	ss.proposal = common.BytesToAddress(ss.bh.Castor)
@@ -338,64 +357,69 @@ func (ss *rewardExecutor) Transition() *result {
 	ss.accountDB.AddBalance(ss.proposal, ss.packFee)
 
 	// Mark reward tx of the block has been executed
-	BlockChainImpl.GetRewardManager().put(ss.blockHash.Bytes(), ss.tx.Hash.Bytes(), ss.accountDB)
+	BlockChainImpl.GetRewardManager().MarkBlockRewarded(ss.blockHash, ss.tx.Hash, ss.accountDB)
 	return ret
 }
 
 type TVMExecutor struct {
-	bc BlockChain
+	bc types.BlockChain
 }
 
-func NewTVMExecutor(bc BlockChain) *TVMExecutor {
+func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
 	return &TVMExecutor{
 		bc: bc,
 	}
 }
 
-func applyStateTransition(accountDB vm.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
-	var (
-		err error
-		ret = newResult()
-	)
+func doTransition(accountDB types.AccountDB, ss stateTransition) *result {
+	snapshot := accountDB.Snapshot()
+	ret := ss.Transition()
+	if ret.err != nil {
+		// Revert any state changes when error occurs
+		accountDB.RevertToSnapshot(snapshot)
+	}
+	return ret
+}
 
-	// Check state related condition on the non-reward tx type
-	if !tx.IsReward() {
-		if err = checkState(accountDB, tx, bh.Height); err != nil {
-			Logger.Errorf("state transition check state error:tx %v %v", tx.Hash.Hex(), err)
+func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) (*result, error) {
+	var ret *result
+
+	// Reward tx is treated different from others
+	if tx.IsReward() {
+		executor := &rewardExecutor{transitionContext: newTransitionContext(accountDB, tx, bh)}
+		// Reward tx should be removed from pool and not contained in the block when parse error
+		if err := executor.ParseTransaction(); err != nil {
 			return nil, err
 		}
-	}
+		ret = doTransition(accountDB, executor)
+	} else {
+		// Check state related condition on the non-reward tx type
+		// Should be removed from pool and not contained in the block when error
+		if err := checkState(accountDB, tx, bh.Height); err != nil {
+			return nil, err
+		}
+		ss := newStateTransition(accountDB, tx, bh)
 
-	ss := newStateTransition(accountDB, tx, bh)
-
-	// pre consume the gas limit for the normal transaction types
-	if tx.Source != nil {
+		// pre consume the gas limit for the normal transaction types
 		gasLimitFee := new(big.Int).Mul(tx.GasLimit.Value(), tx.GasPrice.Value())
 		accountDB.SubBalance(*tx.Source, gasLimitFee)
-	}
 
-	// Shouldn't return when ParseTransaction error for ddos risk concern
-	if err = ss.ParseTransaction(); err != nil {
-		Logger.Errorf("state transition parse error:tx %v %v", tx.Hash.Hex(), err)
-	} else {
-		// Create the snapshot, and the stateDB will roll back to the the snapshot if error occurs
-		// during transaction process
-		snapshot := accountDB.Snapshot()
-		ret = ss.Transition()
-		if ret.err != nil {
-			// Revert any state changes when error occurs
-			accountDB.RevertToSnapshot(snapshot)
-			Logger.Errorf("state transition error:tx %v, err:%v", tx.Hash.Hex(), ret.err)
+		// Shouldn't return when ParseTransaction error for ddos risk concern
+		if err := ss.ParseTransaction(); err != nil {
+			ret = newResult()
+			ret.setError(err, types.RSParseFail)
+		} else {
+			ret = doTransition(accountDB, ss)
 		}
-	}
 
-	// refund the gas left
-	if tx.Source != nil && tx.GasLimit.Cmp(ss.GasUsed()) > 0 {
-		refund := new(big.Int).Sub(tx.GasLimit.Value(), ss.GasUsed())
-		accountDB.AddBalance(*tx.Source, refund.Mul(refund, tx.GasPrice.Value()))
+		// refund the gas left
+		if tx.GasLimit.Cmp(ss.GasUsed()) > 0 {
+			refund := new(big.Int).Sub(tx.GasLimit.Value(), ss.GasUsed())
+			accountDB.AddBalance(*tx.Source, refund.Mul(refund, tx.GasPrice.Value()))
+		}
+		ret.cumulativeGasUsed = ss.GasUsed()
 	}
-	ret.cumulativeGasUsed = ss.GasUsed()
-	return ret, err
+	return ret, nil
 }
 
 // Execute executes all types transactions and returns the receipts
@@ -405,7 +429,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	transactions := make([]*types.Transaction, 0)
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
-	rm := executor.bc.GetRewardManager()
+	rm := executor.bc.GetRewardManager().(*rewardManager)
 	totalGasUsed := uint64(0)
 	for _, tx := range txs {
 		if pack && time.Since(beginTime).Seconds() > float64(ProposerPackageTime) {
@@ -422,18 +446,30 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		// Apply transaction
 		ret, err := applyStateTransition(accountDB, tx, bh)
 		if err != nil {
-			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
+			Logger.Errorf("apply transaction error and will be removed: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
 			// transaction will be remove from pool when error happens
 			evictedTxs = append(evictedTxs, tx.Hash)
 			continue
+		}
+		if ret.err != nil {
+			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, ret.err)
 		}
 
 		// Accumulate gas fee
 		cumulativeGas := uint64(0)
 		if ret.cumulativeGasUsed != nil {
+			cumulativeGas = ret.cumulativeGasUsed.Uint64()
+			totalGasUsed += cumulativeGas
+			if totalGasUsed > GasLimitPerBlock {
+				// Revert snapshot in case total gas used exceeds the limit and break the loop
+				// The tx just executed won't be packed into the block
+				accountDB.RevertToSnapshot(snapshot)
+				Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitPerBlock)
+				break
+			}
+
 			fee := big.NewInt(0).Mul(ret.cumulativeGasUsed, tx.GasPrice.Value())
 			gasFee += fee.Uint64()
-			cumulativeGas = ret.cumulativeGasUsed.Uint64()
 		}
 
 		// Set nonce of the source
@@ -441,14 +477,6 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 			accountDB.SetNonce(*tx.Source, tx.Nonce)
 		}
 
-		totalGasUsed += cumulativeGas
-		if totalGasUsed > GasLimitPerBlock {
-			// Revert snapshot in case total gas used exceeds the limit and break the loop
-			// The tx just executed won't be packed into the block
-			accountDB.RevertToSnapshot(snapshot)
-			Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitPerBlock)
-			break
-		}
 		// New receipt
 		idx := len(transactions)
 		transactions = append(transactions, tx)
@@ -479,14 +507,16 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
+	GroupManagerImpl.RegularCheck(accountDB, bh)
+
 	state = accountDB.IntermediateRoot(true)
 
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
 
-func validateNonce(accountDB vm.AccountDB, transaction *types.Transaction) bool {
-	if transaction.Type == types.TransactionTypeReward || IsTestTransaction(transaction) {
+func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bool {
+	if transaction.Type == types.TransactionTypeReward {
 		return true
 	}
 	nonce := accountDB.GetNonce(*transaction.Source)
@@ -497,7 +527,7 @@ func validateNonce(accountDB vm.AccountDB, transaction *types.Transaction) bool 
 	return true
 }
 
-func createContract(accountDB vm.AccountDB, transaction *types.Transaction) (common.Address, error) {
+func createContract(accountDB types.AccountDB, transaction *types.Transaction) (common.Address, error) {
 	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Source[:], common.Uint64ToByte(transaction.Nonce))))
 
 	if accountDB.GetCodeHash(contractAddr) != (common.Hash{}) {
@@ -527,9 +557,8 @@ func needTransfer(amount *big.Int) bool {
 	return true
 }
 
-
-func transfer(accountDB vm.AccountDB,source common.Address, target common.Address, amount*big.Int)bool{
-	if !needTransfer(amount){
+func transfer(accountDB types.AccountDB, source common.Address, target common.Address, amount *big.Int) bool {
+	if !needTransfer(amount) {
 		return true
 	}
 	if accountDB.CanTransfer(source, amount) {

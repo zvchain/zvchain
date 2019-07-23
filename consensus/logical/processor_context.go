@@ -22,7 +22,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -82,10 +81,10 @@ type castBlockContexts struct {
 	reservedVctx    *lru.Cache // uint64 -> *VerifyContext, Store the verifyContext that already has the checked out block, to be broadcast
 	verifyMsgCaches *lru.Cache // hash -> *verifyMsgCache, Cache verification message
 	recentCasted    *lru.Cache // height -> *castedBlock
-	chain           core.BlockChain
+	chain           types.BlockChain
 }
 
-func newCastBlockContexts(chain core.BlockChain) *castBlockContexts {
+func newCastBlockContexts(chain types.BlockChain) *castBlockContexts {
 	return &castBlockContexts{
 		proposed:        common.MustNewLRUCache(20),
 		heightVctxs:     common.MustNewLRUCacheWithEvictCB(20, heightVctxEvitCallback),
@@ -99,7 +98,7 @@ func newCastBlockContexts(chain core.BlockChain) *castBlockContexts {
 
 func heightVctxEvitCallback(k, v interface{}) {
 	ctx := v.(*VerifyContext)
-	stdLogger.Debugf("evitVctx: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash.ShortS(), ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
+	stdLogger.Debugf("evitVctx: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.getSignedMaxWeight(), ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
 }
 
 func (bctx *castBlockContexts) removeReservedVctx(height uint64) {
@@ -175,13 +174,13 @@ func (bctx *castBlockContexts) getVctxByHash(hash common.Hash) *VerifyContext {
 	return nil
 }
 
-func (bctx *castBlockContexts) replaceVerifyCtx(group *StaticGroupInfo, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
+func (bctx *castBlockContexts) replaceVerifyCtx(group *verifyGroup, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
 	vctx := newVerifyContext(group, height, expireTime, preBH)
 	bctx.addVctx(vctx)
 	return vctx
 }
 
-func (bctx *castBlockContexts) getOrNewVctx(group *StaticGroupInfo, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
+func (bctx *castBlockContexts) getOrNewVctx(group *verifyGroup, height uint64, expireTime time2.TimeStamp, preBH *types.BlockHeader) *VerifyContext {
 	var vctx *VerifyContext
 	blog := newBizLog("getOrNewVctx")
 
@@ -193,7 +192,7 @@ func (bctx *castBlockContexts) getOrNewVctx(group *StaticGroupInfo, height uint6
 	} else {
 		// In case of hash inconsistency,
 		if vctx.prevBH.Hash != preBH.Hash {
-			blog.error("vctx pre hash diff, height=%v, existHash=%v, commingHash=%v", height, vctx.prevBH.Hash.ShortS(), preBH.Hash.ShortS())
+			blog.error("vctx pre hash diff, height=%v, existHash=%v, commingHash=%v", height, vctx.prevBH.Hash, preBH.Hash)
 			preOld := bctx.chain.QueryBlockHeaderByHash(vctx.prevBH.Hash)
 			// The original preBH may be removed by the fork adjustment, then the vctx is invalid, re-use the new preBH
 			if preOld == nil {
@@ -213,13 +212,12 @@ func (bctx *castBlockContexts) getOrNewVctx(group *StaticGroupInfo, height uint6
 			if height == 1 && expireTime.After(vctx.expireTime) {
 				vctx.expireTime = expireTime
 			}
-			blog.debug("get exist vctx height %v, expire %v", height, vctx.expireTime)
 		}
 	}
 	return vctx
 }
 
-func (bctx *castBlockContexts) getOrNewVerifyContext(group *StaticGroupInfo, bh *types.BlockHeader, preBH *types.BlockHeader) *VerifyContext {
+func (bctx *castBlockContexts) getOrNewVerifyContext(group *verifyGroup, bh *types.BlockHeader, preBH *types.BlockHeader) *VerifyContext {
 	deltaHeightByTime := deltaHeightByTime(bh, preBH)
 
 	expireTime := getCastExpireTime(preBH.CurTime, deltaHeightByTime, bh.Height)
@@ -243,7 +241,7 @@ func (bctx *castBlockContexts) cleanVerifyContext(height uint64) {
 			ctx.Clear()
 			bctx.removeReservedVctx(ctx.castHeight)
 			bctx.heightVctxs.Remove(h)
-			stdLogger.Debugf("cleanVerifyContext: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash.ShortS(), ctx.signedMaxWeight, ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
+			stdLogger.Debugf("cleanVerifyContext: ctx.castHeight=%v, ctx.prevHash=%v, signedMaxQN=%v, signedNum=%v, verifyNum=%v, aggrNum=%v\n", ctx.castHeight, ctx.prevBH.Hash, ctx.getSignedMaxWeight(), ctx.signedNum, ctx.verifyNum, ctx.aggrNum)
 		}
 	}
 }

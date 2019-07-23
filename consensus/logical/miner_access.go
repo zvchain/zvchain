@@ -39,14 +39,16 @@ type minerPool interface {
 
 // MinerPoolReader provides some functions for access to the miner pool
 type MinerPoolReader struct {
-	mPool minerPool
-	blog  *bizLog
+	mPool   minerPool
+	process *Processor
+	blog    *bizLog
 }
 
-func newMinerPoolReader(mp minerPool) *MinerPoolReader {
+func newMinerPoolReader(p *Processor, mp minerPool) *MinerPoolReader {
 	return &MinerPoolReader{
-		mPool: mp,
-		blog:  newBizLog("MinerPoolReader"),
+		mPool:   mp,
+		process: p,
+		blog:    newBizLog("MinerPoolReader"),
 	}
 }
 
@@ -70,7 +72,7 @@ func convert2MinerDO(miner *types.Miner) *model.MinerDO {
 	return md
 }
 
-func (access *MinerPoolReader) getLatestLightMiner(id groupsig.ID) *model.MinerDO {
+func (access *MinerPoolReader) GetLatestVerifyMiner(id groupsig.ID) *model.MinerDO {
 	miner := access.mPool.GetLatestMiner(id.ToAddress(), types.MinerTypeVerify)
 	if miner == nil {
 		return nil
@@ -107,13 +109,12 @@ func (access *MinerPoolReader) getAllMinerDOByType(minerType types.MinerType, h 
 	return mds
 }
 
-func (access *MinerPoolReader) getCanJoinGroupMinersAt(h uint64) []model.MinerDO {
+func (access *MinerPoolReader) GetCanJoinGroupMinersAt(h uint64) []*model.MinerDO {
 	miners := access.getAllMinerDOByType(types.MinerTypeVerify, h)
-	rets := make([]model.MinerDO, 0)
-	access.blog.debug("all light nodes size %v", len(miners))
+	rets := make([]*model.MinerDO, 0)
 	for _, md := range miners {
-		if md.CanJoinGroupAt(h) {
-			rets = append(rets, *md)
+		if md.CanJoinGroup() {
+			rets = append(rets, md)
 		}
 	}
 	return rets
@@ -122,4 +123,14 @@ func (access *MinerPoolReader) getCanJoinGroupMinersAt(h uint64) []model.MinerDO
 func (access *MinerPoolReader) getTotalStake(h uint64) uint64 {
 	st := access.mPool.GetProposalTotalStake(h)
 	return st
+}
+
+func (access *MinerPoolReader) SelfMinerInfo() *model.SelfMinerDO {
+	mi := *access.process.mi
+	mInfo := access.GetLatestVerifyMiner(mi.ID)
+	if mInfo != nil {
+		mi.MinerDO = *mInfo
+		return &mi
+	}
+	return nil
 }

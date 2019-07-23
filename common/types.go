@@ -44,7 +44,7 @@ const (
 
 	AddressLength = 32 //Length of Address( golang.SHA3，256-bit)
 	HashLength    = 32 //Length of Hash (golang.SHA3, 256-bit)。
-	GroupIDLength = 32 //Length of GroupID
+	GroupIDLength = 32 //Length of Group
 )
 
 var DefaultLogger taslog.Logger
@@ -53,7 +53,16 @@ var (
 	hashT               = reflect.TypeOf(Hash{})
 	addressT            = reflect.TypeOf(Address{})
 	BonusStorageAddress = BigToAddress(big.NewInt(0))
+
+	GroupTopAddress     = BigToAddress(big.NewInt(3)) //save the current top group
 )
+
+func ShortHex(hex string) string {
+	if len(hex) < 12 {
+		return hex
+	}
+	return hex[:6] + "-" + hex[len(hex)-6:]
+}
 
 // Address data struct
 type Address [AddressLength]byte
@@ -126,11 +135,8 @@ func (a Address) IsValid() bool {
 	return len(a.Bytes()) > 0
 }
 
-func (a *Address) String() string {
-	if a == nil {
-		return "nil"
-	}
-	return a.Hex()
+func (a Address) String() string {
+	return ShortHex(a.Hex())
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -146,8 +152,9 @@ func BytesToHash(b []byte) Hash {
 	return h
 }
 
-func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
-func HexToHash(s string) Hash   { return BytesToHash(FromHex(s)) }
+func BigToHash(b *big.Int) Hash    { return BytesToHash(b.Bytes()) }
+func HexToHash(s string) Hash      { return BytesToHash(FromHex(s)) }
+func HashToAddress(h Hash) Address { return BytesToAddress(h[:]) }
 
 // Get the string representation of the underlying hash
 func (h Hash) Bytes() []byte { return h[:] }
@@ -164,15 +171,11 @@ func (h Hash) IsValid() bool {
 	return len(h.Bytes()) > 0
 }
 
-func (h Hash) ShortS() string {
-	return ShortHex12(h.Hex())
-}
-
 // Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
 // without going through the stringer interface used for logging.
-func (h Hash) Format(s fmt.State, c rune) {
-	fmt.Fprintf(s, "%"+string(c), h[:])
-}
+//func (h Hash) Format(s fmt.State, c rune) {
+//	fmt.Fprintf(s, "%"+string(c), h[:])
+//}
 
 // UnmarshalText parses a hash in hex syntax.
 func (h *Hash) UnmarshalText(input []byte) error {
@@ -213,6 +216,10 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 		h[i] = byte(rand.Uint32())
 	}
 	return reflect.ValueOf(h)
+}
+
+func (h Hash) String() string {
+	return ShortHex(h.Hex())
 }
 
 // UnprefixedHash allows marshaling a Hash without 0x prefix.

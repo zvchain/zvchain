@@ -21,7 +21,7 @@ import (
 
 // GenesisInfo define genesis group info
 type GenesisInfo struct {
-	Group  Group
+	Group  GroupI
 	VrfPKs [][]byte
 	Pks    [][]byte
 }
@@ -48,9 +48,6 @@ type ConsensusHelper interface {
 
 	// verify the blockheader: mainly verify the group signature
 	VerifyBlockHeader(bh *BlockHeader) (bool, error)
-
-	// check group legality
-	CheckGroup(g *Group) (bool, error)
 
 	// verify reward transaction
 	VerifyRewardTransaction(tx *Transaction) (bool, error)

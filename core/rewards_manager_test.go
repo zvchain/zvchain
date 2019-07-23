@@ -5,7 +5,7 @@ import (
 )
 
 func TestRewardManager_CalculateGasFeeVerifyRewards(t *testing.T) {
-	rm := RewardManager{}
+	rm := rewardManager{}
 	gasFee := uint64(100)
 	rewards := rm.calculateGasFeeVerifyRewards(gasFee)
 	correctRewards := gasFee * gasFeeVerifyRewardsWeight / gasFeeTotalRewardsWeight
@@ -16,7 +16,7 @@ func TestRewardManager_CalculateGasFeeVerifyRewards(t *testing.T) {
 }
 
 func TestRewardManager_CalculateGasFeeCastorRewards(t *testing.T) {
-	rm := RewardManager{}
+	rm := rewardManager{}
 	gasFee := uint64(100)
 	rewards := rm.calculateGasFeeCastorRewards(gasFee)
 	correctRewards := gasFee * gasFeeCastorRewardsWeight / gasFeeTotalRewardsWeight

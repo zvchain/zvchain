@@ -114,7 +114,10 @@ func sourceRecover(tx *types.Transaction) error {
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
 func stateValidate(tx *types.Transaction) error {
-	accountDB := BlockChainImpl.LatestStateDB()
+	accountDB,err := BlockChainImpl.LatestStateDB()
+	if err != nil{
+		return fmt.Errorf("fail get last state db,error = %v",err.Error())
+	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance := accountDB.GetBalance(*tx.Source)
 	src := tx.Source.Hex()
@@ -195,6 +198,16 @@ func stakeRefundValidator(tx *types.Transaction) error {
 	return nil
 }
 
+func groupValidator(tx *types.Transaction) error {
+	if len(tx.Data) == 0 {
+		return fmt.Errorf("data is empty")
+	}
+	if tx.Target != nil {
+		return fmt.Errorf("target should be nil")
+	}
+	return nil
+}
+
 func contractCreateValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
@@ -264,6 +277,8 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
+			case types.TransactionTypeGroupPiece,types.TransactionTypeGroupMpk,types.TransactionTypeGroupOriginPiece:
+				err = groupValidator(tx)
 			}
 			if err != nil {
 				return err

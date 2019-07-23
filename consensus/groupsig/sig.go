@@ -109,11 +109,6 @@ func (sig Signature) GetHexString() string {
 	return PREFIX + common.Bytes2Hex(sig.value.Marshal())
 }
 
-func (sig Signature) ShortS() string {
-	str := sig.GetHexString()
-	return common.ShortHex12(str)
-}
-
 // SetHexString initialize signature by hex string
 func (sig *Signature) SetHexString(s string) error {
 	if len(s) < len(PREFIX) || s[:len(PREFIX)] != PREFIX {

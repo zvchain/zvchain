@@ -65,7 +65,15 @@ func (id *ID) SetLittleEndian(buf []byte) error {
 
 // Deserialize construct a ID with the input byte array
 func (id *ID) Deserialize(b []byte) error {
-	return id.value.Deserialize(b)
+	length := len(b)
+	bytes := b
+	if length < Idlength {
+		bytes = make([]byte, Idlength)
+		copy(bytes[Idlength-length:], b)
+	} else if length > Idlength {
+		bytes = b[length-Idlength:]
+	}
+	return id.value.Deserialize(bytes)
 }
 
 // GetBigInt export ID into a big integer
@@ -114,8 +122,8 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	return id.SetHexString(str)
 }
 
-func (id ID) ShortS() string {
-	return common.ShortHex12(id.GetHexString())
+func (id ID) String() string {
+	return common.ShortHex(id.GetHexString())
 }
 
 // NewIDFromBigInt create ID by big.int
@@ -139,7 +147,7 @@ func NewIDFromInt(i int) *ID {
 	return NewIDFromBigInt(big.NewInt(int64(i)))
 }
 
-// NewIDFromAddress create ID from TAS 160-bit address (FP254 curve 256 bit or
+// NewIDFromAddress create ID from ZV 160-bit address (FP254 curve 256 bit or
 // FP382 curve 384 bit)
 //
 // Bncurve.ID and common.Address do not support two-way back and forth conversions

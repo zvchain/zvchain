@@ -24,7 +24,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/storage/vm"
 )
 
 // Height of chain
@@ -61,7 +60,7 @@ func (chain *FullBlockChain) GetTransactionByHash(onlyReward, needSource bool, h
 }
 
 // GetTransactionPool return the transaction pool waiting for the block
-func (chain *FullBlockChain) GetTransactionPool() TransactionPool {
+func (chain *FullBlockChain) GetTransactionPool() types.TransactionPool {
 	return chain.transactionPool
 }
 
@@ -72,10 +71,13 @@ func (chain *FullBlockChain) IsAdjusting() bool {
 }
 
 // LatestStateDB returns chain's last account database
-func (chain *FullBlockChain) LatestStateDB() *account.AccountDB {
+func (chain *FullBlockChain) LatestStateDB()(types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
-	return chain.latestStateDB
+	lastBlockHeader := chain.QueryTopBlock()
+	preRoot := common.BytesToHash(lastBlockHeader.StateTree.Bytes())
+	state, err := account.NewAccountDB(preRoot, chain.stateCache)
+	return state,err
 }
 
 // QueryTopBlock returns the latest block header
@@ -259,7 +261,7 @@ func (chain *FullBlockChain) GetNonce(address common.Address) uint64 {
 }
 
 // GetAccountDBByHash returns account database with specified block hash
-func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (vm.AccountDB, error) {
+func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
@@ -268,7 +270,7 @@ func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (vm.AccountDB,
 }
 
 // GetAccountDBByHeight returns account database with specified block height
-func (chain *FullBlockChain) GetAccountDBByHeight(height uint64) (vm.AccountDB, error) {
+func (chain *FullBlockChain) GetAccountDBByHeight(height uint64) (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
@@ -291,4 +293,12 @@ func (chain *FullBlockChain) BatchGetBlocksAfterHeight(height uint64, limit int)
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 	return chain.batchGetBlocksAfterHeight(height, limit)
+}
+
+// CountBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
+// will be included
+func (chain *FullBlockChain) CountBlocksInRange(startHeight uint64, endHeight uint64) uint64 {
+	chain.rwLock.RLock()
+	defer chain.rwLock.RUnlock()
+	return chain.countBlocksInRange(startHeight, endHeight)
 }

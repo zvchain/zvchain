@@ -37,18 +37,14 @@ func (md *MinerDO) IsActive() bool {
 	return md.Status == types.MinerStatusActive
 }
 
-func (md *MinerDO) EffectAt(h uint64) bool {
-	return h >= md.ApplyHeight
+// CanPropose means whether it can be cast block at this height
+func (md *MinerDO) CanPropose() bool {
+	return md.IsProposal() && md.IsActive()
 }
 
-// CanCastAt means whether it can be cast block at this height
-func (md *MinerDO) CanCastAt(h uint64) bool {
-	return md.IsProposal() && md.IsActive() && md.EffectAt(h)
-}
-
-// CanJoinGroupAt means whether it can join the group at this height
-func (md *MinerDO) CanJoinGroupAt(h uint64) bool {
-	return md.IsVerifier() && md.IsActive() && md.EffectAt(h)
+// CanJoinGroup means whether it can join the group at this height
+func (md *MinerDO) CanJoinGroup() bool {
+	return md.IsVerifier() && md.IsActive()
 }
 
 func (md *MinerDO) IsVerifier() bool {

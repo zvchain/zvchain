@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/zvchain/zvchain/core/group"
 	"os"
 	"sync"
 	"time"
@@ -44,9 +45,12 @@ var (
 	ErrPreNotExist     = errors.New("pre block not exist")
 	ErrLocalMoreWeight = errors.New("local more weight")
 	ErrCommitBlockFail = errors.New("commit block fail")
+	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
 
-var BlockChainImpl BlockChain
+var BlockChainImpl types.BlockChain
+
+var GroupManagerImpl group.Manager
 
 var Logger taslog.Logger
 
@@ -73,7 +77,7 @@ type FullBlockChain struct {
 
 	stateCache account.AccountDatabase
 
-	transactionPool TransactionPool
+	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
@@ -96,7 +100,7 @@ type FullBlockChain struct {
 
 	consensusHelper types.ConsensusHelper
 
-	rewardManager *RewardManager
+	rewardManager *rewardManager
 
 	forkProcessor *forkProcessor
 	config        *BlockChainConfig
@@ -105,6 +109,7 @@ type FullBlockChain struct {
 
 	ticker *ticker.GlobalTicker // Ticker is a global time ticker
 	ts     time2.TimeService
+	types.Account
 }
 
 func getBlockChainConfig() *BlockChainConfig {
@@ -123,7 +128,7 @@ func getBlockChainConfig() *BlockChainConfig {
 	}
 }
 
-func initBlockChain(helper types.ConsensusHelper) error {
+func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) error {
 	instance := common.GlobalConf.GetString("instance", "index", "")
 	Logger = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
 	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, instance)
@@ -138,6 +143,7 @@ func initBlockChain(helper types.ConsensusHelper) error {
 		futureBlocks:    common.MustNewLRUCache(10),
 		verifiedBlocks:  common.MustNewLRUCache(10),
 		topBlocks:       common.MustNewLRUCache(20),
+		Account:         minerAccount,
 	}
 
 	types.DefaultPVFunc = helper.VRFProve2Value
@@ -199,6 +205,9 @@ func initBlockChain(helper types.ConsensusHelper) error {
 	chain.executor = NewTVMExecutor(chain)
 
 	chain.latestBlock = chain.loadCurrentBlock()
+
+	GroupManagerImpl = group.NewManager(chain)
+
 	if nil != chain.latestBlock {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
@@ -221,6 +230,7 @@ func initBlockChain(helper types.ConsensusHelper) error {
 
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)
+	GroupManagerImpl.InitManager(MinerManagerImpl,chain.consensusHelper.GenerateGenesisInfo())
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 	return nil
@@ -264,10 +274,11 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 
 	genesisInfo := chain.consensusHelper.GenerateGenesisInfo()
 	setupGenesisStateDB(stateDB, genesisInfo)
+	GroupManagerImpl.InitGenesis(stateDB, genesisInfo)
 
 	miners := make([]*types.Miner, 0)
-	for i, member := range genesisInfo.Group.Members {
-		miner := &types.Miner{ID: member, PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: minimumStake()}
+	for i, member := range genesisInfo.Group.Members() {
+		miner := &types.Miner{ID: member.ID(), PublicKey: genesisInfo.Pks[i], VrfPublicKey: genesisInfo.VrfPKs[i], Stake: minimumStake()}
 		miners = append(miners, miner)
 	}
 	MinerManagerImpl.addGenesesMiners(miners, stateDB)
@@ -275,6 +286,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	// Create the global-use address
 	stateDB.SetNonce(minerPoolAddr, 1)
 	stateDB.SetNonce(rewardStoreAddr, 1)
+	stateDB.SetNonce(common.GroupTopAddress, 1)
 
 	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
@@ -324,7 +336,7 @@ func (chain *FullBlockChain) Close() {
 }
 
 // GetRewardManager returns the reward manager
-func (chain *FullBlockChain) GetRewardManager() *RewardManager {
+func (chain *FullBlockChain) GetRewardManager() types.RewardManager {
 	return chain.rewardManager
 }
 
@@ -359,4 +371,9 @@ func (chain *FullBlockChain) getLatestBlock() *types.BlockHeader {
 // Version of chain Id
 func (chain *FullBlockChain) Version() int {
 	return common.ChainDataVersion
+}
+
+// Version of chain Id
+func (chain *FullBlockChain) AddTransactionToPool(tx *types.Transaction) (bool, error) {
+	return chain.GetTransactionPool().AddTransaction(tx)
 }

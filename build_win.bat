@@ -1,2 +1,2 @@
 @set basedir=%~dp0
-go build %basedir%cmd\gtas
+go build %basedir%cmd\gzv

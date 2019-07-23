@@ -41,16 +41,15 @@ func genTx(source string, target string) *types.Transaction {
 	}
 
 	tx := &types.Transaction{
-		Data:          []byte{13, 23},
-		GasPrice:      types.NewBigInt(1),
-		Source:        sourceAddr,
-		Target:        targetAddr,
-		Nonce:         rand.Uint64(),
-		Value:         types.NewBigInt(rand.Uint64()),
-		ExtraData:     []byte{2, 3, 4},
-		ExtraDataType: 1,
-		GasLimit:      types.NewBigInt(10000000),
-		Type:          1,
+		Data:      []byte{13, 23},
+		GasPrice:  types.NewBigInt(1),
+		Source:    sourceAddr,
+		Target:    targetAddr,
+		Nonce:     rand.Uint64(),
+		Value:     types.NewBigInt(rand.Uint64()),
+		ExtraData: []byte{2, 3, 4},
+		GasLimit:  types.NewBigInt(10000000),
+		Type:      1,
 	}
 	tx.Hash = tx.GenHash()
 	return tx
@@ -64,7 +63,7 @@ func genBlockHeader() *types.BlockHeader {
 		Height:     rand.Uint64(),
 		ProveValue: []byte{},
 		Castor:     castor.Serialize(),
-		GroupID:    castor.Serialize(),
+		Group:      common.Hash{},
 		TotalQN:    rand.Uint64(),
 		StateTree:  common.Hash{},
 	}

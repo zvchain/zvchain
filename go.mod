@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
 	github.com/beevik/ntp v0.2.0
+	github.com/boltdb/bolt v1.3.1
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
 	github.com/codeskyblue/go-sh v0.0.0-20190412065543-76bd3d59ff27
 	github.com/davecgh/go-spew v1.1.1
@@ -27,7 +28,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
-	golang.org/x/net v0.0.0-20190522155817-f3200d17e092
+	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 	golang.org/x/sys v0.0.0-20190523142557-0e01d883c5c5
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
