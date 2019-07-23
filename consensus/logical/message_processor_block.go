@@ -17,13 +17,14 @@ package logical
 
 import (
 	"fmt"
+	"math"
+	"sync/atomic"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
-	"math"
-	"sync/atomic"
 )
 
 func (p *Processor) thresholdPieceVerify(vctx *VerifyContext, slot *SlotContext) {
@@ -426,11 +427,10 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 // OnMessageResponseProposalBlock handles block body response from proposal node
 // It only happens in the verify roles and after block body request to the proposal node
 // It will add the block on chain and then broadcast
-func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock) {
+func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock) (s string) {
 	tLog := newHashTraceLog("OMRSPB", msg.Hash, groupsig.ID{})
 	tLog.logStart("")
 
-	var s string
 	defer func() {
 		tLog.log("result:%v", s)
 	}()
@@ -462,4 +462,5 @@ func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBl
 		return
 	}
 	s = "success"
+	return
 }

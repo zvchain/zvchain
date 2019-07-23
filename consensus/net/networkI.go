@@ -58,7 +58,7 @@ type MessageProcessor interface {
 	// OnMessageResponseProposalBlock handles block body response from proposal node
 	// It only happens in the verify roles and after block body request to the proposal node
 	// It will add the block on chain and then broadcast
-	OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock)
+	OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock) string
 }
 
 // GroupBrief represents the brief info of one group including group id and member ids
