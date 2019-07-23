@@ -32,7 +32,7 @@ const (
 	txNofifyInterval    = 5
 	txNotifyRoutine     = "ts_notify"
 	tickerTxSyncTimeout = "sync_tx_timeout"
-	txNotifyGap         = 60 * time.Second
+	txNotifyGap         = 60
 	txMaxNotifyPerTime  = 50
 
 	txReqRoutine  = "ts_req"
@@ -365,6 +365,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 			ts.logger.Warnf("Rcv tx req,but count exceeds limit")
 			return
 		}
+		count++
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
 	txs := make([]*types.Transaction, 0)

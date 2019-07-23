@@ -26,35 +26,6 @@ import (
 	"time"
 )
 
-func TestStoreSeckey(t *testing.T) {
-	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
-	logger = taslog.GetLoggerByName("testlog")
-	go skStore.loop()
-
-	defer skStore.Close()
-
-	msk := groupsig.DeserializeSeckey(common.FromHex("" +
-		""))
-	encSk := groupsig.DeserializeSeckey(common.FromHex("0x234000000000000000000000000000000000000000000000000000000000aaa"))
-	t.Log(msk.GetHexString())
-
-	hash := common.HexToHash("0x123")
-	skStore.storeSeckey(hash, msk, nil, 0)
-	//skStore.storeSeckey(hash, nil, encSk, 1040)
-
-	ski := skStore.getSkInfo(hash)
-	t.Log(ski.msk.GetHexString())
-	if !ski.msk.IsEqual(*msk) {
-		t.Errorf("msk not equal")
-	}
-	if !ski.encSk.IsEqual(*encSk) {
-		t.Errorf("encsk error")
-	}
-
-	skiNotExist := skStore.getSkInfo(common.HexToHash("0x1"))
-	t.Log(skiNotExist)
-}
-
 func TestStore(t *testing.T) {
 	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
 	logger = taslog.GetLoggerByName("testlog")

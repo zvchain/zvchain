@@ -45,7 +45,10 @@ func (pk PrivateKey) Sign(hash []byte) (Sign, error) {
 
 	sig, err := secp256k1.Sign(hash, seckbytes)
 	if err == nil {
-		sign = *BytesToSign(sig)
+		signData := BytesToSign(sig)
+		if signData == nil{
+			err = fmt.Errorf("BytesToSign fail, sign=%x",sig)
+		}
 	} else {
 		err = fmt.Errorf("Sign Failed, reason : %v.\n", err.Error())
 	}

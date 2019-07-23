@@ -16,6 +16,7 @@
 package group
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -91,7 +92,7 @@ func TestSharePiecesCryptogram(t *testing.T) {
 	}
 
 	for j := 0; j < n; j++ {
-		b, err := groupsig.CheckSharePiecesValid(shares[j], ids, k)
+		b, err := groupsig.CheckSharePiecesValid(shares[j], ids, k, pks[j])
 		if err != nil {
 			t.Error(err)
 		}
@@ -139,6 +140,76 @@ func TestSharePiecesCryptogram(t *testing.T) {
 			t.Errorf("fail to VerifySig when m= %v \n", m)
 		}
 	}
+
+	//absent test： for example , user_n absent
+	amsk := make([]groupsig.Seckey, n-1)
+	ashareVec := make([]groupsig.Seckey, n-1)
+	for j := 0; j < n-1; j++ {
+		for i := 0; i < n-1; i++ {
+			ashareVec[i] = shares[i][j]
+		}
+		amsk[j] = *groupsig.AggregateSeckeys(ashareVec)
+	}
+
+	asigs := make([]groupsig.Signature, n-1)
+	for i := 0; i < n-1; i++ {
+		asigs[i] = groupsig.Sign(amsk[i], msg)
+	}
+
+	agpk := groupsig.AggregatePubkeys(pks[:n-1])
+
+	sigVec := make([]groupsig.Signature, n-1)
+	idVec := make([]groupsig.ID, n-1)
+
+	for i := 0; i < n-1; i++ {
+		sigVec[i] = asigs[i]
+		idVec[i] = ids[i]
+	}
+	agsig := groupsig.RecoverSignature(sigVec, idVec)
+
+	if !groupsig.VerifySig(*agpk, msg, *agsig) {
+		fmt.Printf("fail to absent VerifySig \n")
+		t.Errorf("fail to absent VerifySig \n")
+	}
+
+	// evil test
+	// share exist fake data
+	shares[2][1] = *groupsig.NewSeckeyFromHexString("0x123456") // fake data
+
+	for j := 0; j < n; j++ {
+		for i := 0; i < n; i++ {
+			shareVec[i] = shares[i][j]
+		}
+		msk[j] = *groupsig.AggregateSeckeys(shareVec)
+	}
+
+	for i := 0; i < n; i++ {
+		sigs[i] = groupsig.Sign(msk[i], msg)
+	}
+
+	gsig := groupsig.RecoverSignature(sigs, ids)
+
+	if !groupsig.VerifySig(*gpk, msg, *gsig) {
+		fmt.Printf("fail to VerifySig when fake data \n")
+	}
+
+	for j := 0; j < n; j++ {
+		b, err := groupsig.CheckSharePiecesValid(shares[j], ids, k, pks[j])
+		if err != nil {
+			t.Error(err)
+		}
+		if !b {
+			fmt.Printf("fail to check share pieces valid. i= %v \n", j)
+		}
+		b, err = checkEvil(cs[j], shares[j], sks[j], pks)
+		if err != nil {
+			t.Error(err)
+		}
+		if b {
+			fmt.Printf("i= %v is evil \n", j)
+		}
+	}
+
 	t.Log("TestSharePiecesCryptogram end \n")
 }
 
