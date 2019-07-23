@@ -155,6 +155,8 @@ func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSig
 
 	network.Logger.Debugf("send SendCastRewardSignReq to %v", gSeed.Hex())
 
+	go ns.send2Self(msg.SI.GetID(), m)
+
 	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 }
 
