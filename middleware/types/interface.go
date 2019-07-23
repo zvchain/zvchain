@@ -145,6 +145,9 @@ type TransactionPool interface {
 	// GetReceived returns the received transactions in the pool with a limited size
 	GetReceived() []*Transaction
 
+	// GetAllTxs returns the received all transactions(including pending and queue) in the pool with a limited size
+	GetAllTxs() []*Transaction
+
 	// GetRewardTxs returns all the reward transactions in the pool
 	GetRewardTxs() []*Transaction
 

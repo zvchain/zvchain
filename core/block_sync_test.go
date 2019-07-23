@@ -26,6 +26,7 @@ func init(){
 	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
 	blockSyncForTest.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, "1")
 	initPeerManager()
+	types.InitMiddleware()
 	types.DefaultPVFunc = PvFuncTest
 }
 func TestGetBestCandidate(t *testing.T) {

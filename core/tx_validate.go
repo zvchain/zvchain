@@ -49,7 +49,7 @@ func commonValidate(tx *types.Transaction) error {
 	}
 
 	if tx.Hash != tx.GenHash() {
-		return fmt.Errorf("tx hash error")
+		return ErrHash
 	}
 
 	if tx.Sign == nil {
