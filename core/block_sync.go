@@ -7,7 +7,7 @@
 //
 //   This program is distributed in the hope that it will be useful,
 //   but WITHOUT ANY WARRANTY; without even the implied warranty of
-//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See themarshalTopBlockInfo
 //   GNU General Public License for more details.
 //
 //   You should have received a copy of the GNU General Public License
@@ -17,6 +17,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -327,16 +328,16 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	return true
 }
 
-func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
+func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message)error {
 	bnm := notify.AsDefault(msg)
-	if peerManagerImpl.getOrAddPeer(bnm.Source()).isEvil() {
+	if peerManagerImpl.isPeerExists(bnm.Source()) && peerManagerImpl.getOrAddPeer(bnm.Source()).isEvil() {
 		bs.logger.Warnf("block sync this source is is in evil...source is is %v\n", bnm.Source())
-		return
+		return fmt.Errorf("block sync this source is is in evil...source is is %v\n", bnm.Source())
 	}
 	blockHeader, e := bs.unMarshalTopBlockInfo(bnm.Body())
 	if e != nil {
 		bs.logger.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
-		return
+		return fmt.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
 	}
 
 	source := bnm.Source()
@@ -345,6 +346,7 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) {
 	bs.logger.Debugf("recv block notify from %v, header %v %v", bnm.Source(), blockHeader.Height, blockHeader.Hash)
 
 	bs.addCandidatePool(source, blockHeader)
+	return nil
 }
 
 func (bs *blockSyncer) syncTimeoutRoutineName(id string) string {
@@ -367,12 +369,12 @@ func (bs *blockSyncer) syncComplete(id string, timeout bool) bool {
 	return true
 }
 
-func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
+func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message)error {
 	m := notify.AsDefault(msg)
 	source := m.Source()
 	if bs == nil {
 		//do nothing
-		return
+		return fmt.Errorf("bs is nil")
 	}
 	var complete = false
 	defer func() {
@@ -383,8 +385,8 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 
 	blockResponse, e := bs.unMarshalBlockMsgResponse(m.Body())
 	if e != nil {
-		bs.logger.Warnf("Discard block response msg because unMarshalBlockMsgResponse error:%d", e.Error())
-		return
+		bs.logger.Warnf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
+		return fmt.Errorf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
 	}
 
 	blocks := blockResponse.Blocks
@@ -398,8 +400,8 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 
 		// First compare weights
 		if peerTop != nil && localTop.MoreWeight(peerTop.BW) {
-			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
-			return
+			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source,localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
+			return fmt.Errorf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source,localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
 		}
 
 		allSuccess := true
@@ -425,6 +427,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) {
 			go bs.trySyncRoutine()
 		}
 	}
+	return nil
 }
 
 func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader) {
@@ -444,22 +447,23 @@ func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader
 	}
 }
 
-func (bs *blockSyncer) blockReqHandler(msg notify.Message) {
+func (bs *blockSyncer) blockReqHandler(msg notify.Message)error {
 	m := notify.AsDefault(msg)
 
 	br, err := unmarshalSyncRequest(m.Body())
 	if err != nil {
 		bs.logger.Errorf("unmarshalSyncRequest error %v", err)
-		return
+		return fmt.Errorf("unmarshalSyncRequest error %v", err)
 	}
 	localHeight := bs.chain.Height()
 	if br.ReqHeight <= 0 || br.ReqHeight > localHeight || br.ReqSize > maxReqBlockCount {
-		return
+		return fmt.Errorf("error param,ReqHeight=%d,ReqSize=%d",br.ReqHeight,br.ReqSize)
 	}
 
 	bs.logger.Debugf("Rcv block request:reqHeight:%d, reqSize:%v, localHeight:%d", br.ReqHeight, br.ReqSize, localHeight)
 	blocks := bs.chain.BatchGetBlocksAfterHeight(br.ReqHeight, int(br.ReqSize))
 	responseBlocks(m.Source(), blocks)
+	return nil
 }
 
 func responseBlocks(targetID string, blocks []*types.Block) {
