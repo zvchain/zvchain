@@ -11,9 +11,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/zvchain/zvchain/middleware/ticker"
-	"github.com/zvchain/zvchain/middleware/time"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -49,8 +46,11 @@ func addI() {
 var processorTest *Processor
 
 func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
-	_ = initContext4Test()
 	defer clear()
+	err := initContext4Test()
+	if err != nil {
+		t.Errorf("failed to init context: %v\n", err)
+	}
 
 	pt := NewProcessorTest()
 	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
@@ -108,63 +108,83 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 }
 
 func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
-	type fields struct {
-		mi               *model.SelfMinerDO
-		genesisMember    bool
-		minerReader      *MinerPoolReader
-		blockContexts    *castBlockContexts
-		futureVerifyMsgs *FutureMessageHolder
-		proveChecker     *proveChecker
-		Ticker           *ticker.GlobalTicker
-		ready            bool
-		MainChain        types.BlockChain
-		vrf              atomic.Value
-		NetServer        net.NetworkServer
-		conf             common.ConfManager
-		isCasting        int32
-		castVerifyCh     chan *types.BlockHeader
-		blockAddCh       chan *types.BlockHeader
-		groupReader      *groupReader
-		ts               time.TimeService
-		rewardHandler    *RewardHandler
+	defer clear()
+	err := initContext4Test()
+	if err != nil {
+		t.Errorf("failed to init context: %v\n", err)
 	}
+
+	pt := NewProcessorTest()
+	//processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
+	latestBlock := core.BlockChainImpl.QueryTopBlock()
+	block := new(types.Block)
+	block.Header = &types.BlockHeader{
+		Height:     1,
+		ProveValue: common.EmptyHash.Bytes(),
+		Castor:     processorTest.mi.ID.Serialize(),
+		Group:      pt.verifyGroup.header.Seed(),
+		TotalQN:    latestBlock.TotalQN + 5,
+		StateTree:  common.BytesToHash(latestBlock.StateTree.Bytes()),
+		PreHash:    latestBlock.Hash,
+		Nonce:      common.ChainDataVersion,
+	}
+	block.Header.Hash = block.Header.GenHash()
+	processorTest.blockContexts.addProposed(block)
+
 	type args struct {
 		msg      *model.ReqProposalBlock
 		sourceID string
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name     string
+		args     args
+		expected string
 	}{
-		// TODO: Add test cases.
+		{
+			name: "ok",
+			args: args{
+				msg:      &model.ReqProposalBlock{block.Header.Hash},
+				sourceID: "111",
+			},
+			expected: "success",
+		},
+		{
+			name: "bad hash",
+			args: args{
+				msg:      &model.ReqProposalBlock{common.EmptyHash},
+				sourceID: "111",
+			},
+			expected: "block is nil",
+		},
+		{
+			name: "ok, adding response count",
+			args: args{
+				msg:      &model.ReqProposalBlock{block.Header.Hash},
+				sourceID: "111",
+			},
+			expected: "success",
+		},
+		{
+			name: "response count exceed",
+			args: args{
+				msg:      &model.ReqProposalBlock{block.Header.Hash},
+				sourceID: "111",
+			},
+			expected: "response count exceed:3 2",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Processor{
-				mi:               tt.fields.mi,
-				genesisMember:    tt.fields.genesisMember,
-				minerReader:      tt.fields.minerReader,
-				blockContexts:    tt.fields.blockContexts,
-				futureVerifyMsgs: tt.fields.futureVerifyMsgs,
-				proveChecker:     tt.fields.proveChecker,
-				Ticker:           tt.fields.Ticker,
-				ready:            tt.fields.ready,
-				MainChain:        tt.fields.MainChain,
-				vrf:              tt.fields.vrf,
-				NetServer:        tt.fields.NetServer,
-				conf:             tt.fields.conf,
-				isCasting:        tt.fields.isCasting,
-				castVerifyCh:     tt.fields.castVerifyCh,
-				blockAddCh:       tt.fields.blockAddCh,
-				groupReader:      tt.fields.groupReader,
-				ts:               tt.fields.ts,
-				rewardHandler:    tt.fields.rewardHandler,
+			p := processorTest
+			msg := p.OnMessageReqProposalBlock(tt.args.msg, tt.args.sourceID)
+			if msg != tt.expected {
+				t.Errorf("OnMessageReqProposalBlock failed, expected %s but got %s", tt.expected, msg)
 			}
-			p.OnMessageReqProposalBlock(tt.args.msg, tt.args.sourceID)
 		})
 	}
 }
+
+//---------------below are functions for mock data------
 
 func initContext4Test() error {
 	common.InitConf("./tas_config_test.ini")
@@ -185,6 +205,34 @@ func initContext4Test() error {
 	processorTest.MainChain = &chain4Test{core.BlockChainImpl}
 	processorTest.NetServer = &networkServer4Test{processorTest.NetServer}
 	return err
+}
+
+func clear() {
+	fmt.Println("---clear---")
+	if core.BlockChainImpl != nil {
+		core.BlockChainImpl.Close()
+		taslog.Close()
+		core.BlockChainImpl = nil
+	}
+
+	dir, err := ioutil.ReadDir(".")
+	if err != nil {
+		return
+	}
+	for _, d := range dir {
+		if d.IsDir() && (d.Name() == "logs" || strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore") ||
+			strings.HasPrefix(d.Name(), "database")) {
+			fmt.Printf("deleting folder: %s \n", d.Name())
+			err = os.RemoveAll(d.Name())
+			if err != nil {
+				fmt.Println("error while removing /s", d.Name())
+			}
+		}
+	}
+	err = os.Remove("tas_config_test.ini")
+	if err != nil {
+		fmt.Println("error while removing tas_config_test.ini")
+	}
 }
 
 func getAccount() *Account4Test {
@@ -214,12 +262,15 @@ type ConsensusHelperImpl4Test struct {
 }
 
 func (helper *ConsensusHelperImpl4Test) GenerateGenesisInfo() *types.GenesisInfo {
+	n := 5 //member number
 	info := &types.GenesisInfo{}
-	info.Group = &group4Test{&GroupHeader4Test{}}
+	info.Group = &group4Test{n, &GroupHeader4Test{}}
 	info.VrfPKs = make([][]byte, 0)
 	info.Pks = make([][]byte, 0)
-	info.VrfPKs = append(info.VrfPKs, common.FromHex("vrfPks"))
-	info.Pks = append(info.Pks, common.FromHex("Pks"))
+	for i := 0; i < n; i++ {
+		info.VrfPKs = append(info.VrfPKs, common.UInt32ToByte(uint32(i)))
+		info.Pks = append(info.Pks, common.UInt32ToByte(uint32(i)))
+	}
 	return info
 }
 
@@ -280,6 +331,7 @@ type KeyStoreRaw4Test struct {
 }
 
 type group4Test struct {
+	n      int
 	header types.GroupHeaderI
 }
 
@@ -289,10 +341,12 @@ func (g *group4Test) Header() types.GroupHeaderI {
 
 func (g *group4Test) Members() []types.MemberI {
 	members := make([]types.MemberI, 0)
-	mem := &member4Test{
-		common.FromHex("0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676"),
-		common.FromHex("0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676")}
-	members = append(members, mem)
+	for i := 0; i < g.n; i++ {
+		mem := &member4Test{
+			common.UInt32ToByte(uint32(i)),
+			common.UInt32ToByte(uint32(i))}
+		members = append(members, mem)
+	}
 	return members
 }
 
@@ -350,34 +404,6 @@ func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerCo
 	return nil, fmt.Errorf("do not need punishment")
 }
 
-func clear() {
-	fmt.Println("---clear---")
-	if core.BlockChainImpl != nil {
-		core.BlockChainImpl.Close()
-		taslog.Close()
-		core.BlockChainImpl = nil
-	}
-
-	dir, err := ioutil.ReadDir(".")
-	if err != nil {
-		return
-	}
-	for _, d := range dir {
-		if d.IsDir() && (d.Name() == "logs" || strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore") ||
-			strings.HasPrefix(d.Name(), "database")) {
-			fmt.Printf("deleting folder: %s \n", d.Name())
-			err = os.RemoveAll(d.Name())
-			if err != nil {
-				fmt.Println("error while removing /s", d.Name())
-			}
-		}
-	}
-	err = os.Remove("tas_config_test.ini")
-	if err != nil {
-		fmt.Println("error while removing tas_config_test.ini")
-	}
-}
-
 type chain4Test struct {
 	types.BlockChain
 }
@@ -393,4 +419,8 @@ type networkServer4Test struct {
 
 func (n *networkServer4Test) BroadcastNewBlock(block *types.Block, group *net.GroupBrief) {
 	fmt.Printf("BroadcastNewBlock called, block = %v, group = %v \n", block, group)
+}
+
+func (n *networkServer4Test) ResponseProposalBlock(msg *model.ResponseProposalBlock, target string) {
+	fmt.Printf("BroadcastNewBlock called, msg = %v, target = %v \n", msg, target)
 }
