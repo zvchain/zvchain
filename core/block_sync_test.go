@@ -21,6 +21,7 @@ import (
 var blockSyncForTest *blockSyncer
 
 var lastBlockHash common.Hash
+var middleBlockHash common.Hash
 func initContext(){
 	initContext4Test()
 	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
@@ -31,7 +32,7 @@ func initContext(){
 }
 func TestGetBestCandidate(t *testing.T) {
 	initContext()
-	defer clearDB()
+	defer clearDB(true)
 	for i := 0; i < 100; i++ {
 		blockSyncForTest.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
 		peerManagerImpl.getOrAddPeer(strconv.Itoa(i))
@@ -74,7 +75,7 @@ func PvFuncTest(pvBytes []byte) *big.Int {
 
 func TestTopBlockInfoNotifyHandler(t *testing.T){
 	initContext()
-	defer clearDB()
+	defer clearDB(true)
 
 	//add a nil blockheader
 	source := "0x111"
@@ -105,7 +106,7 @@ func TestTopBlockInfoNotifyHandler(t *testing.T){
 
 func TestBlockReqHandler(t *testing.T){
 	initContext()
-	defer clearDB()
+	defer clearDB(true)
 	insertBlocks()
 	bts,_ := tas_middleware_test.MarshalNilSyncRequest()
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
@@ -155,8 +156,9 @@ func TestBlockReqHandler(t *testing.T){
 
 func TestBlockResponseMsgHandler(t *testing.T){
 	//error blocks
+	clearDB(false)
 	initContext()
-	defer clearDB()
+	defer clearDB(true)
 	insertCorrectHashBlocks()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
@@ -214,12 +216,23 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	if  err != nil{
 		t.Fatalf("except err nil,but got error")
 	}
+
+	//rock back attack
+	blocks = tas_middleware_test.GenHashCorrectBlocksByFirstHash(middleBlockHash)
+	pbblocks = blocksToPb(blocks)
+	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
+	bts,_=proto.Marshal(&message)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	err = blockSyncForTest.blockResponseMsgHandler(msg)
+	if  err != nil{
+		t.Fatalf("except err nil,but got error")
+	}
 }
 
 
 func TestNewBlockHandler(t *testing.T){
 	initContext()
-	defer clearDB()
+	defer clearDB(true)
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
@@ -233,12 +246,14 @@ func TestNewBlockHandler(t *testing.T){
 	}
 }
 
-func clearDB() {
+func clearDB(needClose bool) {
 	fmt.Println("---clear---")
-	if BlockChainImpl != nil {
-		BlockChainImpl.Close()
-		taslog.Close()
-		BlockChainImpl = nil
+	if needClose{
+		if BlockChainImpl != nil {
+			BlockChainImpl.Close()
+			taslog.Close()
+			BlockChainImpl = nil
+		}
 	}
 
 	dir, err := ioutil.ReadDir(".")
@@ -275,6 +290,9 @@ func insertCorrectHashBlocks(){
 	for i:=0;i<len(blocks);i++{
 		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i],exc)
 		lastBlockHash = blocks[i].Header.Hash
+		if i == 5{
+			middleBlockHash = blocks[i].Header.Hash
+		}
 	}
 }
 
