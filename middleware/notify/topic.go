@@ -16,7 +16,9 @@
 package notify
 
 import (
+	"github.com/zvchain/zvchain/middleware/types"
 	"reflect"
+	"runtime/debug"
 	"sync"
 )
 
@@ -65,7 +67,7 @@ func (topic *Topic) UnSubscribe(h Handler) {
 	}
 }
 
-func (topic *Topic) Handle(message Message) {
+func (topic *Topic) Handle(message Message, withRecover bool) {
 	if 0 == len(topic.handlers) {
 		return
 	}
@@ -73,6 +75,21 @@ func (topic *Topic) Handle(message Message) {
 	topic.lock.RLock()
 	defer topic.lock.RUnlock()
 	for _, h := range topic.handlers {
-		go h(message)
+		if withRecover {
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						types.MiddleWareLogger.Errorf("error：%v\n", r)
+						s := debug.Stack()
+						types.MiddleWareLogger.Errorf(string(s))
+					}
+				}()
+
+				h(message)
+			}()
+
+		} else {
+			go h(message)
+		}
 	}
 }

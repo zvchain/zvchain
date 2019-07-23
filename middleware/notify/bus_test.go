@@ -33,25 +33,23 @@ func TestBus_Publish(t *testing.T) {
 }
 
 func TestNewBus(t *testing.T) {
-	condition := false // 条件不满足
+	condition := false
 	var mu sync.Mutex
 	cond := sync.NewCond(&mu)
-	// 让例程去创造条件
+
 	go func() {
 		mu.Lock()
-		condition = true // 更改条件
-		cond.Signal()    // 发送通知：条件已经满足
+		condition = true
+		cond.Signal()
 		mu.Unlock()
 	}()
 	mu.Lock()
-	// 检查条件是否满足，避免虚假通知，同时避免 Signal 提前于 Wait 执行。
 	for !condition {
-		// 等待条件满足的通知，如果收到虚假通知，则循环继续等待。
-		cond.Wait() // 等待时 mu 处于解锁状态，唤醒时重新锁定。
+		cond.Wait()
 	}
-	fmt.Println("条件满足，开始后续动作...")
+	fmt.Println("condition 1...")
 	mu.Unlock()
-	fmt.Println("条件满足2，开始后续动作...")
+	fmt.Println("condition 2...")
 }
 
 func produce(ch chan<- int) {
