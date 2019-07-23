@@ -411,7 +411,7 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 	defer batchTraceLog.Log("size=%v", len(addTxs))
 	chain.txBatch.batchAdd(addTxs)
 	for _, tx := range addTxs {
-		if err := tx.RecoverSource(); err != nil {
+		if !tx.IsReward() && tx.Source == nil{
 			Logger.Errorf("tx source recover fail:%s", tx.Hash.Hex())
 			return false
 		}

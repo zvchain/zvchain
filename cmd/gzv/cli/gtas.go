@@ -320,6 +320,9 @@ func (gtas *Gtas) fullInit() error {
 		common.DefaultLogger.Infof("proposer uses the package config: gasLimitForPackage %d ", gasLimitForPackage)
 	}
 
+	//set the ignoreVmCall option for proposer package. the option shouldn't be set true only if you know what you are doing.
+	core.IgnoreVmCall = common.GlobalConf.GetBool(Section, "ignore_vm_call", false)
+
 	sk := common.HexToSecKey(gtas.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
 	if err != nil {
