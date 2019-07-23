@@ -45,7 +45,11 @@ func TestPath(t *testing.T) {
 }
 
 func TestBlockChain_AddBlock(t *testing.T) {
-
+	err := initContext4Test()
+	defer clear()
+	if err != nil {
+		t.Fatalf("failed to initContext4Test")
+	}
 
 	//BlockChainImpl.Clear()
 
@@ -436,7 +440,10 @@ func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.T
 	}
 	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(privateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, err := sk.Sign(tx.Hash.Bytes())
+	if err !=  nil{
+
+	}
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
