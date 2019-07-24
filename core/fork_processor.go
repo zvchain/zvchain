@@ -217,8 +217,7 @@ func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message)error {
 	source := m.Source()
 	pieceReq, err := unMarshalChainPieceInfo(m.Body())
 	if err != nil {
-		fp.logger.Errorf("unMarshalChainPieceInfo err %v", err)
-		return fmt.Errorf("unMarshalChainPieceInfo err %v", err)
+		return fp.logger.Errorf("unMarshalChainPieceInfo err %v", err)
 	}
 
 	fp.logger.Debugf("Rcv chain piece block req from:%s, pieceSize %v, reqCnt %v", source, len(pieceReq.ChainPiece), pieceReq.ReqCnt)
@@ -292,12 +291,11 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
 	ctx := fp.syncCtx
 	if ctx == nil {
 		fp.logger.Debugf("ctx is nil: source=%v", source)
-		return fmt.Errorf("ctx is nil: source=%v", source)
+		return nil
 	}
 	chainPieceBlockMsg, e := unmarshalChainPieceBlockMsg(m.Body())
 	if e != nil {
-		fp.logger.Warnf("Unmarshal chain piece block msg error:%s", e.Error())
-		return fmt.Errorf("Unmarshal chain piece block msg error:%s", e.Error())
+		return fp.logger.Errorf("Unmarshal chain piece block msg error:%s", e.Error())
 	}
 
 	blocks := chainPieceBlockMsg.Blocks
@@ -326,7 +324,7 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
 		}
 		if !sameFork {
 			fp.logger.Debugf("Unexpected chain piece block from %s, expect from %s, blocksize %v", source, ctx.target, len(blocks))
-			return fmt.Errorf("Unexpected chain piece block from %s, expect from %s, blocksize %v", source, ctx.target, len(blocks))
+			return nil
 		}
 		fp.logger.Debugf("upexpected target blocks, buf same fork!target=%v, expect=%v, blocksize %v", source, ctx.target, len(blocks))
 	}

@@ -331,13 +331,11 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message)error {
 	bnm := notify.AsDefault(msg)
 	if peerManagerImpl.isPeerExists(bnm.Source()) && peerManagerImpl.getOrAddPeer(bnm.Source()).isEvil() {
-		bs.logger.Warnf("block sync this source is is in evil...source is is %v\n", bnm.Source())
-		return fmt.Errorf("block sync this source is is in evil...source is is %v\n", bnm.Source())
+		return bs.logger.Warnf("block sync this source is is in evil...source is is %v\n", bnm.Source())
 	}
 	blockHeader, e := bs.unMarshalTopBlockInfo(bnm.Body())
 	if e != nil {
-		bs.logger.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
-		return fmt.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
+		return bs.logger.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
 	}
 
 	source := bnm.Source()
@@ -385,8 +383,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message)error {
 
 	blockResponse, e := bs.unMarshalBlockMsgResponse(m.Body())
 	if e != nil {
-		bs.logger.Warnf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
-		return fmt.Errorf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
+		return bs.logger.Errorf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
 	}
 
 	blocks := blockResponse.Blocks
@@ -401,7 +398,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message)error {
 		// First compare weights
 		if peerTop != nil && localTop.MoreWeight(peerTop.BW) {
 			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source,localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
-			return fmt.Errorf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source,localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
+			return nil
 		}
 
 		allSuccess := true
@@ -452,8 +449,7 @@ func (bs *blockSyncer) blockReqHandler(msg notify.Message)error {
 
 	br, err := unmarshalSyncRequest(m.Body())
 	if err != nil {
-		bs.logger.Errorf("unmarshalSyncRequest error %v", err)
-		return fmt.Errorf("unmarshalSyncRequest error %v", err)
+		return bs.logger.Errorf("unmarshalSyncRequest error %v", err)
 	}
 	localHeight := bs.chain.Height()
 	if br.ReqHeight <= 0 || br.ReqHeight > localHeight || br.ReqSize > maxReqBlockCount {

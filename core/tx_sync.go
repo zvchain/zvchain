@@ -378,8 +378,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message)error {
 	}
 	body, e := types.MarshalTransactions(txs)
 	if e != nil {
-		ts.logger.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
-		return  fmt.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
+		return ts.logger.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
 	}
 	ts.logger.Debugf("Rcv tx req from %v, size %v,send transactions to %v size %v", nm.Source(), len(hashs),nm.Source(), len(txs))
 	message := network.Message{Code: network.TxSyncResponse, Body: body}
@@ -390,8 +389,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message)error {
 func (ts *txSyncer) onTxResponse(msg notify.Message)error {
 	nm := notify.AsDefault(msg)
 	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil() {
-		ts.logger.Warnf("on tx response this source is is in evil...source is is %v\n", nm.Source())
-		return fmt.Errorf("on tx response this source is is in evil...source is is %v\n", nm.Source())
+		return ts.logger.Warnf("on tx response this source is is in evil...source is is %v\n", nm.Source())
 	}
 
 	defer func() {
@@ -400,13 +398,11 @@ func (ts *txSyncer) onTxResponse(msg notify.Message)error {
 
 	txs, e := types.UnMarshalTransactions(nm.Body())
 	if e != nil {
-		ts.logger.Errorf("Unmarshal got transactions error:%s", e.Error())
-		return fmt.Errorf("Unmarshal got transactions error:%s", e.Error())
+		return ts.logger.Errorf("Unmarshal got transactions error:%s", e.Error())
 	}
 
 	if len(txs) > txPeerMaxLimit {
-		ts.logger.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
-		return fmt.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
+		return ts.logger.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
 	}
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
 	evilCount := ts.pool.AddTransactions(txs)
