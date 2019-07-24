@@ -17,7 +17,6 @@ package core
 
 import (
 	"container/heap"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -288,7 +287,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000 {
-		err = errors.New(fmt.Sprintf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce))
+		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce)
 		Logger.Warn(err)
 		return
 	}

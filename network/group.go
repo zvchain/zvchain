@@ -68,7 +68,33 @@ func (g *Group) rebuildGroup(members []NodeID) {
 
 	go g.doRefresh()
 }
+func (g *Group) onRemove() {
 
+	Logger.Infof("onRemove group ID：%v", g.ID)
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+	memberSize := len(g.needConnectNodes)
+
+	for i := 0; i < memberSize; i++ {
+		ID := g.needConnectNodes[i]
+		if ID == netCore.ID {
+			continue
+		}
+		p := netCore.peerManager.peerByID(ID)
+		if p == nil {
+
+			continue
+		}
+		p.removeGroup(g.ID)
+		if p.isGroupEmpty() {
+			node := netCore.kad.find(ID)
+			if node == nil {
+				netCore.peerManager.disconnect(ID)
+			}
+		}
+	}
+
+}
 // genConnectNodes Generate the nodes group work need to connect
 // at first sort group members,get current node index in this group,then add next two nodes to connect list
 // then calculate accelerate link nodes,add to connect list
@@ -148,7 +174,8 @@ func (g *Group) doRefresh() {
 		}
 
 		p := netCore.peerManager.peerByID(ID)
-		if p != nil {
+		if p != nil && p.sessionID > 0 {
+			p.addGroup(g.ID)
 			continue
 		}
 		node := netCore.kad.find(ID)
@@ -175,6 +202,9 @@ func (g *Group) resolve(ID NodeID) {
 }
 
 func (g *Group) send(packet *bytes.Buffer, code uint32) {
+	if packet == nil {
+		return
+	}
 	Logger.Debugf("Group Send ID：%v ", g.ID)
 
 	for i := 0; i < len(g.needConnectNodes); i++ {
@@ -252,6 +282,9 @@ func (gm *GroupManager) doRefresh() {
 }
 
 func (gm *GroupManager) groupBroadcast(ID string, packet *bytes.Buffer, code uint32) {
+	if packet == nil {
+		return
+	}
 	Logger.Infof("group broadcast, ID:%v code:%v", ID, code)
 	gm.mutex.RLock()
 	g := gm.groups[ID]
@@ -265,6 +298,4 @@ func (gm *GroupManager) groupBroadcast(ID string, packet *bytes.Buffer, code uin
 	gm.mutex.RUnlock()
 
 	g.send(buf, code)
-
-	return
 }

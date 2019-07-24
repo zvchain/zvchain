@@ -206,7 +206,7 @@ func hashAtDistance(a []byte, n int) (b []byte) {
 }
 
 // InitSelfNode initialize local user's node
-func InitSelfNode(config common.ConfManager, isSuper bool, ID NodeID) (*Node, error) {
+func InitSelfNode(isSuper bool, ID NodeID) (*Node, error) {
 	ip := getLocalIP()
 	basePort := BasePort
 	port := SuperBasePort
@@ -217,6 +217,7 @@ func InitSelfNode(config common.ConfManager, isSuper bool, ID NodeID) (*Node, er
 
 	n := Node{ID: ID, IP: net.ParseIP(ip), Port: port}
 	log.DefaultLogger.Info(n.String())
+
 	return &n, nil
 }
 

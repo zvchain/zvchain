@@ -97,7 +97,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	return routine.store
 }
 
-func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
+func (routine *createRoutine) onBlockAddSuccess(message notify.Message)error {
 	block := message.GetData().(*types.Block)
 	bh := block.Header
 
@@ -128,7 +128,7 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 			logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 		}
 	}
-
+	return err
 }
 
 // UpdateEra updates the era info base on current block header

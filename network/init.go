@@ -50,11 +50,11 @@ var netServerInstance *Server
 var Logger *logrus.Logger
 
 // Init initialize network instance,register message handler,join p2p network
-func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig NetworkConfig) (err error) {
+func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig NetworkConfig) (err error) {
 	Logger = log.P2PLogger
-	statistics.InitStatistics(config)
+	statistics.InitStatistics(*config)
 
-	self, err := InitSelfNode(config, networkConfig.IsSuper, NewNodeID(networkConfig.NodeIDHex))
+	self, err := InitSelfNode(networkConfig.IsSuper, NewNodeID(networkConfig.NodeIDHex))
 	if err != nil {
 		Logger.Errorf("InitSelfNode error:", err.Error())
 		return err

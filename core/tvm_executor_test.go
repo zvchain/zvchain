@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/log"
 	"math/big"
 	"math/rand"
 	"os"
@@ -51,7 +52,7 @@ func init() {
 		panic(fmt.Sprintf("Init block chain error! Error:%s", err.Error()))
 	}
 	accountdb = account.NewDatabase(statedb)
-	Logger = taslog.GetLogger("")
+	Logger = log.DefaultLogger
 
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
@@ -59,7 +60,9 @@ func init() {
 			rewardManager:   newRewardManager(),
 		},
 	}
-	BlockChainImpl = executor.bc
+	if BlockChainImpl == nil{
+		BlockChainImpl = executor.bc
+	}
 }
 
 func randomAddress() common.Address {

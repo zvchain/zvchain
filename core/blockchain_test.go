@@ -441,6 +441,7 @@ func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.T
 	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(privateKey)
 	sign, _ := sk.Sign(tx.Hash.Bytes())
+
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
@@ -490,7 +491,6 @@ func clearTicker() {
 }
 
 func initContext4Test() error {
-	common.DefaultLogger = log.DefaultLogger
 	common.InitConf("../tas_config_all.ini")
 	network.Logger = log.P2PLogger
 	err := middleware.InitMiddleware()
