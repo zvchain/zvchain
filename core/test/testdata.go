@@ -155,10 +155,17 @@ func GenHashCorrectBlocks()[]*types.Block{
 	return blocks
 }
 
-func GenHashCorrectBlocksByFirstHash(firstBlockHash common.Hash)[]*types.Block{
+func GenBlocksByBlock(bc *types.Block)[]*types.Block{
+	blocks := []*types.Block{}
+	bc.Header.Hash = common.BytesToHash([]byte{1,2,3})
+	blocks = append(blocks,bc)
+	return blocks
+}
+
+func GenHashCorrectBlocksByFirstHash(firstBlockHash common.Hash,len int)[]*types.Block{
 	blocks := []*types.Block{}
 	txs := []*types.Transaction{}
-	bhs := GeneCorrectBlockHeadersByFirstHash(firstBlockHash)
+	bhs := GeneCorrectBlockHeadersByFirstHash(firstBlockHash,len)
 	nonce:=0
 	for _,data := range bhs{
 		target := common.HexToAddress("0x999")
@@ -255,11 +262,11 @@ func GeneCorrectBlockHeaders()[]*types.BlockHeader{
 	return bhs
 }
 
-func GeneCorrectBlockHeadersByFirstHash(firstHash common.Hash)[]*types.BlockHeader{
+func GeneCorrectBlockHeadersByFirstHash(firstHash common.Hash,len int)[]*types.BlockHeader{
 	bhs := []*types.BlockHeader{}
 	hash := common.Hash{}
 	preHash := firstHash
-	for i := 0;i<200;i++{
+	for i := 0;i<len;i++{
 		bh:=NewCorrectBlockHeader(hash,preHash)
 		bh.Hash = bh.GenHash()
 		hash = bh.Hash

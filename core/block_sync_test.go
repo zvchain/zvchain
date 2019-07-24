@@ -21,6 +21,7 @@ import (
 var blockSyncForTest *blockSyncer
 
 var lastBlockHash common.Hash
+var middleBlock *types.Block
 var middleBlockHash common.Hash
 func initContext(){
 	initContext4Test()
@@ -207,7 +208,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 
 
 	//correct block hash
-	blocks = tas_middleware_test.GenHashCorrectBlocksByFirstHash(lastBlockHash)
+	blocks = tas_middleware_test.GenHashCorrectBlocksByFirstHash(lastBlockHash,200)
 	pbblocks = blocksToPb(blocks)
 	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
 	bts,_=proto.Marshal(&message)
@@ -218,12 +219,17 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	}
 
 	//rock back attack
-	blocks = tas_middleware_test.GenHashCorrectBlocksByFirstHash(middleBlockHash)
+	blocks = tas_middleware_test.GenBlocksByBlock(middleBlock)
 	pbblocks = blocksToPb(blocks)
 	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
 	bts,_=proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
+
+	//this is roll back error!
+	if BlockChainImpl.(*FullBlockChain).latestBlock.Hash == middleBlockHash{
+		t.Fatalf("hash error")
+	}
 	if  err != nil{
 		t.Fatalf("except err nil,but got error")
 	}
@@ -288,10 +294,15 @@ func insertCorrectHashBlocks(){
 	stateDB,_ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
 	exc := &executePostState{state: stateDB}
 	for i:=0;i<len(blocks);i++{
+		root:= stateDB.IntermediateRoot(true)
+		blocks[i].Header.StateTree = common.BytesToHash(root.Bytes())
 		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i],exc)
 		lastBlockHash = blocks[i].Header.Hash
-		if i == 5{
+		if i == 4{
 			middleBlockHash = blocks[i].Header.Hash
+		}
+		if i == 5{
+			middleBlock = blocks[i]
 		}
 	}
 }
@@ -299,9 +310,16 @@ func insertCorrectHashBlocks(){
 
 func GenCorrectBlocks()[]*types.Block{
 	blocks := []*types.Block{}
+	var hash = common.Hash{}
 	for i:= 0;i<100;i++{
 		bh := tas_middleware_test.NewRandomFullBlockHeader(uint64(i))
 		bh.Hash = bh.GenHash()
+		if i == 0{
+			bh.PreHash = bh.Hash
+		}else{
+			bh.PreHash = hash
+		}
+		hash = bh.Hash
 		blocks = append(blocks,&types.Block{Header:bh})
 	}
 	return blocks
