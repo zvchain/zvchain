@@ -34,7 +34,7 @@ func NewPacketSender(chain chainReader) types.GroupPacketSender {
 	return &PacketSender{
 		chain:        chain,
 		baseGasPrice: types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_price", 2000))),
-		baseGasLimit: types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_limit", 400000))),
+		baseGasLimit: types.NewBigInt(uint64(common.GlobalConf.GetInt("chain", "group_tx_gas_limit", 13000))), // actually used 7186
 	}
 }
 
