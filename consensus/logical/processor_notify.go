@@ -72,7 +72,7 @@ func (p *Processor) triggerFutureRewardSign(bh *types.BlockHeader) {
 }
 
 // onBlockAddSuccess handle the event of block add-on-chain
-func (p *Processor) onBlockAddSuccess(message notify.Message)error {
+func (p *Processor) onBlockAddSuccess(message notify.Message) error {
 	if !p.Ready() {
 		return nil
 	}
@@ -108,7 +108,7 @@ func (p *Processor) onBlockAddSuccess(message notify.Message)error {
 }
 
 // onGroupAddSuccess handles the event of verifyGroup add-on-chain
-func (p *Processor) onGroupAddSuccess(message notify.Message)error {
+func (p *Processor) onGroupAddSuccess(message notify.Message) error {
 	group := message.GetData().(types.GroupI)
 	stdLogger.Infof("groupAddEventHandler receive message, gSeed=%v, workHeight=%v\n", group.Header().Seed(), group.Header().WorkHeight())
 
@@ -117,5 +117,17 @@ func (p *Processor) onGroupAddSuccess(message notify.Message)error {
 		memIds[i] = groupsig.DeserializeID(mem.ID())
 	}
 	p.NetServer.BuildGroupNet(group.Header().Seed().Hex(), memIds)
+
+	topHeight := p.MainChain.QueryTopBlock().Height
+	// clear the dismissed group from net server
+	for _, v := range p.livedGroups {
+		if v.Header().DismissHeight()+10 < topHeight {
+			delKey := v.Header().Seed().Hex()
+			p.NetServer.ReleaseGroupNet(delKey)
+			delete(p.livedGroups, delKey)
+		}
+	}
+	p.livedGroups[group.Header().Seed().Hex()] = group
+
 	return nil
 }
