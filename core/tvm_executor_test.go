@@ -60,7 +60,9 @@ func init() {
 			rewardManager:   newRewardManager(),
 		},
 	}
-	BlockChainImpl = executor.bc
+	if BlockChainImpl == nil{
+		BlockChainImpl = executor.bc
+	}
 }
 
 func randomAddress() common.Address {
