@@ -34,7 +34,7 @@ type MessageProcessor interface {
 	// OnMessageCast handles the message from the proposer
 	// Note that, if the pre-block of the block present int the message isn't on the blockchain, it will caches the message
 	// and trigger it after the pre-block added on chain
-	OnMessageCast(msg *model.ConsensusCastMessage)
+	OnMessageCast(msg *model.ConsensusCastMessage) error
 
 	// OnMessageVerify handles the verification messages from other members in the group for a specified block proposal
 	// Note that, it will cache the messages if the corresponding proposal message doesn't come yet and trigger them

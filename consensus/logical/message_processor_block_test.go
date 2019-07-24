@@ -2,7 +2,6 @@ package logical
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/middleware/time"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -14,11 +13,13 @@ import (
 	time2 "time"
 
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/consensus/net"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware"
+	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 	"github.com/zvchain/zvchain/taslog"
@@ -207,6 +208,42 @@ func initContext4Test() error {
 	processorTest.MainChain = &chain4Test{core.BlockChainImpl}
 	processorTest.NetServer = &networkServer4Test{processorTest.NetServer}
 	return err
+}
+
+type MinerPoolTest struct {
+	pks         []groupsig.Pubkey
+	ids         []groupsig.ID
+	verifyGroup *verifyGroup
+}
+
+func NewMinerPoolTest(pks []groupsig.Pubkey, ids []groupsig.ID, verifyGroup *verifyGroup) *MinerPoolTest {
+	mpt := MinerPoolTest{}
+	mpt.pks = pks
+	mpt.ids = ids
+	mpt.verifyGroup = verifyGroup
+	return &mpt
+}
+
+func (MinerPoolTest) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
+	panic("implement me")
+}
+
+func (m MinerPoolTest) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {
+	return &types.Miner{
+		Status:       types.MinerStatusActive,
+		Type:         types.MinerTypeProposal,
+		ID:           m.ids[1].Serialize(),
+		PublicKey:    m.pks[1].Serialize(),
+		VrfPublicKey: base.Hex2VRFPublicKey("0x666a589f1bbc74ad4bc24c67c0845bd4e74d83f0e3efa3a4b465bf6e5600871c"),
+	}
+}
+
+func (MinerPoolTest) GetProposalTotalStake(height uint64) uint64 {
+	return 1000000
+}
+
+func (MinerPoolTest) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
+	panic("implement me")
 }
 
 func clear() {

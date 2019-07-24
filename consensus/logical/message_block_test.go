@@ -100,7 +100,8 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 3
-		bh.Castor = common.Hex2Bytes("0x0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.ProveValue = common.FromHex("0x03556a119b69e52a6c8f676213e2184c588bc9731ec0ab1ed32a91a9a22155cdeb001fa9a2fd33c8660483f267050f0e72072658f16d485a1586fca736a50a423cbbb181870219af0c2c4fdbbb89832730")
 		bh.Hash = bh.GenHash()
 	}
 	return bh
@@ -441,7 +442,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 					},
 				},
 			},
-			expected: "block onchain already",
+			expected: "miner can't cast at height",
 		},
 	}
 	p := processorTest
@@ -456,7 +457,8 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	vcx.signedBlockHashs = set.New(set.ThreadSafe)
 	vcx.signedBlockHashs.Add(GenTestBHHash("already-sign"))
 	p.blockContexts.addVctx(vcx)
-	//
+	// for cast-illegal
+	processorTest.minerReader = newMinerPoolReader(processorTest, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := p.OnMessageCast(tt.args.msg)
