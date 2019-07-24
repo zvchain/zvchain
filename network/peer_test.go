@@ -62,14 +62,14 @@ func TestDecodePacketNil(t *testing.T) {
 	msgType, packetSize, _, _, err := p.decodePacket()
 
 	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
-	if err != nil {
+	if err == nil {
 		t.Fatalf("decode error:%v", err)
 	}
-	if msgType != 2 {
+	if msgType != 0 {
 		t.Fatalf("msgType wrong")
 	}
 
-	if packetSize != 1024+8 {
+	if packetSize != 0 {
 		t.Fatalf("packetSize wrong")
 	}
 }
@@ -236,7 +236,7 @@ func TestDecodePacketOver16M(t *testing.T) {
 	msgType, packetSize, _, _, err := p.decodePacket()
 
 	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
-	if err != nil {
+	if err == nil {
 		t.Fatalf("decode error:%v", err)
 	}
 	if msgType != 0{
