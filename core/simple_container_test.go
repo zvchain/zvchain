@@ -144,6 +144,17 @@ func Test_simpleContainer_forEach(t *testing.T) {
 
 	container = newSimpleContainer(10, 3, BlockChainImpl)
 
+	tx22 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a"), Nonce: 1, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
+	tx23 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5b"), Nonce: 1, GasPrice: types.NewBigInt(9999), GasLimit: gasLimit, Source: &addr5}
+	tx24 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5c"), Nonce: 2, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
+	_ = container.push(tx22)
+	_ = container.push(tx23)
+	_ = container.push(tx24)
+
+	for _, tx := range container.asSlice(10) {
+		fmt.Printf("[asSlice1] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
+	}
+
 	txs := []*types.Transaction{
 		tx1, tx2, tx3, tx4, tx5, tx6, tx7, tx8, tx9, tx10, tx11, tx12, tx13, tx14, tx15,
 	}

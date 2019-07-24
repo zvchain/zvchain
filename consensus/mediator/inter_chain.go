@@ -17,6 +17,7 @@
 package mediator
 
 import (
+	"github.com/zvchain/zvchain/common/ed25519"
 	"math"
 	"math/big"
 
@@ -44,7 +45,7 @@ func (helper *ConsensusHelperImpl) GenerateGenesisInfo() *types.GenesisInfo {
 
 // VRFProve2Value convert the vrf prove to big int
 func (helper *ConsensusHelperImpl) VRFProve2Value(prove []byte) *big.Int {
-	if len(prove) == 0 {
+	if len(prove) != ed25519.ProveSize{
 		return big.NewInt(0)
 	}
 	return base.VRFProof2hash(base.VRFProve(prove)).Big()

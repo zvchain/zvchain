@@ -411,7 +411,7 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 	defer batchTraceLog.Log("size=%v", len(addTxs))
 	chain.txBatch.batchAdd(addTxs)
 	for _, tx := range addTxs {
-		if err := tx.RecoverSource(); err != nil {
+		if !tx.IsReward() && tx.Source == nil{
 			Logger.Errorf("tx source recover fail:%s", tx.Hash.Hex())
 			return false
 		}
@@ -484,15 +484,15 @@ func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 	}
 }
 
-func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) {
+func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error{
 	b := message.GetData().(*types.Block)
 	if value, _ := chain.futureBlocks.Get(b.Header.Hash); value != nil {
 		block := value.(*types.Block)
 		Logger.Debugf("Get block from future blocks,hash:%s,height:%d", block.Header.Hash.Hex(), block.Header.Height)
 		chain.addBlockOnChain("", block)
 		chain.futureBlocks.Remove(b.Header.Hash)
-		return
 	}
+	return nil
 }
 
 func (chain *FullBlockChain) ensureBlocksChained(blocks []*types.Block) bool {

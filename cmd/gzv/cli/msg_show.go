@@ -87,7 +87,7 @@ func (ms *msgShower) txSuccess(tx common.Hash) bool {
 	return receipt != nil && receipt.Success()
 }
 
-func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
+func (ms *msgShower) onBlockAddSuccess(message notify.Message) error{
 	b := message.GetData().(*types.Block)
 	if bytes.Equal(b.Header.Castor, ms.id) {
 		ms.showMsg("congratulations, you mined block height %v success!", b.Header.Height)
@@ -135,13 +135,16 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) {
 			}
 		}
 	}
+	return nil
 }
 
-func (ms *msgShower) blockSync(message notify.Message) {
+func (ms *msgShower) blockSync(message notify.Message) error{
 	cand := message.GetData().(*core.SyncCandidateInfo)
 	ms.showMsg("sync block from %v[height=%v], localHeight=%v, reqHeight %v", cand.Candidate, cand.CandidateHeight, core.BlockChainImpl.Height(), cand.ReqHeight)
+	return nil
 }
 
-func (ms *msgShower) messageToConsole(message notify.Message) {
+func (ms *msgShower) messageToConsole(message notify.Message) error{
 	ms.showMsg(message.GetData().(string))
+	return nil
 }
