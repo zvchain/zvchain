@@ -8,7 +8,7 @@ func init()  {
 	logrusplus = New()
 	StdLogger = logrusplus.StandardLogger()
 
-	logsDir := "./logs2/"
+	logsDir := "./logs/"
 
 	_, err := os.Stat(logsDir)
 	if err != nil {
