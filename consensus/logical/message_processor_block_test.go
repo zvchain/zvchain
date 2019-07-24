@@ -2,6 +2,7 @@ package logical
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/time"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	time2 "time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -411,6 +413,27 @@ type chain4Test struct {
 func (c *chain4Test) AddBlockOnChain(source string, b *types.Block) types.AddBlockResult {
 	fmt.Printf("AddBlockOnChain called, source = %v, b = %v\n", source, b)
 	return types.AddBlockSucc
+}
+
+func (c *chain4Test) HasBlock(hash common.Hash) bool {
+	if hash == common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501") {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (c *chain4Test) QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
+	if hash == common.HexToHash("0x01") {
+		return nil
+	}
+	if hash == common.HexToHash("0x02") {
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 5, Height: 1}
+	}
+	if hash == common.HexToHash("0x03") {
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 8, Height: 2}
+	}
+	return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 2}
 }
 
 type networkServer4Test struct {

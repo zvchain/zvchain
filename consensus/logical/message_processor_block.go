@@ -194,8 +194,8 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		tlog.logEnd("height=%v, preHash=%v, gseed=%v, result=%v", bh.Height, bh.PreHash, bh.Group, result)
 		traceLog.Log("PreHash=%v,castor=%v,result=%v", bh.PreHash, ccm.SI.GetID(), result)
 	}()
-	if ccm.GenHash() != ccm.SI.DataHash {
-		err = fmt.Errorf("msg genHash %v diff from si.DataHash %v", ccm.GenHash(), ccm.SI.DataHash)
+	if ccm.GenHash() != ccm.SI.DataHash || ccm.GenHash() != bh.Hash {
+		err = fmt.Errorf("msg genHash %v diff from si.DataHash %v || bh.Hash %v", ccm.GenHash(), ccm.SI.DataHash, bh.Hash)
 		return
 	}
 	// Castor need to ignore his message
