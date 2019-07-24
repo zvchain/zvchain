@@ -22,7 +22,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
@@ -52,7 +51,7 @@ func (chain *FullBlockChain) updateLatestBlock(state *account.AccountDB, header 
 	chain.latestBlock = header
 
 	Logger.Infof("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
-	taslog.Flush()
+	//taslog.Flush()
 }
 
 func (chain *FullBlockChain) saveBlockHeader(hash common.Hash, dataBytes []byte) error {

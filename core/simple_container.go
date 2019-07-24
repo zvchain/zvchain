@@ -17,6 +17,8 @@ package core
 
 import (
 	"container/heap"
+	"errors"
+	"fmt"
 	"sync"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
@@ -286,7 +288,8 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000 {
-		err = Logger.Warnf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce)
+		err = errors.New(fmt.Sprintf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce))
+		Logger.Warn(err)
 		return
 	}
 

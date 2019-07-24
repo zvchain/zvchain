@@ -16,7 +16,9 @@
 package group
 
 import (
+	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 
 	"github.com/vmihailenco/msgpack"
@@ -147,7 +149,9 @@ func (p *PacketSender) sendTransaction(tx *types.Transaction) error {
 		return fmt.Errorf("transaction sign is empty")
 	}
 	if ok, err := p.chain.AddTransactionToPool(tx); err != nil || !ok {
-		return common.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err)
+		err2 := errors.New(fmt.Sprintf("AddTransaction not ok or error:%s", err))
+		log.DefaultLogger.Error(err2)
+		return err2
 	}
 
 	logger.Debugf("[group] sendTransaction success. type = %d, hash = %v ", tx.Type, tx.Hash)

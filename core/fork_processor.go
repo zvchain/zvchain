@@ -16,17 +16,17 @@
 package core
 
 import (
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"sync"
 
+	"fmt"
+	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
-
-	"fmt"
-	"github.com/gogo/protobuf/proto"
 )
 
 const (
@@ -54,7 +54,7 @@ type forkProcessor struct {
 	syncCtx *forkSyncContext
 
 	lock   sync.RWMutex
-	logger taslog.Logger
+	logger *logrus.Logger
 }
 
 type chainPieceBlockMsg struct {
@@ -72,7 +72,7 @@ func initForkProcessor(chain *FullBlockChain) *forkProcessor {
 	fh := forkProcessor{
 		chain: chain,
 	}
-	fh.logger = taslog.GetLoggerByIndex(taslog.ForkLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	fh.logger = log.ForkLogger
 	notify.BUS.Subscribe(notify.ChainPieceBlockReq, fh.chainPieceBlockReqHandler)
 	notify.BUS.Subscribe(notify.ChainPieceBlock, fh.chainPieceBlockHandler)
 

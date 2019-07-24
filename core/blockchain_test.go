@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -34,7 +35,6 @@ import (
 	zvtime "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 var source = "100"
@@ -458,7 +458,7 @@ func clear() {
 	fmt.Println("---clear---")
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
-		taslog.Close()
+		//taslog.Close()
 		BlockChainImpl = nil
 	}
 
@@ -490,9 +490,9 @@ func clearTicker() {
 }
 
 func initContext4Test() error {
-	common.DefaultLogger = taslog.GetLoggerByName("default")
+	common.DefaultLogger = log.DefaultLogger
 	common.InitConf("../tas_config_all.ini")
-	network.Logger = taslog.GetLoggerByName("p2p" + common.GlobalConf.GetString("client", "index", ""))
+	network.Logger = log.P2PLogger
 	err := middleware.InitMiddleware()
 	if err != nil {
 		return err

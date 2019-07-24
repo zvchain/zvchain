@@ -17,17 +17,17 @@ package core
 
 import (
 	"errors"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	zvtime "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 const (
@@ -64,7 +64,7 @@ type blockSyncer struct {
 	ticker *ticker.GlobalTicker
 
 	lock   sync.RWMutex
-	logger taslog.Logger
+	logger *logrus.Logger
 }
 
 type topBlockInfo struct {
@@ -92,7 +92,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 func InitBlockSyncer(chain *FullBlockChain) {
 	blockSync = newBlockSyncer(chain)
 	blockSync.ticker = blockSync.chain.ticker
-	blockSync.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	blockSync.logger = log.BlockSyncLogger
 	blockSync.ticker.RegisterPeriodicRoutine(tickerSendLocalTop, blockSync.notifyLocalTopBlockRoutine, sendLocalTopInterval)
 	blockSync.ticker.StartTickerRoutine(tickerSendLocalTop, false)
 

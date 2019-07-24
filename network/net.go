@@ -677,7 +677,9 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	case MessageType_MessageData:
 		nc.handleData(msg.(*MsgData), buf.Bytes()[0:packetSize], p)
 	default:
-		return Logger.Errorf("unknown type: %d", msgType)
+		err = errors.New(fmt.Sprintf("unknown type: %d", msgType))
+		Logger.Error(err)
+		return err
 	}
 	if buf != nil {
 		nc.bufferPool.freeBuffer(buf)

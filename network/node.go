@@ -17,6 +17,7 @@ package network
 
 import (
 	"errors"
+	"github.com/zvchain/zvchain/log"
 	"math/rand"
 	"net"
 	"strconv"
@@ -215,7 +216,7 @@ func InitSelfNode(config common.ConfManager, isSuper bool, ID NodeID) (*Node, er
 	}
 
 	n := Node{ID: ID, IP: net.ParseIP(ip), Port: port}
-	common.DefaultLogger.Info(n.String())
+	log.DefaultLogger.Info(n.String())
 	return &n, nil
 }
 

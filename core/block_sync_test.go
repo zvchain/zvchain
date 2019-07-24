@@ -2,8 +2,8 @@ package core
 
 import (
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"strconv"
 	"testing"
@@ -13,7 +13,7 @@ func TestGetBestCandidate(t *testing.T) {
 	blockSync := newBlockSyncer(nil)
 
 	types.DefaultPVFunc = PvFuncTest
-	blockSync.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, "1")
+	blockSync.logger = log.BlockSyncLogger
 	initPeerManager()
 	for i := 0; i < 100; i++ {
 		blockSync.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})

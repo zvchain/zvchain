@@ -17,6 +17,8 @@ package core
 
 import (
 	"bytes"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -25,7 +27,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 const (
@@ -50,7 +51,7 @@ type txSyncer struct {
 	rctNotifiy    *lru.Cache
 	ticker        *ticker.GlobalTicker
 	candidateKeys *lru.Cache
-	logger        taslog.Logger
+	logger        *logrus.Logger
 }
 
 var TxSyncer *txSyncer
@@ -134,7 +135,7 @@ func initTxSyncer(chain *FullBlockChain, pool *txPool) {
 		ticker:        ticker.NewGlobalTicker("tx_syncer"),
 		candidateKeys: common.MustNewLRUCache(100),
 		chain:         chain,
-		logger:        taslog.GetLoggerByIndex(taslog.TxSyncLogConfig, common.GlobalConf.GetString("instance", "index", "")),
+		logger:        log.TxSyncLogger,
 	}
 	s.ticker.RegisterPeriodicRoutine(txNotifyRoutine, s.notifyTxs, txNofifyInterval)
 	s.ticker.StartTickerRoutine(txNotifyRoutine, false)
