@@ -114,7 +114,7 @@ func TestBlockReqHandler(t *testing.T){
 
 	err := blockSyncForTest.blockReqHandler(msg)
 	if err == nil{
-		t.Fatalf("except got error,but got nil")
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	bts,_ = tas_middleware_test.MarshalErorSyncRequest()
@@ -122,7 +122,7 @@ func TestBlockReqHandler(t *testing.T){
 
 	err = blockSyncForTest.blockReqHandler(msg)
 	if err == nil{
-		t.Fatalf("except got error,but got nil")
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	var ReqHeight uint64 = 10
@@ -168,7 +168,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err := blockSyncForTest.blockResponseMsgHandler(msg)
 	if  err != nil{
-		t.Fatalf("except err nil,but got error")
+		t.Fatalf("expect err nil,but got error")
 	}
 
 
@@ -179,7 +179,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 	if  err != nil{
-		t.Fatalf("except err nil,but got error")
+		t.Fatalf("expect err nil,but got error")
 	}
 
 
@@ -192,7 +192,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 	if  err == nil{
-		t.Fatalf("except got,but got nil")
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	//tx sign error
@@ -203,7 +203,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 	if  err != nil{
-		t.Fatalf("except err nil,but got error")
+		t.Fatalf("expect err nil,but got error")
 	}
 
 
@@ -215,7 +215,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 	if  err != nil{
-		t.Fatalf("except err nil,but got error")
+		t.Fatalf("expect err nil,but got error")
 	}
 
 	//rock back attack
@@ -231,7 +231,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 		t.Fatalf("hash error")
 	}
 	if  err != nil{
-		t.Fatalf("except err nil,but got error")
+		t.Fatalf("expect err nil,but got error")
 	}
 }
 
@@ -248,7 +248,7 @@ func TestNewBlockHandler(t *testing.T){
 
 	err := BlockChainImpl.(*FullBlockChain).newBlockHandler(msg)
 	if err != nil{
-		t.Fatalf("except got no error,but got error")
+		t.Fatalf("expect got no error,but got error")
 	}
 }
 

@@ -440,10 +440,8 @@ func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.T
 	}
 	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(privateKey)
-	sign, err := sk.Sign(tx.Hash.Bytes())
-	if err !=  nil{
+	sign, _ := sk.Sign(tx.Hash.Bytes())
 
-	}
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()

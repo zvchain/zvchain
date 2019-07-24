@@ -17,7 +17,6 @@ package core
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -232,8 +231,7 @@ func (ts *txSyncer) getOrAddCandidateKeys(id string) *peerTxsHashes {
 func (ts *txSyncer) onTxNotify(msg notify.Message)error {
 	nm := notify.AsDefault(msg)
 	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil() {
-		ts.logger.Warnf("tx sync this source is is in evil...source is is %v\n", nm.Source())
-		return fmt.Errorf("tx sync this source is is in evil...source is is %v\n", nm.Source())
+		return ts.logger.Warnf("tx sync this source is is in evil...source is is %v\n", nm.Source())
 	}
 	reader := bytes.NewReader(nm.Body())
 	var (
@@ -248,8 +246,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message)error {
 			break
 		}
 		if count > txMaxNotifyPerTime {
-			ts.logger.Warnf("Rcv onTxNotify,but count exceeds limit")
-			return fmt.Errorf("Rcv onTxNotify,but count exceeds limit")
+			return ts.logger.Warnf("Rcv onTxNotify,but count exceeds limit")
 		}
 		count++
 		hashs = append(hashs, common.BytesToHash(buf))
@@ -363,8 +360,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message)error {
 			break
 		}
 		if count > txPeerMaxLimit {
-			ts.logger.Warnf("Rcv tx req,but count exceeds limit")
-			return fmt.Errorf("Rcv tx req,but count exceeds limit")
+			return ts.logger.Warnf("Rcv tx req,but count exceeds limit")
 		}
 		count++
 		hashs = append(hashs, common.BytesToHash(buf))
@@ -407,11 +403,9 @@ func (ts *txSyncer) onTxResponse(msg notify.Message)error {
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
 	evilCount := ts.pool.AddTransactions(txs)
 	if evilCount > txValidteErrorLimit {
-		ts.logger.Errorf("rec tx evil count over limit,count is %d", evilCount)
 		peerManagerImpl.addEvilCount(nm.Source())
-		return fmt.Errorf("rec tx evil count over limit,count is %d", evilCount)
+		return ts.logger.Errorf("rec tx evil count over limit,count is %d", evilCount)
 	}
-
 	peerManagerImpl.resetEvilCount(nm.Source())
 	return nil
 }
