@@ -16,7 +16,6 @@
 package logical
 
 import (
-	"fmt"
 	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -75,7 +74,7 @@ func (p *Processor) triggerFutureRewardSign(bh *types.BlockHeader) {
 // onBlockAddSuccess handle the event of block add-on-chain
 func (p *Processor) onBlockAddSuccess(message notify.Message)error {
 	if !p.Ready() {
-		return fmt.Errorf("not ready")
+		return nil
 	}
 	block := message.GetData().(*types.Block)
 	bh := block.Header
