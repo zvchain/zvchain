@@ -347,8 +347,7 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
 		}
 	} else {
 		if len(blocks) == 0 {
-			fp.logger.Errorf("from %v, find ancesotr, but blocks is empty!", source)
-			return fmt.Errorf("from %v, find ancesotr, but blocks is empty!", source)
+			return fp.logger.Errorf("from %v, find ancesotr, but blocks is empty!", source)
 		}
 		ancestorBH := blocks[0].Header
 		if !fp.chain.HasBlock(ancestorBH.Hash) {
