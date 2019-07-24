@@ -48,6 +48,8 @@ func (pk PrivateKey) Sign(hash []byte) (Sign, error) {
 		signData := BytesToSign(sig)
 		if signData == nil{
 			err = fmt.Errorf("BytesToSign fail, sign=%x",sig)
+		}else{
+			sign = *signData
 		}
 	} else {
 		err = fmt.Errorf("Sign Failed, reason : %v.\n", err.Error())

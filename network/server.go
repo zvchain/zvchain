@@ -208,7 +208,7 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 		}
 		if topicID != "" {
 			msg := newNotifyMessage(message, from)
-			notify.BUS.Publish(topicID, msg)
+			notify.BUS.PublishWithRecover(topicID, msg)
 		}
 	}
 
