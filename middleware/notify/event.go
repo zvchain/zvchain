@@ -18,23 +18,17 @@ package notify
 // defines all of current used event ids
 const (
 	BlockAddSucc = "block_add_succ"
-
 	GroupAddSucc = "group_add_succ"
-
-	NewBlock = "new_block"
-
-	BlockReq = "block_req"
-
-	BlockResponse = "block_response"
-
-	BlockInfoNotify = "block_info_notify"
-
-	ChainPieceBlockReq = "chain_piece_block_req"
-
-	ChainPieceBlock = "chain_piece_block"
-
 	BlockSync        = "block_sync"
 	MessageToConsole = "message_to_console"
+
+	BlockInfoNotify = "block_info_notify"
+	BlockReq = "block_req"
+	BlockResponse = "block_response"
+	NewBlock = "new_block"
+
+	ChainPieceBlockReq = "chain_piece_block_req"
+	ChainPieceBlock = "chain_piece_block"
 
 	TxSyncNotify   = "tx_sync_notify"
 	TxSyncReq      = "tx_sync_req"

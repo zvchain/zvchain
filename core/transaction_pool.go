@@ -182,8 +182,7 @@ func (pool *txPool) PackForCast() []*types.Transaction {
 
 // RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction
 func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
-	validator := getValidator(tx)
-	return validator()
+	return getValidator(tx)()
 }
 
 func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
