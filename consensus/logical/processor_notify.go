@@ -120,14 +120,21 @@ func (p *Processor) onGroupAddSuccess(message notify.Message) error {
 
 	topHeight := p.MainChain.QueryTopBlock().Height
 	// clear the dismissed group from net server
-	for _, v := range p.livedGroups {
-		if v.Header().DismissHeight()+100 < topHeight {
-			delKey := v.Header().Seed().Hex()
+	removed := make([]interface{}, 0)
+	p.livedGroups.Range(func(name, item interface{}) bool {
+		gi := item.(types.GroupI)
+		if gi.Header().DismissHeight()+100 < topHeight {
+			delKey := gi.Header().Seed().Hex()
 			p.NetServer.ReleaseGroupNet(delKey)
-			delete(p.livedGroups, delKey)
+			removed = append(removed, name)
 		}
+		return true
+	})
+	for _, rm := range removed {
+		p.livedGroups.Delete(rm)
 	}
-	p.livedGroups[group.Header().Seed().Hex()] = group
+
+	p.livedGroups.Store(group.Header().Seed().Hex(), group)
 
 	return nil
 }
