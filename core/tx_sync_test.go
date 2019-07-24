@@ -226,6 +226,10 @@ func newTransactionPoolTest(chain *FullBlockChain, receiptDb *tasdb.PrefixedData
 const (
 	adminAddress    = "0x6d880ddbcfb24180901d1ea709bb027cd86f79936d5ed23ece70bd98f22f2d84"
 	adminPrivateKey = "0x04d5af5f6059473de094fe1b80a09ce30afa0d94cb2199f85762606fe146df8ec14b97c53bcbe876f5c61d7aba278ab3296425dfd492c573813618852abf71656a43fcc67b959cd448bdffc64c5ab07fbb04ee6b63df7804aa1dacee7f05163bf5"
+	adminBPK        = "0x1adf7e028e8da12d1e4405e3457c9f9dbf9deb493ba2f72eab97eb09d6cae18723fe9ad86d3e5be397d5072aaf244a147e5ae72da6f4f4603cf6787d8cf456182e7127513f28f05a2ce4a4fd876b180c6d9bba92a8083ab204e48bdaea79c62624038994382dc2fed1deb3a979ddefbbbdeebc4dc27130055fd2a3b77199265d"
+	adminBSK        = "0x1441a7b4cbd541e9d605286a8c4438bb8629714c3ebc5c32070991449fd4288b"
+	adminVRFPK      = "0x70cf165338af4db313bf8e701f726b6b729215efb6015a1fc0733339af0c0ca0"
+	adminVRFSK      = "0xd5d2e180509bc290b7463f4492499a3026f9126e25a21e77169167945fd4288f70cf165338af4db313bf8e701f726b6b729215efb6015a1fc0733339af0c0ca0"
 )
 
 // Supported transaction types
@@ -240,6 +244,11 @@ const (
 	TransactionTypeMinerAbort  = 5
 	TransactionTypeStakeReduce = 6
 	TransactionTypeStakeRefund = 7
+
+	// Group operation related type
+	TransactionTypeGroupPiece       = 9  //group member upload his encrypted share piece
+	TransactionTypeGroupMpk         = 10 //group member upload his mpk
+	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
 
 	TransactionTypeToBeRemoved = -1
 )
@@ -345,6 +354,8 @@ func generateEvilTX(price uint64, target string, nonce uint64, value uint64) *Fa
 	tx.Sign = append(tx.Sign, 'a')
 
 	source := sk.GetPubKey().GetAddress()
+	//tx.Source = source[:][:20]
+	//copy(tx.Source[:],source...)
 	tx.Source = &source
 
 	return tx
@@ -398,7 +409,7 @@ func MarshalFakeTransactions(txs []*FakeTransaction) ([]byte, error) {
 func TestFakeTxs(t *testing.T) {
 	txs := make([]*FakeTransaction, 0)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		tx := generateEvilTX(uint64(1000+i), "111", uint64(1+i), 1)
 		txs = append(txs, tx)
 	}
@@ -439,12 +450,94 @@ func ReadFile(length int) ([]byte, error) {
 	return content[:length], nil
 }
 
+func generateNoValueTx(target string, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
+	//tx := &types.Transaction{}
+	targetbyte := common.HexToAddress(target)
+	tx := &types.Transaction{
+		Nonce:    Nonce,
+		Target:   &targetbyte,
+		Type:     int8(txType),
+		GasLimit: types.NewBigInt(gasLimit),
+		GasPrice: types.NewBigInt(gasprice),
+	}
+	tx.Hash = tx.GenHash()
+	sk := common.HexToSecKey(adminPrivateKey)
+	sign, _ := sk.Sign(tx.Hash.Bytes())
+	tx.Sign = sign.Bytes()
+
+	source := sk.GetPubKey().GetAddress()
+	tx.Source = &source
+	return tx
+}
+
+func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
+	//tx := &types.Transaction{}
+	targetbyte := common.HexToAddress(target)
+	tx := &types.Transaction{
+		//Nonce:     Nonce,
+		Value:    types.NewBigInt(value),
+		Target:   &targetbyte,
+		Type:     int8(txType),
+		GasLimit: types.NewBigInt(gasLimit),
+		GasPrice: types.NewBigInt(gasprice),
+	}
+	tx.Hash = tx.GenHash()
+	sk := common.HexToSecKey(adminPrivateKey)
+	sign, _ := sk.Sign(tx.Hash.Bytes())
+	tx.Sign = sign.Bytes()
+
+	source := sk.GetPubKey().GetAddress()
+	tx.Source = &source
+	return tx
+}
+
+func generateNoTypeTx(target string, value uint64, gasLimit uint64, gasprice uint64) *types.Transaction {
+	//tx := &types.Transaction{}
+	targetbyte := common.HexToAddress(target)
+	tx := &types.Transaction{
+		Nonce:    Nonce,
+		Value:    types.NewBigInt(value),
+		Target:   &targetbyte,
+		GasLimit: types.NewBigInt(gasLimit),
+		GasPrice: types.NewBigInt(gasprice),
+	}
+	tx.Hash = tx.GenHash()
+	sk := common.HexToSecKey(adminPrivateKey)
+	sign, _ := sk.Sign(tx.Hash.Bytes())
+	tx.Sign = sign.Bytes()
+
+	source := sk.GetPubKey().GetAddress()
+	tx.Source = &source
+	return tx
+}
+
+func generateNoGasPriceTx(target string, value uint64, gasLimit uint64, txType int) *types.Transaction {
+	//tx := &types.Transaction{}
+	targetbyte := common.HexToAddress(target)
+	tx := &types.Transaction{
+		Nonce:    Nonce,
+		Value:    types.NewBigInt(value),
+		Target:   &targetbyte,
+		GasLimit: types.NewBigInt(gasLimit),
+		Type:     int8(txType),
+	}
+	tx.Hash = tx.GenHash()
+	sk := common.HexToSecKey(adminPrivateKey)
+	sign, _ := sk.Sign(tx.Hash.Bytes())
+	tx.Sign = sign.Bytes()
+
+	source := sk.GetPubKey().GetAddress()
+	tx.Source = &source
+	return tx
+}
+
 func generateTX(data []byte, value uint64, nonce uint64, target string, txType int, gasLimit uint64, gasprice uint64, extraData []byte) *types.Transaction {
 	if Count == 0 {
 		Nonce = 1
 	}
 	tx := &types.Transaction{}
-	targetbyte := common.Address{}
+	//targetbyte := common.Address{common.HexToAddress(target)}
+	targetbyte := common.HexToAddress(target)
 	if nonce != 0 {
 		// a mark
 		if nonce == 999999999 {
@@ -471,7 +564,7 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 			}
 		}
 	} else {
-		if target == ""{
+		if target == "" {
 			tx = &types.Transaction{
 				Data:      data,
 				Value:     types.NewBigInt(value),
@@ -481,7 +574,7 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 				GasPrice:  types.NewBigInt(gasprice),
 				ExtraData: extraData,
 			}
-		}else {
+		} else {
 			tx = &types.Transaction{
 				Data:      data,
 				Value:     types.NewBigInt(value),
@@ -616,40 +709,50 @@ var (
 	TxBigExtraDataAndExtraData   *types.Transaction
 	TxDataAndRxtraDataWithSpaces *types.Transaction
 
-	TxOverBalanceValue   *types.Transaction
+	TxOverBalanceValue *types.Transaction
+	TxNoValue          *types.Transaction
+
 	TxOverStateNonce0    *types.Transaction
 	TxOverStateNonce1000 *types.Transaction
+	TxNoNonce            *types.Transaction
 
-	TxTypeTransfer *types.Transaction
-	TxTypeContractCreate *types.Transaction
+	TxTypeTransfer            *types.Transaction
+	TxTypeContractCreate      *types.Transaction
 	TxTypeContractCreateEvil1 *types.Transaction
 	TxTypeContractCreateEvil2 *types.Transaction
-	TxTypeContractCall *types.Transaction
-	TxTypeContractCallEvil1 *types.Transaction
-	TxTypeContractCallEvil2 *types.Transaction
-	TxTypeReward *types.Transaction
-	TxTypeStakeAdd *types.Transaction
-	TxTypeMinerAbort *types.Transaction
-	TxTypeStakeReduce *types.Transaction
-	TxTypeStakeRefund *types.Transaction
-	TxTypeToBeRemoved *types.Transaction
+	TxTypeContractCall        *types.Transaction
+	TxTypeContractCallEvil1   *types.Transaction
+	TxTypeContractCallEvil2   *types.Transaction
+	TxTypeReward              *types.Transaction
+	TxTypeStakeAdd            *types.Transaction
+	TxTypeMinerAbort          *types.Transaction
+	TxTypeStakeReduce         *types.Transaction
+	TxTypeStakeRefund         *types.Transaction
+	TxTypeToBeRemoved         *types.Transaction
+	TxTypeEvil                *types.Transaction
+	TxTypeGroupPiece          *types.Transaction
+	//TxTypeGroup
+	TxNoType *types.Transaction
 
-
-	TxLowGasLimit *types.Transaction
-	TxHighGasLimit *types.Transaction
-	TxLowGasPrice *types.Transaction
-	TxHighGasPrice *types.Transaction
+	TxLowGasLimit             *types.Transaction
+	TxHighGasLimit            *types.Transaction
+	TxLowGasPrice             *types.Transaction
+	TxHighGasPrice            *types.Transaction
 	TxHighGasPriceOverBalance *types.Transaction
+	TxNoGasPrice              *types.Transaction
 
-	TxErrHash *types.Transaction
-	TxNilHash *types.Transaction
-	TxLongHash *types.Transaction
+	TxErrHash   *types.Transaction
+	TxNilHash   *types.Transaction
+	TxLongHash  *types.Transaction
 	TxShortHash *types.Transaction
 
-	TxErrSign *types.Transaction
-	TxNilSign *types.Transaction
-	TxLongSign *types.Transaction
+	TxErrSign   *types.Transaction
+	TxNilSign   *types.Transaction
+	TxLongSign  *types.Transaction
 	TxShortSign *types.Transaction
+
+	TxSourceNotExist *types.Transaction
+	TxTargetNotExist *types.Transaction
 )
 
 var (
@@ -694,11 +797,15 @@ func initTxsAndOthers() {
 	// over balance value
 	TxOverBalanceValue = generateTX(nil, getBalance(adminAddress)+1, 0, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
 	fmt.Println("TxOverBalanceValue:", TxOverBalanceValue.Nonce)
+	// no value
+	TxNoValue = generateNoValueTx("111", TransactionTypeTransfer, uint64(500000), uint64(1000))
 
 	// nonce less equal than statenonce,999999999 is just a mark, means the tx's nonce is just 0
 	TxOverStateNonce0 = generateTX(nil, 1, 999999999, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
 	// nonce over statenonce + 1000
 	TxOverStateNonce1000 = generateTX(nil, 1, getNonce(adminAddress)+1001, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
+	// tx have no nonce
+	TxNoNonce = generateNoNonceTx("111", 1, TransactionTypeTransfer, uint64(500000), uint64(1000))
 
 	// different types of transactions
 	// transfer
@@ -713,6 +820,11 @@ func initTxsAndOthers() {
 	TxTypeContractCallEvil2 = generateTX([]byte("sdfa"), 1, 0, "", TransactionTypeContractCall, uint64(500000), uint64(1000), nil)
 	// stake add
 	//TxTypeStakeAdd = generateTX([]byte("sdfa"), 1, 0, "111", TransactionTypeStakeAdd, uint64(500000), uint64(1000), nil)
+
+	// evil type of tx
+	TxTypeEvil = generateTX(nil, 1, 0, "111", 99, uint64(500000), uint64(1000), nil)
+	// no type tx
+	TxNoType = generateNoTypeTx("111", 1, uint64(500000), uint64(1000))
 
 	//about gas limit and gas price
 	TxLowGasLimit = generateTX(nil, 1, 0, "111", TransactionTypeTransfer, uint64(399), uint64(1000), nil)
@@ -737,10 +849,17 @@ func initTxsAndOthers() {
 	TxNilSign = generateTX(nil, 1, 0, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
 	TxNilSign.Sign = nil
 	TxLongSign = generateTX(nil, 1, 0, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
-	TxLongSign.Sign = append(TxLongSign.Sign,TxLongSign.Sign... )
+	TxLongSign.Sign = append(TxLongSign.Sign, TxLongSign.Sign...)
 	TxShortSign = generateTX(nil, 1, 0, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
 	TxShortSign.Sign = TxShortHash.Sign[:len(TxShortSign.Sign)]
 
+	// a not exist source addr
+	TxSourceNotExist = generateTX(nil, 1, 0, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
+	source1 := common.HexToAddress("0x0000000000000000000000000000000000000000000000000000000000000123")
+	TxSourceNotExist.Source = &source1
+
+	TxTargetNotExist = generateTX(nil, 1, 0, "", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
+	//TxTargetNotExist.Target = nil
 
 }
 
@@ -947,8 +1066,11 @@ func TestOnTxResponse(t *testing.T) {
 	bodyDataAndRxtraDataWithSpaces := marshallTxs([]*types.Transaction{TxDataAndRxtraDataWithSpaces}, t)
 
 	bodyOverBalanceValue := marshallTxs([]*types.Transaction{TxOverBalanceValue}, t)
+	bodyTxNoValue := marshallTxs([]*types.Transaction{TxNoValue}, t)
+
 	bodyOverStateNonce1000 := marshallTxs([]*types.Transaction{TxOverStateNonce1000}, t)
 	bodyOverStateNonce0 := marshallTxs([]*types.Transaction{TxOverStateNonce0}, t)
+	bodyTxNoNonce := marshallTxs([]*types.Transaction{TxNoNonce}, t)
 
 	bodyTxTypeTransfer := marshallTxs([]*types.Transaction{TxTypeTransfer}, t)
 	bodyTxTypeContractCreate := marshallTxs([]*types.Transaction{TxTypeContractCreate}, t)
@@ -957,6 +1079,9 @@ func TestOnTxResponse(t *testing.T) {
 	bodyTxTypeContractCall := marshallTxs([]*types.Transaction{TxTypeContractCall}, t)
 	bodyTypeContractCallEvil1 := marshallTxs([]*types.Transaction{TxTypeContractCallEvil1}, t)
 	bodyTypeContractCallEvil2 := marshallTxs([]*types.Transaction{TxTypeContractCallEvil2}, t)
+
+	bodyTxTypeEvil := marshallTxs([]*types.Transaction{TxTypeEvil}, t)
+	bodyTxNoType := marshallTxs([]*types.Transaction{TxNoType}, t)
 
 	bodyTxLowGasLimit := marshallTxs([]*types.Transaction{TxLowGasLimit}, t)
 	bodyTxHighGasLimit := marshallTxs([]*types.Transaction{TxHighGasLimit}, t)
@@ -974,9 +1099,11 @@ func TestOnTxResponse(t *testing.T) {
 	bodyTxLongSign := marshallTxs([]*types.Transaction{TxLongSign}, t)
 	bodyTxShortSign := marshallTxs([]*types.Transaction{TxShortSign}, t)
 
+	bodyTxSourceNotExist := marshallTxs([]*types.Transaction{TxSourceNotExist}, t)
+
+	bodyTxTargetNotExist := marshallTxs([]*types.Transaction{TxTargetNotExist}, t)
 
 	//bodyTypeypeStakeAdd := marshallTxs([]*types.Transaction{TxTypeStakeAdd}, t)
-
 
 	goodMsg := []*notify.DefaultMessage{
 		// 10 txs and kind addr
@@ -985,6 +1112,7 @@ func TestOnTxResponse(t *testing.T) {
 		// tx with sepcial chars and spaces in data and extra data
 		notify.NewDefaultMessage(bodyDataAndRxtraDataWithSpaces, kindAddr, 0, 0),
 
+		// todo?
 		// tx with over balance value
 		notify.NewDefaultMessage(bodyOverBalanceValue, kindAddr, 0, 0),
 
@@ -997,13 +1125,16 @@ func TestOnTxResponse(t *testing.T) {
 		// contract call tx
 		notify.NewDefaultMessage(bodyTxTypeContractCall, kindAddr, 0, 0),
 
+		notify.NewDefaultMessage(bodyTxNoType, kindAddr, 0, 0),
+
 		// stake add
 		//notify.NewDefaultMessage(bodyTypeypeStakeAdd, kindAddr, 0, 0),
 
 		// high gas pirce
 		notify.NewDefaultMessage(bodyTxHighGasPrice, kindAddr, 0, 0),
 
-
+		// todo even source is a fake source there's no relations
+		notify.NewDefaultMessage(bodyTxSourceNotExist, kindAddr, 0, 0),
 	}
 
 	bodyCountsMap := map[*notify.DefaultMessage]int{
@@ -1013,7 +1144,9 @@ func TestOnTxResponse(t *testing.T) {
 		goodMsg[3]: len([]*types.Transaction{TxTypeTransfer}),
 		goodMsg[4]: len([]*types.Transaction{TxTypeContractCreate}),
 		goodMsg[5]: len([]*types.Transaction{TxTypeContractCall}),
-		goodMsg[6]: len([]*types.Transaction{TxHighGasPrice}),
+		goodMsg[6]: len([]*types.Transaction{TxNoType}),
+		goodMsg[7]: len([]*types.Transaction{TxHighGasPrice}),
+		goodMsg[8]: len([]*types.Transaction{TxSourceNotExist}),
 	}
 
 	// good txs
@@ -1024,9 +1157,8 @@ func TestOnTxResponse(t *testing.T) {
 			poolLenBefore = len(getTxPoolTx())
 			err := TxSyncer.onTxResponse(msg)
 			poolLenAfter = len(getTxPoolTx())
-			fmt.Println("BeFORE:", poolLenBefore)
-			fmt.Println("bodyCountsMap:", bodyCountsMap[msg])
-			fmt.Println("poolLenAfter:", poolLenAfter)
+			fmt.Printf("%d:", k)
+			fmt.Println("BeFORE:", poolLenBefore, "bodyCountsMap:", bodyCountsMap[msg], "poolLenAfter:", poolLenAfter)
 			if poolLenBefore+bodyCountsMap[msg] != poolLenAfter {
 				t.Errorf("No.%d good exexute result is not what is expected，please check manually!", k)
 			}
@@ -1053,7 +1185,6 @@ func TestOnTxResponse(t *testing.T) {
 
 		// evil addr
 		notify.NewDefaultMessage(body10, evilAddr, 0, 0),
-
 	}
 
 	//返回错误，不加入交易池
@@ -1078,11 +1209,17 @@ func TestOnTxResponse(t *testing.T) {
 		// big extra data tx and data
 		notify.NewDefaultMessage(bodyBigExtraDataAndExtraData, kindAddr, 0, 0),
 
+		// tx have no value
+		notify.NewDefaultMessage(bodyTxNoValue, kindAddr, 0, 0),
+
 		// tx with less equal than state nonce
 		notify.NewDefaultMessage(bodyOverStateNonce0, kindAddr, 0, 0),
 
 		// tx with over 1000 compare nonce of states
 		notify.NewDefaultMessage(bodyOverStateNonce1000, kindAddr, 0, 0),
+
+		// body have no tx nonce
+		notify.NewDefaultMessage(bodyTxNoNonce, kindAddr, 0, 0),
 
 		// tx contract deploy evil
 		notify.NewDefaultMessage(bodyTxTypeContractCreateEvil1, kindAddr, 0, 0),
@@ -1110,15 +1247,19 @@ func TestOnTxResponse(t *testing.T) {
 		notify.NewDefaultMessage(bodyTxLongSign, kindAddr, 0, 0),
 		notify.NewDefaultMessage(bodyTxShortSign, kindAddr, 0, 0),
 
+		// todo
+		notify.NewDefaultMessage(bodyTxTypeEvil, kindAddr, 0, 0),
+
+		notify.NewDefaultMessage(bodyTxTargetNotExist, kindAddr, 0, 0),
 	}
 
 	//不返回错误，不加入交易池
 	t.Run("make bad msg bodies-badMsg02", func(t *testing.T) {
 		poolLenBefore := len(getTxPoolTx())
 		fmt.Println("poolLenBefore:", poolLenBefore)
-		for _, msg := range badMsg02 {
+		for k, msg := range badMsg02 {
 			err := TxSyncer.onTxResponse(msg)
-			fmt.Println("make bad msg bodies err:", err)
+			fmt.Printf("%d:make bad msg bodies err:%v\n", k, err)
 		}
 		poolLenAfter := len(getTxPoolTx())
 		fmt.Println("poolLenAfter:", poolLenAfter)
