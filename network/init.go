@@ -50,12 +50,15 @@ var netServerInstance *Server
 var Logger taslog.Logger
 
 // Init initialize network instance,register message handler,join p2p network
-func Init(config common.ConfManager, consensusHandler MsgHandler, networkConfig NetworkConfig) (err error) {
-	index := common.GlobalConf.GetString("instance", "index", "")
+func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig NetworkConfig) (err error) {
+	index := ""
+	if config != nil {
+		index = common.GlobalConf.GetString("instance", "index", "")
+		statistics.InitStatistics(*config)
+	}
 	Logger = taslog.GetLoggerByIndex(taslog.P2PLogConfig, index)
-	statistics.InitStatistics(config)
 
-	self, err := InitSelfNode(config, networkConfig.IsSuper, NewNodeID(networkConfig.NodeIDHex))
+	self, err := InitSelfNode(networkConfig.IsSuper, NewNodeID(networkConfig.NodeIDHex))
 	if err != nil {
 		Logger.Errorf("InitSelfNode error:", err.Error())
 		return err
