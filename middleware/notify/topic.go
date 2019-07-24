@@ -39,7 +39,7 @@ func (d *DummyMessage) GetData() interface{} {
 	return struct{}{}
 }
 
-type Handler func(message Message)
+type Handler func(message Message)error
 
 // Topic as a message subscription
 type Topic struct {
