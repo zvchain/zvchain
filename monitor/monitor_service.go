@@ -17,7 +17,6 @@ package monitor
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"github.com/gohouse/gorose"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/log"
 )
 
 type MonitorService struct {
@@ -114,9 +114,9 @@ func (ms *MonitorService) saveLogs(logs []*LogEntry) {
 	var err error
 	defer func() {
 		if err != nil {
-			common.DefaultLogger.Errorf("save logs fail, err=%v, size %v", err, len(logs))
+			log.DefaultLogger.Errorf("save logs fail, err=%v, size %v", err, len(logs))
 		} else {
-			common.DefaultLogger.Infof("save logs success, size %v", len(logs))
+			log.DefaultLogger.Infof("save logs success, size %v", len(logs))
 		}
 		ms.lastSend = time.Now()
 		atomic.StoreInt32(&ms.status, 0)
@@ -157,10 +157,10 @@ func (ms *MonitorService) doAddLog(log *LogEntry) {
 	}
 }
 
-func (ms *MonitorService) AddLog(log *LogEntry) {
-	log.Operator = ms.nodeID
-	log.OperTime = time.Now()
-	ms.doAddLog(log)
+func (ms *MonitorService) AddLog(logEntry *LogEntry) {
+	logEntry.Operator = ms.nodeID
+	logEntry.OperTime = time.Now()
+	ms.doAddLog(logEntry)
 }
 
 func (ms *MonitorService) MonitorEnable() bool {
@@ -192,13 +192,13 @@ func (ms *MonitorService) loadInternalNodesIds() {
 	}
 	ms.internalNodeIds = m
 
-	log.Println("load internal nodes ", ids)
+	log.StdLogger.Infof("load internal nodes ", ids)
 }
 
-func (ms *MonitorService) AddLogIfNotInternalNodes(log *LogEntry) {
-	if _, ok := ms.internalNodeIds[log.Proposer]; !ok {
-		ms.AddLog(log)
-		common.DefaultLogger.Infof("addlog of not internal nodes %v", log.Proposer)
+func (ms *MonitorService) AddLogIfNotInternalNodes(logEntry *LogEntry) {
+	if _, ok := ms.internalNodeIds[logEntry.Proposer]; !ok {
+		ms.AddLog(logEntry)
+		log.DefaultLogger.Infof("addlog of not internal nodes %v", logEntry.Proposer)
 	}
 }
 
@@ -249,7 +249,7 @@ func (ms *MonitorService) UpdateNodeInfo(ni *NodeInfo) {
 		dm["Mem"] = ms.resStat.Mem
 		dm["RcvBps"] = ms.resStat.RcvBps
 		dm["TxBps"] = ms.resStat.TxBps
-		dm["UpdateTime"] = time.Now()
+		dm["UpdateTime"] = time.Now().UTC()
 		dm["Instance"] = common.InstanceIndex
 
 		affet, err := sess.Table("nodes").Where(fmt.Sprintf("MinerId='%v'", ms.nodeID)).Data(dm).Update()

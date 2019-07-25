@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 func TestGlobalTicker_RegisterRoutine(t *testing.T) {

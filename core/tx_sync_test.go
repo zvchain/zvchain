@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -283,7 +284,7 @@ func sendTxToPool(trans *types.Transaction) error {
 	}
 
 	if ok, err := BlockChainImpl.GetTransactionPool().AddTransaction(trans); err != nil || !ok {
-		common.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
+		log.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
 		return err
 	}
 	return nil

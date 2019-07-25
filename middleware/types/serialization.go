@@ -17,17 +17,18 @@ package types
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	time2 "github.com/zvchain/zvchain/middleware/time"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 // MiddleWareLogger is middleware module system
-var MiddleWareLogger taslog.Logger
+var MiddleWareLogger *logrus.Logger
 
 func InitMiddleware() {
-	MiddleWareLogger = taslog.GetLoggerByIndex(taslog.MiddlewareLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	MiddleWareLogger = log.MiddlewareLogger
 }
 
 // UnMarshalTransactions deserialize from []byte to *Transaction
