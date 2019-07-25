@@ -47,6 +47,7 @@ func addI() {
 }
 
 var processorTest *Processor
+var existBlockHash = "0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"
 
 func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 	defer clear()
@@ -57,6 +58,7 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 
 	pt := NewProcessorTest()
 	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
+	//processorTest.blockContexts.attachVctx(core.BlockChainImpl.QueryTopBlock(), pt.verifyContext)
 	txs := make([]*types.Transaction, 0)
 
 	type args struct {
@@ -91,11 +93,22 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 			name: "block exist",
 			args: args{
 				msg: &model.ResponseProposalBlock{
-					core.BlockChainImpl.QueryTopBlock().Hash,
+					common.HexToHash(existBlockHash),
 					txs,
 				},
 			},
 			expected: "block onchain",
+		},
+
+		{
+			name: "tx nil",
+			args: args{
+				msg: &model.ResponseProposalBlock{
+					pt.blockHeader.Hash,
+					nil,
+				},
+			},
+			expected: "success",
 		},
 	}
 
@@ -453,7 +466,7 @@ func (c *chain4Test) AddBlockOnChain(source string, b *types.Block) types.AddBlo
 }
 
 func (c *chain4Test) HasBlock(hash common.Hash) bool {
-	if hash == common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501") {
+	if hash == common.HexToHash(existBlockHash) {
 		return true
 	} else {
 		return false
