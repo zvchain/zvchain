@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/consensus/base"
 	tas_middleware_test "github.com/zvchain/zvchain/core/test"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
-	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/taslog"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -19,15 +19,14 @@ import (
 )
 
 var blockSyncForTest *blockSyncer
-
 var lastBlockHash common.Hash
 var middleBlock *types.Block
 var middleBlockHash common.Hash
 func initContext(){
 	initContext4Test()
-	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
 	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
-	blockSyncForTest.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, "1")
+	blockSyncForTest.logger = log.BlockSyncLogger
+
 	initPeerManager()
 	types.DefaultPVFunc = PvFuncTest
 }
@@ -257,7 +256,7 @@ func clearDB(needClose bool) {
 	if needClose{
 		if BlockChainImpl != nil {
 			BlockChainImpl.Close()
-			taslog.Close()
+			//taslog.Close()
 			BlockChainImpl = nil
 		}
 	}

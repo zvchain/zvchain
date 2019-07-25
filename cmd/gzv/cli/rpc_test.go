@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/zvchain/zvchain/core"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 var cfg = &minerConfig{
@@ -44,7 +43,7 @@ var cfg = &minerConfig{
 
 func resetDb(dbPath string) error {
 	core.BlockChainImpl.(*core.FullBlockChain).Close()
-	taslog.Close()
+	//taslog.Close()
 	fmt.Println("---reset db---")
 	dir, err := ioutil.ReadDir(".")
 	if err != nil {

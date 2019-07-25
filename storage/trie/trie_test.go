@@ -21,7 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/taslog"
+	"github.com/zvchain/zvchain/log"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -36,7 +36,7 @@ import (
 )
 
 func init() {
-	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, "0")
+	common.DefaultLogger = log.DefaultLogger
 }
 
 // Used for testing

@@ -20,7 +20,6 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"testing"
 	"time"

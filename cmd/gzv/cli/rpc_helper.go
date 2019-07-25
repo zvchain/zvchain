@@ -17,6 +17,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -122,13 +123,13 @@ func genMinerBalance(id groupsig.ID, bh *types.BlockHeader) *MinerRewardBalance 
 	}
 	db, err := mediator.Proc.MainChain.GetAccountDBByHash(bh.Hash)
 	if err != nil {
-		common.DefaultLogger.Errorf("GetAccountDBByHash err %v, hash %v", err, bh.Hash)
+		log.DefaultLogger.Errorf("GetAccountDBByHash err %v, hash %v", err, bh.Hash)
 		return mb
 	}
 	mb.CurrBalance = db.GetBalance(id.ToAddress())
 	preDB, err := mediator.Proc.MainChain.GetAccountDBByHash(bh.PreHash)
 	if err != nil {
-		common.DefaultLogger.Errorf("GetAccountDBByHash err %v hash %v", err, bh.PreHash)
+		log.DefaultLogger.Errorf("GetAccountDBByHash err %v hash %v", err, bh.PreHash)
 		return mb
 	}
 	mb.PreBalance = preDB.GetBalance(id.ToAddress())
@@ -141,7 +142,7 @@ func sendTransaction(trans *types.Transaction) error {
 	}
 
 	if ok, err := core.BlockChainImpl.GetTransactionPool().AddTransaction(trans); err != nil || !ok {
-		common.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
+		log.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
 		return err
 	}
 	return nil

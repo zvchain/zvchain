@@ -18,11 +18,12 @@ package statistics
 import (
 	"bytes"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"sync"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 type countItem struct {
@@ -35,8 +36,8 @@ type innerItem struct {
 }
 
 var countMap = new(sync.Map)
-var logger taslog.Logger
-var VrfLogger taslog.Logger
+var logger *logrus.Logger
+var VrfLogger *logrus.Logger
 
 func newCountItem() *countItem {
 	return &countItem{new(sync.Map)}
@@ -99,8 +100,8 @@ func AddCount(name string, code uint32, size uint64) {
 }
 
 func initCount(config common.ConfManager) {
-	logger = taslog.GetLoggerByIndex(taslog.StatisticsLogConfig, common.GlobalConf.GetString("instance", "index", ""))
-	VrfLogger = taslog.GetLoggerByIndex(taslog.VRFDebugLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	logger = log.StatisticsLogger
+	VrfLogger = log.VRFLogger
 
 	t1 := time.NewTimer(time.Second * 1)
 	go func() {

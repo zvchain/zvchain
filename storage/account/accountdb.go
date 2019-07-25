@@ -17,6 +17,7 @@ package account
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
 	"math/big"
 	"sort"
@@ -335,7 +336,7 @@ func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject
 	}
 	var data Account
 	if err := rlp.DecodeBytes(enc, &data); err != nil {
-		common.DefaultLogger.Error("Failed to decode state object", "addr", addr, "err", err)
+		log.DefaultLogger.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
 

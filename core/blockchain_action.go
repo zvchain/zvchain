@@ -26,7 +26,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 type batchAddBlockCallback func(b *types.Block, ret types.AddBlockResult) bool
@@ -58,7 +57,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	}
 
 	if height <= latestBlock.Height {
-		Logger.Info("[BlockChain] fail to cast block: height problem. height:%d, latest:%d", height, latestBlock.Height)
+		Logger.Infof("[BlockChain] fail to cast block: height problem. height:%d, latest:%d", height, latestBlock.Height)
 		return nil
 	}
 
@@ -95,7 +94,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	}
 
 	Logger.Infof("casting block height=%v,preHash=%x", height, preRoot)
-	taslog.Flush()
+	//taslog.Flush()
 
 	packTraceLog := monitor.NewPerformTraceLogger("PackForCast", common.Hash{}, height)
 	packTraceLog.SetParent("CastBlock")
@@ -469,7 +468,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 	}
 
 	Logger.Infof("executeTransactions block height=%v,preHash=%x", block.Header.Height, preRoot)
-	taslog.Flush()
+	//taslog.Flush()
 
 	eps := &executePostState{state: state, receipts: receipts, evictedTxs: evictTxs, txs: block.Transactions}
 	chain.verifiedBlocks.Add(block.Header.Hash, eps)

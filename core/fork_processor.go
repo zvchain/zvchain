@@ -16,17 +16,17 @@
 package core
 
 import (
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"sync"
 
+	"fmt"
+	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
-
-	"fmt"
-	"github.com/gogo/protobuf/proto"
 )
 
 const (
@@ -54,7 +54,7 @@ type forkProcessor struct {
 	syncCtx *forkSyncContext
 
 	lock   sync.RWMutex
-	logger taslog.Logger
+	logger *logrus.Logger
 }
 
 type chainPieceBlockMsg struct {
@@ -72,7 +72,7 @@ func initForkProcessor(chain *FullBlockChain) *forkProcessor {
 	fh := forkProcessor{
 		chain: chain,
 	}
-	fh.logger = taslog.GetLoggerByIndex(taslog.ForkLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	fh.logger = log.ForkLogger
 	notify.BUS.Subscribe(notify.ChainPieceBlockReq, fh.chainPieceBlockReqHandler)
 	notify.BUS.Subscribe(notify.ChainPieceBlock, fh.chainPieceBlockHandler)
 
@@ -217,7 +217,9 @@ func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message)error {
 	source := m.Source()
 	pieceReq, err := unMarshalChainPieceInfo(m.Body())
 	if err != nil {
-		return fp.logger.Errorf("unMarshalChainPieceInfo err %v", err)
+		err = fmt.Errorf("unMarshalChainPieceInfo err %v", err)
+		fp.logger.Error(err)
+		return err
 	}
 
 	fp.logger.Debugf("Rcv chain piece block req from:%s, pieceSize %v, reqCnt %v", source, len(pieceReq.ChainPiece), pieceReq.ReqCnt)
@@ -295,7 +297,9 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
 	}
 	chainPieceBlockMsg, e := unmarshalChainPieceBlockMsg(m.Body())
 	if e != nil {
-		return fp.logger.Errorf("Unmarshal chain piece block msg error:%s", e.Error())
+		err := fmt.Errorf("Unmarshal chain piece block msg error:%s", e.Error())
+		fp.logger.Error(err)
+		return err
 	}
 
 	blocks := chainPieceBlockMsg.Blocks
@@ -347,7 +351,9 @@ func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
 		}
 	} else {
 		if len(blocks) == 0 {
-			return fp.logger.Errorf("from %v, find ancesotr, but blocks is empty!", source)
+			err := fmt.Errorf("from %v, find ancesotr, but blocks is empty!", source)
+			fp.logger.Error(err)
+			return err
 		}
 		ancestorBH := blocks[0].Header
 		if !fp.chain.HasBlock(ancestorBH.Hash) {
