@@ -26,7 +26,6 @@ import (
 	"reflect"
 
 	"github.com/zvchain/zvchain/common/secp256k1"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 const PREFIX = "0x"
@@ -46,8 +45,6 @@ const (
 	HashLength    = 32 //Length of Hash (golang.SHA3, 256-bit)。
 	GroupIDLength = 32 //Length of Group
 )
-
-var DefaultLogger taslog.Logger
 
 var (
 	hashT               = reflect.TypeOf(Hash{})

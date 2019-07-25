@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"net"
 	"net/http"
 	"net/url"
@@ -26,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zvchain/zvchain/common"
 	"golang.org/x/net/websocket"
 	"gopkg.in/fatih/set.v0"
 )
@@ -65,14 +65,14 @@ func wsHandshakeValidator(allowedOrigins []string) func(*websocket.Config, *http
 		}
 	}
 
-	common.DefaultLogger.Debug(fmt.Sprintf("Allowed origin(s) for WS RPC interface %v\n", origins.List()))
+	log.DefaultLogger.Debug(fmt.Sprintf("Allowed origin(s) for WS RPC interface %v\n", origins.List()))
 
 	f := func(cfg *websocket.Config, req *http.Request) error {
 		origin := strings.ToLower(req.Header.Get("Origin"))
 		if allowAllOrigins || origins.Has(origin) {
 			return nil
 		}
-		common.DefaultLogger.Warn(fmt.Sprintf("origin '%s' not allowed on WS-RPC interface\n", origin))
+		log.DefaultLogger.Warn(fmt.Sprintf("origin '%s' not allowed on WS-RPC interface\n", origin))
 		return fmt.Errorf("origin %s not allowed", origin)
 	}
 

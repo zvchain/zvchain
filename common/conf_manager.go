@@ -16,6 +16,7 @@
 package common
 
 import (
+	"github.com/zvchain/zvchain/log"
 	"os"
 	"strings"
 	"sync"
@@ -97,12 +98,12 @@ func NewConfINIManager(path string) ConfManager {
 	if err != nil && os.IsNotExist(err) {
 		_, err = os.Create(path)
 		if err != nil {
-			DefaultLogger.Errorf("Failed to init the config manager: ", err)
+			log.DefaultLogger.Errorf("Failed to init the config manager: ", err)
 			// exit if init config manager failed with io error
 			panic(err)
 		}
 	} else if err != nil {
-		DefaultLogger.Errorf("Failed to init the config manager: ", err)
+		log.DefaultLogger.Errorf("Failed to init the config manager: ", err)
 		// exit if init config manager failed with io error
 		panic(err)
 	}
