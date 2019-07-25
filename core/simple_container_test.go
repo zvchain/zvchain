@@ -16,9 +16,10 @@ package core
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"testing"
 )
 
 //var container = newSimpleContainer(6, 2)
@@ -102,7 +103,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t2)
 	_ = container.push(t3)
 
-	rs := make([]*types.Transaction,3)
+	rs := make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
 		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
@@ -112,6 +113,10 @@ func Test_push(t *testing.T) {
 	}
 	if rs[1].Hash != t3.Hash {
 		t.Error("push test fail")
+	}
+
+	if container.get(t2.Hash) != nil {
+		t.Error("clear replaced tx fail")
 	}
 
 	container = newSimpleContainer(10, 3, BlockChainImpl)
@@ -120,7 +125,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t1)
 	_ = container.push(t3)
 
-	rs = make([]*types.Transaction,3)
+	rs = make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
 		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
@@ -132,8 +137,10 @@ func Test_push(t *testing.T) {
 		t.Error("push test fail")
 	}
 
+	if container.get(t2.Hash) != nil {
+		t.Error("clear replaced tx fail")
+	}
 }
-
 
 func Test_simpleContainer_forEach(t *testing.T) {
 	err := initContext4Test()
