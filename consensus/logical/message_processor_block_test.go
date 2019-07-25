@@ -224,8 +224,14 @@ func NewMinerPoolTest(pks []groupsig.Pubkey, ids []groupsig.ID, verifyGroup *ver
 	return &mpt
 }
 
-func (MinerPoolTest) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
-	panic("implement me")
+func (m MinerPoolTest) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
+	return &types.Miner{
+		Status:       types.MinerStatusActive,
+		Type:         types.MinerTypeProposal,
+		ID:           m.ids[1].Serialize(),
+		PublicKey:    m.pks[1].Serialize(),
+		VrfPublicKey: base.Hex2VRFPublicKey("0x666a589f1bbc74ad4bc24c67c0845bd4e74d83f0e3efa3a4b465bf6e5600871c"),
+	}
 }
 
 func (m MinerPoolTest) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {

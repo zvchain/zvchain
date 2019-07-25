@@ -39,7 +39,7 @@ type MessageProcessor interface {
 	// OnMessageVerify handles the verification messages from other members in the group for a specified block proposal
 	// Note that, it will cache the messages if the corresponding proposal message doesn't come yet and trigger them
 	// as long as the condition met
-	OnMessageVerify(msg *model.ConsensusVerifyMessage)
+	OnMessageVerify(msg *model.ConsensusVerifyMessage) error
 
 	// OnMessageCastRewardSignReq handles reward transaction signature requests
 	// It signs the message if and only if the block of the transaction already added on chain,

@@ -75,7 +75,8 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Castor = common.FromHex("0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676")
 		bh.Hash = bh.GenHash()
 	case "bh.Elapsed<=0":
-		bh.Elapsed = -1
+		bh.Elapsed = -2
+		bh.Height = 10
 		bh.Hash = bh.GenHash()
 	case "p.ts.Since(bh.CurTime)<-1":
 		bh.CurTime = time.TimeToTimeStamp(time2.Now()) + 2
@@ -103,7 +104,50 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
 		bh.ProveValue = common.FromHex("0x03556a119b69e52a6c8f676213e2184c588bc9731ec0ab1ed32a91a9a22155cdeb001fa9a2fd33c8660483f267050f0e72072658f16d485a1586fca736a50a423cbbb181870219af0c2c4fdbbb89832730")
 		bh.Hash = bh.GenHash()
+	case "slot-is-nil":
+		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
+		bh.PreHash = common.HexToHash("0x03")
+		bh.Height = 3
+		bh.Hash = bh.GenHash()
+	case "not-in-verify-group":
+		bh.CurTime = time.TimeToTimeStamp(time2.Now())
+		bh.PreHash = common.HexToHash("0x03")
+		bh.Height = 3
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Hash = bh.GenHash()
+	case "sender-not-in-verify-group":
+		bh.CurTime = time.TimeToTimeStamp(time2.Now())
+		bh.PreHash = common.HexToHash("0x03")
+		bh.Height = 4
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Hash = bh.GenHash()
+	case "receive-before-proposal":
+		bh.PreHash = common.HexToHash("0x03")
+		bh.Height = 4
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Hash = bh.GenHash()
+	case "already-sign-bigger-weight":
+		bh.PreHash = common.HexToHash("0x02")
+		bh.Height = 6
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Hash = bh.GenHash()
+	case "height-casted":
+		bh.PreHash = common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")
+		bh.Height = 7
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Hash = bh.GenHash()
+	case "has-signed":
+		bh.PreHash = common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")
+		bh.Height = 8
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Hash = bh.GenHash()
+	case "to51":
+		bh.PreHash = common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")
+		bh.Height = 9
+		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Hash = bh.GenHash()
 	}
+
 	return bh
 }
 
@@ -458,7 +502,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	vcx.signedBlockHashs.Add(GenTestBHHash("already-sign"))
 	p.blockContexts.addVctx(vcx)
 	// for cast-illegal
-	processorTest.minerReader = newMinerPoolReader(processorTest, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
+	p.minerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := p.OnMessageCast(tt.args.msg)
@@ -469,9 +513,344 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	}
 }
 
-/*
-miner addr:  0x00000000
-miner addr:  0x00000001
-miner addr:  0x00000002
-miner addr:  0x00000003
-miner addr:  0x00000004*/
+func TestProcessor_OnMessageVerify(t *testing.T) {
+	_ = initContext4Test()
+	defer clear()
+
+	pt := NewProcessorTest()
+	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
+	//txs := make([]*types.Transaction, 0)
+	type args struct {
+		msg *model.ConsensusVerifyMessage
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expected string
+	}{
+		{
+			name: "block-exists",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("block-exists"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "block already on chain",
+		},
+		{
+			name: "slot-is-nil",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("slot-is-nil"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "slot is nil",
+		},
+		{
+			name: "Castor=getMinerId",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("Castor=getMinerId"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "ignore self message",
+		},
+		{
+			name: "not-in-verify-group",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("not-in-verify-group"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "don't belong to verifyGroup",
+		},
+		{
+			name: "sender-not-in-verify-group",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("sender-not-in-verify-group"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[8], pt.msk[1]),
+					},
+				},
+			},
+			expected: "sender doesn't belong the verifyGroup",
+		},
+		{
+			name: "bh.Elapsed<=0",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("bh.Elapsed<=0"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "elapsed error",
+		},
+		{
+			name: "p.ts.Since(bh.CurTime)<-1",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("p.ts.Since(bh.CurTime)<-1"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "block too early",
+		},
+		{
+			name: "receive-before-proposal",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("receive-before-proposal"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "verify context is nil, cache msg",
+		},
+		{
+			name: "receive-before-proposal",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("receive-before-proposal"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "verify context is nil, cache msg",
+		},
+		{
+			name: "already-sign-bigger-weight",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("already-sign-bigger-weight"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "have signed a higher qn block",
+		},
+		{
+			name: "pre-block-not-exists",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("pre-block-not-exists"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "pre not on chain",
+		},
+		{
+			name: "height-casted",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("height-casted"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("height-casted"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "the block of this height has been cast",
+		},
+		{
+			name: "has-signed",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("has-signed"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("has-signed"), pt.ids[1], pt.msk[1]),
+					},
+					RandomSign: groupsig.Sign(pt.msk[1], []byte{1}),
+				},
+			},
+			expected: "duplicate message",
+		},
+		{
+			name: "to51",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: GenTestBHHash("to51"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("to51"), pt.ids[1], pt.msk[1]),
+					},
+					RandomSign: groupsig.Sign(pt.msk[1], []byte{1}),
+				},
+			},
+			expected: "",
+		},
+	}
+	p := processorTest
+	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{memIndex: map[string]int{
+		"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 1,
+	}, members: []*member{&member{}}})
+	// for block-exists
+	testBH1 := GenTestBH("block-exists")
+	p.blockContexts.attachVctx(&testBH1, &VerifyContext{})
+	testBH2 := GenTestBH("slot-is-nil")
+	p.blockContexts.attachVctx(&testBH2, &VerifyContext{})
+	testBH3 := GenTestBH("Castor=getMinerId")
+	p.blockContexts.attachVctx(&testBH3, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH3.Hash: {castor: groupsig.DeserializeID(testBH3.Castor)}},
+	})
+	testBH4 := GenTestBH("not-in-verify-group")
+	p.blockContexts.attachVctx(&testBH4, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH4.Hash: {BH: &testBH4, gSignGenerator: model.NewGroupSignGenerator(2)}},
+		group: &verifyGroup{
+			header: GroupHeaderTest{},
+		},
+		ts: p.ts,
+	})
+	testBH5 := GenTestBH("sender-not-in-verify-group")
+	p.blockContexts.attachVctx(&testBH5, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH5.Hash: {BH: &testBH5, gSignGenerator: model.NewGroupSignGenerator(2)}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+		},
+		ts: p.ts,
+	})
+	testBH6 := GenTestBH("bh.Elapsed<=0")
+	p.blockContexts.attachVctx(&testBH6, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH6.Hash: {BH: &testBH6, gSignGenerator: model.NewGroupSignGenerator(2)}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+		},
+		ts: p.ts,
+	})
+
+	testBH7 := GenTestBH("p.ts.Since(bh.CurTime)<-1")
+	p.blockContexts.attachVctx(&testBH7, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH7.Hash: {BH: &testBH7, gSignGenerator: model.NewGroupSignGenerator(2)}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+		},
+		ts: p.ts,
+	})
+
+	testBH8 := GenTestBH("already-sign-bigger-weight")
+	vctx := &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH8.Hash: {BH: &testBH8, gSignGenerator: model.NewGroupSignGenerator(2)}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+		},
+		ts:               p.ts,
+		signedBlockHashs: set.New(set.ThreadSafe),
+		castHeight:       testBH8.Height,
+	}
+	p.blockContexts.attachVctx(&testBH8, vctx)
+	copyTestBH8 := testBH8
+	copyTestBH8.TotalQN = 10000
+	vctx.markSignedBlock(&copyTestBH8)
+	testBH9 := GenTestBH("pre-block-not-exists")
+	p.blockContexts.attachVctx(&testBH9, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH9.Hash: {BH: &testBH9, gSignGenerator: model.NewGroupSignGenerator(2)}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1, pt.ids[1].GetHexString(): 1},
+		},
+		ts:     p.ts,
+		prevBH: genBlockHeader(),
+	})
+	testBH10 := GenTestBH("height-casted")
+	p.blockContexts.attachVctx(&testBH10, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH10.Hash: {BH: &testBH10, gSignGenerator: model.NewGroupSignGenerator(2)}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1, pt.ids[1].GetHexString(): 1},
+		},
+		ts:     p.ts,
+		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")},
+	})
+	p.blockContexts.recentCasted.Add(testBH10.Height, &castedBlock{height: testBH10.Height, preHash: testBH10.PreHash})
+	testBH11 := GenTestBH("has-signed")
+	gsg := model.NewGroupSignGenerator(2)
+	gsg.AddWitness(pt.ids[1], groupsig.Sign(pt.msk[1], GenTestBHHash("has-signed").Bytes()))
+	p.blockContexts.attachVctx(&testBH11, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH11.Hash: {BH: &testBH11, gSignGenerator: gsg}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{{pt.ids[1], pt.mpk[1]}},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
+		},
+		ts:     p.ts,
+		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},
+	})
+	testBH12 := GenTestBH("to51")
+	rsg := model.NewGroupSignGenerator(2)
+	rsg.AddWitnessForce(pt.ids[8], groupsig.Sign(pt.msk[2], []byte{1}))
+	p.blockContexts.attachVctx(&testBH12, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH12.Hash: {BH: &testBH12, gSignGenerator: model.NewGroupSignGenerator(1), rSignGenerator: rsg}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{{pt.ids[1], pt.mpk[1]}},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
+		},
+		ts:     p.ts,
+		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},
+	})
+	// for cast-illegal
+	p.minerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := p.OnMessageVerify(tt.args.msg)
+			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
+				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
+			}
+		})
+	}
+}
+
+type GroupHeaderTest struct{}
+
+func (GroupHeaderTest) Seed() common.Hash {
+	return common.HexToHash("0x00")
+}
+
+func (GroupHeaderTest) WorkHeight() uint64 {
+	panic("implement me")
+}
+
+func (GroupHeaderTest) DismissHeight() uint64 {
+	panic("implement me")
+}
+
+func (GroupHeaderTest) PublicKey() []byte {
+	return []byte{}
+}
+
+func (GroupHeaderTest) Threshold() uint32 {
+	panic("implement me")
+}
+
+func (GroupHeaderTest) GroupHeight() uint64 {
+	panic("implement me")
+}

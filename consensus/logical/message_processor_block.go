@@ -255,6 +255,7 @@ func (p *Processor) verifyCachedMsg(hash common.Hash) {
 func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyContext) (ret int8, err error) {
 	blockHash := cvm.BlockHash
 	if p.blockOnChain(blockHash) {
+		err = fmt.Errorf("block already on chain")
 		return
 	}
 
@@ -328,13 +329,12 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 
 // OnMessageVerify handles the verification messages from other members in the verifyGroup for a specified block proposal
 // Note that, it will cache the messages if the corresponding proposal message doesn't come yet and trigger them as long as the condition met
-func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) {
+func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err error) {
 	blockHash := cvm.BlockHash
 	tlog := newHashTraceLog("OMV", blockHash, cvm.SI.GetID())
 	traceLog := monitor.NewPerformTraceLogger("OnMessageVerify", blockHash, 0)
 
 	var (
-		err  error
 		ret  int8
 		slot *SlotContext
 	)
