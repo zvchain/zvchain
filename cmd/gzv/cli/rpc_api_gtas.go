@@ -80,7 +80,7 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 
 	// Check the address for the specified tx types
 	switch txRaw.TxType {
-	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
+	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
 		if !validateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}
@@ -179,7 +179,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 			return "normal"
 		} else if st == types.StakeFrozen {
 			return "frozen"
-		}else if st == types.StakePunishment{
+		} else if st == types.StakePunishment {
 			return "punish"
 		}
 		return "unknown"
@@ -217,7 +217,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	case "all":
 		detailsMap := core.MinerManagerImpl.GetAllStakeDetails(address)
 		m := make(map[string][]*StakeDetail)
-		if detailsMap != nil{
+		if detailsMap != nil {
 			for from, ds := range detailsMap {
 				dts := convertDetails(ds)
 				m[from] = dts
@@ -279,28 +279,28 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
-	accoundDb,err := core.BlockChainImpl.LatestStateDB()
-	if err != nil{
+	accountDb, err := core.BlockChainImpl.LatestStateDB()
+	if err != nil {
 		return failResult("Get status failed")
 	}
-	if accoundDb == nil {
+	if accountDb == nil {
 		return nil, nil
 	}
 	address := common.HexToAddress(hash)
-	if !accoundDb.Exist(address) {
+	if !accountDb.Exist(address) {
 		return failResult("Account not Exist!")
 	}
 	account := ExplorerAccount{}
-	account.Balance = accoundDb.GetBalance(address)
-	account.Nonce = accoundDb.GetNonce(address)
-	account.CodeHash = accoundDb.GetCodeHash(address).Hex()
-	account.Code = string(accoundDb.GetCode(address)[:])
+	account.Balance = accountDb.GetBalance(address)
+	account.Nonce = accountDb.GetNonce(address)
+	account.CodeHash = accountDb.GetCodeHash(address).Hex()
+	account.Code = string(accountDb.GetCode(address)[:])
 	account.Type = 0
 	if len(account.Code) > 0 {
 		account.Type = 1
 		account.StateData = make(map[string]interface{})
 
-		iter := accoundDb.DataIterator(common.HexToAddress(hash), []byte{})
+		iter := accountDb.DataIterator(common.HexToAddress(hash), []byte{})
 		for iter.Next() {
 			k := string(iter.Key[:])
 			v := string(iter.Value[:])

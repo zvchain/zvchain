@@ -166,6 +166,9 @@ func minerAbortValidator(tx *types.Transaction) error {
 	if len(tx.Data) != 1 {
 		return fmt.Errorf("data length should be 1")
 	}
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
 	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
 		return err
 	}
