@@ -22,6 +22,7 @@ import (
 
 
 func TestFullBlockChain_QueryBlockFloor(t *testing.T) {
+	initContext4Test()
 	defer clear()
 	chain := BlockChainImpl.(*FullBlockChain)
 
