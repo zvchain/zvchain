@@ -2,9 +2,8 @@ package log
 
 import "os"
 
-func init()  {
+func Init()  {
 	RusPlus = New()
-	StdLogger = RusPlus.StandardLogger()
 	StdLogger.SetLevel(Level)
 	logsDir := "./logs/"
 
