@@ -121,10 +121,10 @@ func (msg *CastRewardTransSignReqMessage) GenHash() common.Hash {
 // CastRewardTransSignMessage is the signature response message to requester who should be one of the group members
 type CastRewardTransSignMessage struct {
 	BaseSignedMessage
-	ReqHash   common.Hash
 	BlockHash common.Hash
 
 	// Not serialized
+	ReqHash  common.Hash
 	GSeed    common.Hash
 	Launcher groupsig.ID
 }

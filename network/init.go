@@ -19,14 +19,14 @@
 package network
 
 import (
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"math"
 	"math/rand"
 	"net"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
-
 	"github.com/zvchain/zvchain/middleware/statistics"
 )
 
@@ -47,20 +47,18 @@ type NetworkConfig struct {
 
 var netServerInstance *Server
 
-var Logger taslog.Logger
+var Logger *logrus.Logger
 
 // Init initialize network instance,register message handler,join p2p network
 func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig NetworkConfig) (err error) {
-	index := ""
+	Logger = log.P2PLogger
 	if config != nil {
-		index = common.GlobalConf.GetString("instance", "index", "")
 		statistics.InitStatistics(*config)
 	}
-	Logger = taslog.GetLoggerByIndex(taslog.P2PLogConfig, index)
 
 	self, err := InitSelfNode(networkConfig.IsSuper, NewNodeID(networkConfig.NodeIDHex))
 	if err != nil {
-		Logger.Errorf("InitSelfNode error:", err.Error())
+		Logger.Error("InitSelfNode error:", err.Error())
 		return err
 	}
 

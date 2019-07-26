@@ -17,18 +17,18 @@ package core
 
 import (
 	"errors"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"fmt"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	zvtime "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 const (
@@ -65,7 +65,7 @@ type blockSyncer struct {
 	ticker *ticker.GlobalTicker
 
 	lock   sync.RWMutex
-	logger taslog.Logger
+	logger *logrus.Logger
 }
 
 type topBlockInfo struct {
@@ -93,7 +93,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 func InitBlockSyncer(chain *FullBlockChain) {
 	blockSync = newBlockSyncer(chain)
 	blockSync.ticker = blockSync.chain.ticker
-	blockSync.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	blockSync.logger = log.BlockSyncLogger
 	blockSync.ticker.RegisterPeriodicRoutine(tickerSendLocalTop, blockSync.notifyLocalTopBlockRoutine, sendLocalTopInterval)
 	blockSync.ticker.StartTickerRoutine(tickerSendLocalTop, false)
 
@@ -331,11 +331,15 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message)error {
 	bnm := notify.AsDefault(msg)
 	if peerManagerImpl.isPeerExists(bnm.Source()) && peerManagerImpl.getOrAddPeer(bnm.Source()).isEvil() {
-		return bs.logger.Warnf("block sync this source is is in evil...source is is %v\n", bnm.Source())
+		err := fmt.Errorf("block sync this source is is in evil...source is is %v\n", bnm.Source())
+		bs.logger.Warn(err)
+		return err
 	}
 	blockHeader, e := bs.unMarshalTopBlockInfo(bnm.Body())
 	if e != nil {
-		return bs.logger.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
+		err := fmt.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
+		bs.logger.Error(err)
+		return err
 	}
 
 	source := bnm.Source()
@@ -383,7 +387,9 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message)error {
 
 	blockResponse, e := bs.unMarshalBlockMsgResponse(m.Body())
 	if e != nil {
-		return bs.logger.Errorf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
+		err := fmt.Errorf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
+		bs.logger.Error(err)
+		return err
 	}
 
 	blocks := blockResponse.Blocks
@@ -449,7 +455,9 @@ func (bs *blockSyncer) blockReqHandler(msg notify.Message)error {
 
 	br, err := unmarshalSyncRequest(m.Body())
 	if err != nil {
-		return bs.logger.Errorf("unmarshalSyncRequest error %v", err)
+		err = fmt.Errorf("unmarshalSyncRequest error %v", err)
+		bs.logger.Error(err)
+		return err
 	}
 	localHeight := bs.chain.Height()
 	if br.ReqHeight <= 0 || br.ReqHeight > localHeight || br.ReqSize > maxReqBlockCount {

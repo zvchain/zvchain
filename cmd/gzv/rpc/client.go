@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"net"
 	"net/url"
 	"reflect"
@@ -30,8 +31,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/zvchain/zvchain/common"
 )
 
 var (
@@ -388,7 +387,7 @@ func (c *Client) write(ctx context.Context, msg interface{}) error {
 func (c *Client) reconnect(ctx context.Context) error {
 	newconn, err := c.connectFunc(ctx)
 	if err != nil {
-		common.DefaultLogger.Errorf(fmt.Sprintf("reconnect failed: %v", err))
+		log.DefaultLogger.Errorf(fmt.Sprintf("reconnect failed: %v", err))
 		return err
 	}
 	select {
@@ -443,13 +442,13 @@ func (c *Client) dispatch(conn net.Conn) {
 			}
 
 		case err := <-c.readErr:
-			common.DefaultLogger.Errorf(fmt.Sprintf("<-readErr: %v", err))
+			log.DefaultLogger.Errorf(fmt.Sprintf("<-readErr: %v", err))
 			c.closeRequestOps(err)
 			conn.Close()
 			reading = false
 
 		case newconn := <-c.reconnected:
-			common.DefaultLogger.Debug(fmt.Sprintf("<-reconnected: (reading=%t) %v", reading, conn.RemoteAddr()))
+			log.DefaultLogger.Debug(fmt.Sprintf("<-reconnected: (reading=%t) %v", reading, conn.RemoteAddr()))
 			if reading {
 				// Wait for the previous read loop to exit. This is a rare case.
 				conn.Close()
@@ -502,7 +501,7 @@ func (c *Client) closeRequestOps(err error) {
 
 func (c *Client) handleNotification(msg *jsonrpcMessage) {
 	if !strings.HasSuffix(msg.Method, notificationMethodSuffix) {
-		common.DefaultLogger.Debug(fmt.Sprint("dropping non-subscription message: ", msg))
+		log.DefaultLogger.Debug(fmt.Sprint("dropping non-subscription message: ", msg))
 		return
 	}
 	var subResult struct {
@@ -510,7 +509,7 @@ func (c *Client) handleNotification(msg *jsonrpcMessage) {
 		Result json.RawMessage `json:"result"`
 	}
 	if err := json.Unmarshal(msg.Params, &subResult); err != nil {
-		common.DefaultLogger.Errorf(fmt.Sprintf("dropping invalid subscription message:%s,errorMsg=%s ", msg, err.Error()))
+		log.DefaultLogger.Errorf(fmt.Sprintf("dropping invalid subscription message:%s,errorMsg=%s ", msg, err.Error()))
 		return
 	}
 	if c.subs[subResult.ID] != nil {
@@ -521,7 +520,7 @@ func (c *Client) handleNotification(msg *jsonrpcMessage) {
 func (c *Client) handleResponse(msg *jsonrpcMessage) {
 	op := c.respWait[string(msg.ID)]
 	if op == nil {
-		common.DefaultLogger.Warnf(fmt.Sprintf("unsolicited response %v", msg))
+		log.DefaultLogger.Warnf(fmt.Sprintf("unsolicited response %v", msg))
 		return
 	}
 	delete(c.respWait, string(msg.ID))

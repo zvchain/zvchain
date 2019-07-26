@@ -17,14 +17,14 @@ package group
 
 import (
 	"fmt"
-
-	"github.com/zvchain/zvchain/taslog"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-var logger taslog.Logger
+var logger *logrus.Logger
 
 // Manager implements groupContextProvider in package consensus
 type Manager struct {
@@ -49,7 +49,7 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 }
 
 func NewManager(chain chainReader) Manager {
-	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	logger = log.GroupLogger
 	gPool := newPool()
 	store := NewStore(chain, gPool)
 	packetSender := NewPacketSender(chain)
@@ -168,7 +168,7 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height(), m.poolImpl.getTopGroup(db)))
 		if err != nil {
 			// this case must not happen.
-			panic(logger.Error("saveGroup error: %v", err))
+			logger.Panicf("saveGroup error: %v", err)
 		}
 	case types.CreateResultMarkEvil:
 		markGroupFail(db, createResult)
@@ -188,7 +188,7 @@ func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateCheck
 	}
 	_, err = m.minerReaderImpl.MinerPenalty(db, msg, ctx.Height())
 	if err != nil {
-		logger.Error("MinerPenalty error: %v", err)
+		logger.Errorf("MinerPenalty error: %v", err)
 	}
 }
 
@@ -202,7 +202,7 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 		addr := common.BytesToAddress(p)
 		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
 		if err != nil {
-			logger.Error("MinerFrozen error: %v", err)
+			logger.Errorf("MinerFrozen error: %v", err)
 		}
 	}
 }

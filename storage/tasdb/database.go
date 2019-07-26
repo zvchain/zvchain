@@ -20,6 +20,7 @@ package tasdb
 
 import (
 	"bytes"
+	"github.com/zvchain/zvchain/log"
 	"os"
 	"sync"
 
@@ -359,7 +360,7 @@ func (ldb *LDBDatabase) Close() {
 		error := make(chan error)
 		ldb.quitChan <- error
 		if err := <-error; err != nil {
-			common.DefaultLogger.Errorf("Metrics collection failed", "err", err)
+			log.DefaultLogger.Error("Metrics collection failed", "err", err)
 		}
 	}
 

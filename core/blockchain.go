@@ -18,9 +18,11 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/zvchain/zvchain/core/group"
+	"github.com/zvchain/zvchain/log"
 	"os"
 	"sync"
 	"time"
@@ -32,7 +34,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 const (
@@ -52,9 +53,7 @@ var BlockChainImpl types.BlockChain
 
 var GroupManagerImpl group.Manager
 
-var Logger taslog.Logger
-
-var consensusLogger taslog.Logger
+var Logger *logrus.Logger
 
 // BlockChainConfig contains the configuration values of leveldb prefix string
 type BlockChainConfig struct {
@@ -129,9 +128,7 @@ func getBlockChainConfig() *BlockChainConfig {
 }
 
 func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) error {
-	instance := common.GlobalConf.GetString("instance", "index", "")
-	Logger = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
-	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, instance)
+	Logger = log.CoreLogger
 	chain := &FullBlockChain{
 		config:          getBlockChainConfig(),
 		latestBlock:     nil,
@@ -194,7 +191,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	chain.rewardManager = newRewardManager()
+	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
 
@@ -219,7 +216,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		if nil == err {
 			chain.latestStateDB = state
 		} else {
-			err = Logger.Errorf("initBlockChain NewAccountDB fail::%s", err.Error())
+			err = errors.New("initBlockChain NewAccountDB fail::" + err.Error())
+			Logger.Error(err)
 			return err
 		}
 	} else {

@@ -94,7 +94,7 @@ func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
 		var gr group
 		err := msgpack.Unmarshal(byteData, &gr)
 		if err != nil {
-			logger.Error("Unmarshal failed when get group from db. seed = %v", seed)
+			logger.Errorf("Unmarshal failed when get group from db. seed = %v", seed)
 			return nil
 		}
 		p.groupCache.ContainsOrAdd(seed, &gr)

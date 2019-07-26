@@ -16,6 +16,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -31,7 +32,9 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 	source := m.Source()
 	block, e := types.UnMarshalBlock(m.Body())
 	if e != nil {
-		return Logger.Errorf("UnMarshal block error:%s", e.Error())
+		err := fmt.Errorf("UnMarshal block error:%s", e.Error())
+		Logger.Error(err)
+		return err
 	}
 
 	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))

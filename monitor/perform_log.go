@@ -3,6 +3,7 @@ package monitor
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"time"
 
 	"github.com/hashicorp/golang-lru"
@@ -10,7 +11,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 /*
@@ -19,7 +19,7 @@ import (
 **  Description:
  */
 
-var traceLogger = taslog.GetLogger(taslog.PerformTraceConfig)
+var traceLogger = log.PerformLogger
 
 const dateFormte = "2006-01-02 15:04:05.000"
 

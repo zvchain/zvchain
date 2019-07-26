@@ -19,7 +19,6 @@ import (
 	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -32,7 +31,7 @@ func (p *Processor) chLoop() {
 		case bh := <-p.blockAddCh:
 			go p.checkSelfCastRoutine()
 			go p.triggerFutureVerifyMsg(bh)
-			go p.triggerFutureRewardSign(bh)
+			go p.rewardHandler.TriggerFutureRewardSign(bh)
 			p.blockContexts.removeProposed(bh.Hash)
 		}
 	}
@@ -57,22 +56,8 @@ func (p *Processor) triggerFutureVerifyMsg(bh *types.BlockHeader) {
 
 }
 
-func (p *Processor) triggerFutureRewardSign(bh *types.BlockHeader) {
-	futures := p.futureRewardReqs.getMessages(bh.Hash)
-	if futures == nil || len(futures) == 0 {
-		return
-	}
-	p.futureRewardReqs.remove(bh.Hash)
-	mType := "CMCRSR-Future"
-	for _, msg := range futures {
-		tLog := newHashTraceLog(mType, bh.Hash, groupsig.ID{})
-		send, err := p.signCastRewardReq(msg.(*model.CastRewardTransSignReqMessage), bh)
-		tLog.logEnd("send %v, result %v", send, err)
-	}
-}
-
 // onBlockAddSuccess handle the event of block add-on-chain
-func (p *Processor) onBlockAddSuccess(message notify.Message)error {
+func (p *Processor) onBlockAddSuccess(message notify.Message) error {
 	if !p.Ready() {
 		return nil
 	}
@@ -90,7 +75,7 @@ func (p *Processor) onBlockAddSuccess(message notify.Message)error {
 			if vctx.isWorking() {
 				vctx.markCastSuccess()
 			}
-			p.reqRewardTransSign(vctx, bh)
+			p.rewardHandler.reqRewardTransSign(vctx, bh)
 		}
 	}
 
@@ -108,7 +93,7 @@ func (p *Processor) onBlockAddSuccess(message notify.Message)error {
 }
 
 // onGroupAddSuccess handles the event of verifyGroup add-on-chain
-func (p *Processor) onGroupAddSuccess(message notify.Message)error {
+func (p *Processor) onGroupAddSuccess(message notify.Message) error {
 	group := message.GetData().(types.GroupI)
 	stdLogger.Infof("groupAddEventHandler receive message, gSeed=%v, workHeight=%v\n", group.Header().Seed(), group.Header().WorkHeight())
 
@@ -117,5 +102,24 @@ func (p *Processor) onGroupAddSuccess(message notify.Message)error {
 		memIds[i] = groupsig.DeserializeID(mem.ID())
 	}
 	p.NetServer.BuildGroupNet(group.Header().Seed().Hex(), memIds)
+
+	topHeight := p.MainChain.QueryTopBlock().Height
+	// clear the dismissed group from net server
+	removed := make([]interface{}, 0)
+	p.livedGroups.Range(func(name, item interface{}) bool {
+		gi := item.(types.GroupI)
+		if gi.Header().DismissHeight()+100 < topHeight {
+			delKey := gi.Header().Seed().Hex()
+			p.NetServer.ReleaseGroupNet(delKey)
+			removed = append(removed, name)
+		}
+		return true
+	})
+	for _, rm := range removed {
+		p.livedGroups.Delete(rm)
+	}
+
+	p.livedGroups.Store(group.Header().Seed().Hex(), group)
+
 	return nil
 }

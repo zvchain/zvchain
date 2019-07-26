@@ -9,12 +9,12 @@ import (
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core/group"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/taslog"
 	"io/ioutil"
 	"math/big"
 	"strconv"
@@ -232,10 +232,6 @@ func init4TxSync() {
 	initTxSyncer(BlockChainImpl.(*FullBlockChain), BlockChainImpl.GetTransactionPool().(*txPool), NetImpl)
 	//network.Init(nil,nil,nil)
 
-	//
-	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
-	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
-	blockSyncForTest.logger = taslog.GetLoggerByIndex(taslog.BlockSyncLogConfig, "1")
 	types.DefaultPVFunc = PvFuncTest
 	//
 	evilPeer := peerManagerImpl.genPeer(evilAddr, true)
@@ -1010,7 +1006,7 @@ func sendTxToPool(trans *types.Transaction) error {
 	}
 
 	if ok, err := BlockChainImpl.GetTransactionPool().AddTransaction(trans); err != nil || !ok {
-		common.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
+		log.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
 		return err
 	}
 	return nil
