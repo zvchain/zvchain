@@ -138,6 +138,7 @@ const (
 const (
 	evilAddr = "0x0000000000000000000000000000000000000000000000000000000000000123"
 	kindAddr = "0x0000000000000000000000000000000000000000000000000000000000000abc"
+	kindToEvilAddr = "0x0000000000000000000000000000000000000000000000000000000000000fff"
 )
 
 var (
@@ -164,25 +165,26 @@ var (
 	TxOverStateNonce1000 *types.Transaction
 	TxNoNonce            *types.Transaction
 
-	TxTypeTransfer             *types.Transaction
-	TxTypeContractCreate       *types.Transaction
-	TxTypeContractCreateEvil1  *types.Transaction
-	TxTypeContractCreateEvil2  *types.Transaction
-	TxTypeContractCall         *types.Transaction
-	TxTypeContractCallEvil1    *types.Transaction
-	TxTypeContractCallEvil2    *types.Transaction
-	TxTypeRewardBad            *types.Transaction
-	TxTypeStakeAddProposal     *types.Transaction
-	TxTypeStakeAddVerify       *types.Transaction
-	TxTypeStakeAddFakes        []*types.Transaction
-	TxTypeStakeAddFake1        *types.Transaction
-	TxTypeStakeAddFake2        *types.Transaction
-	TxTypeStakeAddFake3        *types.Transaction
-	TxTypeStakeAddFake4        *types.Transaction
-	TxTypeStakeAddFake5        *types.Transaction
-	TxTypeStakeReduce          *types.Transaction
-	TxTypeStakeReduceFake1     *types.Transaction
-	TxTypeMinerAbort           *types.Transaction
+	TxTypeTransfer            *types.Transaction
+	TxTypeContractCreate      *types.Transaction
+	TxTypeContractCreateEvil1 *types.Transaction
+	TxTypeContractCreateEvil2 *types.Transaction
+	TxTypeContractCall        *types.Transaction
+	TxTypeContractCallEvil1   *types.Transaction
+	TxTypeContractCallEvil2   *types.Transaction
+	TxTypeRewardBadData       *types.Transaction
+	TxTypeRewardBadExtra       *types.Transaction
+	TxTypeStakeAddProposal    *types.Transaction
+	TxTypeStakeAddVerify      *types.Transaction
+	TxTypeStakeAddFakes       []*types.Transaction
+	TxTypeStakeAddFake1       *types.Transaction
+	TxTypeStakeAddFake2       *types.Transaction
+	TxTypeStakeAddFake3       *types.Transaction
+	TxTypeStakeAddFake4       *types.Transaction
+	TxTypeStakeAddFake5       *types.Transaction
+	TxTypeStakeReduce         *types.Transaction
+	TxTypeStakeReduceFake1    *types.Transaction
+	TxTypeMinerAbort          *types.Transaction
 	TxTypeStakeRefund          *types.Transaction
 	TxTypeEvil                 *types.Transaction
 	TxTypeGroupPiece           *types.Transaction
@@ -312,7 +314,8 @@ func initTxsAndOthers() {
 	TxTypeGroupPieceBadData = generateGroupTx(1, TransactionTypeGroupPiece, uint64(500000), uint64(1000), types.MinerTypeVerify, true, false, false)
 	TxTypeGroupPieceNilData = generateGroupTx(1, TransactionTypeGroupPiece, uint64(500000), uint64(1000), types.MinerTypeVerify, true, true, false)
 	TxTypeGroupPieceWithTarget = generateGroupTx(1, TransactionTypeGroupPiece, uint64(500000), uint64(1000), types.MinerTypeVerify, false, false, true)
-	TxTypeRewardBad = generateTX([]byte(string("12345")), 1, 0, "111", TransactionTypeReward, uint64(500000), uint64(1000), []byte(string("12345")))
+	TxTypeRewardBadData = generateTX([]byte(string("12345")), 1, 0, "111", TransactionTypeReward, uint64(500000), uint64(1000), []byte(string("12345")))
+	TxTypeRewardBadExtra = generateTX(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000123"), 1, 0, "111", TransactionTypeReward, uint64(500000), uint64(1000), nil)
 
 	// evil type of tx
 	TxTypeEvil = generateTX(nil, 1, 0, "111", 99, uint64(500000), uint64(1000), nil)
@@ -1139,7 +1142,8 @@ func TestOnTxResponse(t *testing.T) {
 	//bodyTxTypeGroupPieceBadData := marshallTxs([]*types.Transaction{TxTypeGroupPieceBadData}, t)
 	bodyTxTypeGroupPieceNilData := marshallTxs([]*types.Transaction{TxTypeGroupPieceNilData}, t)
 	bodyTxTypeGroupPieceWithTarget := marshallTxs([]*types.Transaction{TxTypeGroupPieceWithTarget}, t)
-	bodyTxTypeRewardBad := marshallTxs([]*types.Transaction{TxTypeRewardBad}, t)
+	bodyTxTypeRewardBadData := marshallTxs([]*types.Transaction{TxTypeRewardBadData}, t)
+	bodyTxTypeRewardBadExtra := marshallTxs([]*types.Transaction{TxTypeRewardBadExtra}, t)
 
 	bodyTxTypeEvil := marshallTxs([]*types.Transaction{TxTypeEvil}, t)
 	bodyTxNoType := marshallTxs([]*types.Transaction{TxNoType}, t)
@@ -1379,7 +1383,8 @@ func TestOnTxResponse(t *testing.T) {
 		notify.NewDefaultMessage(bodyTxTypeGroupPieceWithTarget, kindAddr, 0, 0),
 
 		// reward tx with bad data and extradata
-		notify.NewDefaultMessage(bodyTxTypeRewardBad, kindAddr, 0, 0),
+		notify.NewDefaultMessage(bodyTxTypeRewardBadData, kindAddr, 0, 0),
+		notify.NewDefaultMessage(bodyTxTypeRewardBadExtra, kindAddr, 0, 0),
 	}
 
 	//不返回错误，不加入交易池
