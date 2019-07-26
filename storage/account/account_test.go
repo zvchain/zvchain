@@ -17,7 +17,6 @@ package account
 
 import (
 	"bytes"
-	"github.com/zvchain/zvchain/taslog"
 	"math/big"
 	"sync"
 	"testing"
@@ -26,12 +25,6 @@ import (
 	"github.com/zvchain/zvchain/storage/sha3"
 	"github.com/zvchain/zvchain/storage/tasdb"
 )
-
-func init() {
-	common.InitConf("../../cmd/gzv/cli/zv.ini")
-	instance := common.GlobalConf.GetString("instance", "index", "")
-	debugLog = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
-}
 
 type StateSuite struct {
 	db    *tasdb.MemDatabase

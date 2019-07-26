@@ -17,6 +17,9 @@ package core
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -25,7 +28,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 const (
@@ -50,7 +52,7 @@ type txSyncer struct {
 	rctNotifiy    *lru.Cache
 	ticker        *ticker.GlobalTicker
 	candidateKeys *lru.Cache
-	logger        taslog.Logger
+	logger        *logrus.Logger
 }
 
 var TxSyncer *txSyncer
@@ -134,7 +136,7 @@ func initTxSyncer(chain *FullBlockChain, pool *txPool) {
 		ticker:        ticker.NewGlobalTicker("tx_syncer"),
 		candidateKeys: common.MustNewLRUCache(100),
 		chain:         chain,
-		logger:        taslog.GetLoggerByIndex(taslog.TxSyncLogConfig, common.GlobalConf.GetString("instance", "index", "")),
+		logger:        log.TxSyncLogger,
 	}
 	s.ticker.RegisterPeriodicRoutine(txNotifyRoutine, s.notifyTxs, txNofifyInterval)
 	s.ticker.StartTickerRoutine(txNotifyRoutine, false)
@@ -228,11 +230,12 @@ func (ts *txSyncer) getOrAddCandidateKeys(id string) *peerTxsHashes {
 	return v.(*peerTxsHashes)
 }
 
-func (ts *txSyncer) onTxNotify(msg notify.Message) {
+func (ts *txSyncer) onTxNotify(msg notify.Message)error {
 	nm := notify.AsDefault(msg)
 	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil() {
-		ts.logger.Warnf("tx sync this source is is in evil...source is is %v\n", nm.Source())
-		return
+		err := fmt.Errorf("tx sync this source is is in evil...source is is %v\n", nm.Source())
+		ts.logger.Warn(err)
+		return err
 	}
 	reader := bytes.NewReader(nm.Body())
 	var (
@@ -247,8 +250,9 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) {
 			break
 		}
 		if count > txMaxNotifyPerTime {
-			ts.logger.Warnf("Rcv onTxNotify,but count exceeds limit")
-			return
+			err := fmt.Errorf("Rcv onTxNotify,but count exceeds limit")
+			ts.logger.Warn(err)
+			return err
 		}
 		count++
 		hashs = append(hashs, common.BytesToHash(buf))
@@ -262,7 +266,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) {
 	}
 	candidateKeys.addTxHashes(accepts)
 	ts.logger.Debugf("Rcv txs notify from %v, size %v, accept %v, totalOfSource %v", nm.Source(), len(hashs), len(accepts), candidateKeys.txHashes.Len())
-
+	return nil
 }
 
 func (ts *txSyncer) reqTxsRoutine() bool {
@@ -348,7 +352,7 @@ func (ts *txSyncer) syncTimeoutRoutineName(id string) string {
 	return tickerTxSyncTimeout + id
 }
 
-func (ts *txSyncer) onTxReq(msg notify.Message) {
+func (ts *txSyncer) onTxReq(msg notify.Message)error {
 	nm := notify.AsDefault(msg)
 	reader := bytes.NewReader(nm.Body())
 	var (
@@ -362,8 +366,9 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 			break
 		}
 		if count > txPeerMaxLimit {
-			ts.logger.Warnf("Rcv tx req,but count exceeds limit")
-			return
+			err := fmt.Errorf("Rcv tx req,but count exceeds limit")
+			ts.logger.Warn(err)
+			return err
 		}
 		count++
 		hashs = append(hashs, common.BytesToHash(buf))
@@ -377,19 +382,22 @@ func (ts *txSyncer) onTxReq(msg notify.Message) {
 	}
 	body, e := types.MarshalTransactions(txs)
 	if e != nil {
-		ts.logger.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
-		return
+		err := fmt.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
+		ts.logger.Error(err)
+		return err
 	}
 	ts.logger.Debugf("Rcv tx req from %v, size %v,send transactions to %v size %v", nm.Source(), len(hashs),nm.Source(), len(txs))
 	message := network.Message{Code: network.TxSyncResponse, Body: body}
 	network.GetNetInstance().Send(nm.Source(), message)
+	return nil
 }
 
-func (ts *txSyncer) onTxResponse(msg notify.Message) {
+func (ts *txSyncer) onTxResponse(msg notify.Message)error {
 	nm := notify.AsDefault(msg)
 	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil() {
-		ts.logger.Warnf("on tx response this source is is in evil...source is is %v\n", nm.Source())
-		return
+		err := fmt.Errorf("on tx response this source is is in evil...source is is %v\n", nm.Source())
+		ts.logger.Warn(err)
+		return err
 	}
 
 	defer func() {
@@ -398,21 +406,24 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) {
 
 	txs, e := types.UnMarshalTransactions(nm.Body())
 	if e != nil {
-		ts.logger.Errorf("Unmarshal got transactions error:%s", e.Error())
-		return
+		err := fmt.Errorf("Unmarshal got transactions error:%s", e.Error())
+		ts.logger.Error(err)
+		return err
 	}
 
 	if len(txs) > txPeerMaxLimit {
-		ts.logger.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
-		return
+		err := fmt.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
+		ts.logger.Error(err)
+		return err
 	}
 	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
 	evilCount := ts.pool.AddTransactions(txs)
 	if evilCount > txValidteErrorLimit {
-		ts.logger.Errorf("rec tx evil count over limit,count is %d", evilCount)
 		peerManagerImpl.addEvilCount(nm.Source())
-		return
+		err := fmt.Errorf("rec tx evil count over limit,count is %d", evilCount)
+		ts.logger.Error(err)
+		return err
 	}
-
 	peerManagerImpl.resetEvilCount(nm.Source())
+	return nil
 }

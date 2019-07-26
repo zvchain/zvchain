@@ -49,7 +49,7 @@ func commonValidate(tx *types.Transaction) error {
 	}
 
 	if tx.Hash != tx.GenHash() {
-		return fmt.Errorf("tx hash error")
+		return ErrHash
 	}
 
 	if tx.Sign == nil {
@@ -279,6 +279,8 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeRefundValidator(tx)
 			case types.TransactionTypeGroupPiece,types.TransactionTypeGroupMpk,types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
+			default:
+				err = fmt.Errorf("no such kind of tx")
 			}
 			if err != nil {
 				return err

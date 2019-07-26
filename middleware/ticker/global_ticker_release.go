@@ -3,9 +3,10 @@
 package ticker
 
 import (
-	"github.com/zvchain/zvchain/common"
 	"runtime/debug"
 	"sync/atomic"
+
+	"github.com/zvchain/zvchain/log"
 )
 
 // trigger trigger an execution
@@ -17,9 +18,9 @@ func (gt *GlobalTicker) trigger(routine *TickerRoutine) bool {
 	}()
 	defer func() {
 		if r := recover(); r != nil {
-			common.DefaultLogger.Errorf("error：%v\n", r)
+			log.DefaultLogger.Errorf("error：%v\n", r)
 			s := debug.Stack()
-			common.DefaultLogger.Errorf(string(s))
+			log.DefaultLogger.Errorf(string(s))
 		}
 	}()
 

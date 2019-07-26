@@ -17,7 +17,6 @@ package cli
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -1054,7 +1053,7 @@ func parseCommandLine(command string) ([]string, error) {
 	}
 
 	if state == "quotes" {
-		return []string{}, errors.New(fmt.Sprintf("Unclosed quote in command line: %s", command))
+		return []string{}, fmt.Errorf("Unclosed quote in command line: %s", command)
 	}
 
 	if current != "" {

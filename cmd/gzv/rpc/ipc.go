@@ -18,9 +18,8 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"net"
-
-	"github.com/zvchain/zvchain/common"
 )
 
 // CreateIPCListener creates an listener, on Unix platforms this is a unix socket, on
@@ -36,7 +35,7 @@ func (srv *Server) ServeListener(l net.Listener) error {
 		if err != nil {
 			return err
 		}
-		common.DefaultLogger.Debugf(fmt.Sprint("accepted conn", conn.RemoteAddr()))
+		log.DefaultLogger.Debugf(fmt.Sprint("accepted conn", conn.RemoteAddr()))
 		go srv.ServeCodec(NewJSONCodec(conn), OptionMethodInvocation|OptionSubscriptions)
 	}
 }

@@ -20,16 +20,15 @@ package tvm
 */
 import "C"
 import (
+	"github.com/zvchain/zvchain/log"
 	"math/big"
-	"strconv"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/taslog"
 )
 
-var logger = taslog.GetLoggerByIndex(taslog.TvmConfig, strconv.FormatInt(int64(common.InstanceIndex), 10))
+var logger = log.TVMLogger
 
 //export Transfer
 func Transfer(toAddress *C.char, value *C.char) bool {

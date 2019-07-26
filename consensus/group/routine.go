@@ -18,13 +18,14 @@ package group
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/taslog"
 	"math"
 )
 
@@ -73,11 +74,11 @@ type createRoutine struct {
 }
 
 var routine *createRoutine
-var logger taslog.Logger
+var logger *logrus.Logger
 
 func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, miner *model.SelfMinerDO) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
-	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	logger = log.GroupLogger
 	routine = &createRoutine{
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
@@ -96,7 +97,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	return routine.store
 }
 
-func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
+func (routine *createRoutine) onBlockAddSuccess(message notify.Message)error {
 	block := message.GetData().(*types.Block)
 	bh := block.Header
 
@@ -127,7 +128,7 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 			logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 		}
 	}
-
+	return err
 }
 
 // UpdateEra updates the era info base on current block header

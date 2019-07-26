@@ -111,6 +111,11 @@ func initPeerManager() {
 	peerManagerImpl = &badPeerMeter
 }
 
+func (bpm *peerManager) isPeerExists(id string) bool {
+	_,ok := bpm.peerMeters.Get(id)
+	return ok
+}
+
 func (bpm *peerManager) getOrAddPeer(id string) *peerMeter {
 	v, exit := bpm.peerMeters.Get(id)
 	if !exit {
