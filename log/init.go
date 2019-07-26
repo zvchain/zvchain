@@ -1,13 +1,11 @@
 package log
 
-import (
-	"os"
-)
+import "os"
 
 func init()  {
-	logrusplus = New()
-	StdLogger = logrusplus.StandardLogger()
-
+	RusPlus = New()
+	StdLogger = RusPlus.StandardLogger()
+	StdLogger.SetLevel(Level)
 	logsDir := "./logs/"
 
 	_, err := os.Stat(logsDir)
@@ -20,18 +18,18 @@ func init()  {
 		}
 	}
 
-	DefaultLogger = logrusplus.Logger(logsDir + "default")
-	ConsensusLogger = logrusplus.Logger(logsDir + "consensus")
-	ConsensusStdLogger = logrusplus.Logger(logsDir + "consensus_std")
-	CoreLogger = logrusplus.Logger(logsDir + "core")
-	BlockSyncLogger = logrusplus.Logger(logsDir + "block_sync")
-	GroupLogger = logrusplus.Logger(logsDir + "group")
-	MiddlewareLogger = logrusplus.Logger(logsDir + "middleware")
-	TxSyncLogger = logrusplus.Logger(logsDir + "tx_sync")
-	P2PLogger = logrusplus.Logger(logsDir + "p2p")
-	ForkLogger = logrusplus.Logger(logsDir + "fork")
-	VRFLogger = logrusplus.Logger(logsDir + "vrf")
-	StatisticsLogger = logrusplus.Logger(logsDir + "statistics")
-	TVMLogger = logrusplus.Logger(logsDir + "tvm")
-	PerformLogger = logrusplus.Logger(logsDir + "perform")
+	DefaultLogger = RusPlus.Logger(logsDir + "default", MaxFileSize, Level)
+	ConsensusLogger = RusPlus.Logger(logsDir + "consensus", MaxFileSize, Level)
+	ConsensusStdLogger = RusPlus.Logger(logsDir + "consensus_std", MaxFileSize, Level)
+	CoreLogger = RusPlus.Logger(logsDir + "core", MaxFileSize, Level)
+	BlockSyncLogger = RusPlus.Logger(logsDir + "block_sync", MaxFileSize, Level)
+	GroupLogger = RusPlus.Logger(logsDir + "group", MaxFileSize, Level)
+	MiddlewareLogger = RusPlus.Logger(logsDir + "middleware", MaxFileSize, Level)
+	TxSyncLogger = RusPlus.Logger(logsDir + "tx_sync", MaxFileSize, Level)
+	P2PLogger = RusPlus.Logger(logsDir + "p2p", MaxFileSize, Level)
+	ForkLogger = RusPlus.Logger(logsDir + "fork", MaxFileSize, Level)
+	VRFLogger = RusPlus.Logger(logsDir + "vrf", MaxFileSize, Level)
+	StatisticsLogger = RusPlus.Logger(logsDir + "statistics", MaxFileSize, Level)
+	TVMLogger = RusPlus.Logger(logsDir + "tvm", MaxFileSize, Level)
+	PerformLogger = RusPlus.Logger(logsDir + "perform", MaxFileSize, Level)
 }

@@ -156,7 +156,7 @@ func (lrs *Logrusplus) StandardLogger() *logrus.Logger {
 	return logrus.StandardLogger()
 }
 
-func (lrs *Logrusplus) Logger(fileName string) *logrus.Logger {
+func (lrs *Logrusplus) Logger(fileName string, maxSize int64, level logrus.Level) *logrus.Logger {
 	var logger *logrus.Logger
 
 	if _logger, ok := lrs.loggers[fileName]; ok {
@@ -165,7 +165,7 @@ func (lrs *Logrusplus) Logger(fileName string) *logrus.Logger {
 		logger = logrus.New()
 		logger.SetFormatter(&logrus.JSONFormatter{})
 
-		fileWriter := newLogFileWriter(fileName, 1024 * 1024 * 2)
+		fileWriter := newLogFileWriter(fileName, maxSize)
 		if fileWriter != nil {
 			logger.SetOutput(fileWriter)
 			//logger.AddHook(fileWriter)
@@ -173,7 +173,7 @@ func (lrs *Logrusplus) Logger(fileName string) *logrus.Logger {
 			logger.Info("Failed to log to file, using default stderr")
 		}
 
-		logger.SetLevel(logrus.DebugLevel)
+		logger.SetLevel(level)
 
 		lrs.loggers[fileName] = logger
 	}
