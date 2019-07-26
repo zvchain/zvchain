@@ -199,10 +199,10 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 		return
 	}
 	// Castor need to ignore his message
-	if castor.IsEqual(p.GetMinerID()) {
-		err = fmt.Errorf("ignore self message")
-		return
-	}
+	//if castor.IsEqual(p.GetMinerID()) {
+	//	err = fmt.Errorf("ignore self message")
+	//	return
+	//}
 
 	// Check if the current node is in the verifyGroup
 	if !group.hasMember(p.GetMinerID()) {
