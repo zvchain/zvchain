@@ -44,6 +44,9 @@ func Test_Main(t *testing.T) {
 		}()
 
 		count++
+		if count == 10000 {
+			break
+		}
 		time.Sleep(100)//1 * time.Second)
 	}
 }

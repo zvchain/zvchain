@@ -52,11 +52,13 @@ var Logger *logrus.Logger
 // Init initialize network instance,register message handler,join p2p network
 func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig NetworkConfig) (err error) {
 	Logger = log.P2PLogger
-	statistics.InitStatistics(*config)
+	if config != nil {
+		statistics.InitStatistics(*config)
+	}
 
 	self, err := InitSelfNode(networkConfig.IsSuper, NewNodeID(networkConfig.NodeIDHex))
 	if err != nil {
-		Logger.Errorf("InitSelfNode error:", err.Error())
+		Logger.Error("InitSelfNode error:", err.Error())
 		return err
 	}
 
