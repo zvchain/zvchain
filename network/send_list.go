@@ -104,6 +104,9 @@ func (sendList *SendList) isSendAvailable() bool {
 }
 
 func (sendList *SendList) onSendWaited(peer *Peer) {
+	if peer == nil {
+		return
+	}
 	sendList.lastOnWait = time.Now()
 	sendList.lastOnWait = time.Now()
 	sendList.pendingSend = 0
@@ -112,6 +115,9 @@ func (sendList *SendList) onSendWaited(peer *Peer) {
 
 func (sendList *SendList) autoSend(peer *Peer) {
 
+	if peer == nil {
+		return
+	}
 	if peer.sessionID == 0 || !sendList.isSendAvailable() {
 		return
 	}

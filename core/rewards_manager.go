@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
 	"sync"
@@ -78,7 +79,7 @@ func setRewardData(db types.AccountDBTS, key, value []byte) {
 func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
 	accountDB,error := BlockChainImpl.LatestStateDB()
 	if error !=  nil{
-		common.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+		log.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
 		return false
 	}
 	return getRewardData(accountDB.AsAccountDBTS(), blockHashByte) != nil
@@ -95,7 +96,7 @@ func (rm *rewardManager) MarkBlockRewarded(blockHash common.Hash, transactionHas
 func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) *types.Transaction {
 	accountDB,error := BlockChainImpl.LatestStateDB()
 	if error != nil{
-		common.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+		log.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
 		return nil
 	}
 	transactionHash := getRewardData(accountDB.AsAccountDBTS(), blockHash.Bytes())

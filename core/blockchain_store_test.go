@@ -18,16 +18,8 @@ package core
 import (
 	"fmt"
 	"testing"
-
-	"github.com/zvchain/zvchain/common"
 )
 
-func TestFullBlockChain_HasBlock(t *testing.T) {
-	initContext4Test()
-	defer clear()
-	hasBLock := BlockChainImpl.HasBlock(common.HexToHash("0x7f57774109cad543d9acfbcfa3630b30ca652d2310470341b78c62ee7463633b"))
-	t.Log(hasBLock)
-}
 
 func TestFullBlockChain_QueryBlockFloor(t *testing.T) {
 	initContext4Test()
