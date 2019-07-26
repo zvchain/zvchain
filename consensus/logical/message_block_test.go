@@ -154,6 +154,11 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Height = 9
 		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
+	case "hash-error":
+		bh.PreHash = common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")
+		bh.Height = 10
+		bh.Castor = common.Hex2Bytes(goodCastor)
+		bh.Hash = bh.GenHash()
 	}
 
 	return bh
@@ -670,6 +675,19 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 			},
 			expected: "",
 		},
+		{
+			name: "hash-error",
+			args: args{
+				msg: &model.ConsensusVerifyMessage{
+					BlockHash: emptyBHHash,
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("hash-error"), pt.ids[1], pt.msk[1]),
+					},
+					RandomSign: groupsig.Sign(pt.msk[1], []byte{1}),
+				},
+			},
+			expected: "msg genHash",
+		},
 	}
 	p := processorTest
 	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{memIndex: map[string]int{
@@ -781,6 +799,20 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	rsg.AddWitnessForce(pt.ids[8], groupsig.Sign(pt.msk[2], []byte{1}))
 	p.blockContexts.attachVctx(&testBH12, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH12.Hash: {BH: &testBH12, gSignGenerator: model.NewGroupSignGenerator(1), rSignGenerator: rsg}},
+		group: &verifyGroup{
+			header:   GroupHeaderTest{},
+			members:  []*member{{pt.ids[1], pt.mpk[1]}},
+			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
+		},
+		ts:     p.ts,
+		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},
+	})
+	testBH13 := GenTestBH("hash-error")
+	testBH13.Hash = emptyBHHash
+	rsg1 := model.NewGroupSignGenerator(2)
+	rsg1.AddWitnessForce(pt.ids[8], groupsig.Sign(pt.msk[2], []byte{1}))
+	p.blockContexts.attachVctx(&testBH13, &VerifyContext{
+		slots: map[common.Hash]*SlotContext{testBH13.Hash: {BH: &testBH13, gSignGenerator: model.NewGroupSignGenerator(1), rSignGenerator: rsg1}},
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{{pt.ids[1], pt.mpk[1]}},
