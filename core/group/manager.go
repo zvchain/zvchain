@@ -188,7 +188,7 @@ func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateCheck
 	}
 	_, err = m.minerReaderImpl.MinerPenalty(db, msg, ctx.Height())
 	if err != nil {
-		logger.Error("MinerPenalty error: %v", err)
+		logger.Errorf("MinerPenalty error: %v", err)
 	}
 }
 
@@ -202,7 +202,7 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 		addr := common.BytesToAddress(p)
 		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
 		if err != nil {
-			logger.Error("MinerFrozen error: %v", err)
+			logger.Errorf("MinerFrozen error: %v", err)
 		}
 	}
 }

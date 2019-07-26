@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-
-	"github.com/zvchain/zvchain/common"
 )
 
 func TestGlobalTicker_RegisterRoutine(t *testing.T) {
@@ -46,7 +44,6 @@ func TestGlobalTicker_RegisterRoutine(t *testing.T) {
 }
 
 func TestGlobalTicker_RegisterOneTimeRoutine(t *testing.T) {
-	common.DefaultLogger = taslog.GetLoggerByName("aaa")
 	ticker := NewGlobalTicker("test")
 
 	wg := sync.WaitGroup{}

@@ -1,8 +1,12 @@
+// +build release
+
 package log
 
-import "github.com/sirupsen/logrus"
+import (
+	"github.com/sirupsen/logrus"
+)
 
-var logrusplus *Logrusplus
+var RusPlus *Logrusplus
 
 var StdLogger *logrus.Logger
 
@@ -20,3 +24,8 @@ var VRFLogger *logrus.Logger
 var StatisticsLogger *logrus.Logger
 var TVMLogger *logrus.Logger
 var PerformLogger *logrus.Logger
+
+const (
+	MaxFileSize = 1024 * 1024 * 20
+	Level = logrus.InfoLevel
+)

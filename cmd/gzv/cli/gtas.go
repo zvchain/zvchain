@@ -111,7 +111,7 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 func (gtas *Gtas) runtimeInit() {
 	debug.SetGCPercent(100)
 	debug.SetMaxStack(2 * 1000000000)
-	log.DefaultLogger.Infof("setting gc 100%, max memory 2g")
+	log.DefaultLogger.Info("setting gc 100%, max memory 2g")
 
 }
 

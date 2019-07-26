@@ -3,9 +3,10 @@
 package ticker
 
 import (
-	"github.com/zvchain/zvchain/common"
 	"runtime/debug"
 	"sync/atomic"
+
+	"github.com/zvchain/zvchain/log"
 )
 
 // trigger trigger an execution
