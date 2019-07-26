@@ -192,7 +192,7 @@ func (ms *MonitorService) loadInternalNodesIds() {
 	}
 	ms.internalNodeIds = m
 
-	log.StdLogger.Infof("load internal nodes ", ids)
+	log.StdLogger.Info("load internal nodes ", ids)
 }
 
 func (ms *MonitorService) AddLogIfNotInternalNodes(logEntry *LogEntry) {

@@ -19,13 +19,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/zvchain/zvchain/log"
 	"net"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/zvchain/zvchain/common"
 )
 
 type NotificationTestService struct {
@@ -228,8 +225,6 @@ func waitForMessages(t *testing.T, in *json.Decoder, successes chan<- jsonSucces
 // TestSubscriptionMultipleNamespaces ensures that subscriptions can exists
 // for multiple different namespaces.
 func TestSubscriptionMultipleNamespaces(t *testing.T) {
-	common.InitConf("zv.ini")
-	common.DefaultLogger = log.DefaultLogger
 	var (
 		namespaces             = []string{"eth", "shh", "bzz"}
 		server                 = NewServer()

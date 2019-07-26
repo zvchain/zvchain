@@ -20,6 +20,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/log"
 	"math/big"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ import (
 
 func TestStore(t *testing.T) {
 	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
-	logger = taslog.GetLoggerByName("testlog")
+	logger = log.StdLogger
 	go skStore.loop()
 
 	defer skStore.Close()
@@ -45,7 +46,7 @@ func TestStore(t *testing.T) {
 
 func TestGetSkInfo(t *testing.T) {
 	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
-	logger = taslog.GetLoggerByName("testlog")
+	logger = log.StdLogger
 	go skStore.loop()
 
 	defer skStore.Close()
@@ -80,7 +81,7 @@ func TestGetSkInfo(t *testing.T) {
 }
 
 func TestRemoveExpire(t *testing.T) {
-	logger = taslog.GetLoggerByName("testlog")
+	logger = log.StdLogger
 	skStore := newSkStorage("testdb", common.FromHex("0xb1aef01c1fa63ed58b2b845ddd77dc1a9a94cb7358664cb7210c7296c0d13361"))
 	go skStore.loop()
 
