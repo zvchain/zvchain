@@ -274,8 +274,6 @@ func (pool *txPool) packTx() []*types.Transaction {
 				}
 			}
 
-			txs = append(txs, tx)
-
 			accuSize = accuSize + tx.Size()
 			if accuSize <= txAccumulateSizeMaxPerBlock {
 				txs = append(txs, tx)
