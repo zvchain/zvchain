@@ -17,7 +17,9 @@ package notify
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/types"
 	"testing"
+	"time"
 )
 
 //hello world2
@@ -29,7 +31,7 @@ func TestTopic_Subscribe(t *testing.T) {
 
 	topic.Subscribe(handler1)
 	topic.Subscribe(handler2)
-	topic.Handle(&DummyMessage{})
+	topic.Handle(&DummyMessage{}, false)
 }
 
 //hello world2
@@ -42,7 +44,7 @@ func TestTopic_UnSubscribe0(t *testing.T) {
 	topic.Subscribe(handler2)
 
 	topic.UnSubscribe(handler1)
-	topic.Handle(&DummyMessage{})
+	topic.Handle(&DummyMessage{}, false)
 }
 
 //hello world3
@@ -57,7 +59,7 @@ func TestTopic_UnSubscribe1(t *testing.T) {
 	topic.Subscribe(handler3)
 
 	topic.UnSubscribe(handler2)
-	topic.Handle(&DummyMessage{})
+	topic.Handle(&DummyMessage{}, false)
 }
 
 // hello world
@@ -72,7 +74,36 @@ func TestTopic_UnSubscribe2(t *testing.T) {
 	topic.Subscribe(handler3)
 
 	topic.UnSubscribe(handler3)
-	topic.Handle(&DummyMessage{})
+	topic.Handle(&DummyMessage{}, false)
+}
+
+var reStatus = 0
+
+func TestTopic_With_Recover(t *testing.T) {
+	types.MiddleWareLogger = new(MockLogger)
+	reStatus = 1
+	topic := &Topic{
+		ID: "test",
+	}
+
+	topic.Subscribe(handlerPanic)
+	topic.Handle(&DummyMessage{}, true)
+	time.Sleep(time.Second)
+
+	if reStatus != 2 {
+		t.Error("should panic")
+	}
+}
+
+func TestTopic_Without_Recover(t *testing.T) {
+	types.MiddleWareLogger = new(MockLogger)
+	reStatus = 1
+	topic := &Topic{
+		ID: "test",
+	}
+
+	topic.Subscribe(handlerPanic)
+	//topic.Handle(&DummyMessage{}, false)//this will panic
 }
 
 func handler1(message Message) {
@@ -85,4 +116,49 @@ func handler2(message Message) {
 
 func handler3(message Message) {
 	fmt.Println("hello world3")
+}
+
+func handlerPanic(message Message) {
+	panic("handler panic")
+}
+
+type MockLogger struct {
+}
+
+func (mock *MockLogger) Debugf(format string, params ...interface{}) {
+	fmt.Println("Debugf", params)
+}
+
+func (mock *MockLogger) Infof(format string, params ...interface{}) {
+	fmt.Println("Infof", params)
+}
+
+func (mock *MockLogger) Warnf(format string, params ...interface{}) error {
+	fmt.Println("Warnf", params)
+	return nil
+}
+
+func (mock *MockLogger) Errorf(format string, params ...interface{}) error {
+	fmt.Println("Errorf", format, params)
+	reStatus = 2
+	return nil
+}
+
+func (mock *MockLogger) Debug(v ...interface{}) {
+	fmt.Println("Debug", v)
+}
+
+func (mock *MockLogger) Info(v ...interface{}) {
+	fmt.Println("Info", v)
+}
+
+func (mock *MockLogger) Warn(v ...interface{}) error {
+	fmt.Println("Warn", v)
+	return nil
+
+}
+
+func (mock *MockLogger) Error(v ...interface{}) error {
+	fmt.Println("Debugf", v)
+	return nil
 }

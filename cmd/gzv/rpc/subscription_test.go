@@ -19,13 +19,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 type NotificationTestService struct {
@@ -229,7 +229,7 @@ func waitForMessages(t *testing.T, in *json.Decoder, successes chan<- jsonSucces
 // for multiple different namespaces.
 func TestSubscriptionMultipleNamespaces(t *testing.T) {
 	common.InitConf("zv.ini")
-	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
+	common.DefaultLogger = log.DefaultLogger
 	var (
 		namespaces             = []string{"eth", "shh", "bzz"}
 		server                 = NewServer()

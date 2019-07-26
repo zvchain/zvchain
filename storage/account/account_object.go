@@ -21,10 +21,9 @@ package account
 import (
 	"bytes"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"math/big"
 	"sync"
-
-	"github.com/zvchain/zvchain/taslog"
 
 	"io"
 
@@ -40,16 +39,6 @@ type Code []byte
 
 func (c Code) String() string {
 	return string(c)
-}
-
-var debugLog taslog.Logger
-
-func getLogger() taslog.Logger {
-	if debugLog == nil {
-		instance := common.GlobalConf.GetString("instance", "index", "")
-		debugLog = taslog.GetLoggerByIndex(taslog.CoreLogConfig, instance)
-	}
-	return debugLog
 }
 
 type Storage map[string][]byte
@@ -175,8 +164,8 @@ func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 	if ao.trie == nil {
 		tr, err := db.OpenStorageTrie(ao.addrHash, ao.data.Root)
 		if err != nil {
-			getLogger().Infof("access HeavyDBAddress2 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root, ao)
-			taslog.Flush()
+			log.CoreLogger.Infof("access HeavyDBAddress2 find trie is nil and next get has err %v, errorMsg = %s,root is %x,addr is %p", err, err.Error(), ao.data.Root, ao)
+			//taslog.Flush()
 			tr, _ = db.OpenStorageTrie(ao.addrHash, common.Hash{})
 			ao.setError(fmt.Errorf("can't create storage trie: %v", err))
 		}
