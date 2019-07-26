@@ -353,16 +353,16 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			expected: fmt.Sprintf("msg genHash %v diff from si.DataHash %v || bh.Hash %v", GenTestBHHash("ExtraData"), emptyBHHash, GenTestBHHash("ExtraData")),
 		},
 		{
-			name: "Random Check",
+			name: "GasFee Check",
 			args: args{
 				msg: &model.ConsensusCastMessage{
-					BH: GenTestBH("Random"),
+					BH: GenTestBH("GasFee"),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
 					},
 				},
 			},
-			expected: fmt.Sprintf("msg genHash %v diff from si.DataHash %v || bh.Hash %v", GenTestBHHash("Random"), emptyBHHash, GenTestBHHash("Random")),
+			expected: fmt.Sprintf("msg genHash %v diff from si.DataHash %v || bh.Hash %v", GenTestBHHash("GasFee"), emptyBHHash, GenTestBHHash("GasFee")),
 		},
 		{
 			name: "Castor=getMinerId",
@@ -386,7 +386,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 					},
 				},
 			},
-			expected: fmt.Sprintf("elapsed error %v", -1),
+			expected: fmt.Sprintf("elapsed error %v", -2),
 		},
 		{
 			name: "p.ts.Since(bh.CurTime)<-1",
