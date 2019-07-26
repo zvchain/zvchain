@@ -17,7 +17,10 @@ import (
 	time2 "time"
 )
 
+const goodCastor = "0000000100000000000000000000000000000000000000000000000000000000"
+const inActiveCastor = "0000000200000000000000000000000000000000000000000000000000000000"
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
+
 	bh := types.BlockHeader{}
 	bh.Elapsed = 1
 	switch param {
@@ -101,8 +104,12 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 3
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
-		bh.ProveValue = common.FromHex("0x03556a119b69e52a6c8f676213e2184c588bc9731ec0ab1ed32a91a9a22155cdeb001fa9a2fd33c8660483f267050f0e72072658f16d485a1586fca736a50a423cbbb181870219af0c2c4fdbbb89832730")
+		bh.Castor = common.Hex2Bytes(inActiveCastor)
+		priveString := "03db08597ecb8270a371018a1e4a4cd811938a33e2ca0f89e1d5dff038b7d9f99fd8891b000e06ac3abdf22ac962a5628c07d5bb38451dcdcb2ab07ce0fd7e6c77684b97e8adac2c1f7d5986bba22de4bd"
+		//bh.ProveValue = common.FromHex("0x03556a119b69e52a6c8f676213e2184c588bc9731ec0ab1ed32a91a9a22155cdeb001fa9a2fd33c8660483f267050f0e72072658f16d485a1586fca736a50a423cbbb181870219af0c2c4fdbbb89832730")
+		bh.ProveValue = common.FromHex(priveString);
+		bh.Random = common.Hex2Bytes("0320325")
+		bh.TotalQN = 5
 		bh.Hash = bh.GenHash()
 	case "slot-is-nil":
 		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
@@ -113,38 +120,38 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.CurTime = time.TimeToTimeStamp(time2.Now())
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 3
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "sender-not-in-verify-group":
 		bh.CurTime = time.TimeToTimeStamp(time2.Now())
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 4
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "receive-before-proposal":
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 4
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "already-sign-bigger-weight":
 		bh.PreHash = common.HexToHash("0x02")
 		bh.Height = 6
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "height-casted":
 		bh.PreHash = common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")
 		bh.Height = 7
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "has-signed":
 		bh.PreHash = common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")
 		bh.Height = 8
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "to51":
 		bh.PreHash = common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")
 		bh.Height = 9
-		bh.Castor = common.Hex2Bytes("0000000100000000000000000000000000000000000000000000000000000000")
+		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	}
 

@@ -247,14 +247,23 @@ func (m MinerPoolTest) GetLatestMiner(address common.Address, mType types.MinerT
 	}
 }
 
+//copy from ver_test.go
+//const pks = "885f642c8390293eb74d08cf38d3333771e9e319cfd12a21429eeff2eddeebd2"
+//const sks = "1fcce948db9fc312902d49745249cfd287de1a764fd48afb3cd0bdd0a8d74674885f642c8390293eb74d08cf38d3333771e9e319cfd12a21429eeff2eddeebd2"
 func (m MinerPoolTest) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {
-	return &types.Miner{
+	mi := &types.Miner{
 		Status:       types.MinerStatusActive,
 		Type:         types.MinerTypeProposal,
 		ID:           m.ids[1].Serialize(),
 		PublicKey:    m.pks[1].Serialize(),
-		VrfPublicKey: base.Hex2VRFPublicKey("0x666a589f1bbc74ad4bc24c67c0845bd4e74d83f0e3efa3a4b465bf6e5600871c"),
+		//VrfPublicKey: base.Hex2VRFPublicKey("0x666a589f1bbc74ad4bc24c67c0845bd4e74d83f0e3efa3a4b465bf6e5600871c"),
+		VrfPublicKey: base.Hex2VRFPublicKey("885f642c8390293eb74d08cf38d3333771e9e319cfd12a21429eeff2eddeebd2"),
+		Stake:100000,
 	}
+	if address == common.HexToAddress(inActiveCastor) {
+		mi.Status = types.MinerStatusPrepare
+	}
+	return mi
 }
 
 func (MinerPoolTest) GetProposalTotalStake(height uint64) uint64 {
@@ -484,12 +493,12 @@ func (c *chain4Test) QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
 		return nil
 	}
 	if hash == common.HexToHash("0x02") {
-		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 5, Height: 1}
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 5, Height: 1, Random:common.FromHex("0x03")}
 	}
 	if hash == common.HexToHash("0x03") {
-		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 8, Height: 2}
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 8, Height: 2, Random:common.FromHex("0x03")}
 	}
-	return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 2}
+	return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 2, Random:common.FromHex("0x03")}
 }
 
 type networkServer4Test struct {
