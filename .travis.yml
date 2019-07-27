@@ -11,7 +11,7 @@ jobs:
         - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
         - cp network/p2p/darwin/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
       script:
-        - go build cmd/gzv && go build cmd/tvmcli
+        - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
 
     - stage: build
       os: linux
@@ -22,4 +22,4 @@ jobs:
         - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
         - cp network/p2p/linux/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
       script:
-        - go build cmd/gzv && go build cmd/tvmcli
+        - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
