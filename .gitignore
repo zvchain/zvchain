@@ -35,7 +35,7 @@ venv/
 go.sum
 bin/
 network/libp2pcore.a
-tvm/libtvm.a
+network/p2p_api.h
 
 deploy
 deploy/*

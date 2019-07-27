@@ -5,11 +5,21 @@ jobs:
     - stage: build
       os: osx
       go: 1.12.x
+      before_install:
+        - git submodule sync
+        - git submodule update --init
+        - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
+        - cp network/p2p/darwin/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
       script:
-        - sh build.sh all
+        - go build $basepath/cmd/gzv && go build $basepath/cmd/tvmcli
 
     - stage: build
       os: linux
       go: 1.12.x
+      before_install:
+        - git submodule sync
+        - git submodule update --init
+        - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
+        - cp network/p2p/linux/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
       script:
-        - sh build.sh all
+        - go build $basepath/cmd/gzv && go build $basepath/cmd/tvmcli
