@@ -1,0 +1,15 @@
+language: go
+sudo: false
+jobs:
+  include:
+    - stage: build
+      os: osx
+      go: 1.12.x
+      script:
+        - sh build.sh
+
+    - stage: build
+      os: linux
+      go: 1.12.x
+      script:
+        - sh build.sh
