@@ -66,7 +66,7 @@ func NewManager(chain chainReader) Manager {
 
 func (m *Manager) InitManager(minerReader minerReader, gen *types.GenesisInfo) {
 	m.minerReaderImpl = minerReader
-	db,err := m.chain.LatestStateDB()
+	db, err := m.chain.LatestStateDB()
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
@@ -153,6 +153,17 @@ func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI 
 		return nil
 	}
 	return gh
+}
+
+func (m *Manager) GetLivedGroupsByMember(address common.Address, height uint64) []types.GroupI {
+	groups := m.poolImpl.getLives(m.chain, height)
+	groupIs := make([]types.GroupI, 0)
+	for _, g := range groups {
+		if g.hasMember(address.Bytes()) {
+			groupIs = append(groupIs, g)
+		}
+	}
+	return groupIs
 }
 
 func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {

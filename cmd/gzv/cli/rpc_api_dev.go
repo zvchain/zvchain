@@ -34,6 +34,7 @@ import (
 // RpcDevImpl provides api functions for those develop chain features.
 // It is mainly for debug or test use
 type RpcDevImpl struct {
+	*rpcBaseImpl
 }
 
 func (api *RpcDevImpl) Namespace() string {
@@ -81,13 +82,12 @@ func (api *RpcDevImpl) TransPool() (*Result, error) {
 	return successResult(transList)
 }
 
-
 func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, error) {
 	if !validateAddress(strings.TrimSpace(account)) {
 		return failResult("Wrong account address format")
 	}
 	db, err := core.BlockChainImpl.GetAccountDBByHeight(height)
-	if err!= nil {
+	if err != nil {
 		return failResult("this height is invalid")
 	}
 	b := db.GetBalance(common.HexToAddress(account))
@@ -172,7 +172,7 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 }
 
 func (api *RpcDevImpl) WorkGroupNum() (*Result, error) {
-	groups := getGroupReader().ActiveGroupCount()
+	groups := api.gr.ActiveGroupCount()
 	return successResult(groups)
 }
 
@@ -187,10 +187,10 @@ func (api *RpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
 }
 
 func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
-	seeds := getGroupReader().GetAvailableGroupSeeds(height)
+	seeds := api.gr.GetAvailableGroupSeeds(height)
 	ret := make([]*Group, 0)
 	for _, seed := range seeds {
-		group := getGroupReader().GetGroupBySeed(seed.Seed())
+		group := api.gr.GetGroupBySeed(seed.Seed())
 		if group != nil {
 			g := convertGroup(group)
 			ret = append(ret, g)
@@ -289,8 +289,8 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 
 func (api *RpcDevImpl) Dashboard() (*Result, error) {
 	blockHeight := core.BlockChainImpl.Height()
-	groupHeight := core.GroupManagerImpl.Height()
-	workNum := getGroupReader().ActiveGroupCount()
+	groupHeight := api.gr.Height()
+	workNum := api.gr.ActiveGroupCount()
 	nodeResult, _ := api.NodeInfo()
 	consResult, _ := api.ConnectedNodes()
 	dash := &Dashboard{
@@ -495,7 +495,7 @@ func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
 
 func (api *RpcDevImpl) MonitorNodeInfo() (*Result, error) {
 	bh := core.BlockChainImpl.Height()
-	gh := getGroupReader().Height()
+	gh := api.gr.Height()
 
 	ni := &NodeInfo{}
 
