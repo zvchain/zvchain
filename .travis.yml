@@ -23,6 +23,11 @@ jobs:
         - cp network/p2p/linux/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
       script:
         - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
+      addons:
+        apt:
+          packages:
+            - gcc-8.2.1
+            - g++-8.2.1
 
     - stage: test
       os: osx
