@@ -30,6 +30,7 @@ jobs:
           packages:
             - gcc-8
             - g++-8
+            - binutils-2.28
 
     - stage: test
       os: osx
