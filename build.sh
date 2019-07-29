@@ -55,4 +55,12 @@ elif [[ $1x = "clean"x ]]; then
     rm $basepath/tvm/tvm.h $basepath/tvm/libtvm.a
     rm $basepath/network/p2p_api.h $basepath/network/libp2pcore.a
     echo cleaned
+elif [[ $1x = "all"x ]]; then
+    rm $basepath/tvm/tvm.h $basepath/tvm/libtvm.a
+    rm $basepath/network/p2p_api.h $basepath/network/libp2pcore.a
+    buildtvm
+    buildp2p
+    go build -o ${output_dir}/gzv $basepath/cmd/gzv &&
+    go build -o ${output_dir}/tvmcli $basepath/cmd/tvmcli &&
+    echo cleaned
 fi
