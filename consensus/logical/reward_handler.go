@@ -104,6 +104,9 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		} else {
 			err = fmt.Errorf("accept %v, recover %v", accept, recover)
 		}
+		if accept {
+			return nil
+		}
 		return err
 	}
 }
@@ -173,7 +176,6 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 			err = err2
 			return
 		}
-		fmt.Println(genReward.TxHash.Hex())
 		if genReward.TxHash != reward.TxHash {
 			err = fmt.Errorf("reward txHash diff %v %v", genReward.TxHash, reward.TxHash)
 			return

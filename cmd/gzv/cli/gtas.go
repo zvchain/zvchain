@@ -202,6 +202,7 @@ func (gtas *Gtas) Run() {
 			fmt.Println(err.Error())
 		}
 	case mineCmd.FullCommand():
+		log.Init()
 		common.InstanceIndex = *instanceIndex
 		go func() {
 			http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
@@ -240,9 +241,9 @@ func (gtas *Gtas) Run() {
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
-			log.DefaultLogger.Error(err.Error())
+			fmt.Println(err.Error())
 		} else {
-			log.DefaultLogger.Infof("clear blockchain successfully")
+			fmt.Println("clear blockchain successfully")
 		}
 	}
 	<-quitChan

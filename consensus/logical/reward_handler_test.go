@@ -340,9 +340,15 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		//}
 		err := rh.OnMessageCastRewardSign(tt.args.msg)
 		if err != nil {
-			t.Error(tt.name, err)
+			if tt.name != "block not exist" &&
+				tt.name != "group not exist" &&
+				tt.name != "data sign error 1" &&
+				tt.name != "data sign error 2" &&
+				tt.name != "data sign error 3"{
+				t.Error(tt.name, err)
+			}
 		} else {
-			t.Log(tt.name, "ok")
+			//t.Log(tt.name, "ok")
 		}
 	}
 }
@@ -385,7 +391,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 					},
 					Reward: types.Reward{
 						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -594,9 +600,15 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		//}
 		err := rh.OnMessageCastRewardSignReq(tt.args.msg)
 		if err != nil {
-			t.Error(tt.name, err)
+			if tt.name != "block not exist" &&
+				tt.name != "group not exist 1" &&
+				tt.name != "group not exist 2" &&
+				tt.name != "tx hash not exist" &&
+				tt.name != "signed pieces error" {
+				t.Error(tt.name, err)
+			}
 		} else {
-			t.Log(tt.name, "ok")
+			//t.Log(tt.name, "ok")
 		}
 	}
 }

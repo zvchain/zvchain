@@ -37,9 +37,7 @@ func (bl *bizLog) info(format string, p ...interface{}) {
 }
 
 func (bl *bizLog) debug(format string, p ...interface{}) {
-	if stdLogger != nil {
-		stdLogger.Debugf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
-	}
+	stdLogger.Debugf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
 }
 
 func (bl *bizLog) warn(format string, p ...interface{}) {
@@ -47,9 +45,7 @@ func (bl *bizLog) warn(format string, p ...interface{}) {
 }
 
 func (bl *bizLog) error(format string, p ...interface{}) {
-	if stdLogger != nil {
-		stdLogger.Errorf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
-	}
+	stdLogger.Errorf("%v:%v", bl.biz, fmt.Sprintf(format, p...))
 }
 
 type rtLog struct {
@@ -101,9 +97,7 @@ func _doLog(t string, k string, sender string, format string, params ...interfac
 	} else {
 		s = fmt.Sprintf(format, params...)
 	}
-	if consensusLogger != nil {
-		consensusLogger.Infof("%v,#%v#,%v,%v", t, k, sender, s)
-	}
+	consensusLogger.Infof("%v,#%v#,%v,%v", t, k, sender, s)
 }
 
 func (mtl *msgTraceLog) log(format string, params ...interface{}) {
