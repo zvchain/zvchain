@@ -25,6 +25,8 @@ jobs:
         - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
       addons:
         apt:
+          sources:
+            - ubuntu-toolchain-r-test
           packages:
             - gcc-8
             - g++-8
