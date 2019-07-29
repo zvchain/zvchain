@@ -13,25 +13,25 @@ jobs:
       script:
         - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
 
-    - stage: build
-      os: linux
-      go: 1.12.x
-      before_install:
-#        - sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/binutils
-        - sudo apt-get -f -y install binutils-2.26
-        - git submodule sync
-        - git submodule update --init
-        - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
-        - cp network/p2p/linux/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
-      script:
-        - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - gcc-8
-            - g++-8
+#    - stage: build
+#      os: linux
+#      go: 1.12.x
+#      before_install:
+##        - sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/binutils
+#        - sudo apt-get -f -y install binutils-2.26
+#        - git submodule sync
+#        - git submodule update --init
+#        - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
+#        - cp network/p2p/linux/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
+#      script:
+#        - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
+#      addons:
+#        apt:
+#          sources:
+#            - ubuntu-toolchain-r-test
+#          packages:
+#            - gcc-8
+#            - g++-8
 
     - stage: test
       os: osx
