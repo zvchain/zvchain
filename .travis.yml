@@ -26,8 +26,8 @@ jobs:
       addons:
         apt:
           packages:
-            - gcc-8.2.1
-            - g++-8.2.1
+            - gcc-8
+            - g++-8
 
     - stage: test
       os: osx
