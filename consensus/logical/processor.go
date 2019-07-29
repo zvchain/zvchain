@@ -53,7 +53,6 @@ type Processor struct {
 	// block generate related
 	blockContexts    *castBlockContexts   // Stores the proposal messages for proposal role and the verification context for verify roles
 	futureVerifyMsgs *FutureMessageHolder // Store the verification messages non-processable because of absence of the proposal message
-	futureRewardReqs *FutureMessageHolder // Store the reward sign request messages non-processable because of absence of the corresponding block
 	proveChecker     *proveChecker        // Check the vrf prove and the full-book
 
 	Ticker *ticker.GlobalTicker // Global timer responsible for some cron tasks
@@ -78,6 +77,37 @@ type Processor struct {
 
 	livedGroups sync.Map //groups lived
 
+	rewardHandler *RewardHandler
+}
+
+func (p *Processor) GetRewardManager() types.RewardManager {
+	return p.MainChain.GetRewardManager()
+}
+
+
+
+func (p *Processor) GetVctxByHeight(height uint64) *VerifyContext {
+	return p.blockContexts.getVctxByHeight(height)
+}
+
+func (p *Processor) GetGroupBySeed(seed common.Hash) *verifyGroup {
+	return p.groupReader.getGroupBySeed(seed)
+}
+
+func (p *Processor) GetGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {
+	return p.groupReader.getGroupSignatureSeckey(seed)
+}
+
+func (p *Processor) AddTransaction(tx *types.Transaction) (bool, error) {
+	return p.MainChain.GetTransactionPool().AddTransaction(tx)
+}
+
+func (p *Processor) SendCastRewardSign(msg *model.CastRewardTransSignMessage) {
+	p.NetServer.SendCastRewardSign(msg)
+}
+
+func (p *Processor) SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
+	p.NetServer.SendCastRewardSignReq(msg)
 }
 
 func (p Processor) getPrefix() string {
@@ -94,7 +124,8 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.ready = false
 	p.conf = conf
 	p.futureVerifyMsgs = NewFutureMessageHolder()
-	p.futureRewardReqs = NewFutureMessageHolder()
+	p.rewardHandler = NewRewardHandler(p)
+
 	p.MainChain = core.BlockChainImpl
 	p.mi = &mi
 
@@ -252,3 +283,4 @@ func (p *Processor) initLivedGroup() {
 func (p *Processor) Ready() bool {
 	return p.ready
 }
+

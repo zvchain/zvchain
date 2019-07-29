@@ -16,7 +16,6 @@
 package logical
 
 import (
-	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/log"
@@ -24,14 +23,12 @@ import (
 
 const ConsensusConfSection = "consensus"
 
-var consensusLogger *logrus.Logger
-var stdLogger *logrus.Logger
+var consensusLogger = log.ConsensusLogger
+var stdLogger = log.ConsensusStdLogger
 var consensusConfManager common.SectionConfManager
 
 func InitConsensus() {
 	cc := common.GlobalConf.GetSectionManager(ConsensusConfSection)
-	consensusLogger = log.ConsensusLogger
-	stdLogger = log.ConsensusStdLogger
 	consensusConfManager = cc
 	model.InitParam(cc)
 	return
