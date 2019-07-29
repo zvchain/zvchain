@@ -481,6 +481,7 @@ func (c *chain4Test) AddBlockOnChain(source string, b *types.Block) types.AddBlo
 }
 
 func (c *chain4Test) HasBlock(hash common.Hash) bool {
+
 	if hash == common.HexToHash(existBlockHash) {
 		return true
 	} else {
@@ -498,6 +499,9 @@ func (c *chain4Test) QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
 	if hash == common.HexToHash("0x03") {
 		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 8, Height: 2, Random:common.FromHex("0x03")}
 	}
+	if hash == common.HexToHash(goodPreHash) {
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 8, Height: 2, Random:common.FromHex("0x03")}
+	}
 	return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 2, Random:common.FromHex("0x03")}
 }
 
@@ -512,3 +516,8 @@ func (n *networkServer4Test) BroadcastNewBlock(block *types.Block, group *net.Gr
 func (n *networkServer4Test) ResponseProposalBlock(msg *model.ResponseProposalBlock, target string) {
 	fmt.Printf("BroadcastNewBlock called, msg = %v, target = %v \n", msg, target)
 }
+
+func (n *networkServer4Test) SendVerifiedCast(cvm *model.ConsensusVerifyMessage, gSeed common.Hash){
+	fmt.Printf("SendVerifiedCast called, cvm = %v, gSeed = %v \n", cvm, gSeed)
+}
+

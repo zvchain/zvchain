@@ -19,12 +19,26 @@ import (
 
 const goodCastor = "0000000100000000000000000000000000000000000000000000000000000000"
 const inActiveCastor = "0000000200000000000000000000000000000000000000000000000000000000"
+const goodPreHash = "0x2e772d80739b37f0b1940e78834e569ccb9110fde7a51f96f04e960d52ccf4c0"
 
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 
 	bh := types.BlockHeader{}
 	bh.Elapsed = 1
+	bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
+	//bh.PreHash = common.HexToHash("0x03")
+	bh.Height = 3
+	priveString := "03db08597ecb8270a371018a1e4a4cd811938a33e2ca0f89e1d5dff038b7d9f99fd8891b000e06ac3abdf22ac962a5628c07d5bb38451dcdcb2ab07ce0fd7e6c77684b97e8adac2c1f7d5986bba22de4bd"
+	bh.Castor = common.Hex2Bytes(goodCastor)
+	bh.ProveValue = common.FromHex(priveString)
+	bh.Random = common.Hex2Bytes("0320325")
+	bh.PreHash = common.HexToHash(goodPreHash)
+	bh.TotalQN = 5
+
 	switch param {
+	case "ok":
+		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.Hash = bh.GenHash()
 	case "Hash":
 		bh.Hash = common.HexToHash("0x01")
 	case "Height":
@@ -86,8 +100,11 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.CurTime = time.TimeToTimeStamp(time2.Now()) + 2
 		bh.Hash = bh.GenHash()
 	case "block-exists":
+		bh = types.BlockHeader{}
+		bh.Elapsed = 1
 		bh.GasFee = 10
 		bh.Hash = bh.GenHash()
+		//bh.Hash = common.HexToHash(existBlockHash)
 	case "pre-block-not-exists":
 		bh.PreHash = common.HexToHash("0x01")
 		bh.Hash = bh.GenHash()
@@ -102,15 +119,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Height = 2
 		bh.Hash = bh.GenHash()
 	case "cast-illegal":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
-		bh.PreHash = common.HexToHash("0x03")
-		bh.Height = 3
 		bh.Castor = common.Hex2Bytes(inActiveCastor)
-		priveString := "03db08597ecb8270a371018a1e4a4cd811938a33e2ca0f89e1d5dff038b7d9f99fd8891b000e06ac3abdf22ac962a5628c07d5bb38451dcdcb2ab07ce0fd7e6c77684b97e8adac2c1f7d5986bba22de4bd"
-		//bh.ProveValue = common.FromHex("0x03556a119b69e52a6c8f676213e2184c588bc9731ec0ab1ed32a91a9a22155cdeb001fa9a2fd33c8660483f267050f0e72072658f16d485a1586fca736a50a423cbbb181870219af0c2c4fdbbb89832730")
-		bh.ProveValue = common.FromHex(priveString)
-		bh.Random = common.Hex2Bytes("0320325")
-		bh.TotalQN = 5
 		bh.Hash = bh.GenHash()
 	case "slot-is-nil":
 		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
@@ -213,6 +222,19 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 		args     args
 		expected string
 	}{
+		{
+			name: "ok",
+			args: args{
+				msg: &model.ConsensusCastMessage{
+					BH: GenTestBH("ok"),
+					ProveHash:common.HexToHash("0x2e772d80739b37f0b1940e78834e569ccb9110fde7a51f96f04e960d52ccf4c0"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("ok"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "success",
+		},
 		{
 			name: "Height Check",
 			args: args{
@@ -412,6 +434,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 					BH: GenTestBH("block-exists"),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(GenTestBHHash("block-exists"), pt.ids[1], pt.msk[1]),
+
 					},
 				},
 			},
@@ -465,11 +488,17 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			},
 			expected: "miner can't cast at height",
 		},
+
 	}
 	p := processorTest
-	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{memIndex: map[string]int{
+	// set up group info
+	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{
+		header:   &GroupHanderTest{},
+		memIndex: map[string]int{
 		"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
 	}, members: []*member{&member{}}})
+	p.groupReader.skStore.StoreGroupSignatureSeckey(common.HexToHash("0x00"), pt.sk[0], common.MaxUint64)
+
 	// for already-cast
 	p.blockContexts.addCastedHeight(1, common.HexToHash("0x1234"))
 	// for already-sign
@@ -480,11 +509,16 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	p.blockContexts.addVctx(vcx)
 	// for cast-illegal
 	p.minerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := p.OnMessageCast(tt.args.msg)
 			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
 				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
+			}
+
+			if msg == nil && tt.expected != "success" {
+				t.Errorf("wanted success; got {%s}", msg)
 			}
 		})
 	}
