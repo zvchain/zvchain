@@ -122,13 +122,13 @@ func (p *Processor) releaseRoutine() bool {
 		return true
 	})
 	// Release futureRewardMsg
-	p.futureRewardReqs.forEach(func(key common.Hash, arr []interface{}) bool {
+	p.rewardHandler.futureRewardReqs.forEach(func(key common.Hash, arr []interface{}) bool {
 		for _, msg := range arr {
 			b := msg.(*model.CastRewardTransSignReqMessage)
 
 			// Can not be processed within 400s, are deleted
 			if time2.Now().After(b.ReceiveTime.Add(400 * time2.Second)) {
-				p.futureRewardReqs.remove(key)
+				p.rewardHandler.futureRewardReqs.remove(key)
 				blog.debug("remove future reward msg, hash=%v", key.Hex())
 				break
 			}

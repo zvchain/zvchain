@@ -29,7 +29,7 @@ func init() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
-			rewardManager:   newRewardManager(),
+			rewardManager:   NewRewardManager(),
 		},
 	}
 	options := &opt.Options{
@@ -57,7 +57,7 @@ func init() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
-			rewardManager:   newRewardManager(),
+			rewardManager:   NewRewardManager(),
 		},
 	}
 	if BlockChainImpl == nil{
