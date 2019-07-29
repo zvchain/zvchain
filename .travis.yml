@@ -17,6 +17,8 @@ jobs:
       os: linux
       go: 1.12.x
       before_install:
+        - sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
+        - sudo apt-get update && sudo apt-get -y install binutils=2.28
         - git submodule sync
         - git submodule update --init
         - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
@@ -27,11 +29,9 @@ jobs:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - ubuntu-toolchain-r-ppa
           packages:
             - gcc-8
             - g++-8
-            - binutils-2.28
 
     - stage: test
       os: osx
