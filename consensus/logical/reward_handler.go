@@ -104,6 +104,9 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		} else {
 			err = fmt.Errorf("accept %v, recover %v", accept, recover)
 		}
+		if accept {
+			return nil
+		}
 		return err
 	}
 }
