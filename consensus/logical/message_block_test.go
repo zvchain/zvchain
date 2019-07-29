@@ -2,6 +2,10 @@ package logical
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+	time2 "time"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -12,14 +16,12 @@ import (
 	"github.com/zvchain/zvchain/network"
 	"github.com/zvchain/zvchain/taslog"
 	"gopkg.in/fatih/set.v0"
-	"strings"
-	"testing"
-	time2 "time"
 )
 
 const goodCastor = "0000000100000000000000000000000000000000000000000000000000000000"
 const inActiveCastor = "0000000200000000000000000000000000000000000000000000000000000000"
 const goodPreHash = "0x2e772d80739b37f0b1940e78834e569ccb9110fde7a51f96f04e960d52ccf4c0"
+const otherGroup = "0x01"
 
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 
@@ -28,9 +30,9 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 	bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
 	//bh.PreHash = common.HexToHash("0x03")
 	bh.Height = 3
-	priveString := "03db08597ecb8270a371018a1e4a4cd811938a33e2ca0f89e1d5dff038b7d9f99fd8891b000e06ac3abdf22ac962a5628c07d5bb38451dcdcb2ab07ce0fd7e6c77684b97e8adac2c1f7d5986bba22de4bd"
+	proveString := "03db08597ecb8270a371018a1e4a4cd811938a33e2ca0f89e1d5dff038b7d9f99fd8891b000e06ac3abdf22ac962a5628c07d5bb38451dcdcb2ab07ce0fd7e6c77684b97e8adac2c1f7d5986bba22de4bd"
 	bh.Castor = common.Hex2Bytes(goodCastor)
-	bh.ProveValue = common.FromHex(priveString)
+	bh.ProveValue = common.FromHex(proveString)
 	bh.Random = common.Hex2Bytes("0320325")
 	bh.PreHash = common.HexToHash(goodPreHash)
 	bh.TotalQN = 5
@@ -168,8 +170,19 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Height = 10
 		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
-	}
+	case "group-wrong":
+		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.Group = common.HexToHash(otherGroup)
+		bh.Hash = bh.GenHash()
+	case "qn-error":
+		bh.TotalQN = 1
+		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.Hash = bh.GenHash()
+	case "prove_wrong":
+		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.Hash = bh.GenHash()
 
+	}
 	return bh
 }
 
@@ -212,6 +225,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	defer clear()
 
 	pt := NewProcessorTest()
+	pt.verifyContext.slots[pt.blockHeader.Hash] = &SlotContext{BH: pt.blockHeader, gSignGenerator: model.NewGroupSignGenerator(2)}
 	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
 	//txs := make([]*types.Transaction, 0)
 	type args struct {
@@ -221,19 +235,25 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 		name     string
 		args     args
 		expected string
+		prepare  func()
+		clean    func()
 	}{
 		{
 			name: "ok",
 			args: args{
 				msg: &model.ConsensusCastMessage{
-					BH: GenTestBH("ok"),
-					ProveHash:common.HexToHash("0x2e772d80739b37f0b1940e78834e569ccb9110fde7a51f96f04e960d52ccf4c0"),
+					BH:        GenTestBH("ok"),
+					ProveHash: common.HexToHash(goodPreHash),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(GenTestBHHash("ok"), pt.ids[1], pt.msk[1]),
 					},
 				},
 			},
 			expected: "success",
+			clean: func() {
+				bl := GenTestBH("ok")
+				processorTest.blockContexts.getVctxByHeight(bl.Height).signedBlockHashs.Remove(bl.Hash)
+			},
 		},
 		{
 			name: "Height Check",
@@ -434,7 +454,6 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 					BH: GenTestBH("block-exists"),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(GenTestBHHash("block-exists"), pt.ids[1], pt.msk[1]),
-
 					},
 				},
 			},
@@ -488,16 +507,142 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			},
 			expected: "miner can't cast at height",
 		},
+		{
+			name: "group-wrong",
+			args: args{
+				msg: &model.ConsensusCastMessage{
+					BH: GenTestBH("group-wrong"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("group-wrong"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "calc verify group not equal",
+		},
 
+		{
+			name: "slot-max-less",
+			args: args{
+				msg: &model.ConsensusCastMessage{
+					BH:        GenTestBH("ok"),
+					ProveHash: common.HexToHash(goodPreHash),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("ok"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "comming block weight less than min block weight",
+			prepare: func() {
+				bh1 := GenTestBH("Hash")
+				bh2 := GenTestBH("Height")
+				bh3 := GenTestBH("PreHash")
+				bh4 := GenTestBH("Elapsed")
+				bh5 := GenTestBH("ProveValue")
+
+				slots := make(map[common.Hash]*SlotContext)
+				slots[bh1.Hash] = &SlotContext{BH: &bh1, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh2.Hash] = &SlotContext{BH: &bh2, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh3.Hash] = &SlotContext{BH: &bh3, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh4.Hash] = &SlotContext{BH: &bh4, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh5.Hash] = &SlotContext{BH: &bh5, gSignGenerator: model.NewGroupSignGenerator(2)}
+				verifyContext := &VerifyContext{
+					prevBH:           &types.BlockHeader{},
+					castHeight:       0,
+					group:            pt.verifyGroup,
+					expireTime:       0,
+					consensusStatus:  svWorking,
+					slots:            slots,
+					proposers:        make(map[string]common.Hash),
+					signedBlockHashs: set.New(set.ThreadSafe),
+				}
+				bl := GenTestBH("ok")
+				processorTest.blockContexts.heightVctxs.Add(bl.Height, verifyContext)
+			},
+		},
+		{
+			name: "slot-max-more",
+			args: args{
+				msg: &model.ConsensusCastMessage{
+					BH:        GenTestBH("ok"),
+					ProveHash: common.HexToHash(goodPreHash),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("ok"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "success",
+			prepare: func() {
+				bh1 := GenTestBH("Hash")
+				bh2 := GenTestBH("Height")
+				bh3 := GenTestBH("PreHash")
+				bh4 := GenTestBH("Elapsed")
+				bh5 := GenTestBH("ProveValue")
+				bh1.TotalQN = 4
+
+				slots := make(map[common.Hash]*SlotContext)
+				slots[bh1.Hash] = &SlotContext{BH: &bh1, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh2.Hash] = &SlotContext{BH: &bh2, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh3.Hash] = &SlotContext{BH: &bh3, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh4.Hash] = &SlotContext{BH: &bh4, gSignGenerator: model.NewGroupSignGenerator(2)}
+				slots[bh5.Hash] = &SlotContext{BH: &bh5, gSignGenerator: model.NewGroupSignGenerator(2)}
+				verifyContext := &VerifyContext{
+					prevBH:           &types.BlockHeader{},
+					castHeight:       0,
+					group:            pt.verifyGroup,
+					expireTime:       0,
+					consensusStatus:  svWorking,
+					slots:            slots,
+					proposers:        make(map[string]common.Hash),
+					signedBlockHashs: set.New(set.ThreadSafe),
+				}
+				bl := GenTestBH("ok")
+				processorTest.blockContexts.heightVctxs.Add(bl.Height, verifyContext)
+			},
+			clean: func() {
+				bl := GenTestBH("ok")
+				processorTest.blockContexts.getVctxByHeight(bl.Height).signedBlockHashs.Remove(bl.Hash)
+			},
+		},
+		{
+			name: "qn-error",
+			args: args{
+				msg: &model.ConsensusCastMessage{
+					BH: GenTestBH("qn-error"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("qn-error"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "vrf verify block fail, err=qn error",
+		},
+		{
+			name: "prove_wrong",
+			args: args{
+				msg: &model.ConsensusCastMessage{
+					BH: GenTestBH("prove_wrong"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("prove_wrong"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "check prove hash fail",
+		},
 	}
 	p := processorTest
 	// set up group info
 	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{
-		header:   &GroupHanderTest{},
+		header: &GroupHanderTest{},
 		memIndex: map[string]int{
-		"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
-	}, members: []*member{&member{}}})
+			"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
+		}, members: []*member{&member{}}})
+	p.groupReader.cache.Add(common.HexToHash(otherGroup), &verifyGroup{
+		header: &GroupHanderTest{},
+		memIndex: map[string]int{
+			"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
+		}, members: []*member{&member{}}})
+
 	p.groupReader.skStore.StoreGroupSignatureSeckey(common.HexToHash("0x00"), pt.sk[0], common.MaxUint64)
+	p.groupReader.skStore.StoreGroupSignatureSeckey(common.HexToHash(otherGroup), pt.sk[1], common.MaxUint64)
 
 	// for already-cast
 	p.blockContexts.addCastedHeight(1, common.HexToHash("0x1234"))
@@ -512,6 +657,9 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepare != nil {
+				tt.prepare()
+			}
 			msg := p.OnMessageCast(tt.args.msg)
 			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
 				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
@@ -520,6 +668,10 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			if msg == nil && tt.expected != "success" {
 				t.Errorf("wanted success; got {%s}", msg)
 			}
+			if tt.clean != nil {
+				tt.clean()
+			}
+
 		})
 	}
 }
