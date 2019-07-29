@@ -30,7 +30,7 @@ jobs:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - binutils-2.27
+            - binutils
             - gcc-8
             - g++-8
 
