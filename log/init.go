@@ -27,7 +27,6 @@ func Init()  {
 	TxSyncLogger = RusPlus.Logger(logsDir + "tx_sync", MaxFileSize, Level)
 	P2PLogger = RusPlus.Logger(logsDir + "p2p", MaxFileSize, Level)
 	ForkLogger = RusPlus.Logger(logsDir + "fork", MaxFileSize, Level)
-	VRFLogger = RusPlus.Logger(logsDir + "vrf", MaxFileSize, Level)
 	StatisticsLogger = RusPlus.Logger(logsDir + "statistics", MaxFileSize, Level)
 	TVMLogger = RusPlus.Logger(logsDir + "tvm", MaxFileSize, Level)
 	PerformLogger = RusPlus.Logger(logsDir + "perform", MaxFileSize, Level)
