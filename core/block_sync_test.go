@@ -22,6 +22,10 @@ var blockSyncForTest *blockSyncer
 var lastBlockHash common.Hash
 var middleBlock *types.Block
 var middleBlockHash common.Hash
+
+func init(){
+	log.Init()
+}
 func initContext(){
 	initContext4Test()
 	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
@@ -177,7 +181,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	bts,_ = proto.Marshal(&errorMsg)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if  err != nil{
+	if  err == nil{
 		t.Fatalf("expect err nil,but got error")
 	}
 
@@ -190,8 +194,8 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	bts,_=proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if  err == nil{
-		t.Fatalf("expect got error,but got nil")
+	if  err != nil{
+		t.Fatalf("expect err nil,but got error")
 	}
 
 	//tx sign error
