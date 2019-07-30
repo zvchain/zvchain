@@ -331,6 +331,10 @@ func (gtas *Gtas) fullInit() error {
 
 	id := minerInfo.ID.GetHexString()
 	genesisMembers := make([]string, 0)
+	helper := mediator.NewConsensusHelper(minerInfo.ID)
+	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
+		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
+	}
 
 	netCfg := network.NetworkConfig{
 		IsSuper:         cfg.super,
@@ -352,14 +356,9 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	helper := mediator.NewConsensusHelper(minerInfo.ID)
 	err = core.InitCore(helper, &gtas.account)
 	if err != nil {
 		return err
-	}
-
-	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
-		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
 	}
 
 	enableTraceLog := common.GlobalConf.GetBool("gtas", "enable_trace_log", false)
