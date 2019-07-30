@@ -100,7 +100,7 @@ func VRFProof2hash(pi VRFProve) VRFRandomValue {
 }
 
 func VRFVerify(pk VRFPublicKey, pi VRFProve, m []byte) (bool, error) {
-	if len(pk) != 32 || len(pi) != 81 {
+	if len(pk) != ed25519.PublicKeySize || len(pi) != ed25519.ProveSize {
 		return false, errors.New("invalid VRFVerify params")
 	}
 	return ed25519.ECVRFVerify(ed25519.PublicKey(pk), ed25519.VRFProve(pi), m)
