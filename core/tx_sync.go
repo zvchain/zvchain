@@ -152,6 +152,13 @@ func initTxSyncer(chain *FullBlockChain, pool *txPool, networkImpl network.Netwo
 	TxSyncer = s
 }
 
+func (ts *txSyncer) ClearTicker() {
+	if ts.ticker == nil {
+		return
+	}
+	ts.ticker.ClearRoutines()
+}
+
 func (ts *txSyncer) clearJob() {
 	for _, k := range ts.rctNotifiy.Keys() {
 		t, ok := ts.rctNotifiy.Get(k)

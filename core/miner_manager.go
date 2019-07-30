@@ -74,6 +74,14 @@ func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.A
 
 }
 
+// ClearTicker clear the ticker routine
+func (mm *MinerManager) ClearTicker() {
+	if mm.ticker == nil {
+		return
+	}
+	mm.ticker.ClearRoutines()
+}
+
 // ExecuteOperation execute the miner operation
 func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.MinerOperationMessage, height uint64) (success bool, err error) {
 	operation := newOperation(accountDB, msg, height)
