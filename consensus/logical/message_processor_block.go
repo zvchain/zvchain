@@ -427,40 +427,43 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 // OnMessageResponseProposalBlock handles block body response from proposal node
 // It only happens in the verify roles and after block body request to the proposal node
 // It will add the block on chain and then broadcast
-func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock) (s string) {
+func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock) (err error) {
 	tLog := newHashTraceLog("OMRSPB", msg.Hash, groupsig.ID{})
 	tLog.logStart("")
 
 	defer func() {
-		tLog.log("result:%v", s)
+		if err != nil {
+			tLog.log("result:%v", err)
+		} else {
+			tLog.log("result: success")
+		}
 	}()
 
 	if p.blockOnChain(msg.Hash) {
-		s = "block onchain"
+		err = fmt.Errorf("block onchain")
 		return
 	}
 	vctx := p.blockContexts.getVctxByHash(msg.Hash)
 	if vctx == nil {
-		s = "vctx is nil"
+		err = fmt.Errorf("vctx is nil")
 		return
 	}
 	slot := vctx.GetSlotByHash(msg.Hash)
 	if slot == nil {
-		s = "slot is nil"
+		err = fmt.Errorf("slot is nil")
 		return
 	}
 	block := types.Block{Header: slot.BH, Transactions: msg.Transactions}
 	aggSign := slot.GetAggregatedSign()
 	if aggSign == nil {
-		s = "aggregated signature is nil"
+		err = fmt.Errorf("aggregated signature is nil")
 		return
 	}
-	err := p.onBlockSignAggregation(&block, *aggSign, slot.rSignGenerator.GetGroupSign())
+	err = p.onBlockSignAggregation(&block, *aggSign, slot.rSignGenerator.GetGroupSign())
 	if err != nil {
 		slot.setSlotStatus(slFailed)
-		s = fmt.Sprintf("on block fail err=%v", err)
+		err = fmt.Errorf("on block fail err=%v", err)
 		return
 	}
-	s = "success"
 	return
 }

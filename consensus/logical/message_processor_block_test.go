@@ -117,8 +117,8 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := p.OnMessageResponseProposalBlock(tt.args.msg)
-			if msg != tt.expected {
-				t.Errorf("OnMessageResponseProposalBlock failed, expected %s but got %s", tt.expected, msg)
+			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
+				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
 			}
 		})
 	}
