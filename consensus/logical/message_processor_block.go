@@ -369,14 +369,14 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 // OnMessageCastRewardSignReq handles reward transaction signature requests
 // It signs the message if and only if the block of the transaction already added on chain,
 // otherwise the message will be cached util the condition met
-func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
-	p.rewardHandler.OnMessageCastRewardSignReq(msg)
+func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) error {
+	return p.rewardHandler.OnMessageCastRewardSignReq(msg)
 }
 
 // OnMessageCastRewardSign receives signed messages for the reward transaction from verifyGroup members
 // If threshold signature received and the verifyGroup signature recovered successfully, the node will submit the reward transaction to the pool
-func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) {
-	p.rewardHandler.OnMessageCastRewardSign(msg)
+func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) error {
+	return p.rewardHandler.OnMessageCastRewardSign(msg)
 }
 
 // OnMessageReqProposalBlock handles block body request from the verify verifyGroup members
