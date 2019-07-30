@@ -339,10 +339,21 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		//	futureRewardReqs: tt.fields.futureRewardReqs,
 		//}
 		err := rh.OnMessageCastRewardSign(tt.args.msg)
-		if err != nil {
-			t.Error(tt.name, err)
-		} else {
-			t.Log(tt.name, "ok")
+		switch tt.name {
+		case "ok":
+			if err != nil {
+				t.Error(tt.name)
+			}
+		case "block not exist",
+			"group not exist",
+			"data sign error 1",
+			"data sign error 2",
+			"data sign error 3":
+			if err == nil {
+				t.Error(tt.name)
+			}
+		default:
+			panic("")
 		}
 	}
 }
@@ -384,8 +395,8 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
-						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
+						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -473,7 +484,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 			},
 		},
 		{
-			name: "sing data error 1",
+			name: "sign data error 1",
 			fields: fields{
 				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
@@ -484,15 +495,15 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[0], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
-						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
+						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
 			},
 		},
 		{
-			name: "sing data error 2",
+			name: "sign data error 2",
 			fields: fields{
 				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
@@ -503,15 +514,15 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[1], pt.msk[0]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
-						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
+						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
 			},
 		},
 		{
-			name: "sing data error 3",
+			name: "sign data error 3",
 			fields: fields{
 				processor:        pt,
 				futureRewardReqs: NewFutureMessageHolder(),
@@ -522,8 +533,8 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.HexToHash("0x1"), pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
-						TxHash:    common.HexToHash("0xb0109da3ecdf66ad2b134afa9e0c05f10ac1680a67d9bfd4c35339bac21e98fc"),
+						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
+						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -593,10 +604,26 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		//	futureRewardReqs: tt.fields.futureRewardReqs,
 		//}
 		err := rh.OnMessageCastRewardSignReq(tt.args.msg)
-		if err != nil {
-			t.Error(tt.name, err)
-		} else {
-			t.Log(tt.name, "ok")
+		switch tt.name {
+		case "ok":
+			if err != nil {
+				t.Error(tt.name)
+			}
+		case "block not exist",
+			"group not exist 1",
+			"group not exist 2",
+			"group not exist 3",
+			"sign data error 1",
+			"sign data error 2",
+			"sign data error 3",
+			"tx hash not exist",
+			"ids error",
+			"signed pieces error":
+			if err == nil {
+				t.Error(tt.name)
+			}
+		default:
+			panic("")
 		}
 	}
 }

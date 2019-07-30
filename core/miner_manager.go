@@ -193,7 +193,7 @@ func (mm *MinerManager) getStakeDetail(address, source common.Address, status ty
 	key := getDetailKey(source, mType, status)
 	detail, err := getDetail(db, address, key)
 	if err != nil {
-		Logger.Errorf("get detail error:", err)
+		Logger.Error("get detail error:", err)
 	}
 	if detail != nil {
 		return &types.StakeDetail{

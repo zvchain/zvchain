@@ -46,7 +46,7 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 
 	tLog := newHashTraceLog(mType, msg.BlockHash, msg.SI.GetID())
 
-	tLog.logStart("txHash=%v", msg.ReqHash)
+	tLog.logStart("blockHash=%v", msg.BlockHash)
 
 	var (
 		send bool
@@ -103,6 +103,9 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 			err = fmt.Errorf("accept %v, recover %v, %v", accept, recover, slot.rewardGSignGen.Brief())
 		} else {
 			err = fmt.Errorf("accept %v, recover %v", accept, recover)
+		}
+		if accept {
+			return nil
 		}
 		return err
 	}
@@ -173,7 +176,6 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 			err = err2
 			return
 		}
-		fmt.Println(genReward.TxHash.Hex())
 		if genReward.TxHash != reward.TxHash {
 			err = fmt.Errorf("reward txHash diff %v %v", genReward.TxHash, reward.TxHash)
 			return
@@ -243,8 +245,8 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 	send = true
 	// Sign yourself
 	signMsg := &model.CastRewardTransSignMessage{
-		ReqHash:   reward.TxHash,
 		BlockHash: reward.BlockHash,
+		ReqHash:   reward.TxHash,
 		GSeed:     gSeed,
 		Launcher:  msg.SI.GetID(),
 	}

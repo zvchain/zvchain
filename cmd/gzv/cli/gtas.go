@@ -18,6 +18,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"os"
 	"time"
@@ -41,7 +42,6 @@ import (
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 const (
@@ -73,13 +73,13 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 	err := gtas.fullInit()
 	if err != nil {
 		fmt.Println(err.Error())
-		common.DefaultLogger.Error(err.Error())
+		log.DefaultLogger.Error(err.Error())
 		return
 	}
 	if cfg.rpcEnable() {
 		err = gtas.startRPC()
 		if err != nil {
-			common.DefaultLogger.Errorf(err.Error())
+			log.DefaultLogger.Errorf(err.Error())
 			return
 		}
 	}
@@ -111,7 +111,7 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 func (gtas *Gtas) runtimeInit() {
 	debug.SetGCPercent(100)
 	debug.SetMaxStack(2 * 1000000000)
-	common.DefaultLogger.Infof("setting gc 100%, max memory 2g")
+	log.DefaultLogger.Info("setting gc 100%, max memory 2g")
 
 }
 
@@ -122,7 +122,7 @@ func (gtas *Gtas) exit(ctrlC <-chan bool, quit chan<- bool) {
 	}
 	fmt.Println("exiting...")
 	core.BlockChainImpl.Close()
-	taslog.Close()
+	//taslog.Close()
 	mediator.StopMiner()
 	if gtas.inited {
 		quit <- true
@@ -202,6 +202,7 @@ func (gtas *Gtas) Run() {
 			fmt.Println(err.Error())
 		}
 	case mineCmd.FullCommand():
+		log.Init()
 		common.InstanceIndex = *instanceIndex
 		go func() {
 			http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
@@ -213,11 +214,10 @@ func (gtas *Gtas) Run() {
 		databaseValue := "d" + strconv.Itoa(*instanceIndex)
 		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
 		common.GlobalConf.SetBool(statisticsSection, "enable", *statisticsEnable)
-		common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
 		types.InitMiddleware()
 
 		if *natAddr != "" {
-			common.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
+			log.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
 		}
 
 		cfg := &minerConfig{
@@ -241,9 +241,9 @@ func (gtas *Gtas) Run() {
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
-			common.DefaultLogger.Error(err.Error())
+			fmt.Println(err.Error())
 		} else {
-			common.DefaultLogger.Infof("clear blockchain successfully")
+			fmt.Println("clear blockchain successfully")
 		}
 	}
 	<-quitChan
@@ -310,14 +310,14 @@ func (gtas *Gtas) fullInit() error {
 	timeForPackage := common.GlobalConf.GetInt(Section, "time_for_package", 2000)
 	if timeForPackage > 100 && timeForPackage < 2000 {
 		core.ProposerPackageTime = time.Duration(timeForPackage) * time.Millisecond
-		common.DefaultLogger.Infof("proposer uses the package config: timeForPackage %d ", timeForPackage)
+		log.DefaultLogger.Infof("proposer uses the package config: timeForPackage %d ", timeForPackage)
 	}
 
 	//set the block gas limit for proposer package
 	gasLimitForPackage := common.GlobalConf.GetInt(Section, "gas_limit_for_package", core.GasLimitPerBlock)
 	if gasLimitForPackage > 10000 && gasLimitForPackage < core.GasLimitPerBlock {
 		core.GasLimitForPackage = uint64(gasLimitForPackage)
-		common.DefaultLogger.Infof("proposer uses the package config: gasLimitForPackage %d ", gasLimitForPackage)
+		log.DefaultLogger.Infof("proposer uses the package config: gasLimitForPackage %d ", gasLimitForPackage)
 	}
 
 	//set the ignoreVmCall option for proposer package. the option shouldn't be set true only if you know what you are doing.
@@ -329,17 +329,8 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	helper := mediator.NewConsensusHelper(minerInfo.ID)
-	err = core.InitCore(helper, &gtas.account)
-	if err != nil {
-		return err
-	}
 	id := minerInfo.ID.GetHexString()
-
 	genesisMembers := make([]string, 0)
-	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
-		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
-	}
 
 	netCfg := network.NetworkConfig{
 		IsSuper:         cfg.super,
@@ -355,10 +346,20 @@ func (gtas *Gtas) fullInit() error {
 		SK:              gtas.account.Sk,
 	}
 
-	err = network.Init(common.GlobalConf, chandler.MessageHandler, netCfg)
+	err = network.Init(&common.GlobalConf, chandler.MessageHandler, netCfg)
 
 	if err != nil {
 		return err
+	}
+
+	helper := mediator.NewConsensusHelper(minerInfo.ID)
+	err = core.InitCore(helper, &gtas.account)
+	if err != nil {
+		return err
+	}
+
+	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
+		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
 	}
 
 	enableTraceLog := common.GlobalConf.GetBool("gtas", "enable_trace_log", false)
@@ -380,12 +381,12 @@ func (gtas *Gtas) fullInit() error {
 
 func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 	pubKey := info.GetDefaultPubKey().GetHexString()
-	common.DefaultLogger.Infof("Miner PubKey: %s;\n", pubKey)
+	log.DefaultLogger.Infof("Miner PubKey: %s;\n", pubKey)
 	js, err := json.Marshal(PubKeyInfo{pubKey, id})
 	if err != nil {
-		common.DefaultLogger.Errorf(err.Error())
+		log.DefaultLogger.Errorf(err.Error())
 	} else {
-		common.DefaultLogger.Infof("pubkey_info json: %s\n", js)
+		log.DefaultLogger.Infof("pubkey_info json: %s\n", js)
 	}
 }
 
@@ -408,12 +409,12 @@ func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {
 
 	data, err := types.EncodePayload(pks)
 	if err != nil {
-		common.DefaultLogger.Debugf("auto apply fail:%v", err)
+		log.DefaultLogger.Debugf("auto apply fail:%v", err)
 		return
 	}
 
 	nonce := core.BlockChainImpl.GetNonce(miner.ID.ToAddress()) + 1
 	api := &RpcDevImpl{}
 	ret, err := api.TxUnSafe(gtas.account.Sk, gtas.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 500, nonce, types.TransactionTypeStakeAdd, string(data))
-	common.DefaultLogger.Debug("apply result", ret, err)
+	log.DefaultLogger.Debug("apply result", ret, err)
 }

@@ -23,9 +23,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 type NotificationTestService struct {
@@ -228,8 +225,6 @@ func waitForMessages(t *testing.T, in *json.Decoder, successes chan<- jsonSucces
 // TestSubscriptionMultipleNamespaces ensures that subscriptions can exists
 // for multiple different namespaces.
 func TestSubscriptionMultipleNamespaces(t *testing.T) {
-	common.InitConf("zv.ini")
-	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
 	var (
 		namespaces             = []string{"eth", "shh", "bzz"}
 		server                 = NewServer()

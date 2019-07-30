@@ -653,7 +653,7 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	if p == nil || p.isEmpty() {
 		return nil
 	}
-	msgType, packetSize, msg, buf, err := nc.decodePacket(p)
+	msgType, packetSize, msg, buf, err := nc.decodeMessage(p)
 
 	if err != nil {
 		return err
@@ -677,7 +677,9 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	case MessageType_MessageData:
 		nc.handleData(msg.(*MsgData), buf.Bytes()[0:packetSize], p)
 	default:
-		return Logger.Errorf("unknown type: %d", msgType)
+		err = fmt.Errorf("unknown type: %d", msgType)
+		Logger.Error(err)
+		return err
 	}
 	if buf != nil {
 		nc.bufferPool.freeBuffer(buf)
@@ -685,69 +687,12 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	return err
 }
 
-func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *bytes.Buffer, error) {
+func (nc *NetCore) decodeMessage(p *Peer) (MessageType, int, proto.Message, *bytes.Buffer, error) {
 
-	header := p.popData()
-	if header == nil {
-		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
-	}
+	msgType, packetSize, packetBuffer, data, err := p.decodePacket()
 
-	for header.Len() < PacketHeadSize && !p.isEmpty() {
-		b := p.popData()
-		if b != nil && b.Len() > 0 {
-			header.Write(b.Bytes())
-			netCore.bufferPool.freeBuffer(b)
-		}
-	}
-
-	headerBytes := header.Bytes()
-
-	if len(headerBytes) < PacketHeadSize {
-		p.addRecvDataToHead(header)
-		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
-	}
-
-	msgType := MessageType(binary.BigEndian.Uint32(headerBytes[:PacketTypeSize]))
-	msgLen := binary.BigEndian.Uint32(headerBytes[PacketTypeSize:PacketHeadSize])
-	sizeUint64 := uint64(msgLen) + PacketHeadSize //to avoid uint32 overflow
-
-	Logger.Debugf("[decodePacket] session:%vpacketSize: %vmsgType:%v, msgLen:%v, bufSize:%v buffer address:%p ",
-		p.sessionID, sizeUint64, msgType, msgLen, header.Len(), header)
-
-	const MaxPacketSize = 16 * 1024 * 1024
-	if sizeUint64 > MaxPacketSize || sizeUint64 <= 0 {
-		Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
-		p.resetData()
-		return MessageType_MessageNone, 0, nil, nil, errBadPacket
-	}
-
-	msgBuffer := header
-
-	packetSize := int(sizeUint64)
-	if msgBuffer.Cap() < packetSize {
-		msgBuffer = nc.bufferPool.getBuffer(packetSize)
-		msgBuffer.Write(headerBytes)
-
-	}
-	for msgBuffer.Len() < packetSize && !p.isEmpty() {
-		b := p.popData()
-		if b != nil && b.Len() > 0 {
-			msgBuffer.Write(b.Bytes())
-			netCore.bufferPool.freeBuffer(b)
-		}
-	}
-	msgBytes := msgBuffer.Bytes()
-	if len(msgBytes) < packetSize {
-		p.addRecvDataToHead(msgBuffer)
-		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
-	}
-
-	data := msgBytes[PacketHeadSize : PacketHeadSize+msgLen]
-
-	if msgBuffer.Len() > packetSize {
-		buf := nc.bufferPool.getBuffer(len(msgBytes) - packetSize)
-		buf.Write(msgBytes[packetSize:])
-		p.addRecvDataToHead(buf)
+	if err != nil {
+		return msgType, packetSize, nil, packetBuffer, err
 	}
 
 	var req proto.Message
@@ -767,16 +712,16 @@ func (nc *NetCore) decodePacket(p *Peer) (MessageType, int, proto.Message, *byte
 	case MessageType_MessageRelayNode:
 		req = new(MsgRelay)
 	default:
-		return msgType, packetSize, nil, msgBuffer, fmt.Errorf("unknown type: %d", msgType)
+		return msgType, packetSize, nil, packetBuffer, fmt.Errorf("unknown type: %d", msgType)
 	}
 
-	err := proto.Unmarshal(data, req)
+	err = proto.Unmarshal(data, req)
 
 	if msgType != MessageType_MessageData {
 		nc.flowMeter.recv(P2PMessageCodeBase+int64(msgType), int64(packetSize))
 	}
 
-	return msgType, packetSize, req, msgBuffer, err
+	return msgType, packetSize, req, packetBuffer, err
 }
 
 func (nc *NetCore) handlePing(req *MsgPing, p *Peer) error {
@@ -858,6 +803,7 @@ func (nc *NetCore) handleFindNode(req *MsgFindNode, p *Peer) error {
 	return nil
 }
 func (nc *NetCore) handleRelayTest(req *MsgRelay, p *Peer) error {
+
 	TestNodeID := NodeID{}
 	TestNodeID.SetBytes(req.NodeID)
 	TestPeer := nc.peerManager.peerByID(TestNodeID)
@@ -896,16 +842,20 @@ func (nc *NetCore) handleNeighbors(req *MsgNeighbors, p *Peer) error {
 	return nil
 }
 
-func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
+func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
+	if expired(req.Expiration) {
+		Logger.Infof("message expired!")
+		return errExpired
+	}
 	srcNodeID := NodeID{}
 	srcNodeID.SetBytes(req.SrcNodeID)
 	dstNodeID := NodeID{}
 	dstNodeID.SetBytes(req.DestNodeID)
 
-	Logger.Debugf("data from:%v  len:%v DataType:%v messageId:%X ,BizMessageID:%v ,"+
-		"RelayCount:%v  unhandleDataMsg:%v code:%v messageInfo:%v",
-		srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, req.BizMessageID,
-		req.RelayCount, nc.unhandledDataMsg, req.MessageCode, req.MessageInfo)
+	//Logger.Debugf("data from:%v, len:%v, DataType:%v, messageId:%X, BizMessageID:%v, "+
+	//	"RelayCount:%v, unhandleDataMsg:%v, code:%v,messageInfo:%v",
+	//	srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, req.BizMessageID,
+	//	req.RelayCount, nc.unhandledDataMsg, req.MessageCode, req.MessageInfo)
 
 	statistics.AddCount("net.handleData", uint32(req.DataType), uint64(len(req.Data)))
 	if req.DataType == DataType_DataNormal {
@@ -913,21 +863,18 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
 			var dataBuffer = nc.bufferPool.getBuffer(len(packet))
 			dataBuffer.Write(packet)
 
-			Logger.Debugf("[Relay]Relay message DataType:%v messageId:%X DestNodeId：%v SrcNodeId：%v RelayCount:%v",
-				req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
+			//Logger.Debugf("[Relay]Relay message DataType:%v, messageId:%X, DestNodeId:%v, SrcNodeId:%v, RelayCount:%v",
+			//	req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
 
 			nc.peerManager.write(dstNodeID, nil, dataBuffer, uint32(req.MessageCode), false)
 
 		} else {
 			nc.onHandleDataMessage(req, srcNodeID)
 		}
-		return
+		return nil
 	}
 
-	if expired(req.Expiration) {
-		Logger.Infof("message expired!")
-		return
-	}
+
 
 	forwarded := false
 
@@ -940,7 +887,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
 	}
 
 	if forwarded {
-		return
+		return nil
 	}
 
 	nc.messageManager.forward(req.MessageID)
@@ -970,17 +917,20 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) {
 			dataBuffer = nc.bufferPool.getBuffer(len(packet))
 			dataBuffer.Write(packet)
 		}
-		Logger.Debugf("Forwarded message DataType:%v messageId:%X DestNodeId：%v SrcNodeId：%v RelayCount:%v",
-			req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
 
-		if req.DataType == DataType_DataGroup {
-			nc.groupManager.groupBroadcast(req.GroupID, dataBuffer, uint32(req.MessageCode))
-		} else if req.DataType == DataType_DataGlobal {
-			nc.peerManager.broadcast(dataBuffer, uint32(req.MessageCode))
-		} else if req.DataType == DataType_DataGlobalRandom {
-			nc.peerManager.broadcastRandom(dataBuffer, uint32(req.MessageCode))
+		if dataBuffer != nil {
+			Logger.Debugf("Forwarded message DataType:%v messageId:%X DestNodeId：%v SrcNodeId：%v RelayCount:%v",
+				req.DataType, req.MessageID, dstNodeID.GetHexString(), srcNodeID.GetHexString(), req.RelayCount)
+			if req.DataType == DataType_DataGroup {
+				nc.groupManager.groupBroadcast(req.GroupID, dataBuffer, uint32(req.MessageCode))
+			} else if req.DataType == DataType_DataGlobal {
+				nc.peerManager.broadcast(dataBuffer, uint32(req.MessageCode))
+			} else if req.DataType == DataType_DataGlobalRandom {
+				nc.peerManager.broadcastRandom(dataBuffer, uint32(req.MessageCode))
+			}
 		}
 	}
+	return  nil
 }
 
 func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {

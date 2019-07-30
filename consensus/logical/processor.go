@@ -19,10 +19,12 @@ package logical
 
 import (
 	"bytes"
-	group2 "github.com/zvchain/zvchain/consensus/group"
-	"github.com/zvchain/zvchain/consensus/groupsig"
 	"io/ioutil"
 	"strings"
+	"sync"
+
+	group2 "github.com/zvchain/zvchain/consensus/group"
+	"github.com/zvchain/zvchain/consensus/groupsig"
 
 	"fmt"
 	"sync/atomic"
@@ -72,6 +74,8 @@ type Processor struct {
 	groupReader *groupReader
 
 	ts time.TimeService // Network-wide time service, regardless of local time
+
+	livedGroups sync.Map //groups lived
 
 	rewardHandler *RewardHandler
 }
@@ -141,6 +145,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	provider := &core.GroupManagerImpl
 	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
+	p.livedGroups = sync.Map{}
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())

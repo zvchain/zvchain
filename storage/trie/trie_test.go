@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/taslog"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -34,10 +33,6 @@ import (
 	"github.com/zvchain/zvchain/storage/rlp"
 	"github.com/zvchain/zvchain/storage/tasdb"
 )
-
-func init() {
-	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, "0")
-}
 
 // Used for testing
 func newEmpty() *Trie {

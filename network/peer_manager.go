@@ -55,6 +55,9 @@ func newPeerManager() *PeerManager {
 
 func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buffer, code uint32, relay bool) {
 
+	if packet == nil {
+		return
+	}
 	if !toid.IsValid() {
 		return
 	}
@@ -136,7 +139,7 @@ func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32)
 		p.onDisonnect(id , session , p2pCode )
 
 	} else {
-		Logger.Infof("OnDisconnected net id：%v session:%v port:%v code:%v", id, session, p2pCode)
+		Logger.Infof("OnDisconnected net id：%v session:%v code:%v", id, session, p2pCode)
 	}
 }
 
@@ -148,7 +151,6 @@ func (pm *PeerManager) disconnect(id NodeID) {
 
 	p, _ := pm.peers[netID]
 	if p != nil {
-
 		Logger.Infof("disconnect ip:%v port:%v ", p.IP, p.Port)
 
 		p.disconnect()
@@ -185,6 +187,9 @@ func (pm *PeerManager) checkPeers() {
 }
 
 func (pm *PeerManager) broadcast(packet *bytes.Buffer, code uint32) {
+	if packet == nil {
+		return
+	}
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 	Logger.Infof("broadcast total peer size:%v code:%v", len(pm.peers), code)
@@ -212,6 +217,9 @@ func (pm *PeerManager) checkPeerSource() {
 }
 
 func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
+	if packet == nil {
+		return
+	}
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 	Logger.Infof("broadcast random total peer size:%v code:%v", len(pm.peers), code)

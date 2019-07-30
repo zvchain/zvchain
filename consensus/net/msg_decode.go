@@ -120,7 +120,6 @@ func unMarshalCastRewardSignMessage(b []byte) (*model.CastRewardTransSignMessage
 
 	m := &model.CastRewardTransSignMessage{
 		BaseSignedMessage: base,
-		ReqHash:           common.BytesToHash(message.ReqHash),
 		BlockHash:         common.BytesToHash(message.BlockHash),
 	}
 	return m, nil
