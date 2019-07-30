@@ -258,7 +258,6 @@ func (c *simpleContainer) get(key common.Hash) *types.Transaction {
 	return c.txsMap[key]
 }
 
-// asSlice only working for rpc now, does not need the lock
 func (c *simpleContainer) asSlice(limit int) []*types.Transaction {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
