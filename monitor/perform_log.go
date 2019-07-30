@@ -45,6 +45,7 @@ var btlogs = &blockTraceLogs{
 }
 
 func InitPerformTraceLogger() {
+	traceLogger = log.PerformLogger
 	btlogs.enable = true
 	notify.BUS.Subscribe(notify.BlockAddSucc, btlogs.onBlockAddSuccess)
 }

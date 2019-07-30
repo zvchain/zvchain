@@ -101,7 +101,6 @@ func AddCount(name string, code uint32, size uint64) {
 
 func initCount(config common.ConfManager) {
 	logger = log.StatisticsLogger
-	VrfLogger = log.VRFLogger
 
 	t1 := time.NewTimer(time.Second * 1)
 	go func() {
