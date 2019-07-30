@@ -196,7 +196,7 @@ func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 	}
 
 	gp := s.poolImpl.get(db, seedHash)
-	if gp == nil{
+	if gp == nil {
 		return nil
 	}
 	return gp
@@ -218,7 +218,14 @@ func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
 
 // MinerLiveGroupCount returns the count of living groups which contains the given miner address
 func (s *Store) MinerLiveGroupCount(addr common.Address, height uint64) int {
-	return s.poolImpl.minerLiveGroupCount(s.chain, addr, height)
+	groups := s.poolImpl.getLives(s.chain, height)
+	cnt := 0
+	for _, g := range groups {
+		if g.hasMember(addr.Bytes()) {
+			cnt++
+		}
+	}
+	return cnt
 }
 
 // FilterMinerGroupCountLessThan returns function to check if the miners joined live group count less than the

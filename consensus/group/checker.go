@@ -129,7 +129,7 @@ func (checker *createChecker) CheckEncryptedPiecePacket(packet types.EncryptedSh
 	if !era.encPieceRange.inRange(ctx.Height()) {
 		return fmt.Errorf("not in the encrypted-piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
-	if !routine.shouldCreateGroup() {
+	if !GroupRoutine.shouldCreateGroup() {
 		return fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
 	}
 	sender := groupsig.DeserializeID(packet.Sender())
@@ -170,7 +170,7 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 	if !era.mpkRange.inRange(ctx.Height()) {
 		return fmt.Errorf("not in the mpk round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
-	if !routine.shouldCreateGroup() {
+	if !GroupRoutine.shouldCreateGroup() {
 		return fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
 	}
 	cands := checker.ctx.cands
@@ -290,7 +290,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 		result = idleCreateResult(fmt.Errorf("seed not exists:%v", era.seedHeight))
 		return result
 	}
-	if !routine.shouldCreateGroup() {
+	if !GroupRoutine.shouldCreateGroup() {
 		result = idleCreateResult(fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size()))
 		return result
 	}
@@ -403,7 +403,7 @@ func (checker *createChecker) CheckOriginPiecePacket(packet types.OriginSharePie
 	if !era.oriPieceRange.inRange(ctx.Height()) {
 		return fmt.Errorf("height not in the encrypted-piece round, curr %v, round %v", ctx.Height(), era.encPieceRange)
 	}
-	if !routine.shouldCreateGroup() {
+	if !GroupRoutine.shouldCreateGroup() {
 		return fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
 	}
 	sender := groupsig.DeserializeID(packet.Sender())
@@ -463,7 +463,7 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 	//	err = fmt.Errorf("seed height not equal:expect %v, infact %v", era.seedHeight, sh)
 	//	return
 	//}
-	if !routine.shouldCreateGroup() {
+	if !GroupRoutine.shouldCreateGroup() {
 		err = fmt.Errorf("should not create group, candsize %v", checker.ctx.cands.size())
 		return
 	}
@@ -595,4 +595,27 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 		logger.Debugf("punishment at %v reward target:%v", ctx.Height(), mems)
 	}
 	return pm, nil
+}
+
+// CurrentEraCheck returns the group-routine status of the given address at the current era
+func (checker *createChecker) CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, stage int) {
+	ctx := checker.ctx
+	if ctx == nil {
+		return
+	}
+	seed = ctx.era.Seed()
+	cands := ctx.cands
+	if len(cands) > 0 {
+		selected = cands.has(groupsig.DeserializeID(address.Bytes()))
+	}
+	if checker.storeReader.HasSentOriginPiecePacket(address.Bytes(), ctx.era) {
+		stage = 3
+	} else if checker.storeReader.HasSentMpkPacket(address.Bytes(), ctx.era) {
+		stage = 2
+	} else if checker.storeReader.HasSentEncryptedPiecePacket(address.Bytes(), ctx.era) {
+		stage = 1
+	} else {
+		stage = 0
+	}
+	return
 }
