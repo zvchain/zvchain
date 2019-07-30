@@ -139,8 +139,6 @@ func (gr *groupReader) getGroupBySeed(seed common.Hash) *verifyGroup {
 	g := gr.reader.GetGroupBySeed(seed)
 	if g != nil {
 		stdLogger.Debugf("get group seed %v len %v", seed, g.Members())
-	}
-	if g != nil {
 		gi := convertGroupI(g)
 		gr.cache.ContainsOrAdd(gi.header.Seed(), gi)
 		return gi
