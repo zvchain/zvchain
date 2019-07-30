@@ -2,7 +2,6 @@ package logical
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/log"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -13,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	time2 "time"
+
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
@@ -194,8 +195,8 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := processorTest
 			msg := p.OnMessageReqProposalBlock(tt.args.msg, tt.args.sourceID)
-			if msg != tt.expected {
-				t.Errorf("OnMessageReqProposalBlock failed, expected %s but got %s", tt.expected, msg)
+			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
+				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
 			}
 		})
 	}
