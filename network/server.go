@@ -187,12 +187,6 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 	} else {
 		topicID := ""
 		switch code {
-		case GroupChainCountMsg:
-			topicID = notify.GroupHeight
-		case ReqGroupMsg:
-			topicID = notify.GroupReq
-		case GroupMsg:
-			topicID = notify.Group
 		case TxSyncNotify:
 			topicID = notify.TxSyncNotify
 		case TxSyncReq:
@@ -214,7 +208,7 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 		}
 		if topicID != "" {
 			msg := newNotifyMessage(message, from)
-			notify.BUS.Publish(topicID, msg)
+			notify.BUS.PublishWithRecover(topicID, msg)
 		}
 	}
 

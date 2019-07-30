@@ -17,6 +17,7 @@ package core
 
 import (
 	"container/heap"
+	"fmt"
 	"sync"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
@@ -83,16 +84,24 @@ type pendingContainer struct {
 }
 
 // push the transaction into the pending list. tx which returns false will push to the queue
-func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
+func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added bool, evicted *types.Transaction) {
 	var doInsertOrReplace = func() {
 		newTxNode := newOrderByNonceTx(tx)
 		existSource := s.waitingMap[*tx.Source].Get(newTxNode)[0]
-		if existSource != nil && existSource.(*orderByNonceTx).item.GasPrice.Cmp(tx.GasPrice.Value()) < 0 {
-			s.size--
-			s.waitingMap[*tx.Source].Delete(existSource)
+
+		if existSource != nil {
+			if existSource.(*orderByNonceTx).item.GasPrice.Cmp(tx.GasPrice.Value()) < 0 {
+				//replace the existing one
+				s.waitingMap[*tx.Source].Delete(existSource)
+				s.waitingMap[*tx.Source].Insert(newTxNode)
+				evicted = existSource.(*orderByNonceTx).item
+			} else {
+				evicted = tx
+			}
+		} else {
+			s.size++
+			s.waitingMap[*tx.Source].Insert(newTxNode)
 		}
-		s.size++
-		s.waitingMap[*tx.Source].Insert(newTxNode)
 	}
 
 	if tx.Nonce == stateNonce+1 {
@@ -103,13 +112,15 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 		doInsertOrReplace()
 	} else {
 		if s.waitingMap[*tx.Source] == nil {
-			return false
+			added = false
+			return
 		}
 		bigNonceTx := skipGetLast(s.waitingMap[*tx.Source])
 		if bigNonceTx != nil {
 			bigNonce := bigNonceTx.(*orderByNonceTx).item.Nonce
 			if tx.Nonce > bigNonce+1 {
-				return false
+				added = false
+				return
 			}
 
 			doInsertOrReplace()
@@ -118,7 +129,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 
 	//remove lowest price transaction if pending is full
 	var lowPriceTx *types.Transaction
-	if s.size >= s.limit {
+	if evicted == nil && s.size >= s.limit {
 		for _, sourcedMap := range s.waitingMap {
 			lastTx := skipGetLast(sourcedMap).(*orderByNonceTx).item
 			if lowPriceTx == nil {
@@ -130,10 +141,11 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 		}
 		if lowPriceTx != nil {
 			s.remove(lowPriceTx)
+			evicted = lowPriceTx
 		}
 	}
-
-	return true
+	added = true
+	return
 }
 
 func (s *pendingContainer) peek(f func(tx *types.Transaction) bool) {
@@ -281,11 +293,12 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000 {
-		err = Logger.Warnf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce)
+		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce)
+		Logger.Warn(err)
 		return
 	}
 
-	success := c.pending.push(tx, stateNonce)
+	success, evicted := c.pending.push(tx, stateNonce)
 	if !success {
 		if len(c.queue) > c.queueLimit {
 			return
@@ -293,6 +306,10 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 		c.queue[tx.Hash] = tx
 	}
 	c.txsMap[tx.Hash] = tx
+	if evicted != nil {
+		Logger.Debugf("Tx %v replaced by %v as higher gas price when push()", evicted.Hash, tx.Hash)
+		delete(c.txsMap, evicted.Hash)
+	}
 	return
 }
 
@@ -318,9 +335,20 @@ func (c *simpleContainer) promoteQueueToPending() {
 	defer c.lock.Unlock()
 	nonceCache := make(map[common.Address]uint64)
 	for hash, tx := range c.queue {
-		//TODO: queue should order by nonce
+		//to optimize: queue should order by nonce
 		stateNonce := c.getNonceWithCache(nonceCache, tx)
-		success := c.pending.push(tx, stateNonce)
+		if tx.Nonce <= stateNonce {
+			Logger.Debugf("Tx %v removed from pool as same nonce tx existing in the chain", tx.Hash)
+			delete(c.txsMap, tx.Hash)
+			delete(c.queue, hash)
+			continue
+		}
+		success, evicted := c.pending.push(tx, stateNonce)
+		if evicted != nil {
+			Logger.Debugf("Tx %v replaced by %v as higher gas price when promoteQueueToPending", evicted.Hash, tx.Hash)
+			delete(c.txsMap, evicted.Hash)
+			delete(c.queue, evicted.Hash)
+		}
 		if success {
 			delete(c.queue, hash)
 		}

@@ -82,8 +82,7 @@ func BytesToSign(b []byte) *Sign {
 		recid := b[64]
 		return &Sign{r, s, recid}
 	}
-	// this case must not happen
-	panic("BytesToSign must input 65 bytes!")
+	return nil
 }
 
 // Hex converts the signature into a hex string

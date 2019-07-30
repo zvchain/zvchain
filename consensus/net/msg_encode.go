@@ -66,7 +66,6 @@ func marshalCastRewardTransSignMessage(msg *model.CastRewardTransSignMessage) ([
 	si := signDataToPb(&msg.SI)
 	message := &tas_middleware_pb.CastRewardTransSignMessage{
 		Sign:      si,
-		ReqHash:   msg.ReqHash.Bytes(),
 		BlockHash: msg.BlockHash.Bytes(),
 	}
 	return proto.Marshal(message)

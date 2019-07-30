@@ -78,8 +78,6 @@ const (
 	TransactionTypeGroupPiece       = 9  //group member upload his encrypted share piece
 	TransactionTypeGroupMpk         = 10 //group member upload his mpk
 	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
-
-	TransactionTypeToBeRemoved = -1
 )
 
 // Transaction denotes one transaction infos
@@ -146,6 +144,9 @@ func (tx *Transaction) RecoverSource() error {
 		return nil
 	}
 	sign := common.BytesToSign(tx.Sign)
+	if sign == nil {
+		return fmt.Errorf("BytesToSign fail, sign=%x", tx.Sign)
+	}
 	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
 	if err == nil {
 		src := pk.GetAddress()
@@ -186,13 +187,7 @@ func (pt PriorityTransactions) Swap(i, j int) {
 	pt[i], pt[j] = pt[j], pt[i]
 }
 func (pt PriorityTransactions) Less(i, j int) bool {
-	if pt[i].Type == TransactionTypeToBeRemoved && pt[j].Type != TransactionTypeToBeRemoved {
-		return true
-	} else if pt[i].Type != TransactionTypeToBeRemoved && pt[j].Type == TransactionTypeToBeRemoved {
-		return false
-	} else {
-		return pt[i].GasPrice.Cmp(&pt[j].GasPrice.Int) < 0
-	}
+	return pt[i].GasPrice.Cmp(&pt[j].GasPrice.Int) < 0
 }
 func (pt *PriorityTransactions) Push(x interface{}) {
 	item := x.(*Transaction)

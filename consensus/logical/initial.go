@@ -18,19 +18,17 @@ package logical
 import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/taslog"
+	"github.com/zvchain/zvchain/log"
 )
 
 const ConsensusConfSection = "consensus"
 
-var consensusLogger taslog.Logger
-var stdLogger taslog.Logger
+var consensusLogger = log.ConsensusLogger
+var stdLogger = log.ConsensusStdLogger
 var consensusConfManager common.SectionConfManager
 
 func InitConsensus() {
 	cc := common.GlobalConf.GetSectionManager(ConsensusConfSection)
-	consensusLogger = taslog.GetLoggerByIndex(taslog.ConsensusLogConfig, common.GlobalConf.GetString("instance", "index", ""))
-	stdLogger = taslog.GetLoggerByIndex(taslog.StdConsensusLogConfig, common.GlobalConf.GetString("instance", "index", ""))
 	consensusConfManager = cc
 	model.InitParam(cc)
 	return

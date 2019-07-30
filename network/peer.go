@@ -18,6 +18,7 @@ package network
 import (
 	"bytes"
 	"container/list"
+	"encoding/binary"
 	"math"
 	"net"
 	"sync"
@@ -59,6 +60,9 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
 	sign := common.BytesToSign(pa.Sign)
+	if sign == nil{
+		return false, ""
+	}
 
 	result := pubkey.Verify(hash.Bytes(), sign)
 
@@ -106,6 +110,9 @@ type Peer struct {
 	isPinged       bool
 	source         PeerSource
 
+	//groups which need this peer
+	groupIDs 		map[string]bool
+
 	bytesReceived   int
 	bytesSend       int
 	sendWaitCount   int
@@ -122,7 +129,7 @@ type Peer struct {
 
 func newPeer(ID NodeID, sessionID uint32) *Peer {
 
-	p := &Peer{ID: ID, sessionID: sessionID, sendList: newSendList(), recvList: list.New(), source: PeerSourceUnkown}
+	p := &Peer{ID: ID, sessionID: sessionID, sendList: newSendList(), recvList: list.New(), groupIDs: map[string]bool{}}
 
 	return p
 }
@@ -131,6 +138,9 @@ func (p *Peer) addRecvData(data []byte) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	if data == nil || len(data) == 0 {
+		return
+	}
 	b := netCore.bufferPool.getBuffer(len(data))
 	b.Write(data)
 	p.recvList.PushBack(b)
@@ -153,6 +163,94 @@ func (p *Peer) popData() *bytes.Buffer {
 	p.recvList.Remove(p.recvList.Front())
 
 	return buf
+}
+
+func (p *Peer) addGroup(gID string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	_,existed := p.groupIDs[gID]
+	if !existed {
+		p.groupIDs[gID] = true
+	}
+}
+
+func (p *Peer) removeGroup(gID string){
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	delete(p.groupIDs,gID)
+}
+
+func (p *Peer) isGroupEmpty() bool{
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	return len(p.groupIDs) == 0
+}
+
+func (p *Peer) decodePacket() (MessageType, int, *bytes.Buffer, []byte, error) {
+	header := p.popData()
+	if header == nil {
+		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
+	}
+
+	for header.Len() < PacketHeadSize && !p.isEmpty() {
+		b := p.popData()
+		if b != nil && b.Len() > 0 {
+			header.Write(b.Bytes())
+			netCore.bufferPool.freeBuffer(b)
+		}
+	}
+
+	headerBytes := header.Bytes()
+
+	if len(headerBytes) < PacketHeadSize {
+		p.addRecvDataToHead(header)
+		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
+	}
+
+	msgType := MessageType(binary.BigEndian.Uint32(headerBytes[:PacketTypeSize]))
+	msgLen := binary.BigEndian.Uint32(headerBytes[PacketTypeSize:PacketHeadSize])
+
+	const MaxMsgLen = 16 * 1024 * 1024
+
+	if msgLen > MaxMsgLen || msgLen <= 0 {
+		Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
+		p.resetData()
+		return MessageType_MessageNone, 0, nil, nil, errBadPacket
+	}
+
+	packetSize := int(msgLen + PacketHeadSize)
+
+	Logger.Debugf("[decodePacket]session:%v, packetSize:%v, msgType:%v, msgLen:%v, bufSize:%v, buffer address:%p ",
+		p.sessionID, packetSize, msgType, msgLen, header.Len(), header)
+
+	msgBuffer := header
+
+	if msgBuffer.Cap() < packetSize {
+		msgBuffer = netCore.bufferPool.getBuffer(packetSize)
+		msgBuffer.Write(headerBytes)
+
+	}
+	for msgBuffer.Len() < packetSize && !p.isEmpty() {
+		b := p.popData()
+		if b != nil && b.Len() > 0 {
+			msgBuffer.Write(b.Bytes())
+			netCore.bufferPool.freeBuffer(b)
+		}
+	}
+	msgBytes := msgBuffer.Bytes()
+	if len(msgBytes) < packetSize {
+		p.addRecvDataToHead(msgBuffer)
+		return MessageType_MessageNone, 0, nil, nil, errPacketTooSmall
+	}
+
+	if msgBuffer.Len() > packetSize {
+		buf := netCore.bufferPool.getBuffer(len(msgBytes) - packetSize)
+		buf.Write(msgBytes[packetSize:])
+		p.addRecvDataToHead(buf)
+	}
+
+	data := msgBytes[PacketHeadSize:packetSize]
+	return msgType, packetSize, msgBuffer, data, nil
 }
 
 func (p *Peer) onSendWaited() {

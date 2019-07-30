@@ -26,7 +26,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 type batchAddBlockCallback func(b *types.Block, ret types.AddBlockResult) bool
@@ -58,7 +57,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	}
 
 	if height <= latestBlock.Height {
-		Logger.Info("[BlockChain] fail to cast block: height problem. height:%d, latest:%d", height, latestBlock.Height)
+		Logger.Infof("[BlockChain] fail to cast block: height problem. height:%d, latest:%d", height, latestBlock.Height)
 		return nil
 	}
 
@@ -95,7 +94,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	}
 
 	Logger.Infof("casting block height=%v,preHash=%x", height, preRoot)
-	taslog.Flush()
+	//taslog.Flush()
 
 	packTraceLog := monitor.NewPerformTraceLogger("PackForCast", common.Hash{}, height)
 	packTraceLog.SetParent("CastBlock")
@@ -411,7 +410,7 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 	defer batchTraceLog.Log("size=%v", len(addTxs))
 	chain.txBatch.batchAdd(addTxs)
 	for _, tx := range addTxs {
-		if err := tx.RecoverSource(); err != nil {
+		if !tx.IsReward() && tx.Source == nil{
 			Logger.Errorf("tx source recover fail:%s", tx.Hash.Hex())
 			return false
 		}
@@ -469,7 +468,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 	}
 
 	Logger.Infof("executeTransactions block height=%v,preHash=%x", block.Header.Height, preRoot)
-	taslog.Flush()
+	//taslog.Flush()
 
 	eps := &executePostState{state: state, receipts: receipts, evictedTxs: evictTxs, txs: block.Transactions}
 	chain.verifiedBlocks.Add(block.Header.Hash, eps)
@@ -484,15 +483,15 @@ func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 	}
 }
 
-func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) {
+func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error{
 	b := message.GetData().(*types.Block)
 	if value, _ := chain.futureBlocks.Get(b.Header.Hash); value != nil {
 		block := value.(*types.Block)
 		Logger.Debugf("Get block from future blocks,hash:%s,height:%d", block.Header.Hash.Hex(), block.Header.Height)
 		chain.addBlockOnChain("", block)
 		chain.futureBlocks.Remove(b.Header.Hash)
-		return
 	}
+	return nil
 }
 
 func (chain *FullBlockChain) ensureBlocksChained(blocks []*types.Block) bool {

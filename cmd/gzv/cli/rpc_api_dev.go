@@ -81,6 +81,24 @@ func (api *RpcDevImpl) TransPool() (*Result, error) {
 	return successResult(transList)
 }
 
+
+func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, error) {
+	if !validateAddress(strings.TrimSpace(account)) {
+		return failResult("Wrong account address format")
+	}
+	db, err := core.BlockChainImpl.GetAccountDBByHeight(height)
+	if err!= nil {
+		return failResult("this height is invalid")
+	}
+	b := db.GetBalance(common.HexToAddress(account))
+
+	balance := common.RA2TAS(b.Uint64())
+	return &Result{
+		Message: fmt.Sprintf("The balance of account: %s is %v ZVC", account, balance),
+		Data:    balance,
+	}, nil
+}
+
 // get transaction by hash
 func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
@@ -173,8 +191,11 @@ func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
 	ret := make([]*Group, 0)
 	for _, seed := range seeds {
 		group := getGroupReader().GetGroupBySeed(seed.Seed())
-		g := convertGroup(group)
-		ret = append(ret, g)
+		if group != nil {
+			g := convertGroup(group)
+			ret = append(ret, g)
+		}
+
 	}
 	return successResult(ret)
 }
