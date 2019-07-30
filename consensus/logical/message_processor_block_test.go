@@ -2,6 +2,7 @@ package logical
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -23,7 +24,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 var data uint64
@@ -207,7 +207,7 @@ func initContext4Test() error {
 	index := rand.Int()
 	path := fmt.Sprintf("./tas_config_test%d.ini", index)
 	common.InitConf(path)
-	network.Logger = taslog.GetLoggerByName("p2p" + common.GlobalConf.GetString("client", "index", ""))
+	network.Logger = log.P2PLogger
 	err := middleware.InitMiddleware()
 	if err != nil {
 		return err
@@ -291,7 +291,6 @@ func clear() {
 	fmt.Println("---clear---")
 	if core.BlockChainImpl != nil {
 		core.BlockChainImpl.Close()
-		taslog.Close()
 		core.BlockChainImpl = nil
 	}
 	common.GlobalConf = nil

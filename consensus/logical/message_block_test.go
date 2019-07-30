@@ -9,12 +9,8 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
-	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/network"
-	"github.com/zvchain/zvchain/taslog"
 	"gopkg.in/fatih/set.v0"
 )
 
@@ -199,26 +195,6 @@ func EmptyBHHash() common.Hash {
 
 var emptyBHHash = EmptyBHHash()
 
-func NewProcess2() *Processor {
-	common.InitConf("./tas_config_test.ini")
-	network.Logger = taslog.GetLoggerByName("p2p" + common.GlobalConf.GetString("client", "index", ""))
-	err := middleware.InitMiddleware()
-	if err != nil {
-		panic(err)
-	}
-	err = core.InitCore(NewConsensusHelper4Test(groupsig.ID{}), nil)
-	core.GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
-
-	process := &Processor{}
-	sk := common.HexToSecKey(getAccount().Sk)
-	minerInfo, _ := model.NewSelfMinerDO(sk)
-	InitConsensus()
-	process.Init(minerInfo, common.GlobalConf)
-	//hijack some external interface to avoid error
-	process.MainChain = &chain4Test{core.BlockChainImpl}
-	process.NetServer = &networkServer4Test{process.NetServer}
-	return process
-}
 
 func TestProcessor_OnMessageCast(t *testing.T) {
 	_ = initContext4Test()
@@ -411,18 +387,19 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			},
 			expected: fmt.Sprintf("msg genHash %v diff from si.DataHash %v || bh.Hash %v", GenTestBHHash("GasFee"), emptyBHHash, GenTestBHHash("GasFee")),
 		},
-		{
-			name: "Castor=getMinerId",
-			args: args{
-				msg: &model.ConsensusCastMessage{
-					BH: GenTestBH("Castor=getMinerId"),
-					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(GenTestBHHash("Castor=getMinerId"), pt.ids[1], pt.msk[1]),
-					},
-				},
-			},
-			expected: "ignore self message",
-		},
+		//{
+		//	name: "Castor=getMinerId",
+		//	args: args{
+		//		msg: &model.ConsensusCastMessage{
+		//			BH: GenTestBH("Castor=getMinerId"),
+		//			ProveHash: common.HexToHash(goodPreHash),
+		//			BaseSignedMessage: model.BaseSignedMessage{
+		//				SI: model.GenSignData(GenTestBHHash("Castor=getMinerId"), pt.ids[1], pt.msk[1]),
+		//			},
+		//		},
+		//	},
+		//	expected: "ignore self message",
+		//},
 		{
 			name: "bh.Elapsed<=0",
 			args: args{
@@ -666,8 +643,9 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			}
 
 			if msg == nil && tt.expected != "success" {
-				t.Errorf("wanted success; got {%s}", msg)
+				t.Errorf("wanted {%s}; got success", tt.expected)
 			}
+
 			if tt.clean != nil {
 				tt.clean()
 			}
