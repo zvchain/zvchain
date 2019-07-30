@@ -121,6 +121,9 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
 				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
 			}
+			if msg == nil && tt.expected != "success" {
+				t.Errorf("wanted {%s}; got success", tt.expected)
+			}
 		})
 	}
 }
@@ -197,6 +200,9 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 			msg := p.OnMessageReqProposalBlock(tt.args.msg, tt.args.sourceID)
 			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
 				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
+			}
+			if msg == nil && tt.expected != "success" {
+				t.Errorf("wanted {%s}; got success", tt.expected)
 			}
 		})
 	}
