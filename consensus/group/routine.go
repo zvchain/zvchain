@@ -178,9 +178,10 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	availCandidates := make([]*model.MinerDO, 0)
+	filterFun := routine.storeReader.IsMinerGroupCountLessThan(memberMaxJoinGroupNum, h)
+
 	for _, m := range allVerifiers {
-		cnt := routine.storeReader.MinerLiveGroupCount(m.ID.ToAddress(), h)
-		if cnt < memberMaxJoinGroupNum {
+		if filterFun(m.ID.ToAddress()) {
 			availCandidates = append(availCandidates, m)
 		}
 	}

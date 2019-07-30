@@ -157,6 +157,10 @@ type GroupStoreReader interface {
 
 	// MinerLiveGroupCount returns the lived-group number the given address participates in on the given height
 	MinerLiveGroupCount(addr common.Address, height uint64) int
+
+	// FilterMinerGroupCountLessThan returns function to check if the miners joined live group count less than the
+	// maxCount in a given block height
+	IsMinerGroupCountLessThan(maxCount int, height uint64) func(addr common.Address) bool
 }
 
 // GroupPacketSender provides functions for sending packets
