@@ -36,7 +36,7 @@ func initContext(){
 }
 func TestGetBestCandidate(t *testing.T) {
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	for i := 0; i < 100; i++ {
 		blockSyncForTest.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
 		peerManagerImpl.getOrAddPeer(strconv.Itoa(i))
@@ -79,7 +79,7 @@ func PvFuncTest(pvBytes []byte) *big.Int {
 
 func TestTopBlockInfoNotifyHandler(t *testing.T){
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 
 	//add a nil blockheader
 	source := "0x111"
@@ -110,7 +110,7 @@ func TestTopBlockInfoNotifyHandler(t *testing.T){
 
 func TestBlockReqHandler(t *testing.T){
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	insertBlocks()
 	bts,_ := tas_middleware_test.MarshalNilSyncRequest()
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
@@ -160,9 +160,9 @@ func TestBlockReqHandler(t *testing.T){
 
 func TestBlockResponseMsgHandler(t *testing.T){
 	//error blocks
-	clearDB(false)
+	clearDB()
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	insertCorrectHashBlocks()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
@@ -241,7 +241,7 @@ func TestBlockResponseMsgHandler(t *testing.T){
 
 func TestNewBlockHandler(t *testing.T){
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
@@ -255,23 +255,20 @@ func TestNewBlockHandler(t *testing.T){
 	}
 }
 
-func clearDB(needClose bool) {
+func clearDB() {
 	fmt.Println("---clear---")
-	if needClose{
-		if BlockChainImpl != nil {
-			BlockChainImpl.Close()
-			//taslog.Close()
-			BlockChainImpl = nil
-		}
+	if BlockChainImpl != nil {
+		BlockChainImpl.Close()
+		//taslog.Close()
+		BlockChainImpl = nil
 	}
-
 	dir, err := ioutil.ReadDir(".")
 	if err != nil {
 		return
 	}
 	for _, d := range dir {
-		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore") ||
-			strings.HasPrefix(d.Name(), "database")) {
+		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(),"test_db")||strings.HasPrefix(d.Name(), "groupstore") ||
+			strings.HasPrefix(d.Name(), "database")) || (strings.HasSuffix(d.Name(),".log")) {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
