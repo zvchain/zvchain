@@ -260,8 +260,8 @@ func (c *simpleContainer) get(key common.Hash) *types.Transaction {
 
 // asSlice only working for rpc now, does not need the lock
 func (c *simpleContainer) asSlice(limit int) []*types.Transaction {
-	//c.lock.RLock()
-	//defer c.lock.RUnlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	size := limit
 	if c.pending.size < size {
