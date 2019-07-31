@@ -42,3 +42,5 @@ deploy/*
 
 local_test
 local_test/*
+
+daily/

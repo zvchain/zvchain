@@ -35,14 +35,32 @@ type groupInfoReader interface {
 
 	GroupsAfter(height uint64) []types.GroupI
 	ActiveGroupCount() int
+	GetLivedGroupsByMember(address common.Address, height uint64) []types.GroupI
+}
+
+type currentEraStatus interface {
+	MinerSelected() bool
+	MinerStatus() int
+	GroupHeight() uint64
+	GroupSeed() common.Hash
+}
+
+type groupRoutineChecker interface {
+	CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, stage int)
 }
 
 func getGroupReader() groupInfoReader {
 	return &core.GroupManagerImpl
 }
 
+type rpcBaseImpl struct {
+	gr groupInfoReader
+}
+
 // RpcGtasImpl provides rpc service for users to interact with remote nodes
 type RpcGtasImpl struct {
+	*rpcBaseImpl
+	routineChecker groupRoutineChecker
 }
 
 func (api *RpcGtasImpl) Namespace() string {
@@ -179,7 +197,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 			return "normal"
 		} else if st == types.StakeFrozen {
 			return "frozen"
-		}else if st == types.StakePunishment{
+		} else if st == types.StakePunishment {
 			return "punish"
 		}
 		return "unknown"
@@ -217,7 +235,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	case "all":
 		detailsMap := core.MinerManagerImpl.GetAllStakeDetails(address)
 		m := make(map[string][]*StakeDetail)
-		if detailsMap != nil{
+		if detailsMap != nil {
 			for from, ds := range detailsMap {
 				dts := convertDetails(ds)
 				m[from] = dts
@@ -279,8 +297,8 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
-	accoundDb,err := core.BlockChainImpl.LatestStateDB()
-	if err != nil{
+	accoundDb, err := core.BlockChainImpl.LatestStateDB()
+	if err != nil {
 		return failResult("Get status failed")
 	}
 	if accoundDb == nil {
@@ -365,4 +383,45 @@ func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*R
 	} else {
 		return failResult("query does not have data")
 	}
+}
+
+func (api *RpcGtasImpl) GroupCheck(addr string) (*Result, error) {
+	if !validateAddress(addr) {
+		return failResult("Wrong address format:" + addr)
+	}
+	address := common.HexToAddress(addr)
+	height := core.BlockChainImpl.Height()
+	joinedGroups := api.gr.GetLivedGroupsByMember(address, height)
+	jgs := make([]*JoinedGroupInfo, 0)
+	for _, jg := range joinedGroups {
+		info := &JoinedGroupInfo{
+			Seed:          jg.Header().Seed(),
+			WorkHeight:    jg.Header().WorkHeight(),
+			DismissHeight: jg.Header().DismissHeight(),
+		}
+		jgs = append(jgs, info)
+	}
+
+	selected, seed, stage := api.routineChecker.CurrentEraCheck(address)
+	currentInfo := &CurrentEraGroupInfo{
+		Selected:    selected,
+		GroupSeed:   seed,
+		GroupHeight: api.gr.Height() + 1,
+	}
+	if selected {
+		switch stage {
+		case 0:
+			currentInfo.MinerActionStage = "sent no data"
+		case 1:
+			currentInfo.MinerActionStage = "has sent encrypted share piece packet"
+		case 2:
+			currentInfo.MinerActionStage = "has sent mpk packet"
+		case 3:
+			currentInfo.MinerActionStage = "has sent origin share piece packet"
+		default:
+			currentInfo.MinerActionStage = fmt.Sprintf("unknown stage:%v", stage)
+		}
+	}
+
+	return successResult(&GroupCheckInfo{JoinedGroups: jgs, CurrentGroupRoutine: currentInfo})
 }

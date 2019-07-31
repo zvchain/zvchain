@@ -127,7 +127,7 @@ type chainOp interface {
 
 	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *Result
 
-	MinerAbort(mtype int, gas, gasprice uint64) *Result
+	MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result
 
 	StakeRefund(target string, mtype int, gas, gasprice uint64) *Result
 
@@ -142,4 +142,6 @@ type chainOp interface {
 	ViewContract(addr string) *Result
 
 	TxReceipt(hash string) *Result
+
+	GroupCheck(addr string) *Result
 }

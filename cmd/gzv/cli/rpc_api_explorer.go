@@ -25,6 +25,7 @@ import (
 
 // RpcExplorerImpl provides rpc service for blockchain explorer use
 type RpcExplorerImpl struct {
+	*rpcBaseImpl
 }
 
 func (api *RpcExplorerImpl) Namespace() string {
@@ -80,7 +81,7 @@ func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) 
 // ExplorerGroupsAfter is used in the blockchain browser to
 // query groups after the specified height
 func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) {
-	groups := getGroupReader().GroupsAfter(height)
+	groups := api.gr.GroupsAfter(height)
 
 	ret := make([]*Group, 0)
 	for _, g := range groups {

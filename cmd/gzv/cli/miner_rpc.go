@@ -16,6 +16,7 @@
 package cli
 
 import (
+	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/log"
 	"net"
 
@@ -50,15 +51,16 @@ func (gtas *Gtas) initRpcInstances() error {
 	if level < rpcLevelNone || level > rpcLevelDev {
 		return fmt.Errorf("rpc level error:%v", level)
 	}
+	base := &rpcBaseImpl{gr: getGroupReader()}
 	gtas.rpcInstances = make([]rpcApi, 0)
 	if level >= rpcLevelGtas {
-		gtas.addInstance(&RpcGtasImpl{})
+		gtas.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
 	}
 	if level >= rpcLevelExplorer {
-		gtas.addInstance(&RpcExplorerImpl{})
+		gtas.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
 	}
 	if level >= rpcLevelDev {
-		gtas.addInstance(&RpcDevImpl{})
+		gtas.addInstance(&RpcDevImpl{rpcBaseImpl: base})
 	}
 	return nil
 }

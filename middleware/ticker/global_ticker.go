@@ -136,6 +136,13 @@ func (gt *GlobalTicker) RemoveRoutine(name string) {
 	gt.routines.Delete(name)
 }
 
+func (gt *GlobalTicker) ClearRoutines() {
+	gt.routines.Range(func(key, value interface{}) bool {
+		gt.routines.Delete(key)
+		return true
+	})
+}
+
 // StartTickerRoutine starts the specified routine.
 // Note that, the task won't work if this function wasn't called after registered
 func (gt *GlobalTicker) StartTickerRoutine(name string, triggerNextTicker bool) {

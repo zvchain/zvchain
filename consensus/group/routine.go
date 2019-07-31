@@ -73,31 +73,31 @@ type createRoutine struct {
 	currID       groupsig.ID
 }
 
-var routine *createRoutine
+var GroupRoutine *createRoutine
 var logger *logrus.Logger
 
 func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, miner *model.SelfMinerDO) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
 	logger = log.GroupLogger
-	routine = &createRoutine{
+	GroupRoutine = &createRoutine{
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
 		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", "")), base.Data2CommonHash(miner.SK.Serialize()).Bytes()),
 		currID:        miner.ID,
 	}
 	top := chain.QueryTopBlock()
-	routine.updateContext(top)
+	GroupRoutine.updateContext(top)
 
-	go routine.store.loop()
+	go GroupRoutine.store.loop()
 	go checker.stat.loop()
 
 	provider.RegisterGroupCreateChecker(checker)
 
-	notify.BUS.Subscribe(notify.BlockAddSucc, routine.onBlockAddSuccess)
-	return routine.store
+	notify.BUS.Subscribe(notify.BlockAddSucc, GroupRoutine.onBlockAddSuccess)
+	return GroupRoutine.store
 }
 
-func (routine *createRoutine) onBlockAddSuccess(message notify.Message)error {
+func (routine *createRoutine) onBlockAddSuccess(message notify.Message) error {
 	block := message.GetData().(*types.Block)
 	bh := block.Header
 
@@ -153,7 +153,7 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 	era := routine.currEra()
 	routine.stat.markStatus(era.seedHeight, createStatusIdle)
 
-	logger.Debugf("new create context: era:%v %v-%v %v %v %v %v",  bh.Height, sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
+	logger.Debugf("new create context: era:%v %v-%v %v %v %v %v", bh.Height, sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
 	err := routine.selectCandidates()
 	if err != nil {
 		logger.Debugf("select candidates:%v", err)
@@ -178,9 +178,10 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	availCandidates := make([]*model.MinerDO, 0)
+	filterFun := routine.storeReader.IsMinerGroupCountLessThan(memberMaxJoinGroupNum, h)
+
 	for _, m := range allVerifiers {
-		cnt := routine.storeReader.MinerLiveGroupCount(m.ID.ToAddress(), h)
-		if cnt < memberMaxJoinGroupNum {
+		if filterFun(m.ID.ToAddress()) {
 			availCandidates = append(availCandidates, m)
 		}
 	}

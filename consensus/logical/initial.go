@@ -28,6 +28,8 @@ var stdLogger = log.ConsensusStdLogger
 var consensusConfManager common.SectionConfManager
 
 func InitConsensus() {
+	consensusLogger = log.ConsensusLogger
+	stdLogger = log.ConsensusStdLogger
 	cc := common.GlobalConf.GetSectionManager(ConsensusConfSection)
 	consensusConfManager = cc
 	model.InitParam(cc)
