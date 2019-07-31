@@ -225,7 +225,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	}
 	// Was selected
 	if !routine.selected() {
-		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+		return false, nil
 	}
 
 	mInfo := routine.minerReader.SelfMinerInfo()
@@ -283,7 +283,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 
 	// Was selected
 	if !routine.selected() {
-		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+		return false, nil
 	}
 
 	mInfo := routine.minerReader.SelfMinerInfo()
@@ -359,7 +359,7 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 	}
 	// Was selected
 	if !routine.selected() {
-		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+		return false, nil
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {
