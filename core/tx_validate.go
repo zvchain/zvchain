@@ -16,6 +16,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -114,9 +115,9 @@ func sourceRecover(tx *types.Transaction) error {
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
 func stateValidate(tx *types.Transaction) error {
-	accountDB,err := BlockChainImpl.LatestStateDB()
-	if err != nil{
-		return fmt.Errorf("fail get last state db,error = %v",err.Error())
+	accountDB, err := BlockChainImpl.LatestStateDB()
+	if err != nil {
+		return fmt.Errorf("fail get last state db,error = %v", err.Error())
 	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance := accountDB.GetBalance(*tx.Source)
@@ -280,7 +281,7 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
-			case types.TransactionTypeGroupPiece,types.TransactionTypeGroupMpk,types.TransactionTypeGroupOriginPiece:
+			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			}
 			if err != nil {
@@ -290,6 +291,13 @@ func getValidator(tx *types.Transaction) validator {
 			if err := sourceRecover(tx); err != nil {
 				return err
 			}
+			//check the abort tx's source and target
+			if tx.Type == types.TransactionTypeMinerAbort {
+				if bytes.Compare(tx.Target.Bytes(), tx.Source.Bytes()) != 0 {
+					return fmt.Errorf("could not abort for other node")
+				}
+			}
+
 			// Validate state
 			if err := stateValidate(tx); err != nil {
 				return err
