@@ -213,10 +213,9 @@ func (op *minerAbortOp) ParseTransaction() error {
 	return nil
 }
 
+// this function will not be called, Because the validate is only valid on smart contract. And minerAbortOp command is
+// not available on smart contract.
 func (op *minerAbortOp) Validate() error {
-	if len(op.msg.Payload()) != 1 {
-		return fmt.Errorf("msg payload length error")
-	}
 	return nil
 }
 
