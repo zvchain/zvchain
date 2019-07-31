@@ -46,7 +46,7 @@ type currentEraStatus interface {
 }
 
 type groupRoutineChecker interface {
-	CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, stage int)
+	CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, seedHeight uint64, stage int)
 }
 
 func getGroupReader() groupInfoReader {
@@ -402,11 +402,11 @@ func (api *RpcGtasImpl) GroupCheck(addr string) (*Result, error) {
 		jgs = append(jgs, info)
 	}
 
-	selected, seed, stage := api.routineChecker.CurrentEraCheck(address)
+	selected, seed, sh, stage := api.routineChecker.CurrentEraCheck(address)
 	currentInfo := &CurrentEraGroupInfo{
-		Selected:    selected,
-		GroupSeed:   seed,
-		GroupHeight: api.gr.Height() + 1,
+		Selected:   selected,
+		GroupSeed:  seed,
+		SeedHeight: sh,
 	}
 	if selected {
 		switch stage {
