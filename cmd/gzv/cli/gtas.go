@@ -202,6 +202,7 @@ func (gtas *Gtas) Run() {
 			fmt.Println(err.Error())
 		}
 	case mineCmd.FullCommand():
+		log.Init()
 		common.InstanceIndex = *instanceIndex
 		go func() {
 			http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
@@ -240,9 +241,9 @@ func (gtas *Gtas) Run() {
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
-			log.DefaultLogger.Error(err.Error())
+			fmt.Println(err.Error())
 		} else {
-			log.DefaultLogger.Infof("clear blockchain successfully")
+			fmt.Println("clear blockchain successfully")
 		}
 	}
 	<-quitChan
@@ -328,14 +329,9 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	helper := mediator.NewConsensusHelper(minerInfo.ID)
-	err = core.InitCore(helper, &gtas.account)
-	if err != nil {
-		return err
-	}
 	id := minerInfo.ID.GetHexString()
-
 	genesisMembers := make([]string, 0)
+	helper := mediator.NewConsensusHelper(minerInfo.ID)
 	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
 		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
 	}
@@ -356,6 +352,11 @@ func (gtas *Gtas) fullInit() error {
 
 	err = network.Init(&common.GlobalConf, chandler.MessageHandler, netCfg)
 
+	if err != nil {
+		return err
+	}
+
+	err = core.InitCore(helper, &gtas.account)
 	if err != nil {
 		return err
 	}

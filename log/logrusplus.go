@@ -152,10 +152,6 @@ func New() *Logrusplus {
 	}
 }
 
-func (lrs *Logrusplus) StandardLogger() *logrus.Logger {
-	return logrus.StandardLogger()
-}
-
 func (lrs *Logrusplus) Logger(fileName string, maxSize int64, level logrus.Level) *logrus.Logger {
 	var logger *logrus.Logger
 

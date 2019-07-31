@@ -7,10 +7,10 @@ import (
 )
 
 func Test_Main(t *testing.T) {
-	lrp := New()
+	Init()
 	p2pLogger := P2PLogger//lrp.Logger("p2p")
 	tvmLogger := TVMLogger//lrp.Logger("vm")
-	stdLogger := lrp.StandardLogger()
+	stdLogger := logrus.StandardLogger()
 	commonLogger := DefaultLogger//lrp.Logger("common")
 
 	count := 0

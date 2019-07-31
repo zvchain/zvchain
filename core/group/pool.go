@@ -15,8 +15,6 @@
 package group
 
 import (
-	"bytes"
-
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/vmihailenco/msgpack"
@@ -68,20 +66,6 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 
 func (p *pool) resetToTop(db types.AccountDB, height uint64) {
 
-}
-
-func (p *pool) minerLiveGroupCount(chain chainReader, addr common.Address, height uint64) int {
-	lived := p.getLives(chain, height)
-	count := 0
-	for _, g := range lived {
-		for _, mem := range g.MembersD {
-			if bytes.Equal(addr.Bytes(), mem.Id) {
-				count++
-				break
-			}
-		}
-	}
-	return count
 }
 
 func (p *pool) get(db types.AccountDB, seed common.Hash) *group {

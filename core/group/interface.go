@@ -16,6 +16,7 @@
 package group
 
 import (
+	"bytes"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -144,6 +145,15 @@ func (g *group) Members() []types.MemberI {
 		}
 	}
 	return g.members
+}
+
+func (g *group) hasMember(id []byte) bool {
+	for _, mem := range g.members {
+		if bytes.Equal(mem.ID(), id) {
+			return true
+		}
+	}
+	return false
 }
 
 type member struct {

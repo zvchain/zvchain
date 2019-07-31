@@ -8,22 +8,21 @@ import (
 
 var RusPlus *Logrusplus
 
-var StdLogger *logrus.Logger
+var StdLogger = logrus.StandardLogger()
 
-var DefaultLogger *logrus.Logger
-var ConsensusLogger *logrus.Logger
-var ConsensusStdLogger *logrus.Logger
-var CoreLogger *logrus.Logger
-var BlockSyncLogger *logrus.Logger
-var GroupLogger *logrus.Logger
-var MiddlewareLogger *logrus.Logger
-var TxSyncLogger *logrus.Logger
-var P2PLogger *logrus.Logger
-var ForkLogger *logrus.Logger
-var VRFLogger *logrus.Logger
-var StatisticsLogger *logrus.Logger
-var TVMLogger *logrus.Logger
-var PerformLogger *logrus.Logger
+var DefaultLogger  = logrus.StandardLogger()
+var ConsensusLogger  = logrus.StandardLogger()
+var ConsensusStdLogger  = logrus.StandardLogger()
+var CoreLogger = logrus.StandardLogger()
+var BlockSyncLogger = logrus.StandardLogger()
+var GroupLogger = logrus.StandardLogger()
+var MiddlewareLogger = logrus.StandardLogger()
+var TxSyncLogger = logrus.StandardLogger()
+var P2PLogger = logrus.StandardLogger()
+var ForkLogger = logrus.StandardLogger()
+var StatisticsLogger = logrus.StandardLogger()
+var TVMLogger = logrus.StandardLogger()
+var PerformLogger = logrus.StandardLogger()
 
 const (
 	MaxFileSize = 1024 * 1024 * 20
