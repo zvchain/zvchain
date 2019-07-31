@@ -25,7 +25,7 @@ var (
 	accountdb account.AccountDatabase
 )
 
-func init() {
+func initExecutor() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
@@ -63,6 +63,9 @@ func init() {
 	if BlockChainImpl == nil{
 		BlockChainImpl = executor.bc
 	}
+
+	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
+
 }
 
 func randomAddress() common.Address {
@@ -87,6 +90,8 @@ func genRandomTx() *types.Transaction {
 }
 
 func TestTVMExecutor_Execute(t *testing.T) {
+	initExecutor()
+	defer clearDB()
 	txNum := 10
 	txs := make([]*types.Transaction, txNum)
 	for i := 0; i < txNum; i++ {

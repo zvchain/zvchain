@@ -269,6 +269,7 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force b
 		}
 	}
 	tx := &txRawData{
+		Target:   aci.Address,
 		Gas:      gas,
 		Gasprice: gasprice,
 		TxType:   types.TransactionTypeMinerAbort,

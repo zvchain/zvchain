@@ -17,13 +17,14 @@ package logical
 
 import (
 	"fmt"
+	"math"
+	"sync/atomic"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
-	"math"
-	"sync/atomic"
 )
 
 func (p *Processor) thresholdPieceVerify(vctx *VerifyContext, slot *SlotContext) {
@@ -107,7 +108,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 	// full book verification
 	existHash := p.proveChecker.genProveHash(bh.Height, preBH.Random, p.GetMinerID())
 	if msg.ProveHash != existHash {
-		err = fmt.Errorf("check p rove hash fail, receive hash=%v, exist hash=%v", msg.ProveHash, existHash)
+		err = fmt.Errorf("check prove hash fail, receive hash=%v, exist hash=%v", msg.ProveHash, existHash)
 		return
 	}
 
@@ -154,7 +155,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 // OnMessageCast handles the message from the proposer
 // Note that, if the pre-block of the block present int the message isn't on the blockchain, it will caches the message
 // and trigger it after the pre-block added on chain
-func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
+func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 	bh := &ccm.BH
 	traceLog := monitor.NewPerformTraceLogger("OnMessageCast", bh.Hash, bh.Height)
 
@@ -168,7 +169,6 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 		Ext:      fmt.Sprintf("external:qn:%v,totalQN:%v", 0, bh.TotalQN),
 	}
 	group := p.groupReader.getGroupBySeed(bh.Group)
-	var err error
 	if group == nil {
 		err = fmt.Errorf("GetSelfGroup failed")
 		return
@@ -194,8 +194,8 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 		tlog.logEnd("height=%v, preHash=%v, gseed=%v, result=%v", bh.Height, bh.PreHash, bh.Group, result)
 		traceLog.Log("PreHash=%v,castor=%v,result=%v", bh.PreHash, ccm.SI.GetID(), result)
 	}()
-	if ccm.GenHash() != ccm.SI.DataHash {
-		err = fmt.Errorf("msg genHash %v diff from si.DataHash %v", ccm.GenHash(), ccm.SI.DataHash)
+	if ccm.GenHash() != ccm.SI.DataHash || ccm.GenHash() != bh.Hash {
+		err = fmt.Errorf("msg genHash %v diff from si.DataHash %v || bh.Hash %v", ccm.GenHash(), ccm.SI.DataHash, bh.Hash)
 		return
 	}
 	// Castor need to ignore his message
@@ -239,7 +239,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) {
 	defer verifyTraceLog.Log("")
 
 	_, err = p.verifyCastMessage(ccm, preBH)
-
+	return
 }
 
 func (p *Processor) verifyCachedMsg(hash common.Hash) {
@@ -255,6 +255,7 @@ func (p *Processor) verifyCachedMsg(hash common.Hash) {
 func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyContext) (ret int8, err error) {
 	blockHash := cvm.BlockHash
 	if p.blockOnChain(blockHash) {
+		err = fmt.Errorf("block already on chain")
 		return
 	}
 
@@ -328,13 +329,12 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 
 // OnMessageVerify handles the verification messages from other members in the verifyGroup for a specified block proposal
 // Note that, it will cache the messages if the corresponding proposal message doesn't come yet and trigger them as long as the condition met
-func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) {
+func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err error) {
 	blockHash := cvm.BlockHash
 	tlog := newHashTraceLog("OMV", blockHash, cvm.SI.GetID())
 	traceLog := monitor.NewPerformTraceLogger("OnMessageVerify", blockHash, 0)
 
 	var (
-		err  error
 		ret  int8
 		slot *SlotContext
 	)
@@ -369,39 +369,42 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) {
 // OnMessageCastRewardSignReq handles reward transaction signature requests
 // It signs the message if and only if the block of the transaction already added on chain,
 // otherwise the message will be cached util the condition met
-func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
-	p.rewardHandler.OnMessageCastRewardSignReq(msg)
+func (p *Processor) OnMessageCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) error {
+	return p.rewardHandler.OnMessageCastRewardSignReq(msg)
 }
 
 // OnMessageCastRewardSign receives signed messages for the reward transaction from verifyGroup members
 // If threshold signature received and the verifyGroup signature recovered successfully, the node will submit the reward transaction to the pool
-func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) {
-	p.rewardHandler.OnMessageCastRewardSign(msg)
+func (p *Processor) OnMessageCastRewardSign(msg *model.CastRewardTransSignMessage) error {
+	return p.rewardHandler.OnMessageCastRewardSign(msg)
 }
 
 // OnMessageReqProposalBlock handles block body request from the verify verifyGroup members
 // It only happens in the proposal role and when the verifyGroup signature generated by the verify-verifyGroup
-func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourceID string) {
+func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourceID string) (err error) {
 	from := groupsig.ID{}
 	from.SetHexString(sourceID)
 	tLog := newHashTraceLog("OMRPB", msg.Hash, from)
 	tLog.logStart("sender=%v", sourceID)
 
-	var s string
 	defer func() {
-		tLog.log("result:%v", s)
+		if err != nil {
+			tLog.log("result:%v", err)
+		} else {
+			tLog.log("result: success")
+		}
 	}()
 
 	pb := p.blockContexts.getProposed(msg.Hash)
 	if pb == nil || pb.block == nil {
-		s = fmt.Sprintf("block is nil")
+		err = fmt.Errorf("block is nil")
 		return
 	}
 
 	if pb.maxResponseCount == 0 {
 		group := p.groupReader.getGroupBySeed(pb.block.Header.Group)
 		if group == nil {
-			s = fmt.Sprintf("get verifyGroup nil:%v", pb.block.Header.Group)
+			err = fmt.Errorf("get verifyGroup nil:%v", pb.block.Header.Group)
 			return
 		}
 
@@ -410,10 +413,10 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 
 	// Only response to limited members of the verifyGroup in case of network traffic
 	if atomic.AddUint64(&pb.responseCount, 1) > pb.maxResponseCount {
-		s = fmt.Sprintf("response count exceed:%v %v", pb.responseCount, pb.maxResponseCount)
+		err = fmt.Errorf("response count exceed:%v %v", pb.responseCount, pb.maxResponseCount)
 		return
 	}
-	s = fmt.Sprintf("response txs size %v", len(pb.block.Transactions))
+	//err = fmt.Sprintf("response txs size %v", len(pb.block.Transactions))
 
 	m := &model.ResponseProposalBlock{
 		Hash:         pb.block.Header.Hash,
@@ -421,45 +424,50 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	}
 
 	p.NetServer.ResponseProposalBlock(m, sourceID)
+
+	return
 }
 
 // OnMessageResponseProposalBlock handles block body response from proposal node
 // It only happens in the verify roles and after block body request to the proposal node
 // It will add the block on chain and then broadcast
-func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock) {
+func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBlock) (err error) {
 	tLog := newHashTraceLog("OMRSPB", msg.Hash, groupsig.ID{})
 	tLog.logStart("")
 
-	var s string
 	defer func() {
-		tLog.log("result:%v", s)
+		if err != nil {
+			tLog.log("result:%v", err)
+		} else {
+			tLog.log("result: success")
+		}
 	}()
 
 	if p.blockOnChain(msg.Hash) {
-		s = "block onchain"
+		err = fmt.Errorf("block onchain")
 		return
 	}
 	vctx := p.blockContexts.getVctxByHash(msg.Hash)
 	if vctx == nil {
-		s = "vctx is nil"
+		err = fmt.Errorf("vctx is nil")
 		return
 	}
 	slot := vctx.GetSlotByHash(msg.Hash)
 	if slot == nil {
-		s = "slot is nil"
+		err = fmt.Errorf("slot is nil")
 		return
 	}
 	block := types.Block{Header: slot.BH, Transactions: msg.Transactions}
 	aggSign := slot.GetAggregatedSign()
 	if aggSign == nil {
-		s = "aggregated signature is nil"
+		err = fmt.Errorf("aggregated signature is nil")
 		return
 	}
-	err := p.onBlockSignAggregation(&block, *aggSign, slot.rSignGenerator.GetGroupSign())
+	err = p.onBlockSignAggregation(&block, *aggSign, slot.rSignGenerator.GetGroupSign())
 	if err != nil {
 		slot.setSlotStatus(slFailed)
-		s = fmt.Sprintf("on block fail err=%v", err)
+		err = fmt.Errorf("on block fail err=%v", err)
 		return
 	}
-	s = "success"
+	return
 }

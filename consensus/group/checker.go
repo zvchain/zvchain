@@ -598,12 +598,13 @@ func (checker *createChecker) CheckGroupCreatePunishment(ctx types.CheckerContex
 }
 
 // CurrentEraCheck returns the group-routine status of the given address at the current era
-func (checker *createChecker) CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, stage int) {
+func (checker *createChecker) CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, seedHeight uint64, stage int) {
 	ctx := checker.ctx
 	if ctx == nil {
 		return
 	}
 	seed = ctx.era.Seed()
+	seedHeight = ctx.era.seedHeight
 	cands := ctx.cands
 	if len(cands) > 0 {
 		selected = cands.has(groupsig.DeserializeID(address.Bytes()))
