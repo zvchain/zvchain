@@ -255,6 +255,7 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64) *Result
 		return opError(fmt.Errorf("the current account is not a miner account"))
 	}
 	tx := &txRawData{
+		Target:   aci.Address,
 		Gas:      gas,
 		Gasprice: gasprice,
 		TxType:   types.TransactionTypeMinerAbort,
