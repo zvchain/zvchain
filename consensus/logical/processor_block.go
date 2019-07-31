@@ -17,12 +17,13 @@ package logical
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
-	"sync"
 )
 
 // FutureMessageHolder store some messages non-processable currently and may be processed in the future
@@ -88,7 +89,7 @@ func (p *Processor) doAddOnChain(block *types.Block) (result int8) {
 
 	if result == -1 {
 		p.removeFutureVerifyMsgs(block.Header.Hash)
-		p.futureRewardReqs.remove(block.Header.Hash)
+		p.rewardHandler.futureRewardReqs.remove(block.Header.Hash)
 	}
 
 	return result
@@ -99,7 +100,7 @@ func (p *Processor) blockOnChain(h common.Hash) bool {
 	return p.MainChain.HasBlock(h)
 }
 
-func (p *Processor) getBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
+func (p *Processor) GetBlockHeaderByHash(hash common.Hash) *types.BlockHeader {
 	b := p.MainChain.QueryBlockHeaderByHash(hash)
 	return b
 }
@@ -122,10 +123,6 @@ func (p *Processor) getFutureVerifyMsgs(hash common.Hash) []*model.ConsensusCast
 
 func (p *Processor) removeFutureVerifyMsgs(hash common.Hash) {
 	p.futureVerifyMsgs.remove(hash)
-}
-
-func (p *Processor) blockPreview(bh *types.BlockHeader) string {
-	return fmt.Sprintf("hash=%v, height=%v, curTime=%v, preHash=%v, preTime=%v", bh.Hash, bh.Height, bh.CurTime, bh.PreHash, bh.CurTime.Add(-int64(bh.Elapsed)))
 }
 
 // VerifyBlock check if the block is legal, it will take the pre-block into consideration

@@ -75,7 +75,7 @@ func (ns *NodeResStat) startStatLoop() {
 
 func (ns *NodeResStat) statCPUAndMEM() {
 	sess := sh.NewSession()
-	bs, err := sess.Command("top", "-b", "-n 1", fmt.Sprintf("-p %v", os.Getpid())).Command("grep", "gtas").Output()
+	bs, err := sess.Command("top", "-b", "-n 1", fmt.Sprintf("-p %v", os.Getpid())).Command("grep", "gzv").Output()
 
 	if err == nil {
 		line := spaceRe.ReplaceAllString(strings.TrimSpace(string(bs)), ",")

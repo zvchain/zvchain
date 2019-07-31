@@ -20,16 +20,13 @@ package tvm
 */
 import "C"
 import (
+	"github.com/zvchain/zvchain/log"
 	"math/big"
-	"strconv"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/taslog"
 )
-
-var logger = taslog.GetLoggerByIndex(taslog.TvmConfig, strconv.FormatInt(int64(common.InstanceIndex), 10))
 
 //export Transfer
 func Transfer(toAddress *C.char, value *C.char) bool {
@@ -142,7 +139,7 @@ func RemoveData(key *C.char) {
 func executeMinerOperation(msg types.MinerOperationMessage) bool {
 	success, err := controller.mm.ExecuteOperation(controller.AccountDB, msg, controller.BlockHeader.Height)
 	if err != nil {
-		logger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())
+		log.TVMLogger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())
 	}
 	return success
 }
@@ -162,7 +159,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 	}
 	payload, err := types.EncodePayload(mPks)
 	if err != nil {
-		logger.Errorf("encode payload error:%v", err)
+		log.TVMLogger.Errorf("encode payload error:%v", err)
 		return false
 	}
 	target := common.HexToAddress(minerAddrString)

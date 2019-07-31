@@ -16,14 +16,14 @@
 package cli
 
 import (
+	"github.com/zvchain/zvchain/consensus/group"
+	"github.com/zvchain/zvchain/log"
 	"net"
 
 	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 
 	"fmt"
 	"strings"
-
-	"github.com/zvchain/zvchain/common"
 )
 
 // rpcLevel indicate the rpc service function
@@ -51,15 +51,16 @@ func (gtas *Gtas) initRpcInstances() error {
 	if level < rpcLevelNone || level > rpcLevelDev {
 		return fmt.Errorf("rpc level error:%v", level)
 	}
+	base := &rpcBaseImpl{gr: getGroupReader()}
 	gtas.rpcInstances = make([]rpcApi, 0)
 	if level >= rpcLevelGtas {
-		gtas.addInstance(&RpcGtasImpl{})
+		gtas.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
 	}
 	if level >= rpcLevelExplorer {
-		gtas.addInstance(&RpcExplorerImpl{})
+		gtas.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
 	}
 	if level >= rpcLevelDev {
-		gtas.addInstance(&RpcDevImpl{})
+		gtas.addInstance(&RpcDevImpl{rpcBaseImpl: base})
 	}
 	return nil
 }
@@ -115,11 +116,11 @@ func (gtas *Gtas) startRPC() error {
 		endpoint := fmt.Sprintf("%s:%d", host, port+uint16(plus))
 		err = startHTTP(endpoint, apis, []string{}, []string{}, []string{})
 		if err == nil {
-			common.DefaultLogger.Errorf("RPC serving on %v\n", endpoint)
+			log.DefaultLogger.Errorf("RPC serving on %v\n", endpoint)
 			return nil
 		}
 		if strings.Contains(err.Error(), "address already in use") {
-			common.DefaultLogger.Errorf("port:%d already in use\n", port+uint16(plus))
+			log.DefaultLogger.Errorf("port:%d already in use\n", port+uint16(plus))
 			continue
 		}
 		return err

@@ -215,9 +215,9 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		bpk.SetHexString(aci.Miner.BPk)
 		pks.Pk = bpk.Serialize()
 		pks.VrfPk = base.Hex2VRFPublicKey(aci.Miner.VrfPk)
-	}else{
+	} else {
 		//if stake to Verify and target is not myself then return error
-		if pks.MType == types.MinerTypeVerify{
+		if pks.MType == types.MinerTypeVerify {
 			return opError(fmt.Errorf("you could not stake for other's verify node"))
 		}
 	}
@@ -245,7 +245,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 }
 
 // MinerAbort send stop mining transaction
-func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64) *Result {
+func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r
@@ -253,6 +253,20 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64) *Result
 	aci := r.Data.(*Account)
 	if aci.Miner == nil {
 		return opError(fmt.Errorf("the current account is not a miner account"))
+	}
+	if !force {
+		checkResult := ca.GroupCheck(aci.Address)
+		if !checkResult.IsSuccess() {
+			return opError(fmt.Errorf(checkResult.Message))
+		}
+		m := checkResult.Data.(map[string]interface{})
+		info := m["current_group_routine"]
+		if info != nil {
+			selected := info.(map[string]interface{})["selected"]
+			if selected != nil && selected.(bool) {
+				return opError(fmt.Errorf("You are selected to join a group currently, abort operation may result in frozen. And you can specify the '-f' if you insist"))
+			}
+		}
 	}
 	tx := &txRawData{
 		Target:   aci.Address,
@@ -296,7 +310,7 @@ func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, g
 	if target == "" {
 		target = aci.Address
 	}
-	if value == 0{
+	if value == 0 {
 		return opError(fmt.Errorf("value must > 0"))
 	}
 	reduceValue := common.TAS2RA(value)
@@ -318,4 +332,8 @@ func (ca *RemoteChainOpImpl) ViewContract(addr string) *Result {
 
 func (ca *RemoteChainOpImpl) TxReceipt(hash string) *Result {
 	return ca.request("txReceipt", hash)
+}
+
+func (ca *RemoteChainOpImpl) GroupCheck(addr string) *Result {
+	return ca.request("groupCheck", addr)
 }

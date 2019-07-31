@@ -231,7 +231,7 @@ func (op *minerAbortOp) Operation() error {
 	if miner.IsPrepare() {
 		return fmt.Errorf("already in prepare status")
 	}
-	// Frozen miner must wait for 1day after frozen
+	// Frozen miner must wait for 1 hour after frozen
 	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneHourBlocks {
 		return fmt.Errorf("frozen miner can't abort less than 1 hour since frozen")
 	}

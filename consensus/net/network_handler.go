@@ -17,14 +17,14 @@ package net
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/taslog"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"runtime/debug"
 
-	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/network"
 )
 
-var logger taslog.Logger
+var logger *logrus.Logger
 
 // ConsensusHandler used for handling consensus-related messages from network
 type ConsensusHandler struct {
@@ -35,7 +35,7 @@ var MessageHandler = new(ConsensusHandler)
 
 func (c *ConsensusHandler) Init(proc MessageProcessor) {
 	c.processor = proc
-	logger = taslog.GetLoggerByIndex(taslog.StdConsensusLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	logger = log.ConsensusStdLogger
 }
 
 func (c *ConsensusHandler) Processor() MessageProcessor {

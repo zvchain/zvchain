@@ -18,13 +18,13 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/zvchain/zvchain/common"
 	"gopkg.in/fatih/set.v0"
 )
 
@@ -117,7 +117,7 @@ func (s *Server) serveRequest(codec ServerCodec, singleShot bool, options CodecO
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			common.DefaultLogger.Error(string(buf))
+			log.DefaultLogger.Error(string(buf))
 		}
 		s.codecsMu.Lock()
 		s.codecs.Remove(codec)
@@ -143,7 +143,7 @@ func (s *Server) serveRequest(codec ServerCodec, singleShot bool, options CodecO
 		if err != nil {
 
 			if err.Error() != "EOF" {
-				common.DefaultLogger.Errorf(fmt.Sprintf("read error %v\n", err))
+				log.DefaultLogger.Errorf(fmt.Sprintf("read error %v\n", err))
 				codec.Write(codec.CreateErrorResponse(nil, err))
 			}
 
@@ -202,7 +202,7 @@ func (s *Server) ServeSingleRequest(codec ServerCodec, options CodecOption) {
 // subscriptions.
 func (s *Server) Stop() {
 	if atomic.CompareAndSwapInt32(&s.run, 1, 0) {
-		common.DefaultLogger.Debug("RPC Server shutdown initiatied")
+		log.DefaultLogger.Debug("RPC Server shutdown initiatied")
 		s.codecsMu.Lock()
 		defer s.codecsMu.Unlock()
 		s.codecs.Each(func(c interface{}) bool {
@@ -304,7 +304,7 @@ func (s *Server) exec(ctx context.Context, codec ServerCodec, req *serverRequest
 	}
 
 	if err := codec.Write(response); err != nil {
-		common.DefaultLogger.Error(fmt.Sprintf("%v\n", err))
+		log.DefaultLogger.Error(fmt.Sprintf("%v\n", err))
 		codec.Close()
 	}
 
@@ -329,7 +329,7 @@ func (s *Server) execBatch(ctx context.Context, codec ServerCodec, requests []*s
 	}
 
 	if err := codec.Write(responses); err != nil {
-		common.DefaultLogger.Error(fmt.Sprintf("%v\n", err))
+		log.DefaultLogger.Error(fmt.Sprintf("%v\n", err))
 		codec.Close()
 	}
 

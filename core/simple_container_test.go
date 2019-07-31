@@ -16,9 +16,10 @@ package core
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"testing"
 )
 
 //var container = newSimpleContainer(6, 2)
@@ -91,6 +92,7 @@ func Test_push(t *testing.T) {
 	t3 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d883"), Nonce: 2, GasPrice: types.NewBigInt(20000), GasLimit: gasLimit, Source: &addr1}
 
 	err := initContext4Test()
+	defer clearDB()
 	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
@@ -102,7 +104,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t2)
 	_ = container.push(t3)
 
-	rs := make([]*types.Transaction,3)
+	rs := make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
 		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
@@ -112,6 +114,10 @@ func Test_push(t *testing.T) {
 	}
 	if rs[1].Hash != t3.Hash {
 		t.Error("push test fail")
+	}
+
+	if container.get(t2.Hash) != nil {
+		t.Error("clear replaced tx fail")
 	}
 
 	container = newSimpleContainer(10, 3, BlockChainImpl)
@@ -120,7 +126,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t1)
 	_ = container.push(t3)
 
-	rs = make([]*types.Transaction,3)
+	rs = make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
 		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
@@ -132,11 +138,14 @@ func Test_push(t *testing.T) {
 		t.Error("push test fail")
 	}
 
+	if container.get(t2.Hash) != nil {
+		t.Error("clear replaced tx fail")
+	}
 }
-
 
 func Test_simpleContainer_forEach(t *testing.T) {
 	err := initContext4Test()
+	defer clearDB()
 	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
