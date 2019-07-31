@@ -41,8 +41,6 @@ func TestGlobalTicker_RegisterRoutine(t *testing.T) {
 	ticker.StartAndTriggerRoutine("name1")
 	//ticker.StopTickerRoutine("name3")
 	wg.Wait()
-
-	fmt.Println("-----exist------")
 }
 
 func TestGlobalTicker_RegisterOneTimeRoutine(t *testing.T) {
