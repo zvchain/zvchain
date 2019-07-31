@@ -16,7 +16,7 @@ import (
 
 const goodCastor = "0000000100000000000000000000000000000000000000000000000000000000"
 const inActiveCastor = "0000000200000000000000000000000000000000000000000000000000000000"
-const goodPreHash = "0x2e772d80739b37f0b1940e78834e569ccb9110fde7a51f96f04e960d52ccf4c0"
+const goodPreHash = "0xee9dcb5e28e700aca536d6bef15df13f113e1e497ba626cf5fea663d534e6ec6"
 const otherGroup = "0x01"
 
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
@@ -195,7 +195,6 @@ func EmptyBHHash() common.Hash {
 
 var emptyBHHash = EmptyBHHash()
 
-
 func TestProcessor_OnMessageCast(t *testing.T) {
 	_ = initContext4Test()
 	defer clear()
@@ -228,7 +227,9 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			expected: "success",
 			clean: func() {
 				bl := GenTestBH("ok")
-				processorTest.blockContexts.getVctxByHeight(bl.Height).signedBlockHashs.Remove(bl.Hash)
+				if processorTest.blockContexts.getVctxByHeight(bl.Height) != nil {
+					processorTest.blockContexts.getVctxByHeight(bl.Height).signedBlockHashs.Remove(bl.Hash)
+				}
 			},
 		},
 		{
