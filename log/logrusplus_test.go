@@ -50,3 +50,9 @@ func Test_Main(t *testing.T) {
 		time.Sleep(100)//1 * time.Second)
 	}
 }
+
+func Test_Hook(t *testing.T) {
+	Init()
+
+	StdLogger.Info("hello world!")
+}

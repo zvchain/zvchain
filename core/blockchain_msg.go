@@ -17,6 +17,8 @@ package core
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -39,5 +41,10 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 
 	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))
 	chain.AddBlockOnChain(source, block)
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": block.Header.Height,
+		"blockHash": block.Header.Hash.Hex(),
+		"blockTime": block.Header.CurTime.String(),
+	}).Debug("AddBlockOnChain")
 	return nil
 }

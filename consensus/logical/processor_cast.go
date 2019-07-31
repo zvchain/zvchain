@@ -17,7 +17,9 @@ package logical
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"math/big"
 	"sync"
 
@@ -124,6 +126,11 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 		return fmt.Errorf("next verifyGroup is nil")
 	}
 	p.NetServer.BroadcastNewBlock(block, gb)
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": bh.Height,
+		"blockHash": bh.Hash.Hex(),
+		"blockTime": bh.CurTime.String(),
+	}).Debug("BroadcastNewBlock")
 	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.Since(bh.CurTime))
 
 	// Send info
@@ -174,6 +181,11 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		Hash: bh.Hash,
 	}
 	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": bh.Height,
+		"blockHash": bh.Hash.Hex(),
+		"blockTime": bh.CurTime.String(),
+	}).Debug("ReqProposalBlock")
 
 	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 
@@ -286,6 +298,11 @@ func (p *Processor) blockProposal() {
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
 		p.NetServer.SendCastVerify(ccm, gb, proveHashs)
+		log.ELKLogger.WithFields(logrus.Fields{
+			"height": bh.Height,
+			"blockHash": bh.Hash.Hex(),
+			"blockTime": bh.CurTime.String(),
+		}).Debug("SendCastVerify")
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)
 		// Castor cannot sign random numbers

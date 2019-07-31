@@ -144,11 +144,16 @@ func (*logFileWriter) Levels() []logrus.Level {
 
 type Logrusplus struct {
 	loggers map[string]*logrus.Logger
+	hook interface{}
 }
 
-func New() *Logrusplus {
+func New(hook interface{}) *Logrusplus {
+	if hook != nil {
+		logrus.StandardLogger().Hooks.Add(hook.(logrus.Hook))
+	}
 	return &Logrusplus{
 		loggers: make(map[string]*logrus.Logger),
+		hook: hook,
 	}
 }
 
@@ -165,6 +170,9 @@ func (lrs *Logrusplus) Logger(fileName string, maxSize int64, level logrus.Level
 		if fileWriter != nil {
 			logger.SetOutput(fileWriter)
 			//logger.AddHook(fileWriter)
+			if lrs.hook != nil {
+				logger.Hooks.Add(lrs.hook.(logrus.Hook))
+			}
 		} else {
 			logger.Info("Failed to log to file, using default stderr")
 		}
