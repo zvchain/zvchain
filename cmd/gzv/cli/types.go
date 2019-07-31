@@ -290,7 +290,7 @@ type JoinedGroupInfo struct {
 type CurrentEraGroupInfo struct {
 	Selected         bool        `json:"selected"`
 	GroupSeed        common.Hash `json:"id"`
-	GroupHeight      uint64      `json:"group_height"`
+	SeedHeight       uint64      `json:"seed_height"`
 	MinerActionStage string      `json:"miner_action_stage"`
 }
 
