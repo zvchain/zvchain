@@ -88,7 +88,7 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage, gSeed common.Hash) {
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": cvm.BlockHash.Hex(),
-	}).Debug("SendVerifiedCast")
+	}).Debug("SendVerifiedCast start")
 
 	body, e := marshalConsensusVerifyMessage(cvm)
 	if e != nil {
@@ -104,6 +104,9 @@ func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage,
 
 	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 	logger.Debugf("[peer]send VARIFIED_CAST_MSG,hash:%s", cvm.BlockHash.Hex())
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": cvm.BlockHash.Hex(),
+	}).Debug("SendVerifiedCast end")
 }
 
 // BroadcastNewBlock means network-wide broadcast for the generated block.
