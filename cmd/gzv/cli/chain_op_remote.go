@@ -18,7 +18,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/consensus/base"
 	"io/ioutil"
@@ -220,10 +219,6 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		if pks.MType == types.MinerTypeVerify {
 			return opError(fmt.Errorf("you could not stake for other's verify node"))
 		}
-	}
-
-	if stake == 0 {
-		return opError(errors.New("stake value must > 0"))
 	}
 
 	st := common.TAS2RA(stake)

@@ -186,7 +186,16 @@ func stakeReduceValidator(tx *types.Transaction) error {
 	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
 		return err
 	}
-	return valueValidate(tx)
+	if tx.Value == nil {
+		return fmt.Errorf("value is nil")
+	}
+	if !tx.Value.IsUint64() {
+		return fmt.Errorf("value is not uint64")
+	}
+	if tx.Value.Uint64() == 0 {
+		return fmt.Errorf("value is 0")
+	}
+	return nil
 }
 
 func stakeRefundValidator(tx *types.Transaction) error {
