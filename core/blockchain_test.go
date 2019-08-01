@@ -461,7 +461,7 @@ func genHash(hash string) []byte {
 func initBalance() {
 	blocks := GenCorrectBlocks()
 	stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
-	stateDB1.AddBalance(common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000))
+	stateDB1.AddBalance(common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000000000000))
 	exc := &executePostState{state: stateDB1}
 	root := stateDB1.IntermediateRoot(true)
 	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())

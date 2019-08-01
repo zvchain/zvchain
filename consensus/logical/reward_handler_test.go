@@ -628,7 +628,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 	}
 }
 
-func TestRewardHandler_OnMessageCastRewardSignReq(t *testing.T) {
+func TestRewardHandler_OnMessageCastRewardSignReq_bug(t *testing.T) {
 	pt := NewProcessorTest()
 	rh := &RewardHandler{
 		processor:        pt,
