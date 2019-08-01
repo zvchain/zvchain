@@ -17,10 +17,12 @@ package net
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/log"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -84,6 +86,10 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 
 // SendVerifiedCast broadcast the signed message for specified block proposal among group members
 func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage, gSeed common.Hash) {
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": cvm.BlockHash.Hex(),
+	}).Debug("SendVerifiedCast")
+
 	body, e := marshalConsensusVerifyMessage(cvm)
 	if e != nil {
 		logger.Errorf("[peer]Discard send ConsensusVerifyMessage because of marshal error:%s", e.Error())
