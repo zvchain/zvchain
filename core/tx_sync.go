@@ -52,6 +52,7 @@ type txSyncer struct {
 	rctNotifiy    *lru.Cache
 	ticker        *ticker.GlobalTicker
 	candidateKeys *lru.Cache
+	networkImpl   network.Network
 	logger        *logrus.Logger
 }
 
@@ -129,13 +130,14 @@ func (ptk *peerTxsHashes) forEach(f func(k common.Hash) bool) {
 	}
 }
 
-func initTxSyncer(chain *FullBlockChain, pool *txPool) {
+func initTxSyncer(chain *FullBlockChain, pool *txPool, networkImpl network.Network) {
 	s := &txSyncer{
 		rctNotifiy:    common.MustNewLRUCache(txPeerMaxLimit),
 		pool:          pool,
 		ticker:        ticker.NewGlobalTicker("tx_syncer"),
 		candidateKeys: common.MustNewLRUCache(100),
 		chain:         chain,
+		networkImpl:   networkImpl,
 		logger:        log.TxSyncLogger,
 	}
 	s.ticker.RegisterPeriodicRoutine(txNotifyRoutine, s.notifyTxs, txNofifyInterval)
@@ -148,6 +150,13 @@ func initTxSyncer(chain *FullBlockChain, pool *txPool) {
 	notify.BUS.Subscribe(notify.TxSyncReq, s.onTxReq)
 	notify.BUS.Subscribe(notify.TxSyncResponse, s.onTxResponse)
 	TxSyncer = s
+}
+
+func (ts *txSyncer) ClearTicker() {
+	if ts.ticker == nil {
+		return
+	}
+	ts.ticker.ClearRoutines()
 }
 
 func (ts *txSyncer) clearJob() {
@@ -230,7 +239,7 @@ func (ts *txSyncer) getOrAddCandidateKeys(id string) *peerTxsHashes {
 	return v.(*peerTxsHashes)
 }
 
-func (ts *txSyncer) onTxNotify(msg notify.Message)error {
+func (ts *txSyncer) onTxNotify(msg notify.Message) error {
 	nm := notify.AsDefault(msg)
 	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil() {
 		err := fmt.Errorf("tx sync this source is is in evil...source is is %v\n", nm.Source())
@@ -352,7 +361,7 @@ func (ts *txSyncer) syncTimeoutRoutineName(id string) string {
 	return tickerTxSyncTimeout + id
 }
 
-func (ts *txSyncer) onTxReq(msg notify.Message)error {
+func (ts *txSyncer) onTxReq(msg notify.Message) error {
 	nm := notify.AsDefault(msg)
 	reader := bytes.NewReader(nm.Body())
 	var (
@@ -386,13 +395,13 @@ func (ts *txSyncer) onTxReq(msg notify.Message)error {
 		ts.logger.Error(err)
 		return err
 	}
-	ts.logger.Debugf("Rcv tx req from %v, size %v,send transactions to %v size %v", nm.Source(), len(hashs),nm.Source(), len(txs))
+	ts.logger.Debugf("Rcv tx req from %v, size %v,send transactions to %v size %v", nm.Source(), len(hashs), nm.Source(), len(txs))
 	message := network.Message{Code: network.TxSyncResponse, Body: body}
-	network.GetNetInstance().Send(nm.Source(), message)
+	ts.networkImpl.Send(nm.Source(), message)
 	return nil
 }
 
-func (ts *txSyncer) onTxResponse(msg notify.Message)error {
+func (ts *txSyncer) onTxResponse(msg notify.Message) error {
 	nm := notify.AsDefault(msg)
 	if peerManagerImpl.getOrAddPeer(nm.Source()).isEvil() {
 		err := fmt.Errorf("on tx response this source is is in evil...source is is %v\n", nm.Source())

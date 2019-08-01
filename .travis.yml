@@ -1,0 +1,37 @@
+language: go
+sudo: false
+jobs:
+  include:
+    - stage: build
+      os: osx
+      go: 1.12.x
+      before_install:
+        - git submodule sync
+        - git submodule update --init
+        - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
+        - cp network/p2p/darwin/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
+      script:
+        - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
+
+    - stage: build
+      os: linux
+      go: 1.12.x
+      before_install:
+        - git submodule sync
+        - git submodule update --init
+        - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
+        - cp network/p2p/linux/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
+      script:
+        - go build github.com/zvchain/zvchain/cmd/gzv && go build github.com/zvchain/zvchain/cmd/tvmcli
+
+    - stage: test
+      os: osx
+      go: 1.12.x
+      before_install:
+        - git submodule sync
+        - git submodule update --init
+        - sh tvm/ctvm/buildlib.sh && cp tvm/ctvm/examples/zvm/libtvm.a tvm/ && cp tvm/ctvm/py/tvm.h tvm/
+        - cp network/p2p/darwin/libp2pcore.a network/ && cp network/p2p/p2p_api.h network/
+      script:
+        - go test ./...
+

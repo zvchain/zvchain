@@ -17,7 +17,6 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/log"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -27,6 +26,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/storage/account"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -52,6 +54,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 
 	//BlockChainImpl.Clear()
+	initBalance()
 
 	queryAddr := "0xf77fa9ca98c46d534bd3d40c3488ed7a85c314db0fd1e79c6ccc75d79bd680bd"
 	b := BlockChainImpl.GetBalance(common.HexToAddress(queryAddr))
@@ -87,17 +90,17 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	src := pk.GetAddress()
 	balance := uint64(100000000)
 
-	stateDB ,err := BlockChainImpl.LatestStateDB()
-	if err != nil{
+	stateDB, err := BlockChainImpl.LatestStateDB()
+	if err != nil {
 		t.Fatalf("get status error!")
 	}
+	oldBalance := stateDB.GetBalance(src)
 	stateDB.AddBalance(src, new(big.Int).SetUint64(balance))
 	if err != nil {
 		t.Fatalf("error")
 	}
-
 	balance2 := stateDB.GetBalance(src).Uint64()
-	if balance2 != balance {
+	if balance2 != balance+oldBalance.Uint64() {
 		t.Fatalf("set balance fail")
 	}
 
@@ -162,13 +165,13 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 
 	//交易3
-	transaction := genTestTx(1111, "1", 2, 10)
+	transaction := genTestTx(1111, "1", 4, 10)
 	sign = common.BytesToSign(transaction.Sign)
 	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
 	src = pk.GetAddress()
 
-	stateDB,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
+	stateDB, error := BlockChainImpl.LatestStateDB()
+	if error != nil {
 		t.Fatalf("status failed")
 	}
 	stateDB.AddBalance(src, new(big.Int).SetUint64(111111111222))
@@ -453,6 +456,16 @@ func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.T
 func genHash(hash string) []byte {
 	bytes3 := []byte(hash)
 	return common.Sha256(bytes3)
+}
+
+func initBalance() {
+	blocks := GenCorrectBlocks()
+	stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB1.AddBalance(common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000000000000))
+	exc := &executePostState{state: stateDB1}
+	root := stateDB1.IntermediateRoot(true)
+	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())
+	_, _ = BlockChainImpl.(*FullBlockChain).commitBlock(blocks[0], exc)
 }
 
 func clear() {

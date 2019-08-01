@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/common/secp256k1"
+	"github.com/zvchain/zvchain/network"
 	"sync"
 
 	"github.com/hashicorp/golang-lru"
@@ -81,7 +82,7 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 	}
 	pool.received = newSimpleContainer(maxPendingSize, maxQueueSize, chain)
 	pool.bonPool = newRewardPool(chain.rewardManager, rewardTxMaxSize)
-	initTxSyncer(chain, pool)
+	initTxSyncer(chain, pool, network.GetNetInstance())
 
 	return pool
 }
@@ -171,7 +172,7 @@ func (pool *txPool) GetReceived() []*types.Transaction {
 
 // GetAllTxs returns the all received transactions(including pending and queue) in the pool with a limited size
 func (pool *txPool) GetAllTxs() []*types.Transaction {
-	txs :=  pool.received.asSlice(maxPendingSize + maxQueueSize)
+	txs := pool.received.asSlice(maxPendingSize + maxQueueSize)
 	for _, tx := range pool.received.queue {
 		txs = append(txs, tx)
 	}
@@ -253,7 +254,7 @@ func (pool *txPool) packTx() []*types.Transaction {
 	accuSize := 0
 	pool.bonPool.forEach(func(tx *types.Transaction) bool {
 		accuSize += tx.Size()
-		if accuSize <= txAccumulateSizeMaxPerBlock{
+		if accuSize <= txAccumulateSizeMaxPerBlock {
 			txs = append(txs, tx)
 			return true
 		}
@@ -273,8 +274,6 @@ func (pool *txPool) packTx() []*types.Transaction {
 					return true
 				}
 			}
-
-			txs = append(txs, tx)
 
 			accuSize = accuSize + tx.Size()
 			if accuSize <= txAccumulateSizeMaxPerBlock {

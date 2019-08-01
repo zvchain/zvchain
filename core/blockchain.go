@@ -191,7 +191,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	chain.rewardManager = newRewardManager()
+	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
 
@@ -328,9 +328,17 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
-	chain.blocks.Close()
-	chain.blockHeight.Close()
-	chain.stateDb.Close()
+	if chain.blocks  != nil{
+		chain.blocks.Close()
+	}
+	if chain.blockHeight != nil{
+		chain.blockHeight.Close()
+	}
+
+	if chain.stateDb != nil{
+		chain.stateDb.Close()
+	}
+
 }
 
 // GetRewardManager returns the reward manager

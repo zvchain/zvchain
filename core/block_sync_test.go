@@ -2,27 +2,32 @@ package core
 
 import (
 	"fmt"
-	"github.com/gogo/protobuf/proto"
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/consensus/base"
-	tas_middleware_test "github.com/zvchain/zvchain/core/test"
-	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
-	"github.com/zvchain/zvchain/storage/account"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/base"
+	tas_middleware_test "github.com/zvchain/zvchain/core/test"
+	"github.com/zvchain/zvchain/log"
+	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
+	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 )
 
 var blockSyncForTest *blockSyncer
 var lastBlockHash common.Hash
 var middleBlock *types.Block
 var middleBlockHash common.Hash
-func initContext(){
+
+func init() {
+	log.Init()
+}
+func initContext() {
 	initContext4Test()
 	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
 	blockSyncForTest.logger = log.BlockSyncLogger
@@ -32,7 +37,7 @@ func initContext(){
 }
 func TestGetBestCandidate(t *testing.T) {
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	for i := 0; i < 100; i++ {
 		blockSyncForTest.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
 		peerManagerImpl.getOrAddPeer(strconv.Itoa(i))
@@ -72,148 +77,143 @@ func PvFuncTest(pvBytes []byte) *big.Int {
 	return base.VRFProof2hash(base.VRFProve(pvBytes)).Big()
 }
 
-
-func TestTopBlockInfoNotifyHandler(t *testing.T){
+func TestTopBlockInfoNotifyHandler(t *testing.T) {
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 
 	//add a nil blockheader
 	source := "0x111"
 	blockSyncForTest.topBlockInfoNotifyHandler(tas_middleware_test.NewNilHeaderMessage(source))
 	isPeerExists := peerManagerImpl.isPeerExists(source)
-	if isPeerExists{
+	if isPeerExists {
 		t.Fatalf("expect nil,but got data")
 	}
-	candieData := blockSyncForTest.getPeerTopBlock (source)
-	if candieData != nil{
+	candieData := blockSyncForTest.getPeerTopBlock(source)
+	if candieData != nil {
 		t.Fatalf("expect nil,but got data")
 	}
 
 	//add
-	for i:=0;i<100;i++{
+	for i := 0; i < 100; i++ {
 		msg := tas_middleware_test.GenErrorDefaultMessage(i)
 		blockSyncForTest.topBlockInfoNotifyHandler(msg)
 	}
 
 	//check
-	for i:=0;i<100;i++{
+	for i := 0; i < 100; i++ {
 		isPeerExists := peerManagerImpl.isPeerExists(strconv.Itoa(i))
-		if !isPeerExists{
+		if !isPeerExists {
 			t.Fatalf("expect got data,but got nil")
 		}
 	}
 }
 
-func TestBlockReqHandler(t *testing.T){
+func TestBlockReqHandler(t *testing.T) {
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	insertBlocks()
-	bts,_ := tas_middleware_test.MarshalNilSyncRequest()
-	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ := tas_middleware_test.MarshalNilSyncRequest()
+	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 
 	err := blockSyncForTest.blockReqHandler(msg)
-	if err == nil{
+	if err == nil {
 		t.Fatalf("expect got error,but got nil")
 	}
 
-	bts,_ = tas_middleware_test.MarshalErorSyncRequest()
-	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ = tas_middleware_test.MarshalErorSyncRequest()
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 
 	err = blockSyncForTest.blockReqHandler(msg)
-	if err == nil{
+	if err == nil {
 		t.Fatalf("expect got error,but got nil")
 	}
 
 	var ReqHeight uint64 = 10
 	ReqSize := 10
 	blocks := BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
-	if len(blocks) !=10{
-		t.Fatalf("expect 10,bug got %d",len(blocks))
+	if len(blocks) != 10 {
+		t.Fatalf("expect 10,bug got %d", len(blocks))
 	}
 
 	ReqHeight = 0
 	ReqSize = 16
 	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
-	if len(blocks) !=16{
-		t.Fatalf("expect 16,bug got %d",len(blocks))
+	if len(blocks) != 16 {
+		t.Fatalf("expect 16,bug got %d", len(blocks))
 	}
 
 	ReqHeight = 83
 	ReqSize = 16
 	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
-	if len(blocks) !=16{
-		t.Fatalf("expect 16,bug got %d",len(blocks))
+	if len(blocks) != 16 {
+		t.Fatalf("expect 16,bug got %d", len(blocks))
 	}
 
 	//max height is 99
 	ReqHeight = 99
 	ReqSize = 16
 	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
-	if len(blocks) !=1{
-		t.Fatalf("expect 1,bug got %d",len(blocks))
+	if len(blocks) != 1 {
+		t.Fatalf("expect 1,bug got %d", len(blocks))
 	}
 }
 
-func TestBlockResponseMsgHandler(t *testing.T){
+func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	//error blocks
-	clearDB(false)
+	clearDB()
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	insertCorrectHashBlocks()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
-	bts,_:=proto.Marshal(&message)
-	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ := proto.Marshal(&message)
+	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err := blockSyncForTest.blockResponseMsgHandler(msg)
-	if  err != nil{
+	if err != nil {
 		t.Fatalf("expect err nil,but got error")
 	}
-
 
 	//error protobuf format
 	errorPbblocks := blocksToErrorPb(blocks)
 	errorMsg := tas_middleware_test.BlockResponseMsg{Blocks: errorPbblocks}
-	bts,_ = proto.Marshal(&errorMsg)
-	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ = proto.Marshal(&errorMsg)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if  err != nil{
+	if err == nil {
 		t.Fatalf("expect err nil,but got error")
 	}
-
-
 
 	//only txs
 	blocks = tas_middleware_test.GenOnlyHasTransBlocks()
 	pbblocks = BlockToPbOnlyTxs(blocks)
 	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
-	bts,_=proto.Marshal(&message)
-	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ = proto.Marshal(&message)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if  err == nil{
-		t.Fatalf("expect got error,but got nil")
+	if err != nil {
+		t.Fatalf("expect err nil,but got error")
 	}
 
 	//tx sign error
 	blocks = tas_middleware_test.GenHashCorrectBlocks()
 	pbblocks = blocksToPb(blocks)
 	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
-	bts,_=proto.Marshal(&message)
-	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ = proto.Marshal(&message)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if  err != nil{
+	if err != nil {
 		t.Fatalf("expect err nil,but got error")
 	}
 
-
 	//correct block hash
-	blocks = tas_middleware_test.GenHashCorrectBlocksByFirstHash(lastBlockHash,200)
+	blocks = tas_middleware_test.GenHashCorrectBlocksByFirstHash(lastBlockHash, 200)
 	pbblocks = blocksToPb(blocks)
 	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
-	bts,_=proto.Marshal(&message)
-	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ = proto.Marshal(&message)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if  err != nil{
+	if err != nil {
 		t.Fatalf("expect err nil,but got error")
 	}
 
@@ -221,120 +221,113 @@ func TestBlockResponseMsgHandler(t *testing.T){
 	blocks = tas_middleware_test.GenBlocksByBlock(middleBlock)
 	pbblocks = blocksToPb(blocks)
 	message = tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
-	bts,_=proto.Marshal(&message)
-	msg = tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
+	bts, _ = proto.Marshal(&message)
+	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 
 	//this is roll back error!
-	if BlockChainImpl.(*FullBlockChain).latestBlock.Hash == middleBlockHash{
+	if BlockChainImpl.(*FullBlockChain).latestBlock.Hash == middleBlockHash {
 		t.Fatalf("hash error")
 	}
-	if  err != nil{
+	if err != nil {
 		t.Fatalf("expect err nil,but got error")
 	}
 }
 
-
-func TestNewBlockHandler(t *testing.T){
+func TestNewBlockHandler(t *testing.T) {
 	initContext()
-	defer clearDB(true)
+	defer clearDB()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
-	bts,_:=proto.Marshal(&message)
-	msg := tas_middleware_test.GenDefaultMessageWithBytes(111,bts)
-
+	bts, _ := proto.Marshal(&message)
+	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 
 	err := BlockChainImpl.(*FullBlockChain).newBlockHandler(msg)
-	if err != nil{
+	if err != nil {
 		t.Fatalf("expect got no error,but got error")
 	}
 }
 
-func clearDB(needClose bool) {
+func clearDB() {
 	fmt.Println("---clear---")
-	if needClose{
-		if BlockChainImpl != nil {
-			BlockChainImpl.Close()
-			//taslog.Close()
-			BlockChainImpl = nil
-		}
+	if BlockChainImpl != nil {
+		BlockChainImpl.Close()
+		//taslog.Close()
+		BlockChainImpl = nil
 	}
-
 	dir, err := ioutil.ReadDir(".")
 	if err != nil {
 		return
 	}
 	for _, d := range dir {
-		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore") ||
-			strings.HasPrefix(d.Name(), "database")) {
+		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "test_db") || strings.HasPrefix(d.Name(), "groupstore") ||
+			strings.HasPrefix(d.Name(), "database")) || (strings.HasSuffix(d.Name(), ".log")) {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
-				fmt.Printf("error while removing %s,error=%v", d.Name(),err)
+				fmt.Printf("error while removing %s,error=%v", d.Name(), err)
 			}
 		}
 	}
 
 }
 
-func insertBlocks(){
+func insertBlocks() {
 	blocks := GenBlocks()
-	stateDB,_ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
 	exc := &executePostState{state: stateDB}
-	for i:=0;i<len(blocks);i++{
-		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i],exc)
+	for i := 0; i < len(blocks); i++ {
+		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i], exc)
 		lastBlockHash = blocks[i].Header.Hash
 	}
 }
 
-func insertCorrectHashBlocks(){
+func insertCorrectHashBlocks() {
 	blocks := GenCorrectBlocks()
-	stateDB,_ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
 	exc := &executePostState{state: stateDB}
-	for i:=0;i<len(blocks);i++{
-		root:= stateDB.IntermediateRoot(true)
+	for i := 0; i < len(blocks); i++ {
+		root := stateDB.IntermediateRoot(true)
 		blocks[i].Header.StateTree = common.BytesToHash(root.Bytes())
-		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i],exc)
+		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i], exc)
 		lastBlockHash = blocks[i].Header.Hash
-		if i == 4{
+		if i == 4 {
 			middleBlockHash = blocks[i].Header.Hash
 		}
-		if i == 5{
+		if i == 5 {
 			middleBlock = blocks[i]
 		}
 	}
 }
 
-
-func GenCorrectBlocks()[]*types.Block{
+func GenCorrectBlocks() []*types.Block {
 	blocks := []*types.Block{}
 	var hash = common.Hash{}
-	for i:= 0;i<100;i++{
+	for i := 0; i < 100; i++ {
 		bh := tas_middleware_test.NewRandomFullBlockHeader(uint64(i))
 		bh.Hash = bh.GenHash()
-		if i == 0{
+		if i == 0 {
 			bh.PreHash = bh.Hash
-		}else{
+		} else {
 			bh.PreHash = hash
 		}
 		hash = bh.Hash
-		blocks = append(blocks,&types.Block{Header:bh})
+		blocks = append(blocks, &types.Block{Header: bh})
 	}
 	return blocks
 }
 
-func GenBlocks()[]*types.Block{
+func GenBlocks() []*types.Block {
 	blocks := []*types.Block{}
-	for i:= 0;i<100;i++{
+	for i := 0; i < 100; i++ {
 		bh := tas_middleware_test.NewRandomFullBlockHeader(uint64(i))
-		blocks = append(blocks,&types.Block{Header:bh})
+		blocks = append(blocks, &types.Block{Header: bh})
 	}
 	return blocks
 }
 
-
-func blocksToPb(blocks[]*types.Block)[]*tas_middleware_pb.Block{
+func blocksToPb(blocks []*types.Block) []*tas_middleware_pb.Block {
 	pbblocks := make([]*tas_middleware_pb.Block, 0)
 	for _, b := range blocks {
 		pb := types.BlockToPb(b)
@@ -343,16 +336,15 @@ func blocksToPb(blocks[]*types.Block)[]*tas_middleware_pb.Block{
 	return pbblocks
 }
 
-func BlockToPbOnlyTxs(blocks[]*types.Block) []*tas_middleware_pb.Block {
+func BlockToPbOnlyTxs(blocks []*types.Block) []*tas_middleware_pb.Block {
 	pbblocks := make([]*tas_middleware_pb.Block, 0)
 	for _, b := range blocks {
 		transactions := TransactionsToPb(b.Transactions)
 		block := tas_middleware_pb.Block{Transactions: transactions}
-		pbblocks = append(pbblocks,&block)
+		pbblocks = append(pbblocks, &block)
 	}
 	return pbblocks
 }
-
 
 func TransactionsToPb(txs []*types.Transaction) []*tas_middleware_pb.Transaction {
 	if txs == nil {
@@ -392,8 +384,7 @@ func transactionToPb(t *types.Transaction) *tas_middleware_pb.Transaction {
 	return &transaction
 }
 
-
-func blocksToErrorPb(blocks[]*types.Block)[]*tas_middleware_test.Block{
+func blocksToErrorPb(blocks []*types.Block) []*tas_middleware_test.Block {
 	pbblocks := make([]*tas_middleware_test.Block, 0)
 	for _, b := range blocks {
 		pb := BlockToErrorPb(b)
@@ -401,7 +392,6 @@ func blocksToErrorPb(blocks[]*types.Block)[]*tas_middleware_test.Block{
 	}
 	return pbblocks
 }
-
 
 func BlockToErrorPb(b *types.Block) *tas_middleware_test.Block {
 	if b == nil {
@@ -411,8 +401,6 @@ func BlockToErrorPb(b *types.Block) *tas_middleware_test.Block {
 	block := tas_middleware_test.Block{Header: header}
 	return &block
 }
-
-
 
 func BlockHeaderToErrorPb(h *types.BlockHeader) *tas_middleware_test.BlockHeader {
 	ts := h.CurTime.Unix()

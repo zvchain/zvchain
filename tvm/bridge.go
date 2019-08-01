@@ -28,8 +28,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-var logger = log.TVMLogger
-
 //export Transfer
 func Transfer(toAddress *C.char, value *C.char) bool {
 	toAddressStr := C.GoString(toAddress)
@@ -141,7 +139,7 @@ func RemoveData(key *C.char) {
 func executeMinerOperation(msg types.MinerOperationMessage) bool {
 	success, err := controller.mm.ExecuteOperation(controller.AccountDB, msg, controller.BlockHeader.Height)
 	if err != nil {
-		logger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())
+		log.TVMLogger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())
 	}
 	return success
 }
@@ -153,7 +151,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 		return false
 	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
-	if !ok || value.Sign() <= 0 || value.Cmp(common.MaxBigUint64) > 0 {
+	if !ok || value.Sign() < 0 || value.Cmp(common.MaxBigUint64) > 0 {
 		return false
 	}
 	mPks := &types.MinerPks{
@@ -161,7 +159,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 	}
 	payload, err := types.EncodePayload(mPks)
 	if err != nil {
-		logger.Errorf("encode payload error:%v", err)
+		log.TVMLogger.Errorf("encode payload error:%v", err)
 		return false
 	}
 	target := common.HexToAddress(minerAddrString)

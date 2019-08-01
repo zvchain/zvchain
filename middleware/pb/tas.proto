@@ -222,8 +222,7 @@ message CastRewardTransSignReqMessage {
 
 message CastRewardTransSignMessage {
 	required SignData Sign = 1;
-    required bytes ReqHash = 2;
-    required bytes BlockHash = 3;
+    required bytes BlockHash = 2;
 }
 
 message TopBlockInfo{

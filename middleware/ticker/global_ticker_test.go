@@ -29,7 +29,7 @@ func TestGlobalTicker_RegisterRoutine(t *testing.T) {
 	wg.Add(1)
 	var exeNum = 0
 	ticker.RegisterPeriodicRoutine("name1", func() bool {
-		if exeNum >= 3 {
+		if exeNum == 3 {
 			go func() {
 				defer wg.Done()
 			}()
