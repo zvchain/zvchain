@@ -10,9 +10,9 @@ var RusPlus *Logrusplus
 
 var StdLogger = logrus.StandardLogger()
 
-var DefaultLogger  = logrus.StandardLogger()
-var ConsensusLogger  = logrus.StandardLogger()
-var ConsensusStdLogger  = logrus.StandardLogger()
+var DefaultLogger = logrus.StandardLogger()
+var ConsensusLogger = logrus.StandardLogger()
+var ConsensusStdLogger = logrus.StandardLogger()
 var CoreLogger = logrus.StandardLogger()
 var BlockSyncLogger = logrus.StandardLogger()
 var GroupLogger = logrus.StandardLogger()
@@ -26,5 +26,5 @@ var PerformLogger = logrus.StandardLogger()
 
 const (
 	MaxFileSize = 1024 * 1024 * 20
-	Level = logrus.DebugLevel
+	Level       = logrus.DebugLevel
 )
