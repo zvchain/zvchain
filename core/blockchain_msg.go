@@ -18,7 +18,6 @@ package core
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -30,6 +29,9 @@ func (chain *FullBlockChain) initMessageHandler() {
 }
 
 func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
+	log.ELKLogger.WithFields(logrus.Fields{
+	}).Debug("AddBlockOnChain start")
+
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
@@ -47,7 +49,7 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 		"height": block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
 		"blockTime": block.Header.CurTime.String(),
-	}).Debug("AddBlockOnChain canPropose:", mediator.Proc.CanPropose())
+	}).Debug("AddBlockOnChain end")
 
 	return nil
 }
