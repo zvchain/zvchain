@@ -631,7 +631,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	vcx.signedBlockHashs.Add(GenTestBHHash("already-sign"))
 	p.blockContexts.addVctx(vcx)
 	// for cast-illegal
-	p.minerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
+	p.MinerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -987,7 +987,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},
 	})
 	// for cast-illegal
-	p.minerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
+	p.MinerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := p.OnMessageVerify(tt.args.msg)

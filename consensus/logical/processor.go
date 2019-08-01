@@ -48,7 +48,7 @@ type Processor struct {
 	// miner releted
 	mi            *model.SelfMinerDO // Current miner information
 	genesisMember bool               // Whether current node is one of the genesis verifyGroup members
-	minerReader   *MinerPoolReader   // Miner info storeReader
+	MinerReader   *MinerPoolReader   // Miner info storeReader
 
 	// block generate related
 	blockContexts    *castBlockContexts   // Stores the proposal messages for proposal role and the verification context for verify roles
@@ -138,12 +138,12 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.ts = time.TSInstance
 	p.isCasting = 0
 
-	p.minerReader = newMinerPoolReader(p, core.MinerManagerImpl)
+	p.MinerReader = newMinerPoolReader(p, core.MinerManagerImpl)
 
 	p.Ticker = ticker.NewGlobalTicker("consensus")
 
 	provider := &core.GroupManagerImpl
-	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, &mi)
+	sr := group2.InitRoutine(p.MinerReader, p.MainChain, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
 	p.livedGroups = sync.Map{}
 
@@ -170,7 +170,7 @@ func (p Processor) GetMinerInfo() *model.MinerDO {
 // isCastLegal check if the block header is legal
 func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHeader) (err error) {
 	castor := groupsig.DeserializeID(bh.Castor)
-	minerDO := p.minerReader.getProposeMinerByHeight(castor, preHeader.Height)
+	minerDO := p.MinerReader.getProposeMinerByHeight(castor, preHeader.Height)
 	if minerDO == nil {
 		err = fmt.Errorf("minerDO is nil, id=%v", castor)
 		return
@@ -179,7 +179,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 		err = fmt.Errorf("miner can't cast at height, id=%v, height=%v, status=%v", castor, bh.Height, minerDO.Status)
 		return
 	}
-	totalStake := p.minerReader.getTotalStake(preHeader.Height)
+	totalStake := p.MinerReader.getTotalStake(preHeader.Height)
 	// Check if the vrf threshold is satisfied
 	if ok2, err2 := vrfVerifyBlock(bh, preHeader, minerDO, totalStake); !ok2 {
 		err = fmt.Errorf("vrf verify block fail, err=%v", err2)
@@ -199,7 +199,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 // getProposerPubKey get the public key of proposer miner in the specified block
 func (p Processor) getProposerPubKeyInBlock(bh *types.BlockHeader) *groupsig.Pubkey {
 	castor := groupsig.DeserializeID(bh.Castor)
-	castorMO := p.minerReader.getLatestProposeMiner(castor)
+	castorMO := p.MinerReader.getLatestProposeMiner(castor)
 	if castorMO != nil {
 		return &castorMO.PK
 	}

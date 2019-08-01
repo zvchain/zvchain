@@ -78,7 +78,7 @@ func (p *Processor) checkSelfCastRoutine() bool {
 	}
 	expireTime = getCastExpireTime(top.CurTime, deltaHeight, castHeight)
 
-	if !p.canPropose() {
+	if !p.CanPropose() {
 		return false
 	}
 
@@ -167,13 +167,13 @@ func (p *Processor) updateMonitorInfo() bool {
 		GroupHeight: p.groupReader.Height(),
 		TxPoolCount: int(p.MainChain.GetTransactionPool().TxNum()),
 	}
-	proposer := p.minerReader.getLatestProposeMiner(p.GetMinerID())
+	proposer := p.MinerReader.getLatestProposeMiner(p.GetMinerID())
 	if proposer != nil {
 		ni.Type |= monitor.NtypeProposal
 		ni.PStake = proposer.Stake
 		ni.VrfThreshold = p.GetVrfThreshold(ni.PStake)
 	}
-	verifier := p.minerReader.GetLatestVerifyMiner(p.GetMinerID())
+	verifier := p.MinerReader.GetLatestVerifyMiner(p.GetMinerID())
 	if verifier != nil {
 		ni.Type |= monitor.NtypeVerifier
 	}
