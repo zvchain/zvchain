@@ -47,8 +47,7 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 		"height": block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
 		"blockTime": block.Header.CurTime.String(),
-		"canPropose": mediator.Proc.CanPropose(),
-	}).Debug("AddBlockOnChain")
+	}).Debug("AddBlockOnChain canPropose:", mediator.Proc.CanPropose())
 
 	return nil
 }
