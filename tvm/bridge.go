@@ -151,7 +151,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 		return false
 	}
 	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
-	if !ok || value.Sign() <= 0 || value.Cmp(common.MaxBigUint64) > 0 {
+	if !ok || value.Sign() < 0 || value.Cmp(common.MaxBigUint64) > 0 {
 		return false
 	}
 	mPks := &types.MinerPks{
