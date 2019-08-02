@@ -19,6 +19,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zvchain/zvchain/consensus/groupsig"
+	"gopkg.in/fatih/set.v0"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -37,9 +40,20 @@ type verifyMsgCache struct {
 }
 
 type proposedBlock struct {
+	lock             sync.RWMutex
 	block            *types.Block
-	responseCount    uint64
 	maxResponseCount uint64
+	requestedMember  set.Interface
+}
+
+func (p *proposedBlock) containsOrAddRequested(gid groupsig.ID) (bool, int) {
+	if p.requestedMember.Has(gid.GetHexString()) {
+		return true, 0
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.requestedMember.Add(gid.GetHexString())
+	return false, p.requestedMember.Size()
 }
 
 func newVerifyMsgCache() *verifyMsgCache {
@@ -122,7 +136,7 @@ func (bctx *castBlockContexts) forEachReservedVctx(f func(vctx *VerifyContext) b
 }
 
 func (bctx *castBlockContexts) addProposed(b *types.Block) {
-	pb := proposedBlock{block: b}
+	pb := proposedBlock{block: b, requestedMember: set.New(set.ThreadSafe)}
 	bctx.proposed.Add(b.Header.Hash, &pb)
 }
 

@@ -241,6 +241,7 @@ message ChainPieceBlockMsg{
 
 message ReqProposalBlockMessage {
     required bytes Hash = 1;
+    required SignData Sign = 2;
 }
 
 message ResponseProposalBlockMessage {

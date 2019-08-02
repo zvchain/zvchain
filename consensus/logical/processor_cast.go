@@ -173,13 +173,17 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	msg := &model.ReqProposalBlock{
 		Hash: bh.Hash,
 	}
-	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
 
-	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
+	sKey := p.groupReader.getGroupSignatureSeckey(bh.Group)
+	// sign the message and send to other members in the verifyGroup
+	if msg.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), msg) {
+		p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
+		result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 
-	slot.setSlotStatus(slSuccess)
-	vctx.markNotified()
-	vctx.successSlot = slot
+		slot.setSlotStatus(slSuccess)
+		vctx.markNotified()
+		vctx.successSlot = slot
+	}
 	return
 }
 
