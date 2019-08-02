@@ -464,12 +464,12 @@ func parseRaFromString(number string) (uint64, error) {
 	numberSplit := strings.Split(number, ".")
 	lengthOfNumber := len(numberSplit)
 	if lengthOfNumber > 2 || lengthOfNumber < 1 {
-		return 0, fmt.Errorf("illeal number")
+		return 0, fmt.Errorf("illegal number")
 	}
 
-	var addrReg = regexp.MustCompile("^[0-9]{1,10}$") //check the format
-	if !addrReg.MatchString(numberSplit[0]) {
-		return 0, fmt.Errorf("illeal number")
+	var numReg = regexp.MustCompile("^[0-9]{1,10}$") //check the format
+	if !numReg.MatchString(numberSplit[0]) {
+		return 0, fmt.Errorf("illegal number")
 	}
 
 	bigNumber, err := strconv.ParseUint(numberSplit[0], 10, 64)
@@ -481,7 +481,7 @@ func parseRaFromString(number string) (uint64, error) {
 	if lengthOfNumber == 2 {
 		var digital = regexp.MustCompile("^[0-9]{1,9}$") //check the format
 		if !digital.MatchString(numberSplit[1]) {
-			return 0, fmt.Errorf("illeal number")
+			return 0, fmt.Errorf("illegal number")
 		}
 		realNumber := numberSplit[1]
 		for i := len(numberSplit[1]); i < 9; i++ {
