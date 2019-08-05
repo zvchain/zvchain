@@ -129,9 +129,6 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 type group struct {
 	HeaderD  *groupHeader
 	MembersD []*member
-
-	// note: never read from mCache directly, use function Members() instead
-	mCache []types.MemberI // cache for interface function Members()
 }
 
 func (g *group) Header() types.GroupHeaderI {
@@ -139,14 +136,11 @@ func (g *group) Header() types.GroupHeaderI {
 }
 
 func (g *group) Members() []types.MemberI {
-	if g.mCache == nil {
-		cache := make([]types.MemberI, len(g.MembersD))
-		for k, v := range g.MembersD {
-			cache[k] = v
-		}
-		g.mCache = cache
+	rs := make([]types.MemberI, len(g.MembersD))
+	for k, v := range g.MembersD {
+		rs[k] = v
 	}
-	return g.mCache
+	return rs
 }
 
 func (g *group) hasMember(id []byte) bool {
@@ -223,11 +217,9 @@ func newGroup(i types.GroupI, bh uint64, top *group) *group {
 		bh,
 		gh}
 	members := make([]*member, 0)
-	membersI := make([]types.MemberI, 0, len(i.Members()))
 	for _, m := range i.Members() {
 		mem := &member{m.ID(), m.PK()}
 		members = append(members, mem)
-		membersI = append(membersI, mem)
 	}
-	return &group{header, members, membersI}
+	return &group{header, members}
 }
