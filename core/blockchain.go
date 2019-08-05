@@ -238,7 +238,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 func (chain *FullBlockChain) handleFork20190805() error {
 	latest := chain.latestBlock
-
+	// no need to handle
+	if latest.Height < 133895 {
+		return nil
+	}
 	// block hash of 133895
 	forkPoint := common.HexToHash("0x9a000a2cf7bba0b0dd2d41a5f700632eafa7b10bf782f4c925418a9b72397fdb")
 	if latest.Hash == forkPoint {
