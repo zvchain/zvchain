@@ -81,6 +81,7 @@ func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
 			logger.Errorf("Unmarshal failed when get group from db. seed = %v", seed)
 			return nil
 		}
+		gr.Members()  //make sure gr.mCache initialized
 		p.groupCache.ContainsOrAdd(seed, &gr)
 		return &gr
 	}

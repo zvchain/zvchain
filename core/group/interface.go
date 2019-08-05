@@ -130,7 +130,8 @@ type group struct {
 	HeaderD  *groupHeader
 	MembersD []*member
 
-	members []types.MemberI // cache for interface function Members()
+	// note: never read from mCache directly, use function Members() instead
+	mCache []types.MemberI // cache for interface function Members()
 }
 
 func (g *group) Header() types.GroupHeaderI {
@@ -138,17 +139,17 @@ func (g *group) Header() types.GroupHeaderI {
 }
 
 func (g *group) Members() []types.MemberI {
-	if g.members == nil {
-		g.members = make([]types.MemberI, len(g.MembersD))
+	if g.mCache == nil {
+		g.mCache = make([]types.MemberI, len(g.MembersD))
 		for k, v := range g.MembersD {
-			g.members[k] = v
+			g.mCache[k] = v
 		}
 	}
-	return g.members
+	return g.mCache
 }
 
 func (g *group) hasMember(id []byte) bool {
-	for _, mem := range g.members {
+	for _, mem := range g.Members() {
 		if bytes.Equal(mem.ID(), id) {
 			return true
 		}
