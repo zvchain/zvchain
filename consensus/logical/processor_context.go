@@ -147,7 +147,7 @@ func (bctx *castBlockContexts) forEachReservedVctx(f func(vctx *VerifyContext) b
 func (bctx *castBlockContexts) addProposed(b *types.Block, groupMemberSize int) {
 	maxResponseCount := int(math.Ceil(float64(groupMemberSize) / 3)) //only response group member size's 1/3 times
 	pb := newProposedBlock(b, maxResponseCount)
-	bctx.proposed.Add(b.Header.Hash, &pb)
+	bctx.proposed.Add(b.Header.Hash, pb)
 }
 
 func (bctx *castBlockContexts) getProposed(hash common.Hash) *proposedBlock {
