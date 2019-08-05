@@ -16,6 +16,7 @@
 package logical
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -42,8 +43,16 @@ type verifyMsgCache struct {
 type proposedBlock struct {
 	lock             sync.RWMutex
 	block            *types.Block
-	maxResponseCount uint64
+	maxResponseCount int
 	requestedMember  set.Interface
+}
+
+func newProposedBlock(b *types.Block, count int) *proposedBlock {
+	return &proposedBlock{
+		block:            b,
+		requestedMember:  set.New(set.NonThreadSafe),
+		maxResponseCount: count,
+	}
 }
 
 func (p *proposedBlock) containsOrAddRequested(gid groupsig.ID) (bool, int) {
@@ -135,8 +144,9 @@ func (bctx *castBlockContexts) forEachReservedVctx(f func(vctx *VerifyContext) b
 	}
 }
 
-func (bctx *castBlockContexts) addProposed(b *types.Block) {
-	pb := proposedBlock{block: b, requestedMember: set.New(set.NonThreadSafe)}
+func (bctx *castBlockContexts) addProposed(b *types.Block, groupMemberSize int) {
+	maxResponseCount := int(math.Ceil(float64(groupMemberSize) / 3)) //only response group member size's 1/3 times
+	pb := newProposedBlock(b, maxResponseCount)
 	bctx.proposed.Add(b.Header.Hash, &pb)
 }
 

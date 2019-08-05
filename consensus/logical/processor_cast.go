@@ -17,9 +17,10 @@ package logical
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/common"
 	"math/big"
 	"sync"
+
+	"github.com/zvchain/zvchain/common"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -309,7 +310,7 @@ func (p *Processor) blockProposal() {
 		p.proveChecker.addProve(pi)
 		worker.markProposed()
 
-		p.blockContexts.addProposed(block)
+		p.blockContexts.addProposed(block, len(gb.MemIds))
 
 	} else {
 		blog.debug("bh/prehash Error or sign Error, bh=%v, real height=%v. bc.prehash=%v, bh.prehash=%v", height, bh.Height, worker.baseBH.Hash, bh.PreHash)

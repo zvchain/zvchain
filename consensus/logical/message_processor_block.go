@@ -17,7 +17,6 @@ package logical
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -427,10 +426,6 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 		return
 	}
 
-	if pb.maxResponseCount == 0 {
-		pb.maxResponseCount = uint64(math.Ceil(float64(group.memberSize()) / 3))
-	}
-
 	exist, size := pb.containsOrAddRequested(msg.SI.GetID())
 
 	if exist {
@@ -439,7 +434,7 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	}
 
 	// Only response to limited members of the verifyGroup in case of network traffic
-	if uint64(size) > pb.maxResponseCount {
+	if size > pb.maxResponseCount {
 		err = fmt.Errorf("response count exceed:%v %v", size, pb.maxResponseCount)
 		return
 	}
