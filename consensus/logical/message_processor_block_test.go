@@ -164,7 +164,12 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				msg:      &model.ReqProposalBlock{block.Header.Hash},
+				msg:      &model.ReqProposalBlock{
+					Hash: block.Header.Hash,
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(block.Header.Hash, pt.ids[1], pt.msk[1]),
+					},
+				},
 				sourceID: "111",
 			},
 			expected: "success",
@@ -172,7 +177,12 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "bad hash",
 			args: args{
-				msg:      &model.ReqProposalBlock{common.EmptyHash},
+				msg:      &model.ReqProposalBlock{
+					Hash: common.EmptyHash,
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(common.EmptyHash, pt.ids[1], pt.msk[1]),
+					},
+				},
 				sourceID: "111",
 			},
 			expected: "block is nil",
@@ -180,7 +190,12 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "ok, adding response count",
 			args: args{
-				msg:      &model.ReqProposalBlock{block.Header.Hash},
+				msg:      &model.ReqProposalBlock{
+					Hash: block.Header.Hash,
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(block.Header.Hash, pt.ids[1], pt.msk[1]),
+					},
+				},
 				sourceID: "111",
 			},
 			expected: "success",
@@ -188,12 +203,18 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "response count exceed",
 			args: args{
-				msg:      &model.ReqProposalBlock{block.Header.Hash},
+				msg:      &model.ReqProposalBlock{
+					Hash: block.Header.Hash,
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(block.Header.Hash, pt.ids[1], pt.msk[1]),
+					},
+				},
 				sourceID: "111",
 			},
 			expected: "response count exceed:3 2",
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := processorTest
