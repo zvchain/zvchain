@@ -140,10 +140,11 @@ func (g *group) Header() types.GroupHeaderI {
 
 func (g *group) Members() []types.MemberI {
 	if g.mCache == nil {
-		g.mCache = make([]types.MemberI, len(g.MembersD))
+		cache := make([]types.MemberI, len(g.MembersD))
 		for k, v := range g.MembersD {
-			g.mCache[k] = v
+			cache[k] = v
 		}
+		g.mCache = cache
 	}
 	return g.mCache
 }
