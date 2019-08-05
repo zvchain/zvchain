@@ -88,6 +88,11 @@ func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.Mi
 	return mm.executeOperation(operation, accountDB)
 }
 
+func (mm *MinerManager) IsFullStake(accountDB types.AccountDB, addr common.Address, height uint64) bool {
+	return false
+}
+
+
 // FreezeMiner execute the miner frozen operation
 func (mm *MinerManager) MinerFrozen(accountDB types.AccountDB, miner common.Address, height uint64) (success bool, err error) {
 	base := newBaseOperation(accountDB, nil, height)
@@ -353,6 +358,7 @@ func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.Accoun
 		MType: miner.Type,
 		Pk:    miner.PublicKey,
 		VrfPk: miner.VrfPublicKey,
+		AddHeight:0,
 	}
 	data, err := types.EncodePayload(pks)
 	if err != nil {

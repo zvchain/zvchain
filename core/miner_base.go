@@ -134,20 +134,20 @@ func setPks(miner *types.Miner, pks *types.MinerPks) *types.Miner {
 }
 
 // checkCanActivate if status can be set to types.MinerStatusActive
-func checkCanActivate(miner *types.Miner, height uint64) bool {
+func checkCanActivate(miner *types.Miner) bool {
 	// pks not completed
 	if !miner.PksCompleted() {
 		return false
 	}
 	// If the stake up to the lower bound, then activate the miner
-	return checkLowerBound(miner, height)
+	return checkLowerBound(miner)
 }
 
 func checkUpperBound(miner *types.Miner, height uint64) bool {
 	return miner.Stake <= maximumStake(height)
 }
 
-func checkLowerBound(miner *types.Miner, height uint64) bool {
+func checkLowerBound(miner *types.Miner) bool {
 	return miner.Stake >= minimumStake()
 }
 

@@ -662,6 +662,7 @@ func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64
 
 	pks := &types.MinerPks{
 		MType: types.MinerType(mType),
+		AddHeight:0,
 	}
 	var bpk groupsig.Pubkey
 	bpk.SetHexString(adminBPK)
@@ -697,6 +698,7 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 
 	pks := &types.MinerPks{
 		MType: types.MinerType(mType),
+		AddHeight:0,
 	}
 	var bpk groupsig.Pubkey
 	bpk.SetHexString(adminBPK)

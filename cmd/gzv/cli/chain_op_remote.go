@@ -190,7 +190,7 @@ func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *Result {
 }
 
 // StakeAdd adds stake for the given target account
-func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice uint64) *Result {
+func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice,addHeight uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r
@@ -203,6 +203,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 
 	pks := &types.MinerPks{
 		MType: types.MinerType(mType),
+		AddHeight:addHeight,
 	}
 
 	// When stakes for himself, pks will be required
@@ -219,6 +220,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		if pks.MType == types.MinerTypeVerify {
 			return opError(fmt.Errorf("you could not stake for other's verify node"))
 		}
+		pks.AddHeight = 0
 	}
 
 	st := common.TAS2RA(stake)

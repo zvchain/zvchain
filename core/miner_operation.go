@@ -157,7 +157,7 @@ func (op *stakeAddOp) Operation() error {
 		if op.opProposalRole() {
 			op.addProposalTotalStake(op.value)
 		}
-	} else if checkCanActivate(targetMiner, op.height) { // Check if to active the miner
+	} else if checkCanActivate(targetMiner) { // Check if to active the miner
 		targetMiner.UpdateStatus(types.MinerStatusActive, op.height)
 		// Add to pool so that the miner can start working
 		op.addToPool(op.addTarget, targetMiner.Stake)
@@ -292,8 +292,8 @@ func (op *stakeReduceOp) Validate() error {
 func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 	if miner.IsFrozen() {
 		return fmt.Errorf("frozen miner must abort first")
-	} else if miner.IsActive() {
-		if !checkLowerBound(miner, op.height) {
+	} else if miner.IsActive() && op.opVerifyRole(){
+		if !checkLowerBound(miner) {
 			return fmt.Errorf("active miner cann't reduce stake to below bound")
 		}
 	} else if miner.IsPrepare() {
@@ -328,6 +328,9 @@ func (op *stakeReduceOp) Operation() error {
 
 	// Sub the corresponding total stake of the proposals
 	if miner.IsActive() && op.opProposalRole() {
+		if !checkLowerBound(miner){
+			miner.UpdateStatus(types.MinerStatusPrepare, op.height)
+		}
 		op.subProposalTotalStake(op.value)
 	}
 	if err := op.setMiner(miner); err != nil {
