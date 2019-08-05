@@ -16,6 +16,7 @@
 package network
 
 import (
+	"fmt"
 	"github.com/golang/protobuf/proto"
 
 	"strconv"
@@ -173,6 +174,7 @@ func newNotifyMessage(message *Message, from string) *notify.DefaultMessage {
 
 func (s *Server) handleMessageInner(message *Message, from string) {
 
+	fmt.Println(message.Code, message.Body)
 	s.netCore.onHandleDataMessageStart()
 	defer s.netCore.onHandleDataMessageDone()
 
