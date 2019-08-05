@@ -23,6 +23,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/log"
+	"os"
 	"sync"
 	"time"
 
@@ -206,15 +207,12 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	if nil != chain.latestBlock {
 		if !chain.versionValidate() {
-			return fmt.Errorf("Illegal data version! Please delete the data directory and restart the program!")
-		}
-		err := chain.handleFork20190805()
-		if err != nil {
-			return err
+			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
+			os.Exit(0)
 		}
 		chain.buildCache(10)
 		Logger.Debugf("initBlockChain chain.latestBlock.StateTree  Hash:%s", chain.latestBlock.StateTree.Hex())
-		state, err := account.NewAccountDB(chain.latestBlock.StateTree, chain.stateCache)
+		state, err := account.NewAccountDB(common.BytesToHash(chain.latestBlock.StateTree.Bytes()), chain.stateCache)
 		if nil == err {
 			chain.latestStateDB = state
 		} else {
@@ -230,32 +228,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)
-	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
+	GroupManagerImpl.InitManager(MinerManagerImpl,chain.consensusHelper.GenerateGenesisInfo())
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
-	return nil
-}
-
-func (chain *FullBlockChain) handleFork20190805() error {
-	latest := chain.latestBlock
-	// no need to handle
-	if latest.Height < 133895 {
-		return nil
-	}
-	// block hash of 133895
-	forkPoint := common.HexToHash("0x9a000a2cf7bba0b0dd2d41a5f700632eafa7b10bf782f4c925418a9b72397fdb")
-	if latest.Hash == forkPoint {
-		return nil
-	}
-	bh := chain.queryBlockHeaderByHash(forkPoint)
-	if bh == nil {
-		return fmt.Errorf("fork point block not exist:%v", forkPoint.Hex())
-	}
-
-	// reset the top iff the block height of 133896 exists
-	if chain.hasHeight(bh.Height + 1) {
-		return chain.resetTop(bh)
-	}
 	return nil
 }
 
@@ -353,14 +328,14 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
-	if chain.blocks != nil {
+	if chain.blocks  != nil{
 		chain.blocks.Close()
 	}
-	if chain.blockHeight != nil {
+	if chain.blockHeight != nil{
 		chain.blockHeight.Close()
 	}
 
-	if chain.stateDb != nil {
+	if chain.stateDb != nil{
 		chain.stateDb.Close()
 	}
 
