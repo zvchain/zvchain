@@ -17,6 +17,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"os"
 	"time"
@@ -324,6 +325,10 @@ func (gtas *Gtas) fullInit() error {
 	groupID := "group"
 	members := []string{"0x9d2961d1b4eb4af2d78cb9e29614756ab658671e453ea1f6ec26b4e918c79d02","0xd3d410ec7c917f084e0f4b604c7008f01a923676d0352940f68a97264d49fb76","0xe75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019"}
 	network.GetNetInstance().BuildGroupNet(groupID, members)
+
+	log.ELKLogger.WithFields(logrus.Fields{
+		"account": gtas.account.Address,
+	}).Debug("init")
 
 	go func() {
 		for {
