@@ -80,7 +80,7 @@ const (
 	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
 )
 
-// Transaction denotes one transaction infos
+// Transaction denotes one transaction infosminer still in active groups
 type Transaction struct {
 	Data   []byte          `msgpack:"dt,omitempty"` // Data of the transaction, cost gas
 	Value  *BigInt         `msgpack:"v"`            // The value the sender suppose to transfer

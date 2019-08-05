@@ -45,14 +45,15 @@ const (
 
 // Miner is the miner info including public keys and pledges
 type Miner struct {
-	ID                 []byte
-	PublicKey          []byte
-	VrfPublicKey       []byte
-	ApplyHeight        uint64
-	Stake              uint64
-	StatusUpdateHeight uint64
-	Type               MinerType
-	Status             MinerStatus
+	ID                 []byte 		`json:"d"`
+	PublicKey          []byte		`json:"p"`
+	VrfPublicKey       []byte		`json:"v"`
+	ApplyHeight        uint64		`json:"a"`
+	Stake              uint64		`json:"stk"`
+	StatusUpdateHeight uint64		`json:"suh"`
+	Type               MinerType	`json:"tp"`
+	Status             MinerStatus	`json:"sta"`
+	NodeIdentity	   byte         `json:"ni"`
 }
 
 func (m *Miner) IsActive() bool {

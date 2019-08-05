@@ -84,8 +84,9 @@ var (
 var punishmentDetailAddr = common.BigToAddress(big.NewInt(0))
 
 type stakeDetail struct {
-	Value  uint64 // Stake operation amount
-	Height uint64 // Operation height
+	Value  			uint64 		`json:"v"`// Stake operation amount
+	Height 			uint64 		`json:"h"`// Operation height
+	DisMissHeight   uint64      `json:"d"` //Stake disMiss height
 }
 
 func getDetailKey(address common.Address, typ types.MinerType, status types.StakeStatus) []byte {
