@@ -416,6 +416,17 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 		return
 	}
 
+	pk := group.getMemberPubkey(msg.SI.GetID())
+	if !pk.IsValid() {
+		err = fmt.Errorf("reqProposa get member sign pubkey fail: gseed=%v, uid=%v", group.header.Seed(), msg.SI.GetID())
+		return
+	}
+
+	if !msg.VerifySign(pk) {
+		err = fmt.Errorf("reqProposa verify sign fail, gseed=%v, id=%v", group.header.Seed(), msg.SI.GetID())
+		return
+	}
+
 	if pb.maxResponseCount == 0 {
 		pb.maxResponseCount = uint64(math.Ceil(float64(group.memberSize()) / 3))
 	}

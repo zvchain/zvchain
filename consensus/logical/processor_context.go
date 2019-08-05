@@ -136,7 +136,7 @@ func (bctx *castBlockContexts) forEachReservedVctx(f func(vctx *VerifyContext) b
 }
 
 func (bctx *castBlockContexts) addProposed(b *types.Block) {
-	pb := proposedBlock{block: b, requestedMember: set.New(set.ThreadSafe)}
+	pb := proposedBlock{block: b, requestedMember: set.New(set.NonThreadSafe)}
 	bctx.proposed.Add(b.Header.Hash, &pb)
 }
 
