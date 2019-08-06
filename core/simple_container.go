@@ -91,7 +91,10 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 		if existSource != nil {
 			if existSource.(*orderByNonceTx).item.GasPrice.Cmp(tx.GasPrice.Value()) < 0 {
 				//replace the existing one
-				s.waitingMap[*tx.Source].Delete(existSource)
+				deleted := s.waitingMap[*tx.Source].Delete(existSource)
+				if len(deleted) > 0 {
+					Logger.Debugf("replace tx by high price: old=%v, new=%v", deleted[0].(*orderByNonceTx).item.Hash.Hex(), tx.Hash.Hex())
+				}
 				s.waitingMap[*tx.Source].Insert(newTxNode)
 			}
 		} else {
@@ -135,6 +138,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) bool {
 		}
 		if lowPriceTx != nil {
 			s.remove(lowPriceTx)
+			Logger.Debugf("remove tx as pool is full: hash=%v, current pool size=%v", lowPriceTx.Hash.Hex(), s.size)
 		}
 	}
 
@@ -293,6 +297,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	success := c.pending.push(tx, stateNonce)
 	if !success {
 		if len(c.queue) > c.queueLimit {
+			err = Logger.Warnf("tx_pool's queue is full. current queue size: %d",len(c.queue))
 			return
 		}
 		c.queue[tx.Hash] = tx

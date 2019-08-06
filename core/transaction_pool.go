@@ -95,6 +95,9 @@ func (pool *txPool) tryAddTransaction(tx *types.Transaction) (bool, error) {
 	if err != nil {
 		Logger.Debugf("tryAdd tx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
 	}
+	if b {
+		Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
+	}
 	return b, err
 }
 

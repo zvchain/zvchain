@@ -17,9 +17,10 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/core/group"
 	"math/big"
 	"time"
+
+	"github.com/zvchain/zvchain/core/group"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -509,7 +510,9 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	GroupManagerImpl.RegularCheck(accountDB, bh)
 
 	state = accountDB.IntermediateRoot(true)
-
+	if len(evictedTxs) > 0 {
+		Logger.Infof("block execute evictedTxs: %v, block hash: %v, block height: %d", evictedTxs, bh.Hash.Hex(), bh.Height)
+	}
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
