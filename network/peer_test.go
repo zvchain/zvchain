@@ -10,15 +10,16 @@ import (
 )
 
 func TestPeerAuth(t *testing.T) {
-	SK, _ := common.GenerateKey("")
-	PK := SK.GetPubKey()
-	ID := PK.GetAddress()
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
 
-	content := genPeerAuthContext(PK.Hex(), SK.Hex(), nil)
+	toID := NewNodeID(netServerInstance.config.NodeIDHex)
+	content := genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK, &toID)
 
 	result, verifyID := content.Verify()
-	if !result || verifyID != ID.Hex() {
-		t.Fatalf("PeerAuth verify failed,result:%v,PK:%v,verifyPK:%v", result, ID.Hex(), verifyID)
+	if !result || verifyID != netServerInstance.config.NodeIDHex {
+		t.Fatalf("PeerAuth verify failed,result:%v,PK:%v,verifyPK:%v", result, netServerInstance.config.NodeIDHex, verifyID)
 	}
 
 }

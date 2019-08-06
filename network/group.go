@@ -70,7 +70,7 @@ func (g *Group) rebuildGroup(members []NodeID) {
 }
 func (g *Group) onRemove() {
 
-	Logger.Infof("onRemove group ID：%v", g.ID)
+	Logger.Infof("group on remove  group ID：%v", g.ID)
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 	memberSize := len(g.needConnectNodes)
@@ -82,27 +82,31 @@ func (g *Group) onRemove() {
 		}
 		p := netCore.peerManager.peerByID(ID)
 		if p == nil {
-
 			continue
 		}
 		p.removeGroup(g.ID)
 		if p.isGroupEmpty() {
 			node := netCore.kad.find(ID)
 			if node == nil {
+				Logger.Infof("group on remove, member ID: %v", ID)
 				netCore.peerManager.disconnect(ID)
 			}
 		}
 	}
 
 }
+
 // genConnectNodes Generate the nodes group work need to connect
 // at first sort group members,get current node index in this group,then add next two nodes to connect list
 // then calculate accelerate link nodes,add to connect list
 func (g *Group) genConnectNodes() {
 
+	peerSize := len(g.members)
+	if peerSize == 0 {
+		return
+	}
 	g.needConnectNodes = make([]NodeID, 0, 0)
 	sort.Sort(g)
-	peerSize := len(g.members)
 	g.curIndex = 0
 	for i := 0; i < len(g.members); i++ {
 		if g.members[i] == netCore.ID {
@@ -268,7 +272,12 @@ func (gm *GroupManager) removeGroup(ID string) {
 	defer gm.mutex.Unlock()
 
 	Logger.Debugf("remove group, ID:%v.", ID)
-
+	g := gm.groups[ID]
+	if g == nil {
+		Logger.Infof("group not found.")
+		return
+	}
+	g.onRemove()
 	delete(gm.groups, ID)
 }
 
