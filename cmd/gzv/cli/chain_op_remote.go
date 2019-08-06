@@ -203,7 +203,6 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 
 	pks := &types.MinerPks{
 		MType: types.MinerType(mType),
-		AddHeight:addHeight,
 	}
 
 	// When stakes for himself, pks will be required
@@ -220,7 +219,6 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		if pks.MType == types.MinerTypeVerify {
 			return opError(fmt.Errorf("you could not stake for other's verify node"))
 		}
-		pks.AddHeight = 0
 	}
 
 	st := common.TAS2RA(stake)

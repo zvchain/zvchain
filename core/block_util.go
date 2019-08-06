@@ -39,6 +39,10 @@ const businessFoundationToken = 250000000 * common.ZVC                          
 const miningPoolToken = 425000000 * common.ZVC                                                 // amount of tokens that belongs to mining pool
 const circulatesToken = 75000000 * common.ZVC                                                  // amount of tokens that belongs to circulates
 
+
+var adminAddrType = common.HexToAddress(adminAddr)
+var extractGuardNodes = []common.Address{}   // init gurad miner nodes
+
 func calcTxTree(txs []*types.Transaction) common.Hash {
 	if nil == txs || 0 == len(txs) {
 		return common.EmptyHash
@@ -51,6 +55,7 @@ func calcTxTree(txs []*types.Transaction) common.Hash {
 	}
 	return common.BytesToHash(common.Sha256(buf.Bytes()))
 }
+
 
 func calcReceiptsTree(receipts types.Receipts) common.Hash {
 	if nil == receipts || 0 == len(receipts) {

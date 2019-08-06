@@ -41,16 +41,16 @@ const (
 )
 
 const (
-	MinerGuard NodeIdentity 	   = 0 // this miner is gurad miner node,cannot be stake by others
-	MinerNormal                    = 1 // this is normal miner node,cannot be stake by others and stake to others
+	MinerNormal NodeIdentity 	   = 0 // this is normal miner node,cannot be stake by others and stake to others
+	MinerGuard                     = 1 // this miner is gurad miner node,cannot be stake by others
 	MinerPool                      = 2 // this is miner pool node,can stake by others
+	InValidMinerPool			   = 3 // this is invalid miner pool.only can be reduce before meeting the minimum number of votes
 )
 
 const (
 	pkSize    = 128
 	vrfPkSize = 32
-	preFixLen  = 2
-	fixLen  = 10  // 2 + 8
+	fixLen  = 2
 )
 
 // Miner is the miner info including public keys and pledges
@@ -84,8 +84,12 @@ func (m *Miner) IsNormal() bool {
 	return m.Identity == MinerNormal
 }
 
-func (m *Miner) MinerPool() bool {
+func (m *Miner) IsMinerPool() bool {
 	return m.Identity == MinerPool
+}
+
+func (m *Miner) IsInvalidMinerPool() bool {
+	return m.Identity == InValidMinerPool
 }
 
 func (m *Miner) PksCompleted() bool {
@@ -128,10 +132,9 @@ type MinerPks struct {
 	MType 		MinerType
 	Pk    		[]byte
 	VrfPk 		[]byte
-	AddHeight 	uint64
 }
 
-const PayloadVersion = 2
+const PayloadVersion = 1
 
 func (tx *Transaction) OpType() int8 {
 	return tx.Type
@@ -161,7 +164,6 @@ func EncodePayload(pks *MinerPks) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteByte(PayloadVersion)
 	buf.WriteByte(byte(pks.MType))
-	buf.Write(common.UInt64ToByte(pks.AddHeight))
 	pkLen := len(pks.Pk)
 	vrfPkLen := len(pks.VrfPk)
 	if pkLen == pkSize && vrfPkLen == vrfPkSize {
@@ -183,7 +185,6 @@ func DecodePayload(bs []byte) (*MinerPks, error) {
 	}
 	pks := &MinerPks{
 		MType: MinerType(bs[1]),
-		AddHeight:common.ByteToUInt64(bs[preFixLen:fixLen]),
 	}
 	if len(bs) == totalLen {
 		pks.Pk = bs[fixLen : fixLen+pkSize]

@@ -41,8 +41,6 @@ type mOperation interface {
 	Operation() error        // Do the operation
 }
 
-type sysMinerOpType int8
-
 // newOperation creates the mOperation instance base on msg type
 func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64) mOperation {
 	baseOp := newBaseOperation(db, msg, height)
@@ -108,11 +106,29 @@ func (op *stakeAddOp) ParseTransaction() error {
 	return nil
 }
 
+
+func (op *stakeAddOp) checkInsteadStakeAdd(source common.Address,target common.Address,targetMiner *types.Miner) error {
+	if op.addSource != op.addTarget {
+		if op.minerType == types.MinerTypeVerify{
+			return fmt.Errorf("could not stake to other's verify node")
+		}
+		// contract can stake to others and miner pool can be staked by others
+		if source != adminAddrType || (targetMiner != nil && !targetMiner.IsMinerPool()){
+			return fmt.Errorf("only contract can be stake to others or miner pool can be staked by others")
+		}
+	}
+	return nil
+}
+
 func (op *stakeAddOp) Operation() error {
 	var add = false
-
-	if op.addSource != op.addTarget && op.minerType == types.MinerTypeVerify {
-		return fmt.Errorf("could not stake to other's verify node")
+	targetMiner, err := op.getMiner(op.addTarget)
+	if err != nil {
+		return err
+	}
+	err = op.checkInsteadStakeAdd(op.addSource,op.addTarget,targetMiner)
+	if err != nil{
+		return err
 	}
 	// Check balance
 	amount := new(big.Int).SetUint64(op.value)
@@ -122,10 +138,6 @@ func (op *stakeAddOp) Operation() error {
 		}
 		// Sub the balance of source account
 		op.accountDB.SubBalance(op.addSource, amount)
-	}
-	targetMiner, err := op.getMiner(op.addTarget)
-	if err != nil {
-		return err
 	}
 
 	// Already exists
@@ -292,7 +304,7 @@ func (op *stakeReduceOp) Validate() error {
 func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 	if miner.IsFrozen() {
 		return fmt.Errorf("frozen miner must abort first")
-	} else if miner.IsActive() && op.opVerifyRole(){
+	} else if miner.IsActive() {
 		if !checkLowerBound(miner) {
 			return fmt.Errorf("active miner cann't reduce stake to below bound")
 		}
@@ -328,9 +340,6 @@ func (op *stakeReduceOp) Operation() error {
 
 	// Sub the corresponding total stake of the proposals
 	if miner.IsActive() && op.opProposalRole() {
-		if !checkLowerBound(miner){
-			miner.UpdateStatus(types.MinerStatusPrepare, op.height)
-		}
 		op.subProposalTotalStake(op.value)
 	}
 	if err := op.setMiner(miner); err != nil {

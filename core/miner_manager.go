@@ -24,6 +24,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
+	"github.com/vmihailenco/msgpack"
 )
 
 const (
@@ -86,10 +87,6 @@ func (mm *MinerManager) ClearTicker() {
 func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.MinerOperationMessage, height uint64) (success bool, err error) {
 	operation := newOperation(accountDB, msg, height)
 	return mm.executeOperation(operation, accountDB)
-}
-
-func (mm *MinerManager) IsFullStake(accountDB types.AccountDB, addr common.Address, height uint64) bool {
-	return false
 }
 
 
@@ -358,7 +355,6 @@ func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.Accoun
 		MType: miner.Type,
 		Pk:    miner.PublicKey,
 		VrfPk: miner.VrfPublicKey,
-		AddHeight:0,
 	}
 	data, err := types.EncodePayload(pks)
 	if err != nil {
@@ -389,5 +385,19 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 		// Add as proposer
 		miner.Type = types.MinerTypeProposal
 		mm.addGenesisMinerStake(miner, accountDB)
+	}
+}
+
+func (mm *MinerManager) genGuardNodes(accountDB types.AccountDB) {
+	for _, addr := range extractGuardNodes {
+		miner := &types.Miner{ID: addr.Bytes(),Type:types.MinerTypeProposal,Identity:types.MinerGuard}
+		bs, err := msgpack.Marshal(miner)
+		if err != nil {
+			panic("encode miner failed")
+		}
+		accountDB.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
+
+		nonce := accountDB.GetNonce(addr)
+		accountDB.SetNonce(addr, nonce+1)
 	}
 }

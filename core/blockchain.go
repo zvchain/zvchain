@@ -280,6 +280,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 		miners = append(miners, miner)
 	}
 	MinerManagerImpl.addGenesesMiners(miners, stateDB)
+	MinerManagerImpl.genGuardNodes(stateDB)
 
 	// Create the global-use address
 	stateDB.SetNonce(minerPoolAddr, 1)
