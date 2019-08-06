@@ -662,8 +662,6 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	msgType, packetSize, msg, buf, err := nc.decodeMessage(p)
 
 	if err != nil {
-		panic("unknown type")
-
 		return err
 	}
 
