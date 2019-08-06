@@ -304,7 +304,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	success, evicted := c.pending.push(tx, stateNonce)
 	if !success {
 		if len(c.queue) > c.queueLimit {
-			err = Logger.Warnf("tx_pool's queue is full. current queue size: %d",len(c.queue))
+			err = fmt.Errorf("tx_pool's queue is full. current queue size: %d",len(c.queue))
 			return
 		}
 		c.queue[tx.Hash] = tx
