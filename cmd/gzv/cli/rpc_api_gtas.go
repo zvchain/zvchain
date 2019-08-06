@@ -315,18 +315,18 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	account.CodeHash = accountDb.GetCodeHash(address).Hex()
 	account.Code = string(accountDb.GetCode(address)[:])
 
-	contract := tvm.Contract{}
-	err = json.Unmarshal(accountDb.GetCode(address),&contract)
-	if err != nil {
-		return failResult("UnMarshall contract fail!"+err.Error())
-	}
-	abi := parseABI(contract.Code)
-	account.ABI = abi
-
 	account.Type = 0
 	if len(account.Code) > 0 {
 		account.Type = 1
 		account.StateData = make(map[string]interface{})
+
+		contract := tvm.Contract{}
+		err = json.Unmarshal([]byte(account.Code), &contract)
+		if err != nil {
+			return failResult("UnMarshall contract fail!"+err.Error())
+		}
+		abi := parseABI(contract.Code)
+		account.ABI = abi
 
 		iter := accountDb.DataIterator(common.HexToAddress(hash), []byte{})
 		for iter.Next() {

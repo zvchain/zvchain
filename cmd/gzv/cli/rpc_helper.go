@@ -190,21 +190,22 @@ func parseABI(code string) []tvm.ABIVerify {
 			funcName := ""
 			funcLine := stringSlice[k+1]
 			funcLine = strings.TrimSpace(funcLine)
-			funcLine = strings.TrimPrefix(funcLine,"def")
-			funcLine = strings.TrimSpace(funcLine)
+			if strings.HasPrefix(funcLine, "def"){
+				funcLine = strings.TrimPrefix(funcLine,"def")
+				funcLine = strings.TrimSpace(funcLine)
 
-			for k, v := range funcLine {
-				if v == '(' {
-					funcName = funcLine[:k]
-					funcName=strings.TrimSpace(funcName)
+				for m, v := range funcLine {
+					if v == '(' {
+						funcName = funcLine[:m]
+						funcName=strings.TrimSpace(funcName)
+					}
 				}
+				abi := tvm.ABIVerify{
+					FuncName:funcName,
+					Args:args,
+				}
+				ABIs = append(ABIs, abi)
 			}
-
-			abi := tvm.ABIVerify{
-				FuncName:funcName,
-				Args:args,
-			}
-			ABIs = append(ABIs, abi)
 		}
 	}
 	return ABIs
