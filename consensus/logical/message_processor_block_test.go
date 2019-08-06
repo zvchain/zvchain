@@ -53,12 +53,13 @@ var existBlockHash = "0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776
 
 func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 	defer clear()
+	pt := NewProcessorTest()
 	err := initContext4Test()
 	if err != nil {
 		t.Errorf("failed to init context: %v\n", err)
 	}
 
-	pt := NewProcessorTest()
+
 	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
 	//processorTest.blockContexts.attachVctx(core.BlockChainImpl.QueryTopBlock(), pt.verifyContext)
 	txs := make([]*types.Transaction, 0)
@@ -150,7 +151,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		Nonce:      common.ChainDataVersion,
 	}
 	block.Header.Hash = block.Header.GenHash()
-	processorTest.blockContexts.addProposed(block)
+	processorTest.blockContexts.addProposed(block, 5)
 
 	type args struct {
 		msg      *model.ReqProposalBlock
@@ -167,12 +168,38 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(block.Header.Hash, pt.ids[1], pt.msk[1]),
+						SI: model.GenSignData(block.Header.Hash, pt.ids[0], pt.msk[0]),
 					},
 				},
 				sourceID: "111",
 			},
 			expected: "success",
+		},
+		{
+			name: "not group member",
+			args: args{
+				msg:      &model.ReqProposalBlock{
+					Hash: block.Header.Hash,
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(block.Header.Hash, groupsig.ID{}, groupsig.Seckey{}),
+					},
+				},
+				sourceID: "111",
+			},
+			expected: "reqProposa sender doesn't belong the verifyGroup",
+		},
+		{
+			name: "member requested",
+			args: args{
+				msg:      &model.ReqProposalBlock{
+					Hash: block.Header.Hash,
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(block.Header.Hash, pt.ids[0], pt.msk[0]),
+					},
+				},
+				sourceID: "111",
+			},
+			expected: "reqProposa sender 0x0000-040500 has already requested the block",
 		},
 		{
 			name: "bad hash",
@@ -193,7 +220,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(block.Header.Hash, pt.ids[1], pt.msk[1]),
+						SI: model.GenSignData(block.Header.Hash, pt.ids[3], pt.msk[3]),
 					},
 				},
 				sourceID: "111",
@@ -206,7 +233,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(block.Header.Hash, pt.ids[1], pt.msk[1]),
+						SI: model.GenSignData(block.Header.Hash, pt.ids[4], pt.msk[4]),
 					},
 				},
 				sourceID: "111",
@@ -214,7 +241,8 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 			expected: "response count exceed:3 2",
 		},
 	}
-
+	//mock the group
+	processorTest.groupReader.cache.Add(common.HexToHash("0x00"), pt.verifyGroup)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := processorTest
