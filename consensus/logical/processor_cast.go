@@ -19,15 +19,14 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/log"
-	"math/big"
-	"sync"
-
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/consensus/net"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
+	"math/big"
+	"sync"
 )
 
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup
@@ -130,7 +129,7 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
 		"blockTime": bh.CurTime.String(),
-	}).Debug("BroadcastNewBlock")
+	}).Debug("BroadcastNewBlock ", p.ts.NowTime().Local())
 	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.Since(bh.CurTime))
 
 	// Send info
@@ -185,7 +184,7 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
 		"blockTime": bh.CurTime.String(),
-	}).Debug("ReqProposalBlock")
+	}).Debug("ReqProposalBlock ", p.ts.NowTime().Local())
 
 	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 
@@ -302,7 +301,7 @@ func (p *Processor) blockProposal() {
 			"height": bh.Height,
 			"blockHash": bh.Hash.Hex(),
 			"blockTime": bh.CurTime.String(),
-		}).Debug("SendCastVerify")
+		}).Debug("SendCastVerify ", p.ts.NowTime().Local())
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)
 		// Castor cannot sign random numbers

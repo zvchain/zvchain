@@ -84,6 +84,9 @@ type TimeService interface {
 	// Now returns the current timestamp calibrated with ntp server
 	Now() TimeStamp
 
+	// Now returns the current timestamp calibrated with ntp server
+	NowTime() time.Time
+
 	// Since returns the time duration from the given timestamp to current moment
 	Since(t TimeStamp) int64
 
@@ -107,7 +110,7 @@ func InitTimeSync() {
 
 func (ts *TimeSync) syncRoutine() bool {
 	r := rand.Intn(len(ntpServer))
-	rsp, err := ntp.QueryWithOptions(ntpServer[r], ntp.QueryOptions{Timeout: 2 * time.Second})
+	rsp, err := ntp.QueryWithOptions(ntpServer[r], ntp.QueryOptions{Timeout: 100 * time.Millisecond})
 	if err != nil {
 		fmt.Printf("time sync from %v err: %v\n", ntpServer[r], err)
 		ts.ticker.StartTickerRoutine("time_sync", true)
@@ -122,6 +125,12 @@ func (ts *TimeSync) syncRoutine() bool {
 func (ts *TimeSync) Now() TimeStamp {
 	return TimeToTimeStamp(time.Now().Add(ts.currentOffset).UTC())
 }
+
+// Now returns the current timestamp calibrated with ntp server( with nano)
+func (ts *TimeSync) NowTime() time.Time {
+	return time.Now().Add(ts.currentOffset).UTC()
+}
+
 
 // Since returns the time duration from the given timestamp to current moment
 func (ts *TimeSync) Since(t TimeStamp) int64 {

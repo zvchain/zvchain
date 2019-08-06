@@ -30,7 +30,7 @@ func (chain *FullBlockChain) initMessageHandler() {
 
 func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 	log.ELKLogger.WithFields(logrus.Fields{
-	}).Debug("AddBlockOnChain start")
+	}).Debug("AddBlockOnChain start", chain.ts.NowTime().Local())
 
 	m := notify.AsDefault(msg)
 
@@ -49,7 +49,7 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 		"height": block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
 		"blockTime": block.Header.CurTime.String(),
-	}).Debug("AddBlockOnChain end")
+	}).Debug("AddBlockOnChain end", chain.ts.NowTime().Local())
 
 	return nil
 }

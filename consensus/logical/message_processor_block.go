@@ -18,15 +18,14 @@ package logical
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
-	"math"
-	"sync/atomic"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
+	"math"
+	"sync/atomic"
 )
 
 func (p *Processor) thresholdPieceVerify(vctx *VerifyContext, slot *SlotContext) {
@@ -138,6 +137,12 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 	// sign the message and send to other members in the verifyGroup
 	if cvm.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), &cvm) {
 		cvm.GenRandomSign(sKey, vctx.prevBH.Random)
+
+		log.ELKLogger.WithFields(logrus.Fields{
+			"blockHash": cvm.BlockHash.Hex(),
+		}).Debug("SendVerifiedCast send: ", p.ts.NowTime().Local())
+
+
 		p.NetServer.SendVerifiedCast(&cvm, gSeed)
 		slot.setSlotStatus(slSigned)
 		p.blockContexts.attachVctx(bh, vctx)
@@ -164,7 +169,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
 		"blockTime": bh.CurTime.String(),
-	}).Debug("OnMessageCast")
+	}).Debug("OnMessageCast ", p.ts.NowTime().Local())
 
 	le := &monitor.LogEntry{
 		LogType:  monitor.LogTypeProposal,
@@ -367,7 +372,7 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": vctx.castHeight,
 		"blockHash": blockHash.Hex(),
-	}).Debug("OnMessageVerify")
+	}).Debug("OnMessageVerify", p.ts.NowTime().Local())
 
 	// Do the verification work
 	ret, err = p.doVerify(cvm, vctx)
