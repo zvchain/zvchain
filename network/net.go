@@ -656,7 +656,6 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("handleMessage error：%v\n", r)
 			Logger.Errorf("handleMessage error：%v\n", r)
 		}
 	}()
@@ -881,8 +880,6 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 		return nil
 	}
 
-
-
 	forwarded := false
 
 	if req.BizMessageID != nil {
@@ -937,7 +934,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 			}
 		}
 	}
-	return  nil
+	return nil
 }
 
 func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
