@@ -321,6 +321,14 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
+	//gtas.TestBroadcast()
+
+	// Print related content
+	ShowPubKeyInfo(minerInfo, id)
+	return nil
+}
+
+func (gtas *Gtas) TestSpreadAmongGroup() {
 	groupID := "group"
 	//members := []string{"0x9d2961d1b4eb4af2d78cb9e29614756ab658671e453ea1f6ec26b4e918c79d02","0xd3d410ec7c917f084e0f4b604c7008f01a923676d0352940f68a97264d49fb76","0xe75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019"}
 	members := []string{
@@ -371,34 +379,34 @@ func (gtas *Gtas) fullInit() error {
 		"0xb2e882c6d59b37636d65cd6e023d4f2bd49f25947c37221ac52b3c9b60278813",
 		"0x586e580e7d3352d617f35189ed4995679729a1a8b53ed8d91e46d7f8970d4737",
 		"0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4",
-		}
+	}
 	network.GetNetInstance().BuildGroupNet(groupID, members)
 
-	//fmt.Println(gtas.account.Address)
+	go func() {
+		var count uint32 = 32
+		for {
 
-	//go func() {
-	//	for {
-	//		fmt.Println(network.GetNetInstance().ConnInfo())
-	//		time.Sleep(1 * time.Second)
-	//	}
-	//}()
+			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+			if len(network.GetNetInstance().ConnInfo()) >= 37 {
+				count++
+				msg := network.Message{
+					Code: count,
+					Body: []byte("helloworld"),
+				}
+				network.GetNetInstance().SpreadAmongGroup(groupID, msg)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
+}
 
-	//msg := network.Message{
-	//	Code: 0,
-	//	Body: []byte("helloworld"),
-	//}
-
-	//go func() {
-	//	for {
-	//		network.GetNetInstance().SpreadAmongGroup(groupID, msg)
-	//		time.Sleep(3 * time.Second)
-	//	}
-	//}()
-
-
-	// Print related content
-	ShowPubKeyInfo(minerInfo, id)
-	return nil
+func (gtas *Gtas) TestBroadcast() {
+	go func() {
+		for {
+			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+			time.Sleep(2 * time.Second)
+		}
+	}()
 }
 
 func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
