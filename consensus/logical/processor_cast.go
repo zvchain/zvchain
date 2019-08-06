@@ -17,9 +17,10 @@ package logical
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/common"
 	"math/big"
 	"sync"
+
+	"github.com/zvchain/zvchain/common"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -173,13 +174,17 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	msg := &model.ReqProposalBlock{
 		Hash: bh.Hash,
 	}
-	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
 
-	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
+	sKey := p.groupReader.getGroupSignatureSeckey(bh.Group)
+	// sign the message and send to other members in the verifyGroup
+	if msg.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), msg) {
+		p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
+		result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 
-	slot.setSlotStatus(slSuccess)
-	vctx.markNotified()
-	vctx.successSlot = slot
+		slot.setSlotStatus(slSuccess)
+		vctx.markNotified()
+		vctx.successSlot = slot
+	}
 	return
 }
 
@@ -305,7 +310,7 @@ func (p *Processor) blockProposal() {
 		p.proveChecker.addProve(pi)
 		worker.markProposed()
 
-		p.blockContexts.addProposed(block)
+		p.blockContexts.addProposed(block, len(gb.MemIds))
 
 	} else {
 		blog.debug("bh/prehash Error or sign Error, bh=%v, real height=%v. bc.prehash=%v, bh.prehash=%v", height, bh.Height, worker.baseBH.Hash, bh.PreHash)
