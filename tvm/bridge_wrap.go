@@ -89,21 +89,6 @@ void wrap_event_call(const char* event, const char* json_parms)
     void EventCall(const char*, const char*);
     EventCall(event, json_parms);
 }
-
-_Bool wrap_miner_stake(const char* minerAddr, int _type, const char* value) {
-	_Bool MinerStake(const char*, int, const char*);
-	return MinerStake(minerAddr, _type, value);
-}
-
-_Bool wrap_miner_cancel_stake(const char* minerAddr, int _type, const char* value) {
-	_Bool MinerCancelStake(const char*, int, const char*);
-	return MinerCancelStake(minerAddr, _type, value);
-}
-
-_Bool wrap_miner_refund_stake(const char* minerAddr, int _type) {
-	_Bool MinerRefundStake(const char*, int);
-	return MinerRefundStake(minerAddr, _type);
-}
 */
 import "C"
 import (
@@ -212,9 +197,6 @@ func bridgeInit() {
 	C.gas_limit_fn = (C.gas_limit_fn_t)(unsafe.Pointer(C.wrap_tx_gas_limit))
 	C.contract_call_fn = (C.contract_call_fn_t)(unsafe.Pointer(C.wrap_contract_call))
 	C.event_call_fn = (C.event_call_fn_t)(unsafe.Pointer(C.wrap_event_call))
-	C.miner_stake_fn = (C.miner_stake_fn_t)(unsafe.Pointer(C.wrap_miner_stake))
-	C.miner_cancel_stake = (C.miner_cancel_stake_fn_t)(unsafe.Pointer(C.wrap_miner_cancel_stake))
-	C.miner_refund_stake = (C.miner_refund_stake_fn_t)(unsafe.Pointer(C.wrap_miner_refund_stake))
 }
 
 // Contract Contract contains the base message of a contract

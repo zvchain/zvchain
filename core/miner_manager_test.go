@@ -9,15 +9,14 @@ import (
 )
 
 func TestMinerManager_MaxStake(t *testing.T) {
-	maxs := []uint64{2500000, 4245283, 5803571, 7203389, 8467741, 9615384, 10661764, 10915492, 11148648, 11363636, 11562500,
-		11746987, 11918604, 11797752, 11684782, 11578947, 11479591, 11386138, 11298076, 11098130, 10909090, 10730088,
-		10560344, 10399159, 10245901}
+	maxs := []uint64{2500000, 5803571, 8467741, 10661764, 11148648, 11562500,
+		11918604, 11684782, 11479591, 11298076, 10909090, 10560344, 10245901}
 	for i := 0; i <= 30; i++ {
 		var cur = i
 		if i >= len(maxs) {
 			cur = len(maxs) - 1
 		}
-		max := maximumStake(uint64(i * 5000000))
+		max := maximumStake(uint64(i * 10000000))
 		if max != maxs[cur]*common.ZVC {
 			t.Errorf("max stake wanted:%d, got %d", maxs[cur]*common.ZVC, max)
 		}
@@ -90,8 +89,8 @@ func setup() {
 	if err != nil {
 		panic("init fail " + err.Error())
 	}
-	db,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
+	db, error := BlockChainImpl.LatestStateDB()
+	if error != nil {
 		panic("init fail " + err.Error())
 	}
 	db.AddBalance(src, new(big.Int).SetUint64(ctx.originBalance))
@@ -101,10 +100,10 @@ func setup() {
 
 func testStakeAddFromSelf(ctx *mOperContext, t *testing.T) {
 	var mpks = &types.MinerPks{
-		MType: ctx.mType,
-		Pk:    common.FromHex("0x215fdace84c59a6d86e1cbe4238c3e4a5d7a6e07f6d4c5603399e573cc05a32617faae51cfd3fce7c84447522e52a1439f46fc5adb194240325fcb800a189ae129ebca2b59999a9ecd16e03184e7fe578418b20cbcdc02129adc79bf090534a80fb9076c3518ae701477220632008fc67981e2a1be97a160a2f9b5804f9b280f"),
-		VrfPk: common.FromHex("0x7bc1cb6798543feb524456276d9b26014ddfb5cd757ac6063821001b50679bcf"),
-		AddHeight:0,
+		MType:     ctx.mType,
+		Pk:        common.FromHex("0x215fdace84c59a6d86e1cbe4238c3e4a5d7a6e07f6d4c5603399e573cc05a32617faae51cfd3fce7c84447522e52a1439f46fc5adb194240325fcb800a189ae129ebca2b59999a9ecd16e03184e7fe578418b20cbcdc02129adc79bf090534a80fb9076c3518ae701477220632008fc67981e2a1be97a160a2f9b5804f9b280f"),
+		VrfPk:     common.FromHex("0x7bc1cb6798543feb524456276d9b26014ddfb5cd757ac6063821001b50679bcf"),
+		AddHeight: 0,
 	}
 
 	bs, err := types.EncodePayload(mpks)
@@ -130,8 +129,8 @@ func testStakeAddFromSelf(ctx *mOperContext, t *testing.T) {
 
 func testStakeAddFromOthers(ctx *mOperContext, t *testing.T) {
 	var mpks = &types.MinerPks{
-		MType: ctx.mType,
-		AddHeight:0,
+		MType:     ctx.mType,
+		AddHeight: 0,
 	}
 
 	bs, err := types.EncodePayload(mpks)

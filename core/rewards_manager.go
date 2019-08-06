@@ -35,11 +35,11 @@ const (
 )
 
 const (
-	initialDaemonNodeWeight = 629      // initial daemon node weight of rewards
-	initialMinerNodeWeight  = 9228     // initial miner node weight of rewards
-	userNodeWeight          = 143      // initial user node weight of rewards
-	totalNodeWeight         = 10000    // total weight of rewards
-	adjustWeight            = 114      // weight of adjusted per period
+	initialDaemonNodeWeight = 440      // initial daemon node weight of rewards
+	initialMinerNodeWeight  = 6460     // initial miner node weight of rewards
+	userNodeWeight          = 100      // initial user node weight of rewards
+	totalNodeWeight         = 7000     // total weight of rewards
+	adjustWeight            = 80       // weight of adjusted per period
 	adjustWeightPeriod      = 10000000 // the period of adjusting weight
 )
 
@@ -77,9 +77,9 @@ func setRewardData(db types.AccountDBTS, key, value []byte) {
 }
 
 func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
-	accountDB,error := BlockChainImpl.LatestStateDB()
-	if error !=  nil{
-		log.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+	accountDB, err := BlockChainImpl.LatestStateDB()
+	if err != nil {
+		log.DefaultLogger.Errorf("get lastdb failed,err = %v", err.Error())
 		return false
 	}
 	return getRewardData(accountDB.AsAccountDBTS(), blockHashByte) != nil
@@ -94,9 +94,9 @@ func (rm *rewardManager) MarkBlockRewarded(blockHash common.Hash, transactionHas
 }
 
 func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) *types.Transaction {
-	accountDB,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
-		log.DefaultLogger.Errorf("get lastdb failed,error = %v",error.Error())
+	accountDB, err := BlockChainImpl.LatestStateDB()
+	if err != nil {
+		log.DefaultLogger.Errorf("get lastdb failed,err = %v", err.Error())
 		return nil
 	}
 	transactionHash := getRewardData(accountDB.AsAccountDBTS(), blockHash.Bytes())
@@ -167,10 +167,6 @@ func (rm *rewardManager) ParseRewardTransaction(transaction *types.Transaction) 
 	idx := make([]byte, 2)
 
 	for n, e := reader.Read(idx); n > 0 && e == nil; n, e = reader.Read(idx) {
-		if e != nil {
-			err = fmt.Errorf("read target idex error: %v", e)
-			return
-		}
 		targetIdxs = append(targetIdxs, common.ByteToUInt16(idx))
 	}
 

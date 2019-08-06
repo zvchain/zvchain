@@ -34,12 +34,12 @@ var (
 
 const (
 	MinMinerStake             = 500 * common.ZVC // minimal token of miner can stake
-	MaxMinerStakeAdjustPeriod = 5000000          // maximal token of miner can stake
+	MaxMinerStakeAdjustPeriod = 10000000         // maximal token of miner can stake
 	initialMinerNodesAmount   = 200              // The number initial of miner nodes envisioned
-	MoreMinerNodesPerHalfYear = 12               // The number of increasing nodes per half year
+	MoreMinerNodesPerYear     = 24               // The number of increasing nodes per half year
 	initialTokenReleased      = 500000000        // The initial amount of tokens released
-	tokenReleasedPerHalfYear  = 400000000        //  The amount of tokens released per half year
-	stakeAdjustTimes          = 24               // stake adjust times
+	tokenReleasedPerYear      = 800000000        //  The amount of tokens released per half year
+	stakeAdjustTimes          = 12               // stake adjust times
 )
 
 // minimumStake shows miner can stake the min value
@@ -53,7 +53,7 @@ func maximumStake(height uint64) uint64 {
 	if period > stakeAdjustTimes {
 		period = stakeAdjustTimes
 	}
-	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerHalfYear
+	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerYear
 	return tokenReleased(height) / nodeAmount * common.ZVC
 }
 
@@ -69,7 +69,7 @@ func tokenReleased(height uint64) uint64 {
 		if halveTimes > halveRewardsTimes {
 			halveTimes = halveRewardsTimes
 		}
-		released += tokenReleasedPerHalfYear >> halveTimes
+		released += tokenReleasedPerYear >> halveTimes
 	}
 	return released
 }
@@ -84,9 +84,9 @@ var (
 var punishmentDetailAddr = common.BigToAddress(big.NewInt(0))
 
 type stakeDetail struct {
-	Value  			uint64 		`json:"v"`// Stake operation amount
-	Height 			uint64 		`json:"h"`// Operation height
-	DisMissHeight   uint64      `json:"d"` //Stake disMiss height
+	Value         uint64 `json:"v"` // Stake operation amount
+	Height        uint64 `json:"h"` // Operation height
+	DisMissHeight uint64 `json:"d"` //Stake disMiss height
 }
 
 func getDetailKey(address common.Address, typ types.MinerType, status types.StakeStatus) []byte {
