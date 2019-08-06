@@ -49,7 +49,7 @@ const (
 const (
 	pkSize    = 128
 	vrfPkSize = 32
-	typeLen  = 2
+	preFixLen  = 2
 	fixLen  = 10  // 2 + 8
 )
 
@@ -183,7 +183,7 @@ func DecodePayload(bs []byte) (*MinerPks, error) {
 	}
 	pks := &MinerPks{
 		MType: MinerType(bs[1]),
-		AddHeight:common.ByteToUInt64(bs[typeLen:fixLen]),
+		AddHeight:common.ByteToUInt64(bs[preFixLen:fixLen]),
 	}
 	if len(bs) == totalLen {
 		pks.Pk = bs[fixLen : fixLen+pkSize]
