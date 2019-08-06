@@ -17,9 +17,10 @@ package net
 
 import (
 	"fmt"
+	"runtime/debug"
+
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
-	"runtime/debug"
 
 	"github.com/zvchain/zvchain/network"
 )
@@ -76,7 +77,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			err = e
 			return e
 		}
-		c.processor.OnMessageCast(m)
+		err = c.processor.OnMessageCast(m)
 	case network.VerifiedCastMsg:
 		m, e := unMarshalConsensusVerifyMessage(body)
 		if e != nil {
@@ -84,7 +85,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 
-		c.processor.OnMessageVerify(m)
+		err = c.processor.OnMessageVerify(m)
 	case network.CastRewardSignReq:
 		m, e := unMarshalCastRewardReqMessage(body)
 		if e != nil {
@@ -92,7 +93,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 
-		c.processor.OnMessageCastRewardSignReq(m)
+		err = c.processor.OnMessageCastRewardSignReq(m)
 	case network.CastRewardSignGot:
 		m, e := unMarshalCastRewardSignMessage(body)
 		if e != nil {
@@ -100,14 +101,14 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 
-		c.processor.OnMessageCastRewardSign(m)
+		err = c.processor.OnMessageCastRewardSign(m)
 	case network.ReqProposalBlock:
 		m, e := unmarshalReqProposalBlockMessage(body)
 		if e != nil {
 			err = e
 			return e
 		}
-		c.processor.OnMessageReqProposalBlock(m, sourceID)
+		err = c.processor.OnMessageReqProposalBlock(m, sourceID)
 
 	case network.ResponseProposalBlock:
 		m, e := unmarshalResponseProposalBlockMessage(body)
@@ -115,8 +116,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			err = e
 			return e
 		}
-		c.processor.OnMessageResponseProposalBlock(m)
-
+		err = c.processor.OnMessageResponseProposalBlock(m)
 	}
 
 	return nil
