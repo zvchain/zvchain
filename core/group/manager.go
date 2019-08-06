@@ -100,7 +100,7 @@ func (m *Manager) GroupCreatedInCurrentBlock(block *types.Block) *group {
 	topGroup := m.poolImpl.getTopGroup(db)
 	if topGroup.HeaderD.BlockHeight == block.Header.Height {
 		logger.Debugf("Notify consensus as group created on %v", topGroup.HeaderD.BlockHeight)
-		logger.Debugf("Member number is  %d", len(topGroup.members))
+		logger.Debugf("Member number is  %d", len(topGroup.Members()))
 		// group just created
 		return topGroup
 	}
