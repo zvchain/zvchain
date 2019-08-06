@@ -139,6 +139,9 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	}
 	// Remove eviction transactions from the transaction pool
 	if ps.evictedTxs != nil {
+		if len(ps.evictedTxs) > 0 {
+			Logger.Infof("block commit remove evictedTxs: %v, block height: %d", ps.evictedTxs, bh.Height)
+		}
 		removeTxs = append(removeTxs, ps.evictedTxs...)
 	}
 	chain.transactionPool.RemoveFromPool(removeTxs)
