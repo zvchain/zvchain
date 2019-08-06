@@ -325,7 +325,8 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	//gtas.TestBroadcast()
+	fmt.Println(time.Now().UnixNano() / 1000000)
+	//gtas.TestSendEveryone()
 
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
@@ -404,12 +405,79 @@ func (gtas *Gtas) TestSpreadAmongGroup() {
 	}()
 }
 
-func (gtas *Gtas) TestBroadcast() {
+func (gtas *Gtas) TestSendEveryone() {
+	members := []string{
+		"0x3b2cdf5aaa6de805087677ed7f8560aef370e771b17558e75fa9efc9a19c9ddc",
+		"0x83361a38e4ac2cc0147f0c253d69ca0d18b69bc14d2b35a0bd4767c88439465e",
+		"0x0ccb56badf284764e20629e4bcf4fa3aadb3fd6cdc4275d3c41485db4168d3d1",
+		"0x26dea2122d15d0ed803a9d6d90f7363bff2e056721e9eb1ea2c53bb2ff099d7f",
+		"0xe9264622cff077a2b3a8b0242ae88ae1fbdf8c5416f28bf45d5b308b12c81ffa",
+		"0x0d7a8f69f94a92f088fb42e642406e977285d1f5cabc8cf57b72f0e328ec4a6c",
+		"0x08847f5c81aee6a2d195723ca3961219dc7a1bee341776cbe2fa64e6ca1426b1",
+		"0xbbd5a63b2f262b16b33ead5cd02e84655420b1c68118bc414612998c8d0c6826",
+		"0xab68cb652e7bd40cc9dcfa1154b69b2006c08cff25917878bd012b9ab26d8ba4",
+		"0xcb25178d694b214710f25acf2abadfae15dc9dac045112670fe6a1b557f472e4",
+		"0xab79c2bf02ab023a0541b9ca215277c3f7e34b68ce15f70ac93a7bbdbcb810b8",
+		"0x933f366a84d1e06ac0fdcfba815e6592d2c547b343ca391e70f0f20102bd91fc",
+		"0x9a5261dde18a30b2b0dc317c561cba4b3d2f86f4a15fcd3722c533573e0b5a8d",
+		"0x47bdf5b424ff948695655ed91c12bdc9f53199be9ebfbfe1159a67a6af74b66b",
+		"0x16330ec817a52a568415f583d63f5a887b7ff98460567505ffa7903c3d2d0aac",
+		"0xf55d6b1f19a3cd92ee2e9c6e495ccefc7c2f33b2e2efd72b42916744bad0c4fa",
+		"0x0a03a4b9b05377a1c1da25e5570ceed7dac0d7b3bd0e11aefddee62518e2e9d8",
+		"0x3e6a3e7f29ca62effa66aa1d3f9b5f12ca002ba24274cc992df0c69a70255e41",
+		"0x0bc915e09dec4b3ae2427464513eabec188f0c3b8142a0b0155f166971c5c368",
+		"0xcfe0a90f7044fbc8d3519b06a46ade1ba05f9d5420c2caece19ad1ce50fe321e",
+		"0x64baa8f97e4a25c6dd4744fcad3e0eb938c49c6c9a795c21f643eda7f88633ec",
+		"0x6e1512f604f0d07de1991b3db51cd5b9fba7d4663e40523b1d312a0c5bcf9679",
+		"0xde60b502e83bfa00c81ab8ca2d6379b2d40bee156dd124fd193a3e2e61c67801",
+		"0xcae5f1217a1fd02e8d722b62ea65e2bec79da5929818b1008bf3b2b322fbca3e",
+		"0x0bf173f737196c9f8e2f274d359b4cec9a3f049a6a542017276e67d85c8a2992",
+		"0xf32195b2938bd1477466eae87b74186fd8731694e30ef752918277a11e7fe3a5",
+		"0x08e7107620a38eae98abae0a85ec80240728909af1c4b8bcfd4de0eaac3880a6",
+		"0xe9c4c5c372ce94699343174339fa92f892c71196c965236d25229ebce2e7bf44",
+		"0x6aaba378e56eb0d3d90737c2cbb3b55407ffe690c2ce2150c9e130ea04f0ff18",
+		"0xc690291fc4a4132a4ce08f71aa3db6bef9c6c7a2da9952c35538fcae94ae4ce1",
+		"0x03ea3d0d2baff52e785525227ab81ec37825fa49b41a64c5136ec58e9be279f4",
+		"0x6c7c4724a0abfff3fc109ed6ef71ce82aba7ada1c4e498674458bc2045af21cd",
+		"0xc7d83d1e57ac5e2df25df8c569e87f62fc1173039faf3cb30f65d0efab9ecc50",
+		"0x0cc66654d0099fdc10709df3bdb4eab4a68c97ec5dc66d087361d0cabb37db80",
+		"0x69d959d090df8c77adc85b5294871a904b0294eb85fb8251ba903710805d64c2",
+		"0x6c5cc60dbcdb1d63e739ebde3a076c32e37e6bf46f9e15809ccf73348f24acd9",
+		"0x75df2d0e7b7aaf2b6a5e25856afd0da84da08dbe935cd0e67582bc7b8dad4f81",
+		"0xb4c45be38afcc52fcbc6aa6706897b0c0f943bed691be2ac2beb18e5f2a07890",
+		"0x806ec4eb2d7a2ba0ebee40e2a39e3e8b1f3a09d91ae78bd7fdf30c77e543f545",
+		"0x27af3b203839ba7d47ceaac70b81dbe57074ade843c87b0e5562fd2a3dd3c990",
+		"0x214f1f91ee41d33494575d43bcf41244145d90b569fb16fc93e212c3338caa78",
+		"0xb0fa580541b684390b6cbb292a0e6ef2dd8998de98e487cc5952d3d75db0ec1c",
+		"0xb2e882c6d59b37636d65cd6e023d4f2bd49f25947c37221ac52b3c9b60278813",
+		"0x586e580e7d3352d617f35189ed4995679729a1a8b53ed8d91e46d7f8970d4737",
+		"0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4",
+	}
 	go func() {
-		var count uint32 = 10000
+		var count uint32 = 20010
 		for {
 			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
-			if len(network.GetNetInstance().ConnInfo()) >= 25 {
+			if len(network.GetNetInstance().ConnInfo()) >= 10 {
+				count++
+				msg := network.Message{
+					Code: count,
+					Body: []byte("helloworld"),
+				}
+				for _, m := range members {
+					network.GetNetInstance().Send(m, msg)
+				}
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
+}
+
+func (gtas *Gtas) TestBroadcast() {
+	go func() {
+		var count uint32 = 10001
+		for {
+			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+			if len(network.GetNetInstance().ConnInfo()) >= 10 {
 				count++
 				msg := network.Message{
 					Code: count,

@@ -177,7 +177,7 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 
 	log.ELKLogger.WithFields(logrus.Fields{
 		"msg_code": message.Code,
-	}).Debug("handleMessageInner")
+	}).Debug("handleMessageInner", "time:", time.Now().UnixNano() / 1000000)
 
 	return
 
