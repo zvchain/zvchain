@@ -120,7 +120,6 @@ func unMarshalCastRewardSignMessage(b []byte) (*model.CastRewardTransSignMessage
 
 	m := &model.CastRewardTransSignMessage{
 		BaseSignedMessage: base,
-		ReqHash:           common.BytesToHash(message.ReqHash),
 		BlockHash:         common.BytesToHash(message.BlockHash),
 	}
 	return m, nil
@@ -134,6 +133,7 @@ func unmarshalReqProposalBlockMessage(b []byte) (*model.ReqProposalBlock, error)
 	}
 	m := &model.ReqProposalBlock{
 		Hash: common.BytesToHash(message.Hash),
+		BaseSignedMessage: *baseMessage(message.Sign),
 	}
 	return m, nil
 }

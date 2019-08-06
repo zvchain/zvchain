@@ -18,13 +18,14 @@ package group
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/taslog"
 	"math"
 )
 
@@ -72,31 +73,31 @@ type createRoutine struct {
 	currID       groupsig.ID
 }
 
-var routine *createRoutine
-var logger taslog.Logger
+var GroupRoutine *createRoutine
+var logger *logrus.Logger
 
 func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, miner *model.SelfMinerDO) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
-	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
-	routine = &createRoutine{
+	logger = log.GroupLogger
+	GroupRoutine = &createRoutine{
 		createChecker: checker,
 		packetSender:  provider.GetGroupPacketSender(),
 		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", "")), base.Data2CommonHash(miner.SK.Serialize()).Bytes()),
 		currID:        miner.ID,
 	}
 	top := chain.QueryTopBlock()
-	routine.updateContext(top)
+	GroupRoutine.updateContext(top)
 
-	go routine.store.loop()
+	go GroupRoutine.store.loop()
 	go checker.stat.loop()
 
 	provider.RegisterGroupCreateChecker(checker)
 
-	notify.BUS.Subscribe(notify.BlockAddSucc, routine.onBlockAddSuccess)
-	return routine.store
+	notify.BUS.Subscribe(notify.BlockAddSucc, GroupRoutine.onBlockAddSuccess)
+	return GroupRoutine.store
 }
 
-func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
+func (routine *createRoutine) onBlockAddSuccess(message notify.Message) error {
 	block := message.GetData().(*types.Block)
 	bh := block.Header
 
@@ -127,7 +128,7 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) {
 			logger.Debugf("checkAndSendOriginPiecePacket sent origin packet at %v, seedHeight %v", bh.Height, routine.currEra().seedHeight)
 		}
 	}
-
+	return err
 }
 
 // UpdateEra updates the era info base on current block header
@@ -152,7 +153,7 @@ func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
 	era := routine.currEra()
 	routine.stat.markStatus(era.seedHeight, createStatusIdle)
 
-	logger.Debugf("new create context: era:%v %v-%v %v %v %v %v",  bh.Height, sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
+	logger.Debugf("new create context: era:%v %v-%v %v %v %v %v", bh.Height, sh, seedBlockHash, era.encPieceRange, era.mpkRange, era.oriPieceRange, era.endRange)
 	err := routine.selectCandidates()
 	if err != nil {
 		logger.Debugf("select candidates:%v", err)
@@ -177,9 +178,10 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	availCandidates := make([]*model.MinerDO, 0)
+	filterFun := routine.storeReader.IsMinerGroupCountLessThan(memberMaxJoinGroupNum, h)
+
 	for _, m := range allVerifiers {
-		cnt := routine.storeReader.MinerLiveGroupCount(m.ID.ToAddress(), h)
-		if cnt < memberMaxJoinGroupNum {
+		if filterFun(m.ID.ToAddress()) {
 			availCandidates = append(availCandidates, m)
 		}
 	}
@@ -224,7 +226,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 	}
 	// Was selected
 	if !routine.selected() {
-		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+		return false, nil
 	}
 
 	mInfo := routine.minerReader.SelfMinerInfo()
@@ -282,7 +284,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 
 	// Was selected
 	if !routine.selected() {
-		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+		return false, nil
 	}
 
 	mInfo := routine.minerReader.SelfMinerInfo()
@@ -358,7 +360,7 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 	}
 	// Was selected
 	if !routine.selected() {
-		return false, fmt.Errorf("current miner not selected:%v", routine.currID)
+		return false, nil
 	}
 	mInfo := routine.minerReader.SelfMinerInfo()
 	if mInfo == nil {

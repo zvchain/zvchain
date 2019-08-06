@@ -17,17 +17,18 @@ package types
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	time2 "github.com/zvchain/zvchain/middleware/time"
-	"github.com/zvchain/zvchain/taslog"
 )
 
-// logger is middleware module system
-var logger taslog.Logger
+// MiddleWareLogger is middleware module system
+var MiddleWareLogger *logrus.Logger
 
 func InitMiddleware() {
-	logger = taslog.GetLoggerByIndex(taslog.MiddlewareLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	MiddleWareLogger = log.MiddlewareLogger
 }
 
 // UnMarshalTransactions deserialize from []byte to *Transaction
@@ -35,7 +36,7 @@ func UnMarshalTransactions(b []byte) ([]*Transaction, error) {
 	ts := new(tas_middleware_pb.TransactionSlice)
 	error := proto.Unmarshal(b, ts)
 	if error != nil {
-		logger.Errorf("[handler]Unmarshal transactions error:%s", error.Error())
+		MiddleWareLogger.Errorf("[handler]Unmarshal transactions error:%s", error.Error())
 		return nil, error
 	}
 
@@ -48,7 +49,7 @@ func UnMarshalBlock(bytes []byte) (*Block, error) {
 	b := new(tas_middleware_pb.Block)
 	error := proto.Unmarshal(bytes, b)
 	if error != nil {
-		logger.Errorf("[handler]Unmarshal Block error:%s", error.Error())
+		MiddleWareLogger.Errorf("[handler]Unmarshal Block error:%s", error.Error())
 		return nil, error
 	}
 	block := PbToBlock(b)
@@ -60,7 +61,7 @@ func UnMarshalBlockHeader(bytes []byte) (*BlockHeader, error) {
 	b := new(tas_middleware_pb.BlockHeader)
 	error := proto.Unmarshal(bytes, b)
 	if error != nil {
-		logger.Errorf("[handler]Unmarshal Block error:%s", error.Error())
+		MiddleWareLogger.Errorf("[handler]Unmarshal Block error:%s", error.Error())
 		return nil, error
 	}
 	header := PbToBlockHeader(b)

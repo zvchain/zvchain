@@ -19,9 +19,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/taslog"
 )
 
 func TestGlobalTicker_RegisterRoutine(t *testing.T) {
@@ -32,7 +29,7 @@ func TestGlobalTicker_RegisterRoutine(t *testing.T) {
 	wg.Add(1)
 	var exeNum = 0
 	ticker.RegisterPeriodicRoutine("name1", func() bool {
-		if exeNum >= 3 {
+		if exeNum == 3 {
 			go func() {
 				defer wg.Done()
 			}()
@@ -47,7 +44,6 @@ func TestGlobalTicker_RegisterRoutine(t *testing.T) {
 }
 
 func TestGlobalTicker_RegisterOneTimeRoutine(t *testing.T) {
-	common.DefaultLogger = taslog.GetLoggerByName("aaa")
 	ticker := NewGlobalTicker("test")
 
 	wg := sync.WaitGroup{}

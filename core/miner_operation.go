@@ -213,10 +213,9 @@ func (op *minerAbortOp) ParseTransaction() error {
 	return nil
 }
 
+// this function will not be called, Because the validate is only valid on smart contract. And minerAbortOp command is
+// not available on smart contract.
 func (op *minerAbortOp) Validate() error {
-	if len(op.msg.Payload()) != 1 {
-		return fmt.Errorf("msg payload length error")
-	}
 	return nil
 }
 
@@ -232,7 +231,7 @@ func (op *minerAbortOp) Operation() error {
 	if miner.IsPrepare() {
 		return fmt.Errorf("already in prepare status")
 	}
-	// Frozen miner must wait for 1day after frozen
+	// Frozen miner must wait for 1 hour after frozen
 	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneHourBlocks {
 		return fmt.Errorf("frozen miner can't abort less than 1 hour since frozen")
 	}

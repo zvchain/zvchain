@@ -17,14 +17,14 @@ package group
 
 import (
 	"fmt"
-
-	"github.com/zvchain/zvchain/taslog"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-var logger taslog.Logger
+var logger *logrus.Logger
 
 // Manager implements groupContextProvider in package consensus
 type Manager struct {
@@ -49,7 +49,7 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 }
 
 func NewManager(chain chainReader) Manager {
-	logger = taslog.GetLoggerByIndex(taslog.GroupLogConfig, common.GlobalConf.GetString("instance", "index", ""))
+	logger = log.GroupLogger
 	gPool := newPool()
 	store := NewStore(chain, gPool)
 	packetSender := NewPacketSender(chain)
@@ -66,7 +66,7 @@ func NewManager(chain chainReader) Manager {
 
 func (m *Manager) InitManager(minerReader minerReader, gen *types.GenesisInfo) {
 	m.minerReaderImpl = minerReader
-	db,err := m.chain.LatestStateDB()
+	db, err := m.chain.LatestStateDB()
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
@@ -100,7 +100,7 @@ func (m *Manager) GroupCreatedInCurrentBlock(block *types.Block) *group {
 	topGroup := m.poolImpl.getTopGroup(db)
 	if topGroup.HeaderD.BlockHeight == block.Header.Height {
 		logger.Debugf("Notify consensus as group created on %v", topGroup.HeaderD.BlockHeight)
-		logger.Debugf("Member number is  %d", len(topGroup.members))
+		logger.Debugf("Member number is  %d", len(topGroup.Members()))
 		// group just created
 		return topGroup
 	}
@@ -155,6 +155,17 @@ func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI 
 	return gh
 }
 
+func (m *Manager) GetLivedGroupsByMember(address common.Address, height uint64) []types.GroupI {
+	groups := m.poolImpl.getLives(m.chain, height)
+	groupIs := make([]types.GroupI, 0)
+	for _, g := range groups {
+		if g.hasMember(address.Bytes()) {
+			groupIs = append(groupIs, g)
+		}
+	}
+	return groupIs
+}
+
 func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
 	if createResult == nil {
@@ -168,7 +179,7 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height(), m.poolImpl.getTopGroup(db)))
 		if err != nil {
 			// this case must not happen.
-			panic(logger.Error("saveGroup error: %v", err))
+			logger.Panicf("saveGroup error: %v", err)
 		}
 	case types.CreateResultMarkEvil:
 		markGroupFail(db, createResult)
@@ -188,7 +199,7 @@ func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateCheck
 	}
 	_, err = m.minerReaderImpl.MinerPenalty(db, msg, ctx.Height())
 	if err != nil {
-		logger.Error("MinerPenalty error: %v", err)
+		logger.Errorf("MinerPenalty error: %v", err)
 	}
 }
 
@@ -202,7 +213,7 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 		addr := common.BytesToAddress(p)
 		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
 		if err != nil {
-			logger.Error("MinerFrozen error: %v", err)
+			logger.Errorf("MinerFrozen error: %v", err)
 		}
 	}
 }

@@ -121,10 +121,10 @@ func (msg *CastRewardTransSignReqMessage) GenHash() common.Hash {
 // CastRewardTransSignMessage is the signature response message to requester who should be one of the group members
 type CastRewardTransSignMessage struct {
 	BaseSignedMessage
-	ReqHash   common.Hash
 	BlockHash common.Hash
 
 	// Not serialized
+	ReqHash  common.Hash
 	GSeed    common.Hash
 	Launcher groupsig.ID
 }
@@ -136,6 +136,11 @@ func (msg *CastRewardTransSignMessage) GenHash() common.Hash {
 // ReqProposalBlock requests the block body when the verification consensus is finished by the group members
 type ReqProposalBlock struct {
 	Hash common.Hash
+	BaseSignedMessage
+}
+
+func (req *ReqProposalBlock) GenHash() common.Hash {
+	return req.Hash
 }
 
 // ResponseProposalBlock responses the corresponding block body to the requester

@@ -16,9 +16,10 @@ package core
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"testing"
 )
 
 //var container = newSimpleContainer(6, 2)
@@ -91,6 +92,7 @@ func Test_push(t *testing.T) {
 	t3 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d883"), Nonce: 2, GasPrice: types.NewBigInt(20000), GasLimit: gasLimit, Source: &addr1}
 
 	err := initContext4Test()
+	defer clearDB()
 	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
@@ -102,7 +104,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t2)
 	_ = container.push(t3)
 
-	rs := make([]*types.Transaction,3)
+	rs := make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
 		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
@@ -112,6 +114,10 @@ func Test_push(t *testing.T) {
 	}
 	if rs[1].Hash != t3.Hash {
 		t.Error("push test fail")
+	}
+
+	if container.get(t2.Hash) != nil {
+		t.Error("clear replaced tx fail")
 	}
 
 	container = newSimpleContainer(10, 3, BlockChainImpl)
@@ -120,7 +126,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t1)
 	_ = container.push(t3)
 
-	rs = make([]*types.Transaction,3)
+	rs = make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
 		fmt.Printf("[asSlice] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
@@ -132,17 +138,31 @@ func Test_push(t *testing.T) {
 		t.Error("push test fail")
 	}
 
+	if container.get(t2.Hash) != nil {
+		t.Error("clear replaced tx fail")
+	}
 }
-
 
 func Test_simpleContainer_forEach(t *testing.T) {
 	err := initContext4Test()
+	defer clearDB()
 	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
 	}
 
 	container = newSimpleContainer(10, 3, BlockChainImpl)
+
+	tx22 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a"), Nonce: 1, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
+	tx23 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5b"), Nonce: 1, GasPrice: types.NewBigInt(9999), GasLimit: gasLimit, Source: &addr5}
+	tx24 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5c"), Nonce: 2, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
+	_ = container.push(tx22)
+	_ = container.push(tx23)
+	_ = container.push(tx24)
+
+	for _, tx := range container.asSlice(10) {
+		fmt.Printf("[asSlice1] : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
+	}
 
 	txs := []*types.Transaction{
 		tx1, tx2, tx3, tx4, tx5, tx6, tx7, tx8, tx9, tx10, tx11, tx12, tx13, tx14, tx15,

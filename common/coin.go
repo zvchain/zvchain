@@ -80,10 +80,6 @@ func TAS2RA(v uint64) uint64 {
 	return v * ZVC
 }
 
-func Value2RA(v float64) uint64 {
-	return uint64(v * float64(ZVC))
-}
-
 func RA2TAS(v uint64) float64 {
 	return float64(v) / float64(ZVC)
 }

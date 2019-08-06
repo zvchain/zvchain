@@ -16,6 +16,7 @@
 package group
 
 import (
+	"bytes"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -128,8 +129,6 @@ func (s *FullPacketImpl) Pieces() []types.EncryptedSharePiecePacket {
 type group struct {
 	HeaderD  *groupHeader
 	MembersD []*member
-
-	members []types.MemberI // cache for interface function Members()
 }
 
 func (g *group) Header() types.GroupHeaderI {
@@ -137,13 +136,20 @@ func (g *group) Header() types.GroupHeaderI {
 }
 
 func (g *group) Members() []types.MemberI {
-	if g.members == nil {
-		g.members = make([]types.MemberI, len(g.MembersD))
-		for k, v := range g.MembersD {
-			g.members[k] = v
+	rs := make([]types.MemberI, len(g.MembersD))
+	for k, v := range g.MembersD {
+		rs[k] = v
+	}
+	return rs
+}
+
+func (g *group) hasMember(id []byte) bool {
+	for _, mem := range g.Members() {
+		if bytes.Equal(mem.ID(), id) {
+			return true
 		}
 	}
-	return g.members
+	return false
 }
 
 type member struct {
@@ -211,11 +217,9 @@ func newGroup(i types.GroupI, bh uint64, top *group) *group {
 		bh,
 		gh}
 	members := make([]*member, 0)
-	membersI := make([]types.MemberI, 0, len(i.Members()))
 	for _, m := range i.Members() {
 		mem := &member{m.ID(), m.PK()}
 		members = append(members, mem)
-		membersI = append(membersI, mem)
 	}
-	return &group{header, members, membersI}
+	return &group{header, members}
 }

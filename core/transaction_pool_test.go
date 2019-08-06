@@ -28,6 +28,7 @@ func TestCreatePool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init fail:%v", err)
 	}
+	initBalance()
 	defer clear()
 	pool := BlockChainImpl.GetTransactionPool()
 
@@ -77,6 +78,7 @@ func TestContainer(t *testing.T) {
 		t.Fatalf("init fail:%v", err)
 	}
 	defer clear()
+	initBalance()
 	pool := BlockChainImpl.GetTransactionPool()
 
 	var gasePrice1 uint64 = 12347

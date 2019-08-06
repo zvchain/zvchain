@@ -16,6 +16,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -49,7 +50,7 @@ func commonValidate(tx *types.Transaction) error {
 	}
 
 	if tx.Hash != tx.GenHash() {
-		return fmt.Errorf("tx hash error")
+		return ErrHash
 	}
 
 	if tx.Sign == nil {
@@ -114,9 +115,9 @@ func sourceRecover(tx *types.Transaction) error {
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
 func stateValidate(tx *types.Transaction) error {
-	accountDB,err := BlockChainImpl.LatestStateDB()
-	if err != nil{
-		return fmt.Errorf("fail get last state db,error = %v",err.Error())
+	accountDB, err := BlockChainImpl.LatestStateDB()
+	if err != nil {
+		return fmt.Errorf("fail get last state db,error = %v", err.Error())
 	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance := accountDB.GetBalance(*tx.Source)
@@ -166,6 +167,9 @@ func minerAbortValidator(tx *types.Transaction) error {
 	if len(tx.Data) != 1 {
 		return fmt.Errorf("data length should be 1")
 	}
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
 	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
 		return err
 	}
@@ -182,7 +186,16 @@ func stakeReduceValidator(tx *types.Transaction) error {
 	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
 		return err
 	}
-	return valueValidate(tx)
+	if tx.Value == nil {
+		return fmt.Errorf("value is nil")
+	}
+	if !tx.Value.IsUint64() {
+		return fmt.Errorf("value is not uint64")
+	}
+	if tx.Value.Uint64() == 0 {
+		return fmt.Errorf("value is 0")
+	}
+	return nil
 }
 
 func stakeRefundValidator(tx *types.Transaction) error {
@@ -277,8 +290,10 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
-			case types.TransactionTypeGroupPiece,types.TransactionTypeGroupMpk,types.TransactionTypeGroupOriginPiece:
+			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
+			default:
+				err = fmt.Errorf("no such kind of tx")
 			}
 			if err != nil {
 				return err
@@ -287,6 +302,13 @@ func getValidator(tx *types.Transaction) validator {
 			if err := sourceRecover(tx); err != nil {
 				return err
 			}
+			//check the abort tx's source and target
+			if tx.Type == types.TransactionTypeMinerAbort {
+				if bytes.Compare(tx.Target.Bytes(), tx.Source.Bytes()) != 0 {
+					return fmt.Errorf("could not abort for other node")
+				}
+			}
+
 			// Validate state
 			if err := stateValidate(tx); err != nil {
 				return err

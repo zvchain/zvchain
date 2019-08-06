@@ -76,5 +76,17 @@ func (bus *Bus) Publish(id string, message Message) {
 		return
 	}
 
-	topic.Handle(message)
+	topic.Handle(message, false)
+}
+
+func (bus *Bus) PublishWithRecover(id string, message Message) {
+	bus.lock.RLock()
+	defer bus.lock.RUnlock()
+
+	topic, ok := bus.topics[id]
+	if !ok {
+		return
+	}
+
+	topic.Handle(message, true)
 }

@@ -17,12 +17,13 @@ package cli
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/zvchain/zvchain/middleware/types"
 	"io/ioutil"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/howeyc/gopass"
@@ -337,7 +338,7 @@ func (c *gasBaseCmd) initBase() {
 type sendTxCmd struct {
 	gasBaseCmd
 	to           string
-	value        float64
+	value        string
 	data         string
 	nonce        uint64
 	contractName string
@@ -352,7 +353,7 @@ func genSendTxCmd() *sendTxCmd {
 	}
 	c.initBase()
 	c.fs.StringVar(&c.to, "to", "", "the transaction receiver address")
-	c.fs.Float64Var(&c.value, "value", 0.0, "transfer value in ZVC unit")
+	c.fs.StringVar(&c.value, "value", "", "transfer value in ZVC unit")
 	c.fs.StringVar(&c.data, "data", "", "transaction data")
 	c.fs.StringVar(&c.extraData, "extra", "", "transaction extra data, user defined")
 	c.fs.Uint64Var(&c.nonce, "nonce", 0, "nonce, optional. will use default nonce on chain if not specified")
@@ -363,9 +364,10 @@ func genSendTxCmd() *sendTxCmd {
 }
 
 func (c *sendTxCmd) toTxRaw() *txRawData {
+	value, _ := parseRaFromString(c.value)
 	return &txRawData{
 		Target:    c.to,
-		Value:     common.Value2RA(c.value),
+		Value:     value,
 		TxType:    c.txType,
 		Data:      []byte(c.data),
 		Gas:       c.gaslimit,
@@ -398,6 +400,11 @@ func (c *sendTxCmd) parse(args []string) bool {
 	}
 
 	if !c.parseGasPrice() {
+		return false
+	}
+
+	if _, err := parseRaFromString(c.value); err != nil {
+		output(err)
 		return false
 	}
 
@@ -449,6 +456,46 @@ func (c *sendTxCmd) parse(args []string) bool {
 	return true
 }
 
+func parseRaFromString(number string) (uint64, error) {
+	if len(number) == 0 {
+		return 0, nil
+	}
+
+	numberSplit := strings.Split(number, ".")
+	lengthOfNumber := len(numberSplit)
+	if lengthOfNumber > 2 || lengthOfNumber < 1 {
+		return 0, fmt.Errorf("illegal number")
+	}
+
+	var numReg = regexp.MustCompile("^[0-9]{1,10}$") //check the format
+	if !numReg.MatchString(numberSplit[0]) {
+		return 0, fmt.Errorf("illegal number")
+	}
+
+	bigNumber, err := strconv.ParseUint(numberSplit[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	var decimal uint64
+	if lengthOfNumber == 2 {
+		var digital = regexp.MustCompile("^[0-9]{1,9}$") //check the format
+		if !digital.MatchString(numberSplit[1]) {
+			return 0, fmt.Errorf("illegal number")
+		}
+		realNumber := numberSplit[1]
+		for i := len(numberSplit[1]); i < 9; i++ {
+			realNumber += "0"
+		}
+		decimal, err = strconv.ParseUint(realNumber, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return bigNumber*common.ZVC + decimal, nil
+}
+
 type stakeAddCmd struct {
 	gasBaseCmd
 	stake  uint64
@@ -487,7 +534,8 @@ func (c *stakeAddCmd) parse(args []string) bool {
 
 type minerAbortCmd struct {
 	gasBaseCmd
-	mtype int
+	mtype      int
+	forceAbort bool
 }
 
 func genMinerAbortCmd() *minerAbortCmd {
@@ -496,6 +544,7 @@ func genMinerAbortCmd() *minerAbortCmd {
 	}
 	c.initBase()
 	c.fs.IntVar(&c.mtype, "type", 0, "abort miner type: 0=verify node, 1=proposal node, default 0")
+	c.fs.BoolVar(&c.forceAbort, "f", false, "operation won't success if the miner was currently selected to join a group if not specified")
 	return c
 }
 
@@ -679,6 +728,35 @@ func (c *exportKeyCmd) parse(args []string) bool {
 	return true
 }
 
+type groupCheckCmd struct {
+	baseCmd
+	addr string
+}
+
+func genGroupCheckCmd() *groupCheckCmd {
+	c := &groupCheckCmd{
+		baseCmd: *genBaseCmd("groupcheck", "check joining group info of the given miner address"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "the address of miner")
+	return c
+}
+
+func (c *groupCheckCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if c.addr == "" {
+		output("please input the address")
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return true
+}
+
 var cmdNewAccount = genNewAccountCmd()
 var cmdExit = genBaseCmd("exit", "quit  gzv")
 var cmdHelp = genBaseCmd("help", "show help info")
@@ -704,6 +782,7 @@ var cmdViewContract = genViewContractCmd()
 
 var cmdImportKey = genImportKeyCmd()
 var cmdExportKey = genExportKeyCmd()
+var cmdGroupCheck = genGroupCheckCmd()
 
 var list = make([]*baseCmd, 0)
 
@@ -730,6 +809,7 @@ func init() {
 	list = append(list, &cmdStakeReduce.baseCmd)
 	list = append(list, &cmdImportKey.baseCmd)
 	list = append(list, &cmdExportKey.baseCmd)
+	list = append(list, &cmdGroupCheck.baseCmd)
 	list = append(list, cmdExit)
 }
 
@@ -835,7 +915,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		}
 
 		inputArr, err := parseCommandLine(input)
-		if err != nil{
+		if err != nil {
 			fmt.Printf("%s", err.Error())
 		}
 
@@ -954,7 +1034,7 @@ func loop(acm accountOp, chainOp chainOp) {
 			cmd := genMinerAbortCmd()
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
-					return chainOp.MinerAbort(cmd.mtype, cmd.gaslimit, cmd.gasPrice)
+					return chainOp.MinerAbort(cmd.mtype, cmd.gaslimit, cmd.gasPrice, cmd.forceAbort)
 				})
 			}
 		case cmdStakeRefund.name:
@@ -992,6 +1072,13 @@ func loop(acm accountOp, chainOp chainOp) {
 					return acm.ExportKey(cmd.addr)
 				})
 			}
+		case cmdGroupCheck.name:
+			cmd := genGroupCheckCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return chainOp.GroupCheck(cmd.addr)
+				})
+			}
 		default:
 			fmt.Printf("not supported command %v\n", cmdStr)
 			Usage()
@@ -1019,13 +1106,13 @@ func parseCommandLine(command string) ([]string, error) {
 			continue
 		}
 
-		if (escapeNext) {
+		if escapeNext {
 			current += string(c)
 			escapeNext = false
 			continue
 		}
 
-		if (c == '\\') {
+		if c == '\\' {
 			escapeNext = true
 			continue
 		}
@@ -1054,7 +1141,7 @@ func parseCommandLine(command string) ([]string, error) {
 	}
 
 	if state == "quotes" {
-		return []string{}, errors.New(fmt.Sprintf("Unclosed quote in command line: %s", command))
+		return []string{}, fmt.Errorf("Unclosed quote in command line: %s", command)
 	}
 
 	if current != "" {

@@ -17,10 +17,10 @@ package logical
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/common"
 	"math/big"
-	"strings"
 	"sync"
+
+	"github.com/zvchain/zvchain/common"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -174,13 +174,17 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	msg := &model.ReqProposalBlock{
 		Hash: bh.Hash,
 	}
-	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
 
-	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
+	sKey := p.groupReader.getGroupSignatureSeckey(bh.Group)
+	// sign the message and send to other members in the verifyGroup
+	if msg.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), msg) {
+		p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
+		result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 
-	slot.setSlotStatus(slSuccess)
-	vctx.markNotified()
-	vctx.successSlot = slot
+		slot.setSlotStatus(slSuccess)
+		vctx.markNotified()
+		vctx.successSlot = slot
+	}
 	return
 }
 
@@ -306,85 +310,10 @@ func (p *Processor) blockProposal() {
 		p.proveChecker.addProve(pi)
 		worker.markProposed()
 
-		p.blockContexts.addProposed(block)
+		p.blockContexts.addProposed(block, len(gb.MemIds))
 
 	} else {
 		blog.debug("bh/prehash Error or sign Error, bh=%v, real height=%v. bc.prehash=%v, bh.prehash=%v", height, bh.Height, worker.baseBH.Hash, bh.PreHash)
-	}
-
-}
-
-// reqRewardTransSign generates a reward transaction based on the signature pieces received locally,
-// and broadcast it to other members of the verifyGroup for signature.
-//
-// After the block verification consensus, the verifyGroup should issue a corresponding reward transaction consensus
-// to make sure that 51% of the verified-member can get the reward
-func (p *Processor) reqRewardTransSign(vctx *VerifyContext, bh *types.BlockHeader) {
-	blog := newBizLog("reqRewardTransSign")
-	blog.debug("start, bh=%v", p.blockPreview(bh))
-	slot := vctx.GetSlotByHash(bh.Hash)
-	if slot == nil {
-		blog.error("slot is nil")
-		return
-	}
-	if !slot.gSignGenerator.Recovered() {
-		blog.error("slot not recovered")
-		return
-	}
-	if !slot.IsSuccess() && !slot.IsVerified() {
-		blog.error("slot not verified or success,status=%v", slot.GetSlotStatus())
-		return
-	}
-	// If you sign yourself, you don't have to send it again
-	if slot.hasSignedRewardTx() {
-		blog.warn("has signed reward tx")
-		return
-	}
-
-	group := vctx.group
-
-	targetIDIndexs := make([]int32, 0)
-	signs := make([]groupsig.Signature, 0)
-	idHexs := make([]string, 0)
-
-	threshold := group.header.Threshold()
-	for idx, mem := range group.getMembers() {
-		if sig, ok := slot.gSignGenerator.GetWitness(mem); ok {
-			signs = append(signs, sig)
-			targetIDIndexs = append(targetIDIndexs, int32(idx))
-			idHexs = append(idHexs, mem.GetHexString())
-			if len(signs) >= int(threshold) {
-				break
-			}
-		}
-	}
-	rewardShare := p.MainChain.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
-
-	reward, tx, err := p.MainChain.GetRewardManager().GenerateReward(targetIDIndexs, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
-	if err != nil {
-		err = fmt.Errorf("failed to generate reward %s", err)
-		return
-	}
-	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash, reward.TargetIds, bh.Height)
-
-	tLog := newHashTraceLog("REWARD_REQ", bh.Hash, p.GetMinerID())
-	tLog.log("txHash=%v, targetIds=%v", reward.TxHash, strings.Join(idHexs, ","))
-
-	if slot.setRewardTrans(tx) {
-		msg := &model.CastRewardTransSignReqMessage{
-			Reward:       *reward,
-			SignedPieces: signs,
-		}
-		ski := model.NewSecKeyInfo(p.GetMinerID(), p.groupReader.getGroupSignatureSeckey(group.header.Seed()))
-		if msg.GenSign(ski, msg) {
-			p.NetServer.SendCastRewardSignReq(msg)
-
-			stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", reward.TxHash.Hex(), ski.SK.GetHexString(), p.GetMinerID(), msg.SI.DataSign.GetHexString(), group.header.Seed())
-
-			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
-		} else {
-			blog.error("genSign fail, id=%v, sk=%v", ski.ID, ski.SK)
-		}
 	}
 
 }

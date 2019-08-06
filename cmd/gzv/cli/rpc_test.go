@@ -19,15 +19,112 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
-	"github.com/zvchain/zvchain/taslog"
 )
+
+const code  =`
+
+# import account
+
+class Token(object):
+    def __init__(self):
+        self.name = 'Tas Token'
+        self.symbol = "TAS"
+        self.decimal = 3
+
+        self.totalSupply = 100000
+
+        self.balanceOf = TasCollectionStorage()
+        self.allowance = TasCollectionStorage()
+
+        self.balanceOf['0xe75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019'] = self.totalSupply
+
+        # self.owner = msg.sender
+
+    # @register.view()
+    # def symbol(self):
+    #     return self.symbol
+
+    # @regsiter.view()
+    # def blanceOf(self, key):
+    #     return self.blanceOf[key] + 1000W
+
+    def _transfer(self, _from, _to, _value):
+        if self.balanceOf[_to] is None:
+            self.balanceOf[_to] = 0
+        if self.balanceOf[_from] is None:
+            self.balanceOf[_from] = 0
+        # 接收账户地址是否合法
+        # require(Address(_to).invalid())
+        # 账户余额是否满足转账金额
+        if self.balanceOf[_from] < _value:
+            raise Exception('账户余额小于转账金额')
+        # 检查转账金额是否合法
+        if _value <= 0:
+            raise Exception('转账金额必须大于等于0')
+        # 转账
+        self.balanceOf[_from] -= _value
+        self.balanceOf[_to] += _value
+        # Event.emit("Transfer", _from, _to, _value)
+
+    @register.public(str, int)
+    def transfer(self, _to, _value):
+        self._transfer(msg.sender, _to, _value)
+
+    @register.public(str, int)
+    def approve(self, _spender, _valuexj):
+        if _value <= 0:
+            raise Exception('授权金额必须大于等于0')
+        if self.allowance[msg.sender] is None:
+            self.allowance[msg.sender] = TasCollectionStorage()
+        self.allowance[msg.sender][_spender] = _value
+        # account.eventCall('Approval', 'index', 'data')
+        # Event.emit("Approval", msg.sender, _spender, _value)
+
+    @register.public(str, str, int)
+    def transfer_from(self, _from, _to, _value):
+        if _value > self.allowance[_from][msg.sender]:
+            raise Exception('超过授权转账额度')
+        self.allowance[_from][msg.sender] -= _value
+        self._transfer(_from, _to, _value)
+
+    # def approveAndCall(self, _spender, _value, _extraData):
+    #         spender = Address(_spender)
+    #     if self.approve(spender, _value):
+    #         spender.call("receive_approval", msg.sender, _value, this, _extraData)
+    #         return True
+    #     else:
+    #         return False
+
+    @register.public()
+    def test(self, _value):
+
+    @register.public(int)
+    def burn(self, _value):
+        if _value <= 0:
+            raise Exception('燃烧金额必须大于等于0')
+        if self.balanceOf[msg.sender] < _value:
+            raise Exception('账户余额不足')
+        self.balanceOf[msg.sender] -= _value
+        self.totalSupply -= _value
+        # Event.emit("Burn", msg.sender, _value)
+
+    # def burn_from(self, _from, _value):
+    #     # if _from not in self.balanceOf:
+    #     #     self.balanceOf[_from] = 0
+    #     #检查账户余额
+    #     require(self.balanceOf[_from] >= _value)
+    #     require(_value <= self.allowance[_from][msg.sender])
+    #     self.balanceOf[_from] -= _value
+    #     self.allowance[_from][msg.sender] -= _value
+    #     self.totalSupply -= _value
+    #     Event.emit("Burn", _from, _value)
+    #     return True
+`
 
 var cfg = &minerConfig{
 	rpcLevel:      rpcLevelDev,
@@ -44,69 +141,9 @@ var cfg = &minerConfig{
 	password:      "123",
 }
 
-func TestRPC(t *testing.T) {
-	gtas := NewGtas()
-	gtas.config = cfg
-	gtas.simpleInit("zv.ini")
-	common.DefaultLogger = taslog.GetLoggerByIndex(taslog.DefaultConfig, common.GlobalConf.GetString("instance", "index", ""))
-
-	aop, err := newAccountOp("keystore")
-	account := aop.NewAccount("123", true)
-	aop.store.Close()
-	addr := account.Data.(string)
-	common.GlobalConf.SetString(Section, "miner", addr)
-
-	err = gtas.fullInit()
-	if err != nil {
-		t.Error(err)
-	}
-	defer resetDb("testkey")
-	common.GlobalConf.Del(Section, "miner")
-	senderAddr := common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
-	nonce := core.BlockChainImpl.GetNonce(senderAddr)
-	privateKey := common.HexToSecKey("0x045c8153e5a849eef465244c0f6f40a43feaaa6855495b62a400cc78f9a6d61c76c09c3aaef393aa54bd2adc5633426e9645dfc36723a75af485c5f5c9f2c94658562fcdfb24e943cf257e25b9575216c6647c4e75e264507d2d57b3c8bc00b361")
-
-	tx := &txRawData{Target: "0x8ad32757d4dbcea703ba4b982f6fd08dad84bfcb", Value: 10, Gas: 1000, Gasprice: 10000, TxType: 0, Nonce: nonce}
-	tranx := txRawToTransaction(tx)
-	tranx.Hash = tranx.GenHash()
-	sign, _ := privateKey.Sign(tranx.Hash.Bytes())
-	tranx.Sign = sign.Bytes()
-	tx.Sign = sign.Hex()
-
-	txdata, err := json.Marshal(tx)
-	if err != nil {
-		t.Error(err)
-	}
-	if err = gtas.startRPC(); err != nil {
-		t.Error(err)
-	}
-	tests := []struct {
-		method string
-		params []interface{}
-	}{
-		{"Gtas_tx", []interface{}{string(txdata)}},
-		{"Gtas_balance", []interface{}{"0x8ad32757d4dbcea703ba4b982f6fd08dad84bfcb"}},
-		{"Gtas_blockHeight", nil},
-		//{},
-	}
-	for _, test := range tests {
-		res, err := rpcPost(cfg.rpcAddr, uint(cfg.rpcPort), test.method, test.params...)
-		if err != nil {
-			t.Errorf("%s failed: %v", test.method, err)
-			continue
-		}
-		if res.Error != nil {
-			t.Errorf("%s failed: %v", test.method, res.Error.Message)
-			continue
-		}
-		data, _ := json.Marshal(res.Result)
-		log.Printf("%s response data: %s", test.method, data)
-	}
-}
-
 func resetDb(dbPath string) error {
 	core.BlockChainImpl.(*core.FullBlockChain).Close()
-	taslog.Close()
+	//taslog.Close()
 	fmt.Println("---reset db---")
 	dir, err := ioutil.ReadDir(".")
 	if err != nil {
@@ -155,4 +192,10 @@ func TestUnmarhsalTxRawData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+
+func TestParseABI(t *testing.T)  {
+	abi := parseABI(code)
+	fmt.Println(abi)
 }

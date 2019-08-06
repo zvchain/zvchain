@@ -19,9 +19,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/common/secp256k1"
+	"github.com/zvchain/zvchain/network"
 	"sync"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -81,7 +82,7 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 	}
 	pool.received = newSimpleContainer(maxPendingSize, maxQueueSize, chain)
 	pool.bonPool = newRewardPool(chain.rewardManager, rewardTxMaxSize)
-	initTxSyncer(chain, pool)
+	initTxSyncer(chain, pool, network.GetNetInstance())
 
 	return pool
 }
@@ -172,6 +173,15 @@ func (pool *txPool) GetReceived() []*types.Transaction {
 	return pool.received.asSlice(maxPendingSize + maxQueueSize)
 }
 
+// GetAllTxs returns the all received transactions(including pending and queue) in the pool with a limited size
+func (pool *txPool) GetAllTxs() []*types.Transaction {
+	txs := pool.received.asSlice(maxPendingSize + maxQueueSize)
+	for _, tx := range pool.received.queue {
+		txs = append(txs, tx)
+	}
+	return txs
+}
+
 // TxNum returns the number of transactions in the pool
 func (pool *txPool) TxNum() uint64 {
 	return uint64(pool.received.Len() + pool.bonPool.len())
@@ -185,8 +195,7 @@ func (pool *txPool) PackForCast() []*types.Transaction {
 
 // RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction
 func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
-	validator := getValidator(tx)
-	return validator()
+	return getValidator(tx)()
 }
 
 func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
@@ -248,7 +257,7 @@ func (pool *txPool) packTx() []*types.Transaction {
 	accuSize := 0
 	pool.bonPool.forEach(func(tx *types.Transaction) bool {
 		accuSize += tx.Size()
-		if accuSize <= txAccumulateSizeMaxPerBlock{
+		if accuSize <= txAccumulateSizeMaxPerBlock {
 			txs = append(txs, tx)
 			return true
 		}
@@ -261,6 +270,14 @@ func (pool *txPool) packTx() []*types.Transaction {
 			if tx.GasPrice.Cmp(pool.gasPriceLowerBound.Value()) < 0 {
 				return true
 			}
+
+			// ignore the vm call
+			if IgnoreVmCall {
+				if tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall {
+					return true
+				}
+			}
+
 			accuSize = accuSize + tx.Size()
 			if accuSize <= txAccumulateSizeMaxPerBlock {
 				txs = append(txs, tx)

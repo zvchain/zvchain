@@ -39,11 +39,6 @@ const (
 	BlockResponseMsg   uint32 = 10003
 	NewBlockMsg        uint32 = 10004
 
-	//The following three messages are used for group sync
-	GroupChainCountMsg uint32 = 10005
-	ReqGroupMsg        uint32 = 10006
-	GroupMsg           uint32 = 10007
-
 	//The following two messages are used for block fork processing
 	ReqChainPieceBlock uint32 = 10008
 	ChainPieceBlock    uint32 = 10009

@@ -16,6 +16,7 @@
 package cli
 
 import (
+	"github.com/zvchain/zvchain/tvm"
 	"math/big"
 	"time"
 
@@ -95,10 +96,11 @@ type CastStat struct {
 }
 
 type MortGage struct {
-	Stake       uint64 `json:"stake"`
-	ApplyHeight uint64 `json:"apply_height"`
-	Type        string `json:"type"`
-	Status      string `json:"miner_status"`
+	Stake              uint64 `json:"stake"`
+	ApplyHeight        uint64 `json:"apply_height"`
+	Type               string `json:"type"`
+	Status             string `json:"miner_status"`
+	StatusUpdateHeight uint64 `json:"status_update_height"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
@@ -113,10 +115,11 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 		status = "frozen"
 	}
 	mg := &MortGage{
-		Stake:       uint64(common.RA2TAS(miner.Stake)),
-		ApplyHeight: miner.ApplyHeight,
-		Type:        t,
-		Status:      status,
+		Stake:              uint64(common.RA2TAS(miner.Stake)),
+		ApplyHeight:        miner.ApplyHeight,
+		Type:               t,
+		Status:             status,
+		StatusUpdateHeight: miner.StatusUpdateHeight,
 	}
 	return mg
 }
@@ -267,6 +270,7 @@ type ExplorerAccount struct {
 	Nonce     uint64                 `json:"nonce"`
 	Type      uint32                 `json:"type"`
 	CodeHash  string                 `json:"code_hash"`
+	ABI  	  []tvm.ABIVerify 		 `json:"abi"`
 	Code      string                 `json:"code"`
 	StateData map[string]interface{} `json:"state_data"`
 }
@@ -277,4 +281,22 @@ type ExploreBlockReward struct {
 	ProposalGasFeeReward uint64            `json:"proposal_gas_fee_reward"`
 	VerifierReward       RewardTransaction `json:"verifier_reward"`
 	VerifierGasFeeReward uint64            `json:"verifier_gas_fee_reward"`
+}
+
+type JoinedGroupInfo struct {
+	Seed          common.Hash `json:"id"`
+	WorkHeight    uint64      `json:"work_height"`
+	DismissHeight uint64      `json:"dismiss_height"`
+}
+
+type CurrentEraGroupInfo struct {
+	Selected         bool        `json:"selected"`
+	GroupSeed        common.Hash `json:"id"`
+	SeedHeight       uint64      `json:"seed_height"`
+	MinerActionStage string      `json:"miner_action_stage"`
+}
+
+type GroupCheckInfo struct {
+	JoinedGroups        []*JoinedGroupInfo   `json:"joined_living_groups"`
+	CurrentGroupRoutine *CurrentEraGroupInfo `json:"current_group_routine"`
 }

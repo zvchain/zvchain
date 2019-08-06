@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/log"
 	"math/big"
 	"math/rand"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
-	"github.com/zvchain/zvchain/taslog"
 
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -25,11 +25,11 @@ var (
 	accountdb account.AccountDatabase
 )
 
-func init() {
+func initExecutor() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
-			rewardManager:   newRewardManager(),
+			rewardManager:   NewRewardManager(),
 		},
 	}
 	options := &opt.Options{
@@ -52,15 +52,20 @@ func init() {
 		panic(fmt.Sprintf("Init block chain error! Error:%s", err.Error()))
 	}
 	accountdb = account.NewDatabase(statedb)
-	Logger = taslog.GetLogger("")
+	Logger = log.DefaultLogger
 
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
-			rewardManager:   newRewardManager(),
+			rewardManager:   NewRewardManager(),
 		},
 	}
-	BlockChainImpl = executor.bc
+	if BlockChainImpl == nil{
+		BlockChainImpl = executor.bc
+	}
+
+	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
+
 }
 
 func randomAddress() common.Address {
@@ -85,6 +90,8 @@ func genRandomTx() *types.Transaction {
 }
 
 func TestTVMExecutor_Execute(t *testing.T) {
+	initExecutor()
+	defer clearDB()
 	txNum := 10
 	txs := make([]*types.Transaction, txNum)
 	for i := 0; i < txNum; i++ {
