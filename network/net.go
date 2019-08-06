@@ -327,6 +327,7 @@ func (nc *NetCore) decodeLoop() {
 		select {
 		case peer := <-nc.unhandled:
 			for {
+
 				err := nc.handleMessage(peer)
 				if err != nil || peer.isEmpty() {
 					break
@@ -653,15 +654,22 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	if p == nil || p.isEmpty() {
 		return nil
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("handleMessage error：%v\n", r)
+			Logger.Errorf("handleMessage error：%v\n", r)
+		}
+	}()
 	msgType, packetSize, msg, buf, err := nc.decodeMessage(p)
 
 	if err != nil {
+		panic("unknown type")
+
 		return err
 	}
 
 	switch msgType {
 	case MessageType_MessagePing:
-
 		err = nc.handlePing(msg.(*MsgPing), p)
 	case MessageType_MessagePong:
 
@@ -677,9 +685,8 @@ func (nc *NetCore) handleMessage(p *Peer) error {
 	case MessageType_MessageData:
 		nc.handleData(msg.(*MsgData), buf.Bytes()[0:packetSize], p)
 	default:
-		err = fmt.Errorf("unknown type: %d", msgType)
-		Logger.Error(err)
-		return err
+		Logger.Errorf("unknown type: %d \n", msgType)
+		return errBadPacket
 	}
 	if buf != nil {
 		nc.bufferPool.freeBuffer(buf)

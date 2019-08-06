@@ -54,13 +54,13 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 	source := pubkey.GetAddress()
 	data := common.Uint64ToByte(pa.CurTime)
 	buffer.Write(data)
-	if netServerInstance != nil {
+	if netServerInstance != nil && netServerInstance.netCore != nil {
 		buffer.Write(netServerInstance.netCore.ID.Bytes())
 	}
 
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
 	sign := common.BytesToSign(pa.Sign)
-	if sign == nil{
+	if sign == nil {
 		return false, ""
 	}
 
@@ -111,7 +111,7 @@ type Peer struct {
 	source         PeerSource
 
 	//groups which need this peer
-	groupIDs 		map[string]bool
+	groupIDs map[string]bool
 
 	bytesReceived   int
 	bytesSend       int
@@ -168,19 +168,19 @@ func (p *Peer) popData() *bytes.Buffer {
 func (p *Peer) addGroup(gID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	_,existed := p.groupIDs[gID]
+	_, existed := p.groupIDs[gID]
 	if !existed {
 		p.groupIDs[gID] = true
 	}
 }
 
-func (p *Peer) removeGroup(gID string){
+func (p *Peer) removeGroup(gID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	delete(p.groupIDs,gID)
+	delete(p.groupIDs, gID)
 }
 
-func (p *Peer) isGroupEmpty() bool{
+func (p *Peer) isGroupEmpty() bool {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	return len(p.groupIDs) == 0
@@ -380,6 +380,7 @@ func (p *Peer) IsCompatible() bool {
 }
 
 func (p *Peer) disconnect() {
+
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -387,5 +388,4 @@ func (p *Peer) disconnect() {
 		P2PShutdown(p.sessionID)
 		p.sessionID = 0
 	}
-	p.resetData()
 }
