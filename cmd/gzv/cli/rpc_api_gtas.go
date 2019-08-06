@@ -21,6 +21,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/tvm"
 	"strings"
 )
 
@@ -313,6 +314,15 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	account.Nonce = accountDb.GetNonce(address)
 	account.CodeHash = accountDb.GetCodeHash(address).Hex()
 	account.Code = string(accountDb.GetCode(address)[:])
+
+	contract := tvm.Contract{}
+	err = json.Unmarshal(accountDb.GetCode(address),&contract)
+	if err != nil {
+		return failResult("UnMarshall contract fail!"+err.Error())
+	}
+	abi := parseABI(contract.Code)
+	account.ABI = abi
+
 	account.Type = 0
 	if len(account.Code) > 0 {
 		account.Type = 1

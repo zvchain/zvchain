@@ -18,6 +18,8 @@ package cli
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/tvm"
+	"strings"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -167,4 +169,43 @@ func convertGroup(g types.GroupI) *Group {
 		GroupHeight:   gh.GroupHeight(),
 	}
 
+}
+
+func parseABI(code string) []tvm.ABIVerify {
+
+	ABIs := make([]tvm.ABIVerify,0)
+
+	stringSlice := strings.Split(code,"\n")
+	for k, targetString := range stringSlice {
+		targetString = strings.TrimSpace(targetString)
+		if strings.HasPrefix(targetString,"@register.public"){
+			params := strings.TrimPrefix(targetString,"@register.public")
+			params = params[1:len(params)-1]
+			args := strings.Split(params,",")
+			for l, arg := range args{
+				arg = strings.TrimSpace(arg)
+				args[l]=arg
+			}
+
+			funcName := ""
+			funcLine := stringSlice[k+1]
+			funcLine = strings.TrimSpace(funcLine)
+			funcLine = strings.TrimPrefix(funcLine,"def")
+			funcLine = strings.TrimSpace(funcLine)
+
+			for k, v := range funcLine {
+				if v == '(' {
+					funcName = funcLine[:k]
+					funcName=strings.TrimSpace(funcName)
+				}
+			}
+
+			abi := tvm.ABIVerify{
+				FuncName:funcName,
+				Args:args,
+			}
+			ABIs = append(ABIs, abi)
+		}
+	}
+	return ABIs
 }
