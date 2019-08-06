@@ -179,6 +179,8 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 		"msg_code": message.Code,
 	}).Debug("handleMessageInner")
 
+	return
+
 	s.netCore.onHandleDataMessageStart()
 	defer s.netCore.onHandleDataMessageDone()
 

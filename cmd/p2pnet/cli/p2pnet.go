@@ -297,10 +297,14 @@ func (gtas *Gtas) fullInit() error {
 
 	id := minerInfo.ID.GetHexString()
 	genesisMembers := make([]string, 0)
-	helper := mediator.NewConsensusHelper(minerInfo.ID)
-	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
-		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
-	}
+	//helper := mediator.NewConsensusHelper(minerInfo.ID)
+	//for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
+	//	genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
+	//}
+
+	genesisMembers = append(genesisMembers, "0x03ea3d0d2baff52e785525227ab81ec37825fa49b41a64c5136ec58e9be279f4")
+	genesisMembers = append(genesisMembers, "0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4")
+	genesisMembers = append(genesisMembers, "0x08847f5c81aee6a2d195723ca3961219dc7a1bee341776cbe2fa64e6ca1426b1")
 
 	netCfg := network.NetworkConfig{
 		IsSuper:         cfg.super,
@@ -402,8 +406,17 @@ func (gtas *Gtas) TestSpreadAmongGroup() {
 
 func (gtas *Gtas) TestBroadcast() {
 	go func() {
+		var count uint32 = 10000
 		for {
 			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+			if len(network.GetNetInstance().ConnInfo()) >= 25 {
+				count++
+				msg := network.Message{
+					Code: count,
+					Body: []byte("helloworld"),
+				}
+				network.GetNetInstance().Broadcast(msg)
+			}
 			time.Sleep(2 * time.Second)
 		}
 	}()
