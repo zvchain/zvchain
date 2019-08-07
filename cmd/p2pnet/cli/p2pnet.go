@@ -329,7 +329,7 @@ func (gtas *Gtas) fullInit() error {
 	fmt.Println(time.Now().UnixNano() / 1000000)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"addr": gtas.account.Address,
-		"counter": 0,
+		"counter": 1,
 	}).Debug("Init")
 	//gtas.TestSpreadAmongGroup()
 
