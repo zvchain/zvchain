@@ -26,15 +26,16 @@ import (
 const uintBits = 32 << (uint64(^uint(0)) >> 63)
 
 var (
-	ErrEmptyString   = &decError{"empty hex string"}
-	ErrSyntax        = &decError{"invalid hex string"}
-	ErrMissingPrefix = &decError{"hex string without 0x prefix"}
-	ErrOddLength     = &decError{"hex string of odd length"}
-	ErrEmptyNumber   = &decError{"hex string \"0x\""}
-	ErrLeadingZero   = &decError{"hex number with leading zero digits"}
-	ErrUint64Range   = &decError{"hex number > 64 bits"}
-	ErrUintRange     = &decError{fmt.Sprintf("hex number > %d bits", uintBits)}
-	ErrBig256Range   = &decError{"hex number > 256 bits"}
+	ErrEmptyString       = &decError{"empty hex string"}
+	ErrSyntax            = &decError{"invalid hex string"}
+	ErrMissingPrefix     = &decError{"hex string without 0x prefix"}
+	ErrMissingAddrPrefix = &decError{"address string without prefix"}
+	ErrOddLength         = &decError{"hex string of odd length"}
+	ErrEmptyNumber       = &decError{"hex string \"0x\""}
+	ErrLeadingZero       = &decError{"hex number with leading zero digits"}
+	ErrUint64Range       = &decError{"hex number > 64 bits"}
+	ErrUintRange         = &decError{fmt.Sprintf("hex number > %d bits", uintBits)}
+	ErrBig256Range       = &decError{"hex number > 256 bits"}
 )
 
 type decError struct{ msg string }
@@ -233,7 +234,7 @@ func ShortHex12(hex string) string {
 	return hex[0:6] + "-" + hex[s-6:]
 }
 
-var addrReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
+var addrReg = regexp.MustCompile("^[Zz][Vv][0-9a-fA-F]{64}$")
 
 func ValidateAddress(addr string) bool {
 	return addrReg.MatchString(addr)

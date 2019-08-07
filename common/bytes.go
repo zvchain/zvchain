@@ -28,14 +28,14 @@ func ToHex(b []byte) string {
 	if len(hex) == 0 {
 		hex = "0"
 	}
-	return PREFIX + hex
+	return HexPrefix + hex
 }
 
 // FromHex converts the hex string to a byte array
 func FromHex(s string) []byte {
-	if len(s) > len(PREFIX) {
-		if PREFIX == s[0:len(PREFIX)] {
-			s = s[len(PREFIX):]
+	if len(s) > len(HexPrefix) {
+		if HexPrefix == s[0:len(HexPrefix)] {
+			s = s[len(HexPrefix):]
 		}
 		if len(s)%2 == 1 {
 			s = "0" + s

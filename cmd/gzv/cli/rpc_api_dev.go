@@ -73,8 +73,8 @@ func (api *RpcDevImpl) TransPool() (*Result, error) {
 	for _, v := range transactions {
 		transList = append(transList, Transactions{
 			Hash:   v.Hash.Hex(),
-			Source: v.Source.Hex(),
-			Target: v.Target.Hex(),
+			Source: v.Source.AddrPrefixString(),
+			Target: v.Target.AddrPrefixString(),
 			Value:  v.Value.String(),
 		})
 	}
@@ -83,14 +83,14 @@ func (api *RpcDevImpl) TransPool() (*Result, error) {
 }
 
 func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, error) {
-	if !validateAddress(strings.TrimSpace(account)) {
+	if !common.ValidateAddress(strings.TrimSpace(account)) {
 		return failResult("Wrong account address format")
 	}
 	db, err := core.BlockChainImpl.GetAccountDBByHeight(height)
 	if err != nil {
 		return failResult("this height is invalid")
 	}
-	b := db.GetBalance(common.HexToAddress(account))
+	b := db.GetBalance(common.StringToAddress(account))
 
 	balance := common.RA2TAS(b.Uint64())
 	return &Result{
@@ -250,7 +250,7 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 	ni := &NodeInfo{}
 	p := mediator.Proc
 	ni.ID = p.GetMinerID().GetHexString()
-	balance := core.BlockChainImpl.GetBalance(common.HexToAddress(p.GetMinerID().GetHexString()))
+	balance := core.BlockChainImpl.GetBalance(common.StringToAddress(p.GetMinerID().GetHexString()))
 	ni.Balance = common.RA2TAS(balance.Uint64())
 	if !p.Ready() {
 		ni.Status = "node not ready"

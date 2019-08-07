@@ -72,8 +72,8 @@ type mOperContext struct {
 }
 
 var (
-	src    = common.HexToAddress("0x123")
-	target = common.HexToAddress("0x456")
+	src    = common.StringToAddress("zv123")
+	target = common.StringToAddress("zv456")
 	ctx    = &mOperContext{
 		source:        &src,
 		target:        &target,
@@ -90,8 +90,8 @@ func setup() {
 	if err != nil {
 		panic("init fail " + err.Error())
 	}
-	db,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
+	db, error := BlockChainImpl.LatestStateDB()
+	if error != nil {
 		panic("init fail " + err.Error())
 	}
 	db.AddBalance(src, new(big.Int).SetUint64(ctx.originBalance))

@@ -621,9 +621,9 @@ func TestSignature_MarshalJSON(t *testing.T) {
 }
 
 func TestAddress(t *testing.T) {
-	addr := common.HexToAddress("0x0bf03e69b31aa1caa45e79dd8d7f8031bfe81722d435149ffa2d0b66b9e9b6b7")
+	addr := common.StringToAddress("zv0bf03e69b31aa1caa45e79dd8d7f8031bfe81722d435149ffa2d0b66b9e9b6b7")
 	id := DeserializeID(addr.Bytes())
-	t.Log(id.GetHexString(), len(id.GetHexString()), addr.Hex() == id.GetHexString())
+	t.Log(id.GetHexString(), len(id.GetHexString()), addr.AddrPrefixString() == id.GetHexString())
 	t.Log(id.Serialize(), addr.Bytes(), bytes.Equal(id.Serialize(), addr.Bytes()))
 
 	id2 := ID{}
