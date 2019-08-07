@@ -17,7 +17,6 @@ package cli
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"os"
 	"time"
@@ -303,9 +302,9 @@ func (gtas *Gtas) fullInit() error {
 	//	genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
 	//}
 
-	genesisMembers = append(genesisMembers, "0x03ea3d0d2baff52e785525227ab81ec37825fa49b41a64c5136ec58e9be279f4")
+	genesisMembers = append(genesisMembers, "0x010c989a1d3c0ddc928c46998e1262270fcedd8463f9078bd152c628bbe5070a")
 	genesisMembers = append(genesisMembers, "0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4")
-	genesisMembers = append(genesisMembers, "0x08847f5c81aee6a2d195723ca3961219dc7a1bee341776cbe2fa64e6ca1426b1")
+	genesisMembers = append(genesisMembers, "0x0cc66654d0099fdc10709df3bdb4eab4a68c97ec5dc66d087361d0cabb37db80")
 
 	netCfg := network.NetworkConfig{
 		IsSuper:         cfg.super,
@@ -326,12 +325,12 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	fmt.Println(time.Now().UnixNano() / 1000000)
-	log.ELKLogger.WithFields(logrus.Fields{
-		"addr": gtas.account.Address,
-		"counter": 1,
-	}).Debug("Init")
-	//gtas.TestSpreadAmongGroup()
+	//fmt.Println(time.Now().UnixNano() / 1000000)
+	//log.ELKLogger.WithFields(logrus.Fields{
+	//	"addr": gtas.account.Address,
+	//	"counter": 1,
+	//}).Debug("Init")
+	gtas.TestSpreadAmongGroup()
 
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
@@ -344,70 +343,70 @@ func (gtas *Gtas) TestSpreadAmongGroup() {
 	members := []string{
 		"0x9d2961d1b4eb4af2d78cb9e29614756ab658671e453ea1f6ec26b4e918c79d02",
 
-		"0x3b2cdf5aaa6de805087677ed7f8560aef370e771b17558e75fa9efc9a19c9ddc",
-		"0x83361a38e4ac2cc0147f0c253d69ca0d18b69bc14d2b35a0bd4767c88439465e",
-		"0x0ccb56badf284764e20629e4bcf4fa3aadb3fd6cdc4275d3c41485db4168d3d1",
-		"0x26dea2122d15d0ed803a9d6d90f7363bff2e056721e9eb1ea2c53bb2ff099d7f",
-		"0xe9264622cff077a2b3a8b0242ae88ae1fbdf8c5416f28bf45d5b308b12c81ffa",
-		"0x0d7a8f69f94a92f088fb42e642406e977285d1f5cabc8cf57b72f0e328ec4a6c",
-		"0x08847f5c81aee6a2d195723ca3961219dc7a1bee341776cbe2fa64e6ca1426b1",
-		"0xbbd5a63b2f262b16b33ead5cd02e84655420b1c68118bc414612998c8d0c6826",
-		"0xab68cb652e7bd40cc9dcfa1154b69b2006c08cff25917878bd012b9ab26d8ba4",
-		"0xcb25178d694b214710f25acf2abadfae15dc9dac045112670fe6a1b557f472e4",
-		"0xab79c2bf02ab023a0541b9ca215277c3f7e34b68ce15f70ac93a7bbdbcb810b8",
-		"0x933f366a84d1e06ac0fdcfba815e6592d2c547b343ca391e70f0f20102bd91fc",
-		"0x9a5261dde18a30b2b0dc317c561cba4b3d2f86f4a15fcd3722c533573e0b5a8d",
-		"0x47bdf5b424ff948695655ed91c12bdc9f53199be9ebfbfe1159a67a6af74b66b",
-		"0x16330ec817a52a568415f583d63f5a887b7ff98460567505ffa7903c3d2d0aac",
-		"0xf55d6b1f19a3cd92ee2e9c6e495ccefc7c2f33b2e2efd72b42916744bad0c4fa",
-		"0x0a03a4b9b05377a1c1da25e5570ceed7dac0d7b3bd0e11aefddee62518e2e9d8",
-		"0x3e6a3e7f29ca62effa66aa1d3f9b5f12ca002ba24274cc992df0c69a70255e41",
-		"0x0bc915e09dec4b3ae2427464513eabec188f0c3b8142a0b0155f166971c5c368",
-		"0xcfe0a90f7044fbc8d3519b06a46ade1ba05f9d5420c2caece19ad1ce50fe321e",
-		"0x64baa8f97e4a25c6dd4744fcad3e0eb938c49c6c9a795c21f643eda7f88633ec",
-		"0x6e1512f604f0d07de1991b3db51cd5b9fba7d4663e40523b1d312a0c5bcf9679",
-		"0xde60b502e83bfa00c81ab8ca2d6379b2d40bee156dd124fd193a3e2e61c67801",
-		"0xcae5f1217a1fd02e8d722b62ea65e2bec79da5929818b1008bf3b2b322fbca3e",
-		"0x0bf173f737196c9f8e2f274d359b4cec9a3f049a6a542017276e67d85c8a2992",
-		"0xf32195b2938bd1477466eae87b74186fd8731694e30ef752918277a11e7fe3a5",
-		"0x08e7107620a38eae98abae0a85ec80240728909af1c4b8bcfd4de0eaac3880a6",
-		"0xe9c4c5c372ce94699343174339fa92f892c71196c965236d25229ebce2e7bf44",
-		"0x6aaba378e56eb0d3d90737c2cbb3b55407ffe690c2ce2150c9e130ea04f0ff18",
-		"0xc690291fc4a4132a4ce08f71aa3db6bef9c6c7a2da9952c35538fcae94ae4ce1",
-		"0x03ea3d0d2baff52e785525227ab81ec37825fa49b41a64c5136ec58e9be279f4",
-		"0x6c7c4724a0abfff3fc109ed6ef71ce82aba7ada1c4e498674458bc2045af21cd",
-		"0xc7d83d1e57ac5e2df25df8c569e87f62fc1173039faf3cb30f65d0efab9ecc50",
-		"0x0cc66654d0099fdc10709df3bdb4eab4a68c97ec5dc66d087361d0cabb37db80",
-		"0x69d959d090df8c77adc85b5294871a904b0294eb85fb8251ba903710805d64c2",
-		"0x6c5cc60dbcdb1d63e739ebde3a076c32e37e6bf46f9e15809ccf73348f24acd9",
-		"0x75df2d0e7b7aaf2b6a5e25856afd0da84da08dbe935cd0e67582bc7b8dad4f81",
-		"0xb4c45be38afcc52fcbc6aa6706897b0c0f943bed691be2ac2beb18e5f2a07890",
-		"0x806ec4eb2d7a2ba0ebee40e2a39e3e8b1f3a09d91ae78bd7fdf30c77e543f545",
-		"0x27af3b203839ba7d47ceaac70b81dbe57074ade843c87b0e5562fd2a3dd3c990",
-		"0x214f1f91ee41d33494575d43bcf41244145d90b569fb16fc93e212c3338caa78",
-		"0xb0fa580541b684390b6cbb292a0e6ef2dd8998de98e487cc5952d3d75db0ec1c",
-		"0xb2e882c6d59b37636d65cd6e023d4f2bd49f25947c37221ac52b3c9b60278813",
-		"0x586e580e7d3352d617f35189ed4995679729a1a8b53ed8d91e46d7f8970d4737",
+		"0x010c989a1d3c0ddc928c46998e1262270fcedd8463f9078bd152c628bbe5070a",
 		"0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4",
+		"0x0cc66654d0099fdc10709df3bdb4eab4a68c97ec5dc66d087361d0cabb37db80",
+		"0x115898cbf04da06e6e7ecc9caecb23a2923377ebeaa72199cce846c099c477ff",
+		"0x27af3b203839ba7d47ceaac70b81dbe57074ade843c87b0e5562fd2a3dd3c990",
+		"0x41691407eb44061dfdeebcdfe3e99ec8999f23564dfc9bbdb0bf40eff9565ac8",
+		"0x4260960717ba2309f4fed0957ddb5433c439ac8e05ca849821308c03eecc7362",
+		"0x429638329f0443a09ca6c768279e5dfaa66c51d3ece7fe055b2fe3eac2844d52",
+		"0x43c81bb3da4ff00bb32414d0a2add104a97cd5d6c128ec1b5b44814381157966",
+		"0x481b4821e3daa3fecde6084a2fceac8b13386d5e8e7b1f9845479633154a22d7",
+		"0x5033b4e87fe98dfa45cda4260c3ad07d8f8d262335f345643658867fd4cb256d",
+		"0x54cc7f651580a931808d08b7331f87431b8771062b46b13e8871ac46ba936b4f",
+		"0x586e580e7d3352d617f35189ed4995679729a1a8b53ed8d91e46d7f8970d4737",
+		"0x65f2423c45e432c5579fa89f167474dddd834b9421b2f57f8034e48be4ce467e",
+		"0x69d959d090df8c77adc85b5294871a904b0294eb85fb8251ba903710805d64c2",
+		"0x6fb32ba21b8a33f0712e91511e9a1c09fa7083e259f65fd609be13fec4861101",
+		"0x718141a9ae76ea312b698fa94ab6100c1a54d3aeadda2a0965631acc48fc1718",
+		"0x72afc8cc9517ae05a6ecab1a6560eeb3f4f53e1a30add1a6f8a9c90317f8e80d",
+		"0x7363f6711b6f45b7cb7c59c43acad2e23b1417884304c038e7176dde641bbbd2",
+		"0x744f4b987bc57baa2e31a33038affd8390fc5ed19a97c9f6a62779bc5a5e2ddc",
+		"0x7bd46d1f7b0ffde2c9c07007e641e02b2db9f9d654594f609ed77dd717cdaeee",
+		"0x806ec4eb2d7a2ba0ebee40e2a39e3e8b1f3a09d91ae78bd7fdf30c77e543f545",
+		"0x81437fd46169d051e8b59334017875f06d2e97d86bd9ce4e7284ee05a33d2525",
+		"0x91bc225a2766b7c28d1e4f3b9ccbd6259899a175b8ad5f67941a6a3fa5f8edc3",
+		"0x92ac1100a7c691d0f4e856afe4e43f565f7bf28be37dc6798dae3546f78add26",
+		"0x9d1bb2de13f1b62880c623eb505952c0adf7ac9da83ad89fecf87fe32484eefd",
+		"0xa279bb1ccdcc61e5ada5b732bd4dffe2d7b6c940f2201c3f7d966e299e4167e6",
+		"0xa2b59ba122fbf391230e50c5fc9e5d132ee57dfa9eb99b4f10bff51a656bbfd6",
+		"0xb277a5454aa3a3d3f48378d4e2fdd4e5810e23b820dd2d4f70f0a2b29f1097d9",
+		"0xb2e882c6d59b37636d65cd6e023d4f2bd49f25947c37221ac52b3c9b60278813",
+		"0xb4c45be38afcc52fcbc6aa6706897b0c0f943bed691be2ac2beb18e5f2a07890",
+		"0xb9ad64158d49a1675d3bfc85bef8c6f8cd580734b09aeea09ccb55af058a82f8",
+		"0xbad8abd0730ca26c53f45b79536e93d645d0dccde828ed86c0e3a10213f51fc6",
+		"0xc7d83d1e57ac5e2df25df8c569e87f62fc1173039faf3cb30f65d0efab9ecc50",
+		"0xc8942bd92a6eca93a00e88849bc52c09aa997ca982dac83c086e72ecdbc3a62c",
+		"0xd8c35d20889d8211ade149c018effa5795f4d9743677e2c4f9e8db9e3f60f0b8",
+		"0xd9cdf213c0f0f4e4c0e7e91ed37051f250e673c2fb2f5c934b90aef19c80671e",
+		"0xdc1242332a1e598d1a6b9dfcf7e679563ea7e03004390162da4c135536967bd4",
+		"0xe2feda0d5a6d345c9cd8d726feea7a4f0e07da46e0cd9720473532392fb996ef",
+		"0xea32ccc43d6620f23b17e207b3a007be3512c634fe11c04d6d5a79a96340c45c",
+		"0xed8e26d2aa5ee254a136b84fc4dde2cdb068fc7f860c7c1aa1411e7cc80517de",
+		"0xf2e99507afcec77f718a5da7fc2cc140760ba330b53ae29e313eb0c5bd839e2b",
+		"0xf607eb31928773c4aeeef7b19d264f44cc6abf3f520b92fe8e2eee6b88fc48b8",
+		"0xfd182cf140b8348a9a7a1d77f4d453f7b2cb67133e96ab6b1398fdd7ccdcb092",
+		"0xff716b6e85f657391cc92e5714a7721821aaf9a62ba1a20094845b488a363778",
 	}
 	network.GetNetInstance().BuildGroupNet(groupID, members)
 
-	go func() {
-		var count uint32 = 40000
-		for {
-
-			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
-			if len(network.GetNetInstance().ConnInfo()) >= 7 {
-				count++
-				msg := network.Message{
-					Code: count,
-					Body: []byte("helloworld"),
-				}
-				network.GetNetInstance().SpreadAmongGroup(groupID, msg)
-			}
-			time.Sleep(2 * time.Second)
-		}
-	}()
+	//go func() {
+	//	var count uint32 = 40000
+	//	for {
+	//
+	//		fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+	//		if len(network.GetNetInstance().ConnInfo()) >= 7 {
+	//			count++
+	//			msg := network.Message{
+	//				Code: count,
+	//				Body: []byte("helloworld"),
+	//			}
+	//			network.GetNetInstance().SpreadAmongGroup(groupID, msg)
+	//		}
+	//		time.Sleep(2 * time.Second)
+	//	}
+	//}()
 }
 
 func (gtas *Gtas) TestSendEveryone() {
