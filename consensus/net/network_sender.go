@@ -76,7 +76,6 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": ccm.BH.Height,
 		"blockHash": ccm.BH.Hash.Hex(),
-		"blockTime": ccm.BH.CurTime.String(),
 		"now":time.TSInstance.NowTime().Local(),
 	}).Debug("SendMessageCast, group number:", len(gb.MemIds))
 
@@ -150,7 +149,6 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
-		"blockTime": block.Header.CurTime.String(),
 		"now": time.TSInstance.NowTime().Local(),
 	}).Debug("BroadcastNewBlock, heavy miners:",len(heavyMinerMembers),", group members:", len(validGroupMembers))
 

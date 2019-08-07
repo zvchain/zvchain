@@ -179,7 +179,6 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
-		"blockTime": bh.CurTime.String(),
 		"now": p.ts.NowTime().Local(),
 	}).Debug("ReqProposalBlock")
 	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
@@ -299,7 +298,6 @@ func (p *Processor) blockProposal() {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"height": bh.Height,
 			"blockHash": bh.Hash.Hex(),
-			"blockTime": bh.CurTime.String(),
 			"now": p.ts.NowTime().Local(),
 		}).Debug("SendCastVerify", )
 
