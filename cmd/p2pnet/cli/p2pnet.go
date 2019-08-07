@@ -17,6 +17,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"os"
 	"time"
@@ -326,7 +327,11 @@ func (gtas *Gtas) fullInit() error {
 	}
 
 	fmt.Println(time.Now().UnixNano() / 1000000)
-	gtas.TestSpreadAmongGroup()
+	log.ELKLogger.WithFields(logrus.Fields{
+		"addr": gtas.account.Address,
+		"counter": 0,
+	}).Debug("Init")
+	//gtas.TestSpreadAmongGroup()
 
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
@@ -387,22 +392,22 @@ func (gtas *Gtas) TestSpreadAmongGroup() {
 	}
 	network.GetNetInstance().BuildGroupNet(groupID, members)
 
-	//go func() {
-	//	var count uint32 = 40000
-	//	for {
-	//
-	//		fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
-	//		if len(network.GetNetInstance().ConnInfo()) >= 7 {
-	//			count++
-	//			msg := network.Message{
-	//				Code: count,
-	//				Body: []byte("helloworld"),
-	//			}
-	//			network.GetNetInstance().SpreadAmongGroup(groupID, msg)
-	//		}
-	//		time.Sleep(2 * time.Second)
-	//	}
-	//}()
+	go func() {
+		var count uint32 = 40000
+		for {
+
+			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+			if len(network.GetNetInstance().ConnInfo()) >= 7 {
+				count++
+				msg := network.Message{
+					Code: count,
+					Body: []byte("helloworld"),
+				}
+				network.GetNetInstance().SpreadAmongGroup(groupID, msg)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
 }
 
 func (gtas *Gtas) TestSendEveryone() {
@@ -454,7 +459,7 @@ func (gtas *Gtas) TestSendEveryone() {
 		"0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4",
 	}
 	go func() {
-		var count uint32 = 21100
+		var count uint32 = 41100
 		body := []byte("helloworld")//make([]byte, 1024 * (1024 / 2))
 		for {
 			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
