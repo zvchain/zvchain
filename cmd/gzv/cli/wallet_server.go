@@ -40,7 +40,7 @@ func (ws *WalletServer) Start() error {
 		return fmt.Errorf("please input the rpcport")
 	}
 	apis := []rpc.API{
-		{Namespace: "GTASWallet", Version: "1", Service: ws, Public: true},
+		{Namespace: "GZVWallet", Version: "1", Service: ws, Public: true},
 	}
 	host := fmt.Sprintf("127.0.0.1:%d", ws.Port)
 	err := startHTTP(host, apis, []string{}, []string{}, []string{})
