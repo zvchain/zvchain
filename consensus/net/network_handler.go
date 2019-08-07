@@ -87,7 +87,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			"blockHash": m.BH.Hash.Hex(),
 			"blockTime": m.BH.CurTime.String(),
 			"now":time.TSInstance.NowTime().Local(),
-		}).Debug("OnMessageCast")
+		}).Debug("OnMessageCast from ",m.SI.GetID())
 		err = c.processor.OnMessageCast(m)
 	case network.VerifiedCastMsg:
 		m, e := unMarshalConsensusVerifyMessage(body)
@@ -98,7 +98,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"blockHash": m.BlockHash,
 			"now":time.TSInstance.NowTime().Local(),
-		}).Debug("OnMessageVerify")
+		}).Debug("OnMessageVerify, from ",m.SI.GetID())
 
 		err = c.processor.OnMessageVerify(m)
 	case network.CastRewardSignReq:
@@ -127,7 +127,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			"blockHash": m.Hash,
 			"sourceID": sourceID,
 			"now":time.TSInstance.NowTime().Local(),
-		}).Debug("OnMessageReqProposalBlock")
+		}).Debug("OnMessageReqProposalBlock from ",sourceID)
 
 		err = c.processor.OnMessageReqProposalBlock(m, sourceID)
 

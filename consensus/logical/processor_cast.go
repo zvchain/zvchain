@@ -124,12 +124,7 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 	if gb == nil {
 		return fmt.Errorf("next verifyGroup is nil")
 	}
-	log.ELKLogger.WithFields(logrus.Fields{
-		"height": bh.Height,
-		"blockHash": bh.Hash.Hex(),
-		"blockTime": bh.CurTime.String(),
-		"now": p.ts.NowTime().Local(),
-	}).Debug("BroadcastNewBlock")
+
 	p.NetServer.BroadcastNewBlock(block, gb)
 
 	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.Since(bh.CurTime))
@@ -181,13 +176,14 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	msg := &model.ReqProposalBlock{
 		Hash: bh.Hash,
 	}
-	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
 		"blockTime": bh.CurTime.String(),
 		"now": p.ts.NowTime().Local(),
-	}).Debug("ReqProposalBlock ")
+	}).Debug("ReqProposalBlock")
+	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
+
 
 	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 

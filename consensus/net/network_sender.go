@@ -78,7 +78,7 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 		"blockHash": ccm.BH.Hash.Hex(),
 		"blockTime": ccm.BH.CurTime.String(),
 		"now":time.TSInstance.NowTime().Local(),
-	}).Debug("SendMessageCast")
+	}).Debug("SendMessageCast, group number:", len(gb.MemIds))
 
 	for idx, mem := range gb.MemIds {
 		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: proveHashs[idx].Bytes()}
@@ -146,6 +146,13 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 			validGroupMembers = append(validGroupMembers, mid)
 		}
 	}
+
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": block.Header.Height,
+		"blockHash": block.Header.Hash.Hex(),
+		"blockTime": block.Header.CurTime.String(),
+		"now": time.TSInstance.NowTime().Local(),
+	}).Debug("BroadcastNewBlock, heavy miners:",len(heavyMinerMembers),", group members:", len(validGroupMembers))
 
 	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))
 

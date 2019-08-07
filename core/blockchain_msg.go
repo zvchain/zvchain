@@ -43,7 +43,7 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 		"height": block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
 		"now": chain.ts.NowTime().Local(),
-	}).Debug("OnNewBlock")
+	}).Debug("OnNewBlock from ", source)
 
 	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))
 	chain.AddBlockOnChain(source, block)
