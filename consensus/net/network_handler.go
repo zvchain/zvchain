@@ -66,7 +66,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			log.ELKLogger.WithFields(logrus.Fields{
 				"code": code,
 				"now":time.TSInstance.NowTime().Local(),
-			}).Debug("Message handle Handle ", err.Error())
+			}).Debug("Message handle error: ", err.Error())
 		}
 	}()
 

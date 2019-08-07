@@ -29,9 +29,6 @@ func (chain *FullBlockChain) initMessageHandler() {
 }
 
 func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
-	log.ELKLogger.WithFields(logrus.Fields{
-	}).Debug("AddBlockOnChain start", chain.ts.NowTime().Local())
-
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
@@ -46,16 +43,10 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 		"height": block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
 		"now": chain.ts.NowTime().Local(),
-	}).Debug("NewBlock")
+	}).Debug("OnNewBlock")
 
 	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))
 	chain.AddBlockOnChain(source, block)
-
-	log.ELKLogger.WithFields(logrus.Fields{
-		"height": block.Header.Height,
-		"blockHash": block.Header.Hash.Hex(),
-		"blockTime": block.Header.CurTime.String(),
-	}).Debug("AddBlockOnChain end", chain.ts.NowTime().Local())
 
 	return nil
 }

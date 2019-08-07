@@ -161,11 +161,6 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 	bh := &ccm.BH
 	traceLog := monitor.NewPerformTraceLogger("OnMessageCast", bh.Hash, bh.Height)
-	//log.ELKLogger.WithFields(logrus.Fields{
-	//	"height": bh.Height,
-	//	"blockHash": bh.Hash.Hex(),
-	//	"blockTime": bh.CurTime.String(),
-	//}).Debug("OnMessageCast ", p.ts.NowTime().Local())
 
 	le := &monitor.LogEntry{
 		LogType:  monitor.LogTypeProposal,
@@ -365,10 +360,6 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 		return
 	}
 	traceLog.SetHeight(vctx.castHeight)
-	//log.ELKLogger.WithFields(logrus.Fields{
-	//	"height": vctx.castHeight,
-	//	"blockHash": blockHash.Hex(),
-	//}).Debug("OnMessageVerify", p.ts.NowTime().Local())
 
 	// Do the verification work
 	ret, err = p.doVerify(cvm, vctx)
