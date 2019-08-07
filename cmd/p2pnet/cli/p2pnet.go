@@ -387,22 +387,22 @@ func (gtas *Gtas) TestSpreadAmongGroup() {
 	}
 	network.GetNetInstance().BuildGroupNet(groupID, members)
 
-	go func() {
-		//var count uint32 = 32
-		for {
-
-			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
-			//if len(network.GetNetInstance().ConnInfo()) >= 37 {
-			//	count++
-			//	msg := network.Message{
-			//		Code: count,
-			//		Body: []byte("helloworld"),
-			//	}
-			//	network.GetNetInstance().SpreadAmongGroup(groupID, msg)
-			//}
-			time.Sleep(2 * time.Second)
-		}
-	}()
+	//go func() {
+	//	var count uint32 = 40000
+	//	for {
+	//
+	//		fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+	//		if len(network.GetNetInstance().ConnInfo()) >= 7 {
+	//			count++
+	//			msg := network.Message{
+	//				Code: count,
+	//				Body: []byte("helloworld"),
+	//			}
+	//			network.GetNetInstance().SpreadAmongGroup(groupID, msg)
+	//		}
+	//		time.Sleep(2 * time.Second)
+	//	}
+	//}()
 }
 
 func (gtas *Gtas) TestSendEveryone() {
