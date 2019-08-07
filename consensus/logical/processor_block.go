@@ -153,7 +153,7 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 
 	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
 	pPubkey := p.getProposerPubKeyInBlock(bh)
-	if pPubkey == nil {
+	if pPubkey == nil || !pPubkey.IsValid() || !gpk.IsValid() {
 		err = core.ErrPkNotExists
 		return
 	}
@@ -188,9 +188,8 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 	}
 
 	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
-
 	ppk := p.getProposerPubKeyInBlock(bh)
-	if ppk == nil {
+	if ppk == nil || !ppk.IsValid() || !gpk.IsValid() {
 		err = core.ErrPkNil
 		return
 	}
