@@ -326,7 +326,7 @@ func (gtas *Gtas) fullInit() error {
 	}
 
 	fmt.Println(time.Now().UnixNano() / 1000000)
-	//gtas.TestSendEveryone()
+	gtas.TestSpreadAmongGroup()
 
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
@@ -388,18 +388,18 @@ func (gtas *Gtas) TestSpreadAmongGroup() {
 	network.GetNetInstance().BuildGroupNet(groupID, members)
 
 	go func() {
-		var count uint32 = 32
+		//var count uint32 = 32
 		for {
 
 			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
-			if len(network.GetNetInstance().ConnInfo()) >= 37 {
-				count++
-				msg := network.Message{
-					Code: count,
-					Body: []byte("helloworld"),
-				}
-				network.GetNetInstance().SpreadAmongGroup(groupID, msg)
-			}
+			//if len(network.GetNetInstance().ConnInfo()) >= 37 {
+			//	count++
+			//	msg := network.Message{
+			//		Code: count,
+			//		Body: []byte("helloworld"),
+			//	}
+			//	network.GetNetInstance().SpreadAmongGroup(groupID, msg)
+			//}
 			time.Sleep(2 * time.Second)
 		}
 	}()
@@ -454,14 +454,15 @@ func (gtas *Gtas) TestSendEveryone() {
 		"0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4",
 	}
 	go func() {
-		var count uint32 = 20010
+		var count uint32 = 21100
+		body := []byte("helloworld")//make([]byte, 1024 * (1024 / 2))
 		for {
 			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
 			if len(network.GetNetInstance().ConnInfo()) >= 10 {
 				count++
 				msg := network.Message{
 					Code: count,
-					Body: []byte("helloworld"),
+					Body: body,
 				}
 				for _, m := range members {
 					network.GetNetInstance().Send(m, msg)
@@ -474,14 +475,15 @@ func (gtas *Gtas) TestSendEveryone() {
 
 func (gtas *Gtas) TestBroadcast() {
 	go func() {
-		var count uint32 = 10001
+		var count uint32 = 52000
+		body := make([]byte, 1024 * (1024 / 2))//[]byte("helloworld")
 		for {
 			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
 			if len(network.GetNetInstance().ConnInfo()) >= 10 {
 				count++
 				msg := network.Message{
 					Code: count,
-					Body: []byte("helloworld"),
+					Body: body,
 				}
 				network.GetNetInstance().Broadcast(msg)
 			}
