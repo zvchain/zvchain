@@ -139,11 +139,6 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 	if cvm.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), &cvm) {
 		cvm.GenRandomSign(sKey, vctx.prevBH.Random)
 
-		log.ELKLogger.WithFields(logrus.Fields{
-			"blockHash": cvm.BlockHash.Hex(),
-		}).Debug("SendVerifiedCast send: ", p.ts.NowTime().Local())
-
-
 		p.NetServer.SendVerifiedCast(&cvm, gSeed)
 		slot.setSlotStatus(slSigned)
 		p.blockContexts.attachVctx(bh, vctx)
