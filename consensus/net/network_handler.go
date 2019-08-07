@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/time"
 	"runtime/debug"
 
 	"github.com/zvchain/zvchain/network"
@@ -61,6 +62,11 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 		}
 		if err != nil && logger != nil {
 			logger.Error(err)
+
+			log.ELKLogger.WithFields(logrus.Fields{
+				"code": code,
+				"now":time.TSInstance.NowTime().Local(),
+			}).Debug("Message handle Handle ", err.Error())
 		}
 	}()
 
@@ -76,15 +82,25 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			err = e
 			return e
 		}
-		c.processor.OnMessageCast(m)
+		log.ELKLogger.WithFields(logrus.Fields{
+			"height": m.BH.Height,
+			"blockHash": m.BH.Hash.Hex(),
+			"blockTime": m.BH.CurTime.String(),
+			"now":time.TSInstance.NowTime().Local(),
+		}).Debug("OnMessageCast")
+		err = c.processor.OnMessageCast(m)
 	case network.VerifiedCastMsg:
 		m, e := unMarshalConsensusVerifyMessage(body)
 		if e != nil {
 			err = e
 			return e
 		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"blockHash": m.BlockHash,
+			"now":time.TSInstance.NowTime().Local(),
+		}).Debug("OnMessageVerify")
 
-		c.processor.OnMessageVerify(m)
+		err = c.processor.OnMessageVerify(m)
 	case network.CastRewardSignReq:
 		m, e := unMarshalCastRewardReqMessage(body)
 		if e != nil {
@@ -92,7 +108,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 
-		c.processor.OnMessageCastRewardSignReq(m)
+		err = c.processor.OnMessageCastRewardSignReq(m)
 	case network.CastRewardSignGot:
 		m, e := unMarshalCastRewardSignMessage(body)
 		if e != nil {
@@ -100,14 +116,20 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 
-		c.processor.OnMessageCastRewardSign(m)
+		err = c.processor.OnMessageCastRewardSign(m)
 	case network.ReqProposalBlock:
 		m, e := unmarshalReqProposalBlockMessage(body)
 		if e != nil {
 			err = e
 			return e
 		}
-		c.processor.OnMessageReqProposalBlock(m, sourceID)
+		log.ELKLogger.WithFields(logrus.Fields{
+			"blockHash": m.Hash,
+			"sourceID": sourceID,
+			"now":time.TSInstance.NowTime().Local(),
+		}).Debug("OnMessageReqProposalBlock")
+
+		err = c.processor.OnMessageReqProposalBlock(m, sourceID)
 
 	case network.ResponseProposalBlock:
 		m, e := unmarshalResponseProposalBlockMessage(body)
@@ -115,7 +137,13 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			err = e
 			return e
 		}
-		c.processor.OnMessageResponseProposalBlock(m)
+
+		log.ELKLogger.WithFields(logrus.Fields{
+			"blockHash": m.Hash,
+			"now":time.TSInstance.NowTime().Local(),
+		}).Debug("OnMessageResponseProposalBlock")
+
+		err = c.processor.OnMessageResponseProposalBlock(m)
 
 	}
 

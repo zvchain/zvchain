@@ -124,12 +124,14 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 	if gb == nil {
 		return fmt.Errorf("next verifyGroup is nil")
 	}
-	p.NetServer.BroadcastNewBlock(block, gb)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
 		"blockTime": bh.CurTime.String(),
-	}).Debug("BroadcastNewBlock ", p.ts.NowTime().Local())
+		"now": p.ts.NowTime().Local(),
+	}).Debug("BroadcastNewBlock")
+	p.NetServer.BroadcastNewBlock(block, gb)
+
 	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.Since(bh.CurTime))
 
 	// Send info
@@ -184,7 +186,8 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
 		"blockTime": bh.CurTime.String(),
-	}).Debug("ReqProposalBlock ", p.ts.NowTime().Local())
+		"now": p.ts.NowTime().Local(),
+	}).Debug("ReqProposalBlock ")
 
 	result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 
@@ -301,7 +304,8 @@ func (p *Processor) blockProposal() {
 			"height": bh.Height,
 			"blockHash": bh.Hash.Hex(),
 			"blockTime": bh.CurTime.String(),
-		}).Debug("SendCastVerify ", p.ts.NowTime().Local())
+			"now": p.ts.NowTime().Local(),
+		}).Debug("SendCastVerify", )
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)
 		// Castor cannot sign random numbers

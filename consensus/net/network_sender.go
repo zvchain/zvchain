@@ -24,6 +24,7 @@ import (
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/log"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
+	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 )
@@ -72,6 +73,13 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
 
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": ccm.BH.Height,
+		"blockHash": ccm.BH.Hash.Hex(),
+		"blockTime": ccm.BH.CurTime.String(),
+		"now":time.TSInstance.NowTime().Local(),
+	}).Debug("SendMessageCast")
+
 	for idx, mem := range gb.MemIds {
 		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: proveHashs[idx].Bytes()}
 		body, err := proto.Marshal(message)
@@ -86,10 +94,6 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 
 // SendVerifiedCast broadcast the signed message for specified block proposal among group members
 func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage, gSeed common.Hash) {
-	log.ELKLogger.WithFields(logrus.Fields{
-		"blockHash": cvm.BlockHash.Hex(),
-	}).Debug("SendVerifiedCast start")
-
 	body, e := marshalConsensusVerifyMessage(cvm)
 	if e != nil {
 		logger.Errorf("[peer]Discard send ConsensusVerifyMessage because of marshal error:%s", e.Error())
@@ -102,11 +106,14 @@ func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage,
 	// resulting in no rewards.
 	ns.send2Self(cvm.SI.GetID(), m)
 
-	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
-	logger.Debugf("[peer]send VARIFIED_CAST_MSG,hash:%s", cvm.BlockHash.Hex())
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": cvm.BlockHash.Hex(),
-	}).Debug("SendVerifiedCast end")
+		"now":time.TSInstance.NowTime().Local(),
+	}).Debug("SendVerifiedCast")
+
+	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
+	logger.Debugf("[peer]send VARIFIED_CAST_MSG,hash:%s", cvm.BlockHash.Hex())
+
 }
 
 // BroadcastNewBlock means network-wide broadcast for the generated block.

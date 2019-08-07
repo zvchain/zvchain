@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 	"math"
@@ -165,11 +166,11 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 	bh := &ccm.BH
 	traceLog := monitor.NewPerformTraceLogger("OnMessageCast", bh.Hash, bh.Height)
-	log.ELKLogger.WithFields(logrus.Fields{
-		"height": bh.Height,
-		"blockHash": bh.Hash.Hex(),
-		"blockTime": bh.CurTime.String(),
-	}).Debug("OnMessageCast ", p.ts.NowTime().Local())
+	//log.ELKLogger.WithFields(logrus.Fields{
+	//	"height": bh.Height,
+	//	"blockHash": bh.Hash.Hex(),
+	//	"blockTime": bh.CurTime.String(),
+	//}).Debug("OnMessageCast ", p.ts.NowTime().Local())
 
 	le := &monitor.LogEntry{
 		LogType:  monitor.LogTypeProposal,
@@ -369,10 +370,10 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 		return
 	}
 	traceLog.SetHeight(vctx.castHeight)
-	log.ELKLogger.WithFields(logrus.Fields{
-		"height": vctx.castHeight,
-		"blockHash": blockHash.Hex(),
-	}).Debug("OnMessageVerify", p.ts.NowTime().Local())
+	//log.ELKLogger.WithFields(logrus.Fields{
+	//	"height": vctx.castHeight,
+	//	"blockHash": blockHash.Hex(),
+	//}).Debug("OnMessageVerify", p.ts.NowTime().Local())
 
 	// Do the verification work
 	ret, err = p.doVerify(cvm, vctx)
@@ -439,6 +440,11 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 		Transactions: pb.block.Transactions,
 	}
 
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": m.Hash,
+		"sourceID": sourceID,
+		"now":time.TSInstance.NowTime().Local(),
+	}).Debug("ResponseProposalBlock")
 	p.NetServer.ResponseProposalBlock(m, sourceID)
 
 	return
