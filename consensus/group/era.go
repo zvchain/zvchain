@@ -17,13 +17,14 @@ package group
 
 import (
 	"fmt"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
 const (
-	steadyStateBackTrackGap = 20                                                                //20                                                                // The gap from the present to the steady state
-	roundWindow             = 80                                                                //80                                                                // The window length of each round
+	steadyStateBackTrackGap = 10                                                                //20                                                                // The gap from the present to the steady state
+	roundWindow             = 30                                                                //80                                                                // The window length of each round
 	eraWindow               = (steadyStateBackTrackGap+roundWindow)*3 + steadyStateBackTrackGap // The window length of group-create GroupRoutine
 	lifeWindow              = 50 * eraWindow                                                    // The life window of a active group
 )
