@@ -108,7 +108,6 @@ func (sendList *SendList) onSendWaited(peer *Peer) {
 		return
 	}
 	sendList.lastOnWait = time.Now()
-	sendList.lastOnWait = time.Now()
 	sendList.pendingSend = 0
 	sendList.autoSend(peer)
 }
