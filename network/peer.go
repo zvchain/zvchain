@@ -360,6 +360,9 @@ func (p *Peer) verify(pac *PeerAuthContext) bool {
 func (p *Peer) write(packet *bytes.Buffer, code uint32) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	if packet == nil {
+		return
+	}
 	b := netCore.bufferPool.getBuffer(packet.Len())
 	b.Write(packet.Bytes())
 
