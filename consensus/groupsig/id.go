@@ -52,6 +52,7 @@ func (id *ID) SetDecimalString(s string) error {
 
 // SetHexString construct a ID with the input hex string
 func (id *ID) SetHexString(s string) error {
+	s = common.AddrToHex(s)
 	return id.value.SetHexString(s)
 }
 
@@ -90,7 +91,7 @@ func (id ID) IsValid() bool {
 
 // GetHexString export ID into a hex string
 func (id ID) GetHexString() string {
-	return common.ToHex(id.Serialize())
+	return common.ToAddrHex(id.Serialize())
 }
 
 // Serialize convert ID to byte slice (LittleEndian)

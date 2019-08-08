@@ -31,6 +31,16 @@ func ToHex(b []byte) string {
 	return HexPrefix + hex
 }
 
+// ToZvHex converts the input byte array to a hex string
+func ToAddrHex(b []byte) string {
+	hex := Bytes2Hex(b)
+	// Prefer output of "0x0" instead of "0x"
+	if len(hex) == 0 {
+		hex = "0"
+	}
+	return AddrPrefix + hex
+}
+
 // FromHex converts the hex string to a byte array
 func FromHex(s string) []byte {
 	if len(s) > len(HexPrefix) {

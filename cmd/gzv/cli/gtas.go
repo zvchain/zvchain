@@ -271,6 +271,7 @@ func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 
 	acm := aop.(*AccountManager)
 	if address != "" {
+		address = common.AddrToHex(address)
 		aci, err := acm.checkMinerAccount(address, password)
 		if err != nil {
 			return fmt.Errorf("cannot get miner, err:%v", err.Error())
@@ -333,7 +334,7 @@ func (gtas *Gtas) fullInit() error {
 	genesisMembers := make([]string, 0)
 	helper := mediator.NewConsensusHelper(minerInfo.ID)
 	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
-		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
+		genesisMembers = append(genesisMembers, common.ToAddrHex(mem.ID()))
 	}
 
 	netCfg := network.NetworkConfig{
