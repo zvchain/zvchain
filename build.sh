@@ -41,10 +41,10 @@ git submodule sync
 git submodule update --init
 if [[ $1x = "gzv"x ]]; then
     echo building gzv ...
-#    buildtvm
-#    buildp2p
+    buildtvm
+    buildp2p
 
-    go build -o ${output_dir}/gzv $basepath/cmd/p2pnet &&
+    go build -o ${output_dir}/gzv $basepath/cmd/gzv &&
     echo build gzv successfully...
 
 elif [[ $1x = "tvmcli"x ]]; then

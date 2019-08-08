@@ -17,9 +17,6 @@ package network
 
 import (
 	"github.com/golang/protobuf/proto"
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
-
 	"strconv"
 	"time"
 
@@ -175,11 +172,11 @@ func newNotifyMessage(message *Message, from string) *notify.DefaultMessage {
 
 func (s *Server) handleMessageInner(message *Message, from string) {
 
-	log.ELKLogger.WithFields(logrus.Fields{
-		"msg_code": message.Code,
-	}).Debug("handleMessageInner", "time:", time.Now().UnixNano() / 1000000)
-
-	return
+	//log.ELKLogger.WithFields(logrus.Fields{
+	//	"msg_code": message.Code,
+	//}).Debug("handleMessageInner", "time:", time.Now().UnixNano() / 1000000)
+	//
+	//return
 
 	s.netCore.onHandleDataMessageStart()
 	defer s.netCore.onHandleDataMessageDone()
