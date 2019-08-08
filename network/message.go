@@ -27,12 +27,14 @@ type BizMessageID = [BizMessageIDLength]byte
 
 //MessageManager is a message management
 type MessageManager struct {
-	messages      map[uint64]time.Time
-	bizMessages   map[BizMessageID]time.Time
-	index         uint32
-	id            NodeID
-	forwardNodeID uint32
-	mutex         sync.Mutex
+	messages           map[uint64]time.Time
+	bizMessages        map[BizMessageID]time.Time
+	messagesHandled    map[uint64]time.Time
+	bizMessagesHandled map[BizMessageID]time.Time
+	index              uint32
+	id                 NodeID
+	forwardNodeID      uint32
+	mutex              sync.Mutex
 }
 
 func decodeMessageInfo(info uint32) (chainID uint16, protocolVersion uint16) {
@@ -51,13 +53,18 @@ func encodeMessageInfo(chainID uint16, protocolVersion uint16) uint32 {
 func newMessageManager(id NodeID) *MessageManager {
 
 	mm := &MessageManager{
-		messages:    make(map[uint64]time.Time),
-		bizMessages: make(map[BizMessageID]time.Time),
+		messages:           make(map[uint64]time.Time),
+		bizMessages:        make(map[BizMessageID]time.Time),
+		messagesHandled:    make(map[uint64]time.Time),
+		bizMessagesHandled: make(map[BizMessageID]time.Time),
 	}
 	mm.id = id
 	mm.index = 0
 	h := fnv.New32a()
-	h.Write(id[:])
+	_, err := h.Write(id[:])
+	if err != nil {
+		Logger.Errorf("newMessageManager write error:%v", err)
+	}
 	mm.forwardNodeID = uint32(h.Sum32())
 	return mm
 }
@@ -105,6 +112,36 @@ func (mm *MessageManager) isForwardedBiz(messageID BizMessageID) bool {
 	return ok
 }
 
+func (mm *MessageManager) handle(messageID uint64) {
+	mm.mutex.Lock()
+	defer mm.mutex.Unlock()
+
+	mm.messagesHandled[messageID] = time.Now()
+}
+
+func (mm *MessageManager) isHandled(messageID uint64) bool {
+	mm.mutex.Lock()
+	defer mm.mutex.Unlock()
+
+	_, ok := mm.messagesHandled[messageID]
+	return ok
+}
+
+func (mm *MessageManager) handleBiz(messageID BizMessageID) {
+	mm.mutex.Lock()
+	defer mm.mutex.Unlock()
+
+	mm.bizMessagesHandled[messageID] = time.Now()
+}
+
+func (mm *MessageManager) isHandledBiz(messageID BizMessageID) bool {
+	mm.mutex.Lock()
+	defer mm.mutex.Unlock()
+
+	_, ok := mm.bizMessagesHandled[messageID]
+	return ok
+}
+
 func (mm *MessageManager) byteToBizID(bid []byte) BizMessageID {
 	var id [BizMessageIDLength]byte
 	for i := 0; i < len(bid) && i < BizMessageIDLength; i++ {
@@ -130,6 +167,16 @@ func (mm *MessageManager) clear() {
 			delete(mm.bizMessages, mid)
 		}
 	}
+	for mid, t := range mm.messagesHandled {
+		if now.Sub(t) > MessageCacheTime {
+			delete(mm.messagesHandled, mid)
+		}
+	}
 
-	return
+	for mid, t := range mm.bizMessagesHandled {
+		if now.Sub(t) > MessageCacheTime {
+			delete(mm.bizMessagesHandled, mid)
+		}
+	}
+
 }
