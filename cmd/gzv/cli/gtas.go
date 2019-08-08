@@ -404,7 +404,6 @@ func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {
 		MType: types.MinerType(mType),
 		Pk:    miner.PK.Serialize(),
 		VrfPk: miner.VrfPK,
-		AddHeight:0,
 	}
 
 	data, err := types.EncodePayload(pks)

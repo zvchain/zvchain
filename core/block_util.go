@@ -40,7 +40,7 @@ const miningPoolToken = 425000000 * common.ZVC                                  
 const circulatesToken = 75000000 * common.ZVC                                                  // amount of tokens that belongs to circulates
 
 
-var adminAddrType = common.HexToAddress(adminAddr)
+var adminAddrType = common.HexToAddress(miningPoolAddr)
 var extractGuardNodes = []common.Address{}   // init gurad miner nodes
 
 func calcTxTree(txs []*types.Transaction) common.Hash {

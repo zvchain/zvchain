@@ -59,7 +59,6 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 }
 
 func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.AccountDB) (success bool, err error) {
-
 	if err = operation.Validate(); err != nil {
 		return
 	}
@@ -67,7 +66,7 @@ func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.A
 		return
 	}
 	snapshot := accountDB.Snapshot()
-	if err = operation.Operation(); err != nil {
+	if ret := operation.Transition(); ret.err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		return
 	}
@@ -92,14 +91,14 @@ func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.Mi
 
 // FreezeMiner execute the miner frozen operation
 func (mm *MinerManager) MinerFrozen(accountDB types.AccountDB, miner common.Address, height uint64) (success bool, err error) {
-	base := newBaseOperation(accountDB, nil, height)
+	base := newBaseOperation(accountDB, nil, height,nil)
 	base.minerType = types.MinerTypeVerify
 	operation := &minerFreezeOp{baseOperation: base, addr: miner}
 	return mm.executeOperation(operation, accountDB)
 }
 
 func (mm *MinerManager) MinerPenalty(accountDB types.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error) {
-	base := newBaseOperation(accountDB, nil, height)
+	base := newBaseOperation(accountDB, nil, height,nil)
 	base.minerType = types.MinerTypeVerify
 	operation := &minerPenaltyOp{
 		baseOperation: base,
@@ -390,7 +389,7 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 
 func (mm *MinerManager) genGuardNodes(accountDB types.AccountDB) {
 	for _, addr := range extractGuardNodes {
-		miner := &types.Miner{ID: addr.Bytes(),Type:types.MinerTypeProposal,Identity:types.MinerGuard}
+		miner := &types.Miner{ID: addr.Bytes(),Type:types.MinerTypeProposal,Identity:types.MinerGuard,Status:types.MinerStatusActive,ApplyHeight:0,Stake:0}
 		bs, err := msgpack.Marshal(miner)
 		if err != nil {
 			panic("encode miner failed")

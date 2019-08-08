@@ -40,6 +40,9 @@ const (
 	initialTokenReleased      = 500000000        // The initial amount of tokens released
 	tokenReleasedPerYear      = 800000000        //  The amount of tokens released per half year
 	stakeAdjustTimes          = 12               // stake adjust times
+	initMinerPoolTickets      = 8				 // init miner pool need tickets
+	minMinerPoolTickets       = 1				 // minimal miner pool need tickets
+	minerPoolReduceCount      = 2				 // every reduce tickets count
 )
 
 // minimumStake shows miner can stake the min value
@@ -55,6 +58,16 @@ func maximumStake(height uint64) uint64 {
 	}
 	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerYear
 	return tokenReleased(height) / nodeAmount * common.ZVC
+}
+
+// miner pool valid tickets
+func getValidTicketsByHeight(height uint64)uint64{
+	reduce := height / threeYearBlocks
+	needTickets := initMinerPoolTickets - (reduce * minerPoolReduceCount)
+	if needTickets < minMinerPoolTickets{
+		return minMinerPoolTickets
+	}
+	return needTickets
 }
 
 func tokenReleased(height uint64) uint64 {
@@ -147,6 +160,10 @@ func checkUpperBound(miner *types.Miner, height uint64) bool {
 	return miner.Stake <= maximumStake(height)
 }
 
+func checkMinerPoolUpperBound(miner *types.Miner, height uint64) bool {
+	return miner.Stake <= maximumStake(height) * getValidTicketsByHeight(height)
+}
+
 func checkLowerBound(miner *types.Miner) bool {
 	return miner.Stake >= minimumStake()
 }
@@ -203,16 +220,18 @@ func getProposalTotalStake(db types.AccountDBTS) uint64 {
 }
 
 type baseOperation struct {
+	*transitionContext
 	minerType types.MinerType
-	accountDB types.AccountDB
 	minerPool types.AccountDBTS
+	db types.AccountDB
 	msg       types.MinerOperationMessage
 	height    uint64
 }
 
-func newBaseOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64) *baseOperation {
+func newBaseOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64,tc *transitionContext) *baseOperation {
 	return &baseOperation{
-		accountDB: db,
+		transitionContext:tc,
+		db:db,
 		minerPool: db.AsAccountDBTS(),
 		msg:       msg,
 		height:    height,
@@ -277,7 +296,7 @@ func (op *baseOperation) removeFromPool(address common.Address, stake uint64) {
 }
 
 func (op *baseOperation) getDetail(address common.Address, detailKey []byte) (*stakeDetail, error) {
-	return getDetail(op.accountDB, address, detailKey)
+	return getDetail(op.db, address, detailKey)
 }
 
 func (op *baseOperation) setDetail(address common.Address, detailKey []byte, sd *stakeDetail) error {
@@ -285,16 +304,16 @@ func (op *baseOperation) setDetail(address common.Address, detailKey []byte, sd 
 	if err != nil {
 		return err
 	}
-	op.accountDB.SetData(address, detailKey, bs)
+	op.db.SetData(address, detailKey, bs)
 	return nil
 }
 
 func (op *baseOperation) removeDetail(address common.Address, detailKey []byte) {
-	op.accountDB.RemoveData(address, detailKey)
+	op.db.RemoveData(address, detailKey)
 }
 
 func (op *baseOperation) getMiner(address common.Address) (*types.Miner, error) {
-	return getMiner(op.accountDB, address, op.minerType)
+	return getMiner(op.db, address, op.minerType)
 }
 
 func (op *baseOperation) setMiner(miner *types.Miner) error {
@@ -302,6 +321,6 @@ func (op *baseOperation) setMiner(miner *types.Miner) error {
 	if err != nil {
 		return err
 	}
-	op.accountDB.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
+	op.db.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
 	return nil
 }
