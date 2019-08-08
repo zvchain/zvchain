@@ -98,10 +98,16 @@ func (p *Processor) onGroupAddSuccess(message notify.Message) error {
 	stdLogger.Infof("groupAddEventHandler receive message, gSeed=%v, workHeight=%v\n", group.Header().Seed(), group.Header().WorkHeight())
 
 	memIds := make([]groupsig.ID, len(group.Members()))
+	hasSelf := false
 	for i, mem := range group.Members() {
 		memIds[i] = groupsig.DeserializeID(mem.ID())
+		if p.GetMinerID().IsEqual(memIds[i]) {
+			hasSelf = true
+		}
 	}
-	p.NetServer.BuildGroupNet(group.Header().Seed().Hex(), memIds)
+	if hasSelf {
+		p.NetServer.BuildGroupNet(group.Header().Seed().Hex(), memIds)
+	}
 
 	topHeight := p.MainChain.QueryTopBlock().Height
 	// clear the dismissed group from net server
