@@ -17,7 +17,6 @@ package network
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 	"math/rand"
 	nnet "net"
@@ -198,8 +197,7 @@ func (g *Group) genConnectNodes() {
 
 	Logger.Infof("[group][genConnectNodes] curIndex: %v", g.curIndex)
 	for i := 0; i < len(g.members); i++ {
-		//Logger.Infof("[group][genConnectNodes] members ID: %v", g.members[i].GetHexString())
-		fmt.Printf("\"%v\",\n", g.members[i].GetHexString())
+		Logger.Infof("[group][genConnectNodes] members ID: %v", g.members[i].GetHexString())
 	}
 
 	g.rowSize = groupRowSize(groupSize)
