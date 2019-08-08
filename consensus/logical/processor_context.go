@@ -50,7 +50,7 @@ type proposedBlock struct {
 func newProposedBlock(b *types.Block, count int) *proposedBlock {
 	return &proposedBlock{
 		block:            b,
-		requestedMember:  set.New(set.NonThreadSafe),
+		requestedMember:  set.New(set.ThreadSafe),
 		maxResponseCount: count,
 	}
 }
