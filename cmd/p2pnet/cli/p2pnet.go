@@ -17,6 +17,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"os"
 	"time"
@@ -325,12 +326,12 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	//fmt.Println(time.Now().UnixNano() / 1000000)
-	//log.ELKLogger.WithFields(logrus.Fields{
-	//	"addr": gtas.account.Address,
-	//	"counter": 1,
-	//}).Debug("Init")
-	gtas.TestSpreadAmongGroup()
+	fmt.Println(time.Now().UnixNano() / 1000000)
+	log.ELKLogger.WithFields(logrus.Fields{
+		"addr": gtas.account.Address,
+		"counter": 2,
+	}).Debug("Init")
+	//gtas.TestSpreadAmongGroup()
 
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
@@ -391,22 +392,23 @@ func (gtas *Gtas) TestSpreadAmongGroup() {
 	}
 	network.GetNetInstance().BuildGroupNet(groupID, members)
 
-	//go func() {
-	//	var count uint32 = 40000
-	//	for {
-	//
-	//		fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
-	//		if len(network.GetNetInstance().ConnInfo()) >= 7 {
-	//			count++
-	//			msg := network.Message{
-	//				Code: count,
-	//				Body: []byte("helloworld"),
-	//			}
-	//			network.GetNetInstance().SpreadAmongGroup(groupID, msg)
-	//		}
-	//		time.Sleep(2 * time.Second)
-	//	}
-	//}()
+	go func() {
+		var count uint32 = 60000
+		body := make([]byte, 1024 * (1024 / 2))//[]byte("helloworld")
+		for {
+
+			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
+			if len(network.GetNetInstance().ConnInfo()) >= 10 {
+				count++
+				msg := network.Message{
+					Code: count,
+					Body: body,
+				}
+				network.GetNetInstance().SpreadAmongGroup(groupID, msg)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
 }
 
 func (gtas *Gtas) TestSendEveryone() {
@@ -480,7 +482,7 @@ func (gtas *Gtas) TestSendEveryone() {
 func (gtas *Gtas) TestBroadcast() {
 	go func() {
 		var count uint32 = 52000
-		body := make([]byte, 1024 * (1024 / 2))//[]byte("helloworld")
+		body := []byte("helloworld")//make([]byte, 1024 * (1024 / 2))
 		for {
 			fmt.Println(len(network.GetNetInstance().ConnInfo()), network.GetNetInstance().ConnInfo())
 			if len(network.GetNetInstance().ConnInfo()) >= 10 {
