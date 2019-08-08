@@ -21,7 +21,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
-	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
+	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 )
@@ -65,13 +65,12 @@ func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
 }
 
 // SendCastVerify happens at the proposal role.
-// It send the message contains the proposed-block to all of the members of the verify-group for the verification consensus
-func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief, proveHashs []common.Hash) {
+func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief) {
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
 
-	for idx, mem := range gb.MemIds {
-		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: proveHashs[idx].Bytes()}
+	for _, mem := range gb.MemIds {
+		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si}
 		body, err := proto.Marshal(message)
 		if err != nil {
 			logger.Errorf("marshalConsensusCastMessage error:%v %v", err, mem.GetHexString())
