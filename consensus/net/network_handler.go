@@ -66,12 +66,16 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			log.ELKLogger.WithFields(logrus.Fields{
 				"code": code,
 				"now":time.TSInstance.NowTime().Local(),
-			}).Debug("Message handle error: ", err.Error())
+			}).Debug("error: ", err.Error())
 		}
 	}()
 
 	if !c.ready() {
 		err = fmt.Errorf("processor not ready yet")
+		log.ELKLogger.WithFields(logrus.Fields{
+			"code": code,
+			"now":time.TSInstance.NowTime().Local(),
+		}).Debug("error: ", err.Error())
 		return err
 	}
 
@@ -87,6 +91,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			"blockHash": m.BH.Hash.Hex(),
 			"now":time.TSInstance.NowTime().Local(),
 			"from":m.SI.GetID(),
+			"logId": "12",
 		}).Debug("OnMessageCast")
 		err = c.processor.OnMessageCast(m)
 	case network.VerifiedCastMsg:
@@ -95,11 +100,12 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			err = e
 			return e
 		}
-		log.ELKLogger.WithFields(logrus.Fields{
-			"blockHash": m.BlockHash,
-			"now":time.TSInstance.NowTime().Local(),
-			"from": m.SI.GetID(),
-		}).Debug("OnMessageVerify")
+		//log.ELKLogger.WithFields(logrus.Fields{
+		//	"blockHash": m.BlockHash,
+		//	"now":time.TSInstance.NowTime().Local(),
+		//	"from": m.SI.GetID(),
+		//	"logId": "21",
+		//}).Debug("OnMessageVerify")
 
 		err = c.processor.OnMessageVerify(m)
 	case network.CastRewardSignReq:
@@ -124,11 +130,12 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			err = e
 			return e
 		}
-		log.ELKLogger.WithFields(logrus.Fields{
-			"blockHash": m.Hash,
-			"now":time.TSInstance.NowTime().Local(),
-			"from":sourceID,
-		}).Debug("OnMessageReqProposalBlock")
+		//log.ELKLogger.WithFields(logrus.Fields{
+		//	"blockHash": m.Hash,
+		//	"now":time.TSInstance.NowTime().Local(),
+		//	"from":sourceID,
+		//	"logId": "31",
+		//}).Debug("OnMessageReqProposalBlock")
 
 		err = c.processor.OnMessageReqProposalBlock(m, sourceID)
 
@@ -139,10 +146,11 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 
-		log.ELKLogger.WithFields(logrus.Fields{
-			"blockHash": m.Hash,
-			"now":time.TSInstance.NowTime().Local(),
-		}).Debug("OnMessageResponseProposalBlock")
+		//log.ELKLogger.WithFields(logrus.Fields{
+		//	"blockHash": m.Hash,
+		//	"now":time.TSInstance.NowTime().Local(),
+		//	"logId": "41",
+		//}).Debug("OnMessageResponseProposalBlock")
 
 		err = c.processor.OnMessageResponseProposalBlock(m)
 

@@ -77,6 +77,7 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 		"height": ccm.BH.Height,
 		"blockHash": ccm.BH.Hash.Hex(),
 		"now":time.TSInstance.NowTime().Local(),
+		"logId": "11",
 	}).Debug("SendMessageCast, group number:", len(gb.MemIds))
 
 	for idx, mem := range gb.MemIds {
@@ -104,11 +105,6 @@ func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage,
 	// it will not contain its own signature in its own fragment,
 	// resulting in no rewards.
 	ns.send2Self(cvm.SI.GetID(), m)
-
-	log.ELKLogger.WithFields(logrus.Fields{
-		"blockHash": cvm.BlockHash.Hex(),
-		"now":time.TSInstance.NowTime().Local(),
-	}).Debug("SendVerifiedCast")
 
 	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 	logger.Debugf("[peer]send VARIFIED_CAST_MSG,hash:%s", cvm.BlockHash.Hex())
@@ -150,6 +146,7 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 		"height": block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
 		"now": time.TSInstance.NowTime().Local(),
+		"logId": "51",
 	}).Debug("BroadcastNewBlock, heavy miners:",len(heavyMinerMembers),", group members:", len(validGroupMembers))
 
 	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))

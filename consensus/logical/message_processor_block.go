@@ -139,6 +139,13 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 	if cvm.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), &cvm) {
 		cvm.GenRandomSign(sKey, vctx.prevBH.Random)
 
+		log.ELKLogger.WithFields(logrus.Fields{
+			"blockHash": cvm.BlockHash.Hex(),
+			"height": bh.Height,
+			"now":time.TSInstance.NowTime().Local(),
+			"logId": "21",
+		}).Debug("SendVerifiedCast")
+
 		p.NetServer.SendVerifiedCast(&cvm, gSeed)
 		slot.setSlotStatus(slSigned)
 		p.blockContexts.attachVctx(bh, vctx)
@@ -354,6 +361,21 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 
 	// Cache the message in case of absence of the proposal message
 	vctx := p.blockContexts.getVctxByHash(blockHash)
+
+	// for log
+	var height uint64 = 0
+	if vctx != nil {
+		slotL := vctx.GetSlotByHash(blockHash)
+		height = slotL.BH.Height
+	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": cvm.BlockHash,
+		"height": height,
+		"now":time.TSInstance.NowTime().Local(),
+		"from": cvm.SI.GetID(),
+		"logId": "22",
+	}).Debug("OnMessageVerify")
+
 	if vctx == nil {
 		err = fmt.Errorf("verify context is nil, cache msg")
 		p.blockContexts.addVerifyMsg(cvm)
@@ -399,6 +421,18 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	}()
 
 	pb := p.blockContexts.getProposed(msg.Hash)
+	var height uint64 = 0;
+	if pb != nil && pb.block != nil {
+		height = pb.block.Header.Height
+	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": msg.Hash,
+		"height": height,
+		"now":time.TSInstance.NowTime().Local(),
+		"from":sourceID,
+		"logId": "32",
+	}).Debug("OnMessageReqProposalBlock")
+
 	if pb == nil || pb.block == nil {
 		err = fmt.Errorf("block is nil")
 		return
@@ -428,8 +462,10 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": m.Hash,
+		"height": pb.block.Header.Height,
 		"sourceID": sourceID,
 		"now":time.TSInstance.NowTime().Local(),
+		"logId": "41",
 	}).Debug("ResponseProposalBlock")
 	p.NetServer.ResponseProposalBlock(m, sourceID)
 
@@ -450,12 +486,28 @@ func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBl
 			tLog.log("result: success")
 		}
 	}()
+	vctx := p.blockContexts.getVctxByHash(msg.Hash)
+	var height uint64 = 0
+	if vctx != nil {
+		slotL := vctx.GetSlotByHash(msg.Hash)
+		if slotL != nil {
+			height = slotL.BH.Height
+		}
+
+	}
+
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": msg.Hash,
+		"height": height,
+		"now":time.TSInstance.NowTime().Local(),
+		"logId": "42",
+	}).Debug("OnMessageResponseProposalBlock")
 
 	if p.blockOnChain(msg.Hash) {
 		err = fmt.Errorf("block onchain")
 		return
 	}
-	vctx := p.blockContexts.getVctxByHash(msg.Hash)
+
 	if vctx == nil {
 		err = fmt.Errorf("vctx is nil")
 		return

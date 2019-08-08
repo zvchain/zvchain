@@ -180,6 +180,7 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		"height": bh.Height,
 		"blockHash": bh.Hash.Hex(),
 		"now": p.ts.NowTime().Local(),
+		"logId": "31",
 	}).Debug("ReqProposalBlock")
 	p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
 
@@ -295,11 +296,6 @@ func (p *Processor) blockProposal() {
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
 		p.NetServer.SendCastVerify(ccm, gb, proveHashs)
-		log.ELKLogger.WithFields(logrus.Fields{
-			"height": bh.Height,
-			"blockHash": bh.Hash.Hex(),
-			"now": p.ts.NowTime().Local(),
-		}).Debug("SendCastVerify", )
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)
 		// Castor cannot sign random numbers
