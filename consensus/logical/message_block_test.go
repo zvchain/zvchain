@@ -16,7 +16,7 @@ import (
 
 const goodCastor = "0000000100000000000000000000000000000000000000000000000000000000"
 const inActiveCastor = "0000000200000000000000000000000000000000000000000000000000000000"
-const goodPreHash = "0xee9dcb5e28e700aca536d6bef15df13f113e1e497ba626cf5fea663d534e6ec6"
+const goodPreHash = "0xfe51bc4c2d32f64aa666ef21b92da0c1ba8e37624b1d6c7dcc92a21476f83c40"
 const otherGroup = "0x01"
 
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
@@ -175,7 +175,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
 		bh.Hash = bh.GenHash()
 	case "prove_wrong":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 41
 		bh.Hash = bh.GenHash()
 
 	}
