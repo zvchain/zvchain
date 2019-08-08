@@ -68,15 +68,17 @@ func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
 func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief) {
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
+	message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si}
 
+	body, err := proto.Marshal(message)
+	if err != nil {
+		logger.Errorf("marshalConsensusCastMessage error:%v", err)
+		return
+	}
+
+
+	m := network.Message{Code: network.CastVerifyMsg, Body: body}
 	for _, mem := range gb.MemIds {
-		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si}
-		body, err := proto.Marshal(message)
-		if err != nil {
-			logger.Errorf("marshalConsensusCastMessage error:%v %v", err, mem.GetHexString())
-			continue
-		}
-		m := network.Message{Code: network.CastVerifyMsg, Body: body}
 		ns.net.Send(mem.GetHexString(), m)
 	}
 }
