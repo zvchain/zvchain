@@ -202,10 +202,12 @@ func generateGroupInfo(packets []types.MpkPacket, era *era, gpk groupsig.Pubkey,
 	for _, pkt := range packets {
 		members = append(members, &member{id: groupsig.DeserializeID(pkt.Sender()), pk: groupsig.DeserializePubkeyBytes(pkt.Mpk())})
 	}
+	workEpoch := types.EpochAt(era.seedHeight) + 2
+	start, _ := workEpoch.HeightRange()
 	gHeader := &groupHeader{
 		seed:          era.Seed(),
-		workHeight:    era.end(),
-		dismissHeight: era.end() + lifeWindow,
+		workHeight:    start,
+		dismissHeight: start + lifeWindow,
 		gpk:           gpk,
 		threshold:     uint32(threshold),
 	}
