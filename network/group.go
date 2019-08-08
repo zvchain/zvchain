@@ -17,6 +17,7 @@ package network
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"math/rand"
 	nnet "net"
@@ -25,33 +26,39 @@ import (
 	"time"
 )
 
-const GroupMinSliceSize = 4
+const GroupMinRowSize = 4
 
-func groupSliceSize(groupSize int) int {
-	sliceSize := int(math.Ceil(math.Sqrt(float64(groupSize))))
-	if sliceSize < GroupMinSliceSize {
-		sliceSize = GroupMinSliceSize
+func groupRowSize(groupSize int) int {
+	rowSize := int(math.Ceil(math.Sqrt(float64(groupSize))))
+	if rowSize < GroupMinRowSize {
+		rowSize = GroupMinRowSize
 	}
-	return sliceSize
+	return rowSize
 }
 
 func groupColumnSendCount(groupSize int) int {
-	sendSize := int(math.Ceil(float64(groupSliceSize(groupSize)) / 2))
+	sendSize := int(math.Ceil(float64(groupRowSize(groupSize)) / 2))
 
 	return sendSize
 }
 
 func genGroupRandomEntranceNodes(members []string) []NodeID {
+
 	totalSize := len(members)
-	sliceSize := groupSliceSize(totalSize)
 
 	nodesIndex := make([]int, 0)
 	nodes := make([]NodeID, 0)
 
-	sliceCount := int(math.Ceil(float64(totalSize) / float64(sliceSize)))
+	if totalSize == 0 {
+		return nodes
+	}
 
-	columnIndex := rand.Intn(sliceCount)
-	nIndex := columnIndex * sliceSize
+	rowSize := groupRowSize(totalSize)
+
+	rowCount := int(math.Ceil(float64(totalSize) / float64(rowSize)))
+
+	columnIndex := rand.Intn(rowCount)
+	nIndex := columnIndex * rowSize
 	nID := NewNodeID(members[nIndex])
 	if nID != nil {
 		nodesIndex = append(nodesIndex, nIndex)
@@ -62,15 +69,15 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	maxSize := groupColumnSendCount(totalSize)
 	for i := 0; i < totalSize; i++ {
 		peerIndex := rand.Intn(totalSize)
-		sliceIndex := peerIndex % sliceSize
-		columnIndex := int(math.Floor(float64(peerIndex) / float64(sliceSize)))
+		rowIndex := peerIndex % rowSize
+		columnIndex := int(math.Floor(float64(peerIndex) / float64(rowSize)))
 
 		selected := true
 		for n := 0; n < len(nodesIndex); n++ {
 			indexSelected := nodesIndex[n]
-			sliceIndexSelected := indexSelected % sliceSize
-			columnIndexSelected := int(math.Floor(float64(indexSelected) / float64(sliceSize)))
-			if sliceIndex == sliceIndexSelected || columnIndex == columnIndexSelected {
+			rowIndexSelected := indexSelected % rowSize
+			columnIndexSelected := int(math.Floor(float64(indexSelected) / float64(rowSize)))
+			if rowIndex == rowIndexSelected || columnIndex == columnIndexSelected {
 				selected = false
 				break
 			}
@@ -100,12 +107,12 @@ type Group struct {
 
 	curIndex int //current node index of this group
 
-	sliceSize  int
-	sliceCount int
+	rowSize  int
+	rowCount int
 
-	sliceIndex  int
+	rowIndex    int
 	columnIndex int
-	sliceNodes  []NodeID
+	rowNodes    []NodeID
 	columnNodes []NodeID
 }
 
@@ -178,7 +185,7 @@ func (g *Group) genConnectNodes() {
 		return
 	}
 	g.needConnectNodes = make([]NodeID, 0)
-	g.sliceNodes = make([]NodeID, 0)
+	g.rowNodes = make([]NodeID, 0)
 	g.columnNodes = make([]NodeID, 0)
 	sort.Sort(g)
 	g.curIndex = 0
@@ -191,32 +198,33 @@ func (g *Group) genConnectNodes() {
 
 	Logger.Infof("[group][genConnectNodes] curIndex: %v", g.curIndex)
 	for i := 0; i < len(g.members); i++ {
-		Logger.Infof("[group][genConnectNodes] members ID: %v", g.members[i].GetHexString())
+		//Logger.Infof("[group][genConnectNodes] members ID: %v", g.members[i].GetHexString())
+		fmt.Printf("\"%v\",\n", g.members[i].GetHexString())
 	}
 
-	g.sliceSize = groupSliceSize(groupSize)
+	g.rowSize = groupRowSize(groupSize)
 
-	g.sliceCount = int(math.Ceil(float64(groupSize) / float64(g.sliceSize)))
-	g.sliceIndex = int(math.Floor(float64(g.curIndex) / float64(g.sliceSize)))
-	g.columnIndex = g.curIndex % g.sliceSize
+	g.rowCount = int(math.Ceil(float64(groupSize) / float64(g.rowSize)))
+	g.rowIndex = int(math.Floor(float64(g.curIndex) / float64(g.rowSize)))
+	g.columnIndex = g.curIndex % g.rowSize
 
-	g.sliceNodes = make([]NodeID, 0)
+	g.rowNodes = make([]NodeID, 0)
 
-	for i := 0; i < g.sliceSize; i++ {
-		index := g.sliceIndex*g.sliceSize + i
-		Logger.Infof("[group][genConnectNodes] slice, i : %v ,index:%v", i, index)
+	for i := 0; i < g.rowSize; i++ {
+		index := g.rowIndex*g.rowSize + i
+		Logger.Infof("[group][genConnectNodes] row, i : %v ,index:%v", i, index)
 		if index >= groupSize {
 			break
 		}
 		if index != g.curIndex {
-			g.sliceNodes = append(g.sliceNodes, g.members[index])
+			g.rowNodes = append(g.rowNodes, g.members[index])
 			g.needConnectNodes = append(g.needConnectNodes, g.members[index])
-			Logger.Infof("[group][genConnectNodes] slice member ID: %v", g.members[index].GetHexString())
+			Logger.Infof("[group][genConnectNodes] row member ID: %v", g.members[index].GetHexString())
 		}
 	}
 
-	for i := 0; i < g.sliceCount; i++ {
-		index := i*g.sliceSize + g.columnIndex
+	for i := 0; i < g.rowCount; i++ {
+		index := i*g.rowSize + g.columnIndex
 		Logger.Infof("[group][genConnectNodes] column, i : %v ,index:%v", i, index)
 		if index >= groupSize {
 			break
@@ -227,9 +235,9 @@ func (g *Group) genConnectNodes() {
 			Logger.Infof("[group][genConnectNodes] column member ID: %v", g.members[index].GetHexString())
 		}
 	}
-	Logger.Infof("[group][genConnectNodes] slice size: %v, slice count:%v,"+
-		" slice Index:%v column index:%v sliceNodesCount:%v, columnNodesCount:%v",
-		g.sliceSize, g.sliceCount, g.sliceIndex, g.columnIndex, len(g.sliceNodes), len(g.columnNodes))
+	Logger.Infof("[group][genConnectNodes] row size: %v, row count:%v,"+
+		" row Index:%v column index:%v rowNodesCount:%v, columnNodesCount:%v",
+		g.rowSize, g.rowCount, g.rowIndex, g.columnIndex, len(g.rowNodes), len(g.columnNodes))
 
 }
 
@@ -323,16 +331,41 @@ func (g *Group) Broadcast(msg *MsgData) {
 		Logger.Infof("[group] Broadcast ID:%v ,msg is nil", g.ID)
 		return
 	}
-	groupSendCount := int(math.Ceil(float64(g.sliceSize)/2)) - 1
-	Logger.Infof("[group] Broadcast ID:%v groupSendCount:%v", g.ID, groupSendCount)
-
-	if groupSendCount > 0 {
-		g.sendGroupMessage(DataType_DataGroup, g.sliceNodes[0:groupSendCount], msg)
-	}
-
 	g.sendGroupMessage(DataType_DataGroupColumn, g.columnNodes, msg)
 
-	g.sendGroupMessage(DataType_DataGroupSlice, g.sliceNodes[groupSendCount:], msg)
+	groupSendCount := int(math.Ceil(float64(g.rowSize)/2)) - 1
+
+	groupMsgMap := make(map[int]bool)
+	groupMsgMap[0] = true
+
+	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < g.rowSize; i++ {
+		column := rand.Intn(g.rowSize)
+
+		if groupMsgMap[column] && column != g.columnIndex {
+			groupMsgMap[i] = true
+		}
+		if len(groupMsgMap) >= groupSendCount {
+			break
+		}
+	}
+	groupMsgNodes := make([]NodeID, 0)
+	rowMsgNodes := make([]NodeID, 0)
+	for i := 0; i < len(g.rowNodes); i++ {
+		if groupMsgMap[i] {
+			groupMsgNodes = append(groupMsgNodes, g.rowNodes[i])
+		} else {
+			rowMsgNodes = append(rowMsgNodes, g.rowNodes[i])
+		}
+	}
+	Logger.Infof("[group] Broadcast ID:%v, groupSendCount:%v, group msg count:%v, row msg count:%v ", g.ID, groupSendCount, len(groupMsgNodes), len(rowMsgNodes))
+
+	if len(groupMsgNodes) > 0 {
+		g.sendGroupMessage(DataType_DataGroupColumn, groupMsgNodes, msg)
+	}
+	if len(rowMsgNodes) > 0 {
+		g.sendGroupMessage(DataType_DataGroupRow, rowMsgNodes, msg)
+	}
 
 }
 
@@ -343,20 +376,20 @@ func (g *Group) onBroadcast(msg *MsgData) {
 		return
 	}
 	sendColumn := false
-	sendSlice := false
+	sendRow := false
 	if msg.DataType == DataType_DataGroup {
 		sendColumn = true
-		sendSlice = true
+		sendRow = true
 	} else if msg.DataType == DataType_DataGroupColumn {
-		sendSlice = true
+		sendRow = true
 	}
 
 	if sendColumn {
 		g.sendGroupMessage(DataType_DataGroupColumn, g.columnNodes, msg)
 	}
 
-	if sendSlice {
-		g.sendGroupMessage(DataType_DataGroupSlice, g.sliceNodes, msg)
+	if sendRow {
+		g.sendGroupMessage(DataType_DataGroupRow, g.rowNodes, msg)
 	}
 }
 

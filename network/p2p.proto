@@ -18,7 +18,7 @@ enum DataType
 	DataGlobalRandom= 2;
 	DataGroup = 3;
     DataGroupColumn = 4;
-    DataGroupSlice = 5;
+    DataGroupRow = 5;
 };
 
 message RpcNode  {

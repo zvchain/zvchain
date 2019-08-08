@@ -257,9 +257,11 @@ func (p *Processor) blockProposal() {
 
 	traceLogger.SetHash(bh.Hash)
 	traceLogger.SetTxNum(len(block.Transactions))
-	proveTraceLog.SetHash(bh.Hash)
-	proveTraceLog.SetHeight(bh.Height)
-	proveTraceLog.Log("")
+	if proveTraceLog != nil {
+		proveTraceLog.SetHash(bh.Hash)
+		proveTraceLog.SetHeight(bh.Height)
+		proveTraceLog.Log("")
+	}
 
 	tLog := newHashTraceLog("CASTBLOCK", bh.Hash, p.GetMinerID())
 	blog.debug("begin proposal, hash=%v, height=%v, qn=%v,, verifyGroup=%v, pi=%x...", bh.Hash, height, qn, gb.GSeed, pi)
