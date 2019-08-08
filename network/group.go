@@ -334,19 +334,23 @@ func (g *Group) Broadcast(msg *MsgData) {
 	groupSendCount := int(math.Ceil(float64(g.rowSize)/2)) - 1
 
 	groupMsgMap := make(map[int]bool)
-	groupMsgMap[0] = true
+
+	if 0 != g.columnIndex {
+		groupMsgMap[0] = true
+	}
 
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := 0; i < g.rowSize; i++ {
+	for len(groupMsgMap) >= groupSendCount {
 		column := rand.Intn(g.rowSize)
 
 		if groupMsgMap[column] && column != g.columnIndex {
-			groupMsgMap[i] = true
+			groupMsgMap[column] = true
 		}
 		if len(groupMsgMap) >= groupSendCount {
 			break
 		}
 	}
+
 	groupMsgNodes := make([]NodeID, 0)
 	rowMsgNodes := make([]NodeID, 0)
 	for i := 0; i < len(g.rowNodes); i++ {
@@ -359,7 +363,7 @@ func (g *Group) Broadcast(msg *MsgData) {
 	Logger.Infof("[group] Broadcast ID:%v, groupSendCount:%v, group msg count:%v, row msg count:%v ", g.ID, groupSendCount, len(groupMsgNodes), len(rowMsgNodes))
 
 	if len(groupMsgNodes) > 0 {
-		g.sendGroupMessage(DataType_DataGroupColumn, groupMsgNodes, msg)
+		g.sendGroupMessage(DataType_DataGroup, groupMsgNodes, msg)
 	}
 	if len(rowMsgNodes) > 0 {
 		g.sendGroupMessage(DataType_DataGroupRow, rowMsgNodes, msg)
