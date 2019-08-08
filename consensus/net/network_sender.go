@@ -76,11 +76,8 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 		return
 	}
 
-
 	m := network.Message{Code: network.CastVerifyMsg, Body: body}
-	for _, mem := range gb.MemIds {
-		ns.net.Send(mem.GetHexString(), m)
-	}
+	ns.net.SpreadToGroup(gb.GSeed.Hex(), id2String(gb.MemIds), m, nil)
 }
 
 // SendVerifiedCast broadcast the signed message for specified block proposal among group members
