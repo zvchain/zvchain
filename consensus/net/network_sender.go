@@ -107,9 +107,9 @@ func (ns *NetworkServerImpl) SendVerifiedCast(cvm *model.ConsensusVerifyMessage,
 	// resulting in no rewards.
 	ns.send2Self(cvm.SI.GetID(), m)
 
-	ns.net.Broadcast(m)
+	//ns.net.Broadcast(m)
 
-	//ns.net.SpreadAmongGroup(gSeed.Hex(), m)
+	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 	logger.Debugf("[peer]send VARIFIED_CAST_MSG,hash:%s", cvm.BlockHash.Hex())
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": cvm.BlockHash.Hex(),
@@ -175,8 +175,8 @@ func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSig
 
 	ns.send2Self(msg.SI.GetID(), m)
 
-	ns.net.Broadcast(m)
-	//ns.net.SpreadAmongGroup(gSeed.Hex(), m)
+	//ns.net.Broadcast(m)
+	ns.net.SpreadAmongGroup(gSeed.Hex(), m)
 }
 
 // SendCastRewardSign sends signed message of the reward transaction to the requester by group relaying
@@ -188,8 +188,8 @@ func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMe
 	}
 	m := network.Message{Code: network.CastRewardSignGot, Body: body}
 
-	//ns.net.SendWithGroupRelay(msg.Launcher.GetHexString(), msg.GSeed.Hex(), m)
-	ns.net.Broadcast(m)
+	ns.net.SendWithGroupRelay(msg.Launcher.GetHexString(), msg.GSeed.Hex(), m)
+	//ns.net.Broadcast(m)
 }
 
 // ReqProposalBlock request block body from the target
