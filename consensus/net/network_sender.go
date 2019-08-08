@@ -72,10 +72,21 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
 
-	message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: []byte("")}
-	body, _ := proto.Marshal(message)
-	m := network.Message{Code: network.CastVerifyMsg, Body: body}
-	ns.net.Broadcast(m)
+	for idx, mem := range gb.MemIds {
+		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: proveHashs[idx].Bytes()}
+		body, err := proto.Marshal(message)
+		if err != nil {
+			logger.Errorf("marshalConsensusCastMessage error:%v %v", err, mem.GetHexString())
+			continue
+		}
+		m := network.Message{Code: network.CastVerifyMsg, Body: body}
+		ns.net.Send(mem.GetHexString(), m)
+	}
+
+	//message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: []byte("")}
+	//body, _ := proto.Marshal(message)
+	//m := network.Message{Code: network.CastVerifyMsg, Body: body}
+	//ns.net.Broadcast(m)
 }
 
 // SendVerifiedCast broadcast the signed message for specified block proposal among group members
