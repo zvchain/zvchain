@@ -33,16 +33,16 @@ var (
 )
 
 const (
-	MinMinerStake             = 500 * common.ZVC // minimal token of miner can stake
-	MaxMinerStakeAdjustPeriod = 10000000         // maximal token of miner can stake
-	initialMinerNodesAmount   = 200              // The number initial of miner nodes envisioned
-	MoreMinerNodesPerYear     = 24               // The number of increasing nodes per half year
-	initialTokenReleased      = 500000000        // The initial amount of tokens released
-	tokenReleasedPerYear      = 800000000        //  The amount of tokens released per half year
-	stakeAdjustTimes          = 12               // stake adjust times
-	initMinerPoolTickets      = 8				 // init miner pool need tickets
-	minMinerPoolTickets       = 1				 // minimal miner pool need tickets
-	minerPoolReduceCount      = 2				 // every reduce tickets count
+	MinMinerStake                = 500 * common.ZVC     // minimal token of miner can stake
+	initMaxMinerStakeAddAmount   = 1000000 * common.ZVC //init stake adjust amount of token
+	maxMinerStakeAddAdjustPeriod = 30000000             //
+	initMaxMinerStake            = 2500000 * common.ZVC
+	MaxMinerStakeAdjustPeriod    = 10000000 // maximal token of miner can stake
+
+	stakeAdjustTimes     = 12 // stake adjust times
+	initMinerPoolTickets = 8  // init miner pool need tickets
+	minMinerPoolTickets  = 1  // minimal miner pool need tickets
+	minerPoolReduceCount = 2  // every reduce tickets count
 )
 
 // minimumStake shows miner can stake the min value
@@ -52,39 +52,26 @@ func minimumStake() uint64 {
 
 // maximumStake shows miner can stake the max value
 func maximumStake(height uint64) uint64 {
+	canStake := uint64(initMaxMinerStake)
 	period := height / MaxMinerStakeAdjustPeriod
-	if period > stakeAdjustTimes {
+	if height > stakeAdjustTimes*MaxMinerStakeAdjustPeriod {
 		period = stakeAdjustTimes
+		height = stakeAdjustTimes * MaxMinerStakeAdjustPeriod
 	}
-	nodeAmount := initialMinerNodesAmount + period*MoreMinerNodesPerYear
-	return tokenReleased(height) / nodeAmount * common.ZVC
+	for i := uint64(0); i < period; i++ {
+		canStake += initMaxMinerStakeAddAmount >> (i * MaxMinerStakeAdjustPeriod / maxMinerStakeAddAdjustPeriod)
+	}
+	return canStake
 }
 
 // miner pool valid tickets
-func getValidTicketsByHeight(height uint64)uint64{
+func getValidTicketsByHeight(height uint64) uint64 {
 	reduce := height / threeYearBlocks
 	needTickets := initMinerPoolTickets - (reduce * minerPoolReduceCount)
-	if needTickets < minMinerPoolTickets{
+	if needTickets < minMinerPoolTickets {
 		return minMinerPoolTickets
 	}
 	return needTickets
-}
-
-func tokenReleased(height uint64) uint64 {
-	adjustTimes := height / MaxMinerStakeAdjustPeriod
-	if adjustTimes > stakeAdjustTimes {
-		adjustTimes = stakeAdjustTimes
-	}
-
-	var released uint64 = initialTokenReleased
-	for i := uint64(0); i < adjustTimes; i++ {
-		halveTimes := i * MaxMinerStakeAdjustPeriod / halveRewardsPeriod
-		if halveTimes > halveRewardsTimes {
-			halveTimes = halveRewardsTimes
-		}
-		released += tokenReleasedPerYear >> halveTimes
-	}
-	return released
 }
 
 // Special account address
@@ -161,7 +148,7 @@ func checkUpperBound(miner *types.Miner, height uint64) bool {
 }
 
 func checkMinerPoolUpperBound(miner *types.Miner, height uint64) bool {
-	return miner.Stake <= maximumStake(height) * getValidTicketsByHeight(height)
+	return miner.Stake <= maximumStake(height)*getValidTicketsByHeight(height)
 }
 
 func checkLowerBound(miner *types.Miner) bool {
@@ -223,18 +210,18 @@ type baseOperation struct {
 	*transitionContext
 	minerType types.MinerType
 	minerPool types.AccountDBTS
-	db types.AccountDB
+	db        types.AccountDB
 	msg       types.MinerOperationMessage
 	height    uint64
 }
 
-func newBaseOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64,tc *transitionContext) *baseOperation {
+func newBaseOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64, tc *transitionContext) *baseOperation {
 	return &baseOperation{
-		transitionContext:tc,
-		db:db,
-		minerPool: db.AsAccountDBTS(),
-		msg:       msg,
-		height:    height,
+		transitionContext: tc,
+		db:                db,
+		minerPool:         db.AsAccountDBTS(),
+		msg:               msg,
+		height:            height,
 	}
 }
 

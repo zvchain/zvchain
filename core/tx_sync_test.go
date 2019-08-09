@@ -136,8 +136,8 @@ const (
 )
 
 const (
-	evilAddr = "0x0000000000000000000000000000000000000000000000000000000000000123"
-	kindAddr = "0x0000000000000000000000000000000000000000000000000000000000000abc"
+	evilAddr       = "0x0000000000000000000000000000000000000000000000000000000000000123"
+	kindAddr       = "0x0000000000000000000000000000000000000000000000000000000000000abc"
 	kindToEvilAddr = "0x0000000000000000000000000000000000000000000000000000000000000fff"
 )
 
@@ -165,26 +165,26 @@ var (
 	TxOverStateNonce1000 *types.Transaction
 	TxNoNonce            *types.Transaction
 
-	TxTypeTransfer            *types.Transaction
-	TxTypeContractCreate      *types.Transaction
-	TxTypeContractCreateEvil1 *types.Transaction
-	TxTypeContractCreateEvil2 *types.Transaction
-	TxTypeContractCall        *types.Transaction
-	TxTypeContractCallEvil1   *types.Transaction
-	TxTypeContractCallEvil2   *types.Transaction
-	TxTypeRewardBadData       *types.Transaction
+	TxTypeTransfer             *types.Transaction
+	TxTypeContractCreate       *types.Transaction
+	TxTypeContractCreateEvil1  *types.Transaction
+	TxTypeContractCreateEvil2  *types.Transaction
+	TxTypeContractCall         *types.Transaction
+	TxTypeContractCallEvil1    *types.Transaction
+	TxTypeContractCallEvil2    *types.Transaction
+	TxTypeRewardBadData        *types.Transaction
 	TxTypeRewardBadExtra       *types.Transaction
-	TxTypeStakeAddProposal    *types.Transaction
-	TxTypeStakeAddVerify      *types.Transaction
-	TxTypeStakeAddFakes       []*types.Transaction
-	TxTypeStakeAddFake1       *types.Transaction
-	TxTypeStakeAddFake2       *types.Transaction
-	TxTypeStakeAddFake3       *types.Transaction
-	TxTypeStakeAddFake4       *types.Transaction
-	TxTypeStakeAddFake5       *types.Transaction
-	TxTypeStakeReduce         *types.Transaction
-	TxTypeStakeReduceFake1    *types.Transaction
-	TxTypeMinerAbort          *types.Transaction
+	TxTypeStakeAddProposal     *types.Transaction
+	TxTypeStakeAddVerify       *types.Transaction
+	TxTypeStakeAddFakes        []*types.Transaction
+	TxTypeStakeAddFake1        *types.Transaction
+	TxTypeStakeAddFake2        *types.Transaction
+	TxTypeStakeAddFake3        *types.Transaction
+	TxTypeStakeAddFake4        *types.Transaction
+	TxTypeStakeAddFake5        *types.Transaction
+	TxTypeStakeReduce          *types.Transaction
+	TxTypeStakeReduceFake1     *types.Transaction
+	TxTypeMinerAbort           *types.Transaction
 	TxTypeStakeRefund          *types.Transaction
 	TxTypeEvil                 *types.Transaction
 	TxTypeGroupPiece           *types.Transaction
@@ -662,7 +662,6 @@ func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64
 
 	pks := &types.MinerPks{
 		MType: types.MinerType(mType),
-		AddHeight:0,
 	}
 	var bpk groupsig.Pubkey
 	bpk.SetHexString(adminBPK)
@@ -698,7 +697,6 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 
 	pks := &types.MinerPks{
 		MType: types.MinerType(mType),
-		AddHeight:0,
 	}
 	var bpk groupsig.Pubkey
 	bpk.SetHexString(adminBPK)
