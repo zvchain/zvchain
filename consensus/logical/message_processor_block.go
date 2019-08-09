@@ -367,9 +367,9 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 		"blockHash": cvm.BlockHash,
 		"height": height,
 		"now":time.TSInstance.NowTime().Local(),
-		"from": cvm.SI.GetID(),
+		//"from": cvm.SI.GetID(),
 		"logId": "22",
-	}).Debug("OnMessageVerify")
+	}).Debug("OMV")
 
 	if vctx == nil {
 		err = fmt.Errorf("verify context is nil, cache msg")
