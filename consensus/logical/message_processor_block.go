@@ -364,14 +364,14 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 			height = slotL.BH.Height
 		}
 	}
-	//log.ELKLogger.WithFields(logrus.Fields{
-	//	"blockHash": cvm.BlockHash,
-	//	"height": height,
-	//	"now":time.TSInstance.NowTime().Local(),
-	//	//"from": cvm.SI.GetID(),
-	//	"logId": "22",
-	//}).Debug("OMV")
-	sendElkOmvLog(cvm.BlockHash, height)
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": cvm.BlockHash,
+		"height": height,
+		"now":time.TSInstance.NowTime().Local(),
+		//"from": cvm.SI.GetID(),
+		"logId": "22",
+	}).Debug("OMV")
+	//sendElkOmvLog(cvm.BlockHash, height)
 	if vctx == nil {
 		err = fmt.Errorf("verify context is nil, cache msg")
 		p.blockContexts.addVerifyMsg(cvm)
