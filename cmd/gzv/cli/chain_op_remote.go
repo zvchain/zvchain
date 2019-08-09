@@ -97,6 +97,7 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 	return ret.Result
 }
 
+
 func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, error) {
 	ret := ca.request("nonce", addr)
 	if !ret.IsSuccess() {
@@ -234,6 +235,31 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		Gasprice: gasPrice,
 		TxType:   types.TransactionTypeStakeAdd,
 		Data:     data,
+	}
+	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
+	return ca.SendRaw(tx)
+}
+
+
+func (ca *RemoteChainOpImpl)ApplyGuardMiner(cycle uint64,gas, gasprice uint64) *Result{
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	if aci.Miner == nil {
+		return opError(fmt.Errorf("the current account is not a miner account"))
+	}
+	if cycle!= 1 && cycle!= 2{
+		return opError(fmt.Errorf("cycle must be 1 or 2"))
+	}
+
+	tx := &txRawData{
+		Target:   aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeApplyGuardMiner,
+		Data:     []byte{byte(cycle)},
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)

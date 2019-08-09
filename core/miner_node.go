@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
 )
@@ -11,14 +12,11 @@ type BalanceOp = byte
 const (
 	StakedAddOp          		MinerOp = iota
 	StakeAbortOp
-	StakeReduceOp
-	StakeRefundOp
+	ApplyGuardOp
 )
 
 const (
-	BalanceAdd          		BalanceOp = iota
-	BalanceReduce
-	BalanceNochanged
+	BalanceReduce          		BalanceOp = iota
 )
 
 type baseIdentityOp interface {
@@ -102,8 +100,15 @@ func (n *NormalProposalMiner) processMinerOp(mop mOperation,targetMiner *types.M
 		if err!=nil{
 			return err
 		}
-	case StakeReduceOp:
-	case StakeRefundOp:
+	case ApplyGuardOp:
+		err := n.checkApplyGuard(mop,targetMiner)
+		if err != nil{
+			return err
+		}
+		err = n.processApplyGuard(mop,targetMiner)
+		if err != nil{
+			return err
+		}
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -113,7 +118,7 @@ func (n *NormalProposalMiner) processMinerOp(mop mOperation,targetMiner *types.M
 func(n*NormalProposalMiner)checkStakeAdd(mop mOperation,targetMiner *types.Miner)error{
 	// only admin can stake to normal miner node
 	if mop.Source() !=  mop.Target() && mop.Source() !=  adminAddrType{
-		return fmt.Errorf("could not stake to other's verify node")
+		return fmt.Errorf("only admin can stake to others")
 	}
 	return nil
 }
@@ -139,8 +144,8 @@ func (g *GuardProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Mi
 		if err!=nil{
 			return err
 		}
-	case StakeReduceOp:
-	case StakeRefundOp:
+	case ApplyGuardOp:
+		return fmt.Errorf("guard node is not support this operator")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -167,8 +172,8 @@ func (m *MinerPoolProposalMiner) processMinerOp(mop mOperation,targetMiner *type
 		if err!=nil{
 			return err
 		}
-	case StakeReduceOp:
-	case StakeRefundOp:
+	case ApplyGuardOp:
+		return fmt.Errorf("miner pool node is not support this operator")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -181,8 +186,8 @@ func (i *InvalidProposalMiner) processMinerOp(mop mOperation,targetMiner *types.
 		return fmt.Errorf("invalid miner pool could not support stake add")
 	case StakeAbortOp:
 		return fmt.Errorf("invalid miner pool could not support stake abort")
-	case StakeReduceOp:
-	case StakeRefundOp:
+	case ApplyGuardOp:
+		return fmt.Errorf("invalid pool node not support this operator")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -209,8 +214,8 @@ func (v *VerifyMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op 
 			if err!=nil{
 				return err
 			}
-		case StakeReduceOp:
-		case StakeRefundOp:
+		case ApplyGuardOp:
+			return fmt.Errorf("verify node not support this operator")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -252,6 +257,43 @@ func initMiner(mop mOperation)*types.Miner{
 	return miner
 }
 
+func(b*BaseMiner)checkApplyGuard(mop mOperation,miner *types.Miner)error{
+	if miner == nil {
+		return fmt.Errorf("no miner info")
+	}
+	detailKey := getDetailKey(mop.Source(), mop.GetMinerType(), types.Staked)
+	stakedDetail, err := mop.GetBaseOperation().getDetail(mop.Source(), detailKey)
+	if err != nil {
+		return err
+	}
+	if stakedDetail == nil {
+		return fmt.Errorf("target account has no staked detail data")
+	}
+	if !isFullStake(stakedDetail.Value,mop.Height()){
+		return fmt.Errorf("not full stake,apply guard faild")
+	}
+	return nil
+}
+
+func(b*BaseMiner)processApplyGuard(mop mOperation,miner *types.Miner) error{
+	// update miner identity and set dismissHeight to detail
+	miner.UpdateIdentity(types.MinerGuard,mop.Height())
+	var err error
+	var detail *stakeDetail
+	if err = mop.GetBaseOperation().setMiner(miner); err != nil {
+		return err
+	}
+	op := mop.(*applyGuardMinerOp)
+	cycle := op.cycle
+	detailKey := getDetailKey(mop.Source(), mop.GetMinerType(), types.Staked)
+	detail,err = mop.GetBaseOperation().getDetail(mop.Source(), detailKey)
+	detail.DisMissHeight = mop.Height() + halfOfYearBlocks * cycle
+	if err := mop.GetBaseOperation().setDetail(mop.Source(), detailKey, detail); err != nil {
+		return err
+	}
+	log.CoreLogger.Infof("apply guard success,address is %s,height is %v,cycle is %d",mop.Source().Hex(),mop.Height(),cycle)
+	return nil
+}
 
 func(b*BaseMiner)checkStakeAbort(mop mOperation,miner *types.Miner)error{
 	if miner == nil {
@@ -362,9 +404,7 @@ func(b*BaseMiner)updateMinerDetail(mop mOperation,targetMiner *types.Miner,stake
 
 
 func(b*BaseMiner)updateBalance(mop mOperation,balanceOp BalanceOp)error{
-	if BalanceNochanged == balanceOp{
-		return nil
-	}else if BalanceReduce == balanceOp{
+	if BalanceReduce == balanceOp{
 		amount := new(big.Int).SetUint64(mop.Value())
 		if needTransfer(amount) {
 			if !mop.GetDb().CanTransfer(mop.Source(), amount) {

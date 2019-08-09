@@ -78,6 +78,11 @@ const (
 	TransactionTypeGroupPiece       = 9  //group member upload his encrypted share piece
 	TransactionTypeGroupMpk         = 10 //group member upload his mpk
 	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
+
+
+	TransactionTypeApplyGuardMiner  = 12  //apply miner node
+
+
 )
 
 // Transaction denotes one transaction infosminer still in active groups
