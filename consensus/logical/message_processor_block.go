@@ -359,7 +359,9 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 	var height uint64 = 0
 	if vctx != nil {
 		slotL := vctx.GetSlotByHash(blockHash)
-		height = slotL.BH.Height
+		if slotL != nil && slotL.BH != nil {
+			height = slotL.BH.Height
+		}
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": cvm.BlockHash,
