@@ -1,7 +1,6 @@
 package log
 
 import (
-	"github.com/sirupsen/logrus"
 	"net"
 	"os"
 
@@ -38,7 +37,7 @@ func Init()  {
 	TVMLogger = RusPlus.Logger(logsDir + "tvm", MaxFileSize, Level)
 	PerformLogger = RusPlus.Logger(logsDir + "perform", MaxFileSize, Level)
 	ELKLogger = RusPlus.Logger(logsDir + "ELK", MaxFileSize, Level)
-	ELKLogger.Hooks.Add(logstash().(logrus.Hook))
+	//ELKLogger.Hooks.Add(logstash().(logrus.Hook))
 }
 
 func logstash() interface{}{
