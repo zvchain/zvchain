@@ -28,6 +28,9 @@ func (e epoch) Start() uint64 {
 func (e epoch) End() uint64 {
 	return e.Start() + epochLength
 }
+func (e epoch) Next() types.Epoch {
+	return epochAt(e.End() + 1)
+}
 
 type zeroEpoch struct{}
 
@@ -37,6 +40,9 @@ func (ge zeroEpoch) Start() uint64 {
 
 func (ge zeroEpoch) End() uint64 {
 	return 0
+}
+func (ge zeroEpoch) Next() types.Epoch {
+	return epochAt(1)
 }
 
 func epochAt(h uint64) epoch {

@@ -128,16 +128,16 @@ func (m *Manager) ActiveGroupCount() int {
 func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
 	startEpoch, endEpoch := m.epochAlg.CreateEpochByHeight(height)
 
-	for ep := startEpoch; ep.End() <= endEpoch.End(); ep++ {
+	gis := make([]types.GroupI, 0)
 
-	}
-	gs := m.poolImpl.getGroupsByHeightRange(startEpoch.Start(), endEpoch.End())
-	gis := make([]types.GroupI, 0, len(gs)+1)
-	for _, g := range gs {
-		gis = append(gis, g)
-		// ensure group activated, should not happen
-		if !g.HeaderD.activatedAt(height) {
-			logger.Panicf("group %v should be activated at %v, activate height %v", g.Header().Seed(), height, g.Header().WorkHeight())
+	for ep := startEpoch; ep.End() <= endEpoch.End(); ep = ep.Next() {
+		gs := m.poolImpl.getGroupsByEpoch(ep)
+		for _, g := range gs {
+			gis = append(gis, g)
+			// ensure group activated, should not happen
+			if !g.HeaderD.activatedAt(height) {
+				logger.Panicf("group %v should be activated at %v, activate height %v", g.Header().Seed(), height, g.Header().WorkHeight())
+			}
 		}
 	}
 	// add genesis group
@@ -147,13 +147,18 @@ func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
 
 func (m *Manager) GetLivedGroupsAt(height uint64) []types.GroupI {
 	startEpoch, _ := m.epochAlg.CreateEpochByHeight(height)
-	gs := m.poolImpl.getGroupsByHeightRange(startEpoch.Start(), height)
-	gis := make([]types.GroupI, 0, len(gs)+1)
-	for _, g := range gs {
-		gis = append(gis, g)
-		// ensure group lived, should not happen
-		if !g.HeaderD.livedAt(height) {
-			logger.Panicf("group %v should be alive at %v, dismiss height %v", g.Header().Seed(), height, g.Header().DismissHeight())
+	currentEp := m.epochAlg.EpochAt(m.chain.Height())
+
+	gis := make([]types.GroupI, 0)
+
+	for ep := startEpoch; ep.End() <= currentEp.End(); ep = ep.Next() {
+		gs := m.poolImpl.getGroupsByEpoch(ep)
+		for _, g := range gs {
+			gis = append(gis, g)
+			// ensure group lives, should not happen
+			if !g.HeaderD.livedAt(height) {
+				logger.Panicf("group %v should be lived at %v, life height %v-%v", g.Header().Seed(), height, g.Header().WorkHeight(), g.Header().DismissHeight())
+			}
 		}
 	}
 	// add genesis group

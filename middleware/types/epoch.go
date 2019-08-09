@@ -18,6 +18,7 @@ package types
 type Epoch interface {
 	Start() uint64
 	End() uint64
+	Next() Epoch
 }
 
 type EpochAlg interface {
