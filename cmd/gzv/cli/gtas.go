@@ -271,7 +271,6 @@ func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 
 	acm := aop.(*AccountManager)
 	if address != "" {
-		address = common.AddrToHex(address)
 		aci, err := acm.checkMinerAccount(address, password)
 		if err != nil {
 			return fmt.Errorf("cannot get miner, err:%v", err.Error())

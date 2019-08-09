@@ -47,7 +47,7 @@ func (netID NodeID) IsValid() bool {
 }
 
 func (nid NodeID) GetHexString() string {
-	return common.ToHex(nid.Bytes())
+	return common.ToAddrHex(nid.Bytes())
 }
 
 func NewNodeID(hex string) NodeID {
@@ -56,10 +56,11 @@ func NewNodeID(hex string) NodeID {
 	if len(hex) == 0 {
 		return nid
 	}
-	if !strings.HasPrefix(hex, "0x") {
-		hex = "0x" + hex
+	if !strings.HasPrefix(hex, common.AddrPrefix) {
+		hex = common.AddrPrefix + hex
 	}
-	nid.SetBytes(common.FromHex(hex))
+
+	nid.SetBytes(common.StringToAddress(hex).Bytes())
 	return nid
 }
 
