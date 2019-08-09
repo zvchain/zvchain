@@ -17,6 +17,7 @@ package logical
 
 import (
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 
 	"github.com/zvchain/zvchain/common"
@@ -363,14 +364,14 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 			height = slotL.BH.Height
 		}
 	}
-	log.ELKLogger.WithFields(logrus.Fields{
-		"blockHash": cvm.BlockHash,
-		"height": height,
-		"now":time.TSInstance.NowTime().Local(),
-		//"from": cvm.SI.GetID(),
-		"logId": "22",
-	}).Debug("OMV")
-
+	//log.ELKLogger.WithFields(logrus.Fields{
+	//	"blockHash": cvm.BlockHash,
+	//	"height": height,
+	//	"now":time.TSInstance.NowTime().Local(),
+	//	//"from": cvm.SI.GetID(),
+	//	"logId": "22",
+	//}).Debug("OMV")
+	sendElkOmvLog(cvm.BlockHash, height)
 	if vctx == nil {
 		err = fmt.Errorf("verify context is nil, cache msg")
 		p.blockContexts.addVerifyMsg(cvm)
@@ -384,6 +385,23 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 	slot = vctx.GetSlotByHash(blockHash)
 
 	return
+}
+var logCache *lru.Cache
+func sendElkOmvLog(blockHash common.Hash, height uint64)  {
+	if logCache == nil {
+		logCache = common.MustNewLRUCache(120)
+	}
+	if logCache.Contains(blockHash){
+		return
+	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"blockHash": blockHash,
+		"height": height,
+		"now":time.TSInstance.NowTime().Local(),
+		//"from": cvm.SI.GetID(),
+		"logId": "22",
+	}).Debug("OMV")
+	logCache.ContainsOrAdd(blockHash,1)
 }
 
 // OnMessageCastRewardSignReq handles reward transaction signature requests
