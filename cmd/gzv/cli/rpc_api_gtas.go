@@ -25,8 +25,8 @@ import (
 )
 
 type groupInfoReader interface {
-	// GetAvailableGroupSeeds gets available groups' seed at the given height
-	GetAvailableGroupSeeds(height uint64) []types.SeedI
+	// GetActivatedGroupsAt gets available groups' seed at the given height
+	GetActivatedGroupsAt(height uint64) []types.GroupI
 	// GetGroupBySeed returns the group info of the given seed
 	GetGroupBySeed(seedHash common.Hash) types.GroupI
 	// GetGroupHeaderBySeed returns the group header info of the given seed
@@ -36,13 +36,6 @@ type groupInfoReader interface {
 	GroupsAfter(height uint64) []types.GroupI
 	ActiveGroupCount() int
 	GetLivedGroupsByMember(address common.Address, height uint64) []types.GroupI
-}
-
-type currentEraStatus interface {
-	MinerSelected() bool
-	MinerStatus() int
-	GroupHeight() uint64
-	GroupSeed() common.Hash
 }
 
 type groupRoutineChecker interface {
@@ -129,7 +122,7 @@ func (api *RpcGtasImpl) Balance(account string) (*Result, error) {
 	}, nil
 }
 
-// BlockHeight query block height
+// SaveHeight query block height
 func (api *RpcGtasImpl) BlockHeight() (*Result, error) {
 	height := core.BlockChainImpl.QueryTopBlock().Height
 	return successResult(height)
@@ -297,7 +290,7 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
-	accountDb, err := core.BlockChainImpl.LatestStateDB()
+	accountDb, err := core.BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		return failResult("Get status failed")
 	}

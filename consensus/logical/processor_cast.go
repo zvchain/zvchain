@@ -36,23 +36,23 @@ func (p *Processor) triggerCastCheck() {
 func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
 	var hash = calcRandomHash(preBH, height)
 
-	groupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(height)
+	groupIS := p.groupReader.getActivatedGroupsByHeight(height)
 	// Must not happen
-	if len(groupSeeds) == 0 {
-		panic("no available groupSeeds")
+	if len(groupIS) == 0 {
+		panic("no available groupIS")
 	}
-	seeds := make([]string, len(groupSeeds))
-	for _, seed := range groupSeeds {
-		seeds = append(seeds, common.ShortHex(seed.Seed().Hex()))
+	seeds := make([]string, len(groupIS))
+	for _, g := range groupIS {
+		seeds = append(seeds, common.ShortHex(g.Header().Seed().Hex()))
 	}
 
 	value := hash.Big()
-	index := value.Mod(value, big.NewInt(int64(len(groupSeeds))))
+	index := value.Mod(value, big.NewInt(int64(len(groupIS))))
 
-	selectedGroup := groupSeeds[index.Int64()]
+	selectedGroup := groupIS[index.Int64()]
 
-	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupSeeds), height, seeds, selectedGroup.Seed())
-	return selectedGroup.Seed()
+	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupIS), height, seeds, selectedGroup.Header().Seed())
+	return selectedGroup.Header().Seed()
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {

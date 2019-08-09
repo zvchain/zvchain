@@ -86,7 +86,7 @@ func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, 
 	if !validateAddress(strings.TrimSpace(account)) {
 		return failResult("Wrong account address format")
 	}
-	db, err := core.BlockChainImpl.GetAccountDBByHeight(height)
+	db, err := core.BlockChainImpl.AccountDBAt(height)
 	if err != nil {
 		return failResult("this height is invalid")
 	}
@@ -177,7 +177,7 @@ func (api *RpcDevImpl) WorkGroupNum() (*Result, error) {
 }
 
 func (api *RpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
-	api2 := &RpcExplorerImpl{}
+	api2 := &RpcExplorerImpl{rpcBaseImpl: api.rpcBaseImpl}
 	return api2.ExplorerGroupsAfter(height)
 }
 
@@ -187,10 +187,9 @@ func (api *RpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
 }
 
 func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
-	seeds := api.gr.GetAvailableGroupSeeds(height)
+	groups := api.gr.GetActivatedGroupsAt(height)
 	ret := make([]*Group, 0)
-	for _, seed := range seeds {
-		group := api.gr.GetGroupBySeed(seed.Seed())
+	for _, group := range groups {
 		if group != nil {
 			g := convertGroup(group)
 			ret = append(ret, g)

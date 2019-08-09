@@ -13,15 +13,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package types
+package core
 
-type Epoch interface {
-	Start() uint64
-	End() uint64
-}
-
-type EpochAlg interface {
-	EpochAt(h uint64) Epoch
-	// createEpochByHeight returns the creating epoch ranges of the groups at the given block height
-	CreateEpochByHeight(h uint64) (start, end Epoch)
+type simpleCheckPoint struct {
 }

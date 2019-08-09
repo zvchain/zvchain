@@ -90,8 +90,8 @@ func setup() {
 	if err != nil {
 		panic("init fail " + err.Error())
 	}
-	db,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
+	db, error := BlockChainImpl.LatestAccountDB()
+	if error != nil {
 		panic("init fail " + err.Error())
 	}
 	db.AddBalance(src, new(big.Int).SetUint64(ctx.originBalance))

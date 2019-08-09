@@ -176,6 +176,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	curr := chain.getLatestBlock()
 	recoverTxs := make([]*types.Transaction, 0)
 	delRecepites := make([]common.Hash, 0)
+	removeBlocks := make([]*types.BlockHeader, 0)
+
 	for curr.Hash != block.Hash {
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
@@ -198,6 +200,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		}
 
 		chain.removeTopBlock(curr.Hash)
+		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
 		if curr.PreHash == block.Hash {
 			break
@@ -223,7 +226,9 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	chain.transactionPool.BackToPool(recoverTxs)
 
-	GroupManagerImpl.ResetToTop(state,block)
+	for _, b := range removeBlocks {
+		GroupManagerImpl.OnBlockRemove(b)
+	}
 
 	return nil
 }

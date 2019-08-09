@@ -58,6 +58,8 @@ type groupContextProvider interface {
 	GetGroupPacketSender() types.GroupPacketSender
 
 	RegisterGroupCreateChecker(checker types.GroupCreateChecker)
+
+	RegisterEpochAlg(alg types.EpochAlg)
 }
 
 type minerReader interface {
@@ -66,9 +68,14 @@ type minerReader interface {
 	GetCanJoinGroupMinersAt(h uint64) []*model.MinerDO
 }
 
+type joinedGroupFilter interface {
+	MinerJoinedLivedGroupCountFilter(maxCount int, height uint64) func(addr common.Address) bool
+}
+
 type createRoutine struct {
 	*createChecker
 	packetSender types.GroupPacketSender
+	groupFilter  joinedGroupFilter
 	store        *skStorage
 	currID       groupsig.ID
 }
@@ -76,7 +83,7 @@ type createRoutine struct {
 var GroupRoutine *createRoutine
 var logger *logrus.Logger
 
-func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, miner *model.SelfMinerDO) *skStorage {
+func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, joinedFilter joinedGroupFilter, miner *model.SelfMinerDO) *skStorage {
 	checker := newCreateChecker(reader, chain, provider.GetGroupStoreReader())
 	logger = log.GroupLogger
 	GroupRoutine = &createRoutine{
@@ -84,6 +91,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 		packetSender:  provider.GetGroupPacketSender(),
 		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", "")), base.Data2CommonHash(miner.SK.Serialize()).Bytes()),
 		currID:        miner.ID,
+		groupFilter:   joinedFilter,
 	}
 	top := chain.QueryTopBlock()
 	GroupRoutine.updateContext(top)
@@ -92,6 +100,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	go checker.stat.loop()
 
 	provider.RegisterGroupCreateChecker(checker)
+	provider.RegisterEpochAlg(&epochAlg{})
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, GroupRoutine.onBlockAddSuccess)
 	return GroupRoutine.store
@@ -178,7 +187,7 @@ func (routine *createRoutine) selectCandidates() error {
 	}
 
 	availCandidates := make([]*model.MinerDO, 0)
-	filterFun := routine.storeReader.IsMinerGroupCountLessThan(memberMaxJoinGroupNum, h)
+	filterFun := routine.groupFilter.MinerJoinedLivedGroupCountFilter(memberMaxJoinGroupNum, h)
 
 	for _, m := range allVerifiers {
 		if filterFun(m.ID.ToAddress()) {
@@ -247,7 +256,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 
 	// Generate encrypted share piece
 	packet := generateEncryptedSharePiecePacket(mInfo, encSk, era.Seed(), routine.ctx.cands)
-	routine.store.storeSeckey(era.Seed(), nil, &encSk, bh.Height+expireHeightGap)
+	routine.store.storeSeckey(era.Seed(), nil, &encSk, dismissEpoch(bh.Height).End())
 
 	// Send the piece packet
 	err := routine.packetSender.SendEncryptedPiecePacket(packet)
@@ -321,7 +330,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	if err != nil {
 		return false, fmt.Errorf("genearte msk error:%v", err)
 	}
-	routine.store.storeSeckey(era.Seed(), msk, nil, bh.Height+expireHeightGap)
+	routine.store.storeSeckey(era.Seed(), msk, nil, dismissEpoch(bh.Height).End())
 
 	mpk := groupsig.NewPubkeyFromSeckey(*msk)
 	// Generate encrypted share piece

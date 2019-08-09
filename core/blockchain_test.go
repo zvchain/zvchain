@@ -90,7 +90,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	src := pk.GetAddress()
 	balance := uint64(100000000)
 
-	stateDB, err := BlockChainImpl.LatestStateDB()
+	stateDB, err := BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		t.Fatalf("get status error!")
 	}
@@ -170,7 +170,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
 	src = pk.GetAddress()
 
-	stateDB, error := BlockChainImpl.LatestStateDB()
+	stateDB, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		t.Fatalf("status failed")
 	}

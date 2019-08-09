@@ -84,8 +84,6 @@ func (p *Processor) GetRewardManager() types.RewardManager {
 	return p.MainChain.GetRewardManager()
 }
 
-
-
 func (p *Processor) GetVctxByHeight(height uint64) *VerifyContext {
 	return p.blockContexts.getVctxByHeight(height)
 }
@@ -143,7 +141,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.Ticker = ticker.NewGlobalTicker("consensus")
 
 	provider := &core.GroupManagerImpl
-	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, &mi)
+	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
 	p.livedGroups = sync.Map{}
 
@@ -260,9 +258,8 @@ func (p *Processor) initLivedGroup() {
 		}
 	}
 
-	livedGroupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(p.MainChain.Height())
-	for _, seed := range livedGroupSeeds {
-		g := p.groupReader.getGroupBySeed(seed.Seed())
+	livedGroups := p.groupReader.getLivedGroupsByHeight(p.MainChain.Height())
+	for _, g := range livedGroups {
 		stdLogger.Debugf("group seed %v", g.header.Seed())
 		for _, mem := range g.members {
 			stdLogger.Debugf("member %v", mem.id)
@@ -273,9 +270,9 @@ func (p *Processor) initLivedGroup() {
 		if !g.hasMember(p.GetMinerID()) {
 			continue
 		}
-		stdLogger.Debugf("build group net %v", seed.Seed())
+		stdLogger.Debugf("build group net %v", g.header.Seed())
 		// Build group net
-		p.NetServer.BuildGroupNet(seed.Seed().Hex(), g.getMembers())
+		p.NetServer.BuildGroupNet(g.header.Seed().Hex(), g.getMembers())
 	}
 }
 
@@ -283,4 +280,3 @@ func (p *Processor) initLivedGroup() {
 func (p *Processor) Ready() bool {
 	return p.ready
 }
-

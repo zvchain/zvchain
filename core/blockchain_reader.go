@@ -70,14 +70,14 @@ func (chain *FullBlockChain) IsAdjusting() bool {
 	return chain.isAdjusting
 }
 
-// LatestStateDB returns chain's last account database
-func (chain *FullBlockChain) LatestStateDB()(types.AccountDB, error) {
+// LatestAccountDB returns chain's last account database
+func (chain *FullBlockChain) LatestAccountDB() (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 	lastBlockHeader := chain.QueryTopBlock()
 	preRoot := common.BytesToHash(lastBlockHeader.StateTree.Bytes())
 	state, err := account.NewAccountDB(preRoot, chain.stateCache)
-	return state,err
+	return state, err
 }
 
 // QueryTopBlock returns the latest block header
@@ -269,17 +269,15 @@ func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (types.Account
 	return account.NewAccountDB(header.StateTree, chain.stateCache)
 }
 
-// GetAccountDBByHeight returns account database with specified block height
-func (chain *FullBlockChain) GetAccountDBByHeight(height uint64) (types.AccountDB, error) {
+// AccountDBAt returns account database with specified block height
+func (chain *FullBlockChain) AccountDBAt(height uint64) (types.AccountDB, error) {
+	if height >= chain.Height() {
+		return chain.LatestAccountDB()
+	}
+
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
-	if chain.latestBlock == nil{
-		return  nil, fmt.Errorf("current block is nil")
-	}
-	if height > chain.latestBlock.Height{
-		height = chain.latestBlock.Height
-	}
 	h := height
 	header := chain.queryBlockHeaderByHeightFloor(height)
 	if header == nil {

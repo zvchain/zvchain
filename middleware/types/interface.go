@@ -40,8 +40,8 @@ type BlockChain interface {
 	// TotalQN of chain
 	TotalQN() uint64
 
-	// LatestStateDB returns chain's last account database
-	LatestStateDB() (AccountDB, error)
+	// LatestAccountDB returns chain's last account database
+	LatestAccountDB() (AccountDB, error)
 
 	// QueryBlockByHash query the block by hash
 	QueryBlockByHash(hash common.Hash) *Block
@@ -91,8 +91,8 @@ type BlockChain interface {
 	// GetAccountDBByHash returns account database with specified block hash
 	GetAccountDBByHash(hash common.Hash) (AccountDB, error)
 
-	// GetAccountDBByHeight returns account database with specified block height
-	GetAccountDBByHeight(height uint64) (AccountDB, error)
+	// AccountDBAt returns account database with specified block height
+	AccountDBAt(height uint64) (AccountDB, error)
 
 	// GetConsensusHelper returns consensus helper reference
 	GetConsensusHelper() ConsensusHelper
