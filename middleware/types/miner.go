@@ -55,15 +55,16 @@ const (
 
 // Miner is the miner info including public keys and pledges
 type Miner struct {
-	ID                 []byte 		`json:"d"`
-	PublicKey          []byte		`json:"p"`
-	VrfPublicKey       []byte		`json:"v"`
-	ApplyHeight        uint64		`json:"a"`
-	Stake              uint64		`json:"stk"`
-	StatusUpdateHeight uint64		`json:"suh"`
-	Type               MinerType	`json:"tp"`
-	Status             MinerStatus	`json:"sta"`
-	Identity	       NodeIdentity `json:"ni"`
+	ID                   []byte
+	PublicKey            []byte
+	VrfPublicKey         []byte
+	ApplyHeight          uint64
+	Stake                uint64
+	StatusUpdateHeight   uint64
+	Type                 MinerType
+	Status               MinerStatus
+	Identity	         NodeIdentity
+	IdentityUpdateHeight uint64
 }
 
 func (m *Miner) IsActive() bool {
@@ -99,6 +100,11 @@ func (m *Miner) PksCompleted() bool {
 func (m *Miner) UpdateStatus(status MinerStatus, height uint64) {
 	m.StatusUpdateHeight = height
 	m.Status = status
+}
+
+func (m *Miner) UpdateIdentity(identity NodeIdentity, height uint64) {
+	m.IdentityUpdateHeight = height
+	m.Identity = identity
 }
 
 func (m *Miner) IsProposalRole() bool {

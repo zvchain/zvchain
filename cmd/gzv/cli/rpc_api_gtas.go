@@ -98,7 +98,9 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 
 	// Check the address for the specified tx types
 	switch txRaw.TxType {
-	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
+	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
+		 types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce,types.TransactionTypeApplyGuardMiner,
+		 types.TransactionTypeStakeRefund:
 		if !validateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}

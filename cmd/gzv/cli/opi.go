@@ -121,6 +121,8 @@ type chainOp interface {
 	// MinerInfo query miner info by address
 	MinerInfo(addr string, detail string) *Result
 
+	ApplyGuardMiner(cycle uint64,gas, gasprice uint64) *Result
+
 	BlockHeight() *Result
 
 	GroupHeight() *Result

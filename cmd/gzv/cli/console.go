@@ -174,6 +174,32 @@ func (c *nonceCmd) parse(args []string) bool {
 	return true
 }
 
+type applyGuardMinerCmd struct {
+	gasBaseCmd
+	cycle uint64
+}
+
+func genApplyGuardMinerCmdCmd() *applyGuardMinerCmd {
+	c := &applyGuardMinerCmd{
+		gasBaseCmd: *genGasBaseCmd("applyGuard", "apply guard miner node,cycle must be between  1 and 2"),
+	}
+	c.initBase()
+	c.fs.Uint64Var(&c.cycle,"cycle",1, "guard miner cycle,1 is half of year,2 is a year")
+	return c
+}
+
+func (c *applyGuardMinerCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if c.cycle != 1 && c.cycle != 2{
+		output("cycle must be 1 or 2")
+		return false
+	}
+	return c.parseGasPrice()
+}
+
 type minerInfoCmd struct {
 	baseCmd
 	addr   string
@@ -727,7 +753,7 @@ var cmdGroupHeight = genBaseCmd("groupheight", "the current group height")
 var cmdTx = genTxCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
-
+var cmdApplyGuardMiner = genApplyGuardMinerCmdCmd()
 var cmdStakeAdd = genStakeAddCmd()
 var cmdMinerAbort = genMinerAbortCmd()
 var cmdStakeRefund = genStakeRefundCmd()
@@ -750,6 +776,7 @@ func init() {
 	list = append(list, cmdAccountInfo)
 	list = append(list, cmdDelAccount)
 	list = append(list, &cmdMinerInfo.baseCmd)
+	list = append(list, &cmdApplyGuardMiner.baseCmd)
 	list = append(list, &cmdConnect.baseCmd)
 	list = append(list, cmdBlockHeight)
 	list = append(list, cmdGroupHeight)
@@ -940,6 +967,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return chainOp.MinerInfo(cmd.addr, cmd.detail)
+				})
+			}
+		case cmdApplyGuardMiner.name:
+			cmd := genApplyGuardMinerCmdCmd()
+			if cmd.parse(args){
+				handleCmd(func() *Result {
+					return chainOp.ApplyGuardMiner(cmd.cycle,cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdBlockHeight.name:

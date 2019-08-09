@@ -146,6 +146,13 @@ func minerTypeCheck(mt types.MinerType) error {
 	return nil
 }
 
+func applyGuardCycleCheck(cycle byte)error{
+	if cycle!= 1 && cycle != 2{
+		return fmt.Errorf("cycle must be 1 or 2")
+	}
+	return nil
+}
+
 func stakeAddValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
@@ -210,6 +217,17 @@ func stakeRefundValidator(tx *types.Transaction) error {
 	}
 	return nil
 }
+
+func applyGuardValidator(tx *types.Transaction) error {
+	if len(tx.Data) != 1 {
+		return fmt.Errorf("data length should be 1")
+	}
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	return applyGuardCycleCheck(tx.Data[0])
+}
+
 
 func groupValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
@@ -290,6 +308,8 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
+			case types.TransactionTypeApplyGuardMiner:
+				err = applyGuardValidator(tx)
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			default:

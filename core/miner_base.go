@@ -79,14 +79,17 @@ func getValidTicketsByHeight(height uint64) uint64 {
 var (
 	minerPoolAddr   = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
 	rewardStoreAddr = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
+    guardNodeAddr   = common.BigToAddress(big.NewInt(3)) // The Address storing all guard miner nodes
 )
 
 var punishmentDetailAddr = common.BigToAddress(big.NewInt(0))
 
+
+
 type stakeDetail struct {
-	Value         uint64 `json:"v"` // Stake operation amount
-	Height        uint64 `json:"h"` // Operation height
-	DisMissHeight uint64 `json:"d"` //Stake disMiss height
+	Value         uint64  // Stake operation amount
+	Height        uint64  // Operation height
+	DisMissHeight uint64  //Stake disMiss height
 }
 
 func getDetailKey(address common.Address, typ types.MinerType, status types.StakeStatus) []byte {
@@ -145,6 +148,10 @@ func checkCanActivate(miner *types.Miner) bool {
 
 func checkUpperBound(miner *types.Miner, height uint64) bool {
 	return miner.Stake <= maximumStake(height)
+}
+
+func isFullStake(stake, height uint64)bool{
+	return stake == maximumStake(height)
 }
 
 func checkMinerPoolUpperBound(miner *types.Miner, height uint64) bool {
