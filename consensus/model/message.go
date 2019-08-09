@@ -70,7 +70,6 @@ func (sign *BaseSignedMessage) VerifySign(pk groupsig.Pubkey) (ok bool) {
 // and handled by the verify-group members
 type ConsensusCastMessage struct {
 	BH        types.BlockHeader
-	ProveHash common.Hash
 	BaseSignedMessage
 }
 
@@ -136,6 +135,11 @@ func (msg *CastRewardTransSignMessage) GenHash() common.Hash {
 // ReqProposalBlock requests the block body when the verification consensus is finished by the group members
 type ReqProposalBlock struct {
 	Hash common.Hash
+	BaseSignedMessage
+}
+
+func (req *ReqProposalBlock) GenHash() common.Hash {
+	return req.Hash
 }
 
 // ResponseProposalBlock responses the corresponding block body to the requester

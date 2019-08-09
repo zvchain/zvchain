@@ -18,6 +18,7 @@ package logical
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -25,8 +26,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
-	"math"
-	"sync/atomic"
+
 )
 
 func (p *Processor) thresholdPieceVerify(vctx *VerifyContext, slot *SlotContext) {
@@ -104,13 +104,6 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 	// check if the blockHeader is legal
 	err = p.isCastLegal(bh, preBH)
 	if err != nil {
-		return
-	}
-
-	// full book verification
-	existHash := p.proveChecker.genProveHash(bh.Height, preBH.Random, p.GetMinerID())
-	if msg.ProveHash != existHash {
-		err = fmt.Errorf("check prove hash fail, receive hash=%v, exist hash=%v", msg.ProveHash, existHash)
 		return
 	}
 
@@ -437,22 +430,47 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 		err = fmt.Errorf("block is nil")
 		return
 	}
+	group := p.groupReader.getGroupBySeed(pb.block.Header.Group)
+	if group == nil {
+		err = fmt.Errorf("get verifyGroup nil:%v", pb.block.Header.Group)
+		return
+	}
 
-	if pb.maxResponseCount == 0 {
-		group := p.groupReader.getGroupBySeed(pb.block.Header.Group)
-		if group == nil {
-			err = fmt.Errorf("get verifyGroup nil:%v", pb.block.Header.Group)
-			return
-		}
+	if !group.hasMember(msg.SI.GetID()) {
+		err = fmt.Errorf("reqProposa sender doesn't belong the verifyGroup, gseed=%v, hash=%v, id=%v",
+			group.header.Seed(), pb.block.Header.Hash, msg.SI.GetID())
+		return
+	}
 
-		pb.maxResponseCount = uint64(math.Ceil(float64(group.memberSize()) / 3))
+	if msg.GenHash() != msg.SI.DataHash {
+		err = fmt.Errorf("reqProposa msg genHash %v diff from si.DataHash %v", msg.GenHash(), msg.SI.DataHash)
+		return
+	}
+
+	pk := group.getMemberPubkey(msg.SI.GetID())
+	if !pk.IsValid() {
+		err = fmt.Errorf("reqProposa get member sign pubkey fail: gseed=%v, uid=%v", group.header.Seed(), msg.SI.GetID())
+		return
+	}
+
+	if !msg.VerifySign(pk) {
+		err = fmt.Errorf("reqProposa verify sign fail, gseed=%v, id=%v", group.header.Seed(), msg.SI.GetID())
+		return
+	}
+
+	exist, size := pb.containsOrAddRequested(msg.SI.GetID())
+
+	if exist {
+		err = fmt.Errorf("reqProposa sender %v has already requested the block", msg.SI.GetID())
+		return
 	}
 
 	// Only response to limited members of the verifyGroup in case of network traffic
-	if atomic.AddUint64(&pb.responseCount, 1) > pb.maxResponseCount {
-		err = fmt.Errorf("response count exceed:%v %v", pb.responseCount, pb.maxResponseCount)
+	if size > pb.maxResponseCount {
+		err = fmt.Errorf("response count exceed:%v %v", size, pb.maxResponseCount)
 		return
 	}
+
 	//err = fmt.Sprintf("response txs size %v", len(pb.block.Transactions))
 
 	m := &model.ResponseProposalBlock{

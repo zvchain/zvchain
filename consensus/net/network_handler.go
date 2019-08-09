@@ -17,10 +17,11 @@ package net
 
 import (
 	"fmt"
+	"runtime/debug"
+
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/time"
-	"runtime/debug"
 
 	"github.com/zvchain/zvchain/network"
 )

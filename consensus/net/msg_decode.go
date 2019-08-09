@@ -41,7 +41,6 @@ func unMarshalConsensusCastMessage(b []byte) (*model.ConsensusCastMessage, error
 
 	return &model.ConsensusCastMessage{
 		BH:                *bh,
-		ProveHash:         common.BytesToHash(m.ProveHash),
 		BaseSignedMessage: *baseMessage(m.Sign),
 	}, nil
 }
@@ -133,6 +132,7 @@ func unmarshalReqProposalBlockMessage(b []byte) (*model.ReqProposalBlock, error)
 	}
 	m := &model.ReqProposalBlock{
 		Hash: common.BytesToHash(message.Hash),
+		BaseSignedMessage: *baseMessage(message.Sign),
 	}
 	return m, nil
 }

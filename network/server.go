@@ -18,12 +18,11 @@ package network
 import (
 	"github.com/golang/protobuf/proto"
 
-	"strconv"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
-	"github.com/zvchain/zvchain/middleware/pb"
+	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/statistics"
 
 	"golang.org/x/crypto/sha3"
@@ -47,7 +46,10 @@ func (s *Server) Send(id string, msg Message) error {
 		s.sendSelf(bytes)
 		return nil
 	}
-	go s.netCore.sendToNode(NewNodeID(id), nil, bytes, msg.Code)
+	nID := NewNodeID(id)
+	if nID != nil {
+		go s.netCore.sendToNode(*nID, nil, bytes, msg.Code)
+	}
 
 	return nil
 }
@@ -58,8 +60,10 @@ func (s *Server) SendWithGroupRelay(id string, groupID string, msg Message) erro
 		Logger.Errorf("Marshal message error:%s", err.Error())
 		return err
 	}
-
-	s.netCore.sendToGroupMember(groupID, bytes, msg.Code, NewNodeID(id))
+	nID := NewNodeID(id)
+	if nID != nil {
+		s.netCore.sendToNode(*nID, nil, bytes, msg.Code)
+	}
 	return nil
 }
 
@@ -70,6 +74,7 @@ func (s *Server) SpreadAmongGroup(groupID string, msg Message) error {
 		return err
 	}
 
+	Logger.Infof("SpreadAmongGroup :%s,code:%d,msg size:%d", groupID, msg.Code, len(msg.Body)+4)
 	s.netCore.groupBroadcast(groupID, bytes, msg.Code, true, -1)
 
 	return nil
@@ -82,7 +87,7 @@ func (s *Server) SpreadToGroup(groupID string, groupMembers []string, msg Messag
 		return err
 	}
 
-	Logger.Debugf("SpreadToGroup :%s,code:%d,msg size:%d", groupID, msg.Code, len(msg.Body)+4)
+	Logger.Infof("SpreadToGroup :%s,code:%d,msg size:%d", groupID, msg.Code, len(msg.Body)+4)
 	s.netCore.groupBroadcastWithMembers(groupID, bytes, msg.Code, digest, groupMembers, -1)
 
 	return nil
@@ -112,21 +117,17 @@ func (s *Server) Broadcast(msg Message) error {
 }
 
 func (s *Server) ConnInfo() []Conn {
-	result := make([]Conn, 0)
-	peers := s.netCore.peerManager.peers
-	for _, p := range peers {
-		if p.sessionID > 0 && p.IP != nil && p.Port > 0 && p.isAuthSucceed {
-			c := Conn{ID: p.ID.GetHexString(), IP: p.IP.String(), Port: strconv.Itoa(p.Port)}
-			result = append(result, c)
-		}
-	}
-	return result
+	return s.netCore.peerManager.ConnInfo()
 }
 
 func (s *Server) BuildGroupNet(groupID string, members []string) {
 	nodes := make([]NodeID, 0)
 	for _, id := range members {
-		nodes = append(nodes, NewNodeID(id))
+		nID := NewNodeID(id)
+		if nID != nil {
+			nodes = append(nodes, *nID)
+		}
+
 	}
 	s.netCore.groupManager.buildGroup(groupID, nodes)
 }
@@ -138,7 +139,10 @@ func (s *Server) DissolveGroupNet(groupID string) {
 func (s *Server) AddGroup(groupID string, members []string) *Group {
 	nodes := make([]NodeID, 0)
 	for _, id := range members {
-		nodes = append(nodes, NewNodeID(id))
+		nID := NewNodeID(id)
+		if nID != nil {
+			nodes = append(nodes, *nID)
+		}
 	}
 	return s.netCore.groupManager.buildGroup(groupID, nodes)
 }

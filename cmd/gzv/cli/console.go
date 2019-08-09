@@ -22,6 +22,8 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"io/ioutil"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/howeyc/gopass"
@@ -336,7 +338,7 @@ func (c *gasBaseCmd) initBase() {
 type sendTxCmd struct {
 	gasBaseCmd
 	to           string
-	value        float64
+	value        string
 	data         string
 	nonce        uint64
 	contractName string
@@ -351,7 +353,7 @@ func genSendTxCmd() *sendTxCmd {
 	}
 	c.initBase()
 	c.fs.StringVar(&c.to, "to", "", "the transaction receiver address")
-	c.fs.Float64Var(&c.value, "value", 0.0, "transfer value in ZVC unit")
+	c.fs.StringVar(&c.value, "value", "", "transfer value in ZVC unit")
 	c.fs.StringVar(&c.data, "data", "", "transaction data")
 	c.fs.StringVar(&c.extraData, "extra", "", "transaction extra data, user defined")
 	c.fs.Uint64Var(&c.nonce, "nonce", 0, "nonce, optional. will use default nonce on chain if not specified")
@@ -362,9 +364,10 @@ func genSendTxCmd() *sendTxCmd {
 }
 
 func (c *sendTxCmd) toTxRaw() *txRawData {
+	value, _ := parseRaFromString(c.value)
 	return &txRawData{
 		Target:    c.to,
-		Value:     common.Value2RA(c.value),
+		Value:     value,
 		TxType:    c.txType,
 		Data:      []byte(c.data),
 		Gas:       c.gaslimit,
@@ -397,6 +400,11 @@ func (c *sendTxCmd) parse(args []string) bool {
 	}
 
 	if !c.parseGasPrice() {
+		return false
+	}
+
+	if _, err := parseRaFromString(c.value); err != nil {
+		output(err)
 		return false
 	}
 
@@ -446,6 +454,46 @@ func (c *sendTxCmd) parse(args []string) bool {
 	}
 
 	return true
+}
+
+func parseRaFromString(number string) (uint64, error) {
+	if len(number) == 0 {
+		return 0, nil
+	}
+
+	numberSplit := strings.Split(number, ".")
+	lengthOfNumber := len(numberSplit)
+	if lengthOfNumber > 2 || lengthOfNumber < 1 {
+		return 0, fmt.Errorf("illegal number")
+	}
+
+	var numReg = regexp.MustCompile("^[0-9]{1,10}$") //check the format
+	if !numReg.MatchString(numberSplit[0]) {
+		return 0, fmt.Errorf("illegal number")
+	}
+
+	bigNumber, err := strconv.ParseUint(numberSplit[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	var decimal uint64
+	if lengthOfNumber == 2 {
+		var digital = regexp.MustCompile("^[0-9]{1,9}$") //check the format
+		if !digital.MatchString(numberSplit[1]) {
+			return 0, fmt.Errorf("illegal number")
+		}
+		realNumber := numberSplit[1]
+		for i := len(numberSplit[1]); i < 9; i++ {
+			realNumber += "0"
+		}
+		decimal, err = strconv.ParseUint(realNumber, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return bigNumber*common.ZVC + decimal, nil
 }
 
 type stakeAddCmd struct {
