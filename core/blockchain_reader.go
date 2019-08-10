@@ -300,3 +300,8 @@ func (chain *FullBlockChain) CountBlocksInRange(startHeight uint64, endHeight ui
 	defer chain.rwLock.RUnlock()
 	return chain.countBlocksInRange(startHeight, endHeight)
 }
+
+func (chain *FullBlockChain) LatestCheckpoint() *types.BlockHeader {
+	h := chain.cpChecker.latestCheckpoint()
+	return chain.QueryBlockHeaderByHeight(h)
+}

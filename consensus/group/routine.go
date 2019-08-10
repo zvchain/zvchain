@@ -59,7 +59,7 @@ type groupContextProvider interface {
 
 	RegisterGroupCreateChecker(checker types.GroupCreateChecker)
 
-	RegisterEpochAlg(alg types.EpochAlg)
+	RegisterGroupEpochAlg(alg types.GroupEpochAlg)
 }
 
 type minerReader interface {
@@ -100,7 +100,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	go checker.stat.loop()
 
 	provider.RegisterGroupCreateChecker(checker)
-	provider.RegisterEpochAlg(&epochAlg{})
+	types.SetEpochAlg(&groupEpochAlg{})
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, GroupRoutine.onBlockAddSuccess)
 	return GroupRoutine.store
@@ -256,7 +256,7 @@ func (routine *createRoutine) checkAndSendEncryptedPiecePacket(bh *types.BlockHe
 
 	// Generate encrypted share piece
 	packet := generateEncryptedSharePiecePacket(mInfo, encSk, era.Seed(), routine.ctx.cands)
-	routine.store.storeSeckey(era.Seed(), nil, &encSk, dismissEpoch(bh.Height).End())
+	routine.store.storeSeckey(era.Seed(), nil, &encSk, dismissEpoch(bh.Height).Start())
 
 	// Send the piece packet
 	err := routine.packetSender.SendEncryptedPiecePacket(packet)
@@ -330,7 +330,7 @@ func (routine *createRoutine) checkAndSendMpkPacket(bh *types.BlockHeader) (bool
 	if err != nil {
 		return false, fmt.Errorf("genearte msk error:%v", err)
 	}
-	routine.store.storeSeckey(era.Seed(), msk, nil, dismissEpoch(bh.Height).End())
+	routine.store.storeSeckey(era.Seed(), msk, nil, dismissEpoch(bh.Height).Start())
 
 	mpk := groupsig.NewPubkeyFromSeckey(*msk)
 	// Generate encrypted share piece

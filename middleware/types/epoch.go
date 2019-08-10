@@ -19,10 +19,75 @@ type Epoch interface {
 	Start() uint64
 	End() uint64
 	Next() Epoch
+	Prev() Epoch
+	Add(delta int) Epoch
 }
 
-type EpochAlg interface {
-	EpochAt(h uint64) Epoch
+type GroupEpochAlg interface {
 	// createEpochByHeight returns the creating epoch ranges of the groups at the given block height
 	CreateEpochByHeight(h uint64) (start, end Epoch)
+}
+
+const EpochLength = 8000 // blocks per epoch
+
+type epoch uint64
+
+func (e epoch) Start() uint64 {
+	return uint64(e) * EpochLength
+}
+
+func (e epoch) End() uint64 {
+	return e.Start() + EpochLength
+}
+func (e epoch) Prev() Epoch {
+	if e.Start() < 1 {
+		return genesisEpoch{}
+	}
+	return EpochAt(e.Start() - 1)
+}
+func (e epoch) Next() Epoch {
+	return EpochAt(e.End() + 1)
+}
+
+func (e epoch) Add(delta int) Epoch {
+	if delta >= 0 {
+		return EpochAt(e.Start() + uint64(delta)*EpochLength)
+	}
+	delta = -delta
+	if e.Start() >= uint64(delta)*EpochLength {
+		return EpochAt(e.Start() - uint64(delta)*EpochLength)
+	}
+	return &genesisEpoch{}
+}
+
+type genesisEpoch struct{}
+
+func (ge genesisEpoch) Start() uint64 {
+	return 0
+}
+
+func (ge genesisEpoch) End() uint64 {
+	return 0
+}
+
+func (ge genesisEpoch) Prev() Epoch {
+	return ge
+}
+
+func (ge genesisEpoch) Next() Epoch {
+	return EpochAt(1)
+}
+
+func (ge genesisEpoch) Add(delta int) Epoch {
+	if delta <= 0 {
+		return ge
+	}
+	if delta == 1 {
+		return EpochAt(0)
+	}
+	return EpochAt(ge.Start() + uint64(delta)*EpochLength)
+}
+
+func EpochAt(h uint64) Epoch {
+	return epoch(h / EpochLength)
 }

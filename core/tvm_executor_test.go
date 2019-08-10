@@ -25,12 +25,20 @@ var (
 	accountdb account.AccountDatabase
 )
 
+type cp4Test struct {
+}
+
+func (cp *cp4Test) checkAndUpdate(db types.AccountDB, bh *types.BlockHeader) {
+	return
+}
+
 func initExecutor() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
 			rewardManager:   NewRewardManager(),
 		},
+		cp: &cp4Test{},
 	}
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        100,
@@ -60,7 +68,7 @@ func initExecutor() {
 			rewardManager:   NewRewardManager(),
 		},
 	}
-	if BlockChainImpl == nil{
+	if BlockChainImpl == nil {
 		BlockChainImpl = executor.bc
 	}
 
@@ -189,5 +197,3 @@ func Test_validGasPrice(t *testing.T) {
 	}
 
 }
-
-

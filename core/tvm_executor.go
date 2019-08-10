@@ -57,6 +57,10 @@ type stateTransition interface {
 	GasUsed() *big.Int       // Total gas use during the transition
 }
 
+type checkpointUpdator interface {
+	checkAndUpdate(db types.AccountDB, bh *types.BlockHeader)
+}
+
 func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
 	base := newTransitionContext(db, tx, bh)
 
@@ -363,11 +367,13 @@ func (ss *rewardExecutor) Transition() *result {
 
 type TVMExecutor struct {
 	bc types.BlockChain
+	cp checkpointUpdator
 }
 
-func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
+func NewTVMExecutor(bc types.BlockChain, cp checkpointUpdator) *TVMExecutor {
 	return &TVMExecutor{
 		bc: bc,
+		cp: cp,
 	}
 }
 
@@ -508,6 +514,7 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	GroupManagerImpl.RegularCheck(accountDB, bh)
+	executor.cp.checkAndUpdate(accountDB, bh)
 
 	state = accountDB.IntermediateRoot(true)
 

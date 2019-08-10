@@ -36,7 +36,7 @@ type Manager struct {
 	punishment       minerPunishment
 	poolImpl         *pool
 	groupsByEpoch    *lru.Cache
-	epochAlg         types.EpochAlg
+	epochAlg         types.GroupEpochAlg
 }
 
 func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
@@ -51,17 +51,17 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 	m.checkerImpl = checker
 }
 
-func (m *Manager) RegisterEpochAlg(alg types.EpochAlg) {
+func (m *Manager) RegisterGroupEpochAlg(alg types.GroupEpochAlg) {
 	m.epochAlg = alg
 }
 
-func NewManager(chain chainReader) Manager {
+func NewManager(chain chainReader) *Manager {
 	logger = log.GroupLogger
 	gPool := newPool(chain)
 	store := NewStore(chain)
 	packetSender := NewPacketSender(chain)
 
-	managerImpl := Manager{
+	managerImpl := &Manager{
 		chain:            chain,
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
@@ -101,7 +101,7 @@ func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 
 // OnBlockRemove resets group with top block with parameter bh
 func (m *Manager) OnBlockRemove(bh *types.BlockHeader) {
-	ep := m.epochAlg.EpochAt(bh.Height)
+	ep := types.EpochAt(bh.Height)
 	m.poolImpl.invalidateEpochGroupCache(ep)
 }
 
@@ -147,7 +147,7 @@ func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
 
 func (m *Manager) GetLivedGroupsAt(height uint64) []types.GroupI {
 	startEpoch, _ := m.epochAlg.CreateEpochByHeight(height)
-	currentEp := m.epochAlg.EpochAt(m.chain.Height())
+	currentEp := types.EpochAt(m.chain.Height())
 
 	gis := make([]types.GroupI, 0)
 
