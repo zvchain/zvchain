@@ -30,6 +30,8 @@ var (
 	prefixPoolProposal        = []byte("p")
 	prefixPoolVerifier        = []byte("v")
 	keyPoolProposalTotalStake = []byte("totalstake")
+	keyVote 				  = []byte("votekey")
+	keyTickets 				  = []byte("tickets")
 )
 
 const (
@@ -90,9 +92,9 @@ func tokenReleased(height uint64) uint64 {
 // Special account address
 // Need to access by AccountDBTS for concurrent situations
 var (
-	minerPoolAddr   = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
-	rewardStoreAddr = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
-    guardNodeAddr   = common.BigToAddress(big.NewInt(3)) // The Address storing all guard miner nodes
+	minerPoolAddr         = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
+	rewardStoreAddr       = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
+    minerPoolTicketsAddr  = common.BigToAddress(big.NewInt(3)) // The Address storing all miner pool tickets
 )
 
 var punishmentDetailAddr = common.BigToAddress(big.NewInt(0))
@@ -103,6 +105,22 @@ type stakeDetail struct {
 	Value         uint64  // Stake operation amount
 	Height        uint64  // Operation height
 	DisMissHeight uint64  //Stake disMiss height
+}
+
+type voteInfo struct {
+	Target       common.Address
+	Height		 uint64
+	Last         byte
+	UpdateHeight uint64
+}
+
+func NewVoteInfo(height uint64)*voteInfo{
+	return &voteInfo{
+		Target:common.Address{},
+		Height:height,
+		UpdateHeight:height,
+		Last:1,
+	}
 }
 
 func getDetailKey(address common.Address, typ types.MinerType, status types.StakeStatus) []byte {
@@ -217,6 +235,24 @@ func getDetail(db types.AccountDB, address common.Address, detailKey []byte) (*s
 	return nil, nil
 }
 
+
+func getTotalTickets(db types.AccountDBTS,key []byte)uint64{
+	totalTicketsBytes := db.GetDataSafe(minerPoolTicketsAddr, key)
+	totalTickets := uint64(0)
+	if len(totalTicketsBytes) > 0 {
+		totalTickets = common.ByteToUInt64(totalTicketsBytes)
+	}
+	return totalTickets
+}
+
+
+func getTicketsKey(address common.Address) []byte {
+	buf := bytes.NewBuffer([]byte{})
+	buf.Write(keyTickets)
+	buf.Write(address.Bytes())
+	return buf.Bytes()
+}
+
 func getProposalTotalStake(db types.AccountDBTS) uint64 {
 	totalStakeBytes := db.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
 	totalStake := uint64(0)
@@ -251,6 +287,83 @@ func (op *baseOperation) opProposalRole() bool {
 func (op *baseOperation) opVerifyRole() bool {
 	return types.IsVerifyRole(op.minerType)
 }
+
+
+func (op *baseOperation) initVoteInfo(address common.Address,height uint64)error{
+	vi := NewVoteInfo(height)
+	bs, err := msgpack.Marshal(vi)
+	if err != nil {
+		return err
+	}
+	op.db.SetData(address, keyVote,bs)
+	return nil
+}
+
+
+func (op *baseOperation) getVoteInfo(address common.Address)(*voteInfo,error){
+	data := op.db.GetData(address,keyVote)
+	if data == nil{
+		return nil,nil
+	}
+	var vf voteInfo
+	err := msgpack.Unmarshal(data, &vf)
+	if err != nil {
+		return nil,err
+	}
+	return &vf,nil
+}
+
+func (op *baseOperation) addTicket(address common.Address)uint64{
+	key := getTicketsKey(address)
+	totalTickets := getTotalTickets(op.minerPool,key)
+
+	totalTickets+=1
+	// Must not happen
+	if totalTickets < totalTickets {
+		panic(fmt.Errorf("total totalTickets overflow"))
+	}
+	op.minerPool.SetDataSafe(minerPoolTicketsAddr, keyTickets, common.Uint64ToByte(totalTickets))
+	return totalTickets
+}
+
+
+func (op *baseOperation) subTicket(address common.Address)uint64{
+	key := getTicketsKey(address)
+	totalTickets := getTotalTickets(op.minerPool,key)
+	if totalTickets < 1 {
+		totalTickets = 0
+	}else{
+		totalTickets -=1
+	}
+	op.minerPool.SetDataSafe(minerPoolTicketsAddr, keyTickets, common.Uint64ToByte(totalTickets))
+	return totalTickets
+}
+
+func (op *baseOperation) voteMinerPool(source common.Address,targetAddress common.Address)error{
+	vf,err := op.getVoteInfo(source)
+	if err != nil{
+		return err
+	}
+	if vf!= nil && vf.Last ==1 {
+		vf.Last = 0
+		vf.UpdateHeight = op.height
+		vf.Target = targetAddress
+
+		bs, err := msgpack.Marshal(vf)
+		if err != nil {
+			return err
+		}
+		op.db.SetData(source,keyVote,bs)
+	}
+	return nil
+}
+
+
+func (op *baseOperation) isFullTickets(address common.Address,totalTickets uint64)bool{
+	needTickets := getValidTicketsByHeight(op.height)
+	return totalTickets >= needTickets
+}
+
 
 func (op *baseOperation) addToPool(address common.Address, addStake uint64) {
 	var key []byte

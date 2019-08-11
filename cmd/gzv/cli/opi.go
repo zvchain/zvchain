@@ -123,6 +123,8 @@ type chainOp interface {
 
 	ApplyGuardMiner(cycle uint64,gas, gasprice uint64) *Result
 
+	VoteMinerPool(address string,gas, gasprice uint64)*Result
+
 	BlockHeight() *Result
 
 	GroupHeight() *Result

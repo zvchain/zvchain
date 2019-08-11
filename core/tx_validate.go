@@ -228,6 +228,13 @@ func applyGuardValidator(tx *types.Transaction) error {
 	return applyGuardCycleCheck(tx.Data[0])
 }
 
+func voteMinerPoolValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	return nil
+}
+
 
 func groupValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
@@ -310,6 +317,8 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeRefundValidator(tx)
 			case types.TransactionTypeApplyGuardMiner:
 				err = applyGuardValidator(tx)
+			case types.TransactionTypeVoteMinerPool:
+				err = voteMinerPoolValidator(tx)
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			default:
@@ -328,7 +337,11 @@ func getValidator(tx *types.Transaction) validator {
 					return fmt.Errorf("could not abort for other node")
 				}
 			}
-
+			if tx.Type == types.TransactionTypeVoteMinerPool {
+				if bytes.Compare(tx.Target.Bytes(), tx.Source.Bytes()) == 0 {
+					return fmt.Errorf("could not vote myself")
+				}
+			}
 			// Validate state
 			if err := stateValidate(tx); err != nil {
 				return err

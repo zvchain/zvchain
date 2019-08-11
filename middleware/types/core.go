@@ -80,8 +80,8 @@ const (
 	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
 
 
-	TransactionTypeApplyGuardMiner  = 12  //apply miner node
-
+	TransactionTypeApplyGuardMiner  = 12  // apply miner node
+	TransactionTypeVoteMinerPool  = 13  // vote to miner pool
 
 )
 

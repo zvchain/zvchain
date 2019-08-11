@@ -77,6 +77,76 @@ func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height ui
 	return operation
 }
 
+type voteMinerPoolOp struct {
+	*baseOperation
+	targetAddr common.Address
+}
+
+func (op *voteMinerPoolOp)GetBaseOperation()*baseOperation{
+	return op.baseOperation
+}
+
+func (op *voteMinerPoolOp)Height()uint64{
+	return op.height
+}
+func (op *voteMinerPoolOp)GetMinerType()types.MinerType{
+	return op.minerType
+}
+
+func (op *voteMinerPoolOp)GetMinerPks()*types.MinerPks{
+	return nil
+}
+
+func (op *voteMinerPoolOp)GetDb()types.AccountDB{
+	return op.db
+}
+
+func (op *voteMinerPoolOp) Value() uint64 {
+	return 0
+}
+
+func (op *voteMinerPoolOp) Source() common.Address {
+	return op.source
+}
+
+func (op *voteMinerPoolOp)Target()common.Address{
+	return op.targetAddr
+}
+
+func (op *voteMinerPoolOp) Validate() error {
+	if op.source == op.targetAddr{
+		return fmt.Errorf("could not vote myself")
+	}
+	return nil
+}
+
+func (op *voteMinerPoolOp) ParseTransaction() error {
+	op.targetAddr = *op.msg.OpTarget()
+	op.minerType = types.MinerTypeProposal
+	return nil
+}
+
+func (op *voteMinerPoolOp) Transition() *result {
+	ret := newResult()
+	targetMiner, err := op.getMiner(op.targetAddr)
+	if err != nil {
+		ret.setError(err,types.RSFail)
+		return ret
+	}
+	if targetMiner == nil{
+		ret.setError(fmt.Errorf("no miner info"),types.RSFail)
+		return ret
+	}
+	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
+	err = baseOp.processMinerOp(op,targetMiner,VoteMinerPoolOp)
+	if err != nil{
+		ret.setError(err,types.RSFail)
+		return ret
+	}
+	return ret
+}
+
+
 type applyGuardMinerOp struct {
 	*baseOperation
 	targetAddr common.Address
@@ -107,7 +177,7 @@ func (op *applyGuardMinerOp) Value() uint64 {
 }
 
 func (op *applyGuardMinerOp) Source() common.Address {
-	return op.targetAddr
+	return op.source
 }
 
 func (op *applyGuardMinerOp)Target()common.Address{

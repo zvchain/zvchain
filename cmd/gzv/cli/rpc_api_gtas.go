@@ -182,7 +182,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	if !validateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	if detail != "" && detail != "all" && !validateAddress(strings.TrimSpace(detail)) {
+	if detail != "" && !validateAddress(strings.TrimSpace(detail)) {
 		return failResult("Wrong detail address format")
 	}
 
@@ -233,17 +233,6 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	// Get details
 	switch detail {
 	case "":
-
-	case "all":
-		detailsMap := core.MinerManagerImpl.GetAllStakeDetails(address)
-		m := make(map[string][]*StakeDetail)
-		if detailsMap != nil {
-			for from, ds := range detailsMap {
-				dts := convertDetails(ds)
-				m[from] = dts
-			}
-			minerDetails.Details = m
-		}
 
 	default:
 		details := core.MinerManagerImpl.GetStakeDetails(address, common.HexToAddress(detail))

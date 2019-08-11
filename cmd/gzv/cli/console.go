@@ -174,12 +174,43 @@ func (c *nonceCmd) parse(args []string) bool {
 	return true
 }
 
+type voteMinerPoolCmd struct {
+	gasBaseCmd
+	addr string
+}
+
+func genVoteMinerPoolCmd() *voteMinerPoolCmd {
+	c := &voteMinerPoolCmd{
+		gasBaseCmd: *genGasBaseCmd("voteMinerPool", "only guard miner node can vote miner pool,every guard miner node only vote once"),
+	}
+	c.initBase()
+	c.fs.StringVar(&c.addr, "addr", "", "your vote address")
+	return c
+}
+
+func (c *voteMinerPoolCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if strings.TrimSpace(c.addr) == "" {
+		output("please input the address")
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return c.parseGasPrice()
+}
+
 type applyGuardMinerCmd struct {
 	gasBaseCmd
 	cycle uint64
 }
 
-func genApplyGuardMinerCmdCmd() *applyGuardMinerCmd {
+
+func genApplyGuardMinerCmd() *applyGuardMinerCmd {
 	c := &applyGuardMinerCmd{
 		gasBaseCmd: *genGasBaseCmd("applyGuard", "apply guard miner node,cycle must be between  1 and 2"),
 	}
@@ -753,7 +784,8 @@ var cmdGroupHeight = genBaseCmd("groupheight", "the current group height")
 var cmdTx = genTxCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
-var cmdApplyGuardMiner = genApplyGuardMinerCmdCmd()
+var cmdApplyGuardMiner = genApplyGuardMinerCmd()
+var cmdVoteMinerPool= genVoteMinerPoolCmd()
 var cmdStakeAdd = genStakeAddCmd()
 var cmdMinerAbort = genMinerAbortCmd()
 var cmdStakeRefund = genStakeRefundCmd()
@@ -777,6 +809,7 @@ func init() {
 	list = append(list, cmdDelAccount)
 	list = append(list, &cmdMinerInfo.baseCmd)
 	list = append(list, &cmdApplyGuardMiner.baseCmd)
+	list = append(list, &cmdVoteMinerPool.baseCmd)
 	list = append(list, &cmdConnect.baseCmd)
 	list = append(list, cmdBlockHeight)
 	list = append(list, cmdGroupHeight)
@@ -970,10 +1003,17 @@ func loop(acm accountOp, chainOp chainOp) {
 				})
 			}
 		case cmdApplyGuardMiner.name:
-			cmd := genApplyGuardMinerCmdCmd()
+			cmd := genApplyGuardMinerCmd()
 			if cmd.parse(args){
 				handleCmd(func() *Result {
 					return chainOp.ApplyGuardMiner(cmd.cycle,cmd.gaslimit, cmd.gasPrice)
+				})
+			}
+		case cmdVoteMinerPool.name:
+			cmd := genVoteMinerPoolCmd()
+			if cmd.parse(args){
+				handleCmd(func() *Result {
+					return chainOp.VoteMinerPool(cmd.addr,cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdBlockHeight.name:

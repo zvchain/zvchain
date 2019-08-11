@@ -241,6 +241,24 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 }
 
 
+func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Result{
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	if aci.Address == target {
+		return opError(fmt.Errorf("you could not vote to myself"))
+	}
+	tx := &txRawData{
+		Target:   target,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeVoteMinerPool,
+	}
+	return ca.SendRaw(tx)
+}
+
 func (ca *RemoteChainOpImpl)ApplyGuardMiner(cycle uint64,gas, gasprice uint64) *Result{
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {

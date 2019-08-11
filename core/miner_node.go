@@ -13,6 +13,7 @@ const (
 	StakedAddOp          		MinerOp = iota
 	StakeAbortOp
 	ApplyGuardOp
+	VoteMinerPoolOp
 )
 
 const (
@@ -23,6 +24,7 @@ type baseIdentityOp interface {
 	processMinerOp(mop mOperation,targetMiner *types.Miner,op MinerOp) error
 	updateMinerDetail(mop mOperation,targetMiner *types.Miner,stakeStatus types.StakeStatus)error
 	updateBalance(mop mOperation,balanceOp BalanceOp)error
+	processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error
 }
 
 
@@ -109,6 +111,15 @@ func (n *NormalProposalMiner) processMinerOp(mop mOperation,targetMiner *types.M
 		if err != nil{
 			return err
 		}
+	case VoteMinerPoolOp:
+		err := n.checkVoteMinerPool(mop,targetMiner)
+		if err != nil{
+			return err
+		}
+		err = n.processVoteMinerPool(mop,targetMiner)
+		if err != nil{
+			return err
+		}
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -123,6 +134,40 @@ func(n*NormalProposalMiner)checkStakeAdd(mop mOperation,targetMiner *types.Miner
 	return nil
 }
 
+func (n *NormalProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
+	// sub vote count
+	err := mop.GetBaseOperation().voteMinerPool(mop.Source(),mop.Target())
+	if err != nil{
+		return err
+	}
+	// add tickets count
+	totalTickets := mop.GetBaseOperation().addTicket(mop.Target())
+	isFull := mop.GetBaseOperation().isFullTickets(mop.Target(),totalTickets)
+	// if full,only update nodeIdentity
+	if isFull{
+		Logger.Infof("address %s is upgrade miner pool",mop.Target().Hex())
+		if targetMiner == nil{
+			targetMiner = &types.Miner{
+				ID:          mop.Target().Bytes(),
+				Stake:       0,
+				ApplyHeight: mop.Height(),
+				Type:        mop.GetMinerType(),
+				Status:      types.MinerStatusPrepare,
+			}
+		}
+		targetMiner.UpdateIdentity(types.MinerPool,mop.Height())
+		// Save miner
+		if err := mop.GetBaseOperation().setMiner(targetMiner); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+
+func (g *GuardProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
+	return fmt.Errorf("unSupported vote")
+}
 
 func (g *GuardProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op MinerOp) error {
 	switch op {
@@ -146,6 +191,8 @@ func (g *GuardProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Mi
 		}
 	case ApplyGuardOp:
 		return fmt.Errorf("guard node is not support this operator")
+	case VoteMinerPoolOp:
+		return fmt.Errorf("guard node could not be voted by others")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -174,9 +221,32 @@ func (m *MinerPoolProposalMiner) processMinerOp(mop mOperation,targetMiner *type
 		}
 	case ApplyGuardOp:
 		return fmt.Errorf("miner pool node is not support this operator")
+	case VoteMinerPoolOp:
+		err := m.checkVoteMinerPool(mop,targetMiner)
+		if err != nil{
+			return err
+		}
+		err = m.processVoteMinerPool(mop,targetMiner)
+		if err != nil{
+			return err
+		}
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
+	return nil
+}
+
+func (m *MinerPoolProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
+	if targetMiner == nil{
+		return fmt.Errorf("miner cannot be nil")
+	}
+	// sub vote count
+	err := mop.GetBaseOperation().voteMinerPool(mop.Source(),mop.Target())
+	if err != nil{
+		return err
+	}
+	// add tickets count
+	mop.GetBaseOperation().addTicket(mop.Target())
 	return nil
 }
 
@@ -188,10 +258,60 @@ func (i *InvalidProposalMiner) processMinerOp(mop mOperation,targetMiner *types.
 		return fmt.Errorf("invalid miner pool could not support stake abort")
 	case ApplyGuardOp:
 		return fmt.Errorf("invalid pool node not support this operator")
+	case VoteMinerPoolOp:
+		err := i.checkVoteMinerPool(mop,targetMiner)
+		if err != nil{
+			return err
+		}
+		err = i.processVoteMinerPool(mop,targetMiner)
+		if err != nil{
+			return err
+		}
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
 	return nil
+}
+
+func (i *InvalidProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
+	if targetMiner == nil{
+		return fmt.Errorf("target miner can not be nil")
+	}
+	// sub vote count
+	err := mop.GetBaseOperation().voteMinerPool(mop.Source(),mop.Target())
+	if err != nil{
+		return err
+	}
+	add := false
+	// add tickets count
+	totalTickets := mop.GetBaseOperation().addTicket(mop.Target())
+	isFull := mop.GetBaseOperation().isFullTickets(mop.Target(),totalTickets)
+	// if full,only update nodeIdentity
+	if isFull{
+		Logger.Infof("address %s is from invalid miner pool upgrade miner pool",mop.Target().Hex())
+		targetMiner.UpdateIdentity(types.MinerPool,mop.Height())
+		// Check if to active the miner
+		if checkCanActivate(targetMiner) {
+			targetMiner.UpdateStatus(types.MinerStatusActive, mop.Height())
+			// Add to pool so that the miner can start working
+			mop.GetBaseOperation().addToPool(mop.Target(), targetMiner.Stake)
+			add = true
+		}
+		// Save miner
+		if err := mop.GetBaseOperation().setMiner(targetMiner); err != nil {
+			return err
+		}
+	}
+
+	if add && MinerManagerImpl != nil {
+		// Inform added proposer address to minerManager
+		MinerManagerImpl.proposalAddCh <- mop.Target()
+	}
+	return nil
+}
+
+func (v *VerifyMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
+	return fmt.Errorf("unSupported vote")
 }
 
 func (v *VerifyMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op MinerOp) error {
@@ -216,6 +336,8 @@ func (v *VerifyMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op 
 			}
 		case ApplyGuardOp:
 			return fmt.Errorf("verify node not support this operator")
+		case VoteMinerPoolOp:
+			return fmt.Errorf("verify node could not be voted by others")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -257,6 +379,25 @@ func initMiner(mop mOperation)*types.Miner{
 	return miner
 }
 
+
+func(b*BaseMiner)checkVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
+	sourceMiner, err := mop.GetBaseOperation().getMiner(mop.Source())
+	if err != nil{
+		return err
+	}
+	if !sourceMiner.IsGuard(){
+		return fmt.Errorf("only guard node can vote to miner pool")
+	}
+	vf,err := mop.GetBaseOperation().getVoteInfo(mop.Source())
+	if err != nil{
+		return err
+	}
+	if vf == nil || vf.Last < 1{
+		return fmt.Errorf("this guard node has no tickets")
+	}
+	return nil
+}
+
 func(b*BaseMiner)checkApplyGuard(mop mOperation,miner *types.Miner)error{
 	if miner == nil {
 		return fmt.Errorf("no miner info")
@@ -287,8 +428,16 @@ func(b*BaseMiner)processApplyGuard(mop mOperation,miner *types.Miner) error{
 	cycle := op.cycle
 	detailKey := getDetailKey(mop.Source(), mop.GetMinerType(), types.Staked)
 	detail,err = mop.GetBaseOperation().getDetail(mop.Source(), detailKey)
+	if err != nil{
+		return err
+	}
 	detail.DisMissHeight = mop.Height() + halfOfYearBlocks * cycle
 	if err := mop.GetBaseOperation().setDetail(mop.Source(), detailKey, detail); err != nil {
+		return err
+	}
+	// generate vote info
+	err = mop.GetBaseOperation().initVoteInfo(mop.Source(),mop.Height())
+	if err !=  nil{
 		return err
 	}
 	log.CoreLogger.Infof("apply guard success,address is %s,height is %v,cycle is %d",mop.Source().Hex(),mop.Height(),cycle)
@@ -428,4 +577,8 @@ func(u*UnSupportMiner)updateMinerDetail(mop mOperation,targetMiner *types.Miner,
 }
 func(u*UnSupportMiner)updateBalance(mop mOperation,balanceOp BalanceOp)error{
 	return fmt.Errorf("unSupported update balance")
+}
+
+func (u *UnSupportMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
+	return fmt.Errorf("unSupported vote")
 }
