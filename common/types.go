@@ -103,7 +103,7 @@ func (a *Address) SetBytes(b []byte) {
 	if len(b) > len(a) {
 		b = b[len(b)-AddressLength:]
 	}
-	copy(a[:], b[:])
+	copy(a[AddressLength-len(b):], b[:])
 }
 
 // SetString returns the address of the input hex string assignment

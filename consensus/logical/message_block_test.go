@@ -16,14 +16,16 @@ import (
 
 const goodCastor = "0000000100000000000000000000000000000000000000000000000000000000"
 const inActiveCastor = "0000000200000000000000000000000000000000000000000000000000000000"
-const goodPreHash = "0xfe51bc4c2d32f64aa666ef21b92da0c1ba8e37624b1d6c7dcc92a21476f83c40"
+const goodPreHash = "0x73462515b5be97b6a4c66dc6acd46a64b442655bd61560525695cadb0c71572d"
 const otherGroup = "0x01"
+
+var now = time2.Now()
 
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 
 	bh := types.BlockHeader{}
 	bh.Elapsed = 1
-	bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
+	bh.CurTime = time.TimeToTimeStamp(now) - 3
 	//bh.PreHash = common.HexToHash("0x03")
 	bh.Height = 3
 	proveString := "03db08597ecb8270a371018a1e4a4cd811938a33e2ca0f89e1d5dff038b7d9f99fd8891b000e06ac3abdf22ac962a5628c07d5bb38451dcdcb2ab07ce0fd7e6c77684b97e8adac2c1f7d5986bba22de4bd"
@@ -35,7 +37,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 
 	switch param {
 	case "ok":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.CurTime = time.TimeToTimeStamp(now) - 40
 		bh.Hash = bh.GenHash()
 	case "Hash":
 		bh.Hash = common.HexToHash("0x01")
@@ -55,7 +57,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.TotalQN = 10
 		bh.Hash = bh.GenHash()
 	case "CurTime":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now())
+		bh.CurTime = time.TimeToTimeStamp(now)
 		bh.Hash = bh.GenHash()
 	case "Castor":
 		bh.Castor = []byte{0, 1}
@@ -95,7 +97,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Height = 10
 		bh.Hash = bh.GenHash()
 	case "p.ts.Since(bh.CurTime)<-1":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) + 2
+		bh.CurTime = time.TimeToTimeStamp(now) + 3
 		bh.Hash = bh.GenHash()
 	case "block-exists":
 		bh = types.BlockHeader{}
@@ -107,12 +109,12 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.PreHash = common.HexToHash("0x01")
 		bh.Hash = bh.GenHash()
 	case "already-cast":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 1
+		bh.CurTime = time.TimeToTimeStamp(now) - 1
 		bh.PreHash = common.HexToHash("0x1234")
 		bh.Height = 1
 		bh.Hash = bh.GenHash()
 	case "already-sign":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
+		bh.CurTime = time.TimeToTimeStamp(now) - 3
 		bh.PreHash = common.HexToHash("0x02")
 		bh.Height = 2
 		bh.Hash = bh.GenHash()
@@ -120,18 +122,18 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Castor = common.Hex2Bytes(inActiveCastor)
 		bh.Hash = bh.GenHash()
 	case "slot-is-nil":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 3
+		bh.CurTime = time.TimeToTimeStamp(now) - 3
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 3
 		bh.Hash = bh.GenHash()
 	case "not-in-verify-group":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now())
+		bh.CurTime = time.TimeToTimeStamp(now)
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 3
 		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "sender-not-in-verify-group":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now())
+		bh.CurTime = time.TimeToTimeStamp(now)
 		bh.PreHash = common.HexToHash("0x03")
 		bh.Height = 4
 		bh.Castor = common.Hex2Bytes(goodCastor)
@@ -167,15 +169,15 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
 	case "group-wrong":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.CurTime = time.TimeToTimeStamp(now) - 40
 		bh.Group = common.HexToHash(otherGroup)
 		bh.Hash = bh.GenHash()
 	case "qn-error":
 		bh.TotalQN = 1
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 40
+		bh.CurTime = time.TimeToTimeStamp(now) - 40
 		bh.Hash = bh.GenHash()
 	case "prove_wrong":
-		bh.CurTime = time.TimeToTimeStamp(time2.Now()) - 41
+		bh.CurTime = time.TimeToTimeStamp(now) - 41
 		bh.Hash = bh.GenHash()
 
 	}

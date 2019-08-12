@@ -17,7 +17,6 @@ package logical
 
 import (
 	"fmt"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"

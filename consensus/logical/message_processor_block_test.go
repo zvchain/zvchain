@@ -198,7 +198,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 				},
 				sourceID: "111",
 			},
-			expected: "reqProposa sender 0x0000-040500 has already requested the block",
+			expected: "reqProposa sender zv0000-040500 has already requested the block",
 		},
 		{
 			name: "bad hash",
