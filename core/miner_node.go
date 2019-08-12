@@ -700,8 +700,10 @@ func(b*BaseMiner)updateBalance(mop mOperation,balanceOp BalanceOp)error{
 			// Sub the balance of source account
 			mop.GetDb().SubBalance(mop.Source(), amount)
 		}
+	}else{
+		fmt.Errorf("unknow balance update opertation")
 	}
-	return fmt.Errorf("unknow balance update opertation")
+	return nil
 }
 
 func (u *UnSupportMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op MinerOp) error {

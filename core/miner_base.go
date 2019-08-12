@@ -485,7 +485,7 @@ func guardNodeExpired(db types.AccountDB,address common.Address,height uint64){
 		return
 	}
 	if miner == nil{
-		Logger.Error("guard invalid find miner is nil,addr is %s",address.Hex())
+		Logger.Errorf("guard invalid find miner is nil,addr is %s",address.Hex())
 		return
 	}
 	miner.UpdateIdentity(types.MinerNormal,height)
@@ -500,7 +500,7 @@ func guardNodeExpired(db types.AccountDB,address common.Address,height uint64){
 		return
 	}
 	if vf == nil{
-		Logger.Error("find guard node vote info is nil,addr is %s",address.Hex())
+		Logger.Errorf("find guard node vote info is nil,addr is %s",address.Hex())
 		return
 	}
 	delVoteInfo(db,address)

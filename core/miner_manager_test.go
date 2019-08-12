@@ -135,7 +135,7 @@ func testStakeAddFromOthers(ctx *mOperContext, t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode payload error:%v", err)
 	}
-	stakeAddMsg := genMOperMsg(ctx.source, ctx.target, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
+	stakeAddMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
 	source := *stakeAddMsg.operator
 
 	_, err = MinerManagerImpl.ExecuteOperation(accountDB, stakeAddMsg, 0)
@@ -146,7 +146,7 @@ func testStakeAddFromOthers(ctx *mOperContext, t *testing.T) {
 	balance2 := accountDB.GetBalance(source)
 	t.Logf("operator balance after stake-add:%v", balance2)
 
-	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+	miner, _ := getMiner(accountDB, *ctx.source, ctx.mType)
 	if miner == nil {
 		t.Errorf("get miner nil")
 	}
@@ -243,6 +243,7 @@ func TestMinerManager_GetAllStakeDetails_StakeAdd(t *testing.T) {
 	defer clear()
 
 	testStakeAddFromSelf(ctx, t)
+	totalStake := getProposalTotalStake(accountDB.AsAccountDBTS())
 	details := MinerManagerImpl.GetStakeDetails(*ctx.target, *ctx.target)
 	t.Log(detailString(details))
 
@@ -251,10 +252,10 @@ func TestMinerManager_GetAllStakeDetails_StakeAdd(t *testing.T) {
 	details = MinerManagerImpl.GetStakeDetails(*ctx.target, *ctx.source)
 	t.Log(detailString(details))
 
-	totalStake := getProposalTotalStake(accountDB.AsAccountDBTS())
+	totalStake = getProposalTotalStake(accountDB.AsAccountDBTS())
 
 	t.Logf("total stake:%v", totalStake)
-	if totalStake != ctx.stakeAddValue*2 {
+	if totalStake != ctx.stakeAddValue {
 		t.Errorf("total stake error: expect %v, infact %v", ctx.stakeAddValue*2, totalStake)
 	}
 

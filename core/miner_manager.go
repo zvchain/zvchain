@@ -60,6 +60,9 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 
 // GuardNodesCheck check guard nodes is expired
 func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader)error{
+	if bh.Height % 100 != 0 {
+		return nil
+	}
 	gm,err := getGuardMinerNodeInfo(db.AsAccountDBTS())
 	if err != nil{
 		return err
