@@ -89,7 +89,7 @@ func (g *Group) onRemove() {
 			node := netCore.kad.find(ID)
 			if node == nil {
 				Logger.Infof("group on remove, member ID: %v", ID)
-				netCore.peerManager.disconnect(ID)
+				//netCore.peerManager.disconnect(ID)
 			}
 		}
 	}
