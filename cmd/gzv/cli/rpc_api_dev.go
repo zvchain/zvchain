@@ -177,7 +177,7 @@ func (api *RpcDevImpl) WorkGroupNum() (*Result, error) {
 }
 
 func (api *RpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
-	api2 := &RpcExplorerImpl{}
+	api2 := &RpcExplorerImpl{rpcBaseImpl:api.rpcBaseImpl}
 	return api2.ExplorerGroupsAfter(height)
 }
 
