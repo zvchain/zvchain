@@ -770,7 +770,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 		nc.onHandleDataMessage(req, srcNodeID)
 	}
 
-	//group slice message just handle it,but don't forward
+	//group row message just handle it,but don't forward
 	if req.DataType == DataType_DataGroupRow {
 		return nil
 	}

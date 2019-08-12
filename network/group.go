@@ -169,7 +169,8 @@ func (g *Group) onRemove() {
 			node := netCore.kad.find(ID)
 			if node == nil {
 				Logger.Infof("[group]group on remove, member ID: %v", ID)
-				netCore.peerManager.disconnect(ID)
+				//test don't disconnect
+				//netCore.peerManager.disconnect(ID)
 			}
 		}
 	}
@@ -339,7 +340,7 @@ func (g *Group) Broadcast(msg *MsgData) {
 		groupMsgMap[0] = true
 	}
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for ; len(groupMsgMap) < groupSendCount; {
+	for len(groupMsgMap) < groupSendCount {
 		column := rand.Intn(g.rowSize)
 		if !groupMsgMap[column] && column != g.columnIndex {
 			groupMsgMap[column] = true
