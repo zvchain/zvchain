@@ -17,10 +17,12 @@ package net
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/log"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -70,6 +72,10 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
 
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": ccm.BH.Height,
+		"blockHash": ccm.BH.Hash.Hex(),
+	}).Debug("SendCastVerify")
 	for idx, mem := range gb.MemIds {
 		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: proveHashs[idx].Bytes()}
 		body, err := proto.Marshal(message)
