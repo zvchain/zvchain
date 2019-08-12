@@ -9,8 +9,8 @@ import (
 )
 
 func TestMinerManager_MaxStake(t *testing.T) {
-	maxs := []uint64{2500000, 5803571, 8467741, 10661764, 11148648, 11562500,
-		11918604, 11684782, 11479591, 11298076, 10909090, 10560344, 10245901}
+	maxs := []uint64{2500000, 3500000, 4500000, 5500000, 6000000, 6500000,
+		7000000, 7250000, 7500000, 7750000, 7875000, 8000000, 8125000}
 	for i := 0; i <= 30; i++ {
 		var cur = i
 		if i >= len(maxs) {
@@ -100,10 +100,9 @@ func setup() {
 
 func testStakeAddFromSelf(ctx *mOperContext, t *testing.T) {
 	var mpks = &types.MinerPks{
-		MType:     ctx.mType,
-		Pk:        common.FromHex("0x215fdace84c59a6d86e1cbe4238c3e4a5d7a6e07f6d4c5603399e573cc05a32617faae51cfd3fce7c84447522e52a1439f46fc5adb194240325fcb800a189ae129ebca2b59999a9ecd16e03184e7fe578418b20cbcdc02129adc79bf090534a80fb9076c3518ae701477220632008fc67981e2a1be97a160a2f9b5804f9b280f"),
-		VrfPk:     common.FromHex("0x7bc1cb6798543feb524456276d9b26014ddfb5cd757ac6063821001b50679bcf"),
-		AddHeight: 0,
+		MType: ctx.mType,
+		Pk:    common.FromHex("0x215fdace84c59a6d86e1cbe4238c3e4a5d7a6e07f6d4c5603399e573cc05a32617faae51cfd3fce7c84447522e52a1439f46fc5adb194240325fcb800a189ae129ebca2b59999a9ecd16e03184e7fe578418b20cbcdc02129adc79bf090534a80fb9076c3518ae701477220632008fc67981e2a1be97a160a2f9b5804f9b280f"),
+		VrfPk: common.FromHex("0x7bc1cb6798543feb524456276d9b26014ddfb5cd757ac6063821001b50679bcf"),
 	}
 
 	bs, err := types.EncodePayload(mpks)
@@ -129,8 +128,7 @@ func testStakeAddFromSelf(ctx *mOperContext, t *testing.T) {
 
 func testStakeAddFromOthers(ctx *mOperContext, t *testing.T) {
 	var mpks = &types.MinerPks{
-		MType:     ctx.mType,
-		AddHeight: 0,
+		MType: ctx.mType,
 	}
 
 	bs, err := types.EncodePayload(mpks)
