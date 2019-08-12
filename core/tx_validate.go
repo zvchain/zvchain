@@ -225,6 +225,15 @@ func voteMinerPoolValidator(tx *types.Transaction) error {
 	return nil
 }
 
+func cancelGuardNodesValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	if !types.IsInExtractGuardNodes(tx.Target.Hex()){
+		return fmt.Errorf("operator addr is not in extract guard nodes")
+	}
+	return nil
+}
 
 func groupValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
@@ -309,6 +318,8 @@ func getValidator(tx *types.Transaction) validator {
 				err = applyGuardValidator(tx)
 			case types.TransactionTypeVoteMinerPool:
 				err = voteMinerPoolValidator(tx)
+			case types.TransactionTypeCancelGuard:
+				err = cancelGuardNodesValidator(tx)
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			default:
@@ -330,6 +341,11 @@ func getValidator(tx *types.Transaction) validator {
 			if tx.Type == types.TransactionTypeVoteMinerPool {
 				if bytes.Compare(tx.Target.Bytes(), tx.Source.Bytes()) == 0 {
 					return fmt.Errorf("could not vote myself")
+				}
+			}
+			if tx.Type == types.TransactionTypeCancelGuard{
+				if tx.Source.Hex() != types.MiningPoolAddr{
+					return fmt.Errorf("only admin can call")
 				}
 			}
 			// Validate state

@@ -292,6 +292,74 @@ func (op *reduceTicketsOp) Transition() *result {
 }
 
 // stakeAddOp is for the stake add operation, miner can add stake for himself or others
+type cancelGuardOp struct {
+	*baseOperation
+	cancelTarget common.Address
+}
+
+func (op *cancelGuardOp)GetBaseOperation()*baseOperation{
+	return op.baseOperation
+}
+
+func (op *cancelGuardOp)Height()uint64{
+	return op.height
+}
+func (op *cancelGuardOp)GetMinerType()types.MinerType{
+	return types.MinerTypeProposal
+}
+func (op *cancelGuardOp)GetMinerPks()*types.MinerPks{
+	return nil
+}
+
+func (op *cancelGuardOp)GetDb()types.AccountDB{
+	return op.db
+}
+
+func (op *cancelGuardOp) Value() uint64 {
+	return 0
+}
+
+func (op *cancelGuardOp) Source() common.Address {
+	return op.source
+}
+
+func (op *cancelGuardOp)Target()common.Address{
+	return op.cancelTarget
+}
+
+func (op *cancelGuardOp) Validate() error {
+	if op.msg.Operator().Hex() != types.MiningPoolAddr{
+		return fmt.Errorf("only admin can call")
+	}
+	if !types.IsInExtractGuardNodes(op.msg.OpTarget().Hex()){
+		return fmt.Errorf("operator addr is not in extract guard nodes")
+	}
+	return nil
+}
+
+func (op *cancelGuardOp) ParseTransaction() error {
+	op.cancelTarget = *op.msg.OpTarget()
+	return nil
+}
+
+func (op *cancelGuardOp) Transition() *result {
+	ret := newResult()
+	targetMiner, err := op.getMiner(op.cancelTarget)
+	if err != nil {
+		ret.setError(err,types.RSFail)
+		return ret
+	}
+	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
+	err = baseOp.processMinerOp(op,targetMiner,CancelGuardOp)
+	if err !=nil{
+		ret.setError(err,types.RSFail)
+		return ret
+	}
+	return ret
+}
+
+
+// stakeAddOp is for the stake add operation, miner can add stake for himself or others
 type stakeAddOp struct {
 	*baseOperation
 	minerPks  *types.MinerPks

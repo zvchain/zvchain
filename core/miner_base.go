@@ -317,13 +317,12 @@ func (op *baseOperation) opVerifyRole() bool {
 }
 
 
-func (op *baseOperation) initVoteInfo(address common.Address,height uint64)error{
-	vi := NewVoteInfo(height)
-	bs, err := msgpack.Marshal(vi)
+func setVoteInfo(db types.AccountDB,address common.Address,vf *voteInfo)error{
+	bs, err := msgpack.Marshal(vf)
 	if err != nil {
 		return err
 	}
-	op.db.SetData(address, keyVote,bs)
+	db.SetData(address, keyVote,bs)
 	return nil
 }
 
@@ -477,6 +476,42 @@ func (op *baseOperation) addProposalTotalStake(addStake uint64) {
 		panic(fmt.Errorf("total stake overflow:%v %v", addStake, totalStake))
 	}
 	op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
+}
+
+func guardNodeExpired(db types.AccountDB,address common.Address,height uint64){
+	miner,err := getMiner(db, address, types.MinerTypeProposal)
+	if err != nil{
+		Logger.Error(err)
+		return
+	}
+	if miner == nil{
+		Logger.Error("guard invalid find miner is nil,addr is %s",address.Hex())
+		return
+	}
+	miner.UpdateIdentity(types.MinerNormal,height)
+	err = setMiner(db,miner)
+	if err != nil{
+		Logger.Error(err)
+		return
+	}
+	vf,err := getVoteInfo(db,address)
+	if err != nil{
+		Logger.Error(err)
+		return
+	}
+	if vf == nil{
+		Logger.Error("find guard node vote info is nil,addr is %s",address.Hex())
+		return
+	}
+	delVoteInfo(db,address)
+	var empty = common.Address{}
+	if vf.Target != empty{
+		mop:=newReduceTicketsOp(db,vf.Target,address,height)
+		ret := mop.Transition()
+		if ret.err!= nil{
+			Logger.Error(ret.err)
+		}
+	}
 }
 
 func (op *baseOperation) subProposalTotalStake(subStake uint64) {

@@ -123,6 +123,8 @@ type chainOp interface {
 
 	ApplyGuardMiner(gas, gasprice uint64) *Result
 
+	CancelGuard(addr string,gas, gasprice uint64) *Result
+
 	VoteMinerPool(address string,gas, gasprice uint64)*Result
 
 	BlockHeight() *Result

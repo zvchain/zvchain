@@ -80,6 +80,8 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 		return &applyGuardMinerOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
 	case types.TransactionTypeStakeRefund:
 		return &stakeRefundOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeCancelGuard:
+		return &cancelGuardOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
 	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 		return &groupOperator{transitionContext: base}
 	default:
@@ -517,11 +519,11 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(common.HexToAddress(types.DaemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(common.HexToAddress(types.UserNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))

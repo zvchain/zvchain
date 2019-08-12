@@ -33,6 +33,17 @@ type AddBlockResult int8
 // gasLimitMax expresses the max gasLimit of a transaction
 var gasLimitMax = new(BigInt).SetUint64(500000)
 
+
+const(
+ AdminAddr = "0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b"         // address of admin who can control foundation contract
+ MiningPoolAddr = "0x01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0"    // address of mining pool in pre-distribution
+ CirculatesAddr = "0xebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3"    // address of circulates in pre-distribution
+ UserNodeAddress = "0xe30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139"   // address of official reserved user node address
+ DaemonNodeAddress = "0xae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122" // address of official reserved daemon node address
+)
+
+var ExtractGuardNodes = []string{}   // init gurad miner nodes
+
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
@@ -82,6 +93,7 @@ const (
 
 	TransactionTypeApplyGuardMiner  = 12  // apply miner node
 	TransactionTypeVoteMinerPool  = 13  // vote to miner pool
+	TransactionTypeCancelGuard  = 14   // cancel guard node,only admin can call
 
 )
 
@@ -347,4 +359,13 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 
 func (bw BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
+}
+
+func IsInExtractGuardNodes(addr string)bool{
+	for _, addrStr := range ExtractGuardNodes {
+		if addrStr == addr{
+			return true
+		}
+	}
+	return false
 }

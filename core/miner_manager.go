@@ -131,39 +131,7 @@ func (mm *MinerManager)checkGuardNodeExpired(db types.AccountDB,address common.A
 }
 
 func (mm *MinerManager)processGuardNodeExpired(db types.AccountDB,address common.Address,height uint64){
-	miner,err := getMiner(db, address, types.MinerTypeProposal)
-	if err != nil{
-		Logger.Error(err)
-		return
-	}
-	if miner == nil{
-		Logger.Error("guard invalid find miner is nil,addr is %s",address.Hex())
-		return
-	}
-	miner.UpdateIdentity(types.MinerNormal,height)
-	err = setMiner(db,miner)
-	if err != nil{
-		Logger.Error(err)
-		return
-	}
-	vf,err := getVoteInfo(db,address)
-	if err != nil{
-		Logger.Error(err)
-		return
-	}
-	if vf == nil{
-		Logger.Error("find guard node vote info is nil,addr is %s",address.Hex())
-		return
-	}
-	delVoteInfo(db,address)
-	var empty = common.Address{}
-	if vf.Target != empty{
-		mop:=newReduceTicketsOp(db,vf.Target,address,height)
-		ret := mop.Transition()
-		if ret.err!= nil{
-			Logger.Error(ret.err)
-		}
-	}
+	guardNodeExpired(db,address,height)
 }
 
 
@@ -498,7 +466,8 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 }
 
 func (mm *MinerManager) genGuardNodes(accountDB types.AccountDB) {
-	for _, addr := range extractGuardNodes {
+	for _, addrStr := range types.ExtractGuardNodes {
+		addr := common.HexToAddress(addrStr)
 		miner := &types.Miner{ID: addr.Bytes(),Type:types.MinerTypeProposal,Identity:types.MinerGuard,Status:types.MinerStatusActive,ApplyHeight:0,Stake:0}
 		bs, err := msgpack.Marshal(miner)
 		if err != nil {

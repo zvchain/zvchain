@@ -16,6 +16,7 @@ const (
 	ApplyGuardOp
 	VoteMinerPoolOp
 	ReduceTicketOp
+	CancelGuardOp
 )
 
 const (
@@ -124,6 +125,8 @@ func (n *NormalProposalMiner) processMinerOp(mop mOperation,targetMiner *types.M
 		}
 	case ReduceTicketOp:
 		n.processReduceTicket(mop,mop.Target(),mop.GetBaseOperation().subTicket)
+	case CancelGuardOp:
+		fmt.Errorf("normal proposal can not be operated")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -193,6 +196,25 @@ func (g *GuardProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *typ
 	return fmt.Errorf("unSupported vote")
 }
 
+func(g*GuardProposalMiner)checkApplyGuard(mop mOperation,miner *types.Miner)error{
+	if miner == nil {
+		return fmt.Errorf("no miner info")
+	}
+	detailKey := getDetailKey(mop.Source(), mop.GetMinerType(), types.Staked)
+	stakedDetail, err := mop.GetBaseOperation().getDetail(mop.Source(), detailKey)
+	if err != nil {
+		return err
+	}
+	if stakedDetail == nil {
+		return fmt.Errorf("target account has no staked detail data")
+	}
+	if mop.Height() <= stakedDetail.DisMissHeight{
+		return fmt.Errorf("guard node only can apply guard node in buf days")
+	}
+	return nil
+}
+
+
 func (g *GuardProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op MinerOp) error {
 	switch op {
 	case StakedAddOp:
@@ -214,11 +236,20 @@ func (g *GuardProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Mi
 			return err
 		}
 	case ApplyGuardOp:
-		return fmt.Errorf("guard node is not support this operator")
+		err := g.checkApplyGuard(mop,targetMiner)
+		if err != nil{
+			return err
+		}
+		err = g.processApplyGuard(mop,targetMiner)
+		if err != nil{
+			return err
+		}
 	case VoteMinerPoolOp:
 		return fmt.Errorf("guard node could not be voted by others")
 	case ReduceTicketOp:
 		g.processReduceTicket(mop,mop.Target(),mop.GetBaseOperation().subTicket)
+	case CancelGuardOp:
+
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -257,6 +288,8 @@ func (m *MinerPoolProposalMiner) processMinerOp(mop mOperation,targetMiner *type
 		if err != nil{
 			return err
 		}
+	case CancelGuardOp:
+		fmt.Errorf("miner pool can not be operated")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -296,6 +329,8 @@ func (i *InvalidProposalMiner) processMinerOp(mop mOperation,targetMiner *types.
 		}
 	case ReduceTicketOp:
 		i.processReduceTicket(mop,mop.Target(),mop.GetBaseOperation().subTicket)
+	case CancelGuardOp:
+		fmt.Errorf("invalid miner pool can not be operated")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -389,6 +424,8 @@ func (v *VerifyMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op 
 			return fmt.Errorf("verify node could not be voted by others")
 		case ReduceTicketOp:
 			return fmt.Errorf("verify node could not be reduce tickets")
+		case CancelGuardOp:
+			return fmt.Errorf("verify node can not be operated")
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -402,6 +439,10 @@ func(g*GuardProposalMiner)checkStakeAdd(mop mOperation,targetMiner *types.Miner)
 		return fmt.Errorf("guard miner node cannot be staked by others")
 	}
 	return nil
+}
+
+func (g *GuardProposalMiner)processCancelGuardNode(mop mOperation){
+	guardNodeExpired(mop.GetDb(),mop.Target(),mop.Height())
 }
 
 func (g *GuardProposalMiner)processReduceTicket(mop mOperation,targetAddress common.Address,subTicketsFun func(address common.Address)uint64){
@@ -522,9 +563,19 @@ func(b*BaseMiner)processApplyGuard(mop mOperation,miner *types.Miner) error{
 	if err := mop.GetBaseOperation().setDetail(mop.Source(), detailKey, detail); err != nil {
 		return err
 	}
-	// generate vote info
-	err = mop.GetBaseOperation().initVoteInfo(mop.Source(),mop.Height())
-	if err !=  nil{
+	vf,err := getVoteInfo(mop.GetDb(),mop.Source())
+	if err != nil{
+		return err
+	}
+	// if this node is guard node,its has vote info,only set last
+	if vf == nil{
+		vf = NewVoteInfo(mop.Height())
+	}else{
+		vf.Last = 1
+		vf.UpdateHeight = mop.Height()
+	}
+	err = setVoteInfo(mop.GetDb(),mop.Source(),vf)
+	if err != nil{
 		return err
 	}
 	log.CoreLogger.Infof("apply guard success,address is %s,height is %v",mop.Source().Hex(),mop.Height())

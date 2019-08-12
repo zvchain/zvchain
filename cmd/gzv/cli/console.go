@@ -225,6 +225,35 @@ func (c *applyGuardMinerCmd) parse(args []string) bool {
 	return c.parseGasPrice()
 }
 
+type cancelGuardCmd struct {
+	gasBaseCmd
+	addr   string
+}
+
+func genCancelGuardCmd() *cancelGuardCmd {
+	c := &cancelGuardCmd{
+		gasBaseCmd: *genGasBaseCmd("cancelGuard", "cancel guard node,only admin can call"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "the miner address")
+	return c
+}
+
+func (c *cancelGuardCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if strings.TrimSpace(c.addr) == "" {
+		output("please input the address")
+		return false
+	}
+	if !validateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return c.parseGasPrice()
+}
+
 type minerInfoCmd struct {
 	baseCmd
 	addr   string
@@ -779,6 +808,7 @@ var cmdTx = genTxCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
 var cmdApplyGuardMiner = genApplyGuardMinerCmd()
+var cmdCancelGuard = genCancelGuardCmd()
 var cmdVoteMinerPool= genVoteMinerPoolCmd()
 var cmdStakeAdd = genStakeAddCmd()
 var cmdMinerAbort = genMinerAbortCmd()
@@ -1001,6 +1031,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args){
 				handleCmd(func() *Result {
 					return chainOp.ApplyGuardMiner(cmd.gaslimit, cmd.gasPrice)
+				})
+			}
+		case cmdCancelGuard.name:
+			cmd := genCancelGuardCmd()
+			if cmd.parse(args){
+				handleCmd(func() *Result {
+					return chainOp.CancelGuard(cmd.addr,cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdVoteMinerPool.name:
