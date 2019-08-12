@@ -259,7 +259,7 @@ func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Re
 	return ca.SendRaw(tx)
 }
 
-func (ca *RemoteChainOpImpl)ApplyGuardMiner(cycle uint64,gas, gasprice uint64) *Result{
+func (ca *RemoteChainOpImpl)ApplyGuardMiner(gas, gasprice uint64) *Result{
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r
@@ -268,16 +268,12 @@ func (ca *RemoteChainOpImpl)ApplyGuardMiner(cycle uint64,gas, gasprice uint64) *
 	if aci.Miner == nil {
 		return opError(fmt.Errorf("the current account is not a miner account"))
 	}
-	if cycle!= 1 && cycle!= 2{
-		return opError(fmt.Errorf("cycle must be 1 or 2"))
-	}
 
 	tx := &txRawData{
 		Target:   aci.Address,
 		Gas:      gas,
 		Gasprice: gasprice,
 		TxType:   types.TransactionTypeApplyGuardMiner,
-		Data:     []byte{byte(cycle)},
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)

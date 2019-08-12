@@ -34,6 +34,7 @@ const (
 	halfOfYearBlocks = 6 * oneMonthBlocks
 	oneYearBlocks = 2 * halfOfYearBlocks
 	threeYearBlocks = 3 * oneYearBlocks
+	sevenDayBlocks  = 7 * oneDayBlocks
 )
 
 // mOperation define some functions on miner operation
@@ -150,7 +151,6 @@ func (op *voteMinerPoolOp) Transition() *result {
 type applyGuardMinerOp struct {
 	*baseOperation
 	targetAddr common.Address
-	cycle uint64
 }
 
 func (op *applyGuardMinerOp)GetBaseOperation()*baseOperation{
@@ -185,13 +185,10 @@ func (op *applyGuardMinerOp)Target()common.Address{
 }
 
 func (op *applyGuardMinerOp) Validate() error {
-	if len(op.msg.Payload()) != 1 {
-		return fmt.Errorf("payload length must be 1")
-	}
 	if op.msg.OpTarget() == nil {
 		return fmt.Errorf("target is nil")
 	}
-	return applyGuardCycleCheck(op.msg.Payload()[0])
+	return nil
 }
 
 func (op *applyGuardMinerOp) ParseTransaction() error {
@@ -200,8 +197,7 @@ func (op *applyGuardMinerOp) ParseTransaction() error {
 	if len(op.msg.Payload()) != 1{
 		return fmt.Errorf("payload length must be 1")
 	}
-	op.cycle = uint64(op.msg.Payload()[0])
-	return applyGuardCycleCheck(op.msg.Payload()[0])
+	return nil
 }
 
 func (op *applyGuardMinerOp) Transition() *result {
@@ -224,6 +220,76 @@ func (op *applyGuardMinerOp) Transition() *result {
 	return ret
 }
 
+
+// stakeAddOp is for the stake add operation, miner can add stake for himself or others
+type reduceTicketsOp struct {
+	*baseOperation
+	addTarget common.Address
+	source    common.Address
+}
+
+func newReduceTicketsOp(db types.AccountDB,targetAddress common.Address,source common.Address,height uint64)*reduceTicketsOp{
+	base := newTransitionContext(db, nil, nil)
+    return &reduceTicketsOp{
+		baseOperation:newBaseOperation(db, nil, height,base),
+		addTarget:targetAddress,
+		source:source,
+	}
+}
+
+func (op *reduceTicketsOp)GetBaseOperation()*baseOperation{
+	return op.baseOperation
+}
+
+func (op *reduceTicketsOp)Height()uint64{
+	return op.height
+}
+func (op *reduceTicketsOp)GetMinerType()types.MinerType{
+	return types.MinerTypeProposal
+}
+func (op *reduceTicketsOp)GetMinerPks()*types.MinerPks{
+	return nil
+}
+
+func (op *reduceTicketsOp)GetDb()types.AccountDB{
+	return op.db
+}
+
+func (op *reduceTicketsOp) Value() uint64 {
+	return 0
+}
+
+func (op *reduceTicketsOp) Source() common.Address {
+	return op.source
+}
+
+func (op *reduceTicketsOp)Target()common.Address{
+	return op.addTarget
+}
+
+func (op *reduceTicketsOp) Validate() error {
+	return nil
+}
+
+func (op *reduceTicketsOp) ParseTransaction() error {
+	return nil
+}
+
+func (op *reduceTicketsOp) Transition() *result {
+	ret := newResult()
+	targetMiner, err := op.getMiner(op.addTarget)
+	if err != nil {
+		ret.setError(err,types.RSFail)
+		return ret
+	}
+	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
+	err = baseOp.processMinerOp(op,targetMiner,ReduceTicketOp)
+	if err !=nil{
+		ret.setError(err,types.RSFail)
+		return ret
+	}
+	return ret
+}
 
 // stakeAddOp is for the stake add operation, miner can add stake for himself or others
 type stakeAddOp struct {

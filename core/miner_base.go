@@ -32,6 +32,8 @@ var (
 	keyPoolProposalTotalStake = []byte("totalstake")
 	keyVote 				  = []byte("votekey")
 	keyTickets 				  = []byte("tickets")
+	keyIndexOfGuardMiner 	  = []byte("gmindex")
+	keyGuardMinerInfos 	  	  = []byte("gminfos")
 )
 
 const (
@@ -92,19 +94,33 @@ func tokenReleased(height uint64) uint64 {
 // Special account address
 // Need to access by AccountDBTS for concurrent situations
 var (
-	minerPoolAddr         = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
-	rewardStoreAddr       = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
-    minerPoolTicketsAddr  = common.BigToAddress(big.NewInt(3)) // The Address storing all miner pool tickets
+	minerPoolAddr           = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
+	rewardStoreAddr         = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
+    minerPoolTicketsAddr    = common.BigToAddress(big.NewInt(3)) // The Address storing all miner pool tickets
+	guardMinerNodeIndexAddr = common.BigToAddress(big.NewInt(4)) // The Address storing current guard miner node index
+	guardMinerNodeInfoAddr  = common.BigToAddress(big.NewInt(5)) // The Address storing all guard miners length and beginIndex
+
 )
 
 var punishmentDetailAddr = common.BigToAddress(big.NewInt(0))
 
+type guardMinerInfo struct{
+	BeginIndex  uint64
+	Len         uint64
+}
 
+func newGuardMinerInfo()*guardMinerInfo{
+	return &guardMinerInfo{
+		BeginIndex:0,
+		Len:0,
+	}
+}
 
 type stakeDetail struct {
-	Value         uint64  // Stake operation amount
-	Height        uint64  // Operation height
-	DisMissHeight uint64  //Stake disMiss height
+	Value               uint64  // Stake operation amount
+	Height              uint64  // Operation height
+	DisMissHeight       uint64  // Stake end height
+	MarkNotFullHeight   uint64 // mark the height when stake is not full
 }
 
 type voteInfo struct {
@@ -121,6 +137,13 @@ func NewVoteInfo(height uint64)*voteInfo{
 		UpdateHeight:height,
 		Last:1,
 	}
+}
+
+func getGuardMinerIndexKey(index uint64)[]byte{
+	buf := bytes.NewBuffer([]byte{})
+	buf.Write(keyIndexOfGuardMiner)
+	buf.Write(common.UInt64ToByte(index))
+	return buf.Bytes()
 }
 
 func getDetailKey(address common.Address, typ types.MinerType, status types.StakeStatus) []byte {
@@ -218,6 +241,15 @@ func getMiner(db types.AccountDB, address common.Address, mType types.MinerType)
 	return nil, nil
 }
 
+func setMiner(db types.AccountDB,miner *types.Miner)error{
+	bs, err := msgpack.Marshal(miner)
+	if err != nil {
+		return err
+	}
+	db.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
+	return nil
+}
+
 func parseDetail(value []byte) (*stakeDetail, error) {
 	var detail stakeDetail
 	err := msgpack.Unmarshal(value, &detail)
@@ -233,6 +265,15 @@ func getDetail(db types.AccountDB, address common.Address, detailKey []byte) (*s
 		return parseDetail(data)
 	}
 	return nil, nil
+}
+
+func setDetail(db types.AccountDB,address common.Address, detailKey []byte, sd *stakeDetail) error {
+	bs, err := msgpack.Marshal(sd)
+	if err != nil {
+		return err
+	}
+	db.SetData(address, detailKey, bs)
+	return nil
 }
 
 
@@ -299,9 +340,12 @@ func (op *baseOperation) initVoteInfo(address common.Address,height uint64)error
 	return nil
 }
 
+func delVoteInfo(db types.AccountDB,address common.Address){
+	db.RemoveData(address,keyVote)
+}
 
-func (op *baseOperation) getVoteInfo(address common.Address)(*voteInfo,error){
-	data := op.db.GetData(address,keyVote)
+func getVoteInfo(db types.AccountDB,address common.Address)(*voteInfo,error){
+	data := db.GetData(address,keyVote)
 	if data == nil{
 		return nil,nil
 	}
@@ -316,16 +360,15 @@ func (op *baseOperation) getVoteInfo(address common.Address)(*voteInfo,error){
 func (op *baseOperation) addTicket(address common.Address)uint64{
 	key := getTicketsKey(address)
 	totalTickets := getTotalTickets(op.minerPool,key)
-
 	totalTickets+=1
-	// Must not happen
-	if totalTickets < totalTickets {
-		panic(fmt.Errorf("total totalTickets overflow"))
-	}
 	op.minerPool.SetDataSafe(minerPoolTicketsAddr, keyTickets, common.Uint64ToByte(totalTickets))
 	return totalTickets
 }
 
+func (op *baseOperation) getTickets(address common.Address)uint64{
+	key := getTicketsKey(address)
+	return getTotalTickets(op.minerPool,key)
+}
 
 func (op *baseOperation) subTicket(address common.Address)uint64{
 	key := getTicketsKey(address)
@@ -339,12 +382,75 @@ func (op *baseOperation) subTicket(address common.Address)uint64{
 	return totalTickets
 }
 
-func (op *baseOperation) voteMinerPool(source common.Address,targetAddress common.Address)error{
-	vf,err := op.getVoteInfo(source)
+func getGuardMinerNodeInfo(db types.AccountDBTS)(*guardMinerInfo,error){
+	bytes := db.GetDataSafe(guardMinerNodeInfoAddr,keyGuardMinerInfos)
+	var gm *guardMinerInfo
+	var err error
+	if bytes == nil{
+		gm = newGuardMinerInfo()
+	}else{
+		err = msgpack.Unmarshal(bytes,gm)
+		if err != nil{
+			return nil,err
+		}
+	}
+	return gm,nil
+}
+
+func setGuardMinerNodeInfo(db types.AccountDBTS,gm *guardMinerInfo)error{
+	bytes,err := msgpack.Marshal(gm)
 	if err != nil{
 		return err
 	}
-	if vf!= nil && vf.Last ==1 {
+	db.SetDataSafe(guardMinerNodeInfoAddr,keyGuardMinerInfos,bytes)
+	return nil
+}
+
+func delGuardMinerIndex(db types.AccountDBTS,index uint64){
+	indexKey := getGuardMinerIndexKey(index)
+	db.RemoveDataSafe(guardMinerNodeIndexAddr,indexKey)
+}
+
+func getGuardMinerIndex(db types.AccountDBTS,index uint64)(*common.Address,error){
+	indexKey := getGuardMinerIndexKey(index)
+	bytes := db.GetDataSafe(guardMinerNodeIndexAddr,indexKey)
+	if bytes == nil{
+		return nil,nil
+	}
+	addr := common.BytesToAddress(bytes)
+	return &addr,nil
+}
+
+func setGuardMinerIndex(db types.AccountDBTS,address common.Address,index uint64)error{
+	indexKey := getGuardMinerIndexKey(index)
+	db.SetDataSafe(guardMinerNodeIndexAddr,indexKey,address.Bytes())
+	return nil
+}
+
+func (op *baseOperation)addGuardMinerInfo(address common.Address,disMissHeight uint64)error{
+	gm,err := getGuardMinerNodeInfo(op.minerPool)
+	if err != nil{
+		return err
+	}
+	gm.Len+=1
+	err = setGuardMinerNodeInfo(op.minerPool,gm)
+	if err != nil{
+		return err
+	}
+	err = setGuardMinerIndex(op.minerPool,address,gm.BeginIndex)
+	if err != nil{
+		return err
+	}
+	return nil
+}
+
+
+func (op *baseOperation) voteMinerPool(source common.Address,targetAddress common.Address)error{
+	vf,err := getVoteInfo(op.db,source)
+	if err != nil{
+		return err
+	}
+	if vf!= nil && vf.Last > 0 {
 		vf.Last = 0
 		vf.UpdateHeight = op.height
 		vf.Target = targetAddress
@@ -420,12 +526,8 @@ func (op *baseOperation) getDetail(address common.Address, detailKey []byte) (*s
 }
 
 func (op *baseOperation) setDetail(address common.Address, detailKey []byte, sd *stakeDetail) error {
-	bs, err := msgpack.Marshal(sd)
-	if err != nil {
-		return err
-	}
-	op.db.SetData(address, detailKey, bs)
-	return nil
+	err := setDetail(op.db,address,detailKey,sd)
+	return err
 }
 
 func (op *baseOperation) removeDetail(address common.Address, detailKey []byte) {
@@ -437,10 +539,5 @@ func (op *baseOperation) getMiner(address common.Address) (*types.Miner, error) 
 }
 
 func (op *baseOperation) setMiner(miner *types.Miner) error {
-	bs, err := msgpack.Marshal(miner)
-	if err != nil {
-		return err
-	}
-	op.db.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
-	return nil
+	return setMiner(op.db,miner)
 }

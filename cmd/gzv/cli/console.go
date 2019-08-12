@@ -206,7 +206,6 @@ func (c *voteMinerPoolCmd) parse(args []string) bool {
 
 type applyGuardMinerCmd struct {
 	gasBaseCmd
-	cycle uint64
 }
 
 
@@ -215,17 +214,12 @@ func genApplyGuardMinerCmd() *applyGuardMinerCmd {
 		gasBaseCmd: *genGasBaseCmd("applyGuard", "apply guard miner node,cycle must be between  1 and 2"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.cycle,"cycle",1, "guard miner cycle,1 is half of year,2 is a year")
 	return c
 }
 
 func (c *applyGuardMinerCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
 		output(err.Error())
-		return false
-	}
-	if c.cycle != 1 && c.cycle != 2{
-		output("cycle must be 1 or 2")
 		return false
 	}
 	return c.parseGasPrice()
@@ -1006,7 +1000,7 @@ func loop(acm accountOp, chainOp chainOp) {
 			cmd := genApplyGuardMinerCmd()
 			if cmd.parse(args){
 				handleCmd(func() *Result {
-					return chainOp.ApplyGuardMiner(cmd.cycle,cmd.gaslimit, cmd.gasPrice)
+					return chainOp.ApplyGuardMiner(cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdVoteMinerPool.name:

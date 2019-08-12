@@ -528,6 +528,8 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 
 	GroupManagerImpl.RegularCheck(accountDB, bh)
 
+	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
+
 	state = accountDB.IntermediateRoot(true)
 
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))

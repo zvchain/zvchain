@@ -58,6 +58,116 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 	go MinerManagerImpl.listenProposalUpdate()
 }
 
+// GuardNodesCheck check guard nodes is expired
+func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader)error{
+	gm,err := getGuardMinerNodeInfo(db.AsAccountDBTS())
+	if err != nil{
+		return err
+	}
+	if gm.Len == 0{
+		return nil
+	}
+	subLen := 0
+	for i:=gm.BeginIndex;i<=gm.Len;i++{
+		addr,err := getGuardMinerIndex(db.AsAccountDBTS(),i)
+		if err != nil{
+			Logger.Error(err)
+			continue
+		}
+		if addr == nil{
+			Logger.Warnf("check addr find nil,index = %d",i)
+			continue
+		}
+		isExpired := mm.checkGuardNodeExpired(db,*addr,bh.Height)
+		if isExpired{
+			delGuardMinerIndex(db.AsAccountDBTS(),i)
+			subLen++
+		}else{
+			break
+		}
+	}
+	if subLen > 0{
+		gm.BeginIndex += uint64(subLen)
+		err = setGuardMinerNodeInfo(db.AsAccountDBTS(),gm)
+		if err != nil{
+			return err
+		}
+	}
+	return nil
+}
+
+
+func (mm *MinerManager)checkGuardNodeExpired(db types.AccountDB,address common.Address,height uint64)bool{
+	detailKey := getDetailKey(address, types.MinerTypeProposal, types.Staked)
+	stakedDetail,err := getDetail(db, address, detailKey)
+	if err != nil{
+		Logger.Error(err)
+		return true
+	}
+	if stakedDetail == nil{
+		Logger.Warnf("check guard nodes,find stake detail is nil,address is %s",address.Hex())
+		return true
+	}
+	if height > (stakedDetail.DisMissHeight + sevenDayBlocks){
+		mm.processGuardNodeExpired(db,address,height)
+		return true
+	}
+	if stakedDetail.MarkNotFullHeight > 0{
+		if height > stakedDetail.MarkNotFullHeight + sevenDayBlocks{
+			mm.processGuardNodeExpired(db,address,height)
+			return true
+		}
+	}else{
+		if !isFullStake(stakedDetail.Value,height){
+			stakedDetail.MarkNotFullHeight = height
+			err = setDetail(db,address,detailKey,stakedDetail)
+			if err != nil{
+				Logger.Error(err)
+			}
+			return false
+		}
+	}
+	return false
+}
+
+func (mm *MinerManager)processGuardNodeExpired(db types.AccountDB,address common.Address,height uint64){
+	miner,err := getMiner(db, address, types.MinerTypeProposal)
+	if err != nil{
+		Logger.Error(err)
+		return
+	}
+	if miner == nil{
+		Logger.Error("guard invalid find miner is nil,addr is %s",address.Hex())
+		return
+	}
+	miner.UpdateIdentity(types.MinerNormal,height)
+	err = setMiner(db,miner)
+	if err != nil{
+		Logger.Error(err)
+		return
+	}
+	vf,err := getVoteInfo(db,address)
+	if err != nil{
+		Logger.Error(err)
+		return
+	}
+	if vf == nil{
+		Logger.Error("find guard node vote info is nil,addr is %s",address.Hex())
+		return
+	}
+	delVoteInfo(db,address)
+	var empty = common.Address{}
+	if vf.Target != empty{
+		mop:=newReduceTicketsOp(db,vf.Target,address,height)
+		ret := mop.Transition()
+		if ret.err!= nil{
+			Logger.Error(ret.err)
+		}
+	}
+}
+
+
+
 func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.AccountDB) (success bool, err error) {
 	if err = operation.Validate(); err != nil {
 		return

@@ -73,7 +73,14 @@ type createRoutine struct {
 	currID       groupsig.ID
 }
 
+type GuardMinerCheckRoutine struct {
+	lastUpdateHeight  uint64
+	lastCheckHeight   uint64
+}
+
+
 var GroupRoutine *createRoutine
+var GuardMinerChecker *GuardMinerCheckRoutine
 var logger *logrus.Logger
 
 func InitRoutine(reader minerReader, chain types.BlockChain, provider groupContextProvider, miner *model.SelfMinerDO) *skStorage {
@@ -85,6 +92,10 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", "")), base.Data2CommonHash(miner.SK.Serialize()).Bytes()),
 		currID:        miner.ID,
 	}
+	GuardMinerChecker = &GuardMinerCheckRoutine{
+		lastCheckHeight:0,
+	}
+
 	top := chain.QueryTopBlock()
 	GroupRoutine.updateContext(top)
 
@@ -94,7 +105,16 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	provider.RegisterGroupCreateChecker(checker)
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, GroupRoutine.onBlockAddSuccess)
+	notify.BUS.Subscribe(notify.BlockAddSucc, GuardMinerChecker.onBlockAddSuccess)
 	return GroupRoutine.store
+}
+
+func (g *GuardMinerCheckRoutine) onBlockAddSuccess(message notify.Message)error {
+	block := message.GetData().(*types.Block)
+	bh := block.Header
+	g.lastUpdateHeight = bh.Height
+	g.lastCheckHeight = bh.Height
+	return nil
 }
 
 func (routine *createRoutine) onBlockAddSuccess(message notify.Message) error {
