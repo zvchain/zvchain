@@ -146,30 +146,10 @@ func (n *NormalProposalMiner)processReduceTicket(mop mOperation,targetAddress co
 }
 
 func (n *NormalProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{
-	vf,err := getVoteInfo(mop.GetDb(),mop.Source())
+	err,isFull := processVote(mop)
 	if err != nil{
 		return err
 	}
-	// sub vote count
-	err = mop.GetBaseOperation().voteMinerPool(mop.Source(),mop.Target())
-	if err != nil{
-		return err
-	}
-	var totalTickets uint64 = 0
-	// vote target is old target
-	if vf.Target == mop.Target(){
-		totalTickets = mop.GetBaseOperation().getTickets(mop.Target())
-	}else{
-		//reduce ticket first
-		mop:=newReduceTicketsOp(mop.GetDb(),vf.Target,mop.Source(),mop.Height())
-		ret := mop.Transition()
-		if ret.err != nil{
-			return ret.err
-		}
-		// add tickets count
-		totalTickets = mop.GetBaseOperation().addTicket(mop.Target())
-	}
-	isFull := mop.GetBaseOperation().isFullTickets(mop.Target(),totalTickets)
 	// if full,only update nodeIdentity
 	if isFull{
 		Logger.Infof("address %s is upgrade miner pool",mop.Target().Hex())
@@ -345,31 +325,11 @@ func (i *InvalidProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *t
 	if targetMiner == nil{
 		return fmt.Errorf("target miner can not be nil")
 	}
-	vf,err := getVoteInfo(mop.GetDb(),mop.Source())
-	if err != nil{
-		return err
-	}
-	// sub vote count
-	err = mop.GetBaseOperation().voteMinerPool(mop.Source(),mop.Target())
+	err,isFull := processVote(mop)
 	if err != nil{
 		return err
 	}
 	add := false
-	var totalTickets uint64 = 0
-	// vote target is old target
-	if vf.Target == mop.Target(){
-		totalTickets = mop.GetBaseOperation().getTickets(mop.Target())
-	}else{
-		//reduce ticket first
-		mop:=newReduceTicketsOp(mop.GetDb(),vf.Target,mop.Source(),mop.Height())
-		ret := mop.Transition()
-		if ret.err != nil{
-			return ret.err
-		}
-		// add tickets count
-		totalTickets = mop.GetBaseOperation().addTicket(mop.Target())
-	}
-	isFull := mop.GetBaseOperation().isFullTickets(mop.Target(),totalTickets)
 	// if full,only update nodeIdentity
 	if isFull{
 		Logger.Infof("address %s is from invalid miner pool upgrade miner pool",mop.Target().Hex())
@@ -392,6 +352,38 @@ func (i *InvalidProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *t
 		MinerManagerImpl.proposalAddCh <- mop.Target()
 	}
 	return nil
+}
+
+
+func processVote(mop mOperation)(error,bool){
+	vf,err := getVoteInfo(mop.GetDb(),mop.Source())
+	if err != nil{
+		return err,false
+	}
+	// sub vote count
+	err = mop.GetBaseOperation().voteMinerPool(mop.Source(),mop.Target())
+	if err != nil{
+		return err,false
+	}
+	var totalTickets uint64 = 0
+	var empty = common.Address{}
+	// vote target is old target
+	if vf.Target == mop.Target() && vf.Target != empty{
+		totalTickets = mop.GetBaseOperation().getTickets(mop.Target())
+	}else{
+		if vf.Target != empty{
+			//reduce ticket first
+			mop:=newReduceTicketsOp(mop.GetDb(),vf.Target,mop.Source(),mop.Height())
+			ret := mop.Transition()
+			if ret.err != nil{
+				return ret.err,false
+			}
+			// add tickets count
+		}
+		totalTickets = mop.GetBaseOperation().addTicket(mop.Target())
+	}
+	isFull := mop.GetBaseOperation().isFullTickets(mop.Target(),totalTickets)
+	return nil,isFull
 }
 
 func (v *VerifyMiner)processVoteMinerPool(mop mOperation,targetMiner *types.Miner)error{

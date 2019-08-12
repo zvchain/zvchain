@@ -73,12 +73,21 @@ type mOperContext struct {
 var (
 	src    = common.HexToAddress("0x123")
 	target = common.HexToAddress("0x456")
+	guardNode1 = common.HexToAddress("0x01")
+	guardNode2 = common.HexToAddress("0x02")
+	guardNode3 = common.HexToAddress("0x03")
+	guardNode4 = common.HexToAddress("0x04")
+	guardNode5 = common.HexToAddress("0x05")
+	guardNode6 = common.HexToAddress("0x06")
+	guardNode7 = common.HexToAddress("0x07")
+	guardNode8 = common.HexToAddress("0x08")
+	minerPool = common.HexToAddress("0x09")
 	ctx    = &mOperContext{
 		source:        &src,
 		target:        &target,
 		mType:         types.MinerTypeProposal,
 		stakeAddValue: 2000 * common.ZVC,
-		originBalance: 3000 * common.ZVC,
+		originBalance: 300000000 * common.ZVC,
 		reduceValue:   1000 * common.ZVC,
 	}
 	accountDB types.AccountDB
@@ -95,6 +104,14 @@ func setup() {
 	}
 	db.AddBalance(src, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(target, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode1, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode2, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode3, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode4, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode5, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode6, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode7, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode8, new(big.Int).SetUint64(ctx.originBalance))
 	accountDB = db
 }
 
@@ -263,6 +280,147 @@ func TestMinerManager_GetAllStakeDetails_StakeAdd(t *testing.T) {
 	allDetails := MinerManagerImpl.GetAllStakeDetails(*ctx.target)
 	t.Log(detailString(allDetails))
 }
+
+func TestMinerManager_Vote(t *testing.T){
+	setup()
+	defer clear()
+	ctx.stakeAddValue = 2500000 * common.ZVC
+	ctx.target = &guardNode1
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode2
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode3
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode4
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode5
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode6
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode7
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode8
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	info,err := getGuardMinerNodeInfo(accountDB.AsAccountDBTS())
+	if err !=nil{
+		t.Fatalf("except no error,but got error")
+	}
+	if info.Len!= 8{
+		t.Fatalf("except got 8 ,but got %d",info.Len)
+	}
+	if info.BeginIndex!=0{
+		t.Fatalf("except got 0 ,but got %d",info.BeginIndex)
+	}
+
+	miner, _ = getMiner(accountDB, minerPool, ctx.mType)
+	if miner == nil || !miner.IsMinerPool(){
+		t.Fatalf("except miner pool,but not")
+	}
+}
+
+func TestMinerManager_ApplyGuardNode(t *testing.T){
+	setup()
+	defer clear()
+	ctx.stakeAddValue = 2500000 * common.ZVC
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+
+	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+
+	detailKey := getDetailKey(*ctx.target, ctx.mType, types.Staked)
+	detail,err := getDetail(accountDB,*ctx.target, detailKey)
+	if err !=nil{
+		t.Fatalf("error")
+	}
+	if detail.DisMissHeight!= halfOfYearBlocks{
+		t.Fatalf("except dismiss height is %v,but got %v",halfOfYearBlocks,detail.DisMissHeight)
+	}
+
+	vf,err := getVoteInfo(accountDB,*ctx.target)
+	if err != nil{
+		t.Fatalf("error")
+	}
+	if vf == nil{
+		t.Fatalf("except not nil,but got nil")
+	}
+	empty := common.Address{}
+	if vf.Target != empty{
+		t.Fatalf("except empty addr,but got %s",vf.Target)
+	}
+	if vf.Last!= 1{
+		t.Fatalf("except got 1,but got %d",vf.Last)
+	}
+}
+
+func testApplyGuardNode(t *testing.T){
+	applyMsg := genMOperMsg(ctx.target, ctx.target, types.TransactionTypeApplyGuardMiner, 0,nil)
+	_, err := MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, 0)
+	if err != nil {
+		t.Fatalf("execute stake add msg error:%v", err)
+	}
+}
+
+
+func testVote(source,target *common.Address,t *testing.T){
+	applyMsg := genMOperMsg(source, target, types.TransactionTypeVoteMinerPool, 0,nil)
+	_, err := MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, 0)
+	if err != nil {
+		t.Fatalf("execute stake add msg error:%v", err)
+	}
+}
+
 
 func TestMinerManager_ExecuteOperation_MinerAbort(t *testing.T) {
 	setup()

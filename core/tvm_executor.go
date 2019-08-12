@@ -74,6 +74,8 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 		return &stakeAddOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
 	case types.TransactionTypeMinerAbort:
 		return &minerAbortOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeVoteMinerPool:
+		return &voteMinerPoolOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
 	case types.TransactionTypeStakeReduce:
 		return &stakeReduceOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
 	case types.TransactionTypeApplyGuardMiner:

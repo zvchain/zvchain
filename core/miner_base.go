@@ -347,7 +347,7 @@ func (op *baseOperation) addTicket(address common.Address)uint64{
 	key := getTicketsKey(address)
 	totalTickets := getTotalTickets(op.minerPool,key)
 	totalTickets+=1
-	op.minerPool.SetDataSafe(minerPoolTicketsAddr, keyTickets, common.Uint64ToByte(totalTickets))
+	op.minerPool.SetDataSafe(minerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
 	return totalTickets
 }
 
@@ -370,17 +370,17 @@ func (op *baseOperation) subTicket(address common.Address)uint64{
 
 func getGuardMinerNodeInfo(db types.AccountDBTS)(*guardMinerInfo,error){
 	bytes := db.GetDataSafe(guardMinerNodeInfoAddr,keyGuardMinerInfos)
-	var gm *guardMinerInfo
+	var gm guardMinerInfo
 	var err error
 	if bytes == nil{
-		gm = newGuardMinerInfo()
+		gm = *newGuardMinerInfo()
 	}else{
-		err = msgpack.Unmarshal(bytes,gm)
+		err = msgpack.Unmarshal(bytes,&gm)
 		if err != nil{
 			return nil,err
 		}
 	}
-	return gm,nil
+	return &gm,nil
 }
 
 func setGuardMinerNodeInfo(db types.AccountDBTS,gm *guardMinerInfo)error{

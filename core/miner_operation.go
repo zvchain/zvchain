@@ -71,6 +71,10 @@ func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height ui
 		operation = &stakeReduceOp{baseOperation: baseOp}
 	case types.TransactionTypeStakeRefund:
 		operation = &stakeRefundOp{baseOperation: baseOp}
+	case types.TransactionTypeApplyGuardMiner:
+		operation = &applyGuardMinerOp{baseOperation: baseOp}
+	case types.TransactionTypeVoteMinerPool:
+		operation = &voteMinerPoolOp{baseOperation: baseOp}
 	default:
 		operation = &unSupported{typ: msg.OpType()}
 	}
@@ -107,7 +111,7 @@ func (op *voteMinerPoolOp) Value() uint64 {
 }
 
 func (op *voteMinerPoolOp) Source() common.Address {
-	return op.source
+	return *op.msg.Operator()
 }
 
 func (op *voteMinerPoolOp)Target()common.Address{
@@ -115,13 +119,19 @@ func (op *voteMinerPoolOp)Target()common.Address{
 }
 
 func (op *voteMinerPoolOp) Validate() error {
-	if op.source == op.targetAddr{
+	if op.msg.OpTarget() == nil{
+		return fmt.Errorf("target must be not nil")
+	}
+	if *op.msg.Operator() == op.targetAddr{
 		return fmt.Errorf("could not vote myself")
 	}
 	return nil
 }
 
 func (op *voteMinerPoolOp) ParseTransaction() error {
+	if op.msg.OpTarget() == nil{
+		return fmt.Errorf("target must be not nil")
+	}
 	op.targetAddr = *op.msg.OpTarget()
 	op.minerType = types.MinerTypeProposal
 	return nil
@@ -132,10 +142,6 @@ func (op *voteMinerPoolOp) Transition() *result {
 	targetMiner, err := op.getMiner(op.targetAddr)
 	if err != nil {
 		ret.setError(err,types.RSFail)
-		return ret
-	}
-	if targetMiner == nil{
-		ret.setError(fmt.Errorf("no miner info"),types.RSFail)
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
@@ -177,7 +183,7 @@ func (op *applyGuardMinerOp) Value() uint64 {
 }
 
 func (op *applyGuardMinerOp) Source() common.Address {
-	return op.source
+	return *op.msg.Operator()
 }
 
 func (op *applyGuardMinerOp)Target()common.Address{
@@ -194,9 +200,6 @@ func (op *applyGuardMinerOp) Validate() error {
 func (op *applyGuardMinerOp) ParseTransaction() error {
 	op.targetAddr = *op.msg.Operator()
 	op.minerType = types.MinerTypeProposal
-	if len(op.msg.Payload()) != 1{
-		return fmt.Errorf("payload length must be 1")
-	}
 	return nil
 }
 
@@ -338,6 +341,9 @@ func (op *cancelGuardOp) Validate() error {
 }
 
 func (op *cancelGuardOp) ParseTransaction() error {
+	if op.msg.OpTarget() == nil{
+		return fmt.Errorf("target can not be nil")
+	}
 	op.cancelTarget = *op.msg.OpTarget()
 	return nil
 }
