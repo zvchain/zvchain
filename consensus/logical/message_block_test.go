@@ -611,12 +611,12 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{
 		header: &GroupHanderTest{},
 		memIndex: map[string]int{
-			"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
+			"zv7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
 		}, members: []*member{&member{}}})
 	p.groupReader.cache.Add(common.HexToHash(otherGroup), &verifyGroup{
 		header: &GroupHanderTest{},
 		memIndex: map[string]int{
-			"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
+			"zv7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
 		}, members: []*member{&member{}}})
 
 	p.groupReader.skStore.StoreGroupSignatureSeckey(common.HexToHash("0x00"), pt.sk[0], common.MaxUint64)
@@ -856,7 +856,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	}
 	p := processorTest
 	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{memIndex: map[string]int{
-		"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 1,
+		"zv7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 1,
 	}, members: []*member{&member{}}})
 	// for block-exists
 	testBH1 := GenTestBH("block-exists")
