@@ -626,7 +626,8 @@ func(b*BaseMiner)processStakeAdd(mop mOperation,targetMiner *types.Miner,checkUp
 		targetMiner = initMiner(mop)
 	}
 	if mop.Target() == mop.Source(){
-		setPks(targetMiner, mop.GetMinerPks())
+		addOp := mop.(*stakeAddOp)
+		setPks(targetMiner, addOp.minerPks)
 	}
 
 	if !checkUpperBound(targetMiner,mop.Height()){

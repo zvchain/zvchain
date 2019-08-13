@@ -213,7 +213,7 @@ type applyGuardMinerCmd struct {
 
 func genApplyGuardMinerCmd() *applyGuardMinerCmd {
 	c := &applyGuardMinerCmd{
-		gasBaseCmd: *genGasBaseCmd("applyGuard", "apply guard miner node,cycle must be between  1 and 2"),
+		gasBaseCmd: *genGasBaseCmd("applyGuard", "apply guard miner node"),
 	}
 	c.initBase()
 	return c

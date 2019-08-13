@@ -51,7 +51,6 @@ type mOperation interface {
 	GetDb()types.AccountDB
 	Height()uint64
 	GetMinerType()types.MinerType
-	GetMinerPks()*types.MinerPks
     GetBaseOperation()*baseOperation
 }
 
@@ -98,10 +97,6 @@ func (op *voteMinerPoolOp)Height()uint64{
 }
 func (op *voteMinerPoolOp)GetMinerType()types.MinerType{
 	return op.minerType
-}
-
-func (op *voteMinerPoolOp)GetMinerPks()*types.MinerPks{
-	return nil
 }
 
 func (op *voteMinerPoolOp)GetDb()types.AccountDB{
@@ -172,10 +167,6 @@ func (op *applyGuardMinerOp)GetMinerType()types.MinerType{
 	return op.minerType
 }
 
-func (op *applyGuardMinerOp)GetMinerPks()*types.MinerPks{
-	return nil
-}
-
 func (op *applyGuardMinerOp)GetDb()types.AccountDB{
 	return op.db
 }
@@ -200,6 +191,9 @@ func (op *applyGuardMinerOp) Validate() error {
 }
 
 func (op *applyGuardMinerOp) ParseTransaction() error {
+	if op.msg.OpTarget() == nil {
+		return fmt.Errorf("target is nil")
+	}
 	op.targetAddr = *op.msg.Operator()
 	op.minerType = types.MinerTypeProposal
 	return nil
@@ -251,9 +245,6 @@ func (op *reduceTicketsOp)Height()uint64{
 }
 func (op *reduceTicketsOp)GetMinerType()types.MinerType{
 	return types.MinerTypeProposal
-}
-func (op *reduceTicketsOp)GetMinerPks()*types.MinerPks{
-	return nil
 }
 
 func (op *reduceTicketsOp)GetDb()types.AccountDB{
@@ -312,9 +303,6 @@ func (op *cancelGuardOp)Height()uint64{
 }
 func (op *cancelGuardOp)GetMinerType()types.MinerType{
 	return types.MinerTypeProposal
-}
-func (op *cancelGuardOp)GetMinerPks()*types.MinerPks{
-	return nil
 }
 
 func (op *cancelGuardOp)GetDb()types.AccountDB{
@@ -387,9 +375,6 @@ func (op *stakeAddOp)Height()uint64{
 }
 func (op *stakeAddOp)GetMinerType()types.MinerType{
 	return op.minerType
-}
-func (op *stakeAddOp)GetMinerPks()*types.MinerPks{
-	return op.minerPks
 }
 
 func (op *stakeAddOp)GetDb()types.AccountDB{
@@ -476,9 +461,6 @@ func (op *minerAbortOp)Height()uint64{
 func (op *minerAbortOp)GetMinerType()types.MinerType{
 	return op.minerType
 }
-func (op *minerAbortOp)GetMinerPks()*types.MinerPks{
-	return nil
-}
 
 func (op *minerAbortOp)GetDb()types.AccountDB{
 	return op.db
@@ -545,9 +527,6 @@ func (op *stakeReduceOp)Height()uint64{
 }
 func (op *stakeReduceOp)GetMinerType()types.MinerType{
 	return op.minerType
-}
-func (op *stakeReduceOp)GetMinerPks()*types.MinerPks{
-	return nil
 }
 
 func (op *stakeReduceOp)GetDb()types.AccountDB{
@@ -732,9 +711,6 @@ func (op *stakeRefundOp)Height()uint64{
 func (op *stakeRefundOp)GetMinerType()types.MinerType{
 	return op.minerType
 }
-func (op *stakeRefundOp)GetMinerPks()*types.MinerPks{
-	return nil
-}
 
 func (op *stakeRefundOp)GetDb()types.AccountDB{
 	return op.db
@@ -815,9 +791,6 @@ func (op *minerFreezeOp)Height()uint64{
 }
 func (op *minerFreezeOp)GetMinerType()types.MinerType{
 	return op.minerType
-}
-func (op *minerFreezeOp)GetMinerPks()*types.MinerPks{
-	return nil
 }
 
 func (op *minerFreezeOp)GetDb()types.AccountDB{
@@ -900,9 +873,6 @@ func (op *minerPenaltyOp)Height()uint64{
 }
 func (op *minerPenaltyOp)GetMinerType()types.MinerType{
 	return op.minerType
-}
-func (op *minerPenaltyOp)GetMinerPks()*types.MinerPks{
-	return nil
 }
 
 func (op *minerPenaltyOp)GetDb()types.AccountDB{

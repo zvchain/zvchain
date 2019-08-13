@@ -303,6 +303,26 @@ func TestMinerManager_GetAllStakeDetails_StakeAdd(t *testing.T) {
 	t.Log(detailString(allDetails))
 }
 
+func TestMinerManager_ScanningGuardInvalid(t *testing.T){
+	setup()
+	defer clear()
+	geneMinerPool(t)
+	gm,err := getGuardMinerNodeInfo(accountDB.AsAccountDBTS())
+	if err !=nil{
+		t.Fatalf("error")
+	}
+	if gm.Len != 8{
+		t.Fatalf("except 8,but got %d",gm.Len)
+	}
+	if gm.BeginIndex != 0{
+		t.Fatalf("except 0,but got %d",gm.BeginIndex)
+	}
+	bh := &types.BlockHeader{
+		Height:halfOfYearBlocks+3000,
+	}
+
+	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
+}
 
 func TestMinerManager_GuardInvalid(t *testing.T){
 	setup()
