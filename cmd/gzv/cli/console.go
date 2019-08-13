@@ -183,7 +183,7 @@ type voteMinerPoolCmd struct {
 
 func genVoteMinerPoolCmd() *voteMinerPoolCmd {
 	c := &voteMinerPoolCmd{
-		gasBaseCmd: *genGasBaseCmd("voteMinerPool", "only guard miner node can vote miner pool,every guard miner node only vote once"),
+		gasBaseCmd: *genGasBaseCmd("voteMinerPool", "only guard miner node can for vote miner pool, each guard miner node can only vote once"),
 	}
 	c.initBase()
 	c.fs.StringVar(&c.addr, "addr", "", "your vote address")

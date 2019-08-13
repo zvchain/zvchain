@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	initialRewards     = 62 * common.ZVC         // the initial rewards of one block released
+	initialRewards     = 62224000000             // the initial rewards of one block released
 	halveRewardsPeriod = 30000000                // the period of halve block rewards
 	halveRewardsTimes  = 3                       // the times of halve block rewards
 	tokensOfMiners     = 3500000000 * common.ZVC // total amount of tokens belonging to miners

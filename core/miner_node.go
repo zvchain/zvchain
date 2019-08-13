@@ -341,6 +341,9 @@ func (i *InvalidProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *t
 
 func processVote(mop mOperation)(error,bool){
 	vf,err := getVoteInfo(mop.GetDb(),mop.Source())
+	if vf == nil{
+		return fmt.Errorf("vote is nil"),false
+	}
 	if err != nil{
 		return err,false
 	}

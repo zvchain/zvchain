@@ -339,10 +339,7 @@ func TestMinerManager_ScanningGuardInvalid(t *testing.T){
 		t.Fatalf("error" )
 	}
 	for i:=gm.BeginIndex;i<gm.Len;i++{
-		addr,err := getGuardMinerIndex(accountDB.AsAccountDBTS(),i)
-		if err != nil{
-			t.Fatalf("error")
-		}
+		addr := getGuardMinerIndex(accountDB.AsAccountDBTS(),i)
 		switch i {
 		case 0:
 			if *addr != guardNode1{
@@ -398,7 +395,7 @@ func TestMinerManager_ScanningGuardInvalid(t *testing.T){
 		t.Fatalf("except 8,but got %d",gm.BeginIndex)
 	}
 	for i:=gm.BeginIndex;i<gm.Len;i++{
-		addr,err := getGuardMinerIndex(accountDB.AsAccountDBTS(),i)
+		addr := getGuardMinerIndex(accountDB.AsAccountDBTS(),i)
 		if err != nil{
 			t.Fatalf("error")
 		}

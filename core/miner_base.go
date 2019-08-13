@@ -395,20 +395,19 @@ func delGuardMinerIndex(db types.AccountDBTS,index uint64){
 	db.RemoveDataSafe(common.GuardMinerNodeIndexAddr,indexKey)
 }
 
-func getGuardMinerIndex(db types.AccountDBTS,index uint64)(*common.Address,error){
+func getGuardMinerIndex(db types.AccountDBTS,index uint64)*common.Address{
 	indexKey := getGuardMinerIndexKey(index)
 	bytes := db.GetDataSafe(common.GuardMinerNodeIndexAddr,indexKey)
 	if bytes == nil{
-		return nil,nil
+		return nil
 	}
 	addr := common.BytesToAddress(bytes)
-	return &addr,nil
+	return &addr
 }
 
-func setGuardMinerIndex(db types.AccountDBTS,address common.Address,index uint64)error{
+func setGuardMinerIndex(db types.AccountDBTS,address common.Address,index uint64){
 	indexKey := getGuardMinerIndexKey(index)
 	db.SetDataSafe(common.GuardMinerNodeIndexAddr,indexKey,address.Bytes())
-	return nil
 }
 
 func (op *baseOperation)addGuardMinerInfo(address common.Address,disMissHeight uint64)error{
@@ -421,10 +420,7 @@ func (op *baseOperation)addGuardMinerInfo(address common.Address,disMissHeight u
 	if err != nil{
 		return err
 	}
-	err = setGuardMinerIndex(op.minerPool,address,gm.Len-1)
-	if err != nil{
-		return err
-	}
+	setGuardMinerIndex(op.minerPool,address,gm.Len-1)
 	return nil
 }
 

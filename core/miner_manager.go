@@ -63,7 +63,7 @@ func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader
 	if bh.Height < adjustWeightPeriod/2{
 		return nil
 	}
-	if (bh.Height - 1000) % 1000 != 0 {
+	if bh.Height % 1000 != 0 {
 		return nil
 	}
 	gm,err := getGuardMinerNodeInfo(db.AsAccountDBTS())
@@ -75,7 +75,7 @@ func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader
 	}
 	subLen := 0
 	for i:=gm.BeginIndex;i<gm.Len;i++{
-		addr,err := getGuardMinerIndex(db.AsAccountDBTS(),i)
+		addr := getGuardMinerIndex(db.AsAccountDBTS(),i)
 		if err != nil{
 			Logger.Error(err)
 			continue
