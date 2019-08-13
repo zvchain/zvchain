@@ -307,9 +307,50 @@ func TestMinerManager_ScanningGuardInvalid(t *testing.T){
 	setup()
 	defer clear()
 	geneMinerPool(t)
+
 	gm,err := getGuardMinerNodeInfo(accountDB.AsAccountDBTS())
-	if err !=nil{
-		t.Fatalf("error")
+	if err != nil{
+		t.Fatalf("error" )
+	}
+	for i:=gm.BeginIndex;i<gm.Len;i++{
+		addr,err := getGuardMinerIndex(accountDB.AsAccountDBTS(),i)
+		if err != nil{
+			t.Fatalf("error")
+		}
+		switch i {
+		case 0:
+			if *addr != guardNode1{
+				t.Fatalf("expect %s,but got %s",guardNode1.Hex(),addr.Hex())
+			}
+		case 1:
+			if *addr != guardNode2{
+				t.Fatalf("expect %s,but got %s",guardNode2.Hex(),addr.Hex())
+			}
+		case 2:
+			if *addr != guardNode3{
+				t.Fatalf("expect %s,but got %s",guardNode3.Hex(),addr.Hex())
+			}
+		case 3:
+			if *addr != guardNode4{
+				t.Fatalf("expect %s,but got %s",guardNode4.Hex(),addr.Hex())
+			}
+		case 4:
+			if *addr != guardNode5{
+				t.Fatalf("expect %s,but got %s",guardNode5.Hex(),addr.Hex())
+			}
+		case 5:
+			if *addr != guardNode6{
+				t.Fatalf("expect %s,but got %s",guardNode6.Hex(),addr.Hex())
+			}
+		case 6:
+			if *addr != guardNode7{
+				t.Fatalf("expect %s,but got %s",guardNode7.Hex(),addr.Hex())
+			}
+		case 7:
+			if *addr != guardNode8{
+				t.Fatalf("expect %s,but got %s",guardNode8.Hex(),addr.Hex())
+			}
+		}
 	}
 	if gm.Len != 8{
 		t.Fatalf("except 8,but got %d",gm.Len)
@@ -318,10 +359,33 @@ func TestMinerManager_ScanningGuardInvalid(t *testing.T){
 		t.Fatalf("except 0,but got %d",gm.BeginIndex)
 	}
 	bh := &types.BlockHeader{
-		Height:halfOfYearBlocks+3000,
+		Height:adjustWeightPeriod / 2 +1000000,
 	}
 
 	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
+
+	gm,err = getGuardMinerNodeInfo(accountDB.AsAccountDBTS())
+	if err != nil{
+		t.Fatalf("error")
+	}
+	if gm.BeginIndex!=8{
+		t.Fatalf("except 8,but got %d",gm.BeginIndex)
+	}
+	for i:=gm.BeginIndex;i<gm.Len;i++{
+		addr,err := getGuardMinerIndex(accountDB.AsAccountDBTS(),i)
+		if err != nil{
+			t.Fatalf("error")
+		}
+		if addr != nil{
+			t.Fatalf("except nil,but got value")
+		}
+	}
+
+	key := getTicketsKey(minerPool)
+	totalTickets := getTotalTickets(accountDB.AsAccountDBTS(),key)
+	if totalTickets != 0 {
+		t.Fatalf("except 0,but got %d",totalTickets)
+	}
 }
 
 func TestMinerManager_GuardInvalid(t *testing.T){
@@ -599,8 +663,8 @@ func TestMinerManager_ApplyGuardNode(t *testing.T){
 	if err !=nil{
 		t.Fatalf("error")
 	}
-	if detail.DisMissHeight!= halfOfYearBlocks{
-		t.Fatalf("except dismiss height is %v,but got %v",halfOfYearBlocks,detail.DisMissHeight)
+	if detail.DisMissHeight!= adjustWeightPeriod/2{
+		t.Fatalf("except dismiss height is %v,but got %v",adjustWeightPeriod/2,detail.DisMissHeight)
 	}
 
 	vf,err := getVoteInfo(accountDB,*ctx.target)

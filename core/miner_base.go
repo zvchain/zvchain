@@ -21,7 +21,6 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"math/big"
 )
 
 var (
@@ -70,7 +69,7 @@ func maximumStake(height uint64) uint64 {
 
 // miner pool valid tickets
 func getValidTicketsByHeight(height uint64) uint64 {
-	reduce := height / threeYearBlocks
+	reduce := height / (adjustWeightPeriod * 3)
 	reduceTickets := reduce * minerPoolReduceCount
 	if initMinerPoolTickets <= reduceTickets {
 		return minMinerPoolTickets
@@ -78,18 +77,7 @@ func getValidTicketsByHeight(height uint64) uint64 {
 	return initMinerPoolTickets - reduceTickets
 }
 
-// Special account address
-// Need to access by AccountDBTS for concurrent situations
-var (
-	minerPoolAddr           = common.BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
-	rewardStoreAddr         = common.BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
-    minerPoolTicketsAddr    = common.BigToAddress(big.NewInt(3)) // The Address storing all miner pool tickets
-	guardMinerNodeIndexAddr = common.BigToAddress(big.NewInt(4)) // The Address storing current guard miner node index
-	guardMinerNodeInfoAddr  = common.BigToAddress(big.NewInt(5)) // The Address storing all guard miners length and beginIndex
 
-)
-
-var punishmentDetailAddr = common.BigToAddress(big.NewInt(0))
 
 type guardMinerInfo struct{
 	BeginIndex  uint64
@@ -265,7 +253,7 @@ func setDetail(db types.AccountDB,address common.Address, detailKey []byte, sd *
 
 
 func getTotalTickets(db types.AccountDBTS,key []byte)uint64{
-	totalTicketsBytes := db.GetDataSafe(minerPoolTicketsAddr, key)
+	totalTicketsBytes := db.GetDataSafe(common.MinerPoolTicketsAddr, key)
 	totalTickets := uint64(0)
 	if len(totalTicketsBytes) > 0 {
 		totalTickets = common.ByteToUInt64(totalTicketsBytes)
@@ -282,7 +270,7 @@ func getTicketsKey(address common.Address) []byte {
 }
 
 func getProposalTotalStake(db types.AccountDBTS) uint64 {
-	totalStakeBytes := db.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
+	totalStakeBytes := db.GetDataSafe(common.MinerPoolAddr, keyPoolProposalTotalStake)
 	totalStake := uint64(0)
 	if len(totalStakeBytes) > 0 {
 		totalStake = common.ByteToUInt64(totalStakeBytes)
@@ -357,7 +345,7 @@ func (op *baseOperation) addTicket(address common.Address)uint64{
 	key := getTicketsKey(address)
 	totalTickets := getTotalTickets(op.minerPool,key)
 	totalTickets+=1
-	op.minerPool.SetDataSafe(minerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
+	op.minerPool.SetDataSafe(common.MinerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
 	return totalTickets
 }
 
@@ -374,12 +362,12 @@ func (op *baseOperation) subTicket(address common.Address)uint64{
 	}else{
 		totalTickets -=1
 	}
-	op.minerPool.SetDataSafe(minerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
+	op.minerPool.SetDataSafe(common.MinerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
 	return totalTickets
 }
 
 func getGuardMinerNodeInfo(db types.AccountDBTS)(*guardMinerInfo,error){
-	bytes := db.GetDataSafe(guardMinerNodeInfoAddr,keyGuardMinerInfos)
+	bytes := db.GetDataSafe(common.GuardMinerNodeInfoAddr,keyGuardMinerInfos)
 	var gm guardMinerInfo
 	var err error
 	if bytes == nil{
@@ -398,18 +386,18 @@ func setGuardMinerNodeInfo(db types.AccountDBTS,gm *guardMinerInfo)error{
 	if err != nil{
 		return err
 	}
-	db.SetDataSafe(guardMinerNodeInfoAddr,keyGuardMinerInfos,bytes)
+	db.SetDataSafe(common.GuardMinerNodeInfoAddr,keyGuardMinerInfos,bytes)
 	return nil
 }
 
 func delGuardMinerIndex(db types.AccountDBTS,index uint64){
 	indexKey := getGuardMinerIndexKey(index)
-	db.RemoveDataSafe(guardMinerNodeIndexAddr,indexKey)
+	db.RemoveDataSafe(common.GuardMinerNodeIndexAddr,indexKey)
 }
 
 func getGuardMinerIndex(db types.AccountDBTS,index uint64)(*common.Address,error){
 	indexKey := getGuardMinerIndexKey(index)
-	bytes := db.GetDataSafe(guardMinerNodeIndexAddr,indexKey)
+	bytes := db.GetDataSafe(common.GuardMinerNodeIndexAddr,indexKey)
 	if bytes == nil{
 		return nil,nil
 	}
@@ -419,7 +407,7 @@ func getGuardMinerIndex(db types.AccountDBTS,index uint64)(*common.Address,error
 
 func setGuardMinerIndex(db types.AccountDBTS,address common.Address,index uint64)error{
 	indexKey := getGuardMinerIndexKey(index)
-	db.SetDataSafe(guardMinerNodeIndexAddr,indexKey,address.Bytes())
+	db.SetDataSafe(common.GuardMinerNodeIndexAddr,indexKey,address.Bytes())
 	return nil
 }
 
@@ -476,7 +464,7 @@ func (op *baseOperation) addToPool(address common.Address, addStake uint64) {
 		key = getPoolKey(prefixPoolVerifier, address)
 
 	}
-	op.minerPool.SetDataSafe(minerPoolAddr, key, []byte{1})
+	op.minerPool.SetDataSafe(common.MinerPoolAddr, key, []byte{1})
 }
 
 func (op *baseOperation) addProposalTotalStake(addStake uint64) {
@@ -485,7 +473,7 @@ func (op *baseOperation) addProposalTotalStake(addStake uint64) {
 	if addStake+totalStake < totalStake {
 		panic(fmt.Errorf("total stake overflow:%v %v", addStake, totalStake))
 	}
-	op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
+	op.minerPool.SetDataSafe(common.MinerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
 }
 
 func guardNodeExpired(db types.AccountDB,address common.Address,height uint64){
@@ -531,14 +519,14 @@ func (op *baseOperation) subProposalTotalStake(subStake uint64) {
 	if totalStake < subStake {
 		panic("total stake less than sub stake")
 	}
-	op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-subStake))
+	op.minerPool.SetDataSafe(common.MinerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-subStake))
 }
 
 func (op *baseOperation) removeFromPool(address common.Address, stake uint64) {
 	var key []byte
 	if op.opProposalRole() {
 		key = getPoolKey(prefixPoolProposal, address)
-		totalStakeBytes := op.minerPool.GetDataSafe(minerPoolAddr, keyPoolProposalTotalStake)
+		totalStakeBytes := op.minerPool.GetDataSafe(common.MinerPoolAddr, keyPoolProposalTotalStake)
 		totalStake := uint64(0)
 		if len(totalStakeBytes) > 0 {
 			totalStake = common.ByteToUInt64(totalStakeBytes)
@@ -546,12 +534,12 @@ func (op *baseOperation) removeFromPool(address common.Address, stake uint64) {
 		if totalStake < stake {
 			panic(fmt.Errorf("totalStake less than stake: %v %v", totalStake, stake))
 		}
-		op.minerPool.SetDataSafe(minerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-stake))
+		op.minerPool.SetDataSafe(common.MinerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(totalStake-stake))
 	} else if op.opVerifyRole() {
 		key = getPoolKey(prefixPoolVerifier, address)
 
 	}
-	op.minerPool.RemoveDataSafe(minerPoolAddr, key)
+	op.minerPool.RemoveDataSafe(common.MinerPoolAddr, key)
 }
 
 func (op *baseOperation) getDetail(address common.Address, detailKey []byte) (*stakeDetail, error) {

@@ -30,11 +30,8 @@ const (
 	oneHourBlocks = 86400 / onBlockSeconds / 24   // Blocks generated in one hour on average, used when status transforms from Frozen to Prepare
 	oneDayBlocks  = 86400 / onBlockSeconds        // Blocks generated in one day on average
 	twoDayBlocks  = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
-	oneMonthBlocks = 30  * oneDayBlocks
-	halfOfYearBlocks = 6 * oneMonthBlocks
-	oneYearBlocks = 2 * halfOfYearBlocks
-	threeYearBlocks = 3 * oneYearBlocks
 	sevenDayBlocks  = 7 * oneDayBlocks
+
 )
 
 // mOperation define some functions on miner operation
@@ -938,7 +935,7 @@ func (op *minerPenaltyOp) Transition() *result {
 			return ret
 		}
 		// Add punishment detail
-		punishmentKey := getDetailKey(punishmentDetailAddr, op.minerType, types.StakePunishment)
+		punishmentKey := getDetailKey(common.PunishmentDetailAddr, op.minerType, types.StakePunishment)
 		punishmentDetail, err := op.getDetail(addr, punishmentKey)
 		if err != nil {
 			ret.setError(err,types.RSFail)

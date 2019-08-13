@@ -267,7 +267,7 @@ func genMinerInfoCmd() *minerInfoCmd {
 		baseCmd: *genBaseCmd("minerinfo", "get the info of the miner"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the miner address")
-	c.fs.StringVar(&c.detail, "detail", "", "show the details of the stake from the given address, no details shows if empty, all details shows if set all")
+	c.fs.StringVar(&c.detail, "detail", "", "show the details of the stake from the given address, no details shows if empty")
 	return c
 }
 
@@ -894,6 +894,7 @@ func init() {
 	list = append(list, &cmdImportKey.baseCmd)
 	list = append(list, &cmdExportKey.baseCmd)
 	list = append(list, &cmdGroupCheck.baseCmd)
+	list = append(list, &cmdCancelGuard.baseCmd)
 	list = append(list, cmdExit)
 }
 

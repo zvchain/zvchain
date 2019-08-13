@@ -283,8 +283,8 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	MinerManagerImpl.genGuardNodes(stateDB)
 
 	// Create the global-use address
-	stateDB.SetNonce(minerPoolAddr, 1)
-	stateDB.SetNonce(rewardStoreAddr, 1)
+	stateDB.SetNonce(common.MinerPoolAddr, 1)
+	stateDB.SetNonce(common.RewardStoreAddr, 1)
 	stateDB.SetNonce(common.GroupTopAddress, 1)
 
 	root := stateDB.IntermediateRoot(true)

@@ -60,7 +60,7 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 
 // GuardNodesCheck check guard nodes is expired
 func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader)error{
-	if bh.Height < halfOfYearBlocks{
+	if bh.Height < adjustWeightPeriod/2{
 		return nil
 	}
 	if (bh.Height - 1000) % 1000 != 0 {
@@ -253,7 +253,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	} else {
 		prefix = prefixPoolProposal
 	}
-	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
+	iter := accountDB.AsAccountDBTS().DataIteratorSafe(common.MinerPoolAddr, prefix)
 	miners := make([]*types.Miner, 0)
 	for iter.Next() {
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
@@ -367,7 +367,7 @@ func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 		return mp
 	}
 	prefix := prefixPoolProposal
-	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
+	iter := accountDB.AsAccountDBTS().DataIteratorSafe(common.MinerPoolAddr, prefix)
 	for iter != nil && iter.Next() {
 		if !bytes.HasPrefix(iter.Key, prefix) {
 			break

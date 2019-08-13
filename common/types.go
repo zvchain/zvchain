@@ -46,13 +46,22 @@ const (
 	GroupIDLength = 32 //Length of Group
 )
 
+// Special account address
+// Need to access by AccountDBTS for concurrent situations
 var (
 	hashT               = reflect.TypeOf(Hash{})
 	addressT            = reflect.TypeOf(Address{})
 	BonusStorageAddress = BigToAddress(big.NewInt(0))
-
+	MinerPoolAddr           = BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
+	RewardStoreAddr         = BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
 	GroupTopAddress     = BigToAddress(big.NewInt(3)) //save the current top group
+	MinerPoolTicketsAddr    = BigToAddress(big.NewInt(4)) // The Address storing all miner pool tickets
+	GuardMinerNodeIndexAddr = BigToAddress(big.NewInt(5)) // The Address storing current guard miner node index
+	GuardMinerNodeInfoAddr  = BigToAddress(big.NewInt(6)) // The Address storing all guard miners length and beginIndex
 )
+
+var PunishmentDetailAddr = BigToAddress(big.NewInt(0))
+
 
 func ShortHex(hex string) string {
 	if len(hex) < 12 {

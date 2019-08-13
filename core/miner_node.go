@@ -536,7 +536,7 @@ func(b*BaseMiner)checkApplyGuard(mop mOperation,miner *types.Miner)error{
 func(b*BaseMiner)processApplyGuard(mop mOperation,miner *types.Miner) error{
 	// update miner identity and set dismissHeight to detail
 	miner.UpdateIdentity(types.MinerGuard,mop.Height())
-	disMissHeight := mop.Height() + halfOfYearBlocks
+	disMissHeight := mop.Height() + adjustWeightPeriod/2
 	var err error
 	err = mop.GetBaseOperation().addGuardMinerInfo(mop.Source(),disMissHeight)
 	if err != nil{

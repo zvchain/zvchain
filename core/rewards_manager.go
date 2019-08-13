@@ -69,11 +69,11 @@ func NewRewardManager() *rewardManager {
 }
 
 func getRewardData(db types.AccountDBTS, key []byte) []byte {
-	return db.GetDataSafe(rewardStoreAddr, key)
+	return db.GetDataSafe(common.RewardStoreAddr, key)
 }
 
 func setRewardData(db types.AccountDBTS, key, value []byte) {
-	db.SetDataSafe(rewardStoreAddr, key, value)
+	db.SetDataSafe(common.RewardStoreAddr, key, value)
 }
 
 func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
