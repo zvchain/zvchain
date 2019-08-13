@@ -854,7 +854,6 @@ var cmdTx = genTxCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
 var cmdApplyGuardMiner = genApplyGuardMinerCmd()
-var cmdCancelGuard = genCancelGuardCmd()
 var cmdVoteMinerPool= genVoteMinerPoolCmd()
 var cmdStakeAdd = genStakeAddCmd()
 var cmdMinerAbort = genMinerAbortCmd()
@@ -894,7 +893,6 @@ func init() {
 	list = append(list, &cmdImportKey.baseCmd)
 	list = append(list, &cmdExportKey.baseCmd)
 	list = append(list, &cmdGroupCheck.baseCmd)
-	list = append(list, &cmdCancelGuard.baseCmd)
 	list = append(list, cmdExit)
 }
 
@@ -1078,13 +1076,6 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args){
 				handleCmd(func() *Result {
 					return chainOp.ApplyGuardMiner(cmd.gaslimit, cmd.gasPrice)
-				})
-			}
-		case cmdCancelGuard.name:
-			cmd := genCancelGuardCmd()
-			if cmd.parse(args){
-				handleCmd(func() *Result {
-					return chainOp.CancelGuard(cmd.addr,cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdVoteMinerPool.name:

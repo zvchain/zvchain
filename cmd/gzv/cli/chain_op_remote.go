@@ -286,35 +286,6 @@ func (ca *RemoteChainOpImpl)ApplyGuardMiner(gas, gasprice uint64) *Result{
 	return ca.SendRaw(tx)
 }
 
-
-func (ca *RemoteChainOpImpl)CancelGuard(addr string,gas, gasprice uint64) *Result{
-	if strings.TrimSpace(addr) == "" {
-		return opError(fmt.Errorf("please input the address"))
-	}
-	if !common.ValidateAddress(addr) {
-		return opError(fmt.Errorf("Wrong address format"))
-	}
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
-	}
-	aci := r.Data.(*Account)
-	if common.StringToAddress(aci.Address) != types.AdminAddrType{
-		return opError(fmt.Errorf("only admin can call"))
-	}
-	if !types.IsInExtractGuardNodes(common.StringToAddress(addr)){
-		return opError(fmt.Errorf("operator addr is not in extract guard nodes"))
-	}
-	tx := &txRawData{
-		Target:   addr,
-		Gas:      gas,
-		Gasprice: gasprice,
-		TxType:   types.TransactionTypeCancelGuard,
-	}
-	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
-	return ca.SendRaw(tx)
-}
-
 // MinerAbort send stop mining transaction
 func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result {
 	r := ca.aop.AccountInfo()
