@@ -17,12 +17,10 @@ package net
 
 import (
 	"github.com/gogo/protobuf/proto"
-	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
-	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
