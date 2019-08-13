@@ -56,12 +56,12 @@ func newProposedBlock(b *types.Block, count int) *proposedBlock {
 }
 
 func (p *proposedBlock) containsOrAddRequested(gid groupsig.ID) (bool, int) {
-	if p.requestedMember.Has(gid.GetAddrString()) {
+	if p.requestedMember.Has(gid.GetHexString()) {
 		return true, 0
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	p.requestedMember.Add(gid.GetAddrString())
+	p.requestedMember.Add(gid.GetHexString())
 	return false, p.requestedMember.Size()
 }
 

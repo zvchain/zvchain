@@ -64,7 +64,7 @@ func TestTvmCli_Call(t *testing.T) {
 	contractAddress := _deployContract("Token", "erc20.py")
 	abiJson := `{
 	"FuncName": "balance_of",
-		"Args": ["zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
+		"Args": ["0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`
 	_callContract(contractAddress, abiJson)
 }
@@ -86,7 +86,7 @@ func TestTvmCli_Call_ContractCallContract(t *testing.T) {
 
 	abiJSON := fmt.Sprintf(`{
   "FuncName": "call_contract",
-  "Args": ["%s","balance_of","zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
+  "Args": ["%s","balance_of","0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`, erc20Contract)
 	_callContract(routerContract, abiJSON)
 }
@@ -158,7 +158,7 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	tvmCli := NewTvmCli()
 	state := getState(tvmCli)
 	//addr := "123"
-	state.SetBalance(common.StringToAddress(contract), big.NewInt(100))
+	state.SetBalance(common.HexToAddress(contract), big.NewInt(100))
 	hash, _ := state.Commit(false)
 	tvmCli.database.TrieDB().Commit(hash, false)
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
@@ -171,7 +171,7 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	tvmCli.Call(contract, abiJson)
 
 	randHash := sha256.Sum256([]byte(strconv.Itoa(int(time.Now().UnixNano()))))
-	randAddr := fmt.Sprintf("zv"+"%x", string(randHash[:]))
+	randAddr := fmt.Sprintf("0x"+"%x", string(randHash[:]))
 
 	abiJson2 := fmt.Sprintf(`{
 "FuncName": "transfer",

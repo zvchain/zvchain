@@ -78,7 +78,7 @@ func (pk *PublicKey) Encrypt(rand io.Reader, msg []byte) ([]byte, error) {
 
 // HexToPubKey returns a public key with the hex string imported
 func HexToPubKey(s string) (pk *PublicKey) {
-	if len(s) < len(HexPrefix) || s[:len(HexPrefix)] != HexPrefix {
+	if len(s) < len(PREFIX) || s[:len(PREFIX)] != PREFIX {
 		return
 	}
 	pk = BytesToPublicKey(FromHex(s))

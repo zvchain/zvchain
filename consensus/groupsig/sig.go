@@ -109,7 +109,7 @@ func (sig Signature) GetHexString() string {
 	return PREFIX + common.Bytes2Hex(sig.value.Marshal())
 }
 
-// SetAddrString initialize signature by hex string
+// SetHexString initialize signature by hex string
 func (sig *Signature) SetHexString(s string) error {
 	if len(s) < len(PREFIX) || s[:len(PREFIX)] != PREFIX {
 		return fmt.Errorf("arg failed")
@@ -280,7 +280,7 @@ func RecoverSignatureByMapI(m SignatureIMap, k int) *Signature {
 	// Range map
 	for sID, si := range m {
 		var id ID
-		id.SetAddrString(sID)
+		id.SetHexString(sID)
 		// Group member ID value
 		ids[i] = id
 		// Group member signature

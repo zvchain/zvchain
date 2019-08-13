@@ -59,6 +59,7 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 		t.Errorf("failed to init context: %v\n", err)
 	}
 
+
 	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
 	//processorTest.blockContexts.attachVctx(core.BlockChainImpl.QueryTopBlock(), pt.verifyContext)
 	txs := make([]*types.Transaction, 0)
@@ -164,7 +165,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				msg: &model.ReqProposalBlock{
+				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(block.Header.Hash, pt.ids[0], pt.msk[0]),
@@ -177,7 +178,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "not group member",
 			args: args{
-				msg: &model.ReqProposalBlock{
+				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(block.Header.Hash, groupsig.ID{}, groupsig.Seckey{}),
@@ -190,7 +191,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "member requested",
 			args: args{
-				msg: &model.ReqProposalBlock{
+				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(block.Header.Hash, pt.ids[0], pt.msk[0]),
@@ -198,12 +199,12 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 				},
 				sourceID: "111",
 			},
-			expected: "reqProposa sender zv0000-040500 has already requested the block",
+			expected: "reqProposa sender 0x0000-040500 has already requested the block",
 		},
 		{
 			name: "bad hash",
 			args: args{
-				msg: &model.ReqProposalBlock{
+				msg:      &model.ReqProposalBlock{
 					Hash: common.EmptyHash,
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(common.EmptyHash, pt.ids[1], pt.msk[1]),
@@ -216,7 +217,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "ok, adding response count",
 			args: args{
-				msg: &model.ReqProposalBlock{
+				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(block.Header.Hash, pt.ids[3], pt.msk[3]),
@@ -229,7 +230,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 		{
 			name: "response count exceed",
 			args: args{
-				msg: &model.ReqProposalBlock{
+				msg:      &model.ReqProposalBlock{
 					Hash: block.Header.Hash,
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(block.Header.Hash, pt.ids[4], pt.msk[4]),
@@ -328,7 +329,7 @@ func (m MinerPoolTest) GetMiner(address common.Address, mType types.MinerType, h
 		VrfPublicKey: base.Hex2VRFPublicKey("885f642c8390293eb74d08cf38d3333771e9e319cfd12a21429eeff2eddeebd2"),
 		Stake:        100000,
 	}
-	if address == common.StringToAddress(inActiveCastor) {
+	if address == common.HexToAddress(inActiveCastor) {
 		mi.Status = types.MinerStatusPrepare
 	}
 	return mi
@@ -392,7 +393,7 @@ func getAccount() *Account4Test {
 	account := &Account4Test{
 		Sk:       secKey.Hex(),
 		Pk:       secKey.GetPubKey().Hex(),
-		Address:  secKey.GetPubKey().GetAddress().AddrPrefixString(),
+		Address:  secKey.GetPubKey().GetAddress().Hex(),
 		Password: "Password",
 	}
 	return account

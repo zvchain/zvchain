@@ -82,42 +82,11 @@ func UnmarshalFixedJSON(typ reflect.Type, input, out []byte) error {
 	return wrapTypeError(UnmarshalFixedText(typ.String(), input[1:len(input)-1], out), typ)
 }
 
-// UnmarshalFixedJSON decodes the input as a string with 0x prefix. The length of out
-// determines the required input length. This function is commonly used to implement the
-// UnmarshalJSON method for fixed-size types.
-func UnmarshalAddrJSON(typ reflect.Type, input, out []byte) error {
-	if !isString(input) {
-		return errNonString(typ)
-	}
-	return wrapTypeError(UnmarshalAddr(typ.String(), input[1:len(input)-1], out), typ)
-}
-
 // UnmarshalFixedText decodes the input as a string with 0x prefix. The length of out
 // determines the required input length. This function is commonly used to implement the
 // UnmarshalText method for fixed-size types.
 func UnmarshalFixedText(typname string, input, out []byte) error {
 	raw, err := checkText(input, true)
-	if err != nil {
-		return err
-	}
-	if len(raw)/2 != len(out) {
-		return fmt.Errorf("hex string has length %d, want %d for %s", len(raw), len(out)*2, typname)
-	}
-	// Pre-verify syntax before modifying out.
-	for _, b := range raw {
-		if decodeNibble(b) == badNibble {
-			return ErrSyntax
-		}
-	}
-	hex.Decode(out, raw)
-	return nil
-}
-
-// UnmarshalFixedText decodes the input as a string with 0x prefix. The length of out
-// determines the required input length. This function is commonly used to implement the
-// UnmarshalText method for fixed-size types.
-func UnmarshalAddr(typname string, input, out []byte) error {
-	raw, err := checkAddr(input, true)
 	if err != nil {
 		return err
 	}
@@ -306,25 +275,6 @@ func isString(input []byte) bool {
 
 func bytesHave0xPrefix(input []byte) bool {
 	return len(input) >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X')
-}
-
-func bytesHaveZvPrefix(input []byte) bool {
-	return len(input) >= 2 && (input[0] == 'z' || input[0] == 'Z') && (input[1] == 'v' || input[1] == 'V')
-}
-
-func checkAddr(input []byte, wantPrefix bool) ([]byte, error) {
-	if len(input) == 0 {
-		return nil, nil // empty strings are allowed
-	}
-	if bytesHaveZvPrefix(input) {
-		input = input[2:]
-	} else if wantPrefix {
-		return nil, ErrMissingAddrPrefix
-	}
-	if len(input)%2 != 0 {
-		return nil, ErrOddLength
-	}
-	return input, nil
 }
 
 func checkText(input []byte, wantPrefix bool) ([]byte, error) {

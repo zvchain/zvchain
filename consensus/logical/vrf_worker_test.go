@@ -28,7 +28,7 @@ import (
 func genMinerDO() *model.SelfMinerDO {
 	addr := "0xed890e78fc5d07e85e66b7926d8370c095570abb5259e346438abd3ea7a56a8a"
 	var id groupsig.ID
-	id.SetAddrString(addr)
+	id.SetHexString(addr)
 	minerDO := model.MinerDO{
 		ID:    id,
 		VrfPK: base.Hex2VRFPublicKey("0x666a589f1bbc74ad4bc24c67c0845bd4e74d83f0e3efa3a4b465bf6e5600871c"),

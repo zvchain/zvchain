@@ -38,7 +38,7 @@ func TestGroupCreateTxs(t *testing.T) {
 
 	seed := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
-	sender := common.StringToAddress(account.Address).Bytes()
+	sender := common.HexToAddress(account.Address).Bytes()
 	groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
 
 	//Round 1

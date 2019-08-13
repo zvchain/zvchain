@@ -50,10 +50,10 @@ func TestPublickKey(test *testing.T) {
 
 	fmt.Printf("\nbegin test address...\n")
 	a := pk.GetAddress()
-	str = a.AddrPrefixString()
+	str = a.Hex()
 	fmt.Printf("address export, len=%v, data=%v.\n", len(str), str)
-	new_a := StringToAddress(str)
-	new_str = new_a.AddrPrefixString()
+	new_a := HexToAddress(str)
+	new_str = new_a.Hex()
 	fmt.Printf("import address and export again, len=%v, data=%v.\n", len(new_str), new_str)
 
 	fmt.Printf("end TestPublicKey.\n")
@@ -204,7 +204,7 @@ func TestAccount(test *testing.T) {
 	pubkey := privateKey.GetPubKey()
 	address := pubkey.GetAddress()
 	fmt.Printf("sk:%s\n", privateKey.Hex())
-	fmt.Printf("address:%s\n", address.AddrPrefixString())
+	fmt.Printf("address:%s\n", address.Hex())
 }
 
 func TestGenerateKey(t *testing.T) {

@@ -87,7 +87,7 @@ func newMsgTraceLog(mtype string, key string, sender string) *msgTraceLog {
 }
 
 func newHashTraceLog(mtype string, hash common.Hash, sid groupsig.ID) *msgTraceLog {
-	return newMsgTraceLog(mtype, common.ShortHex(hash.Hex()), common.ShortHex(sid.GetAddrString()))
+	return newMsgTraceLog(mtype, common.ShortHex(hash.Hex()), common.ShortHex(sid.GetHexString()))
 }
 
 func _doLog(t string, k string, sender string, format string, params ...interface{}) {

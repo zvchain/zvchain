@@ -136,8 +136,8 @@ const (
 )
 
 const (
-	evilAddr       = "0x0000000000000000000000000000000000000000000000000000000000000123"
-	kindAddr       = "0x0000000000000000000000000000000000000000000000000000000000000abc"
+	evilAddr = "0x0000000000000000000000000000000000000000000000000000000000000123"
+	kindAddr = "0x0000000000000000000000000000000000000000000000000000000000000abc"
 	kindToEvilAddr = "0x0000000000000000000000000000000000000000000000000000000000000fff"
 )
 
@@ -165,26 +165,26 @@ var (
 	TxOverStateNonce1000 *types.Transaction
 	TxNoNonce            *types.Transaction
 
-	TxTypeTransfer             *types.Transaction
-	TxTypeContractCreate       *types.Transaction
-	TxTypeContractCreateEvil1  *types.Transaction
-	TxTypeContractCreateEvil2  *types.Transaction
-	TxTypeContractCall         *types.Transaction
-	TxTypeContractCallEvil1    *types.Transaction
-	TxTypeContractCallEvil2    *types.Transaction
-	TxTypeRewardBadData        *types.Transaction
+	TxTypeTransfer            *types.Transaction
+	TxTypeContractCreate      *types.Transaction
+	TxTypeContractCreateEvil1 *types.Transaction
+	TxTypeContractCreateEvil2 *types.Transaction
+	TxTypeContractCall        *types.Transaction
+	TxTypeContractCallEvil1   *types.Transaction
+	TxTypeContractCallEvil2   *types.Transaction
+	TxTypeRewardBadData       *types.Transaction
 	TxTypeRewardBadExtra       *types.Transaction
-	TxTypeStakeAddProposal     *types.Transaction
-	TxTypeStakeAddVerify       *types.Transaction
-	TxTypeStakeAddFakes        []*types.Transaction
-	TxTypeStakeAddFake1        *types.Transaction
-	TxTypeStakeAddFake2        *types.Transaction
-	TxTypeStakeAddFake3        *types.Transaction
-	TxTypeStakeAddFake4        *types.Transaction
-	TxTypeStakeAddFake5        *types.Transaction
-	TxTypeStakeReduce          *types.Transaction
-	TxTypeStakeReduceFake1     *types.Transaction
-	TxTypeMinerAbort           *types.Transaction
+	TxTypeStakeAddProposal    *types.Transaction
+	TxTypeStakeAddVerify      *types.Transaction
+	TxTypeStakeAddFakes       []*types.Transaction
+	TxTypeStakeAddFake1       *types.Transaction
+	TxTypeStakeAddFake2       *types.Transaction
+	TxTypeStakeAddFake3       *types.Transaction
+	TxTypeStakeAddFake4       *types.Transaction
+	TxTypeStakeAddFake5       *types.Transaction
+	TxTypeStakeReduce         *types.Transaction
+	TxTypeStakeReduceFake1    *types.Transaction
+	TxTypeMinerAbort          *types.Transaction
 	TxTypeStakeRefund          *types.Transaction
 	TxTypeEvil                 *types.Transaction
 	TxTypeGroupPiece           *types.Transaction
@@ -351,7 +351,7 @@ func initTxsAndOthers() {
 
 	// a not exist source addr
 	TxSourceNotExist = generateTX(nil, 1, 0, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
-	source1 := common.StringToAddress("zv0000000000000000000000000000000000000000000000000000000000000123")
+	source1 := common.HexToAddress("0x0000000000000000000000000000000000000000000000000000000000000123")
 	TxSourceNotExist.Source = &source1
 
 	TxTargetNotExist = generateTX(nil, 1, 0, "", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
@@ -415,7 +415,7 @@ func AddBalance() {
 	blocks := GenBlocks()
 	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
 
-	stateDB.AddBalance(common.StringToAddress(adminAddress), new(big.Int).SetUint64(99999999999999999))
+	stateDB.AddBalance(common.HexToAddress(adminAddress), new(big.Int).SetUint64(99999999999999999))
 
 	exc := &executePostState{state: stateDB}
 	root := stateDB.IntermediateRoot(true)
@@ -575,7 +575,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 	data1 := make([]byte, 1000)
 	if !isEvil {
 		seed := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
-		sender := common.StringToAddress(adminAddress).Bytes()
+		sender := common.HexToAddress(adminAddress).Bytes()
 		//groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
 
 		//Round 1
@@ -608,7 +608,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 	}
 
 	if withTarget {
-		targetbyte := common.StringToAddress("111")
+		targetbyte := common.HexToAddress("111")
 		tx.Target = &targetbyte
 	}
 
@@ -624,7 +624,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 }
 
 func genetateMinerOpTx(value uint64, target string, txType int, gasLimit uint64, gasprice uint64, mType types.MinerType, isEvil bool) *types.Transaction {
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	var tx *types.Transaction
 	if isEvil {
 		tx = &types.Transaction{
@@ -672,7 +672,7 @@ func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64
 		fmt.Println(err)
 	}
 
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		Data:     data,
 		Value:    types.NewBigInt(value),
@@ -725,7 +725,7 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 	datas := [][]byte{data1, data2, data3, data4, data5}
 
 	var txs []*types.Transaction
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	for i := 0; i < 5; i++ {
 		tx := &types.Transaction{
 			Data:     datas[i],
@@ -768,7 +768,7 @@ func ReadFile(length int) ([]byte, error) {
 
 func generateNoValueTx(target string, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Target:   &targetbyte,
@@ -788,7 +788,7 @@ func generateNoValueTx(target string, txType int, gasLimit uint64, gasprice uint
 
 func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		//Nonce:     Nonce,
 		Value:    types.NewBigInt(value),
@@ -809,7 +809,7 @@ func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64,
 
 func generateNoTypeTx(target string, value uint64, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -829,7 +829,7 @@ func generateNoTypeTx(target string, value uint64, gasLimit uint64, gasprice uin
 
 func generateNoGasPriceTx(target string, value uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -849,7 +849,7 @@ func generateNoGasPriceTx(target string, value uint64, gasLimit uint64, txType i
 
 func generateNoHashTx(target string, value uint64, gasPrice uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -869,7 +869,7 @@ func generateNoHashTx(target string, value uint64, gasPrice uint64, gasLimit uin
 
 func generateNoSignTx(target string, value uint64, gasPrice uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -888,7 +888,7 @@ func generateNoSignTx(target string, value uint64, gasPrice uint64, gasLimit uin
 
 func generateNoGasLimitTx(target string, value uint64, gasPrice uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	targetbyte := common.HexToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -911,7 +911,8 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 		Nonce = 1
 	}
 	tx := &types.Transaction{}
-	targetbyte := common.StringToAddress(target)
+	//targetbyte := common.Address{common.HexToAddress(target)}
+	targetbyte := common.HexToAddress(target)
 	if nonce != 0 {
 		// a mark
 		if nonce == 999999999 {
@@ -998,7 +999,7 @@ func generateTXs(count int, random bool) []*types.Transaction {
 		return nil
 	}
 	src := pk.GetAddress()
-	fmt.Println("SRC:", src.AddrPrefixString())
+	fmt.Println("SRC:", src.Hex())
 	return txs
 }
 
@@ -1020,12 +1021,12 @@ func getTxPoolTx() []*types.Transaction {
 }
 
 func getNonce(addr string) uint64 {
-	realAddr := common.StringToAddress(addr)
+	realAddr := common.HexToAddress(addr)
 	return BlockChainImpl.GetNonce(realAddr)
 }
 
 func getBalance(addr string) uint64 {
-	realAddr := common.StringToAddress(addr)
+	realAddr := common.HexToAddress(addr)
 	return BlockChainImpl.GetBalance(realAddr).Uint64()
 }
 

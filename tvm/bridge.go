@@ -39,7 +39,7 @@ func Transfer(toAddress *C.char, value *C.char) bool {
 		return false
 	}
 	contractAddr := controller.VM.ContractAddress
-	to := common.StringToAddress(toAddressStr)
+	to := common.HexToAddress(toAddressStr)
 
 	if !controller.AccountDB.CanTransfer(*contractAddr, transValue) {
 		return false
@@ -55,7 +55,7 @@ func GetBalance(addressC *C.char) *C.char {
 	if !common.ValidateAddress(toAddressStr) {
 		return C.CString("0")
 	}
-	address := common.StringToAddress(C.GoString(addressC))
+	address := common.HexToAddress(C.GoString(addressC))
 	value := controller.AccountDB.GetBalance(address)
 	return C.CString(value.String())
 }
@@ -139,7 +139,7 @@ func RemoveData(key *C.char) {
 func executeMinerOperation(msg types.MinerOperationMessage) bool {
 	success, err := controller.mm.ExecuteOperation(controller.AccountDB, msg, controller.BlockHeader.Height)
 	if err != nil {
-		log.TVMLogger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().AddrPrefixString())
+		log.TVMLogger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().Hex())
 	}
 	return success
 }
@@ -162,7 +162,7 @@ func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 		log.TVMLogger.Errorf("encode payload error:%v", err)
 		return false
 	}
-	target := common.StringToAddress(minerAddrString)
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,
@@ -186,7 +186,7 @@ func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
 		return false
 	}
 	payload := []byte{byte(_type)}
-	target := common.StringToAddress(minerAddrString)
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,
@@ -205,7 +205,7 @@ func MinerRefundStake(minerAddr *C.char, _type int) bool {
 		return false
 	}
 	payload := []byte{byte(_type)}
-	target := common.StringToAddress(minerAddrString)
+	target := common.HexToAddress(minerAddrString)
 	msg := &minerOpMsg{
 		source:  controller.VM.ContractAddress,
 		target:  &target,

@@ -98,7 +98,7 @@ func (pub Pubkey) String() string {
 	return pub.GetHexString()
 }
 
-// SetAddrString initializes the public key from the hexadecimal string
+// SetHexString initializes the public key from the hexadecimal string
 func (pub *Pubkey) SetHexString(s string) error {
 	if len(s) < len(PREFIX) || s[:len(PREFIX)] != PREFIX {
 		return fmt.Errorf("arg failed")

@@ -133,7 +133,7 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 		Height:   bh.Height,
 		Hash:     bh.Hash.Hex(),
 		PreHash:  bh.PreHash.Hex(),
-		Proposer: groupsig.DeserializeID(bh.Castor).GetAddrString(),
+		Proposer: groupsig.DeserializeID(bh.Castor).GetHexString(),
 		Verifier: gb.GSeed.Hex(),
 	}
 	monitor.Instance.AddLog(le)
@@ -178,8 +178,8 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	sKey := p.groupReader.getGroupSignatureSeckey(bh.Group)
 	// sign the message and send to other members in the verifyGroup
 	if msg.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), msg) {
-		p.NetServer.ReqProposalBlock(msg, slot.castor.GetAddrString())
-		result = fmt.Sprintf("Request block body from %v", slot.castor.GetAddrString())
+		p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
+		result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
 
 		slot.setSlotStatus(slSuccess)
 		vctx.markNotified()
@@ -302,7 +302,7 @@ func (p *Processor) blockProposal() {
 			Height:   bh.Height,
 			Hash:     bh.Hash.Hex(),
 			PreHash:  bh.PreHash.Hex(),
-			Proposer: p.GetMinerID().GetAddrString(),
+			Proposer: p.GetMinerID().GetHexString(),
 			Verifier: gb.GSeed.Hex(),
 			Ext:      fmt.Sprintf("qn:%v,totalQN:%v", qn, bh.TotalQN),
 		}

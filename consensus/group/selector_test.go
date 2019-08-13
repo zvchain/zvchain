@@ -43,7 +43,7 @@ func TestFts(t *testing.T) {
 	selecteds := selector.fts(20)
 
 	for _, m := range selecteds {
-		t.Log(m.ID.GetAddrString(), m.Stake)
+		t.Log(m.ID.GetHexString(), m.Stake)
 	}
 }
 
@@ -61,17 +61,17 @@ func TestFts_Distribution(t *testing.T) {
 		selector := newCandidateSelector(cands, rand)
 		seleted := selector.fts(40)
 		for _, m := range seleted {
-			if v, ok := selectedMap[m.ID.GetAddrString()]; ok {
-				selectedMap[m.ID.GetAddrString()] = v + 1
+			if v, ok := selectedMap[m.ID.GetHexString()]; ok {
+				selectedMap[m.ID.GetHexString()] = v + 1
 			} else {
-				selectedMap[m.ID.GetAddrString()] = 1
+				selectedMap[m.ID.GetHexString()] = 1
 			}
 		}
 	}
 
 	for _, mem := range cands {
-		selected := selectedMap[mem.ID.GetAddrString()]
-		t.Log(mem.ID.GetAddrString(), float64(mem.Stake)/float64(totalStake), float64(selected)/float64(testCount))
+		selected := selectedMap[mem.ID.GetHexString()]
+		t.Log(mem.ID.GetHexString(), float64(mem.Stake)/float64(totalStake), float64(selected)/float64(testCount))
 	}
 }
 

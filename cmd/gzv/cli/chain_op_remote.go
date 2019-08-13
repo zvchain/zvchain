@@ -123,7 +123,7 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 		return opError(fmt.Errorf("privatekey or pubkey error"))
 	}
 	source := pubkey.GetAddress()
-	if source.AddrPrefixString() != aci.Address {
+	if source.Hex() != aci.Address {
 		return opError(fmt.Errorf("address error"))
 	}
 

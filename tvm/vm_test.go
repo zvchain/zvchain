@@ -197,8 +197,8 @@ func TestVm(t *testing.T) {
 }
 
 func TestTVM_VerifyABI1(t *testing.T) {
-	contractAddr := common.StringToAddress("zv123")
-	senderAddr := common.StringToAddress("zv456")
+	contractAddr := common.HexToAddress("0x123")
+	senderAddr := common.HexToAddress("0x456")
 	contract := &Contract{
 		Code:            contractExample1,
 		ContractName:    "Token",
@@ -234,8 +234,8 @@ func TestTVM_VerifyABI1(t *testing.T) {
 }
 
 func TestTVM_VerifyABI2(t *testing.T) {
-	contractAddr := common.StringToAddress("zv123")
-	senderAddr := common.StringToAddress("zv456")
+	contractAddr := common.HexToAddress("0x123")
+	senderAddr := common.HexToAddress("0x456")
 	contract := &Contract{
 		Code:            contractExample2,
 		ContractName:    "A",

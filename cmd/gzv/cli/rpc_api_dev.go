@@ -73,8 +73,8 @@ func (api *RpcDevImpl) TransPool() (*Result, error) {
 	for _, v := range transactions {
 		transList = append(transList, Transactions{
 			Hash:   v.Hash.Hex(),
-			Source: v.Source.AddrPrefixString(),
-			Target: v.Target.AddrPrefixString(),
+			Source: v.Source.Hex(),
+			Target: v.Target.Hex(),
 			Value:  v.Value.String(),
 		})
 	}
@@ -83,14 +83,14 @@ func (api *RpcDevImpl) TransPool() (*Result, error) {
 }
 
 func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, error) {
-	if !common.ValidateAddress(strings.TrimSpace(account)) {
+	if !validateAddress(strings.TrimSpace(account)) {
 		return failResult("Wrong account address format")
 	}
 	db, err := core.BlockChainImpl.GetAccountDBByHeight(height)
 	if err != nil {
 		return failResult("this height is invalid")
 	}
-	b := db.GetBalance(common.StringToAddress(account))
+	b := db.GetBalance(common.HexToAddress(account))
 
 	balance := common.RA2TAS(b.Uint64())
 	return &Result{
@@ -167,7 +167,7 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 
 	blockDetail["tx_pool_count"] = len(core.BlockChainImpl.GetTransactionPool().GetReceived())
 	blockDetail["tx_pool_total"] = core.BlockChainImpl.GetTransactionPool().TxNum()
-	blockDetail["miner_id"] = mediator.Proc.GetMinerID().GetAddrString()
+	blockDetail["miner_id"] = mediator.Proc.GetMinerID().GetHexString()
 	return successResult(blockDetail)
 }
 
@@ -177,7 +177,7 @@ func (api *RpcDevImpl) WorkGroupNum() (*Result, error) {
 }
 
 func (api *RpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
-	api2 := &RpcExplorerImpl{rpcBaseImpl: api.rpcBaseImpl}
+	api2 := &RpcExplorerImpl{rpcBaseImpl:api.rpcBaseImpl}
 	return api2.ExplorerGroupsAfter(height)
 }
 
@@ -234,11 +234,11 @@ func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 
 	for key, v := range proposerStat {
 		id := groupsig.DeserializeID([]byte(key))
-		pmap[id.GetAddrString()] = v
+		pmap[id.GetHexString()] = v
 	}
 	for key, v := range groupStat {
 		id := groupsig.DeserializeID([]byte(key))
-		gmap[id.GetAddrString()] = v
+		gmap[id.GetHexString()] = v
 	}
 	ret := make(map[string]map[string]int32)
 	ret["proposer"] = pmap
@@ -249,8 +249,8 @@ func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 	ni := &NodeInfo{}
 	p := mediator.Proc
-	ni.ID = p.GetMinerID().GetAddrString()
-	balance := core.BlockChainImpl.GetBalance(common.StringToAddress(p.GetMinerID().GetAddrString()))
+	ni.ID = p.GetMinerID().GetHexString()
+	balance := core.BlockChainImpl.GetBalance(common.HexToAddress(p.GetMinerID().GetHexString()))
 	ni.Balance = common.RA2TAS(balance.Uint64())
 	if !p.Ready() {
 		ni.Status = "node not ready"
@@ -318,7 +318,7 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 	preBH := chain.QueryBlockHeaderByHash(bh.PreHash)
 	block.Qn = bh.TotalQN - preBH.TotalQN
 
-	castor := block.Castor.GetAddrString()
+	castor := block.Castor.GetHexString()
 
 	trans := make([]Transaction, 0)
 	rewardTxs := make([]RewardTransaction, 0)
@@ -347,13 +347,13 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 			rewardTxs = append(rewardTxs, btx)
 			blockVerifyReward[btx.BlockHash] = btx.Value
 			for _, tid := range btx.TargetIDs {
-				if _, ok := minerReward[tid.GetAddrString()]; !ok {
-					minerReward[tid.GetAddrString()] = genMinerBalance(tid, bh)
+				if _, ok := minerReward[tid.GetHexString()]; !ok {
+					minerReward[tid.GetHexString()] = genMinerBalance(tid, bh)
 				}
 				if !btx.Success {
 					continue
 				}
-				if hs, ok := minerVerifyBlockHash[tid.GetAddrString()]; ok {
+				if hs, ok := minerVerifyBlockHash[tid.GetHexString()]; ok {
 					find := false
 					for _, h := range hs {
 						if h == btx.BlockHash {
@@ -363,12 +363,12 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 					}
 					if !find {
 						hs = append(hs, btx.BlockHash)
-						minerVerifyBlockHash[tid.GetAddrString()] = hs
+						minerVerifyBlockHash[tid.GetHexString()] = hs
 					}
 				} else {
 					hs = make([]common.Hash, 0)
 					hs = append(hs, btx.BlockHash)
-					minerVerifyBlockHash[tid.GetAddrString()] = hs
+					minerVerifyBlockHash[tid.GetHexString()] = hs
 				}
 			}
 			if btx.Success {

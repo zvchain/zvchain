@@ -41,11 +41,11 @@ type Transaction struct {
 func (Transaction) GetGasLimit() uint64 { return TransactionGasLimitMax }
 func (Transaction) GetValue() uint64    { return 0 }
 func (Transaction) GetSource() *common.Address {
-	address := common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
+	address := common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
 	return &address
 }
 func (Transaction) GetTarget() *common.Address {
-	address := common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
+	address := common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
 	return &address
 }
 func (Transaction) GetData() []byte      { return nil }
@@ -134,7 +134,7 @@ func (t *TvmCli) init() {
 		t.settings = common.NewConfINIManager(currentPath + "/settings.ini")
 		state, _ := account.NewAccountDB(common.Hash{}, t.database)
 		for i := 0; i < len(DefaultAccounts); i++ {
-			accountAddress := common.StringToAddress(DefaultAccounts[i])
+			accountAddress := common.HexToAddress(DefaultAccounts[i])
 			state.SetBalance(accountAddress, big.NewInt(200))
 		}
 		hash, error := state.Commit(false)
@@ -157,7 +157,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 
 	nonce := state.GetNonce(*transaction.GetSource())
 	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.GetSource()[:], common.Uint64ToByte(nonce))))
-	fmt.Println("contractAddress: ", contractAddress.AddrPrefixString())
+	fmt.Println("contractAddress: ", contractAddress.Hex())
 	state.SetNonce(*transaction.GetSource(), nonce+1)
 
 	contract := tvm.Contract{
@@ -185,7 +185,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	}
 	t.settings.SetString("root", "StateHash", hash.Hex())
 	fmt.Println(hash.Hex())
-	return contractAddress.AddrPrefixString()
+	return contractAddress.Hex()
 }
 
 func (t *TvmCli) Call(contractAddress string, abiJSON string) {
@@ -200,10 +200,10 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	//	fmt.Println(abiJSON, " json.Unmarshal failed ", abiJsonError)
 	//	return
 	//}
-	_contractAddress := common.StringToAddress(contractAddress)
+	_contractAddress := common.HexToAddress(contractAddress)
 	contract := tvm.LoadContract(_contractAddress)
 	//fmt.Println(contract.Code)
-	sender := common.StringToAddress(DefaultAccounts[0])
+	sender := common.HexToAddress(DefaultAccounts[0])
 	executeResult, logs, transactionError := controller.ExecuteAbiEval(&sender, contract, abiJSON)
 	if transactionError != nil {
 		fmt.Println(transactionError.Message)
@@ -285,7 +285,7 @@ func (t *TvmCli) QueryData(address string, key string, count int) map[string]str
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 
-	hexAddr := common.StringToAddress(address)
+	hexAddr := common.HexToAddress(address)
 	result := make(map[string]string)
 	if count == 0 {
 		value := state.GetData(hexAddr, []byte(key))

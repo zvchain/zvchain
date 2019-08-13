@@ -19,8 +19,8 @@ import "testing"
 
 func TestID_String(t *testing.T) {
 	var id ID
-	id.SetAddrString("0x12345")
+	id.SetHexString("0x12345")
 
 	t.Log(id)
-	t.Log(id.GetAddrString())
+	t.Log(id.GetHexString())
 }

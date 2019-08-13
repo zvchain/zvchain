@@ -82,7 +82,7 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value ui
 		return opError(fmt.Errorf("privatekey or pubkey error"))
 	}
 	sourceAddr := pubkey.GetAddress()
-	if sourceAddr.AddrPrefixString() != aci.Address {
+	if sourceAddr.Hex() != aci.Address {
 		return opError(fmt.Errorf("address error"))
 	}
 

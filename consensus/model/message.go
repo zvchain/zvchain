@@ -61,7 +61,7 @@ func (sign *BaseSignedMessage) VerifySign(pk groupsig.Pubkey) (ok bool) {
 	}
 	ok = sign.SI.VerifySign(pk)
 	if !ok {
-		fmt.Printf("verifySign fail, pk=%v, id=%v, sign=%v, data=%v\n", pk.GetHexString(), sign.SI.SignMember.GetAddrString(), sign.SI.DataSign.GetHexString(), sign.SI.DataHash.Hex())
+		fmt.Printf("verifySign fail, pk=%v, id=%v, sign=%v, data=%v\n", pk.GetHexString(), sign.SI.SignMember.GetHexString(), sign.SI.DataSign.GetHexString(), sign.SI.DataHash.Hex())
 	}
 	return
 }

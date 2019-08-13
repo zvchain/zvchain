@@ -121,7 +121,7 @@ func stateValidate(tx *types.Transaction) error {
 	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance := accountDB.GetBalance(*tx.Source)
-	src := tx.Source.AddrPrefixString()
+	src := tx.Source.Hex()
 	if gasLimitFee.Cmp(balance) > 0 {
 		return fmt.Errorf("balance not enough for paying gas, %v", src)
 	}

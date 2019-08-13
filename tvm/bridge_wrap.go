@@ -134,7 +134,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		result.Content = fmt.Sprintf("invalid address %s!", contractAddr)
 		return result
 	}
-	conAddr := common.StringToAddress(contractAddr)
+	conAddr := common.HexToAddress(contractAddr)
 	contract := LoadContract(conAddr)
 	if contract.Code == "" {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
@@ -448,13 +448,13 @@ func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *Execut
 }
 
 func (tvm *TVM) loadMsgWhenCall(msg Msg) error {
-	script := pycodeLoadWhenCall(tvm.Sender.AddrPrefixString(), msg.Value, tvm.ContractAddress.AddrPrefixString())
+	script := pycodeLoadWhenCall(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	return tvm.ExecuteScriptVMSucceed(script)
 }
 
 // Deploy TVM Deploy the contract code and load msg
 func (tvm *TVM) Deploy(msg Msg) *ExecuteResult {
-	script := pycodeLoad(tvm.Sender.AddrPrefixString(), msg.Value, tvm.ContractAddress.AddrPrefixString())
+	script := pycodeLoad(tvm.Sender.Hex(), msg.Value, tvm.ContractAddress.Hex())
 	result := tvm.executePycode(script, C.PARSE_KIND_FILE)
 	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
 		return result
