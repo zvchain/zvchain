@@ -46,9 +46,9 @@ func (pk PrivateKey) Sign(hash []byte) (Sign, error) {
 	sig, err := secp256k1.Sign(hash, seckbytes)
 	if err == nil {
 		signData := BytesToSign(sig)
-		if signData == nil{
-			err = fmt.Errorf("BytesToSign fail, sign=%x",sig)
-		}else{
+		if signData == nil {
+			err = fmt.Errorf("BytesToSign fail, sign=%x", sig)
+		} else {
 			sign = *signData
 		}
 	} else {
@@ -91,7 +91,7 @@ func (pk *PrivateKey) Hex() string {
 
 // HexToSecKey returns a private key with the hex string imported.
 func HexToSecKey(s string) (sk *PrivateKey) {
-	if len(s) < len(PREFIX) || s[:len(PREFIX)] != PREFIX {
+	if len(s) < len(HexPrefix) || s[:len(HexPrefix)] != HexPrefix {
 		return
 	}
 	sk = BytesToSecKey(FromHex(s))

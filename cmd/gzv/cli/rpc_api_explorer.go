@@ -101,7 +101,7 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 	bh := b.Header
 
 	ret := &ExploreBlockReward{
-		ProposalID: groupsig.DeserializeID(bh.Castor).GetHexString(),
+		ProposalID: groupsig.DeserializeID(bh.Castor).GetAddrString(),
 	}
 	packedReward := uint64(0)
 	rm := chain.GetRewardManager()

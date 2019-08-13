@@ -92,10 +92,10 @@ func (s Sign) Hex() string {
 
 // HexToSign returns a signature with the hex string imported
 func HexToSign(s string) (si *Sign) {
-	if len(s) < len(PREFIX) || s[:len(PREFIX)] != PREFIX {
+	if len(s) < len(HexPrefix) || s[:len(HexPrefix)] != HexPrefix {
 		return
 	}
-	buf, _ := hex.DecodeString(s[len(PREFIX):])
+	buf, _ := hex.DecodeString(s[len(HexPrefix):])
 	si = BytesToSign(buf)
 	return si
 }

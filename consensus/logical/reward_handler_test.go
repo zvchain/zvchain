@@ -151,7 +151,7 @@ func NewProcessorTest() *ProcessorTest {
 	memIndex := make(map[string]int)
 	for i := 0; i < n; i++ {
 		mems[i] = &member{id: groupsig.DeserializeID(pt.ids[i].Serialize()), pk: groupsig.DeserializePubkeyBytes(pt.mpk[i].Serialize())}
-		memIndex[mems[i].id.GetHexString()] = i
+		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	pt.verifyGroup = &verifyGroup{
 		header:   &GroupHanderTest{},
@@ -395,8 +395,8 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.Hash{}, pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -495,8 +495,8 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[0], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -514,8 +514,8 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.HexToHash(""), pt.ids[1], pt.msk[0]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -533,8 +533,8 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 						SI: model.GenSignData(common.HexToHash("0x1"), pt.ids[1], pt.msk[1]),
 					},
 					Reward: types.Reward{
-						TargetIds: []int32{0,1,2,3,4,5,6,7,8},
-						TxHash: common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
+						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
 					},
 					SignedPieces: pt.sigs,
 				},

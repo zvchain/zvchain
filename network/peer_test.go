@@ -15,7 +15,7 @@ func TestPeerAuth(t *testing.T) {
 	}
 
 	toID := NewNodeID(netServerInstance.config.NodeIDHex)
-	content := genPeerAuthContext(netServerInstance.config.PK,netServerInstance.config.SK, &toID)
+	content := genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &toID)
 
 	result, verifyID := content.Verify()
 	if !result || verifyID != netServerInstance.config.NodeIDHex {
@@ -34,7 +34,7 @@ func InitTestNetwork() bool {
 		NatAddr:         "",
 		NatPort:         0,
 		SeedAddr:        "",
-		NodeIDHex:       ID.Hex(),
+		NodeIDHex:       ID.AddrPrefixString(),
 		ChainID:         0,
 		ProtocolVersion: common.ProtocolVersion,
 		SeedIDs:         Seeds,
@@ -49,16 +49,13 @@ func InitTestNetwork() bool {
 	return true
 }
 
-
 func TestDecodePacketNil(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(NewNodeID(""), 0)
 
-
 	p.addRecvData(nil)
-
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
@@ -74,7 +71,6 @@ func TestDecodePacketNil(t *testing.T) {
 		t.Fatalf("packetSize wrong")
 	}
 }
-
 
 func TestDecodePacket2BuffersEq8(t *testing.T) {
 	if InitTestNetwork() == false {
@@ -105,7 +101,6 @@ func TestDecodePacket2BuffersEq8(t *testing.T) {
 	}
 }
 
-
 func TestDecodePacket2BuffersLess8(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
@@ -119,10 +114,9 @@ func TestDecodePacket2BuffersLess8(t *testing.T) {
 	p.addRecvData(packet.Bytes()[0:4])
 	p.addRecvData(packet.Bytes()[4:7])
 
-
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v,remain size:%v\n", msgType, packetSize,p.getDataSize())
+	fmt.Printf("type :%v,size %v,remain size:%v\n", msgType, packetSize, p.getDataSize())
 	if err != errPacketTooSmall {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -199,7 +193,7 @@ func TestDecodePacket16M(t *testing.T) {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(NewNodeID(""), 0)
-	dataSize :=uint32(16*1024*1024)
+	dataSize := uint32(16 * 1024 * 1024)
 	pdata := make([]byte, dataSize, dataSize)
 
 	packet := encodePacket(2, dataSize, pdata)
@@ -212,11 +206,11 @@ func TestDecodePacket16M(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
-	if msgType != 2{
+	if msgType != 2 {
 		t.Fatalf("msgType wrong")
 	}
 
-	if uint32(packetSize) != dataSize + 8 {
+	if uint32(packetSize) != dataSize+8 {
 		t.Fatalf("packetSize wrong")
 	}
 
@@ -227,7 +221,7 @@ func TestDecodePacketOver16M(t *testing.T) {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(NewNodeID(""), 0)
-	dataSize :=uint32(18*1024*1024)
+	dataSize := uint32(18 * 1024 * 1024)
 	pdata := make([]byte, dataSize, dataSize)
 
 	packet := encodePacket(2, dataSize, pdata)
@@ -240,7 +234,7 @@ func TestDecodePacketOver16M(t *testing.T) {
 	if err == nil {
 		t.Fatalf("decode error:%v", err)
 	}
-	if msgType != 0{
+	if msgType != 0 {
 		t.Fatalf("msgType wrong")
 	}
 

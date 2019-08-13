@@ -15,19 +15,22 @@
 
 package cli
 
-import "testing"
+import (
+	"github.com/zvchain/zvchain/common"
+	"testing"
+)
 
 func TestValidateAddress(t *testing.T) {
-	if validateAddress("0x123") {
+	if common.ValidateAddress("0x123") {
 		t.Errorf("length error")
 	}
-	if validateAddress("0xiop1222222223333333333333232322222222222222222222222222222222222") {
+	if common.ValidateAddress("zviop1222222223333333333333232322222222222222222222222222222222222") {
 		t.Errorf("wrong letters")
 	}
-	if validateAddress("0x33333333333333333333333333333333333333333333333333333333333333333333333333") {
+	if common.ValidateAddress("zv33333333333333333333333333333333333333333333333333333333333333333333333333") {
 		t.Errorf("too long")
 	}
-	if !validateAddress("0x1231222222223333333333333232322222222222222222222222222222222222") {
+	if !common.ValidateAddress("zv1231222222223333333333333232322222222222222222222222222222222222") {
 		t.Errorf("correct")
 	}
 }

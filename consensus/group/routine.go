@@ -196,7 +196,7 @@ func (routine *createRoutine) selectCandidates() error {
 
 	mems := make([]string, len(selectedCandidates))
 	for _, m := range selectedCandidates {
-		mems = append(mems, m.ID.GetHexString())
+		mems = append(mems, m.ID.GetAddrString())
 	}
 
 	routine.ctx.cands = selectedCandidates
