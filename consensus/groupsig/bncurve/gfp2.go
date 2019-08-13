@@ -15,6 +15,11 @@
 
 package bncurve
 
+import (
+	"fmt"
+	"math/big"
+)
+
 // For details of the algorithms used, see "Multiplication and Squaring on
 // Pairing-Friendly Fields, Devegili et al.
 // http://eprint.iacr.org/2006/471.pdf.
@@ -167,5 +172,125 @@ func (e *gfP2) Invert(a *gfP2) *gfP2 {
 
 	gfpMul(&e.x, t1, inv)
 	gfpMul(&e.y, &a.y, inv)
+	return e
+}
+
+func (e *gfP2) Sqrt(a *gfP2) *gfP2 {
+	// Complex sqrt algorithm:
+	// (xi+y) = (sqrt(sqrt(x^2+y^2)+y)+ sqrt(sqrt(x^2+y^2)-y)i)/sqrt(2)
+	tx, ty := &gfP{}, &gfP{}
+	gfpMul(tx, &a.x, &a.x) //x^2
+	gfpMul(ty, &a.y, &a.y) //y^2
+
+	gfpAdd(tx, tx, ty) //x^2+y^2
+
+	//compute y=sqrt(t).
+	t := &big.Int{}
+	buf := make([]byte, 32)
+	tx.Marshal(buf)
+	t.SetBytes(buf)
+
+	t1, t2 := &gfP{}, &gfP{}
+	gfpNeg(t1, tx)
+	gfpAdd(t2, t1, tx)
+	t2.Marshal(buf)
+	fmt.Printf("buf = %v\n", buf)
+
+	t3 := newGFp(-1)
+	gfpNeg(t1, t3)
+	t1.Marshal(buf)
+	tb := new(big.Int).SetBytes(buf)
+	fmt.Printf("tb = %v \n", tb.String())
+	t3.Marshal(buf)
+	tc := new(big.Int).SetBytes(buf)
+	tt := new(big.Int).SetInt64(-1)
+	tt.Mod(tt, P)
+	OrderP.Marshal(buf)
+	tp := new(big.Int).SetBytes(buf)
+	fmt.Printf("tc = %v \n", tc.String())
+	fmt.Printf("tt = %v \n", tt.String())
+	fmt.Printf("P = %v \n", P.String())
+	fmt.Printf("OrderP = %v \n", tp.String())
+
+	bx, by := &big.Int{}, &big.Int{}
+	a.x.Marshal(buf)
+	bx.SetBytes(buf)
+	a.y.Marshal(buf)
+	by.SetBytes(buf)
+
+	bx.Mul(bx, bx)
+	bx.Mod(bx, P)
+	by.Mul(by, by)
+	by.Mod(by, P)
+	bx.Add(bx, by)
+	bx.Mod(bx, P)
+
+	one := &gfP{1}
+	one.Marshal(buf)
+	tOne := new(big.Int).SetBytes(buf)
+	fmt.Printf("tOne =%v \n", tOne.String())
+
+	if t.Cmp(bx) != 0 {
+		fmt.Printf(" bx != t \n")
+	} else {
+		fmt.Printf(" yeah!, bx == t \n")
+	}
+
+	t.ModSqrt(t, P) //sqrt(x^2+y^2)
+
+	pt := &gfP{}
+	tBytes := t.Bytes()
+	if len(tBytes) == 32 {
+		_ = pt.Unmarshal(tBytes)
+	} else {
+		buf1 := make([]byte, 32)
+		copy(buf1[32-len(tBytes):32], tBytes)
+		_ = pt.Unmarshal(buf1)
+	}
+
+	two := big.NewInt(2)
+	two.ModSqrt(two, P)
+	p2 := &gfP{}
+	tBytes = two.Bytes()
+	if len(tBytes) == 32 {
+		_ = p2.Unmarshal(tBytes)
+	} else {
+		buf1 := make([]byte, 32)
+		copy(buf1[32-len(tBytes):32], tBytes)
+		_ = p2.Unmarshal(buf1)
+	}
+	p2.Invert(p2) // 1/sqrt(2)
+	fmt.Printf("p2 = [%v]\n", p2)
+
+	gfpAdd(ty, pt, &a.y)
+	ty.Marshal(buf)
+	t.SetBytes(buf)
+	t.ModSqrt(t, P) //sqrt(sqrt(x^2+y^2)+y)
+	tBytes = t.Bytes()
+	if len(tBytes) == 32 {
+		_ = ty.Unmarshal(tBytes)
+	} else {
+		buf1 := make([]byte, 32)
+		copy(buf1[32-len(tBytes):32], tBytes)
+		_ = ty.Unmarshal(buf1)
+	}
+	gfpMul(ty, ty, p2) //sqrt(sqrt(x^2+y^2)+y)/sqrt(2)
+
+	gfpSub(tx, pt, &a.y)
+	tx.Marshal(buf)
+	t.SetBytes(buf)
+	t.ModSqrt(t, P) //sqrt(sqrt(x^2+y^2)-y)
+	tBytes = t.Bytes()
+	if len(tBytes) == 32 {
+		_ = tx.Unmarshal(tBytes)
+	} else {
+		buf1 := make([]byte, 32)
+		copy(buf1[32-len(tBytes):32], tBytes)
+		_ = tx.Unmarshal(buf1)
+	}
+	gfpMul(tx, tx, p2) //sqrt(sqrt(x^2+y^2)-y)/sqrt(2)
+
+	e.x.Set(tx)
+	e.y.Set(ty)
 	return e
 }

@@ -17,6 +17,7 @@ package bncurve
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 )
 
@@ -31,6 +32,29 @@ func TestGFpNeg(t *testing.T) {
 	if *h != *w {
 		t.Errorf("negation mismatch: have %#x, want %#x", *h, *w)
 	}
+
+	buf := make([]byte, 32)
+	n.Marshal(buf)
+	y := new(big.Int).SetBytes(buf)
+	y.Neg(y)
+	y.Mod(y, P)
+	yBytes := y.Bytes()
+	if len(yBytes) == 32 {
+		_ = h.Unmarshal(yBytes)
+	} else {
+		extra := make([]byte, 32)
+		copy(extra[32-len(yBytes):32], yBytes)
+		_ = h.Unmarshal(extra)
+	}
+
+	if *h != *w {
+		fmt.Printf("negation mismatch: have %#x, want %#x\n", *h, *w)
+	}
+	result := &gfP{}
+	gfpAdd(result, h, n)
+	fmt.Printf("sum = %v\n", result)
+	gfpAdd(result, w, n)
+	fmt.Printf("sum2 = %v\n", result)
 }
 
 // Tests that addition works the same way on both assembly-optimized and pure Go
@@ -91,4 +115,37 @@ func TestGFpMul(t *testing.T) {
 	if *h != *w {
 		t.Errorf("multiplication mismatch: have %#x, want %#x", *h, *w)
 	}
+}
+
+func TestGFp2Sqrt(t *testing.T) {
+	a := &gfP{0x0123456789abcdef, 0xfedcba9876543210, 0xdeadbeefdeadbeef, 0xfeebdaedfeebdaed}
+	b := &gfP{0xfedcba9876543210, 0x0123456789abcdef, 0xfeebdaedfeebdaed, 0xdeadbeefdeadbeef}
+
+	p2 := &gfP{0x09f62dcb6d75f05e, 0x266afff7aa373d0c, 0x370d883bb0084574, 0x0e18b700689dc665}
+	fmt.Printf("p2 = [%v]\n", p2)
+
+	c := &gfP2{*a, *b}
+	d := &gfP2{*a, *b}
+
+	c.Sqrt(c)
+	c.Mul(c, c)
+	if *d == *c {
+		fmt.Printf("sqrt success\n")
+	} else {
+		fmt.Printf("fail to sqrt\n")
+	}
+
+	e, f := &gfP{}, &gfP{}
+	gfpMul(e, p2, p2)
+	gfpAdd(f, e, e)
+	fmt.Printf("f = [%v]\n", f)
+
+	e.Invert(b)
+	f.Invert(e)
+	if *f == *b {
+		fmt.Printf("invert match! \n")
+	} else {
+		fmt.Printf("invert mismatch\n")
+	}
+
 }

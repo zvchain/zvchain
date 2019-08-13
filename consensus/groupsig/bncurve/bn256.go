@@ -395,6 +395,34 @@ func (e *G2) Marshal() []byte {
 	return ret
 }
 
+// Marshal converts e into a byte slice . (compressed mode)
+func (e *G2) MarshalCompressed() []byte {
+	// Each value is a 256-bit number.
+	const numBytes = 256 / 8
+
+	if e.p == nil {
+		e.p = &twistPoint{}
+	}
+
+	e.p.MakeAffine()
+	ret := make([]byte, numBytes*2+1)
+	if e.p.IsInfinity() {
+		return ret
+	}
+	temp := &gfP{}
+
+	montDecode(temp, &e.p.x.x)
+	temp.Marshal(ret)
+	montDecode(temp, &e.p.x.y)
+	temp.Marshal(ret[numBytes:])
+	if e.p.y.x.IsOdd() {
+		ret[numBytes*2] = 0x1
+	} else {
+		ret[numBytes*2] = 0x2
+	}
+	return ret
+}
+
 // Unmarshal sets e to the result of converting the output of Marshal back into
 // a group element and then returns e.
 func (e *G2) Unmarshal(m []byte) ([]byte, error) {
@@ -440,6 +468,49 @@ func (e *G2) Unmarshal(m []byte) ([]byte, error) {
 		}
 	}
 	return m[4*numBytes:], nil
+}
+
+// UnmarshalCompressed sets e to the result of converting the output of MarshalCompressed back into
+// a group element and then returns e.
+func (e *G2) UnmarshalCompressed(m []byte) ([]byte, error) {
+	// Each value is a 256-bit number.
+	const numBytes = 256 / 8
+	if len(m) < 2*numBytes+1 {
+		return nil, errors.New("bncurve: not enough data")
+	}
+	// Unmarshal the points and check their caps
+	if e.p == nil {
+		e.p = &twistPoint{}
+	}
+	var err error
+	if err = e.p.x.x.Unmarshal(m); err != nil {
+		return nil, err
+	}
+	if err = e.p.x.y.Unmarshal(m[numBytes:]); err != nil {
+		return nil, err
+	}
+
+	// Encode into Montgomery form and ensure it's on the curve
+	montEncode(&e.p.x.x, &e.p.x.x)
+	montEncode(&e.p.x.y, &e.p.x.y)
+
+	if m[2*numBytes] == 0x0 {
+		// This is the point at infinity.
+		e.p.y.SetOne()
+		e.p.z.SetZero()
+		e.p.t.SetZero()
+	} else {
+		x3 := &gfP2{}
+		x3.Square(&e.p.x).Mul(x3, &e.p.x).Add(x3, twistB)
+
+		e.p.z.SetOne()
+		e.p.t.SetOne()
+
+		if !e.p.IsOnCurve() {
+			return nil, errors.New("bncurve: malformed point")
+		}
+	}
+	return m[2*numBytes:], nil
 }
 
 // GT is an abstract cyclic group. The zero value is suitable for use as the
