@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/base"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -191,7 +192,7 @@ func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *Result {
 }
 
 // StakeAdd adds stake for the given target account
-func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice,addHeight uint64) *Result {
+func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r
@@ -247,6 +248,12 @@ func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Re
 		return r
 	}
 	aci := r.Data.(*Account)
+	if strings.TrimSpace(target) == "" {
+		return opError(fmt.Errorf("please input target address"))
+	}
+	if !validateAddress(target) {
+		return opError(fmt.Errorf("Wrong address format"))
+	}
 	if aci.Address == target {
 		return opError(fmt.Errorf("you could not vote to myself"))
 	}

@@ -73,15 +73,15 @@ type mOperContext struct {
 var (
 	src    = common.HexToAddress("0x123")
 	target = common.HexToAddress("0x456")
-	guardNode1 = common.HexToAddress("0x01")
-	guardNode2 = common.HexToAddress("0x02")
-	guardNode3 = common.HexToAddress("0x03")
-	guardNode4 = common.HexToAddress("0x04")
-	guardNode5 = common.HexToAddress("0x05")
-	guardNode6 = common.HexToAddress("0x06")
-	guardNode7 = common.HexToAddress("0x07")
-	guardNode8 = common.HexToAddress("0x08")
-	minerPool = common.HexToAddress("0x09")
+	guardNode1 = common.HexToAddress("0x01111")
+	guardNode2 = common.HexToAddress("0x02222")
+	guardNode3 = common.HexToAddress("0x03333")
+	guardNode4 = common.HexToAddress("0x04444")
+	guardNode5 = common.HexToAddress("0x05555")
+	guardNode6 = common.HexToAddress("0x06666")
+	guardNode7 = common.HexToAddress("0x07777")
+	guardNode8 = common.HexToAddress("0x08888")
+	minerPool = common.HexToAddress("0x09999")
 	ctx    = &mOperContext{
 		source:        &src,
 		target:        &target,

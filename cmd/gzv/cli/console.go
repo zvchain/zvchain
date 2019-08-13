@@ -581,7 +581,6 @@ type stakeAddCmd struct {
 	stake  			uint64
 	mtype  			int
 	target 			string
-	addHeight 		uint64
 }
 
 func genStakeAddCmd() *stakeAddCmd {
@@ -590,7 +589,6 @@ func genStakeAddCmd() *stakeAddCmd {
 	}
 	c.initBase()
 	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of ZVC, default 500ZVC")
-	c.fs.Uint64Var(&c.addHeight, "addHeight", 0, "reduce after current height add addHeight,only can stake by myself")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
 	c.fs.StringVar(&c.target, "target", "", "stake add target address, default the operator if not specified")
 	return c
@@ -1134,7 +1132,7 @@ func loop(acm accountOp, chainOp chainOp) {
 			cmd := genStakeAddCmd()
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
-					return chainOp.StakeAdd(cmd.target, cmd.mtype, cmd.stake, cmd.gaslimit, cmd.gasPrice,cmd.addHeight)
+					return chainOp.StakeAdd(cmd.target, cmd.mtype, cmd.stake, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdMinerAbort.name:

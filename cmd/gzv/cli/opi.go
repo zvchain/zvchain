@@ -131,7 +131,7 @@ type chainOp interface {
 
 	GroupHeight() *Result
 
-	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64,addHeight uint64) *Result
+	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *Result
 
 	MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result
 
