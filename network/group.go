@@ -68,14 +68,14 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	maxSize := groupColumnSendCount(totalSize)
 	for i := 0; i < totalSize; i++ {
 		peerIndex := rand.Intn(totalSize)
-		rowIndex := peerIndex % rowSize
-		columnIndex := int(math.Floor(float64(peerIndex) / float64(rowSize)))
+		columnIndex := peerIndex % rowSize
+		rowIndex := int(math.Floor(float64(peerIndex) / float64(rowSize)))
 
 		selected := true
 		for n := 0; n < len(nodesIndex); n++ {
 			indexSelected := nodesIndex[n]
-			rowIndexSelected := indexSelected % rowSize
-			columnIndexSelected := int(math.Floor(float64(indexSelected) / float64(rowSize)))
+			columnIndexSelected := indexSelected % rowSize
+			rowIndexSelected := int(math.Floor(float64(indexSelected) / float64(rowSize)))
 			if rowIndex == rowIndexSelected || columnIndex == columnIndexSelected {
 				selected = false
 				break
