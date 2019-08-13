@@ -69,6 +69,10 @@ func convert2MinerDO(miner *types.Miner) *model.MinerDO {
 		stdLogger.Errorf("invalid id %v, %v", miner.ID, md.ID.GetHexString())
 		return nil
 	}
+	if !md.PK.IsValid() {
+		stdLogger.Errorf("invalid pubkey %v", miner.PublicKey)
+		return nil
+	}
 	return md
 }
 
