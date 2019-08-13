@@ -71,11 +71,11 @@ func maximumStake(height uint64) uint64 {
 // miner pool valid tickets
 func getValidTicketsByHeight(height uint64) uint64 {
 	reduce := height / threeYearBlocks
-	needTickets := initMinerPoolTickets - (reduce * minerPoolReduceCount)
-	if needTickets < minMinerPoolTickets {
+	reduceTickets := reduce * minerPoolReduceCount
+	if initMinerPoolTickets <= reduceTickets {
 		return minMinerPoolTickets
 	}
-	return needTickets
+	return initMinerPoolTickets - reduceTickets
 }
 
 // Special account address

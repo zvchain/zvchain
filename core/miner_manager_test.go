@@ -143,6 +143,25 @@ func testStakeAddFromSelf(ctx *mOperContext, t *testing.T) {
 	}
 }
 
+
+func testStakeAddFromAdmin(ctx *mOperContext, t *testing.T) {
+	var mpks = &types.MinerPks{
+		MType: ctx.mType,
+	}
+
+	bs, err := types.EncodePayload(mpks)
+	if err != nil {
+		t.Fatalf("encode payload error:%v", err)
+	}
+	stakeAddMsg := genMOperMsg(ctx.source, ctx.target, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
+
+	_, err = MinerManagerImpl.ExecuteOperation(accountDB, stakeAddMsg, 0)
+	if err != nil {
+		t.Fatalf("execute stake add msg error:%v", err)
+	}
+
+}
+
 func testStakeAddFromOthers(ctx *mOperContext, t *testing.T) {
 	var mpks = &types.MinerPks{
 		MType: ctx.mType,
@@ -312,6 +331,30 @@ func TestMinerManager_GuardInvalid(t *testing.T){
 
 	if totalTickets != 7{
 		t.Fatalf("except 7 tickets,but got %d",totalTickets)
+	}
+}
+
+func TestMinerManager_InsteadStakeAdd(t *testing.T){
+	setup()
+	defer clear()
+
+	adminAddr := common.HexToAddress(types.MiningPoolAddr)
+	ctx.source = &adminAddr
+	ctx.mType = types.MinerTypeProposal
+	testStakeAddFromAdmin(ctx,t)
+
+	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+	if miner.Stake != 2000 * common.ZVC {
+		t.Fatalf("except %v,but got %v",2000*common.ZVC,miner.Stake)
+	}
+
+	detailKey := getDetailKey(*ctx.source, ctx.mType, types.Staked)
+	detail,err := getDetail(accountDB,*ctx.target, detailKey)
+	if err != nil{
+		t.Fatalf("error")
+	}
+	if detail.Value != 2000 * common.ZVC {
+		t.Fatalf("except %v,but got %v",2000*common.ZVC,miner.Stake)
 	}
 }
 
