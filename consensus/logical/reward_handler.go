@@ -25,7 +25,6 @@ type ProcessorInterface interface {
 	SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage)
 }
 
-
 type RewardHandler struct {
 	processor ProcessorInterface
 
@@ -311,7 +310,7 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		if sig, ok := slot.gSignGenerator.GetWitness(mem); ok {
 			signs = append(signs, sig)
 			targetIDIndexs = append(targetIDIndexs, int32(idx))
-			idHexs = append(idHexs, mem.GetHexString())
+			idHexs = append(idHexs, mem.GetAddrString())
 			if len(signs) >= int(threshold) {
 				break
 			}

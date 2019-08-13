@@ -17,10 +17,12 @@ package net
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -40,7 +42,7 @@ func NewNetworkServer() NetworkServer {
 func id2String(ids []groupsig.ID) []string {
 	idStrs := make([]string, len(ids))
 	for idx, id := range ids {
-		idStrs[idx] = id.GetHexString()
+		idStrs[idx] = id.GetAddrString()
 	}
 	return idStrs
 }
@@ -61,7 +63,7 @@ func (ns *NetworkServerImpl) ReleaseGroupNet(gid string) {
 }
 
 func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
-	go MessageHandler.Handle(self.GetHexString(), m)
+	go MessageHandler.Handle(self.GetAddrString(), m)
 }
 
 // SendCastVerify happens at the proposal role.
@@ -69,7 +71,6 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
 	message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si}
-
 	body, err := proto.Marshal(message)
 	if err != nil {
 		logger.Errorf("marshalConsensusCastMessage error:%v", err)
@@ -77,6 +78,7 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	}
 
 	m := network.Message{Code: network.CastVerifyMsg, Body: body}
+
 	ns.net.SpreadToGroup(gb.GSeed.Hex(), id2String(gb.MemIds), m, nil)
 }
 
@@ -167,7 +169,7 @@ func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMe
 	}
 	m := network.Message{Code: network.CastRewardSignGot, Body: body}
 
-	ns.net.SendWithGroupRelay(msg.Launcher.GetHexString(), msg.GSeed.Hex(), m)
+	ns.net.SendWithGroupRelay(msg.Launcher.GetAddrString(), msg.GSeed.Hex(), m)
 }
 
 // ReqProposalBlock request block body from the target

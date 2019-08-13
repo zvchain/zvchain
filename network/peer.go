@@ -66,7 +66,7 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 
 	result := pubkey.Verify(hash.Bytes(), sign)
 
-	return result, source.Hex()
+	return result, source.AddrPrefixString()
 }
 
 func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {

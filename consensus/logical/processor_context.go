@@ -50,18 +50,18 @@ type proposedBlock struct {
 func newProposedBlock(b *types.Block, count int) *proposedBlock {
 	return &proposedBlock{
 		block:            b,
-		requestedMember:  set.New(set.NonThreadSafe),
+		requestedMember:  set.New(set.ThreadSafe),
 		maxResponseCount: count,
 	}
 }
 
 func (p *proposedBlock) containsOrAddRequested(gid groupsig.ID) (bool, int) {
-	if p.requestedMember.Has(gid.GetHexString()) {
+	if p.requestedMember.Has(gid.GetAddrString()) {
 		return true, 0
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	p.requestedMember.Add(gid.GetHexString())
+	p.requestedMember.Add(gid.GetAddrString())
 	return false, p.requestedMember.Size()
 }
 

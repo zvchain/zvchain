@@ -16,6 +16,7 @@ func TestPeerAuth(t *testing.T) {
 	}
 
 	toID := NewNodeID(netServerInstance.config.NodeIDHex)
+
 	content := genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, toID)
 
 	result, verifyID := content.Verify()
@@ -35,7 +36,7 @@ func InitTestNetwork() bool {
 		NatAddr:         "",
 		NatPort:         0,
 		SeedAddr:        "",
-		NodeIDHex:       ID.Hex(),
+		NodeIDHex:       ID.AddrPrefixString(),
 		ChainID:         0,
 		ProtocolVersion: common.ProtocolVersion,
 		SeedIDs:         Seeds,

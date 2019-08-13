@@ -42,7 +42,7 @@ var toAddr = common.BytesToAddress
 
 func TestNull(t *testing.T) {
 	s := setUp()
-	address := common.HexToAddress("0x823140710bf13990e4500136726d8b55")
+	address := common.StringToAddress("zv823140710bf13990e4500136726d8b55")
 	s.state.CreateAccount(address)
 	s.state.SetData(address, []byte("emptykey"), []byte(""))
 	s.state.Commit(false)
@@ -59,7 +59,7 @@ func TestSnapshot(t *testing.T) {
 	data1 := []byte("value1")
 	data2 := []byte("value2")
 
-	var addr = common.HexToAddress("0x12345")
+	var addr = common.StringToAddress("zv12345")
 
 	// set initial state object value
 	s.state.SetData(stateObjAddr, storageAddr, data1[:])
