@@ -16,7 +16,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -223,24 +222,6 @@ func (chain *FullBlockChain) QueryBlockFloor(height uint64) *types.Block {
 	return b
 }
 
-// QueryBlockBytesFloor query the block byte slice by height
-func (chain *FullBlockChain) QueryBlockBytesFloor(height uint64) []byte {
-	chain.rwLock.RLock()
-	defer chain.rwLock.RUnlock()
-
-	buf := bytes.NewBuffer([]byte{})
-	blockHash, headerBytes := chain.queryBlockHeaderBytesFloor(height)
-	if headerBytes == nil {
-		return nil
-	}
-	buf.Write(headerBytes)
-
-	body := chain.queryBlockBodyBytes(blockHash)
-	if body != nil {
-		buf.Write(body)
-	}
-	return buf.Bytes()
-}
 
 // GetBalance return the balance of specified address
 func (chain *FullBlockChain) GetBalance(address common.Address) *big.Int {

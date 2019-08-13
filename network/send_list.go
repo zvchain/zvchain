@@ -168,19 +168,6 @@ func (sendList *SendList) resetQuota() {
 
 }
 
-func (sendList *SendList) getDataSize() int {
-	size := 0
-	for i := 0; i < MaxSendPriority; i++ {
-		item := sendList.list[i]
-
-		for e := item.list.Front(); e != nil; e = e.Next() {
-			buf := e.Value.(*bytes.Buffer)
-			size += buf.Len()
-		}
-	}
-	return size
-}
-
 func (sendList *SendList) reset() int {
 	size := 0
 	for i := 0; i < MaxSendPriority; i++ {

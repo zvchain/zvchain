@@ -132,7 +132,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()
-	p.proveChecker = newProveChecker(p.MainChain)
+	p.proveChecker = newProveChecker()
 	p.ts = time.TSInstance
 	p.isCasting = 0
 
