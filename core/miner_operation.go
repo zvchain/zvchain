@@ -30,7 +30,7 @@ const (
 	oneHourBlocks = 86400 / onBlockSeconds / 24   // Blocks generated in one hour on average, used when status transforms from Frozen to Prepare
 	oneDayBlocks  = 86400 / onBlockSeconds        // Blocks generated in one day on average
 	twoDayBlocks  = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
-	sevenDayBlocks  = 7 * oneDayBlocks
+	stakeBuffer  = 15 * oneDayBlocks
 
 )
 

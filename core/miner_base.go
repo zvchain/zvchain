@@ -434,7 +434,10 @@ func (op *baseOperation) voteMinerPool(source common.Address,targetAddress commo
 	if err != nil{
 		return err
 	}
-	if vf!= nil && vf.Last > 0 {
+	if vf == nil{
+		return fmt.Errorf("vote info is nil,addr is %s",source.Hex())
+	}
+	if vf.Last > 0 {
 		vf.Last = 0
 		vf.UpdateHeight = op.height
 		vf.Target = targetAddress

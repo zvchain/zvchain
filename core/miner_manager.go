@@ -114,12 +114,12 @@ func (mm *MinerManager)checkGuardNodeExpired(db types.AccountDB,address common.A
 		Logger.Warnf("check guard nodes,find stake detail is nil,address is %s",address.Hex())
 		return true
 	}
-	if height > (stakedDetail.DisMissHeight + sevenDayBlocks){
+	if height > (stakedDetail.DisMissHeight + stakeBuffer){
 		mm.processGuardNodeExpired(db,address,height)
 		return true
 	}
 	if stakedDetail.MarkNotFullHeight > 0{
-		if height > stakedDetail.MarkNotFullHeight + sevenDayBlocks{
+		if height > stakedDetail.MarkNotFullHeight + stakeBuffer{
 			mm.processGuardNodeExpired(db,address,height)
 			return true
 		}
