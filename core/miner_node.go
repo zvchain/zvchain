@@ -133,7 +133,7 @@ func (n *NormalProposalMiner) processMinerOp(mop mOperation,targetMiner *types.M
 
 func(n*NormalProposalMiner)checkStakeAdd(mop mOperation,targetMiner *types.Miner)error{
 	// only admin can stake to normal miner node
-	if mop.Source() !=  mop.Target() && mop.Source() !=  adminAddrType{
+	if mop.Source() !=  mop.Target() && mop.Source() !=  types.AdminAddrType{
 		return fmt.Errorf("only admin can stake to others")
 	}
 	return nil
@@ -150,7 +150,7 @@ func (n *NormalProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *ty
 	}
 	// if full,only update nodeIdentity
 	if isFull{
-		Logger.Infof("address %s is upgrade miner pool",mop.Target().Hex())
+		Logger.Infof("address %s is upgrade miner pool",mop.Target().String())
 		if targetMiner == nil{
 			targetMiner = &types.Miner{
 				ID:          mop.Target().Bytes(),
@@ -316,7 +316,7 @@ func (i *InvalidProposalMiner)processVoteMinerPool(mop mOperation,targetMiner *t
 	add := false
 	// if full,only update nodeIdentity
 	if isFull{
-		Logger.Infof("address %s is from invalid miner pool upgrade miner pool",mop.Target().Hex())
+		Logger.Infof("address %s is from invalid miner pool upgrade miner pool",mop.Target().String())
 		targetMiner.UpdateIdentity(types.MinerPool,mop.Height())
 		// Check if to active the miner
 		if checkCanActivate(targetMiner) {
@@ -430,7 +430,7 @@ func (m *MinerPoolProposalMiner)processReduceTicket(mop mOperation,targetAddress
 			return err
 		}
 		if miner == nil{
-			return fmt.Errorf("find miner pool miner is nil,addr is %s",targetAddress.Hex())
+			return fmt.Errorf("find miner pool miner is nil,addr is %s",targetAddress.String())
 		}
 		miner.UpdateIdentity(types.InValidMinerPool,mop.Height())
 		miner.UpdateStatus(types.MinerStatusPrepare, mop.Height())
@@ -549,7 +549,7 @@ func(b*BaseMiner)processApplyGuard(mop mOperation,miner *types.Miner) error{
 	if err != nil{
 		return err
 	}
-	log.CoreLogger.Infof("apply guard success,address is %s,height is %v",mop.Source().Hex(),mop.Height())
+	log.CoreLogger.Infof("apply guard success,address is %s,height is %v",mop.Source().String(),mop.Height())
 	return nil
 }
 

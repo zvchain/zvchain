@@ -111,7 +111,7 @@ func (mm *MinerManager)checkGuardNodeExpired(db types.AccountDB,address common.A
 		return true
 	}
 	if stakedDetail == nil{
-		Logger.Warnf("check guard nodes,find stake detail is nil,address is %s",address.Hex())
+		Logger.Warnf("check guard nodes,find stake detail is nil,address is %s",address.String())
 		return true
 	}
 	if height > (stakedDetail.DisMissHeight + stakeBuffer){
@@ -139,11 +139,9 @@ func (mm *MinerManager)checkGuardNodeExpired(db types.AccountDB,address common.A
 func (mm *MinerManager)processGuardNodeExpired(db types.AccountDB,address common.Address,height uint64){
 	err := guardNodeExpired(db,address,height)
 	if err != nil{
-		Logger.Errorf("processGuardNodeExpired error :{}",err)
+		Logger.Errorf("processGuardNodeExpired error :%v",err)
 	}
 }
-
-
 
 func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.AccountDB) (success bool, err error) {
 	if err = operation.Validate(); err != nil {
@@ -204,9 +202,9 @@ func (mm *MinerManager) MinerPenalty(accountDB types.AccountDB, penalty types.Pu
 
 // GetMiner return the latest miner info stored in db of the given address and the miner type
 func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
-	accontDB,err := BlockChainImpl.LatestStateDB()
+	accontDB, err := BlockChainImpl.LatestStateDB()
 	if err != nil {
-		Logger.Errorf("get accontDB failed,error = %v",err.Error())
+		Logger.Errorf("get accontDB failed,error = %v", err.Error())
 		return nil
 	}
 	miner, err := getMiner(accontDB, address, mType)
@@ -262,7 +260,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
 		miner, err := getMiner(accountDB, addr, mType)
 		if err != nil {
-			Logger.Errorf("get all miner error:%v, addr:%v", err, addr.Hex())
+			Logger.Errorf("get all miner error:%v, addr:%v", err, addr.AddrPrefixString())
 			return nil
 		}
 		if miner != nil {
@@ -273,10 +271,10 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 }
 
 func (mm *MinerManager) getStakeDetail(address, source common.Address, status types.StakeStatus, mType types.MinerType) *types.StakeDetail {
-	db,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
-		Logger.Errorf("get accountdb failed,error = %v",error.Error())
-		return  nil
+	db, error := BlockChainImpl.LatestStateDB()
+	if error != nil {
+		Logger.Errorf("get accountdb failed,error = %v", error.Error())
+		return nil
 	}
 	key := getDetailKey(source, mType, status)
 	detail, err := getDetail(db, address, key)
@@ -322,13 +320,13 @@ func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Ad
 // GetAllStakeDetails returns all stake details of the given account
 func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]*types.StakeDetail {
 	ret := make(map[string][]*types.StakeDetail)
-	accontDB,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
-		Logger.Errorf("get accountdb failed,err = %v",error.Error())
+	accontDB, error := BlockChainImpl.LatestStateDB()
+	if error != nil {
+		Logger.Errorf("get accountdb failed,err = %v", error.Error())
 		return ret
 	}
 	iter := accontDB.DataIterator(address, prefixDetail)
-	if iter == nil{
+	if iter == nil {
 		return nil
 	}
 	for iter.Next() {
@@ -353,20 +351,20 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 			ds []*types.StakeDetail
 			ok bool
 		)
-		if ds, ok = ret[addr.Hex()]; !ok {
+		if ds, ok = ret[addr.AddrPrefixString()]; !ok {
 			ds = make([]*types.StakeDetail, 0)
 		}
 		ds = append(ds, detail)
-		ret[addr.Hex()] = ds
+		ret[addr.AddrPrefixString()] = ds
 	}
 	return ret
 }
 
 func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 	mp := make(map[string]struct{})
-	accountDB,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
-		Logger.Errorf("get accountdb failed,error = %v",error.Error())
+	accountDB, error := BlockChainImpl.LatestStateDB()
+	if error != nil {
+		Logger.Errorf("get accountdb failed,error = %v", error.Error())
 		return mp
 	}
 	prefix := prefixPoolProposal
@@ -376,7 +374,7 @@ func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 			break
 		}
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
-		mp[addr.Hex()] = struct{}{}
+		mp[addr.AddrPrefixString()] = struct{}{}
 	}
 	return mp
 }
@@ -401,16 +399,16 @@ func (mm *MinerManager) listenProposalUpdate() {
 		select {
 		case addr := <-mm.proposalAddCh:
 			mm.lock.Lock()
-			if _, ok := mm.existingProposal[addr.Hex()]; !ok {
-				mm.existingProposal[addr.Hex()] = struct{}{}
-				Logger.Debugf("Add proposer %v", addr.Hex())
+			if _, ok := mm.existingProposal[addr.AddrPrefixString()]; !ok {
+				mm.existingProposal[addr.AddrPrefixString()] = struct{}{}
+				Logger.Debugf("Add proposer %v", addr.AddrPrefixString())
 			}
 			mm.lock.Unlock()
 		case addr := <-mm.proposalRemoveCh:
 			mm.lock.Lock()
-			if _, ok := mm.existingProposal[addr.Hex()]; ok {
-				delete(mm.existingProposal, addr.Hex())
-				Logger.Debugf("Remove proposer %v", addr.Hex())
+			if _, ok := mm.existingProposal[addr.AddrPrefixString()]; ok {
+				delete(mm.existingProposal, addr.AddrPrefixString())
+				Logger.Debugf("Remove proposer %v", addr.AddrPrefixString())
 			}
 			mm.lock.Unlock()
 		}
@@ -475,14 +473,16 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 }
 
 func (mm *MinerManager) genGuardNodes(accountDB types.AccountDB) {
-	for _, addrStr := range types.ExtractGuardNodes {
-		addr := common.HexToAddress(addrStr)
+	for _, addr := range types.ExtractGuardNodes {
 		miner := &types.Miner{ID: addr.Bytes(),Type:types.MinerTypeProposal,Identity:types.MinerGuard,Status:types.MinerStatusActive,ApplyHeight:0,Stake:0}
 		bs, err := msgpack.Marshal(miner)
 		if err != nil {
 			panic("encode miner failed")
 		}
-		initVoteInfo(accountDB,addr)
+		err = initVoteInfo(accountDB,addr)
+		if err != nil{
+			panic(err)
+		}
 		accountDB.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
 		nonce := accountDB.GetNonce(addr)
 		accountDB.SetNonce(addr, nonce+1)

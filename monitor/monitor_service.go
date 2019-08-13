@@ -205,12 +205,12 @@ func (ms *MonitorService) AddLogIfNotInternalNodes(logEntry *LogEntry) {
 func (ms *MonitorService) IsFirstNInternalNodesInGroup(mems []groupsig.ID, n int) bool {
 	cnt := 0
 	for _, mem := range mems {
-		if _, ok := ms.internalNodeIds[mem.GetHexString()]; ok {
+		if _, ok := ms.internalNodeIds[mem.GetAddrString()]; ok {
 			cnt++
 			if cnt >= n {
 				break
 			}
-			if mem.GetHexString() == ms.nodeID {
+			if mem.GetAddrString() == ms.nodeID {
 				return true
 			}
 		}

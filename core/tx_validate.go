@@ -121,7 +121,7 @@ func stateValidate(tx *types.Transaction) error {
 	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance := accountDB.GetBalance(*tx.Source)
-	src := tx.Source.Hex()
+	src := tx.Source.AddrPrefixString()
 	if gasLimitFee.Cmp(balance) > 0 {
 		return fmt.Errorf("balance not enough for paying gas, %v", src)
 	}
@@ -229,7 +229,7 @@ func cancelGuardNodesValidator(tx *types.Transaction) error {
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
 	}
-	if !types.IsInExtractGuardNodes(tx.Target.Hex()){
+	if !types.IsInExtractGuardNodes(*tx.Target){
 		return fmt.Errorf("operator addr is not in extract guard nodes")
 	}
 	return nil
@@ -344,7 +344,7 @@ func getValidator(tx *types.Transaction) validator {
 				}
 			}
 			if tx.Type == types.TransactionTypeCancelGuard{
-				if tx.Source.Hex() != types.MiningPoolAddr{
+				if *tx.Source != types.AdminAddrType{
 					return fmt.Errorf("only admin can call")
 				}
 			}

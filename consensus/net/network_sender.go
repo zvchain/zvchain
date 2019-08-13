@@ -17,10 +17,12 @@ package net
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/log"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -40,7 +42,7 @@ func NewNetworkServer() NetworkServer {
 func id2String(ids []groupsig.ID) []string {
 	idStrs := make([]string, len(ids))
 	for idx, id := range ids {
-		idStrs[idx] = id.GetHexString()
+		idStrs[idx] = id.GetAddrString()
 	}
 	return idStrs
 }
@@ -61,7 +63,7 @@ func (ns *NetworkServerImpl) ReleaseGroupNet(gid string) {
 }
 
 func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
-	go MessageHandler.Handle(self.GetHexString(), m)
+	go MessageHandler.Handle(self.GetAddrString(), m)
 }
 
 // SendCastVerify happens at the proposal role.
@@ -70,15 +72,19 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
 
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": ccm.BH.Height,
+		"blockHash": ccm.BH.Hash.Hex(),
+	}).Debug("SendCastVerify")
 	for idx, mem := range gb.MemIds {
 		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: proveHashs[idx].Bytes()}
 		body, err := proto.Marshal(message)
 		if err != nil {
-			logger.Errorf("marshalConsensusCastMessage error:%v %v", err, mem.GetHexString())
+			logger.Errorf("marshalConsensusCastMessage error:%v %v", err, mem.GetAddrString())
 			continue
 		}
 		m := network.Message{Code: network.CastVerifyMsg, Body: body}
-		ns.net.Send(mem.GetHexString(), m)
+		ns.net.Send(mem.GetAddrString(), m)
 	}
 }
 
@@ -169,7 +175,7 @@ func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMe
 	}
 	m := network.Message{Code: network.CastRewardSignGot, Body: body}
 
-	ns.net.SendWithGroupRelay(msg.Launcher.GetHexString(), msg.GSeed.Hex(), m)
+	ns.net.SendWithGroupRelay(msg.Launcher.GetAddrString(), msg.GSeed.Hex(), m)
 }
 
 // ReqProposalBlock request block body from the target

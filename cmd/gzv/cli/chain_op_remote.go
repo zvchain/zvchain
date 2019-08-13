@@ -125,7 +125,7 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 		return opError(fmt.Errorf("privatekey or pubkey error"))
 	}
 	source := pubkey.GetAddress()
-	if source.Hex() != aci.Address {
+	if source.AddrPrefixString() != aci.Address {
 		return opError(fmt.Errorf("address error"))
 	}
 
@@ -251,7 +251,7 @@ func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Re
 	if strings.TrimSpace(target) == "" {
 		return opError(fmt.Errorf("please input target address"))
 	}
-	if !validateAddress(target) {
+	if !common.ValidateAddress(target) {
 		return opError(fmt.Errorf("Wrong address format"))
 	}
 	if aci.Address == target {
@@ -288,15 +288,21 @@ func (ca *RemoteChainOpImpl)ApplyGuardMiner(gas, gasprice uint64) *Result{
 
 
 func (ca *RemoteChainOpImpl)CancelGuard(addr string,gas, gasprice uint64) *Result{
+	if strings.TrimSpace(addr) == "" {
+		return opError(fmt.Errorf("please input the address"))
+	}
+	if !common.ValidateAddress(addr) {
+		return opError(fmt.Errorf("Wrong address format"))
+	}
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r
 	}
 	aci := r.Data.(*Account)
-	if aci.Address != types.MiningPoolAddr{
+	if common.StringToAddress(aci.Address) != types.AdminAddrType{
 		return opError(fmt.Errorf("only admin can call"))
 	}
-	if !types.IsInExtractGuardNodes(addr){
+	if !types.IsInExtractGuardNodes(common.StringToAddress(addr)){
 		return opError(fmt.Errorf("operator addr is not in extract guard nodes"))
 	}
 	tx := &txRawData{

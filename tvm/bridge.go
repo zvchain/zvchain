@@ -38,7 +38,7 @@ func Transfer(toAddress *C.char, value *C.char) bool {
 		return false
 	}
 	contractAddr := controller.VM.ContractAddress
-	to := common.HexToAddress(toAddressStr)
+	to := common.StringToAddress(toAddressStr)
 
 	if !controller.AccountDB.CanTransfer(*contractAddr, transValue) {
 		return false
@@ -54,7 +54,7 @@ func GetBalance(addressC *C.char) *C.char {
 	if !common.ValidateAddress(toAddressStr) {
 		return C.CString("0")
 	}
-	address := common.HexToAddress(C.GoString(addressC))
+	address := common.StringToAddress(C.GoString(addressC))
 	value := controller.AccountDB.GetBalance(address)
 	return C.CString(value.String())
 }

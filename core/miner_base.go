@@ -431,7 +431,7 @@ func (op *baseOperation) voteMinerPool(source common.Address,targetAddress commo
 		return err
 	}
 	if vf == nil{
-		return fmt.Errorf("vote info is nil,addr is %s",source.Hex())
+		return fmt.Errorf("vote info is nil,addr is %s",source.String())
 	}
 	if vf.Last > 0 {
 		vf.Last = 0
@@ -481,7 +481,7 @@ func guardNodeExpired(db types.AccountDB,address common.Address,height uint64)er
 		return err
 	}
 	if miner == nil{
-		return fmt.Errorf("guard invalid find miner is nil,addr is %s",address.Hex())
+		return fmt.Errorf("guard invalid find miner is nil,addr is %s",address.String())
 	}
 	miner.UpdateIdentity(types.MinerNormal,height)
 	err = setMiner(db,miner)
@@ -493,7 +493,7 @@ func guardNodeExpired(db types.AccountDB,address common.Address,height uint64)er
 		return err
 	}
 	if vf == nil{
-		return fmt.Errorf("find guard node vote info is nil,addr is %s",address.Hex())
+		return fmt.Errorf("find guard node vote info is nil,addr is %s",address.String())
 	}
 	delVoteInfo(db,address)
 	var empty = common.Address{}

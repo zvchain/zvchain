@@ -31,12 +31,12 @@ import (
 func genTx(source string, target string) *types.Transaction {
 	var sourceAddr, targetAddr *common.Address
 
-	sourcebyte := common.HexToAddress(source)
+	sourcebyte := common.StringToAddress(source)
 	sourceAddr = &sourcebyte
 	if target == "" {
 		targetAddr = nil
 	} else {
-		targetbyte := common.HexToAddress(target)
+		targetbyte := common.StringToAddress(target)
 		targetAddr = &targetbyte
 	}
 

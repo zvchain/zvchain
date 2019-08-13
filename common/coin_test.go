@@ -15,7 +15,10 @@
 
 package common
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func runParseCoin(s string, expect uint64, t *testing.T) {
 	v, err := ParseCoin(s)
@@ -47,4 +50,5 @@ func TestParseCoin_Wrong(t *testing.T) {
 	runParseCoinWrong("", t)
 	runParseCoinWrong("232", t)
 	runParseCoinWrong("232 ZVC", t)
+	fmt.Println(StringToAddress("zv123").AddrPrefixString())
 }

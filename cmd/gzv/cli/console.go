@@ -109,7 +109,7 @@ func (c *unlockCmd) parse(args []string) bool {
 		return false
 	}
 
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -139,7 +139,7 @@ func (c *balanceCmd) parse(args []string) bool {
 		c.fs.PrintDefaults()
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -169,7 +169,7 @@ func (c *nonceCmd) parse(args []string) bool {
 		c.fs.PrintDefaults()
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -199,7 +199,7 @@ func (c *voteMinerPoolCmd) parse(args []string) bool {
 		output("please input the address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -249,7 +249,7 @@ func (c *cancelGuardCmd) parse(args []string) bool {
 		output("please input the address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -281,11 +281,11 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		c.fs.PrintDefaults()
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
-	if c.detail != "" && c.detail != "all" && !validateAddress(c.detail) {
+	if c.detail != "" && c.detail != "all" && !common.ValidateAddress(c.detail) {
 		output("Wrong address format")
 		return false
 	}
@@ -472,7 +472,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 			c.fs.PrintDefaults()
 			return false
 		} else {
-			if !validateAddress(strings.TrimSpace(c.to)) {
+			if !common.ValidateAddress(strings.TrimSpace(c.to)) {
 				output("Wrong address format")
 				return false
 			}
@@ -604,7 +604,7 @@ func (c *stakeAddCmd) parse(args []string) bool {
 		return false
 	}
 	if len(strings.TrimSpace(c.target)) > 0 {
-		if !validateAddress(c.target) {
+		if !common.ValidateAddress(c.target) {
 			output("Wrong address format")
 			return false
 		}
@@ -661,7 +661,7 @@ func (c *stakeRefundCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if c.target != "" && !validateAddress(c.target) {
+	if c.target != "" && !common.ValidateAddress(c.target) {
 		output("Wrong address format")
 		return false
 	}
@@ -695,7 +695,7 @@ func (c *stakeReduceCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if c.target != "" && !validateAddress(c.target) {
+	if c.target != "" && !common.ValidateAddress(c.target) {
 		output("Wrong address format")
 		return false
 	}
@@ -728,7 +728,7 @@ func (c *viewContractCmd) parse(args []string) bool {
 		output("please input the contract address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -801,7 +801,7 @@ func (c *exportKeyCmd) parse(args []string) bool {
 		output("please input the account address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -830,7 +830,7 @@ func (c *groupCheckCmd) parse(args []string) bool {
 		output("please input the address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}

@@ -36,8 +36,6 @@ const miningPoolToken = 425000000 * common.ZVC                                  
 const circulatesToken = 75000000 * common.ZVC                                                  // amount of tokens that belongs to circulates
 
 
-var adminAddrType = common.HexToAddress(types.MiningPoolAddr)
-
 
 func calcTxTree(txs []*types.Transaction) common.Hash {
 	if nil == txs || 0 == len(txs) {
@@ -79,11 +77,11 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	stateDB.SetBalance(*businessFoundationAddr, big.NewInt(0).SetUint64(businessFoundationToken))
 	teamFoundationAddr := setupFoundationContract(stateDB, types.AdminAddr, teamFoundationToken, 2)
 	stateDB.SetBalance(*teamFoundationAddr, big.NewInt(0).SetUint64(teamFoundationToken))
-	stateDB.SetNonce(common.HexToAddress(types.AdminAddr), 2)
+	stateDB.SetNonce(common.StringToAddress(types.AdminAddr), 2)
 
 	// mining pool and circulates
-	stateDB.SetBalance(common.HexToAddress(types.MiningPoolAddr), big.NewInt(0).SetUint64(miningPoolToken))
-	stateDB.SetBalance(common.HexToAddress(types.CirculatesAddr), big.NewInt(0).SetUint64(circulatesToken))
+	stateDB.SetBalance(common.StringToAddress(types.MiningPoolAddr), big.NewInt(0).SetUint64(miningPoolToken))
+	stateDB.SetBalance(common.StringToAddress(types.CirculatesAddr), big.NewInt(0).SetUint64(circulatesToken))
 
 	// genesis balance: just for stakes two roles with minimum required value
 	genesisBalance := big.NewInt(0).SetUint64(4 * minimumStake())
@@ -96,7 +94,7 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 func setupFoundationContract(stateDB *account.AccountDB, adminAddr string, totalToken, nonce uint64) *common.Address {
 	code := fmt.Sprintf(foundationContract, adminAddr, totalToken)
 	transaction := types.Transaction{}
-	addr := common.HexToAddress(adminAddr)
+	addr := common.StringToAddress(adminAddr)
 	transaction.Source = &addr
 	transaction.Value = &types.BigInt{Int: *big.NewInt(0)}
 	transaction.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}

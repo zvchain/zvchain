@@ -50,8 +50,8 @@ func TestAddressRegexMatch(t *testing.T) {
 		t.Errorf("match error of 123")
 	}
 
-	addr := common.HexToAddress("0x123")
-	b = reg.MatchString(addr.Hex())
+	addr := common.StringToAddress("zv123")
+	b = reg.MatchString(addr.AddrPrefixString())
 
 	b = reg.MatchString("0x0123000000000000000000000000000000000000000000000000000000000000")
 	if !b {
