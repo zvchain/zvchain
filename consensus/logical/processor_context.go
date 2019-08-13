@@ -16,8 +16,12 @@
 package logical
 
 import (
+	"math"
 	"sync"
 	"time"
+
+	"github.com/zvchain/zvchain/consensus/groupsig"
+	"gopkg.in/fatih/set.v0"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
@@ -37,9 +41,28 @@ type verifyMsgCache struct {
 }
 
 type proposedBlock struct {
+	lock             sync.RWMutex
 	block            *types.Block
-	responseCount    uint64
-	maxResponseCount uint64
+	maxResponseCount int
+	requestedMember  set.Interface
+}
+
+func newProposedBlock(b *types.Block, count int) *proposedBlock {
+	return &proposedBlock{
+		block:            b,
+		requestedMember:  set.New(set.ThreadSafe),
+		maxResponseCount: count,
+	}
+}
+
+func (p *proposedBlock) containsOrAddRequested(gid groupsig.ID) (bool, int) {
+	if p.requestedMember.Has(gid.GetHexString()) {
+		return true, 0
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.requestedMember.Add(gid.GetHexString())
+	return false, p.requestedMember.Size()
 }
 
 func newVerifyMsgCache() *verifyMsgCache {
@@ -121,9 +144,10 @@ func (bctx *castBlockContexts) forEachReservedVctx(f func(vctx *VerifyContext) b
 	}
 }
 
-func (bctx *castBlockContexts) addProposed(b *types.Block) {
-	pb := proposedBlock{block: b}
-	bctx.proposed.Add(b.Header.Hash, &pb)
+func (bctx *castBlockContexts) addProposed(b *types.Block, groupMemberSize int) {
+	maxResponseCount := int(math.Ceil(float64(groupMemberSize) / 3)) //only response group member size's 1/3 times
+	pb := newProposedBlock(b, maxResponseCount)
+	bctx.proposed.Add(b.Header.Hash, pb)
 }
 
 func (bctx *castBlockContexts) getProposed(hash common.Hash) *proposedBlock {
