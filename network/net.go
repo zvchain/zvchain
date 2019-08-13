@@ -493,6 +493,10 @@ func (nc *NetCore) onChecked(p2pType uint32, privateIP string, publicIP string) 
 	nc.natType = p2pType
 	nc.peerManager.onChecked(p2pType, privateIP, publicIP)
 	Logger.Debugf("OnChecked, nat type :%v public ip: %v private ip :%v", p2pType, publicIP, privateIP)
+
+	if p2pType == 4 || p2pType == 5 {
+		fmt.Printf("Your router does not support NAT traversal, please upgrade your router.\n")
+	}
 }
 
 // OnRecved callback when data is received
