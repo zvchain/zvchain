@@ -387,7 +387,7 @@ func (helper *ConsensusHelperImpl4Test) VerifyNewBlock(bh *types.BlockHeader, pr
 	return true, nil
 }
 
-func (helper *ConsensusHelperImpl4Test) VerifyBlockHeader(bh *types.BlockHeader) (bool, error) {
+func (helper *ConsensusHelperImpl4Test) VerifyBlockSign(bh *types.BlockHeader) (bool, error) {
 	return true, nil
 }
 
@@ -409,6 +409,9 @@ func (helper *ConsensusHelperImpl4Test) EstimatePreHeight(bh *types.BlockHeader)
 
 func (helper *ConsensusHelperImpl4Test) CalculateQN(bh *types.BlockHeader) uint64 {
 	return uint64(11)
+}
+func (helper *ConsensusHelperImpl4Test) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
+	return true, nil
 }
 
 type Account4Test struct {

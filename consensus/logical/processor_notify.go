@@ -32,7 +32,9 @@ func (p *Processor) chLoop() {
 			go p.checkSelfCastRoutine()
 			go p.triggerFutureVerifyMsg(bh)
 			go p.rewardHandler.TriggerFutureRewardSign(bh)
+			go p.buildGroupNetOfNextEpoch(bh.Height)
 			p.blockContexts.removeProposed(bh.Hash)
+			p.dissolveGroupNet(bh.Height)
 		}
 	}
 }
@@ -92,34 +94,38 @@ func (p *Processor) onBlockAddSuccess(message notify.Message) error {
 	return nil
 }
 
-// onGroupAddSuccess handles the event of verifyGroup add-on-chain
-func (p *Processor) onGroupAddSuccess(message notify.Message) error {
-	group := message.GetData().(types.GroupI)
-	stdLogger.Infof("groupAddEventHandler receive message, gSeed=%v, workHeight=%v\n", group.Header().Seed(), group.Header().WorkHeight())
-
-	memIds := make([]groupsig.ID, len(group.Members()))
-	for i, mem := range group.Members() {
-		memIds[i] = groupsig.DeserializeID(mem.ID())
-	}
-	p.NetServer.BuildGroupNet(group.Header().Seed().Hex(), memIds)
-
-	topHeight := p.MainChain.QueryTopBlock().Height
-	// clear the dismissed group from net server
-	removed := make([]interface{}, 0)
-	p.livedGroups.Range(func(name, item interface{}) bool {
-		gi := item.(types.GroupI)
-		if gi.Header().DismissHeight()+100 < topHeight {
-			delKey := gi.Header().Seed().Hex()
-			p.NetServer.ReleaseGroupNet(delKey)
-			removed = append(removed, name)
+func (p *Processor) dissolveGroupNet(h uint64) {
+	p.groupNetBuilt.Range(func(key, value interface{}) bool {
+		g := value.(*verifyGroup)
+		if g.header.DismissHeight()+100 < h {
+			stdLogger.Debugf("release group net of %v at %v", g.header.Seed(), h)
+			p.NetServer.ReleaseGroupNet(g.header.Seed().Hex())
+			p.groupNetBuilt.Delete(key)
 		}
 		return true
 	})
-	for _, rm := range removed {
-		p.livedGroups.Delete(rm)
+}
+
+// buildGroupNetOfNextEpoch Builds group-network of those groups will be activated at next epoch
+func (p *Processor) buildGroupNetOfNextEpoch(h uint64) {
+	nextEp := types.EpochAt(h).Next()
+	// checks if now is at the last 100 blocks of current epoch
+	if h+100 > nextEp.Start() {
+		p.buildGroupNetOfActivateEpochAt(nextEp)
 	}
+}
 
-	p.livedGroups.Store(group.Header().Seed().Hex(), group)
-
-	return nil
+// buildGroupNetOfActivateEpochAt Builds group-network of those groups will be activated at given epoch
+func (p *Processor) buildGroupNetOfActivateEpochAt(ep types.Epoch) {
+	gs := p.groupReader.getActivatedGroupsByHeight(ep.Start())
+	for _, g := range gs {
+		if g.hasMember(p.GetMinerID()) {
+			if _, ok := p.groupNetBuilt.Load(g.header.Seed()); ok {
+				continue
+			}
+			stdLogger.Debugf("build group net of %v at epoch %v-%v", g.header.Seed(), ep.Start(), ep.End())
+			p.NetServer.BuildGroupNet(g.header.Seed().Hex(), g.getMembers())
+			p.groupNetBuilt.Store(g.header.Seed(), g)
+		}
+	}
 }

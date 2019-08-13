@@ -59,7 +59,7 @@ type activatedGroupReader interface {
 
 type blockQuerier interface {
 	QueryTopBlock() *types.BlockHeader
-	LatestAccountDB() (types.AccountDB, error)
+	AccountDBAt(height uint64) (types.AccountDB, error)
 	QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
 }
 
@@ -79,6 +79,10 @@ func newCpChecker(reader activatedGroupReader, querier blockQuerier) *cpChecker 
 	}
 }
 
+func cpGroupThreshold(groupNum int) int {
+	return int(math.Ceil(float64(groupNum) * groupThreshold))
+}
+
 func (cp *cpChecker) init() {
 	top := cp.querier.QueryTopBlock()
 	cp.reset(types.EpochAt(top.Height))
@@ -93,9 +97,33 @@ func (cp *cpChecker) init() {
 	}
 }
 
-func (cp *cpChecker) CheckPointOf(chainSlice []*types.BlockHeader) *types.BlockHeader {
+func (cp *cpChecker) checkPointOf(chainSlice []*types.Block) *types.BlockHeader {
 	if len(chainSlice) == 0 {
 		return nil
+	}
+	ep := types.EpochAt(chainSlice[len(chainSlice)-1].Header.Height)
+	groups := cp.groupReader.GetActivatedGroupsAt(ep.Start())
+	threshold := cpGroupThreshold(len(groups))
+	votes := make(map[common.Hash]struct{})
+	for i := len(chainSlice) - 1; i >= 0; i-- {
+		if len(groups) < groupNumMin {
+			continue
+		}
+		bh := chainSlice[i].Header
+		currEP := types.EpochAt(bh.Height)
+		if currEP.Start() == ep.Start() {
+			votes[chainSlice[i].Header.Group] = struct{}{}
+			// CP found
+			if len(votes) >= threshold {
+				return bh
+			}
+		} else { // CP not found in current epoch, keep finding in prev epoch
+			ep = currEP
+			groups = cp.groupReader.GetActivatedGroupsAt(ep.Start())
+			threshold = cpGroupThreshold(len(groups))
+			votes = make(map[common.Hash]struct{})
+			votes[chainSlice[i].Header.Group] = struct{}{}
+		}
 	}
 	return nil
 }
@@ -103,7 +131,7 @@ func (cp *cpChecker) CheckPointOf(chainSlice []*types.BlockHeader) *types.BlockH
 func (cp *cpChecker) reset(ep types.Epoch) {
 	cp.epoch = ep
 	cp.groups = cp.groupReader.GetActivatedGroupsAt(ep.Start())
-	cp.threshold = int(math.Ceil(float64(len(cp.groups)) * groupThreshold))
+	cp.threshold = cpGroupThreshold(len(cp.groups))
 	cp.allVotes = make(map[common.Hash]uint64)
 }
 
@@ -155,10 +183,10 @@ func (cp *cpChecker) checkAndUpdate(db types.AccountDB, bh *types.BlockHeader) {
 
 }
 
-func (cp *cpChecker) latestCheckpoint() uint64 {
-	db, err := cp.querier.LatestAccountDB()
+func (cp *cpChecker) checkpointAt(h uint64) uint64 {
+	db, err := cp.querier.AccountDBAt(h)
 	if err != nil {
-		Logger.Errorf("get latest db error:%v", err)
+		Logger.Errorf("get account db at %v error:%v", h, err)
 		return 0
 	}
 	bs := db.GetData(cpAddress, cpKey)

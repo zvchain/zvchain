@@ -522,3 +522,32 @@ func (chain *FullBlockChain) queryBlockTransactionsOptional(txIdx int, height ui
 	Logger.Errorf("queryBlockTransactionsOptional decode tx error: hash=%v, err=%v", txHash.Hex(), err.Error())
 	return nil
 }
+
+// batchGetBlocksBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) batchGetBlocksBetween(begin, end uint64) []*types.Block {
+	blocks := make([]*types.Block, 0)
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(begin)) {
+		return blocks
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height >= end {
+			break
+		}
+		hash := common.BytesToHash(iter.Value())
+		b := chain.queryBlockByHash(hash)
+		if b == nil {
+			break
+		}
+
+		blocks = append(blocks, b)
+		if !iter.Next() {
+			break
+		}
+	}
+	return blocks
+}

@@ -86,7 +86,7 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 	ok := mediator.StartMiner()
 
 	fmt.Println("Syncing block and group info from ZV net.Waiting...")
-	core.InitBlockSyncer(core.BlockChainImpl.(*core.FullBlockChain))
+	core.InitBlockSyncer(core.BlockChainImpl)
 
 	// Auto apply miner role when balance enough
 	var appFun applyFunc

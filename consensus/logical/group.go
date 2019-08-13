@@ -148,9 +148,13 @@ func (gr *groupReader) getGroupBySeed(seed common.Hash) *verifyGroup {
 	return nil
 }
 
-func (gr *groupReader) getActivatedGroupsByHeight(h uint64) []types.GroupI {
+func (gr *groupReader) getActivatedGroupsByHeight(h uint64) []*verifyGroup {
 	gs := gr.reader.GetActivatedGroupsAt(h)
-	return gs
+	vgs := make([]*verifyGroup, len(gs))
+	for i, gi := range gs {
+		vgs[i] = convertGroupI(gi)
+	}
+	return vgs
 }
 
 func (gr *groupReader) getLivedGroupsByHeight(h uint64) []*verifyGroup {

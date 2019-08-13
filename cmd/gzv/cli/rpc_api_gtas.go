@@ -42,12 +42,17 @@ type groupRoutineChecker interface {
 	CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, seedHeight uint64, stage int)
 }
 
+type blockReader interface {
+	CheckPointAt(h uint64) *types.BlockHeader
+}
+
 func getGroupReader() groupInfoReader {
-	return &core.GroupManagerImpl
+	return core.GroupManagerImpl
 }
 
 type rpcBaseImpl struct {
 	gr groupInfoReader
+	br blockReader
 }
 
 // RpcGtasImpl provides rpc service for users to interact with remote nodes
@@ -417,4 +422,9 @@ func (api *RpcGtasImpl) GroupCheck(addr string) (*Result, error) {
 	}
 
 	return successResult(&GroupCheckInfo{JoinedGroups: jgs, CurrentGroupRoutine: currentInfo})
+}
+
+func (api *RpcGtasImpl) CheckPointAt(h uint64) (*Result, error) {
+	cp := api.br.CheckPointAt(h)
+	return successResult(cp)
 }

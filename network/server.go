@@ -201,10 +201,14 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 			topicID = notify.BlockResponse
 		case NewBlockMsg:
 			topicID = notify.NewBlock
-		case ReqChainPieceBlock:
-			topicID = notify.ChainPieceBlockReq
-		case ChainPieceBlock:
-			topicID = notify.ChainPieceBlock
+		case ForkFindAncestorResponse:
+			topicID = notify.ForkFindAncestorResponse
+		case ForkFindAncestorReq:
+			topicID = notify.ForkFindAncestorReq
+		case ForkChainSliceReq:
+			topicID = notify.ForkChainSliceReq
+		case ForkChainSliceResponse:
+			topicID = notify.ForkChainSliceResponse
 		}
 		if topicID != "" {
 			msg := newNotifyMessage(message, from)

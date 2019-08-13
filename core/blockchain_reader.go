@@ -301,7 +301,14 @@ func (chain *FullBlockChain) CountBlocksInRange(startHeight uint64, endHeight ui
 	return chain.countBlocksInRange(startHeight, endHeight)
 }
 
-func (chain *FullBlockChain) LatestCheckpoint() *types.BlockHeader {
-	h := chain.cpChecker.latestCheckpoint()
-	return chain.QueryBlockHeaderByHeight(h)
+func (chain *FullBlockChain) CheckPointAt(h uint64) *types.BlockHeader {
+	cp := chain.cpChecker.checkpointAt(h)
+	return chain.QueryBlockHeaderByHeight(cp)
+}
+
+// BatchGetBlocksBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.Block {
+	chain.rwLock.RLock()
+	defer chain.rwLock.RUnlock()
+	return chain.batchGetBlocksBetween(begin, end)
 }

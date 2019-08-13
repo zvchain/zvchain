@@ -36,7 +36,6 @@ type Manager struct {
 	punishment       minerPunishment
 	poolImpl         *pool
 	groupsByEpoch    *lru.Cache
-	epochAlg         types.GroupEpochAlg
 }
 
 func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
@@ -49,10 +48,6 @@ func (m *Manager) GetGroupPacketSender() types.GroupPacketSender {
 
 func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 	m.checkerImpl = checker
-}
-
-func (m *Manager) RegisterGroupEpochAlg(alg types.GroupEpochAlg) {
-	m.epochAlg = alg
 }
 
 func NewManager(chain chainReader) *Manager {
@@ -126,11 +121,11 @@ func (m *Manager) ActiveGroupCount() int {
 }
 
 func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
-	startEpoch, endEpoch := m.epochAlg.CreateEpochByHeight(height)
+	startEpoch, endEpoch := types.CreateEpochsOfActivatedGroupsAt(height)
 
 	gis := make([]types.GroupI, 0)
 
-	for ep := startEpoch; ep.End() <= endEpoch.End(); ep = ep.Next() {
+	for ep := startEpoch; ep.Start() < endEpoch.Start(); ep = ep.Next() {
 		gs := m.poolImpl.getGroupsByEpoch(ep)
 		for _, g := range gs {
 			gis = append(gis, g)
@@ -146,12 +141,12 @@ func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
 }
 
 func (m *Manager) GetLivedGroupsAt(height uint64) []types.GroupI {
-	startEpoch, _ := m.epochAlg.CreateEpochByHeight(height)
+	startEpoch, _ := types.CreateEpochsOfActivatedGroupsAt(height)
 	currentEp := types.EpochAt(m.chain.Height())
 
 	gis := make([]types.GroupI, 0)
 
-	for ep := startEpoch; ep.End() <= currentEp.End(); ep = ep.Next() {
+	for ep := startEpoch; ep.Start() <= currentEp.Start(); ep = ep.Next() {
 		gs := m.poolImpl.getGroupsByEpoch(ep)
 		for _, g := range gs {
 			gis = append(gis, g)

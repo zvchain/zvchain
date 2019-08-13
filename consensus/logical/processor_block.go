@@ -174,8 +174,8 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 	return
 }
 
-// VerifyBlockHeader mainly check the verifyGroup signature of the block
-func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error) {
+// VerifyBlockSign mainly check the verifyGroup signature of the block
+func (p *Processor) VerifyBlockSign(bh *types.BlockHeader) (ok bool, err error) {
 	if bh.Hash != bh.GenHash() {
 		err = fmt.Errorf("block hash error")
 		return
@@ -203,4 +203,16 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 	}
 	ok = true
 	return
+}
+
+// VerifyBlockHeaders checks if the group is legal and the group signature is correct
+func (p *Processor) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
+	if bh.PreHash != pre.Hash {
+		return false, fmt.Errorf("prehash not equal to pre")
+	}
+	gSeed := p.calcVerifyGroup(pre, bh.Height)
+	if gSeed != bh.Group {
+		return false, fmt.Errorf("verify group error: expect %v, infact %v", gSeed, bh.Group)
+	}
+	return p.VerifyBlockSign(bh)
 }

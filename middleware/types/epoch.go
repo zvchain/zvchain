@@ -28,7 +28,11 @@ type GroupEpochAlg interface {
 	CreateEpochByHeight(h uint64) (start, end Epoch)
 }
 
-const EpochLength = 8000 // blocks per epoch
+const (
+	EpochLength           = 8000 // blocks per epoch
+	GroupLiveEpochs       = 2    // epochs one group can live
+	GroupActivateEpochGap = 1    // The epoch gap after the group created can start working
+)
 
 type epoch uint64
 
@@ -90,4 +94,22 @@ func (ge genesisEpoch) Add(delta int) Epoch {
 
 func EpochAt(h uint64) Epoch {
 	return epoch(h / EpochLength)
+}
+
+func CreateEpochsOfActivatedGroupsAt(h uint64) (start, end Epoch) {
+	ep := EpochAt(h)
+
+	end = ep.Add(-GroupActivateEpochGap)
+	start = end.Add(-GroupLiveEpochs)
+	return
+}
+
+func ActivateEpochOfGroupsCreatedAt(h uint64) Epoch {
+	ep := EpochAt(h)
+	return ep.Add(GroupActivateEpochGap + 1)
+}
+
+func DismissEpochOfGroupsCreatedAt(h uint64) Epoch {
+	activeEp := ActivateEpochOfGroupsCreatedAt(h)
+	return activeEp.Add(GroupLiveEpochs)
 }

@@ -49,7 +49,7 @@ var (
 	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
 
-var BlockChainImpl types.BlockChain
+var BlockChainImpl *FullBlockChain
 
 var GroupManagerImpl *group.Manager
 
@@ -227,7 +227,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		chain.insertGenesisBlock()
 	}
 
-	chain.forkProcessor = initForkProcessor(chain)
+	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)

@@ -204,8 +204,8 @@ func generateGroupInfo(packets []types.MpkPacket, era *era, gpk groupsig.Pubkey,
 	}
 	gHeader := &groupHeader{
 		seed:          era.Seed(),
-		workHeight:    activeEpoch(era.seedHeight).Start(),
-		dismissHeight: dismissEpoch(era.seedHeight).Start(),
+		workHeight:    types.ActivateEpochOfGroupsCreatedAt(era.seedHeight).Start(),
+		dismissHeight: types.DismissEpochOfGroupsCreatedAt(era.seedHeight).Start(),
 		gpk:           gpk,
 		threshold:     uint32(threshold),
 	}

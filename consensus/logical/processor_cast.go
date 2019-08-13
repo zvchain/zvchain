@@ -43,7 +43,7 @@ func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) com
 	}
 	seeds := make([]string, len(groupIS))
 	for _, g := range groupIS {
-		seeds = append(seeds, common.ShortHex(g.Header().Seed().Hex()))
+		seeds = append(seeds, common.ShortHex(g.header.Seed().Hex()))
 	}
 
 	value := hash.Big()
@@ -51,8 +51,8 @@ func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) com
 
 	selectedGroup := groupIS[index.Int64()]
 
-	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupIS), height, seeds, selectedGroup.Header().Seed())
-	return selectedGroup.Header().Seed()
+	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupIS), height, seeds, selectedGroup.header.Seed())
+	return selectedGroup.header.Seed()
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {

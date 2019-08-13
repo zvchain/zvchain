@@ -128,14 +128,18 @@ func (p *pool) getGroupsByHeightRange(start, end uint64) []*group {
 }
 
 func (p *pool) getGroupsByEpoch(ep types.Epoch) []*group {
-	if ep.End() < p.chain.Height() {
+	currEp := types.EpochAt(p.chain.Height())
+	if ep.Start() > currEp.Start() {
+		return []*group{}
+	}
+	if ep.Start() < currEp.Start() {
 		if v, ok := p.cachedByEpoch.Get(ep.End()); ok {
 			return v.([]*group)
 		}
 	}
 	gs := p.getGroupsByHeightRange(ep.Start(), ep.End())
-	// groups of the epoch cached iff the epoch is complete
-	if ep.End() < p.chain.Height() {
+	// groups of the epoch cached iff the epoch is completed
+	if ep.Start() < currEp.Start() {
 		p.cachedByEpoch.Add(ep.End(), gs)
 	}
 	return gs
