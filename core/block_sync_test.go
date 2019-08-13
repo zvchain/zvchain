@@ -180,8 +180,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ = proto.Marshal(&errorMsg)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if err == nil {
-		t.Fatalf("expect err nil,but got error,err = %v",err)
+	if err != nil {
+		t.Fatalf("expect nil ,but got error,err = %v",err)
 	}
 
 	//only txs
