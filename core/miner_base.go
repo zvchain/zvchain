@@ -433,7 +433,7 @@ func (op *baseOperation)addGuardMinerInfo(address common.Address,disMissHeight u
 	if err != nil{
 		return err
 	}
-	err = setGuardMinerIndex(op.minerPool,address,gm.BeginIndex)
+	err = setGuardMinerIndex(op.minerPool,address,gm.Len-1)
 	if err != nil{
 		return err
 	}

@@ -74,7 +74,7 @@ func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader
 		return nil
 	}
 	subLen := 0
-	for i:=gm.BeginIndex;i<=gm.Len;i++{
+	for i:=gm.BeginIndex;i<gm.Len;i++{
 		addr,err := getGuardMinerIndex(db.AsAccountDBTS(),i)
 		if err != nil{
 			Logger.Error(err)
