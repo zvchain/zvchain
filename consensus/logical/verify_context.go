@@ -234,12 +234,12 @@ func (vc *VerifyContext) PrepareSlot(bh *types.BlockHeader) (*SlotContext, error
 		return nil, fmt.Errorf("hasSignedMoreWeightThan:%v", vc.getSignedMaxWeight())
 	}
 	sc := createSlotContext(bh, int(vc.group.header.Threshold()))
-	if v, ok := vc.proposers[sc.castor.GetHexString()]; ok && vc.castHeight > 1 {
+	if v, ok := vc.proposers[sc.castor.GetAddrString()]; ok && vc.castHeight > 1 {
 		if v != bh.Hash {
-			return nil, fmt.Errorf("too many proposals: castor %v", sc.castor.GetHexString())
+			return nil, fmt.Errorf("too many proposals: castor %v", sc.castor.GetAddrString())
 		}
 	} else {
-		vc.proposers[sc.castor.GetHexString()] = bh.Hash
+		vc.proposers[sc.castor.GetAddrString()] = bh.Hash
 	}
 	if len(vc.slots) >= model.Param.MaxSlotSize {
 		var (

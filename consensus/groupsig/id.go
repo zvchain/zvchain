@@ -50,8 +50,8 @@ func (id *ID) SetDecimalString(s string) error {
 	return id.value.SetDecString(s)
 }
 
-// SetHexString construct a ID with the input hex string
-func (id *ID) SetHexString(s string) error {
+// SetAddrString construct a ID with the input hex string
+func (id *ID) SetAddrString(s string) error {
 	s = common.AddrToHex(s)
 	return id.value.SetHexString(s)
 }
@@ -89,8 +89,8 @@ func (id ID) IsValid() bool {
 
 }
 
-// GetHexString export ID into a hex string
-func (id ID) GetHexString() string {
+// GetAddrString export ID into a addr string
+func (id ID) GetAddrString() string {
 	return common.ToAddrHex(id.Serialize())
 }
 
@@ -110,7 +110,7 @@ func (id ID) Serialize() []byte {
 }
 
 func (id ID) MarshalJSON() ([]byte, error) {
-	str := "\"" + id.GetHexString() + "\""
+	str := "\"" + id.GetAddrString() + "\""
 	return []byte(str), nil
 }
 
@@ -120,11 +120,11 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("data size less than min")
 	}
 	str = str[1 : len(str)-1]
-	return id.SetHexString(str)
+	return id.SetAddrString(str)
 }
 
 func (id ID) String() string {
-	return common.ShortHex(id.GetHexString())
+	return common.ShortHex(id.GetAddrString())
 }
 
 // NewIDFromBigInt create ID by big.int

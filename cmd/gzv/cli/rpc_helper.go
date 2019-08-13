@@ -154,7 +154,7 @@ func convertGroup(g types.GroupI) *Group {
 
 	mems := make([]string, 0)
 	for _, mem := range g.Members() {
-		memberStr := groupsig.DeserializeID(mem.ID()).GetHexString()
+		memberStr := groupsig.DeserializeID(mem.ID()).GetAddrString()
 		mems = append(mems, memberStr)
 	}
 	gh := g.Header()
@@ -173,36 +173,36 @@ func convertGroup(g types.GroupI) *Group {
 
 func parseABI(code string) []tvm.ABIVerify {
 
-	ABIs := make([]tvm.ABIVerify,0)
+	ABIs := make([]tvm.ABIVerify, 0)
 
-	stringSlice := strings.Split(code,"\n")
+	stringSlice := strings.Split(code, "\n")
 	for k, targetString := range stringSlice {
 		targetString = strings.TrimSpace(targetString)
-		if strings.HasPrefix(targetString,"@register.public"){
-			params := strings.TrimPrefix(targetString,"@register.public")
-			params = params[1:len(params)-1]
-			args := strings.Split(params,",")
-			for l, arg := range args{
+		if strings.HasPrefix(targetString, "@register.public") {
+			params := strings.TrimPrefix(targetString, "@register.public")
+			params = params[1 : len(params)-1]
+			args := strings.Split(params, ",")
+			for l, arg := range args {
 				arg = strings.TrimSpace(arg)
-				args[l]=arg
+				args[l] = arg
 			}
 
 			funcName := ""
 			funcLine := stringSlice[k+1]
 			funcLine = strings.TrimSpace(funcLine)
-			if strings.HasPrefix(funcLine, "def"){
-				funcLine = strings.TrimPrefix(funcLine,"def")
+			if strings.HasPrefix(funcLine, "def") {
+				funcLine = strings.TrimPrefix(funcLine, "def")
 				funcLine = strings.TrimSpace(funcLine)
 
 				for m, v := range funcLine {
 					if v == '(' {
 						funcName = funcLine[:m]
-						funcName=strings.TrimSpace(funcName)
+						funcName = strings.TrimSpace(funcName)
 					}
 				}
 				abi := tvm.ABIVerify{
-					FuncName:funcName,
-					Args:args,
+					FuncName: funcName,
+					Args:     args,
 				}
 				ABIs = append(ABIs, abi)
 			}

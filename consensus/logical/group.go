@@ -39,7 +39,7 @@ func convertGroupI(g types.GroupI) *verifyGroup {
 	memIndex := make(map[string]int)
 	for i, mem := range g.Members() {
 		mems[i] = &member{id: groupsig.DeserializeID(mem.ID()), pk: groupsig.DeserializePubkeyBytes(mem.PK())}
-		memIndex[mems[i].id.GetHexString()] = i
+		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	return &verifyGroup{
 		header:   g.Header(),
@@ -57,14 +57,14 @@ func (vg *verifyGroup) getMembers() []groupsig.ID {
 }
 
 func (vg *verifyGroup) hasMember(id groupsig.ID) bool {
-	if _, ok := vg.memIndex[id.GetHexString()]; ok {
+	if _, ok := vg.memIndex[id.GetAddrString()]; ok {
 		return true
 	}
 	return false
 }
 
 func (vg *verifyGroup) getMemberIndex(id groupsig.ID) int {
-	if v, ok := vg.memIndex[id.GetHexString()]; ok {
+	if v, ok := vg.memIndex[id.GetAddrString()]; ok {
 		return v
 	}
 	return -1
@@ -78,7 +78,7 @@ func (vg *verifyGroup) getMemberAt(idx int) *member {
 }
 
 func (vg *verifyGroup) getMemberPubkey(id groupsig.ID) groupsig.Pubkey {
-	if i, ok := vg.memIndex[id.GetHexString()]; ok {
+	if i, ok := vg.memIndex[id.GetAddrString()]; ok {
 		return vg.members[i].pk
 	}
 	return groupsig.Pubkey{}

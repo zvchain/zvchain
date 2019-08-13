@@ -296,7 +296,7 @@ func testID(t *testing.T) {
 		fmt.Printf("id Serialize, len=%v, data=%v.\n", len(buf), buf)
 	}
 
-	str := id1.GetHexString()
+	str := id1.GetAddrString()
 	fmt.Printf("ID export, len=%v, data=%v.\n", len(str), str)
 	//test
 	str0 := id1.value.GetHexString()
@@ -305,17 +305,17 @@ func testID(t *testing.T) {
 	///test
 	{
 		var id2 ID
-		err := id2.SetHexString(id1.GetHexString())
+		err := id2.SetAddrString(id1.GetAddrString())
 		if err != nil || !id1.IsEqual(id2) {
-			t.Errorf("not same\n%s\n%s", id1.GetHexString(), id2.GetHexString())
+			t.Errorf("not same\n%s\n%s", id1.GetAddrString(), id2.GetAddrString())
 		}
 	}
 	{
 		var id2 ID
 		err := id2.Deserialize(id1.Serialize())
-		fmt.Printf("id2:%v", id2.GetHexString())
+		fmt.Printf("id2:%v", id2.GetAddrString())
 		if err != nil || !id1.IsEqual(id2) {
-			t.Errorf("not same\n%s\n%s", id1.GetHexString(), id2.GetHexString())
+			t.Errorf("not same\n%s\n%s", id1.GetAddrString(), id2.GetAddrString())
 		}
 	}
 	fmt.Printf("end test ID.\n")
@@ -342,7 +342,7 @@ func test(t *testing.T) {
 func Test_GroupsigIDStringConvert(t *testing.T) {
 	str := "0xedb67046af822fd6a778f3a1ec01ad2253e5921d3c1014db958a952fdc1b98e2"
 	id := NewIDFromString(str)
-	s := id.GetHexString()
+	s := id.GetAddrString()
 	fmt.Printf("id str:%s\n", s)
 	fmt.Printf("id str compare result:%t\n", str == s)
 }
@@ -367,15 +367,15 @@ func Test_Groupsig_ID_Deserialize(t *testing.T) {
 	s := "abc"
 	id1 := DeserializeID([]byte(s))
 	id2 := NewIDFromString(s)
-	t.Log(id1.GetHexString(), id2.GetHexString(), id1.IsEqual(*id2))
+	t.Log(id1.GetAddrString(), id2.GetAddrString(), id1.IsEqual(*id2))
 
 	t.Log([]byte(s))
 	t.Log(id1.Serialize(), id2.Serialize())
-	t.Log(id1.GetHexString(), id2.GetHexString())
+	t.Log(id1.GetAddrString(), id2.GetAddrString())
 
 	b := id2.Serialize()
 	id3 := DeserializeID(b)
-	t.Log(id3.GetHexString())
+	t.Log(id3.GetAddrString())
 }
 
 //Added by FlyingSquirrel-Xu. 2018-08-24.
@@ -623,19 +623,19 @@ func TestSignature_MarshalJSON(t *testing.T) {
 func TestAddress(t *testing.T) {
 	addr := common.StringToAddress("zv0bf03e69b31aa1caa45e79dd8d7f8031bfe81722d435149ffa2d0b66b9e9b6b7")
 	id := DeserializeID(addr.Bytes())
-	t.Log(id.GetHexString(), len(id.GetHexString()), addr.AddrPrefixString() == id.GetHexString())
+	t.Log(id.GetAddrString(), len(id.GetAddrString()), addr.AddrPrefixString() == id.GetAddrString())
 	t.Log(id.Serialize(), addr.Bytes(), bytes.Equal(id.Serialize(), addr.Bytes()))
 
 	id2 := ID{}
-	id2.SetHexString("0x0bf03e69b31aa1caa45e79dd8d7f8031bfe81722d435149ffa2d0b66b9e9b6b7")
-	t.Log(id2.GetHexString())
+	id2.SetAddrString("0x0bf03e69b31aa1caa45e79dd8d7f8031bfe81722d435149ffa2d0b66b9e9b6b7")
+	t.Log(id2.GetAddrString())
 
 	json, _ := id2.MarshalJSON()
 	t.Log(string(json))
 
 	id3 := &ID{}
 	id3.UnmarshalJSON(json)
-	t.Log(id3.GetHexString())
+	t.Log(id3.GetAddrString())
 }
 
 func TestDoubleAggregate(t *testing.T) {

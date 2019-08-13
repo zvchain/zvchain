@@ -883,7 +883,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 1},
 		},
 		ts: p.ts,
 	})
@@ -893,7 +893,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 1},
 		},
 		ts: p.ts,
 	})
@@ -904,7 +904,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 1},
 		},
 		ts: p.ts,
 	})
@@ -915,7 +915,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 1},
 		},
 		ts:               p.ts,
 		signedBlockHashs: set.New(set.ThreadSafe),
@@ -931,7 +931,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1, pt.ids[1].GetHexString(): 1},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 1, pt.ids[1].GetAddrString(): 1},
 		},
 		ts:     p.ts,
 		prevBH: genBlockHeader(),
@@ -942,7 +942,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1, pt.ids[1].GetHexString(): 1},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 1, pt.ids[1].GetAddrString(): 1},
 		},
 		ts:     p.ts,
 		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")},
@@ -956,7 +956,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{{pt.ids[1], pt.mpk[1]}},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 0, pt.ids[1].GetAddrString(): 0},
 		},
 		ts:     p.ts,
 		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},
@@ -969,7 +969,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{{pt.ids[1], pt.mpk[1]}},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 0, pt.ids[1].GetAddrString(): 0},
 		},
 		ts:     p.ts,
 		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},
@@ -983,7 +983,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		group: &verifyGroup{
 			header:   GroupHeaderTest{},
 			members:  []*member{{pt.ids[1], pt.mpk[1]}},
-			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
+			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 0, pt.ids[1].GetAddrString(): 0},
 		},
 		ts:     p.ts,
 		prevBH: &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},

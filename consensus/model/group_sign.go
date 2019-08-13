@@ -45,7 +45,7 @@ func (gs *GroupSignGenerator) Threshold() int {
 func (gs *GroupSignGenerator) GetWitness(id groupsig.ID) (groupsig.Signature, bool) {
 	gs.lock.RLock()
 	defer gs.lock.RUnlock()
-	if s, ok := gs.witnesses[id.GetHexString()]; ok {
+	if s, ok := gs.witnesses[id.GetAddrString()]; ok {
 		return s, true
 	}
 	return groupsig.Signature{}, false
@@ -56,7 +56,7 @@ func (gs *GroupSignGenerator) AddWitnessForce(id groupsig.ID, signature groupsig
 	gs.lock.Lock()
 	defer gs.lock.Unlock()
 
-	key := id.GetHexString()
+	key := id.GetAddrString()
 	if _, ok := gs.witnesses[key]; ok {
 		return false, false
 	}

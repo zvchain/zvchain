@@ -111,7 +111,7 @@ func TestGenerateGenesisGroup(t *testing.T) {
 		minerPks[i] = *groupsig.NewPubkeyFromSeckey(minerSks[i])
 		signs[i] = groupsig.Sign(minerSks[i], signDataBytes)
 		if !groupsig.VerifySig(minerPks[i], signDataBytes, signs[i]) {
-			t.Errorf("verify sign fail at %v", miner.ID.GetHexString())
+			t.Errorf("verify sign fail at %v", miner.ID.GetAddrString())
 		}
 	}
 
