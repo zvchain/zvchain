@@ -112,6 +112,7 @@ func setup() {
 	db.AddBalance(guardNode6, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(guardNode7, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(guardNode8, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(minerPool, new(big.Int).SetUint64(ctx.originBalance))
 	accountDB = db
 }
 
@@ -303,6 +304,31 @@ func TestMinerManager_GetAllStakeDetails_StakeAdd(t *testing.T) {
 	t.Log(detailString(allDetails))
 }
 
+func TestMinerManager_InvalidMinerPoolToVaild(t *testing.T){
+	setup()
+	defer clear()
+	geneMinerPool(t)
+	bh := &types.BlockHeader{
+		Height:adjustWeightPeriod / 2 +1000000,
+	}
+	ctx.target = &minerPool
+	ctx.stakeAddValue = 500 * common.ZVC
+	testStakeAddFromSelf(ctx, t)
+	miner, _ := getMiner(accountDB, minerPool, ctx.mType)
+	if !miner.IsMinerPool(){
+		t.Fatalf("except miner pool,but got %v",miner.Identity)
+	}
+	if !miner.IsActive(){
+		t.Fatalf("except miner active,but got %v",miner.Status)
+	}
+	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
+	miner, _ = getMiner(accountDB, minerPool, ctx.mType)
+	if !miner.IsInvalidMinerPool(){
+		t.Fatalf("except invalid miner pool,but got %v",miner.Identity)
+	}
+
+}
+
 func TestMinerManager_ScanningGuardInvalid(t *testing.T){
 	setup()
 	defer clear()
@@ -380,11 +406,14 @@ func TestMinerManager_ScanningGuardInvalid(t *testing.T){
 			t.Fatalf("except nil,but got value")
 		}
 	}
-
 	key := getTicketsKey(minerPool)
 	totalTickets := getTotalTickets(accountDB.AsAccountDBTS(),key)
 	if totalTickets != 0 {
 		t.Fatalf("except 0,but got %d",totalTickets)
+	}
+	miner, _ := getMiner(accountDB, minerPool, ctx.mType)
+	if !miner.IsInvalidMinerPool(){
+		t.Fatalf("except invalid miner pool,but got %v",miner.Identity)
 	}
 }
 

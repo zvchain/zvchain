@@ -137,7 +137,10 @@ func (mm *MinerManager)checkGuardNodeExpired(db types.AccountDB,address common.A
 }
 
 func (mm *MinerManager)processGuardNodeExpired(db types.AccountDB,address common.Address,height uint64){
-	guardNodeExpired(db,address,height)
+	err := guardNodeExpired(db,address,height)
+	if err != nil{
+		Logger.Errorf("processGuardNodeExpired error :{}",err)
+	}
 }
 
 

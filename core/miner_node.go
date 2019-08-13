@@ -125,10 +125,8 @@ func (n *NormalProposalMiner) processMinerOp(mop mOperation,targetMiner *types.M
 		}
 	case ReduceTicketOp:
 		n.processReduceTicket(mop,mop.Target(),mop.GetBaseOperation().subTicket)
-	case CancelGuardOp:
-		fmt.Errorf("normal proposal can not be operated")
 	default:
-		return fmt.Errorf("unknow operator %v",op)
+		return fmt.Errorf("normal proposal can not be operated %v",op)
 	}
 	return nil
 }
@@ -224,12 +222,10 @@ func (g *GuardProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Mi
 		if err != nil{
 			return err
 		}
-	case VoteMinerPoolOp:
-		return fmt.Errorf("guard node could not be voted by others")
 	case ReduceTicketOp:
 		g.processReduceTicket(mop,mop.Target(),mop.GetBaseOperation().subTicket)
 	case CancelGuardOp:
-		g.processCancelGuardNode(mop)
+		return g.processCancelGuardNode(mop)
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -252,8 +248,6 @@ func (m *MinerPoolProposalMiner) processMinerOp(mop mOperation,targetMiner *type
 		if err!=nil{
 			return err
 		}
-	case ApplyGuardOp:
-		return fmt.Errorf("miner pool node is not support this operator")
 	case VoteMinerPoolOp:
 		err := m.checkVoteMinerPool(mop)
 		if err != nil{
@@ -268,10 +262,8 @@ func (m *MinerPoolProposalMiner) processMinerOp(mop mOperation,targetMiner *type
 		if err != nil{
 			return err
 		}
-	case CancelGuardOp:
-		fmt.Errorf("miner pool can not be operated")
 	default:
-		return fmt.Errorf("unknow operator %v",op)
+		return fmt.Errorf("miner pool node is not support this operator %v",op)
 	}
 	return nil
 }
@@ -292,12 +284,6 @@ func (m *MinerPoolProposalMiner)processVoteMinerPool(mop mOperation,targetMiner 
 
 func (i *InvalidProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op MinerOp) error {
 	switch op {
-	case StakedAddOp:
-		return fmt.Errorf("invalid miner pool could not support stake add")
-	case StakeAbortOp:
-		return fmt.Errorf("invalid miner pool could not support stake abort")
-	case ApplyGuardOp:
-		return fmt.Errorf("invalid pool node not support this operator")
 	case VoteMinerPoolOp:
 		err := i.checkVoteMinerPool(mop)
 		if err != nil{
@@ -309,10 +295,8 @@ func (i *InvalidProposalMiner) processMinerOp(mop mOperation,targetMiner *types.
 		}
 	case ReduceTicketOp:
 		i.processReduceTicket(mop,mop.Target(),mop.GetBaseOperation().subTicket)
-	case CancelGuardOp:
-		fmt.Errorf("invalid miner pool can not be operated")
 	default:
-		return fmt.Errorf("unknow operator %v",op)
+		return fmt.Errorf("invalid pool node not support this operator %v",op)
 	}
 	return nil
 }
@@ -411,16 +395,8 @@ func (v *VerifyMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op 
 			if err!=nil{
 				return err
 			}
-		case ApplyGuardOp:
-			return fmt.Errorf("verify node not support this operator")
-		case VoteMinerPoolOp:
-			return fmt.Errorf("verify node could not be voted by others")
-		case ReduceTicketOp:
-			return fmt.Errorf("verify node could not be reduce tickets")
-		case CancelGuardOp:
-			return fmt.Errorf("verify node can not be operated")
 	default:
-		return fmt.Errorf("unknow operator %v",op)
+		return fmt.Errorf("verify node not support this operator %v",op)
 	}
 
 	return nil
@@ -434,8 +410,8 @@ func(g*GuardProposalMiner)checkStakeAdd(mop mOperation,targetMiner *types.Miner)
 	return nil
 }
 
-func (g *GuardProposalMiner)processCancelGuardNode(mop mOperation){
-	guardNodeExpired(mop.GetDb(),mop.Target(),mop.Height())
+func (g *GuardProposalMiner)processCancelGuardNode(mop mOperation)error{
+	return guardNodeExpired(mop.GetDb(),mop.Target(),mop.Height())
 }
 
 func (g *GuardProposalMiner)processReduceTicket(mop mOperation,targetAddress common.Address,subTicketsFun func(address common.Address)uint64){
@@ -698,7 +674,7 @@ func(b*BaseMiner)updateBalance(mop mOperation,balanceOp BalanceOp)error{
 			mop.GetDb().SubBalance(mop.Source(), amount)
 		}
 	}else{
-		fmt.Errorf("unknow balance update opertation")
+		return fmt.Errorf("unknow balance update opertation")
 	}
 	return nil
 }

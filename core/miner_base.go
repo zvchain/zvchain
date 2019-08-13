@@ -479,30 +479,25 @@ func (op *baseOperation) addProposalTotalStake(addStake uint64) {
 	op.minerPool.SetDataSafe(common.MinerPoolAddr, keyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
 }
 
-func guardNodeExpired(db types.AccountDB,address common.Address,height uint64){
+func guardNodeExpired(db types.AccountDB,address common.Address,height uint64)error{
 	miner,err := getMiner(db, address, types.MinerTypeProposal)
 	if err != nil{
-		Logger.Error(err)
-		return
+		return err
 	}
 	if miner == nil{
-		Logger.Errorf("guard invalid find miner is nil,addr is %s",address.Hex())
-		return
+		return fmt.Errorf("guard invalid find miner is nil,addr is %s",address.Hex())
 	}
 	miner.UpdateIdentity(types.MinerNormal,height)
 	err = setMiner(db,miner)
 	if err != nil{
-		Logger.Error(err)
-		return
+		return err
 	}
 	vf,err := getVoteInfo(db,address)
 	if err != nil{
-		Logger.Error(err)
-		return
+		return err
 	}
 	if vf == nil{
-		Logger.Errorf("find guard node vote info is nil,addr is %s",address.Hex())
-		return
+		return fmt.Errorf("find guard node vote info is nil,addr is %s",address.Hex())
 	}
 	delVoteInfo(db,address)
 	var empty = common.Address{}
@@ -511,9 +506,10 @@ func guardNodeExpired(db types.AccountDB,address common.Address,height uint64){
 		mop.ParseTransaction()
 		ret := mop.Transition()
 		if ret.err!= nil{
-			Logger.Error(ret.err)
+			return ret.err
 		}
 	}
+	return nil
 }
 
 func (op *baseOperation) subProposalTotalStake(subStake uint64) {
