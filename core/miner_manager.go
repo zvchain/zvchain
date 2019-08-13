@@ -60,7 +60,10 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 
 // GuardNodesCheck check guard nodes is expired
 func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader)error{
-	if bh.Height % 100 != 0 {
+	if bh.Height < halfOfYearBlocks{
+		return nil
+	}
+	if (bh.Height - 1000) % 1000 != 0 {
 		return nil
 	}
 	gm,err := getGuardMinerNodeInfo(db.AsAccountDBTS())
@@ -476,8 +479,8 @@ func (mm *MinerManager) genGuardNodes(accountDB types.AccountDB) {
 		if err != nil {
 			panic("encode miner failed")
 		}
+		initVoteInfo(accountDB,addr)
 		accountDB.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
-
 		nonce := accountDB.GetNonce(addr)
 		accountDB.SetNonce(addr, nonce+1)
 	}

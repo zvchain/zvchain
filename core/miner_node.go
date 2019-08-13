@@ -229,7 +229,7 @@ func (g *GuardProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Mi
 	case ReduceTicketOp:
 		g.processReduceTicket(mop,mop.Target(),mop.GetBaseOperation().subTicket)
 	case CancelGuardOp:
-
+		g.processCancelGuardNode(mop)
 	default:
 		return fmt.Errorf("unknow operator %v",op)
 	}
@@ -374,6 +374,7 @@ func processVote(mop mOperation)(error,bool){
 		if vf.Target != empty{
 			//reduce ticket first
 			mop:=newReduceTicketsOp(mop.GetDb(),vf.Target,mop.Source(),mop.Height())
+			mop.ParseTransaction()
 			ret := mop.Transition()
 			if ret.err != nil{
 				return ret.err,false

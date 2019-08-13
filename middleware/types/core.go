@@ -42,7 +42,7 @@ const(
  DaemonNodeAddress = "0xae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122" // address of official reserved daemon node address
 )
 
-var ExtractGuardNodes = []string{}   // init gurad miner nodes
+var ExtractGuardNodes = []string{"0x9900000000000000000000000000000000000000000000000000000000000000"}   // init gurad miner nodes
 
 // defines all possible result of the add-block operation
 const (

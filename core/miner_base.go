@@ -330,6 +330,16 @@ func delVoteInfo(db types.AccountDB,address common.Address){
 	db.RemoveData(address,keyVote)
 }
 
+func initVoteInfo(db types.AccountDB,address common.Address)error{
+	vote := NewVoteInfo(0)
+	bs, err := msgpack.Marshal(vote)
+	if err != nil {
+		return err
+	}
+	db.SetData(address, keyVote,bs)
+	return nil
+}
+
 func getVoteInfo(db types.AccountDB,address common.Address)(*voteInfo,error){
 	data := db.GetData(address,keyVote)
 	if data == nil{
@@ -364,7 +374,7 @@ func (op *baseOperation) subTicket(address common.Address)uint64{
 	}else{
 		totalTickets -=1
 	}
-	op.minerPool.SetDataSafe(minerPoolTicketsAddr, keyTickets, common.Uint64ToByte(totalTickets))
+	op.minerPool.SetDataSafe(minerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
 	return totalTickets
 }
 
@@ -507,6 +517,7 @@ func guardNodeExpired(db types.AccountDB,address common.Address,height uint64){
 	var empty = common.Address{}
 	if vf.Target != empty{
 		mop:=newReduceTicketsOp(db,vf.Target,address,height)
+		mop.ParseTransaction()
 		ret := mop.Transition()
 		if ret.err!= nil{
 			Logger.Error(ret.err)

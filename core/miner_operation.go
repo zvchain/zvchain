@@ -75,6 +75,8 @@ func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height ui
 		operation = &applyGuardMinerOp{baseOperation: baseOp}
 	case types.TransactionTypeVoteMinerPool:
 		operation = &voteMinerPoolOp{baseOperation: baseOp}
+	case types.TransactionTypeCancelGuard:
+		operation = &cancelGuardOp{baseOperation: baseOp}
 	default:
 		operation = &unSupported{typ: msg.OpType()}
 	}
@@ -275,6 +277,7 @@ func (op *reduceTicketsOp) Validate() error {
 }
 
 func (op *reduceTicketsOp) ParseTransaction() error {
+	op.minerType = types.MinerTypeProposal
 	return nil
 }
 
@@ -344,6 +347,7 @@ func (op *cancelGuardOp) ParseTransaction() error {
 	if op.msg.OpTarget() == nil{
 		return fmt.Errorf("target can not be nil")
 	}
+	op.minerType = types.MinerTypeProposal
 	op.cancelTarget = *op.msg.OpTarget()
 	return nil
 }

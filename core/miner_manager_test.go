@@ -188,9 +188,9 @@ func testMinerAbort(ctx *mOperContext, t *testing.T) {
 	t.Logf("miner status after abort %v %v", miner.Stake, miner.Status)
 }
 
-func testStakeReduce(ctx *mOperContext, t *testing.T) {
+func testStakeReduce(ctx *mOperContext, height uint64,t *testing.T) {
 	msg := genMOperMsg(ctx.target, ctx.target, types.TransactionTypeStakeReduce, ctx.reduceValue, []byte{byte(ctx.mType)})
-	_, err := MinerManagerImpl.ExecuteOperation(accountDB, msg, 1)
+	_, err := MinerManagerImpl.ExecuteOperation(accountDB, msg, height)
 	if err != nil {
 		t.Fatalf("execute miner abort msg error:%v", err)
 	}
@@ -281,9 +281,131 @@ func TestMinerManager_GetAllStakeDetails_StakeAdd(t *testing.T) {
 	t.Log(detailString(allDetails))
 }
 
+
+func TestMinerManager_GuardInvalid(t *testing.T){
+	setup()
+	defer clear()
+	geneMinerPoolWithExartNode(t)
+
+	miner, _ := getMiner(accountDB, minerPool, ctx.mType)
+	if miner == nil || !miner.IsMinerPool(){
+		t.Fatalf("except miner pool,but not")
+	}
+	testAdminCancel(t)
+
+	miner, _ = getMiner(accountDB, minerPool, ctx.mType)
+	if !miner.IsInvalidMinerPool(){
+		t.Fatalf("except invalid miner pool,but not")
+	}
+
+	exartGuardAddr := common.HexToAddress(types.ExtractGuardNodes[0])
+	vote,err := getVoteInfo(accountDB,exartGuardAddr)
+	if err !=nil{
+		t.Fatalf("error")
+	}
+	if vote != nil{
+		t.Fatalf("except vote is nil,but got value")
+	}
+
+	key := getTicketsKey(minerPool)
+	totalTickets := getTotalTickets(accountDB.AsAccountDBTS(),key)
+
+	if totalTickets != 7{
+		t.Fatalf("except 7 tickets,but got %d",totalTickets)
+	}
+}
+
 func TestMinerManager_Vote(t *testing.T){
 	setup()
 	defer clear()
+	geneMinerPool(t)
+	info,err := getGuardMinerNodeInfo(accountDB.AsAccountDBTS())
+	if err !=nil{
+		t.Fatalf("except no error,but got error")
+	}
+	if info.Len!= 8{
+		t.Fatalf("except got 8 ,but got %d",info.Len)
+	}
+	if info.BeginIndex!=0{
+		t.Fatalf("except got 0 ,but got %d",info.BeginIndex)
+	}
+
+	miner, _ := getMiner(accountDB, minerPool, ctx.mType)
+	if miner == nil || !miner.IsMinerPool(){
+		t.Fatalf("except miner pool,but not")
+	}
+}
+
+func geneMinerPoolWithExartNode(t *testing.T){
+	MinerManagerImpl.genGuardNodes(accountDB)
+
+	ctx.stakeAddValue = 2500000 * common.ZVC
+	ctx.target = &guardNode1
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode2
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode3
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode4
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode5
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode6
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+	ctx.target = &guardNode7
+	testStakeAddFromSelf(ctx, t)
+	testApplyGuardNode(t)
+	testVote(ctx.target,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+
+	addExart := common.HexToAddress(types.ExtractGuardNodes[0])
+	testVote(&addExart,&minerPool,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsGuard(){
+		t.Fatalf("except guard node,but not")
+	}
+}
+
+func geneMinerPool(t *testing.T){
 	ctx.stakeAddValue = 2500000 * common.ZVC
 	ctx.target = &guardNode1
 	testStakeAddFromSelf(ctx, t)
@@ -349,22 +471,8 @@ func TestMinerManager_Vote(t *testing.T){
 	if !miner.IsGuard(){
 		t.Fatalf("except guard node,but not")
 	}
-	info,err := getGuardMinerNodeInfo(accountDB.AsAccountDBTS())
-	if err !=nil{
-		t.Fatalf("except no error,but got error")
-	}
-	if info.Len!= 8{
-		t.Fatalf("except got 8 ,but got %d",info.Len)
-	}
-	if info.BeginIndex!=0{
-		t.Fatalf("except got 0 ,but got %d",info.BeginIndex)
-	}
-
-	miner, _ = getMiner(accountDB, minerPool, ctx.mType)
-	if miner == nil || !miner.IsMinerPool(){
-		t.Fatalf("except miner pool,but not")
-	}
 }
+
 
 func TestMinerManager_ApplyGuardNode(t *testing.T){
 	setup()
@@ -413,6 +521,17 @@ func testApplyGuardNode(t *testing.T){
 }
 
 
+func testAdminCancel(t *testing.T){
+	source := common.HexToAddress(types.MiningPoolAddr)
+	target = common.HexToAddress(types.ExtractGuardNodes[0])
+	applyMsg := genMOperMsg(&source, &target, types.TransactionTypeCancelGuard, 0,nil)
+	_, err := MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, 0)
+	if err != nil {
+		t.Fatalf("execute stake add msg error:%v", err)
+	}
+}
+
+
 func testVote(source,target *common.Address,t *testing.T){
 	applyMsg := genMOperMsg(source, target, types.TransactionTypeVoteMinerPool, 0,nil)
 	_, err := MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, 0)
@@ -442,10 +561,18 @@ func TestMinerManager_ExecuteOperation_StakeReduce(t *testing.T) {
 		t.Errorf("totalStake should be zero,infact is %v", totalStake)
 	}
 
-	testStakeReduce(ctx, t)
+	testStakeReduce(ctx, 1,t)
 	totalStake = getProposalTotalStake(accountDB.AsAccountDBTS())
 	if totalStake != ctx.stakeAddValue-ctx.reduceValue {
 		t.Errorf("totalStake should be zero,infact is %v", totalStake)
+	}
+
+	ctx.stakeAddValue = 1000 * common.ZVC
+	testStakeReduce(ctx, 1,t)
+
+	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsPrepare(){
+		t.Fatalf("except perpared,but not")
 	}
 }
 
@@ -459,7 +586,7 @@ func TestMinerManager_ExecuteOperation_StakeRefund(t *testing.T) {
 		t.Errorf("totalStake should be zero,infact is %v", totalStake)
 	}
 
-	testStakeReduce(ctx, t)
+	testStakeReduce(ctx,1, t)
 	totalStake = getProposalTotalStake(accountDB.AsAccountDBTS())
 	if totalStake != ctx.stakeAddValue-ctx.reduceValue {
 		t.Errorf("totalStake should be zero,infact is %v", totalStake)
