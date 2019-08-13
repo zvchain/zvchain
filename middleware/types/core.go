@@ -97,7 +97,7 @@ const (
 
 )
 
-// Transaction denotes one transaction infosminer still in active groups
+// Transaction denotes one transaction infos
 type Transaction struct {
 	Data   []byte          `msgpack:"dt,omitempty"` // Data of the transaction, cost gas
 	Value  *BigInt         `msgpack:"v"`            // The value the sender suppose to transfer
