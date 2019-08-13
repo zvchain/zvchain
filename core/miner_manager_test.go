@@ -171,7 +171,7 @@ func testStakeAddFromOthers(ctx *mOperContext, t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode payload error:%v", err)
 	}
-	stakeAddMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
+	stakeAddMsg := genMOperMsg(ctx.source, ctx.target, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
 	source := *stakeAddMsg.operator
 
 	_, err = MinerManagerImpl.ExecuteOperation(accountDB, stakeAddMsg, 0)
@@ -182,12 +182,7 @@ func testStakeAddFromOthers(ctx *mOperContext, t *testing.T) {
 	balance2 := accountDB.GetBalance(source)
 	t.Logf("operator balance after stake-add:%v", balance2)
 
-	miner, _ := getMiner(accountDB, *ctx.source, ctx.mType)
-	if miner == nil {
-		t.Errorf("get miner nil")
-	}
 
-	t.Logf("minerstatus after stake from others:%v %v", miner.Stake, miner.Status)
 
 }
 
@@ -205,6 +200,25 @@ func testMinerAbort(ctx *mOperContext, t *testing.T) {
 		t.Errorf("abort fail, status %v %v", miner.Status, miner.StatusUpdateHeight)
 	}
 	t.Logf("miner status after abort %v %v", miner.Stake, miner.Status)
+}
+
+func testStakeReduceFromOther(ctx *mOperContext, height uint64,t *testing.T) {
+	msg := genMOperMsg(ctx.source, ctx.target, types.TransactionTypeStakeReduce, ctx.reduceValue, []byte{byte(ctx.mType)})
+	_, err := MinerManagerImpl.ExecuteOperation(accountDB, msg, height)
+	if err != nil {
+		t.Fatalf("execute miner abort msg error:%v", err)
+	}
+	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+	if miner == nil {
+		t.Errorf("get miner nil")
+	}
+	if miner.Stake != ctx.stakeAddValue-ctx.reduceValue {
+		t.Errorf("stake error expect %v, infact %v", ctx.stakeAddValue-ctx.reduceValue, miner.Stake)
+	}
+
+	details := MinerManagerImpl.GetStakeDetails(*ctx.target, *ctx.target)
+	t.Log(detailString(details))
+	t.Logf("miner status after reduce %v %v", miner.Stake, miner.Status)
 }
 
 func testStakeReduce(ctx *mOperContext, height uint64,t *testing.T) {
@@ -240,17 +254,6 @@ func testStakeRefund(ctx *mOperContext, t *testing.T) {
 	details := MinerManagerImpl.GetStakeDetails(*ctx.target, *ctx.target)
 	t.Log(detailString(details))
 	t.Logf("miner status after reduce %v %v", miner.Stake, miner.Status)
-}
-
-func TestMinerManager_ExecuteOperation_StakeAddForOthers(t *testing.T) {
-	setup()
-	defer clear()
-
-	testStakeAddFromOthers(ctx, t)
-	srcBalance := accountDB.GetBalance(*ctx.source)
-	if srcBalance.Uint64()+ctx.stakeAddValue != ctx.originBalance {
-		t.Errorf("src balance error after stake")
-	}
 }
 
 func TestMinerManager_ExecuteOperation_StakeAddForSelf(t *testing.T) {
@@ -334,7 +337,40 @@ func TestMinerManager_GuardInvalid(t *testing.T){
 	}
 }
 
-func TestMinerManager_InsteadStakeAdd(t *testing.T){
+
+func TestMinerManager_MinerPoolInsteadStakeAdd(t *testing.T){
+	setup()
+	defer clear()
+	geneMinerPool(t)
+
+	ctx.source = &src
+	ctx.target = &minerPool
+	testStakeAddFromOthers(ctx,t)
+	miner, _ := getMiner(accountDB, *ctx.target, ctx.mType)
+	if miner.Stake != 2500000*common.ZVC{
+		t.Fatalf("except %v,but got %v",2500000*common.ZVC,miner.Stake)
+	}
+	ctx.source = &minerPool
+	ctx.stakeAddValue = 0
+	testStakeAddFromSelf(ctx,t)
+
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsActive(){
+		t.Fatalf("except active,but got %v",miner.Status)
+	}
+
+	ctx.source = &src
+	ctx.reduceValue = 2500000 * common.ZVC
+	ctx.target = &minerPool
+	testStakeReduceFromOther(ctx,100,t)
+
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if !miner.IsPrepare(){
+		t.Fatalf("except prepared,but got %v",miner.Status)
+	}
+}
+
+func TestMinerManager_AdminInsteadStakeAdd(t *testing.T){
 	setup()
 	defer clear()
 
@@ -355,6 +391,14 @@ func TestMinerManager_InsteadStakeAdd(t *testing.T){
 	}
 	if detail.Value != 2000 * common.ZVC {
 		t.Fatalf("except %v,but got %v",2000*common.ZVC,miner.Stake)
+	}
+
+	ctx.source = &adminAddr
+	ctx.reduceValue = 2000 * common.ZVC
+	testStakeReduceFromOther(ctx,100,t)
+	miner, _ = getMiner(accountDB, *ctx.target, ctx.mType)
+	if miner.Stake != 0 {
+		t.Fatalf("except 0,but got %v",miner.Stake)
 	}
 }
 

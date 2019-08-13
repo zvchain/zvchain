@@ -493,7 +493,6 @@ func initMiner(mop mOperation)*types.Miner{
 		Type:        mop.GetMinerType(),
 		Status:      types.MinerStatusPrepare,
 	}
-	setPks(miner, mop.GetMinerPks())
 	return miner
 }
 
@@ -626,6 +625,10 @@ func(b*BaseMiner)processStakeAdd(mop mOperation,targetMiner *types.Miner,checkUp
 	} else {
 		targetMiner = initMiner(mop)
 	}
+	if mop.Target() == mop.Source(){
+		setPks(targetMiner, mop.GetMinerPks())
+	}
+
 	if !checkUpperBound(targetMiner,mop.Height()){
 		return fmt.Errorf("stake more than upper bound:%v", targetMiner.Stake)
 	}
