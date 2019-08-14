@@ -17,7 +17,6 @@ package cli
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -98,32 +97,6 @@ func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, 
 		Message: fmt.Sprintf("The balance of account: %s is %v ZVC", account, balance),
 		Data:    balance,
 	}, nil
-}
-
-
-func (api *RpcDevImpl)CancelGuard(txRawjson string) *Result{
-	var txRaw = new(txRawData)
-	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
-		return opError(err)
-	}
-	if txRaw.TxType != types.TransactionTypeCancelGuard{
-		return opError(fmt.Errorf("tx type must be 14,but got %d",txRaw.TxType))
-	}
-	if txRaw.Target == ""{
-		return opError(fmt.Errorf("target is nil"))
-	}
-	if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
-		return opError(fmt.Errorf("Wrong target address format"))
-	}
-	if !types.IsInExtractGuardNodes(common.StringToAddress(txRaw.Target)){
-		return opError(fmt.Errorf("operator must be in guard nodes"))
-	}
-	trans := txRawToTransaction(txRaw)
-	trans.Hash = trans.GenHash()
-	if err := sendTransaction(trans); err != nil {
-		return opError(err)
-	}
-	return opSuccess(trans.Hash.Hex())
 }
 
 // get transaction by hash

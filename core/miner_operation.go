@@ -1,7 +1,6 @@
 //   Copyright (C) 2019 ZVChain
 //
-//   This program is free software: you can redistribute it and/or modify/
-
+//   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
 //   the Free Software Foundation, either version 3 of the License, or
 //   (at your option) any later version.
@@ -26,12 +25,9 @@ import (
 
 // Duration definition related to miner operation
 const (
-	onBlockSeconds = 3
-	oneHourBlocks = 86400 / onBlockSeconds / 24   // Blocks generated in one hour on average, used when status transforms from Frozen to Prepare
-	oneDayBlocks  = 86400 / onBlockSeconds        // Blocks generated in one day on average
+	oneHourBlocks = 86400 / 3 / 24   // Blocks generated in one hour on average, used when status transforms from Frozen to Prepare
+	oneDayBlocks  = 86400 / 3        // Blocks generated in one day on average
 	twoDayBlocks  = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
-	stakeBuffer  = 15 * oneDayBlocks
-
 )
 
 // mOperation define some functions on miner operation
@@ -41,21 +37,14 @@ const (
 type mOperation interface {
 	Validate() error         // Validate the input args
 	ParseTransaction() error // Parse the input transaction
-	Transition() *result     // Do the operation
-	Source()common.Address
-	Target()common.Address
-	Value() uint64
-	GetDb()types.AccountDB
-	Height()uint64
-	GetMinerType()types.MinerType
-    GetBaseOperation()*baseOperation
+	Operation() error        // Do the operation
 }
 
-
+type sysMinerOpType int8
 
 // newOperation creates the mOperation instance base on msg type
 func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height uint64) mOperation {
-	baseOp := newBaseOperation(db, msg, height,nil)
+	baseOp := newBaseOperation(db, msg, height)
 	var operation mOperation
 
 	switch msg.OpType() {
@@ -67,295 +56,12 @@ func newOperation(db types.AccountDB, msg types.MinerOperationMessage, height ui
 		operation = &stakeReduceOp{baseOperation: baseOp}
 	case types.TransactionTypeStakeRefund:
 		operation = &stakeRefundOp{baseOperation: baseOp}
-	case types.TransactionTypeApplyGuardMiner:
-		operation = &applyGuardMinerOp{baseOperation: baseOp}
-	case types.TransactionTypeVoteMinerPool:
-		operation = &voteMinerPoolOp{baseOperation: baseOp}
-	case types.TransactionTypeCancelGuard:
-		operation = &cancelGuardOp{baseOperation: baseOp}
 	default:
 		operation = &unSupported{typ: msg.OpType()}
 	}
 
 	return operation
 }
-
-type voteMinerPoolOp struct {
-	*baseOperation
-	targetAddr common.Address
-}
-
-func (op *voteMinerPoolOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *voteMinerPoolOp)Height()uint64{
-	return op.height
-}
-func (op *voteMinerPoolOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *voteMinerPoolOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *voteMinerPoolOp) Value() uint64 {
-	return 0
-}
-
-func (op *voteMinerPoolOp) Source() common.Address {
-	return *op.msg.Operator()
-}
-
-func (op *voteMinerPoolOp)Target()common.Address{
-	return op.targetAddr
-}
-
-func (op *voteMinerPoolOp) Validate() error {
-	if op.msg.OpTarget() == nil{
-		return fmt.Errorf("target must be not nil")
-	}
-	if *op.msg.Operator() == op.targetAddr{
-		return fmt.Errorf("could not vote myself")
-	}
-	return nil
-}
-
-func (op *voteMinerPoolOp) ParseTransaction() error {
-	if op.msg.OpTarget() == nil{
-		return fmt.Errorf("target must be not nil")
-	}
-	op.targetAddr = *op.msg.OpTarget()
-	op.minerType = types.MinerTypeProposal
-	return nil
-}
-
-func (op *voteMinerPoolOp) Transition() *result {
-	ret := newResult()
-	targetMiner, err := op.getMiner(op.targetAddr)
-	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
-	err = baseOp.processMinerOp(op,targetMiner,VoteMinerPoolOp)
-	if err != nil{
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	return ret
-}
-
-
-type applyGuardMinerOp struct {
-	*baseOperation
-	targetAddr common.Address
-}
-
-func (op *applyGuardMinerOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *applyGuardMinerOp)Height()uint64{
-	return op.height
-}
-func (op *applyGuardMinerOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *applyGuardMinerOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *applyGuardMinerOp) Value() uint64 {
-	return 0
-}
-
-func (op *applyGuardMinerOp) Source() common.Address {
-	return *op.msg.Operator()
-}
-
-func (op *applyGuardMinerOp)Target()common.Address{
-	return op.targetAddr
-}
-
-func (op *applyGuardMinerOp) Validate() error {
-	if op.msg.OpTarget() == nil {
-		return fmt.Errorf("target is nil")
-	}
-	return nil
-}
-
-func (op *applyGuardMinerOp) ParseTransaction() error {
-	if op.msg.OpTarget() == nil {
-		return fmt.Errorf("target is nil")
-	}
-	op.targetAddr = *op.msg.Operator()
-	op.minerType = types.MinerTypeProposal
-	return nil
-}
-
-func (op *applyGuardMinerOp) Transition() *result {
-	ret := newResult()
-	miner, err := op.getMiner(op.targetAddr)
-	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	if miner == nil{
-		ret.setError(fmt.Errorf("no miner info"),types.RSFail)
-		return ret
-	}
-	baseOp := geneBaseIdentityOp(op.minerType,miner)
-	err = baseOp.processMinerOp(op,miner,ApplyGuardOp)
-	if err != nil{
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	return ret
-}
-
-
-// stakeAddOp is for the stake add operation, miner can add stake for himself or others
-type reduceTicketsOp struct {
-	*baseOperation
-	addTarget common.Address
-	source    common.Address
-}
-
-func newReduceTicketsOp(db types.AccountDB,targetAddress common.Address,source common.Address,height uint64)*reduceTicketsOp{
-	base := newTransitionContext(db, nil, nil)
-    return &reduceTicketsOp{
-		baseOperation:newBaseOperation(db, nil, height,base),
-		addTarget:targetAddress,
-		source:source,
-	}
-}
-
-func (op *reduceTicketsOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *reduceTicketsOp)Height()uint64{
-	return op.height
-}
-func (op *reduceTicketsOp)GetMinerType()types.MinerType{
-	return types.MinerTypeProposal
-}
-
-func (op *reduceTicketsOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *reduceTicketsOp) Value() uint64 {
-	return 0
-}
-
-func (op *reduceTicketsOp) Source() common.Address {
-	return op.source
-}
-
-func (op *reduceTicketsOp)Target()common.Address{
-	return op.addTarget
-}
-
-func (op *reduceTicketsOp) Validate() error {
-	return nil
-}
-
-func (op *reduceTicketsOp) ParseTransaction() error {
-	op.minerType = types.MinerTypeProposal
-	return nil
-}
-
-func (op *reduceTicketsOp) Transition() *result {
-	ret := newResult()
-	targetMiner, err := op.getMiner(op.addTarget)
-	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
-	err = baseOp.processMinerOp(op,targetMiner,ReduceTicketOp)
-	if err !=nil{
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	return ret
-}
-
-// stakeAddOp is for the stake add operation, miner can add stake for himself or others
-type cancelGuardOp struct {
-	*baseOperation
-	cancelTarget common.Address
-}
-
-func (op *cancelGuardOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *cancelGuardOp)Height()uint64{
-	return op.height
-}
-func (op *cancelGuardOp)GetMinerType()types.MinerType{
-	return types.MinerTypeProposal
-}
-
-func (op *cancelGuardOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *cancelGuardOp) Value() uint64 {
-	return 0
-}
-
-func (op *cancelGuardOp) Source() common.Address {
-	return op.source
-}
-
-func (op *cancelGuardOp)Target()common.Address{
-	return op.cancelTarget
-}
-
-func (op *cancelGuardOp) Validate() error {
-	if *op.msg.Operator() != types.AdminAddrType{
-		return fmt.Errorf("only admin can call")
-	}
-	if op.msg.OpTarget() == nil{
-		return fmt.Errorf("target can not be nil")
-	}
-	if !types.IsInExtractGuardNodes(*op.msg.OpTarget()){
-		return fmt.Errorf("operator addr is not in extract guard nodes")
-	}
-	return nil
-}
-
-func (op *cancelGuardOp) ParseTransaction() error {
-	if op.msg.OpTarget() == nil{
-		return fmt.Errorf("target can not be nil")
-	}
-	op.minerType = types.MinerTypeProposal
-	op.cancelTarget = *op.msg.OpTarget()
-	return nil
-}
-
-func (op *cancelGuardOp) Transition() *result {
-	ret := newResult()
-	targetMiner, err := op.getMiner(op.cancelTarget)
-	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
-	err = baseOp.processMinerOp(op,targetMiner,CancelGuardOp)
-	if err !=nil{
-		ret.setError(err,types.RSFail)
-		return ret
-	}
-	return ret
-}
-
 
 // stakeAddOp is for the stake add operation, miner can add stake for himself or others
 type stakeAddOp struct {
@@ -364,33 +70,6 @@ type stakeAddOp struct {
 	value     uint64
 	addSource common.Address
 	addTarget common.Address
-}
-
-func (op *stakeAddOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *stakeAddOp)Height()uint64{
-	return op.height
-}
-func (op *stakeAddOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *stakeAddOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *stakeAddOp) Value() uint64 {
-	return op.value
-}
-
-func (op *stakeAddOp) Source() common.Address {
-	return op.addSource
-}
-
-func (op *stakeAddOp)Target()common.Address{
-	return op.addTarget
 }
 
 func (op *stakeAddOp) Validate() error {
@@ -428,20 +107,97 @@ func (op *stakeAddOp) ParseTransaction() error {
 	return nil
 }
 
-func (op *stakeAddOp) Transition() *result {
-	ret := newResult()
+func (op *stakeAddOp) Operation() error {
+	var add = false
+
+	if op.addSource != op.addTarget && op.minerType == types.MinerTypeVerify {
+		return fmt.Errorf("could not stake to other's verify node")
+	}
+	// Check balance
+	amount := new(big.Int).SetUint64(op.value)
+	if needTransfer(amount) {
+		if !op.accountDB.CanTransfer(op.addSource, amount) {
+			return fmt.Errorf("balance not enough")
+		}
+		// Sub the balance of source account
+		op.accountDB.SubBalance(op.addSource, amount)
+	}
 	targetMiner, err := op.getMiner(op.addTarget)
 	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
-	baseOp := geneBaseIdentityOp(op.minerType,targetMiner)
-	err = baseOp.processMinerOp(op,targetMiner,StakedAddOp)
-	if err !=nil{
-		ret.setError(err,types.RSFail)
-		return ret
+
+	// Already exists
+	if targetMiner != nil {
+		if targetMiner.IsFrozen() { // Frozen miner must abort first
+			return fmt.Errorf("miner is frozen, cannot add stake")
+		}
+		if targetMiner.Stake+op.value < targetMiner.Stake {
+			return fmt.Errorf("stake overflow:%v %v", targetMiner.Stake, op.value)
+		}
+		targetMiner.Stake += op.value
+	} else {
+		targetMiner = &types.Miner{
+			ID:          op.addTarget.Bytes(),
+			Stake:       op.value,
+			ApplyHeight: op.height,
+			Type:        op.minerType,
+			Status:      types.MinerStatusPrepare,
+		}
 	}
-	return ret
+	setPks(targetMiner, op.minerPks)
+	// Check the upper bound of stake
+	if !checkUpperBound(targetMiner, op.height) {
+		return fmt.Errorf("stake more than upper bound:%v", targetMiner.Stake)
+	}
+
+	if targetMiner.IsActive() {
+		// Update proposal total stake
+		if op.opProposalRole() {
+			op.addProposalTotalStake(op.value)
+		}
+	} else if checkCanActivate(targetMiner, op.height) { // Check if to active the miner
+		targetMiner.UpdateStatus(types.MinerStatusActive, op.height)
+		// Add to pool so that the miner can start working
+		op.addToPool(op.addTarget, targetMiner.Stake)
+		if op.opProposalRole() {
+			add = true
+		}
+	}
+	// Save miner
+	if err := op.setMiner(targetMiner); err != nil {
+		return err
+	}
+
+	// Set detail of the target account: who stakes from me
+	detailKey := getDetailKey(op.addSource, op.minerType, types.Staked)
+	detail, err := op.getDetail(op.addTarget, detailKey)
+	if err != nil {
+		return fmt.Errorf("get target detail error:%v", err)
+	}
+
+	if detail != nil {
+		if detail.Value+op.value < detail.Value {
+			return fmt.Errorf("stake detail value overflow:%v %v", detail.Value, op.value)
+		}
+		detail.Value += op.value
+	} else {
+		detail = &stakeDetail{
+			Value: op.value,
+		}
+	}
+	// Update height
+	detail.Height = op.height
+	if err := op.setDetail(op.addTarget, detailKey, detail); err != nil {
+		return err
+	}
+
+	if add && MinerManagerImpl != nil {
+		// Inform added proposer address to minerManager
+		MinerManagerImpl.proposalAddCh <- op.addTarget
+	}
+	return nil
+
 }
 
 // minerAbortOp abort the miner, which can cause miner status transfer to Prepare
@@ -449,33 +205,6 @@ func (op *stakeAddOp) Transition() *result {
 type minerAbortOp struct {
 	*baseOperation
 	addr common.Address
-}
-
-func (op *minerAbortOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *minerAbortOp)Height()uint64{
-	return op.height
-}
-func (op *minerAbortOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *minerAbortOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *minerAbortOp) Value() uint64 {
-	return 0
-}
-
-func (op *minerAbortOp) Source() common.Address {
-	return op.addr
-}
-
-func (op *minerAbortOp)Target()common.Address{
-	return op.addr
 }
 
 func (op *minerAbortOp) ParseTransaction() error {
@@ -490,20 +219,41 @@ func (op *minerAbortOp) Validate() error {
 	return nil
 }
 
-func (op *minerAbortOp) Transition() *result {
-	ret := newResult()
+func (op *minerAbortOp) Operation() error {
+	var remove = false
 	miner, err := op.getMiner(op.addr)
 	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
-	baseOp := geneBaseIdentityOp(op.minerType,miner)
-	err = baseOp.processMinerOp(op,miner,StakeAbortOp)
-	if err != nil{
-		ret.setError(err,types.RSFail)
-		return ret
+	if miner == nil {
+		return fmt.Errorf("no miner info")
 	}
-	return ret
+	if miner.IsPrepare() {
+		return fmt.Errorf("already in prepare status")
+	}
+	// Frozen miner must wait for 1 hour after frozen
+	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneHourBlocks {
+		return fmt.Errorf("frozen miner can't abort less than 1 hour since frozen")
+	}
+	// Remove from pool if active
+	if miner.IsActive() {
+		op.removeFromPool(op.addr, miner.Stake)
+		if op.opProposalRole() {
+			remove = true
+		}
+	}
+
+	// Update the miner status
+	miner.UpdateStatus(types.MinerStatusPrepare, op.height)
+	if err := op.setMiner(miner); err != nil {
+		return err
+	}
+	if remove && MinerManagerImpl != nil {
+		// Informs MinerManager the removal address
+		MinerManagerImpl.proposalRemoveCh <- op.addr
+	}
+
+	return nil
 }
 
 // stakeReduceOp is for stake reduce operation
@@ -512,37 +262,6 @@ type stakeReduceOp struct {
 	cancelTarget common.Address
 	cancelSource common.Address
 	value        uint64
-}
-
-func (op *stakeReduceOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *stakeReduceOp)AddToPool(address common.Address, addStake uint64){
-	return
-}
-
-func (op *stakeReduceOp)Height()uint64{
-	return op.height
-}
-func (op *stakeReduceOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *stakeReduceOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *stakeReduceOp) Value() uint64 {
-	return op.value
-}
-
-func (op *stakeReduceOp) Source() common.Address {
-	return op.cancelSource
-}
-
-func (op *stakeReduceOp)Target()common.Address{
-	return op.cancelTarget
 }
 
 func (op *stakeReduceOp) ParseTransaction() error {
@@ -572,11 +291,9 @@ func (op *stakeReduceOp) Validate() error {
 func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 	if miner.IsFrozen() {
 		return fmt.Errorf("frozen miner must abort first")
-	} else if miner.IsActive(){
-		if op.opVerifyRole(){
-			if !checkLowerBound(miner) {
-				return fmt.Errorf("active verify miner cann't reduce stake to below bound")
-			}
+	} else if miner.IsActive() {
+		if !checkLowerBound(miner, op.height) {
+			return fmt.Errorf("active miner cann't reduce stake to below bound")
 		}
 	} else if miner.IsPrepare() {
 		if op.opVerifyRole() && GroupManagerImpl.GetGroupStoreReader().MinerLiveGroupCount(op.cancelTarget, op.height) > 0 {
@@ -588,21 +305,16 @@ func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 	return nil
 }
 
-func (op *stakeReduceOp) Transition() *result {
-	ret := newResult()
-	remove:=false
+func (op *stakeReduceOp) Operation() error {
 	miner, err := op.getMiner(op.cancelTarget)
 	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 	if miner == nil {
-		ret.setError(fmt.Errorf("no miner info"),types.RSFail)
-		return ret
+		return fmt.Errorf("no miner info")
 	}
 	if miner.Stake < op.value {
-		ret.setError(fmt.Errorf("miner stake not enough:%v %v", miner.Stake, op.value),types.RSFail)
-		return ret
+		return fmt.Errorf("miner stake not enough:%v %v", miner.Stake, op.value)
 	}
 	originStake := miner.Stake
 	// Update miner stake
@@ -610,40 +322,25 @@ func (op *stakeReduceOp) Transition() *result {
 
 	// Check if can do the reduce operation
 	if err := op.checkCanReduce(miner); err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 
 	// Sub the corresponding total stake of the proposals
 	if miner.IsActive() && op.opProposalRole() {
-		if !checkLowerBound(miner){
-			op.removeFromPool(op.cancelTarget, originStake)
-			miner.UpdateStatus(types.MinerStatusPrepare, op.height)
-			remove = true
-		}else{
-			op.subProposalTotalStake(op.value)
-		}
+		op.subProposalTotalStake(op.value)
 	}
 	if err := op.setMiner(miner); err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 
 	// Get Target account detail: staked-detail of who stakes for me
 	stakedDetailKey := getDetailKey(op.cancelSource, op.minerType, types.Staked)
 	stakedDetail, err := op.getDetail(op.cancelTarget, stakedDetailKey)
 	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 	if stakedDetail == nil {
-		ret.setError(fmt.Errorf("target account has no staked detail data"),types.RSFail)
-		return ret
-	}
-
-	if op.height < stakedDetail.DisMissHeight{
-		ret.setError(fmt.Errorf("current height can not be reduce,dismissHeight is %v,current height is %v",stakedDetail.DisMissHeight,op.height),types.RSFail)
-		return ret
+		return fmt.Errorf("target account has no staked detail data")
 	}
 
 	// Must not happened
@@ -652,8 +349,7 @@ func (op *stakeReduceOp) Transition() *result {
 	}
 
 	if stakedDetail.Value < op.value {
-		ret.setError(fmt.Errorf("detail stake less than cancel amount:%v %v", stakedDetail.Value, op.value),types.RSFail)
-		return ret
+		return fmt.Errorf("detail stake less than cancel amount:%v %v", stakedDetail.Value, op.value)
 	}
 
 	// Decrease the stake of the staked-detail
@@ -664,16 +360,14 @@ func (op *stakeReduceOp) Transition() *result {
 		op.removeDetail(op.cancelTarget, stakedDetailKey)
 	} else {
 		if err := op.setDetail(op.cancelTarget, stakedDetailKey, stakedDetail); err != nil {
-			ret.setError(err,types.RSFail)
-			return ret
+			return err
 		}
 	}
 	// Get Target account detail: frozen-detail of who stake for me
 	frozenDetailKey := getDetailKey(op.cancelSource, op.minerType, types.StakeFrozen)
 	frozenDetail, err := op.getDetail(op.cancelTarget, frozenDetailKey)
 	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 	if frozenDetail == nil {
 		frozenDetail = &stakeDetail{
@@ -686,14 +380,9 @@ func (op *stakeReduceOp) Transition() *result {
 	frozenDetail.Height = op.height
 	// Update the frozen detail of target
 	if err := op.setDetail(op.cancelTarget, frozenDetailKey, frozenDetail); err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
-	if remove && MinerManagerImpl != nil {
-		// Informs MinerManager the removal address
-		MinerManagerImpl.proposalRemoveCh <- op.cancelTarget
-	}
-	return ret
+	return nil
 }
 
 // stakeRefundOp is for stake refund operation, it only happens after stake-reduce ops
@@ -701,32 +390,6 @@ type stakeRefundOp struct {
 	*baseOperation
 	refundTarget common.Address
 	refundSource common.Address
-}
-func (op *stakeRefundOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-func (op *stakeRefundOp)Height()uint64{
-	return op.height
-}
-func (op *stakeRefundOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *stakeRefundOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *stakeRefundOp) Value() uint64 {
-	return 0
-}
-
-
-func (op *stakeRefundOp) Source() common.Address {
-	return op.refundSource
-}
-
-func (op *stakeRefundOp)Target()common.Address{
-	return op.refundTarget
 }
 
 func (op *stakeRefundOp) ParseTransaction() error {
@@ -746,31 +409,27 @@ func (op *stakeRefundOp) Validate() error {
 	return nil
 }
 
-func (op *stakeRefundOp) Transition() *result {
-	ret := newResult()
+func (op *stakeRefundOp) Operation() error {
 	// Get the detail in target account: frozen-detail of the source
 	frozenDetailKey := getDetailKey(op.refundSource, op.minerType, types.StakeFrozen)
 	frozenDetail, err := op.getDetail(op.refundTarget, frozenDetailKey)
 	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 	if frozenDetail == nil {
-		ret.setError(fmt.Errorf("target has no frozen detail"),types.RSFail)
-		return ret
+		return fmt.Errorf("target has no frozen detail")
 	}
 	// Check reduce-height
 	if op.height <= frozenDetail.Height+twoDayBlocks {
-		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"),types.RSFail)
-		return ret
+		return fmt.Errorf("refund cann't happen util 2days after last reduce")
 	}
 
 	// Remove frozen data
 	op.removeDetail(op.refundTarget, frozenDetailKey)
 
 	// Restore the balance
-	op.db.AddBalance(op.refundSource, new(big.Int).SetUint64(frozenDetail.Value))
-	return ret
+	op.accountDB.AddBalance(op.refundSource, new(big.Int).SetUint64(frozenDetail.Value))
+	return nil
 
 }
 
@@ -782,34 +441,6 @@ type minerFreezeOp struct {
 	addr common.Address
 }
 
-func (op *minerFreezeOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *minerFreezeOp)Height()uint64{
-	return op.height
-}
-func (op *minerFreezeOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *minerFreezeOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *minerFreezeOp) Value() uint64 {
-	return 0
-}
-
-
-func (op *minerFreezeOp) Source() common.Address {
-	return op.addr
-}
-
-func (op *minerFreezeOp)Target()common.Address{
-	return op.addr
-}
-
 func (op *minerFreezeOp) ParseTransaction() error {
 	return nil
 }
@@ -818,28 +449,22 @@ func (op *minerFreezeOp) Validate() error {
 	return nil
 }
 
-func (op *minerFreezeOp) Transition() *result {
-	ret := newResult()
+func (op *minerFreezeOp) Operation() error {
 	if !op.opVerifyRole() {
-		ret.setError(fmt.Errorf("not operates a verifier:%v", op.addr.String()),types.RSFail)
-		return ret
+		return fmt.Errorf("not operates a verifier:%v", op.addr.AddrPrefixString())
 	}
 	miner, err := op.getMiner(op.addr)
 	if err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 	if miner == nil {
-		ret.setError(fmt.Errorf("no miner info"),types.RSFail)
-		return ret
+		return fmt.Errorf("no miner info")
 	}
 	if miner.IsFrozen() {
-		ret.setError(fmt.Errorf("already in forzen status"),types.RSFail)
-		return ret
+		return fmt.Errorf("already in forzen status")
 	}
 	if !miner.IsVerifyRole() {
-		ret.setError(fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID)),types.RSFail)
-		return ret
+		return fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID))
 	}
 
 	// Remove from pool if active
@@ -850,11 +475,10 @@ func (op *minerFreezeOp) Transition() *result {
 	// Update the miner status
 	miner.UpdateStatus(types.MinerStatusFrozen, op.height)
 	if err := op.setMiner(miner); err != nil {
-		ret.setError(err,types.RSFail)
-		return ret
+		return err
 	}
 
-	return ret
+	return nil
 }
 
 type minerPenaltyOp struct {
@@ -862,33 +486,6 @@ type minerPenaltyOp struct {
 	targets []common.Address
 	rewards []common.Address
 	value   uint64
-}
-
-func (op *minerPenaltyOp)GetBaseOperation()*baseOperation{
-	return op.baseOperation
-}
-
-func (op *minerPenaltyOp)Height()uint64{
-	return op.height
-}
-func (op *minerPenaltyOp)GetMinerType()types.MinerType{
-	return op.minerType
-}
-
-func (op *minerPenaltyOp)GetDb()types.AccountDB{
-	return op.db
-}
-
-func (op *minerPenaltyOp) Value() uint64 {
-	return op.value
-}
-
-func (op *minerPenaltyOp) Source() common.Address {
-	return common.Address{}
-}
-
-func (op *minerPenaltyOp)Target()common.Address{
-	return common.Address{}
 }
 
 func (op *minerPenaltyOp) ParseTransaction() error {
@@ -899,26 +496,21 @@ func (op *minerPenaltyOp) Validate() error {
 	return nil
 }
 
-func (op *minerPenaltyOp) Transition() *result {
-	ret := newResult()
+func (op *minerPenaltyOp) Operation() error {
 	if !op.opVerifyRole() {
-		ret.setError(fmt.Errorf("not operates verifiers"),types.RSFail)
-		return ret
+		return fmt.Errorf("not operates verifiers")
 	}
 	// Firstly, frozen the targets
 	for _, addr := range op.targets {
 		miner, err := op.getMiner(addr)
 		if err != nil {
-			ret.setError(err,types.RSFail)
-			return ret
+			return err
 		}
 		if miner == nil {
-			ret.setError(fmt.Errorf("no miner info"),types.RSFail)
-			return ret
+			return fmt.Errorf("no miner info")
 		}
 		if !miner.IsVerifyRole() {
-			ret.setError(fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID)),types.RSFail)
-			return ret
+			return fmt.Errorf("not a verifier:%v", common.ToHex(miner.ID))
 		}
 
 		// Remove from pool if active
@@ -934,15 +526,13 @@ func (op *minerPenaltyOp) Transition() *result {
 		miner.Stake -= op.value
 		miner.UpdateStatus(types.MinerStatusFrozen, op.height)
 		if err := op.setMiner(miner); err != nil {
-			ret.setError(err,types.RSFail)
-			return ret
+			return err
 		}
 		// Add punishment detail
-		punishmentKey := getDetailKey(common.PunishmentDetailAddr, op.minerType, types.StakePunishment)
+		punishmentKey := getDetailKey(punishmentDetailAddr, op.minerType, types.StakePunishment)
 		punishmentDetail, err := op.getDetail(addr, punishmentKey)
 		if err != nil {
-			ret.setError(err,types.RSFail)
-			return ret
+			return err
 		}
 		if punishmentDetail == nil {
 			punishmentDetail = &stakeDetail{
@@ -955,16 +545,14 @@ func (op *minerPenaltyOp) Transition() *result {
 		punishmentDetail.Height = op.height
 		// Update the punishment detail of target
 		if err := op.setDetail(addr, punishmentKey, punishmentDetail); err != nil {
-			ret.setError(err,types.RSFail)
-			return ret
+			return err
 		}
 
 		// Sub the stake detail
 		normalStakeKey := getDetailKey(addr, op.minerType, types.Staked)
 		normalDetail, err := op.getDetail(addr, normalStakeKey)
 		if err != nil {
-			ret.setError(err,types.RSFail)
-			return ret
+			return err
 		}
 		// Must not happen
 		if normalDetail == nil {
@@ -974,8 +562,7 @@ func (op *minerPenaltyOp) Transition() *result {
 			normalDetail.Value -= op.value
 			normalDetail.Height = op.height
 			if err := op.setDetail(addr, normalStakeKey, normalDetail); err != nil {
-				ret.setError(err,types.RSFail)
-				return ret
+				return err
 			}
 		} else {
 			remain := op.value - normalDetail.Value
@@ -987,8 +574,7 @@ func (op *minerPenaltyOp) Transition() *result {
 				frozenKey := getDetailKey(addr, op.minerType, types.StakeFrozen)
 				frozenDetail, err := op.getDetail(addr, frozenKey)
 				if err != nil {
-					ret.setError(err,types.RSFail)
-					return ret
+					return err
 				}
 				if frozenDetail == nil {
 					panic(fmt.Errorf("penalty can't find frozen detail of target:%v", addr.AddrPrefixString()))
@@ -999,8 +585,7 @@ func (op *minerPenaltyOp) Transition() *result {
 				frozenDetail.Value -= remain
 				frozenDetail.Height = op.height
 				if err := op.setDetail(addr, frozenKey, frozenDetail); err != nil {
-					ret.setError(err,types.RSFail)
-					return ret
+					return err
 				}
 			}
 		}
@@ -1010,9 +595,9 @@ func (op *minerPenaltyOp) Transition() *result {
 	if len(op.rewards) > 0 {
 		addEach := new(big.Int).SetUint64(op.value * uint64(len(op.targets)) / uint64(len(op.rewards)))
 		for _, addr := range op.rewards {
-			op.db.AddBalance(addr, addEach)
+			op.accountDB.AddBalance(addr, addEach)
 		}
 	}
 
-	return ret
+	return nil
 }
