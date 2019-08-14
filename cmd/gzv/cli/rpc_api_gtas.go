@@ -295,7 +295,7 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 
 // ViewAccount is used for querying account information
 func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(hash)) {
+	if !common.ValidateAddress(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
 	accountDb, err := core.BlockChainImpl.LatestStateDB()
