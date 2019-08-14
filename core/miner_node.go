@@ -182,6 +182,9 @@ func(g*GuardProposalMiner)checkApplyGuard(mop mOperation,miner *types.Miner)erro
 	if stakedDetail == nil {
 		return fmt.Errorf("target account has no staked detail data")
 	}
+	if !isFullStake(stakedDetail.Value,mop.Height()){
+		return fmt.Errorf("not full stake,apply guard faild")
+	}
 	if mop.Height() <= stakedDetail.DisMissHeight{
 		return fmt.Errorf("guard node only can apply guard node in buf days")
 	}

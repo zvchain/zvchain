@@ -96,7 +96,7 @@ const (
 	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
 
 
-	TransactionTypeApplyGuardMiner  = 12  // apply miner node
+	TransactionTypeApplyGuardMiner  = 12  // apply guard node
 	TransactionTypeVoteMinerPool  = 13  // vote to miner pool
 	TransactionTypeCancelGuard  = 14   // cancel guard node,only admin can call
 

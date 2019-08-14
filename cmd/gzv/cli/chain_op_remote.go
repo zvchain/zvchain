@@ -272,10 +272,6 @@ func (ca *RemoteChainOpImpl)ApplyGuardMiner(gas, gasprice uint64) *Result{
 		return r
 	}
 	aci := r.Data.(*Account)
-	if aci.Miner == nil {
-		return opError(fmt.Errorf("the current account is not a miner account"))
-	}
-
 	tx := &txRawData{
 		Target:   aci.Address,
 		Gas:      gas,

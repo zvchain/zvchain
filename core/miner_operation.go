@@ -573,10 +573,12 @@ func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 	if miner.IsFrozen() {
 		return fmt.Errorf("frozen miner must abort first")
 	}
+	// Proposal node can reduce lowerbound
 	if !checkLowerBound(miner) && op.opVerifyRole(){
 		if miner.IsActive(){
 			return fmt.Errorf("active verify miner cann't reduce stake to below bound")
 		}
+		// prepared status,check node is in live group
 		if GroupManagerImpl.GetGroupStoreReader().MinerLiveGroupCount(op.cancelTarget, op.height) > 0{
 			return fmt.Errorf("miner still in active groups, cannot reduce stake")
 		}
