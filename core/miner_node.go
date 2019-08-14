@@ -35,24 +35,20 @@ type BaseMiner struct {
 
 }
 
-type ProposalMiner struct {
-	*BaseMiner
-}
-
 type VerifyMiner struct {
 	*BaseMiner
 }
 
 type NormalProposalMiner struct {
-	*ProposalMiner
+	*BaseMiner
 }
 
 type GuardProposalMiner struct {
-	*ProposalMiner
+	*BaseMiner
 }
 
 type MinerPoolProposalMiner struct {
-	*ProposalMiner
+	*BaseMiner
 }
 
 type InvalidProposalMiner struct {
@@ -68,15 +64,15 @@ func geneBaseIdentityOp(opType types.MinerType, targetMiner *types.Miner) baseId
 		return &VerifyMiner{BaseMiner:&BaseMiner{}}
 	} else {
 		if targetMiner == nil {
-			return &NormalProposalMiner{ProposalMiner:&ProposalMiner{BaseMiner:&BaseMiner{}}}
+			return &NormalProposalMiner{BaseMiner:&BaseMiner{}}
 		}
 		switch targetMiner.Identity {
 			case types.MinerNormal:
-				return &NormalProposalMiner{ProposalMiner:&ProposalMiner{BaseMiner:&BaseMiner{}}}
+				return &NormalProposalMiner{BaseMiner:&BaseMiner{}}
 			case types.MinerGuard:
-				return &GuardProposalMiner{ProposalMiner:&ProposalMiner{BaseMiner:&BaseMiner{}}}
+				return &GuardProposalMiner{BaseMiner:&BaseMiner{}}
 			case types.MinerPool:
-				return &MinerPoolProposalMiner{ProposalMiner:&ProposalMiner{BaseMiner:&BaseMiner{}}}
+				return &MinerPoolProposalMiner{BaseMiner:&BaseMiner{}}
 			case types.InValidMinerPool:
 				return &InvalidProposalMiner{BaseMiner:&BaseMiner{}}
 			default:
@@ -360,8 +356,8 @@ func processVote(mop mOperation)(error,bool){
 			if ret.err != nil{
 				return ret.err,false
 			}
-			// add tickets count
 		}
+		// add tickets count
 		totalTickets = mop.GetBaseOperation().addTicket(mop.Target())
 	}
 	isFull := mop.GetBaseOperation().isFullTickets(mop.Target(),totalTickets)
@@ -633,7 +629,6 @@ func(b*BaseMiner)processStakeAdd(mop mOperation,targetMiner *types.Miner,checkUp
 	return nil
 }
 
-
 func(b*BaseMiner)updateMinerDetail(mop mOperation,targetMiner *types.Miner,stakeStatus types.StakeStatus)error{
 	// Set detail of the target account: who stakes from me
 	detailKey := getDetailKey(mop.Source(), mop.GetMinerType(), stakeStatus)
@@ -658,7 +653,6 @@ func(b*BaseMiner)updateMinerDetail(mop mOperation,targetMiner *types.Miner,stake
 	}
 	return nil
 }
-
 
 func(b*BaseMiner)updateBalance(mop mOperation,balanceOp BalanceOp)error{
 	if BalanceReduce == balanceOp{
