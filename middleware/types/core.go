@@ -45,8 +45,7 @@ const(
 var AdminAddrType = common.StringToAddress(MiningPoolAddr)
 
 var ExtractGuardNodes = []common.Address{
-	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
-	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
+	common.StringToAddress("zv9900000000000000000000000000000000000000000000000000000000000000"),
 }   // init gurad miner nodes
 
 // defines all possible result of the add-block operation

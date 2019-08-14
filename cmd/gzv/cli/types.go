@@ -101,7 +101,6 @@ type MortGage struct {
 	Type               string `json:"type"`
 	Status             string `json:"miner_status"`
 	StatusUpdateHeight uint64 `json:"status_update_height"`
-	Identity 		   string `json:"identity"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
@@ -115,22 +114,12 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	} else if miner.IsFrozen() {
 		status = "frozen"
 	}
-
-	i := "normal node"
-	if miner.IsMinerPool(){
-		i = "miner pool node"
-	}else if miner.IsInvalidMinerPool(){
-		i = "invalid miner pool node"
-	}else if miner.IsGuard(){
-		i = "guard node"
-	}
 	mg := &MortGage{
 		Stake:              uint64(common.RA2TAS(miner.Stake)),
 		ApplyHeight:        miner.ApplyHeight,
 		Type:               t,
 		Status:             status,
 		StatusUpdateHeight: miner.StatusUpdateHeight,
-		Identity:		    i,
 	}
 	return mg
 }

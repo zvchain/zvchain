@@ -307,10 +307,7 @@ func TestMinerManager_InvalidMinerPoolToVaild(t *testing.T){
 	ctx.target = &minerPool
 	ctx.stakeAddValue = 500 * common.ZVC
 	testStakeAddFromSelf(ctx, t)
-	miner, err := getMiner(accountDB, minerPool, ctx.mType)
-	if err != nil{
-		t.Fatalf("error is %v",err)
-	}
+	miner, _ := getMiner(accountDB, minerPool, ctx.mType)
 	if !miner.IsMinerPool(){
 		t.Fatalf("except miner pool,but got %v",miner.Identity)
 	}
@@ -318,26 +315,11 @@ func TestMinerManager_InvalidMinerPoolToVaild(t *testing.T){
 		t.Fatalf("except miner active,but got %v",miner.Status)
 	}
 	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
-	miner, err = getMiner(accountDB, minerPool, ctx.mType)
-	if err != nil{
-		t.Fatalf("error is %v",err)
-	}
+	miner, _ = getMiner(accountDB, minerPool, ctx.mType)
 	if !miner.IsInvalidMinerPool(){
 		t.Fatalf("except invalid miner pool,but got %v",miner.Identity)
 	}
 
-	gm,err := getGuardMinerNodeInfo(accountDB.AsAccountDBTS())
-	if err != nil{
-		t.Fatalf("error is %v",err)
-	}
-	if gm.BeginIndex!=8{
-		t.Fatalf("except 8,but got %d",gm.BeginIndex)
-	}
-	key := getTicketsKey(minerPool)
-	totalTickets := getTotalTickets(accountDB.AsAccountDBTS(),key)
-	if totalTickets != 0 {
-		t.Fatalf("except got 0,but got %d",totalTickets)
-	}
 }
 
 func TestMinerManager_ScanningGuardInvalid(t *testing.T){
