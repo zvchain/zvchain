@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/zvchain/zvchain/common"
 	"math"
 	"testing"
+
+	"github.com/zvchain/zvchain/common"
 )
 
 func TestPeerAuth(t *testing.T) {
@@ -15,7 +16,8 @@ func TestPeerAuth(t *testing.T) {
 	}
 
 	toID := NewNodeID(netServerInstance.config.NodeIDHex)
-	content := genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &toID)
+
+	content := genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, toID)
 
 	result, verifyID := content.Verify()
 	if !result || verifyID != netServerInstance.config.NodeIDHex {
@@ -28,7 +30,7 @@ func InitTestNetwork() bool {
 	SK, _ := common.GenerateKey("")
 	PK := SK.GetPubKey()
 	ID := PK.GetAddress()
-	Seeds := make([]string, 0, 0)
+	Seeds := make([]string, 0)
 	netCfg := NetworkConfig{IsSuper: false,
 		TestMode:        true,
 		NatAddr:         "",
@@ -43,17 +45,15 @@ func InitTestNetwork() bool {
 	}
 
 	err := Init(nil, nil, netCfg)
-	if err != nil {
-		return false
-	}
-	return true
+
+	return err == nil
 }
 
 func TestDecodePacketNil(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
 	p.addRecvData(nil)
 
@@ -76,9 +76,9 @@ func TestDecodePacket2BuffersEq8(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(2, 1024, pdata)
 
@@ -105,9 +105,9 @@ func TestDecodePacket2BuffersLess8(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(2, 1024, pdata)
 
@@ -134,9 +134,9 @@ func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(2, 1024, pdata)
 
@@ -164,9 +164,9 @@ func TestDecodePacketSmall(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(2, 1024, pdata)
 
@@ -192,9 +192,9 @@ func TestDecodePacket16M(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 	dataSize := uint32(16 * 1024 * 1024)
-	pdata := make([]byte, dataSize, dataSize)
+	pdata := make([]byte, dataSize)
 
 	packet := encodePacket(2, dataSize, pdata)
 
@@ -220,9 +220,9 @@ func TestDecodePacketOver16M(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 	dataSize := uint32(18 * 1024 * 1024)
-	pdata := make([]byte, dataSize, dataSize)
+	pdata := make([]byte, dataSize)
 
 	packet := encodePacket(2, dataSize, pdata)
 
@@ -248,9 +248,9 @@ func TestDecodePacketOverflow(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(2, math.MaxUint32-1, pdata)
 
@@ -276,9 +276,9 @@ func TestDecodePacketBigBuffer(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(100122, 512, pdata)
 

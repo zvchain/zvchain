@@ -70,7 +70,6 @@ func (sign *BaseSignedMessage) VerifySign(pk groupsig.Pubkey) (ok bool) {
 // and handled by the verify-group members
 type ConsensusCastMessage struct {
 	BH        types.BlockHeader
-	ProveHash common.Hash
 	BaseSignedMessage
 }
 

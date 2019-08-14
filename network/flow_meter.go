@@ -104,5 +104,4 @@ func (fm *FlowMeter) print() {
 			Logger.Infof("[FlowMeter][%v_recv] code:%v  count:%v  size:%v percentage：%v%%", fm.name, item.code, item.count, item.size, float64(item.size)/float64(fm.recvSize)*100.0)
 		}
 	}
-	return
 }

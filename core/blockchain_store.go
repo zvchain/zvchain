@@ -319,23 +319,6 @@ func (chain *FullBlockChain) queryBlockHashCeil(height uint64) *common.Hash {
 	return nil
 }
 
-func (chain *FullBlockChain) queryBlockHeaderBytesFloor(height uint64) (common.Hash, []byte) {
-	iter := chain.blockHeight.NewIterator()
-	defer iter.Release()
-	if iter.Seek(common.UInt64ToByte(height)) {
-		realHeight := common.ByteToUInt64(iter.Key())
-		if realHeight == height {
-			hash := common.BytesToHash(iter.Value())
-			return hash, chain.queryBlockHeaderBytes(hash)
-		}
-	}
-	if iter.Prev() {
-		hash := common.BytesToHash(iter.Value())
-		return hash, chain.queryBlockHeaderBytes(hash)
-	}
-	return common.Hash{}, nil
-}
-
 func (chain *FullBlockChain) queryBlockHeaderByHeightFloor(height uint64) *types.BlockHeader {
 	iter := chain.blockHeight.NewIterator()
 	defer iter.Release()

@@ -19,12 +19,13 @@
 package network
 
 import (
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
 	"math"
 	"math/rand"
 	"net"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/statistics"
@@ -56,7 +57,12 @@ func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig
 		statistics.InitStatistics(*config)
 	}
 
-	self, err := InitSelfNode(networkConfig.IsSuper, NewNodeID(networkConfig.NodeIDHex))
+	nodeID := NewNodeID(networkConfig.NodeIDHex)
+	if nodeID == nil {
+		Logger.Error("Node ID is nil ")
+		return errBadPeer
+	}
+	self, err := InitSelfNode(networkConfig.IsSuper, *nodeID)
 	if err != nil {
 		Logger.Error("InitSelfNode error:", err.Error())
 		return err
@@ -88,20 +94,26 @@ func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig
 		Logger.Errorf("Seed ID:%v ", seedID)
 
 		if !networkConfig.IsSuper {
-			bnNode := NewNode(NewNodeID(seedID), net.ParseIP(networkConfig.SeedAddr), seedPort)
-			if bnNode.ID != self.ID {
-				seeds = append(seeds, bnNode)
+			nID := NewNodeID(seedID)
+			if nID != nil {
+				bnNode := NewNode(*nID, net.ParseIP(networkConfig.SeedAddr), seedPort)
+				if bnNode.ID != self.ID {
+					seeds = append(seeds, bnNode)
+				}
 			}
 		}
 	} else {
 		natEnable = true
 		randomSeeds := genRandomSeeds(networkConfig.SeedIDs)
 		for _, sid := range randomSeeds {
-			bnNode := NewNode(NewNodeID(sid), net.ParseIP(networkConfig.SeedAddr), seedPort)
-			Logger.Errorf("Seed ID:%v ", sid)
+			nID := NewNodeID(sid)
+			if nID != nil {
+				bnNode := NewNode(*nID, net.ParseIP(networkConfig.SeedAddr), seedPort)
+				Logger.Errorf("Seed ID:%v ", sid)
 
-			if bnNode.ID != self.ID {
-				seeds = append(seeds, bnNode)
+				if bnNode.ID != self.ID {
+					seeds = append(seeds, bnNode)
+				}
 			}
 		}
 	}
@@ -143,7 +155,7 @@ func genRandomSeeds(seeds []string) []string {
 	maxSize := int(math.Ceil(float64(totalSize) / 3))
 	for i := 0; i < totalSize; i++ {
 		peerIndex := rand.Intn(totalSize)
-		if nodesSelect[peerIndex] == true {
+		if nodesSelect[peerIndex] {
 			continue
 		}
 		nodesSelect[peerIndex] = true
@@ -151,7 +163,7 @@ func genRandomSeeds(seeds []string) []string {
 			break
 		}
 	}
-	seedsRandom := make([]string, 0, 0)
+	seedsRandom := make([]string, 0)
 
 	for key := range nodesSelect {
 		seedsRandom = append(seedsRandom, seeds[key])

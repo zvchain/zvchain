@@ -9,17 +9,16 @@ enum MessageType
 	MessageFindnode = 3;
 	MessageNeighbors = 4;
     MessageData = 5;
-    MessageRelayTest = 6;
-    MessageRelayNode = 7;
-
 };
 
 enum DataType
 {
     DataNormal = 0;
-    DataGroup = 1;
-	DataGlobal= 2;
-	DataGlobalRandom= 3;
+	DataGlobal= 1;
+	DataGlobalRandom= 2;
+	DataGroup = 3;
+    DataGroupColumn = 4;
+    DataGroupRow = 5;
 };
 
 message RpcNode  {
@@ -49,10 +48,6 @@ message MsgPong{
     bool VerifyResult = 2;
 }
 
-message MsgRelay{
-    bytes NodeID=1;
-}
-
 message MsgFindNode {
     bytes Target = 1;
     uint64 Expiration = 2;
@@ -69,12 +64,11 @@ message MsgData {
     uint64 Expiration = 3;
     uint64 MessageID = 4;
     bytes BizMessageID = 5;
-    bytes DestNodeID = 6;
-    bytes SrcNodeID = 7;
-    bytes Data = 8;
-    int32 RelayCount = 9;
-    uint32 MessageCode = 10;
-    uint32 MessageInfo = 11;
+    bytes SrcNodeID = 6;
+    bytes Data = 7;
+    int32 RelayCount = 8;
+    uint32 MessageCode = 9;
+    uint32 MessageInfo = 10;
 }
 
 
