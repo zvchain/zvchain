@@ -272,14 +272,8 @@ func (m *MinerPoolProposalMiner)processVoteMinerPool(mop mOperation,targetMiner 
 	if targetMiner == nil{
 		return fmt.Errorf("miner cannot be nil")
 	}
-	// sub vote count
-	err := mop.GetBaseOperation().voteMinerPool(mop.Source(),mop.Target())
-	if err != nil{
-		return err
-	}
-	// add tickets count
-	mop.GetBaseOperation().addTicket(mop.Target())
-	return nil
+	err,_:=processVote(mop)
+	return err
 }
 
 func (i *InvalidProposalMiner) processMinerOp(mop mOperation,targetMiner *types.Miner,op MinerOp) error {
