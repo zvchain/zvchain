@@ -64,10 +64,10 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 		if err != nil && logger != nil {
 			logger.Error(err)
 
-			log.ELKLogger.WithFields(logrus.Fields{
-				"code": code,
-				"now":time.TSInstance.NowTime().Local(),
-			}).Debug("error: ", err.Error())
+			//log.ELKLogger.WithFields(logrus.Fields{
+			//	"code": code,
+			//	"now":time.TSInstance.NowTime().Local(),
+			//}).Debug("error: ", err.Error())
 		}
 	}()
 
@@ -75,7 +75,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 		err = fmt.Errorf("processor not ready yet")
 		log.ELKLogger.WithFields(logrus.Fields{
 			"code": code,
-			"now":time.TSInstance.NowTime().Local(),
+			"now":  time.TSInstance.NowTime().Local(),
 		}).Debug("error: ", err.Error())
 		return err
 	}
@@ -88,11 +88,11 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 		log.ELKLogger.WithFields(logrus.Fields{
-			"height": m.BH.Height,
+			"height":    m.BH.Height,
 			"blockHash": m.BH.Hash.Hex(),
-			"now":time.TSInstance.NowTime().Local(),
-			"from":m.SI.GetID(),
-			"logId": "12",
+			"now":       time.TSInstance.NowTime().Local(),
+			"from":      m.SI.GetID(),
+			"logId":     "12",
 		}).Debug("OnMessageCast")
 		err = c.processor.OnMessageCast(m)
 	case network.VerifiedCastMsg:
