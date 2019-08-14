@@ -572,14 +572,18 @@ func (op *stakeReduceOp) Validate() error {
 func (op *stakeReduceOp) checkCanReduce(miner *types.Miner) error {
 	if miner.IsFrozen() {
 		return fmt.Errorf("frozen miner must abort first")
-	}
-	if !checkLowerBound(miner) && op.opVerifyRole(){
-		if miner.IsActive(){
-			return fmt.Errorf("active verify miner cann't reduce stake to below bound")
+	} else if miner.IsActive(){
+		if op.opVerifyRole(){
+			if !checkLowerBound(miner) {
+				return fmt.Errorf("active verify miner cann't reduce stake to below bound")
+			}
 		}
-		if GroupManagerImpl.GetGroupStoreReader().MinerLiveGroupCount(op.cancelTarget, op.height) > 0{
+	} else if miner.IsPrepare() {
+		if op.opVerifyRole() && GroupManagerImpl.GetGroupStoreReader().MinerLiveGroupCount(op.cancelTarget, op.height) > 0 {
 			return fmt.Errorf("miner still in active groups, cannot reduce stake")
 		}
+	} else {
+		return fmt.Errorf("unkown miner roles %v", miner.Type)
 	}
 	return nil
 }
