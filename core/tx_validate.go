@@ -211,6 +211,30 @@ func stakeRefundValidator(tx *types.Transaction) error {
 	return nil
 }
 
+func applyGuardValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	return nil
+}
+
+func voteMinerPoolValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	return nil
+}
+
+func cancelGuardNodesValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	if !types.IsInExtractGuardNodes(*tx.Target){
+		return fmt.Errorf("operator addr is not in extract guard nodes")
+	}
+	return nil
+}
+
 func groupValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
@@ -290,6 +314,12 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
+			case types.TransactionTypeApplyGuardMiner:
+				err = applyGuardValidator(tx)
+			case types.TransactionTypeVoteMinerPool:
+				err = voteMinerPoolValidator(tx)
+			case types.TransactionTypeCancelGuard:
+				err = cancelGuardNodesValidator(tx)
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			default:
@@ -308,7 +338,16 @@ func getValidator(tx *types.Transaction) validator {
 					return fmt.Errorf("could not abort for other node")
 				}
 			}
-
+			if tx.Type == types.TransactionTypeVoteMinerPool {
+				if bytes.Compare(tx.Target.Bytes(), tx.Source.Bytes()) == 0 {
+					return fmt.Errorf("could not vote myself")
+				}
+			}
+			if tx.Type == types.TransactionTypeCancelGuard{
+				if *tx.Source != types.AdminAddrType{
+					return fmt.Errorf("only admin can call")
+				}
+			}
 			// Validate state
 			if err := stateValidate(tx); err != nil {
 				return err

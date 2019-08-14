@@ -99,7 +99,9 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 
 	// Check the address for the specified tx types
 	switch txRaw.TxType {
-	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
+	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
+		 types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce,types.TransactionTypeApplyGuardMiner,
+		 types.TransactionTypeStakeRefund,types.TransactionTypeVoteMinerPool,types.TransactionTypeCancelGuard:
 		if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}
@@ -181,7 +183,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	if detail != "" && detail != "all" && !common.ValidateAddress(strings.TrimSpace(detail)) {
+	if detail != "" && !common.ValidateAddress(strings.TrimSpace(detail)) {
 		return failResult("Wrong detail address format")
 	}
 
@@ -232,17 +234,6 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	// Get details
 	switch detail {
 	case "":
-
-	case "all":
-		detailsMap := core.MinerManagerImpl.GetAllStakeDetails(address)
-		m := make(map[string][]*StakeDetail)
-		if detailsMap != nil {
-			for from, ds := range detailsMap {
-				dts := convertDetails(ds)
-				m[from] = dts
-			}
-			minerDetails.Details = m
-		}
 
 	default:
 		details := core.MinerManagerImpl.GetStakeDetails(address, common.StringToAddress(detail))

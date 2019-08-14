@@ -32,6 +32,8 @@ const (
 
 type MinerStatus byte
 
+type NodeIdentity byte
+
 const (
 	MinerStatusPrepare MinerStatus = 0 // Miner prepare status, maybe abort or not enough stake or without pks,cannot participated any mining process
 	MinerStatusActive              = 1 // Miner is activated, can participated in mining
@@ -39,20 +41,30 @@ const (
 )
 
 const (
+	MinerNormal NodeIdentity 	   = 0 // this is normal miner node,cannot be stake by others and stake to others
+	MinerGuard                     = 1 // this miner is gurad miner node,cannot be stake by others
+	MinerPool                      = 2 // this is miner pool node,can stake by others
+	InValidMinerPool			   = 3 // this is invalid miner pool.only can be reduce before meeting the minimum number of votes
+)
+
+const (
 	pkSize    = 128
 	vrfPkSize = 32
+	fixLen  = 2
 )
 
 // Miner is the miner info including public keys and pledges
 type Miner struct {
-	ID                 []byte
-	PublicKey          []byte
-	VrfPublicKey       []byte
-	ApplyHeight        uint64
-	Stake              uint64
-	StatusUpdateHeight uint64
-	Type               MinerType
-	Status             MinerStatus
+	ID                   []byte
+	PublicKey            []byte
+	VrfPublicKey         []byte
+	ApplyHeight          uint64
+	Stake                uint64
+	StatusUpdateHeight   uint64
+	Type                 MinerType
+	Status               MinerStatus
+	Identity	         NodeIdentity
+	IdentityUpdateHeight uint64
 }
 
 func (m *Miner) IsActive() bool {
@@ -65,6 +77,22 @@ func (m *Miner) IsPrepare() bool {
 	return m.Status == MinerStatusPrepare
 }
 
+func (m *Miner) IsGuard() bool {
+	return m.Identity == MinerGuard
+}
+
+func (m *Miner) IsNormal() bool {
+	return m.Identity == MinerNormal
+}
+
+func (m *Miner) IsMinerPool() bool {
+	return m.Identity == MinerPool
+}
+
+func (m *Miner) IsInvalidMinerPool() bool {
+	return m.Identity == InValidMinerPool
+}
+
 func (m *Miner) PksCompleted() bool {
 	return len(m.PublicKey) == pkSize && len(m.VrfPublicKey) == vrfPkSize
 }
@@ -72,6 +100,11 @@ func (m *Miner) PksCompleted() bool {
 func (m *Miner) UpdateStatus(status MinerStatus, height uint64) {
 	m.StatusUpdateHeight = height
 	m.Status = status
+}
+
+func (m *Miner) UpdateIdentity(identity NodeIdentity, height uint64) {
+	m.IdentityUpdateHeight = height
+	m.Identity = identity
 }
 
 func (m *Miner) IsProposalRole() bool {
@@ -102,9 +135,9 @@ type StakeDetail struct {
 }
 
 type MinerPks struct {
-	MType MinerType
-	Pk    []byte
-	VrfPk []byte
+	MType 		MinerType
+	Pk    		[]byte
+	VrfPk 		[]byte
 }
 
 const PayloadVersion = 1
@@ -137,7 +170,6 @@ func EncodePayload(pks *MinerPks) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteByte(PayloadVersion)
 	buf.WriteByte(byte(pks.MType))
-
 	pkLen := len(pks.Pk)
 	vrfPkLen := len(pks.VrfPk)
 	if pkLen == pkSize && vrfPkLen == vrfPkSize {
@@ -149,8 +181,8 @@ func EncodePayload(pks *MinerPks) ([]byte, error) {
 
 // DecodePayload decodes the data field of the miner related transaction
 func DecodePayload(bs []byte) (*MinerPks, error) {
-	totalLen := 2 + pkSize + vrfPkSize
-	if len(bs) != 2 && len(bs) != totalLen {
+	totalLen := fixLen +  pkSize + vrfPkSize
+	if len(bs) != fixLen && len(bs) != totalLen {
 		return nil, fmt.Errorf("length error")
 	}
 	version := bs[0]
@@ -161,8 +193,8 @@ func DecodePayload(bs []byte) (*MinerPks, error) {
 		MType: MinerType(bs[1]),
 	}
 	if len(bs) == totalLen {
-		pks.Pk = bs[2 : 2+pkSize]
-		pks.VrfPk = bs[2+pkSize:]
+		pks.Pk = bs[fixLen : fixLen+pkSize]
+		pks.VrfPk = bs[fixLen+pkSize:]
 	}
 	return pks, nil
 }

@@ -71,8 +71,20 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 		return &contractCreator{transitionContext: base}
 	case types.TransactionTypeContractCall:
 		return &contractCaller{transitionContext: base}
-	case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
-		return &minerStakeOperator{transitionContext: base}
+	case types.TransactionTypeStakeAdd:
+		return &stakeAddOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeMinerAbort:
+		return &minerAbortOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeVoteMinerPool:
+		return &voteMinerPoolOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeStakeReduce:
+		return &stakeReduceOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeApplyGuardMiner:
+		return &applyGuardMinerOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeStakeRefund:
+		return &stakeRefundOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeCancelGuard:
+		return &cancelGuardOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
 	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 		return &groupOperator{transitionContext: base}
 	default:
@@ -138,8 +150,39 @@ type unSupported struct {
 	typ int8
 }
 
+func (op *unSupported)GetBaseOperation()*baseOperation{
+	return nil
+}
+
+func (op *unSupported)Height()uint64{
+	return 0
+}
+func (op *unSupported)GetMinerType()types.MinerType{
+	return 0
+}
+func (op *unSupported)GetMinerPks()*types.MinerPks{
+	return nil
+}
+
+func (op *unSupported)GetDb()types.AccountDB{
+	return nil
+}
+
+func (op *unSupported) Value() uint64 {
+	return 0
+}
+
 func (op *unSupported) Operation() error {
 	return fmt.Errorf("unSupported tx type %v", op.typ)
+}
+
+
+func (op *unSupported) Source() common.Address {
+	return common.Address{}
+}
+
+func (op *unSupported)Target()common.Address{
+	return common.Address{}
 }
 
 func (op *unSupported) ParseTransaction() error {
@@ -178,26 +221,6 @@ func (ss *txTransfer) Transition() *result {
 		}
 	}
 
-	return ret
-}
-
-// minerStakeOperator handles all transactions related to miner stake
-type minerStakeOperator struct {
-	*transitionContext
-	minerOp mOperation // Real miner operation interface
-}
-
-func (ss *minerStakeOperator) ParseTransaction() error {
-	ss.minerOp = newOperation(ss.accountDB, ss.tx, ss.bh.Height)
-	return ss.minerOp.ParseTransaction()
-}
-
-func (ss *minerStakeOperator) Transition() *result {
-	ret := newResult()
-	err := ss.minerOp.Operation()
-	if err != nil {
-		ret.setError(err, types.RSFail)
-	}
 	return ret
 }
 
@@ -499,16 +522,18 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(common.StringToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(common.StringToAddress(types.DaemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(common.StringToAddress(userNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(common.StringToAddress(types.UserNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	GroupManagerImpl.RegularCheck(accountDB, bh)
+
+	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
 
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
