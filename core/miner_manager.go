@@ -24,7 +24,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
-	"github.com/vmihailenco/msgpack"
 )
 
 const (
@@ -58,92 +57,8 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 	go MinerManagerImpl.listenProposalUpdate()
 }
 
-// GuardNodesCheck check guard nodes is expired
-func (mm *MinerManager)GuardNodesCheck(db types.AccountDB, bh *types.BlockHeader)error{
-	if bh.Height < adjustWeightPeriod/2{
-		return nil
-	}
-	if bh.Height % 1000 != 0 {
-		return nil
-	}
-	gm,err := getGuardMinerNodeInfo(db.AsAccountDBTS())
-	if err != nil{
-		return err
-	}
-	if gm.Len == 0{
-		return nil
-	}
-	subLen := 0
-	for i:=gm.BeginIndex;i<gm.Len;i++{
-		addr := getGuardMinerIndex(db.AsAccountDBTS(),i)
-		if err != nil{
-			Logger.Error(err)
-			continue
-		}
-		if addr == nil{
-			Logger.Warnf("check addr find nil,index = %d",i)
-			continue
-		}
-		isExpired := mm.checkGuardNodeExpired(db,*addr,bh.Height)
-		if isExpired{
-			delGuardMinerIndex(db.AsAccountDBTS(),i)
-			subLen++
-		}else{
-			break
-		}
-	}
-	if subLen > 0{
-		gm.BeginIndex += uint64(subLen)
-		err = setGuardMinerNodeInfo(db.AsAccountDBTS(),gm)
-		if err != nil{
-			return err
-		}
-	}
-	return nil
-}
-
-
-func (mm *MinerManager)checkGuardNodeExpired(db types.AccountDB,address common.Address,height uint64)bool{
-	detailKey := getDetailKey(address, types.MinerTypeProposal, types.Staked)
-	stakedDetail,err := getDetail(db, address, detailKey)
-	if err != nil{
-		Logger.Error(err)
-		return true
-	}
-	if stakedDetail == nil{
-		Logger.Warnf("check guard nodes,find stake detail is nil,address is %s",address.String())
-		return true
-	}
-	if height > (stakedDetail.DisMissHeight + stakeBuffer){
-		mm.processGuardNodeExpired(db,address,height)
-		return true
-	}
-	if stakedDetail.MarkNotFullHeight > 0{
-		if height > stakedDetail.MarkNotFullHeight + stakeBuffer{
-			mm.processGuardNodeExpired(db,address,height)
-			return true
-		}
-	}else{
-		if !isFullStake(stakedDetail.Value,height){
-			stakedDetail.MarkNotFullHeight = height
-			err = setDetail(db,address,detailKey,stakedDetail)
-			if err != nil{
-				Logger.Error(err)
-			}
-			return false
-		}
-	}
-	return false
-}
-
-func (mm *MinerManager)processGuardNodeExpired(db types.AccountDB,address common.Address,height uint64){
-	err := guardNodeExpired(db,address,height)
-	if err != nil{
-		Logger.Errorf("processGuardNodeExpired error :%v",err)
-	}
-}
-
 func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.AccountDB) (success bool, err error) {
+
 	if err = operation.Validate(); err != nil {
 		return
 	}
@@ -151,7 +66,7 @@ func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.A
 		return
 	}
 	snapshot := accountDB.Snapshot()
-	if ret := operation.Transition(); ret.err != nil {
+	if err = operation.Operation(); err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		return
 	}
@@ -173,17 +88,16 @@ func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.Mi
 	return mm.executeOperation(operation, accountDB)
 }
 
-
 // FreezeMiner execute the miner frozen operation
 func (mm *MinerManager) MinerFrozen(accountDB types.AccountDB, miner common.Address, height uint64) (success bool, err error) {
-	base := newBaseOperation(accountDB, nil, height,nil)
+	base := newBaseOperation(accountDB, nil, height)
 	base.minerType = types.MinerTypeVerify
 	operation := &minerFreezeOp{baseOperation: base, addr: miner}
 	return mm.executeOperation(operation, accountDB)
 }
 
 func (mm *MinerManager) MinerPenalty(accountDB types.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error) {
-	base := newBaseOperation(accountDB, nil, height,nil)
+	base := newBaseOperation(accountDB, nil, height)
 	base.minerType = types.MinerTypeVerify
 	operation := &minerPenaltyOp{
 		baseOperation: base,
@@ -254,7 +168,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	} else {
 		prefix = prefixPoolProposal
 	}
-	iter := accountDB.AsAccountDBTS().DataIteratorSafe(common.MinerPoolAddr, prefix)
+	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
 	miners := make([]*types.Miner, 0)
 	for iter.Next() {
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
@@ -368,7 +282,7 @@ func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 		return mp
 	}
 	prefix := prefixPoolProposal
-	iter := accountDB.AsAccountDBTS().DataIteratorSafe(common.MinerPoolAddr, prefix)
+	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
 	for iter != nil && iter.Next() {
 		if !bytes.HasPrefix(iter.Key, prefix) {
 			break
@@ -469,22 +383,5 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 		// Add as proposer
 		miner.Type = types.MinerTypeProposal
 		mm.addGenesisMinerStake(miner, accountDB)
-	}
-}
-
-func (mm *MinerManager) genGuardNodes(accountDB types.AccountDB) {
-	for _, addr := range types.ExtractGuardNodes {
-		miner := &types.Miner{ID: addr.Bytes(),Type:types.MinerTypeProposal,Identity:types.MinerGuard,Status:types.MinerStatusActive,ApplyHeight:0,Stake:0}
-		bs, err := msgpack.Marshal(miner)
-		if err != nil {
-			panic("encode miner failed")
-		}
-		err = initVoteInfo(accountDB,addr)
-		if err != nil{
-			panic(err)
-		}
-		accountDB.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
-		nonce := accountDB.GetNonce(addr)
-		accountDB.SetNonce(addr, nonce+1)
 	}
 }
