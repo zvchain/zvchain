@@ -73,6 +73,8 @@ type createRoutine struct {
 	currID       groupsig.ID
 }
 
+
+
 var GroupRoutine *createRoutine
 var logger *logrus.Logger
 
@@ -85,6 +87,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 		store:         newSkStorage(fmt.Sprintf("groupsk%v.store", common.GlobalConf.GetString("instance", "index", "")), base.Data2CommonHash(miner.SK.Serialize()).Bytes()),
 		currID:        miner.ID,
 	}
+
 	top := chain.QueryTopBlock()
 	GroupRoutine.updateContext(top)
 
@@ -96,6 +99,8 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	notify.BUS.Subscribe(notify.BlockAddSucc, GroupRoutine.onBlockAddSuccess)
 	return GroupRoutine.store
 }
+
+
 
 func (routine *createRoutine) onBlockAddSuccess(message notify.Message) error {
 	block := message.GetData().(*types.Block)
@@ -196,7 +201,7 @@ func (routine *createRoutine) selectCandidates() error {
 
 	mems := make([]string, len(selectedCandidates))
 	for _, m := range selectedCandidates {
-		mems = append(mems, m.ID.GetHexString())
+		mems = append(mems, m.ID.GetAddrString())
 	}
 
 	routine.ctx.cands = selectedCandidates

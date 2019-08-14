@@ -71,8 +71,20 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 		return &contractCreator{transitionContext: base}
 	case types.TransactionTypeContractCall:
 		return &contractCaller{transitionContext: base}
-	case types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
-		return &minerStakeOperator{transitionContext: base}
+	case types.TransactionTypeStakeAdd:
+		return &stakeAddOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeMinerAbort:
+		return &minerAbortOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeVoteMinerPool:
+		return &voteMinerPoolOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeStakeReduce:
+		return &stakeReduceOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeApplyGuardMiner:
+		return &applyGuardMinerOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeStakeRefund:
+		return &stakeRefundOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+	case types.TransactionTypeCancelGuard:
+		return &cancelGuardOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
 	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 		return &groupOperator{transitionContext: base}
 	default:
@@ -138,8 +150,39 @@ type unSupported struct {
 	typ int8
 }
 
+func (op *unSupported)GetBaseOperation()*baseOperation{
+	return nil
+}
+
+func (op *unSupported)Height()uint64{
+	return 0
+}
+func (op *unSupported)GetMinerType()types.MinerType{
+	return 0
+}
+func (op *unSupported)GetMinerPks()*types.MinerPks{
+	return nil
+}
+
+func (op *unSupported)GetDb()types.AccountDB{
+	return nil
+}
+
+func (op *unSupported) Value() uint64 {
+	return 0
+}
+
 func (op *unSupported) Operation() error {
 	return fmt.Errorf("unSupported tx type %v", op.typ)
+}
+
+
+func (op *unSupported) Source() common.Address {
+	return common.Address{}
+}
+
+func (op *unSupported)Target()common.Address{
+	return common.Address{}
 }
 
 func (op *unSupported) ParseTransaction() error {
@@ -181,26 +224,6 @@ func (ss *txTransfer) Transition() *result {
 	return ret
 }
 
-// minerStakeOperator handles all transactions related to miner stake
-type minerStakeOperator struct {
-	*transitionContext
-	minerOp mOperation // Real miner operation interface
-}
-
-func (ss *minerStakeOperator) ParseTransaction() error {
-	ss.minerOp = newOperation(ss.accountDB, ss.tx, ss.bh.Height)
-	return ss.minerOp.ParseTransaction()
-}
-
-func (ss *minerStakeOperator) Transition() *result {
-	ret := newResult()
-	err := ss.minerOp.Operation()
-	if err != nil {
-		ret.setError(err, types.RSFail)
-	}
-	return ret
-}
-
 // minerStakeOperator handles all transactions related to group create
 type groupOperator struct {
 	*transitionContext
@@ -239,7 +262,7 @@ func (ss *contractCreator) Transition() *result {
 		contract := tvm.LoadContract(contractAddress)
 		isTransferSuccess := transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.tx.Value.Value())
 		if !isTransferSuccess {
-			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.Hex()), types.RSBalanceNotEnough)
+			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.AddrPrefixString()), types.RSBalanceNotEnough)
 		} else {
 			_, logs, err := controller.Deploy(contract)
 			ret.logs = logs
@@ -250,7 +273,7 @@ func (ss *contractCreator) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
+				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.AddrPrefixString())
 			}
 		}
 	}
@@ -276,11 +299,11 @@ func (ss *contractCaller) Transition() *result {
 	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
 	contract := tvm.LoadContract(*tx.Target)
 	if contract.Code == "" {
-		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSNoCodeError)
+		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.AddrPrefixString()), types.RSNoCodeError)
 	} else {
 		isTransferSuccess := transfer(ss.accountDB, *tx.Source, *contract.ContractAddress, tx.Value.Value())
 		if !isTransferSuccess {
-			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.Hex()), types.RSBalanceNotEnough)
+			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.AddrPrefixString()), types.RSBalanceNotEnough)
 		} else {
 			_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
 			ret.logs = logs
@@ -293,7 +316,7 @@ func (ss *contractCaller) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.Hex(), string(tx.Data))
+				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.AddrPrefixString(), string(tx.Data))
 			}
 		}
 	}
@@ -499,16 +522,18 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(common.StringToAddress(types.DaemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(common.StringToAddress(types.UserNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	GroupManagerImpl.RegularCheck(accountDB, bh)
+
+	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
 
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
@@ -521,7 +546,7 @@ func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bo
 	}
 	nonce := accountDB.GetNonce(*transaction.Source)
 	if transaction.Nonce != nonce+1 {
-		Logger.Infof("Tx nonce error! Hash:%s,Source:%s,expect nonce:%d,real nonce:%d ", transaction.Hash.Hex(), transaction.Source.Hex(), nonce+1, transaction.Nonce)
+		Logger.Infof("Tx nonce error! Hash:%s,Source:%s,expect nonce:%d,real nonce:%d ", transaction.Hash.Hex(), transaction.Source.AddrPrefixString(), nonce+1, transaction.Nonce)
 		return false
 	}
 	return true

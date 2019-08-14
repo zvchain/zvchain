@@ -226,7 +226,7 @@ func TestGenerateSharePiecePacket(t *testing.T) {
 		t.Logf("round==================%v================", a)
 		for i, self := range selfs {
 			sp := generateSharePiecePacket(self, encSks[i], seed, cands)
-			t.Logf("share piece generated from:%v", self.ID.GetHexString())
+			t.Logf("share piece generated from:%v", self.ID.GetAddrString())
 			for j, piece := range sp.pieces {
 				t.Logf("\t for %v %v", j, piece.GetHexString())
 			}
@@ -243,7 +243,7 @@ func TestGenerateSharePieceAndDeserialize(t *testing.T) {
 		encSks[i] = generateEncryptedSeckey()
 	}
 	sp := generateSharePiecePacket(selfs[0], encSks[0], seed, cands)
-	t.Logf("share piece generated from:%v", selfs[0].ID.GetHexString())
+	t.Logf("share piece generated from:%v", selfs[0].ID.GetAddrString())
 	for j, piece := range sp.pieces {
 		t.Logf("\t for %v %v", j, piece.GetHexString())
 	}
@@ -271,9 +271,9 @@ func TestEncryptAndDecryptSharePiece(t *testing.T) {
 	encPieces := make([]types.EncryptedSharePiecePacket, len(cands))
 	for i, self := range selfs {
 		encPieces[i] = generateEncryptedSharePiecePacket(self, encSks[i], seed, cands)
-		t.Logf("encrypted pieces data from %v :%v", self.ID.GetHexString(), encPieces[i].Pieces())
+		t.Logf("encrypted pieces data from %v :%v", self.ID.GetAddrString(), encPieces[i].Pieces())
 		oriPs := &originSharePiecePacket{sharePiecePacket: encPieces[i].(*encryptedSharePiecePacket).sharePiecePacket}
-		t.Logf("origin pieces data from %v: %v", self.ID.GetHexString(), oriPs.Pieces())
+		t.Logf("origin pieces data from %v: %v", self.ID.GetAddrString(), oriPs.Pieces())
 	}
 
 	psBytes := make([][]byte, 0)
@@ -359,7 +359,7 @@ func TestAggrGroupPubKey(t *testing.T) {
 	pks[2].Deserialize(common.FromHex("0x05d082448d523d78764e82cebfb7f9b9b3c45b71f615e5342ae79c56b1b16e2ca6115e288a89796c018afd5e97504c97e98bc160e1c443918d720248cb19bb6e77ac7e31825c3c09cba99432f2d197e6f22608f6729b15083bd9783d79cccfcea7f90402bd19abc477ca7bdc4b71976d62c77f047cedffd0db166aaa4bf6fc4371174df66b59e3f614e14ca928e4801a7667cbaf0cb6dd3bcd3366fbcfb3235c87b2e0cda93f1cd61e28ab95f155a5ecdef2f291a239a1c5f6f6ac318ed7bb6de416002697dd23ff16e472e51ff0f9444efcc0b268608b6a2c1737513405740f7bcd04325d0ca30e77a7d4e45db0485304af855296109a15f38a88289314c439d63631ff20af5c457065db2516a9b4072b7dc917a16a552c7cd462e46b6575cebe9761c688a3941cb4984d11381fb9fe16cd04684bc8dcb37064849d72f130932cbc2912cdb829b2d409800262c9a6ad0f79a680639616b1c75a1a9d943458ce7dcbcb8a5eef75041360ed180ae118e1"))
 	pks[3].Deserialize(common.FromHex("0xaf661722eae72ce5535604c8fb3a9e21fbf0328d32ee1f0f81d8986fddf13dac56bd12fac37dba985c7f10a105ad0d1f083832fa72ab90f3e37c08d626d570f2a12a0aed1aa1c7deaf8bed8fa593d7a07a75df2940bc43c2d588f95fd90d7a9b45d0287428170e90db2422e0a00c06cc3701a859e77f54ae2ba9cd5d2f5e4e2bdf3bf7c841dfdf4079c98d4b720f783dd694fb8c62ad15891d82b44d15b78d31eccacd89eddcfe1915ef2e89ecc531d0b16be69725daeae87b10133709c7716f45ec030ba49f92c91428ad60b947a73eaf5fac31310a0e0a4b59c68f69a5abe3bef2154c2e114a98060bda838df0ebf920e1dd7ccf726d67a8df5a6c82632a2247b29efc772206b2abc6a3085781bee02ed93eb674d8bf711a4c25cde086183b3fddc735b79c9c93fa5dd4c4bd0f1e7d1666967751b0a18813f639bf5db1605fa1f83bcc74387ded063c9ec3f7936bc20771e4645b43036d9da86525063725ca9d86760594b37bc9ad0d9277b9ed61c5"))
 	pks[4].Deserialize(common.FromHex("0x5a5b54d690d62eba85974845fbdec22b5aeaf01cdd18bb6805ecc02a13c3c10783634514d581ad8eb86f231ccd9ebd6b80aaa3c1fda87903edb118f9f8617a5427ff2775c871883d1597762dbc44254a2f8752a8eba59c47d029ae1f0305484f0751637cb002a22edcc534631267614018984dfddcc9ec35f42327b190db240b40681952df0f1eb6f1651edcff2e9640e6fbbdaae41888c42015682e997f6380f4d695e5936beeaf0bd8d3c5d8e40cd39e5c52390ff16d6ab829fd1dfb59779917d8aca56d08359a3992391f1aa5a13c4718e90af349cf49341a574cc5bbe2dca846bb1b3e6bcb9fcb57fed1f2eb4be424f673fd4a01f9077ec2e39394577ace1f43f3ce90c1a51b494050a3b37b3013145e35165314625fa9c175fceb5295baad30e5f041dd7ab413f41e58ee62213406d14b6c28831e044b684869b496783144bcc642cb7c070aa2a26e45bbc4592c27fe592aa24d29d441adbd5b29f4066cdfca45a05ebb8dc388f4563b3974f9ad"))
-	//pks[5].SetHexString("0x793ea6a4d47bbcdb0e86381480e998faa33beed56da5b72525a696711499197fadb556dfc6fc0465c8917d7cb6d4fd44e692775f4ae5ba48199ed52e8623886841cc452133b31fbeec5c515c52fe636121071e9a4a8f36b02eccb9da756a2f0d7070c1a38311f30f9e6fc06ae7172d4971aee58d986b086befe135ec021c004b0296cde897ee1c1baa39e6d08c6a3d7f6c496a1f9fb2a6666cb7243e3daa39f2b4f81f879663e4fb0ec88b878fd505d87c331200f2f33acdd4870d7ff72554a64b5a9fec20c6ef223d17f4f32593bfb3d35c276a529386618475fbc32bc85ff91e4b019e5fc8f52a0be828996b2d137b16a65066b5636f4ba439fca129589d4ef15d2f294a679d4a64515e9b19927ca11ecf6e79933155749ecd633446676b6386d6654a9e14605c88f51b0c6a08cdbd1fc191d1fe1c24aacd830b0ebb795575da6954cc0b3a0af9c41e3a8e4ac5a45209b769a8dffd5e5502b8bd83e5491503697044502089900ccd4523b196e6e5f6"))
+	//pks[5].SetAddrString("0x793ea6a4d47bbcdb0e86381480e998faa33beed56da5b72525a696711499197fadb556dfc6fc0465c8917d7cb6d4fd44e692775f4ae5ba48199ed52e8623886841cc452133b31fbeec5c515c52fe636121071e9a4a8f36b02eccb9da756a2f0d7070c1a38311f30f9e6fc06ae7172d4971aee58d986b086befe135ec021c004b0296cde897ee1c1baa39e6d08c6a3d7f6c496a1f9fb2a6666cb7243e3daa39f2b4f81f879663e4fb0ec88b878fd505d87c331200f2f33acdd4870d7ff72554a64b5a9fec20c6ef223d17f4f32593bfb3d35c276a529386618475fbc32bc85ff91e4b019e5fc8f52a0be828996b2d137b16a65066b5636f4ba439fca129589d4ef15d2f294a679d4a64515e9b19927ca11ecf6e79933155749ecd633446676b6386d6654a9e14605c88f51b0c6a08cdbd1fc191d1fe1c24aacd830b0ebb795575da6954cc0b3a0af9c41e3a8e4ac5a45209b769a8dffd5e5502b8bd83e5491503697044502089900ccd4523b196e6e5f6"))
 
 	gpk := groupsig.AggregatePubkeys(pks[:])
 	t.Log(gpk)

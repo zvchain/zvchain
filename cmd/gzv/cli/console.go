@@ -109,7 +109,7 @@ func (c *unlockCmd) parse(args []string) bool {
 		return false
 	}
 
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -139,7 +139,7 @@ func (c *balanceCmd) parse(args []string) bool {
 		c.fs.PrintDefaults()
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -169,11 +169,91 @@ func (c *nonceCmd) parse(args []string) bool {
 		c.fs.PrintDefaults()
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
 	return true
+}
+
+type voteMinerPoolCmd struct {
+	gasBaseCmd
+	addr string
+}
+
+func genVoteMinerPoolCmd() *voteMinerPoolCmd {
+	c := &voteMinerPoolCmd{
+		gasBaseCmd: *genGasBaseCmd("voteMinerPool", "only guard miner node can for vote miner pool, each guard miner node can only vote once"),
+	}
+	c.initBase()
+	c.fs.StringVar(&c.addr, "addr", "", "your vote address")
+	return c
+}
+
+func (c *voteMinerPoolCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if strings.TrimSpace(c.addr) == "" {
+		output("please input the address")
+		return false
+	}
+	if !common.ValidateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return c.parseGasPrice()
+}
+
+type applyGuardMinerCmd struct {
+	gasBaseCmd
+}
+
+
+func genApplyGuardMinerCmd() *applyGuardMinerCmd {
+	c := &applyGuardMinerCmd{
+		gasBaseCmd: *genGasBaseCmd("applyGuard", "apply guard miner node"),
+	}
+	c.initBase()
+	return c
+}
+
+func (c *applyGuardMinerCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	return c.parseGasPrice()
+}
+
+type cancelGuardCmd struct {
+	gasBaseCmd
+	addr   string
+}
+
+func genCancelGuardCmd() *cancelGuardCmd {
+	c := &cancelGuardCmd{
+		gasBaseCmd: *genGasBaseCmd("cancelGuard", "cancel guard node,only admin can call"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "the miner address")
+	return c
+}
+
+func (c *cancelGuardCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if strings.TrimSpace(c.addr) == "" {
+		output("please input the address")
+		return false
+	}
+	if !common.ValidateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return c.parseGasPrice()
 }
 
 type minerInfoCmd struct {
@@ -187,7 +267,7 @@ func genMinerInfoCmd() *minerInfoCmd {
 		baseCmd: *genBaseCmd("minerinfo", "get the info of the miner"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the miner address")
-	c.fs.StringVar(&c.detail, "detail", "", "show the details of the stake from the given address, no details shows if empty, all details shows if set all")
+	c.fs.StringVar(&c.detail, "detail", "", "show the details of the stake from the given address, no details shows if empty")
 	return c
 }
 
@@ -201,11 +281,11 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		c.fs.PrintDefaults()
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
-	if c.detail != "" && c.detail != "all" && !validateAddress(c.detail) {
+	if c.detail != "" && c.detail != "all" && !common.ValidateAddress(c.detail) {
 		output("Wrong address format")
 		return false
 	}
@@ -392,7 +472,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 			c.fs.PrintDefaults()
 			return false
 		} else {
-			if !validateAddress(strings.TrimSpace(c.to)) {
+			if !common.ValidateAddress(strings.TrimSpace(c.to)) {
 				output("Wrong address format")
 				return false
 			}
@@ -498,9 +578,9 @@ func parseRaFromString(number string) (uint64, error) {
 
 type stakeAddCmd struct {
 	gasBaseCmd
-	stake  uint64
-	mtype  int
-	target string
+	stake  			uint64
+	mtype  			int
+	target 			string
 }
 
 func genStakeAddCmd() *stakeAddCmd {
@@ -524,7 +604,7 @@ func (c *stakeAddCmd) parse(args []string) bool {
 		return false
 	}
 	if len(strings.TrimSpace(c.target)) > 0 {
-		if !validateAddress(c.target) {
+		if !common.ValidateAddress(c.target) {
 			output("Wrong address format")
 			return false
 		}
@@ -581,7 +661,7 @@ func (c *stakeRefundCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if c.target != "" && !validateAddress(c.target) {
+	if c.target != "" && !common.ValidateAddress(c.target) {
 		output("Wrong address format")
 		return false
 	}
@@ -615,7 +695,7 @@ func (c *stakeReduceCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if c.target != "" && !validateAddress(c.target) {
+	if c.target != "" && !common.ValidateAddress(c.target) {
 		output("Wrong address format")
 		return false
 	}
@@ -648,7 +728,7 @@ func (c *viewContractCmd) parse(args []string) bool {
 		output("please input the contract address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -721,7 +801,7 @@ func (c *exportKeyCmd) parse(args []string) bool {
 		output("please input the account address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -750,7 +830,7 @@ func (c *groupCheckCmd) parse(args []string) bool {
 		output("please input the address")
 		return false
 	}
-	if !validateAddress(c.addr) {
+	if !common.ValidateAddress(c.addr) {
 		output("Wrong address format")
 		return false
 	}
@@ -773,7 +853,8 @@ var cmdGroupHeight = genBaseCmd("groupheight", "the current group height")
 var cmdTx = genTxCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
-
+var cmdApplyGuardMiner = genApplyGuardMinerCmd()
+var cmdVoteMinerPool= genVoteMinerPoolCmd()
 var cmdStakeAdd = genStakeAddCmd()
 var cmdMinerAbort = genMinerAbortCmd()
 var cmdStakeRefund = genStakeRefundCmd()
@@ -796,6 +877,8 @@ func init() {
 	list = append(list, cmdAccountInfo)
 	list = append(list, cmdDelAccount)
 	list = append(list, &cmdMinerInfo.baseCmd)
+	list = append(list, &cmdApplyGuardMiner.baseCmd)
+	list = append(list, &cmdVoteMinerPool.baseCmd)
 	list = append(list, &cmdConnect.baseCmd)
 	list = append(list, cmdBlockHeight)
 	list = append(list, cmdGroupHeight)
@@ -986,6 +1069,20 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return chainOp.MinerInfo(cmd.addr, cmd.detail)
+				})
+			}
+		case cmdApplyGuardMiner.name:
+			cmd := genApplyGuardMinerCmd()
+			if cmd.parse(args){
+				handleCmd(func() *Result {
+					return chainOp.ApplyGuardMiner(cmd.gaslimit, cmd.gasPrice)
+				})
+			}
+		case cmdVoteMinerPool.name:
+			cmd := genVoteMinerPoolCmd()
+			if cmd.parse(args){
+				handleCmd(func() *Result {
+					return chainOp.VoteMinerPool(cmd.addr,cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdBlockHeight.name:

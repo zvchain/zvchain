@@ -29,15 +29,13 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 )
 
-const adminAddr = "0x28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b"         // address of admin who can control foundation contract
-const miningPoolAddr = "0x01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0"    // address of mining pool in pre-distribution
-const circulatesAddr = "0xebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3"    // address of circulates in pre-distribution
-const userNodeAddress = "0xe30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139"   // address of official reserved user node address
-const daemonNodeAddress = "0xae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122" // address of official reserved daemon node address
+
 const teamFoundationToken = 750000000 * common.ZVC                                             // amount of tokens that belong to team
 const businessFoundationToken = 250000000 * common.ZVC                                         // amount of tokens that belongs to business
 const miningPoolToken = 425000000 * common.ZVC                                                 // amount of tokens that belongs to mining pool
 const circulatesToken = 75000000 * common.ZVC                                                  // amount of tokens that belongs to circulates
+
+
 
 func calcTxTree(txs []*types.Transaction) common.Hash {
 	if nil == txs || 0 == len(txs) {
@@ -51,6 +49,7 @@ func calcTxTree(txs []*types.Transaction) common.Hash {
 	}
 	return common.BytesToHash(common.Sha256(buf.Bytes()))
 }
+
 
 func calcReceiptsTree(receipts types.Receipts) common.Hash {
 	if nil == receipts || 0 == len(receipts) {
@@ -73,17 +72,16 @@ func calcReceiptsTree(receipts types.Receipts) common.Hash {
 }
 
 func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisInfo) {
-
 	// FoundationContract
-	businessFoundationAddr := setupFoundationContract(stateDB, adminAddr, businessFoundationToken, 1)
+	businessFoundationAddr := setupFoundationContract(stateDB, types.AdminAddr, businessFoundationToken, 1)
 	stateDB.SetBalance(*businessFoundationAddr, big.NewInt(0).SetUint64(businessFoundationToken))
-	teamFoundationAddr := setupFoundationContract(stateDB, adminAddr, teamFoundationToken, 2)
+	teamFoundationAddr := setupFoundationContract(stateDB, types.AdminAddr, teamFoundationToken, 2)
 	stateDB.SetBalance(*teamFoundationAddr, big.NewInt(0).SetUint64(teamFoundationToken))
-	stateDB.SetNonce(common.HexToAddress(adminAddr), 2)
+	stateDB.SetNonce(common.StringToAddress(types.AdminAddr), 2)
 
 	// mining pool and circulates
-	stateDB.SetBalance(common.HexToAddress(miningPoolAddr), big.NewInt(0).SetUint64(miningPoolToken))
-	stateDB.SetBalance(common.HexToAddress(circulatesAddr), big.NewInt(0).SetUint64(circulatesToken))
+	stateDB.SetBalance(common.StringToAddress(types.MiningPoolAddr), big.NewInt(0).SetUint64(miningPoolToken))
+	stateDB.SetBalance(common.StringToAddress(types.CirculatesAddr), big.NewInt(0).SetUint64(circulatesToken))
 
 	// genesis balance: just for stakes two roles with minimum required value
 	genesisBalance := big.NewInt(0).SetUint64(4 * minimumStake())
@@ -96,7 +94,7 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 func setupFoundationContract(stateDB *account.AccountDB, adminAddr string, totalToken, nonce uint64) *common.Address {
 	code := fmt.Sprintf(foundationContract, adminAddr, totalToken)
 	transaction := types.Transaction{}
-	addr := common.HexToAddress(adminAddr)
+	addr := common.StringToAddress(adminAddr)
 	transaction.Source = &addr
 	transaction.Value = &types.BigInt{Int: *big.NewInt(0)}
 	transaction.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}

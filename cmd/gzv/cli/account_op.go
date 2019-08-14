@@ -90,7 +90,7 @@ func dirExists(dir string) bool {
 	return f.IsDir()
 }
 
-func (a *Account)MinerSk() string  {
+func (a *Account) MinerSk() string {
 	return a.Sk
 }
 
@@ -138,7 +138,7 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 	account := &Account{
 		Sk:       sk.Hex(),
 		Pk:       sk.GetPubKey().Hex(),
-		Address:  sk.GetPubKey().GetAddress().Hex(),
+		Address:  sk.GetPubKey().GetAddress().AddrPrefixString(),
 		Password: passwordHash(password),
 	}
 

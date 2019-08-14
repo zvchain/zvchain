@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/base"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -97,6 +98,7 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 	return ret.Result
 }
 
+
 func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, error) {
 	ret := ca.request("nonce", addr)
 	if !ret.IsSuccess() {
@@ -123,7 +125,7 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 		return opError(fmt.Errorf("privatekey or pubkey error"))
 	}
 	source := pubkey.GetAddress()
-	if source.Hex() != aci.Address {
+	if source.AddrPrefixString() != aci.Address {
 		return opError(fmt.Errorf("address error"))
 	}
 
@@ -234,6 +236,51 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		Gasprice: gasPrice,
 		TxType:   types.TransactionTypeStakeAdd,
 		Data:     data,
+	}
+	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
+	return ca.SendRaw(tx)
+}
+
+
+func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Result{
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	if strings.TrimSpace(target) == "" {
+		return opError(fmt.Errorf("please input target address"))
+	}
+	if !common.ValidateAddress(target) {
+		return opError(fmt.Errorf("Wrong address format"))
+	}
+	if aci.Address == target {
+		return opError(fmt.Errorf("you could not vote to myself"))
+	}
+	tx := &txRawData{
+		Target:   target,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeVoteMinerPool,
+	}
+	return ca.SendRaw(tx)
+}
+
+func (ca *RemoteChainOpImpl)ApplyGuardMiner(gas, gasprice uint64) *Result{
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	if aci.Miner == nil {
+		return opError(fmt.Errorf("the current account is not a miner account"))
+	}
+
+	tx := &txRawData{
+		Target:   aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeApplyGuardMiner,
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)

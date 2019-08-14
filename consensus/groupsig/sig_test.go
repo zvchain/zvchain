@@ -24,7 +24,7 @@ import (
 //
 //func TestSignature_MarshalJSON(t *testing.T) {
 //	sig := Signature{}
-//	sig.SetHexString("0x123")
+//	sig.SetAddrString("0x123")
 //	bs := sig.GetHexString()
 //	t.Log(string(bs))
 //}
@@ -124,12 +124,12 @@ func TestRecoverSignatureSigs(t *testing.T) {
 	signs[5].SetHexString("0x2467ac8a06db45fd89695c52e9e307667fd23d804ba1b534c5807c9905cefb8b01")
 
 	ids := make([]ID, 6)
-	ids[0].SetHexString("0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4")
-	ids[1].SetHexString("0x586e580e7d3352d617f35189ed4995679729a1a8b53ed8d91e46d7f8970d4737")
-	ids[2].SetHexString("0x69d959d090df8c77adc85b5294871a904b0294eb85fb8251ba903710805d64c2")
-	ids[3].SetHexString("0x806ec4eb2d7a2ba0ebee40e2a39e3e8b1f3a09d91ae78bd7fdf30c77e543f545")
-	ids[4].SetHexString("0xb2e882c6d59b37636d65cd6e023d4f2bd49f25947c37221ac52b3c9b60278813")
-	ids[5].SetHexString("0xc7d83d1e57ac5e2df25df8c569e87f62fc1173039faf3cb30f65d0efab9ecc50")
+	ids[0].SetAddrString("0x085fdd8d70ed4af61918f267829d7df06d686633af002b55410daaa3e59b08a4")
+	ids[1].SetAddrString("0x586e580e7d3352d617f35189ed4995679729a1a8b53ed8d91e46d7f8970d4737")
+	ids[2].SetAddrString("0x69d959d090df8c77adc85b5294871a904b0294eb85fb8251ba903710805d64c2")
+	ids[3].SetAddrString("0x806ec4eb2d7a2ba0ebee40e2a39e3e8b1f3a09d91ae78bd7fdf30c77e543f545")
+	ids[4].SetAddrString("0xb2e882c6d59b37636d65cd6e023d4f2bd49f25947c37221ac52b3c9b60278813")
+	ids[5].SetAddrString("0xc7d83d1e57ac5e2df25df8c569e87f62fc1173039faf3cb30f65d0efab9ecc50")
 
 	gSign := RecoverSignature(signs, ids)
 

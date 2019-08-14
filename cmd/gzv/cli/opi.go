@@ -64,14 +64,12 @@ type MinerInfo struct {
 func txRawToTransaction(tx *txRawData) *types.Transaction {
 	var target *common.Address
 	if tx.Target != "" {
-		t := common.HexToAddress(tx.Target)
+		t := common.StringToAddress(tx.Target)
 		target = &t
 	}
 	var sign []byte
 	if tx.Sign != "" {
 		sign = common.HexToSign(tx.Sign).Bytes()
-	} else {
-
 	}
 
 	return &types.Transaction{
@@ -120,6 +118,10 @@ type chainOp interface {
 	Nonce(addr string) *Result
 	// MinerInfo query miner info by address
 	MinerInfo(addr string, detail string) *Result
+
+	ApplyGuardMiner(gas, gasprice uint64) *Result
+
+	VoteMinerPool(address string,gas, gasprice uint64)*Result
 
 	BlockHeight() *Result
 
