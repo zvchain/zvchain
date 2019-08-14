@@ -32,10 +32,15 @@ func validateKey(key string) bool {
 }
 
 func validateTxType(typ int) bool {
-	return typ != types.TransactionTypeReward && ((typ >= types.TransactionTypeTransfer && typ <= types.TransactionTypeStakeRefund) || (typ >= types.TransactionTypeApplyGuardMiner && typ <= types.TransactionTypeCancelGuard))
+	return typ != types.TransactionTypeReward && typ >= types.TransactionTypeTransfer && typ <= types.TransactionTypeStakeRefund
 }
 
 func validateMinerType(typ int) bool {
 	mType := types.MinerType(typ)
 	return mType == types.MinerTypeVerify || mType == types.MinerTypeProposal
+}
+
+func validateStakeStatus(typ int) bool {
+	st := types.StakeStatus(typ)
+	return st != types.Staked && st != types.StakeFrozen
 }
