@@ -87,3 +87,9 @@ func (helper *ConsensusHelperImpl) EstimatePreHeight(bh *types.BlockHeader) uint
 	}
 	return height - uint64(math.Ceil(float64(bh.Elapsed)/float64(model.Param.MaxGroupCastTime)))
 }
+
+// GetBlockMinElapse return the min elapsed second for blocks
+func (helper *ConsensusHelperImpl) GetBlockMinElapse() int32 {
+	return Proc.GetBlockMinElapse()
+}
+

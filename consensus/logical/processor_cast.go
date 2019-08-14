@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 
@@ -290,6 +291,11 @@ func (p *Processor) blockProposal() {
 
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
+		offset := ccm.BH.CurTime.Since(p.ts.Now())
+		if offset > common.BlockPreSendSeconds {
+			blog.debug("sleep %d seconds before SendCastVerify. now: %v, block.curTime: %v", offset-1, p.ts.Now(), ccm.BH.CurTime)
+			time.Sleep(time.Second * time.Duration(offset-common.BlockPreSendSeconds))
+		}
 		p.NetServer.SendCastVerify(ccm, gb, proveHashs)
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)

@@ -19,8 +19,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/monitor"
 	"time"
+
+	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -105,7 +106,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	exeTraceLog := monitor.NewPerformTraceLogger("Execute", common.Hash{}, height)
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
-	block.Header.CurTime = chain.ts.Now()
+
 	statehash, evitTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
 	exeTraceLog.SetEnd()
 
@@ -116,10 +117,13 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.StateTree = common.BytesToHash(statehash.Bytes())
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
+	block.Header.CurTime = chain.ts.Now()
 	block.Header.Elapsed = int32(block.Header.CurTime.Since(latestBlock.CurTime))
-	if block.Header.Elapsed < 0 {
-		Logger.Errorf("cur time is before pre time:height=%v, curtime=%v, pretime=%v", height, block.Header.CurTime, latestBlock.CurTime)
-		return nil
+
+	minElapse := chain.consensusHelper.GetBlockMinElapse()
+	if block.Header.Elapsed < minElapse {
+		block.Header.CurTime = latestBlock.CurTime.Add(int64(minElapse))
+		block.Header.Elapsed = minElapse
 	}
 
 	block.Header.Hash = block.Header.GenHash()
@@ -221,7 +225,7 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 
 	blockSize := 0
 	for _, v := range b.Transactions {
-		blockSize +=v.Size()
+		blockSize += v.Size()
 	}
 	if blockSize > txAccumulateSizeMaxPerBlock {
 		return false, ErrBlockSizeLimit
@@ -249,6 +253,18 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 	}
 	bh := b.Header
 
+	minElapse := chain.consensusHelper.GetBlockMinElapse()
+	if bh.Elapsed < minElapse {
+		Logger.Debugf("Validate block elapsed error!")
+		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
+		return types.AddBlockFailed, err
+	}
+	if chain.ts.Since(bh.CurTime) < -common.BlockSecondsBuffer {
+		Logger.Debugf("Validate block too early error!")
+		err = fmt.Errorf("block too early: now %v, curtime %v", chain.ts.Now(), bh.CurTime)
+		return types.AddBlockFailed, err
+	}
+
 	if bh.Hash != bh.GenHash() {
 		Logger.Debugf("Validate block hash error!")
 		err = fmt.Errorf("hash diff")
@@ -262,9 +278,9 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		return types.BlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, b); !ok {
-		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists{
+		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists {
 			ret = types.AddBlockConsensusFailed
-		} else{
+		} else {
 			ret = types.AddBlockFailed
 		}
 		err = e
@@ -410,7 +426,7 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 	defer batchTraceLog.Log("size=%v", len(addTxs))
 	chain.txBatch.batchAdd(addTxs)
 	for _, tx := range addTxs {
-		if !tx.IsReward() && tx.Source == nil{
+		if !tx.IsReward() && tx.Source == nil {
 			Logger.Errorf("tx source recover fail:%s", tx.Hash.Hex())
 			return false
 		}
@@ -483,7 +499,7 @@ func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 	}
 }
 
-func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error{
+func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	b := message.GetData().(*types.Block)
 	if value, _ := chain.futureBlocks.Get(b.Header.Hash); value != nil {
 		block := value.(*types.Block)

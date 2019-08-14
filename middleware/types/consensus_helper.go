@@ -54,4 +54,7 @@ type ConsensusHelper interface {
 
 	// estimate pre block's height
 	EstimatePreHeight(bh *BlockHeader) uint64
+
+	// return the min elapsed second for blocks
+	GetBlockMinElapse() int32
 }

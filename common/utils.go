@@ -22,12 +22,6 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-/*
-**  Creator: pxf
-**  Date: 2019/5/8 上午11:37
-**  Description:
- */
-
 // MustNewLRUCache creates a new lru cache.
 // Caution: if fail, the function will cause panic
 // developer should promise size > 0 when use this function

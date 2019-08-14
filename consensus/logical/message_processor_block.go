@@ -17,6 +17,7 @@ package logical
 
 import (
 	"fmt"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -207,12 +208,12 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		return
 	}
 
-	if bh.Elapsed <= 0 {
+	if bh.Elapsed < p.GetBlockMinElapse() {
 		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
 		return
 	}
 
-	if p.ts.Since(bh.CurTime) < -1 {
+	if p.ts.Since(bh.CurTime) < -common.BlockSecondsBuffer {
 		err = fmt.Errorf("block too early: now %v, curtime %v", p.ts.Now(), bh.CurTime)
 		return
 	}
