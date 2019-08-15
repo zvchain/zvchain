@@ -20,13 +20,8 @@ import (
 	"regexp"
 )
 
-var addrReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
 var hashReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
 var keyReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{1,64}$")
-
-func validateAddress(addr string) bool {
-	return addrReg.MatchString(addr)
-}
 
 func validateHash(hash string) bool {
 	return hashReg.MatchString(hash)

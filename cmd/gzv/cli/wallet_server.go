@@ -40,7 +40,7 @@ func (ws *WalletServer) Start() error {
 		return fmt.Errorf("please input the rpcport")
 	}
 	apis := []rpc.API{
-		{Namespace: "GTASWallet", Version: "1", Service: ws, Public: true},
+		{Namespace: "GZVWallet", Version: "1", Service: ws, Public: true},
 	}
 	host := fmt.Sprintf("127.0.0.1:%d", ws.Port)
 	err := startHTTP(host, apis, []string{}, []string{}, []string{})
@@ -82,7 +82,7 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value ui
 		return opError(fmt.Errorf("privatekey or pubkey error"))
 	}
 	sourceAddr := pubkey.GetAddress()
-	if sourceAddr.Hex() != aci.Address {
+	if sourceAddr.AddrPrefixString() != aci.Address {
 		return opError(fmt.Errorf("address error"))
 	}
 

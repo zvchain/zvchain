@@ -84,8 +84,6 @@ func (p *Processor) GetRewardManager() types.RewardManager {
 	return p.MainChain.GetRewardManager()
 }
 
-
-
 func (p *Processor) GetVctxByHeight(height uint64) *VerifyContext {
 	return p.blockContexts.getVctxByHeight(height)
 }
@@ -111,7 +109,7 @@ func (p *Processor) SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessa
 }
 
 func (p Processor) getPrefix() string {
-	return p.GetMinerID().GetHexString()
+	return p.GetMinerID().GetAddrString()
 }
 
 // getMinerInfo is a private function for testing, official version not available
@@ -134,7 +132,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()
-	p.proveChecker = newProveChecker(p.MainChain)
+	p.proveChecker = newProveChecker()
 	p.ts = time.TSInstance
 	p.isCasting = 0
 
@@ -207,7 +205,7 @@ func (p Processor) getProposerPubKeyInBlock(bh *types.BlockHeader) *groupsig.Pub
 }
 
 func (p *Processor) getEncryptPrivateKey() (common.PrivateKey, error) {
-	seed := p.mi.SK.GetHexString() + p.mi.ID.GetHexString()
+	seed := p.mi.SK.GetHexString() + p.mi.ID.GetAddrString()
 	return common.GenerateKey(seed)
 }
 
@@ -283,4 +281,3 @@ func (p *Processor) initLivedGroup() {
 func (p *Processor) Ready() bool {
 	return p.ready
 }
-
