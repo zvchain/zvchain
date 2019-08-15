@@ -259,11 +259,6 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
 		return types.AddBlockFailed, err
 	}
-	if chain.ts.Since(bh.CurTime) < -common.BlockSecondsBuffer {
-		Logger.Debugf("Validate block too early error!")
-		err = fmt.Errorf("block too early: now %v, curtime %v", chain.ts.Now(), bh.CurTime)
-		return types.AddBlockFailed, err
-	}
 
 	if bh.Hash != bh.GenHash() {
 		Logger.Debugf("Validate block hash error!")
