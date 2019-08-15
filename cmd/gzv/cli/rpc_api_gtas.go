@@ -99,9 +99,7 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 
 	// Check the address for the specified tx types
 	switch txRaw.TxType {
-	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
-		 types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce,types.TransactionTypeApplyGuardMiner,
-		 types.TransactionTypeStakeRefund,types.TransactionTypeVoteMinerPool,types.TransactionTypeCancelGuard:
+	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd, types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeStakeRefund:
 		if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}
@@ -183,7 +181,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	if detail != "" && !common.ValidateAddress(strings.TrimSpace(detail)) {
+	if detail != "" && detail != "all" && !common.ValidateAddress(strings.TrimSpace(detail)) {
 		return failResult("Wrong detail address format")
 	}
 
@@ -234,6 +232,17 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	// Get details
 	switch detail {
 	case "":
+
+	case "all":
+		detailsMap := core.MinerManagerImpl.GetAllStakeDetails(address)
+		m := make(map[string][]*StakeDetail)
+		if detailsMap != nil {
+			for from, ds := range detailsMap {
+				dts := convertDetails(ds)
+				m[from] = dts
+			}
+			minerDetails.Details = m
+		}
 
 	default:
 		details := core.MinerManagerImpl.GetStakeDetails(address, common.StringToAddress(detail))
@@ -286,8 +295,8 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 
 // ViewAccount is used for querying account information
 func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(hash)) {
-		return failResult("Wrong hash format")
+	if !common.ValidateAddress(strings.TrimSpace(hash)) {
+		return failResult("Wrong address format")
 	}
 	accountDb, err := core.BlockChainImpl.LatestStateDB()
 	if err != nil {
@@ -332,10 +341,10 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 
 func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (*Result, error) {
 	// input check
-	address := common.StringToAddress(addr)
-	if !address.IsValid() {
-		return failResult("address is invalid")
+	if !common.ValidateAddress(strings.TrimSpace(addr)) {
+		return failResult("Wrong address format")
 	}
+	address := common.StringToAddress(addr)
 
 	const MaxCountQuery = 100
 	if count <= 0 {
