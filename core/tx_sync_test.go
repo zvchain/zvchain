@@ -106,7 +106,7 @@ func (m *DefaultMessage) Source() string {
 
 /******************************************************/
 const (
-	adminAddress    = "0xbd10ac1f9a60c81fa2bc60d20985a31d53c49903271ddd5cccfdbaac5bc1e69c"
+	adminAddress    = "zvbd10ac1f9a60c81fa2bc60d20985a31d53c49903271ddd5cccfdbaac5bc1e69c"
 	adminPublicKey  = "0x0445d9b84bc3bd71f58ad2b1d907c5d12cc29bf59a460f3a60636150d043580072b5ab87fa5a9e5a0d071839abe34e8333f6cd49741f792714e6360b54a1c6fa80"
 	adminPrivateKey = "0x0445d9b84bc3bd71f58ad2b1d907c5d12cc29bf59a460f3a60636150d043580072b5ab87fa5a9e5a0d071839abe34e8333f6cd49741f792714e6360b54a1c6fa808fbbc6713ff2fd8714539d29f5f4a04111a6b657bcdfb73cfd067913d6d84e29"
 	adminBPK        = "0x1526e13ecab389c5e69f9c84505a9034b228495d3da0ceebd12da1defc99ade51ecac0103760355b9b1c14aa61a6f6cc2ba0e3dcdf1fe0b40655ed1b8e98b4a2182b46ff5a0c9e1eb3b988e38537016b21df9690e186509e4f348de36f3431bd0d43a51c6a213a02cfc072488c223a381404f5f3fe49b99b568db0c44ccc8d50"
@@ -136,9 +136,9 @@ const (
 )
 
 const (
-	evilAddr = "0x0000000000000000000000000000000000000000000000000000000000000123"
-	kindAddr = "0x0000000000000000000000000000000000000000000000000000000000000abc"
-	kindToEvilAddr = "0x0000000000000000000000000000000000000000000000000000000000000fff"
+	evilAddr       = "zv0000000000000000000000000000000000000000000000000000000000000123"
+	kindAddr       = "zv0000000000000000000000000000000000000000000000000000000000000abc"
+	kindToEvilAddr = "zv0000000000000000000000000000000000000000000000000000000000000fff"
 )
 
 var (
@@ -165,26 +165,26 @@ var (
 	TxOverStateNonce1000 *types.Transaction
 	TxNoNonce            *types.Transaction
 
-	TxTypeTransfer            *types.Transaction
-	TxTypeContractCreate      *types.Transaction
-	TxTypeContractCreateEvil1 *types.Transaction
-	TxTypeContractCreateEvil2 *types.Transaction
-	TxTypeContractCall        *types.Transaction
-	TxTypeContractCallEvil1   *types.Transaction
-	TxTypeContractCallEvil2   *types.Transaction
-	TxTypeRewardBadData       *types.Transaction
+	TxTypeTransfer             *types.Transaction
+	TxTypeContractCreate       *types.Transaction
+	TxTypeContractCreateEvil1  *types.Transaction
+	TxTypeContractCreateEvil2  *types.Transaction
+	TxTypeContractCall         *types.Transaction
+	TxTypeContractCallEvil1    *types.Transaction
+	TxTypeContractCallEvil2    *types.Transaction
+	TxTypeRewardBadData        *types.Transaction
 	TxTypeRewardBadExtra       *types.Transaction
-	TxTypeStakeAddProposal    *types.Transaction
-	TxTypeStakeAddVerify      *types.Transaction
-	TxTypeStakeAddFakes       []*types.Transaction
-	TxTypeStakeAddFake1       *types.Transaction
-	TxTypeStakeAddFake2       *types.Transaction
-	TxTypeStakeAddFake3       *types.Transaction
-	TxTypeStakeAddFake4       *types.Transaction
-	TxTypeStakeAddFake5       *types.Transaction
-	TxTypeStakeReduce         *types.Transaction
-	TxTypeStakeReduceFake1    *types.Transaction
-	TxTypeMinerAbort          *types.Transaction
+	TxTypeStakeAddProposal     *types.Transaction
+	TxTypeStakeAddVerify       *types.Transaction
+	TxTypeStakeAddFakes        []*types.Transaction
+	TxTypeStakeAddFake1        *types.Transaction
+	TxTypeStakeAddFake2        *types.Transaction
+	TxTypeStakeAddFake3        *types.Transaction
+	TxTypeStakeAddFake4        *types.Transaction
+	TxTypeStakeAddFake5        *types.Transaction
+	TxTypeStakeReduce          *types.Transaction
+	TxTypeStakeReduceFake1     *types.Transaction
+	TxTypeMinerAbort           *types.Transaction
 	TxTypeStakeRefund          *types.Transaction
 	TxTypeEvil                 *types.Transaction
 	TxTypeGroupPiece           *types.Transaction
@@ -351,7 +351,7 @@ func initTxsAndOthers() {
 
 	// a not exist source addr
 	TxSourceNotExist = generateTX(nil, 1, 0, "111", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
-	source1 := common.HexToAddress("0x0000000000000000000000000000000000000000000000000000000000000123")
+	source1 := common.StringToAddress("zv0000000000000000000000000000000000000000000000000000000000000123")
 	TxSourceNotExist.Source = &source1
 
 	TxTargetNotExist = generateTX(nil, 1, 0, "", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
@@ -415,7 +415,7 @@ func AddBalance() {
 	blocks := GenBlocks()
 	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
 
-	stateDB.AddBalance(common.HexToAddress(adminAddress), new(big.Int).SetUint64(99999999999999999))
+	stateDB.AddBalance(common.StringToAddress(adminAddress), new(big.Int).SetUint64(99999999999999999))
 
 	exc := &executePostState{state: stateDB}
 	root := stateDB.IntermediateRoot(true)
@@ -575,7 +575,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 	data1 := make([]byte, 1000)
 	if !isEvil {
 		seed := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
-		sender := common.HexToAddress(adminAddress).Bytes()
+		sender := common.StringToAddress(adminAddress).Bytes()
 		//groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
 
 		//Round 1
@@ -608,7 +608,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 	}
 
 	if withTarget {
-		targetbyte := common.HexToAddress("111")
+		targetbyte := common.StringToAddress("111")
 		tx.Target = &targetbyte
 	}
 
@@ -624,7 +624,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 }
 
 func genetateMinerOpTx(value uint64, target string, txType int, gasLimit uint64, gasprice uint64, mType types.MinerType, isEvil bool) *types.Transaction {
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	var tx *types.Transaction
 	if isEvil {
 		tx = &types.Transaction{
@@ -672,7 +672,7 @@ func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64
 		fmt.Println(err)
 	}
 
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		Data:     data,
 		Value:    types.NewBigInt(value),
@@ -725,7 +725,7 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 	datas := [][]byte{data1, data2, data3, data4, data5}
 
 	var txs []*types.Transaction
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	for i := 0; i < 5; i++ {
 		tx := &types.Transaction{
 			Data:     datas[i],
@@ -768,7 +768,7 @@ func ReadFile(length int) ([]byte, error) {
 
 func generateNoValueTx(target string, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Target:   &targetbyte,
@@ -788,7 +788,7 @@ func generateNoValueTx(target string, txType int, gasLimit uint64, gasprice uint
 
 func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		//Nonce:     Nonce,
 		Value:    types.NewBigInt(value),
@@ -809,7 +809,7 @@ func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64,
 
 func generateNoTypeTx(target string, value uint64, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -829,7 +829,7 @@ func generateNoTypeTx(target string, value uint64, gasLimit uint64, gasprice uin
 
 func generateNoGasPriceTx(target string, value uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -849,7 +849,7 @@ func generateNoGasPriceTx(target string, value uint64, gasLimit uint64, txType i
 
 func generateNoHashTx(target string, value uint64, gasPrice uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -869,7 +869,7 @@ func generateNoHashTx(target string, value uint64, gasPrice uint64, gasLimit uin
 
 func generateNoSignTx(target string, value uint64, gasPrice uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -888,7 +888,7 @@ func generateNoSignTx(target string, value uint64, gasPrice uint64, gasLimit uin
 
 func generateNoGasLimitTx(target string, value uint64, gasPrice uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	tx := &types.Transaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
@@ -911,8 +911,7 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 		Nonce = 1
 	}
 	tx := &types.Transaction{}
-	//targetbyte := common.Address{common.HexToAddress(target)}
-	targetbyte := common.HexToAddress(target)
+	targetbyte := common.StringToAddress(target)
 	if nonce != 0 {
 		// a mark
 		if nonce == 999999999 {
@@ -999,7 +998,7 @@ func generateTXs(count int, random bool) []*types.Transaction {
 		return nil
 	}
 	src := pk.GetAddress()
-	fmt.Println("SRC:", src.Hex())
+	fmt.Println("SRC:", src.AddrPrefixString())
 	return txs
 }
 
@@ -1021,12 +1020,12 @@ func getTxPoolTx() []*types.Transaction {
 }
 
 func getNonce(addr string) uint64 {
-	realAddr := common.HexToAddress(addr)
+	realAddr := common.StringToAddress(addr)
 	return BlockChainImpl.GetNonce(realAddr)
 }
 
 func getBalance(addr string) uint64 {
-	realAddr := common.HexToAddress(addr)
+	realAddr := common.StringToAddress(addr)
 	return BlockChainImpl.GetBalance(realAddr).Uint64()
 }
 

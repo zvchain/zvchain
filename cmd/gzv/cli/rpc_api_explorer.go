@@ -38,7 +38,7 @@ func (api *RpcExplorerImpl) Version() string {
 
 // ExplorerAccount is used in the blockchain browser to query account information
 func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(hash)) {
+	if !common.ValidateAddress(strings.TrimSpace(hash)) {
 		return failResult("Wrong param format")
 	}
 	impl := &RpcGtasImpl{}
@@ -101,7 +101,7 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 	bh := b.Header
 
 	ret := &ExploreBlockReward{
-		ProposalID: groupsig.DeserializeID(bh.Castor).GetHexString(),
+		ProposalID: groupsig.DeserializeID(bh.Castor).GetAddrString(),
 	}
 	packedReward := uint64(0)
 	rm := chain.GetRewardManager()

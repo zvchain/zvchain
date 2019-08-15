@@ -298,6 +298,9 @@ func (gtas *Gtas) fullInit() error {
 	cfg := gtas.config
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
+	if !common.ValidateAddress(addressConfig) {
+		return errors.New("invalid miner address")
+	}
 	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password)
 	if err != nil {
 		return err
@@ -329,11 +332,11 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	id := minerInfo.ID.GetHexString()
+	id := minerInfo.ID.GetAddrString()
 	genesisMembers := make([]string, 0)
 	helper := mediator.NewConsensusHelper(minerInfo.ID)
 	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
-		genesisMembers = append(genesisMembers, common.ToHex(mem.ID()))
+		genesisMembers = append(genesisMembers, common.ToAddrHex(mem.ID()))
 	}
 
 	netCfg := network.NetworkConfig{
@@ -395,9 +398,9 @@ func NewGtas() *Gtas {
 
 func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {
 	miner := mediator.Proc.GetMinerInfo()
-	if miner.ID.GetHexString() != gtas.account.Address {
+	if miner.ID.GetAddrString() != gtas.account.Address {
 		// exit if miner's id not match the the account
-		panic(fmt.Errorf("id error %v %v", miner.ID.GetHexString(), gtas.account.Address))
+		panic(fmt.Errorf("id error %v %v", miner.ID.GetAddrString(), gtas.account.Address))
 	}
 
 	pks := &types.MinerPks{

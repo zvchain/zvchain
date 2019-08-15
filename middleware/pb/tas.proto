@@ -196,7 +196,6 @@ message ConsensusCastMessage{
 
     required SignData	Sign = 3;
 
-    required bytes  ProveHash = 4;
 }
 message ConsensusVerifyMessage{
     required bytes BlockHash = 1;

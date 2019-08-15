@@ -136,15 +136,15 @@ func (checker *createChecker) CheckEncryptedPiecePacket(packet types.EncryptedSh
 
 	// Was selected
 	if !checker.ctx.cands.has(sender) {
-		return fmt.Errorf("current miner not selected:%v", sender.GetHexString())
+		return fmt.Errorf("current miner not selected:%v", sender.GetAddrString())
 	}
 
 	minerInfo := checker.minerReader.GetLatestVerifyMiner(sender)
 	if minerInfo == nil {
-		return fmt.Errorf("miner info not exists:%v", sender.GetHexString())
+		return fmt.Errorf("miner info not exists:%v", sender.GetAddrString())
 	}
 	if !minerInfo.CanJoinGroup() {
-		return fmt.Errorf("miner cann't join group:%v", sender.GetHexString())
+		return fmt.Errorf("miner cann't join group:%v", sender.GetAddrString())
 	}
 
 	// Has sent piece
@@ -178,7 +178,7 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 	sender := groupsig.DeserializeID(packet.Sender())
 	// Was selected
 	if !cands.has(sender) {
-		return fmt.Errorf("miner not selected:%v", sender.GetHexString())
+		return fmt.Errorf("miner not selected:%v", sender.GetAddrString())
 	}
 
 	// Verify sig
@@ -188,10 +188,10 @@ func (checker *createChecker) CheckMpkPacket(packet types.MpkPacket, ctx types.C
 
 	mInfo := checker.minerReader.GetLatestVerifyMiner(sender)
 	if mInfo == nil {
-		return fmt.Errorf("miner not exist:%v", sender.GetHexString())
+		return fmt.Errorf("miner not exist:%v", sender.GetAddrString())
 	}
 	if !mInfo.CanJoinGroup() {
-		return fmt.Errorf("miner cann't join group:%v", sender.GetHexString())
+		return fmt.Errorf("miner cann't join group:%v", sender.GetAddrString())
 	}
 
 	// Has sent mpk
@@ -262,7 +262,7 @@ func (checker *createChecker) CheckGroupCreateResult(ctx types.CheckerContext) t
 		frozeMiners := make([]string, 0)
 		if len(result.frozenMiners) > 0 {
 			for _, m := range result.frozenMiners {
-				frozeMiners = append(frozeMiners, common.ShortHex(m.GetHexString()))
+				frozeMiners = append(frozeMiners, common.ShortHex(m.GetAddrString()))
 			}
 			logger.Debugf("froze miners: seedHeight=%v,curr=%v %v", era.seedHeight, ctx.Height(), frozeMiners)
 		}

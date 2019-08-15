@@ -66,7 +66,7 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 
 	result := pubkey.Verify(hash.Bytes(), sign)
 
-	return result, source.Hex()
+	return result, source.AddrPrefixString()
 }
 
 func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {
@@ -95,8 +95,6 @@ func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {
 // Peer is node connection object
 type Peer struct {
 	ID             NodeID
-	relayID        NodeID
-	relayTestTime  time.Time
 	sessionID      uint32
 	IP             net.IP
 	Port           int
@@ -107,8 +105,6 @@ type Peer struct {
 	connecting     bool
 	pingCount      int
 	lastPingTime   time.Time
-	isPinged       bool
-	source         PeerSource
 
 	//groups which need this peer
 	groupIDs map[string]bool
@@ -138,7 +134,7 @@ func (p *Peer) addRecvData(data []byte) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return
 	}
 	b := netCore.bufferPool.getBuffer(len(data))
@@ -270,6 +266,9 @@ func (p *Peer) resetData() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	p.recvList = list.New()
+	if p.sendList != nil {
+		p.sendList.reset()
+	}
 }
 
 func (p *Peer) setRemoteVerifyResult(result bool) {
@@ -349,7 +348,11 @@ func (p *Peer) verify(pac *PeerAuthContext) bool {
 	verifyResult, verifyID := p.remoteAuthContext.Verify()
 
 	p.verifyResult = verifyResult
-	p.ID = NewNodeID(verifyID)
+	nID := NewNodeID(verifyID)
+	if nID != nil {
+		p.ID = *nID
+	}
+
 	p.verifyUpdate()
 	return p.verifyResult
 }
@@ -357,6 +360,9 @@ func (p *Peer) verify(pac *PeerAuthContext) bool {
 func (p *Peer) write(packet *bytes.Buffer, code uint32) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	if packet == nil {
+		return
+	}
 	b := netCore.bufferPool.getBuffer(packet.Len())
 	b.Write(packet.Bytes())
 

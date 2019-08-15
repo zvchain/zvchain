@@ -133,7 +133,7 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 		Height:   bh.Height,
 		Hash:     bh.Hash.Hex(),
 		PreHash:  bh.PreHash.Hex(),
-		Proposer: groupsig.DeserializeID(bh.Castor).GetHexString(),
+		Proposer: groupsig.DeserializeID(bh.Castor).GetAddrString(),
 		Verifier: gb.GSeed.Hex(),
 	}
 	monitor.Instance.AddLog(le)
@@ -178,8 +178,8 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	sKey := p.groupReader.getGroupSignatureSeckey(bh.Group)
 	// sign the message and send to other members in the verifyGroup
 	if msg.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), msg) {
-		p.NetServer.ReqProposalBlock(msg, slot.castor.GetHexString())
-		result = fmt.Sprintf("Request block body from %v", slot.castor.GetHexString())
+		p.NetServer.ReqProposalBlock(msg, slot.castor.GetAddrString())
+		result = fmt.Sprintf("Request block body from %v", slot.castor.GetAddrString())
 
 		slot.setSlotStatus(slSuccess)
 		vctx.markNotified()
@@ -237,7 +237,6 @@ func (p *Processor) blockProposal() {
 
 	var (
 		block         *types.Block
-		proveHashs    []common.Hash
 		proveTraceLog *monitor.PerformTraceLogger
 	)
 	// Parallelize the CastBlock and genProveHashs process
@@ -248,15 +247,6 @@ func (p *Processor) blockProposal() {
 		block = p.MainChain.CastBlock(uint64(height), pi, qn, p.GetMinerID().Serialize(), gb.GSeed)
 	}()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		//生成全量账本hash
-		proveTraceLog = monitor.NewPerformTraceLogger("genProveHashs", common.Hash{}, 0)
-		proveTraceLog.SetParent("blockProposal")
-		proveHashs = p.proveChecker.genProveHashs(height, worker.getBaseBH().Random, gb.MemIds)
-		proveTraceLog.SetEnd()
-	}()
 	wg.Wait()
 	if block == nil {
 		blog.error("MainChain::CastingBlock failed, height=%v", height)
@@ -267,9 +257,11 @@ func (p *Processor) blockProposal() {
 
 	traceLogger.SetHash(bh.Hash)
 	traceLogger.SetTxNum(len(block.Transactions))
-	proveTraceLog.SetHash(bh.Hash)
-	proveTraceLog.SetHeight(bh.Height)
-	proveTraceLog.Log("")
+	if proveTraceLog != nil {
+		proveTraceLog.SetHash(bh.Hash)
+		proveTraceLog.SetHeight(bh.Height)
+		proveTraceLog.Log("")
+	}
 
 	tLog := newHashTraceLog("CASTBLOCK", bh.Hash, p.GetMinerID())
 	blog.debug("begin proposal, hash=%v, height=%v, qn=%v,, verifyGroup=%v, pi=%x...", bh.Hash, height, qn, gb.GSeed, pi)
@@ -290,7 +282,7 @@ func (p *Processor) blockProposal() {
 
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
-		p.NetServer.SendCastVerify(ccm, gb, proveHashs)
+		p.NetServer.SendCastVerify(ccm, gb)
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)
 		// Castor cannot sign random numbers
@@ -302,7 +294,7 @@ func (p *Processor) blockProposal() {
 			Height:   bh.Height,
 			Hash:     bh.Hash.Hex(),
 			PreHash:  bh.PreHash.Hex(),
-			Proposer: p.GetMinerID().GetHexString(),
+			Proposer: p.GetMinerID().GetAddrString(),
 			Verifier: gb.GSeed.Hex(),
 			Ext:      fmt.Sprintf("qn:%v,totalQN:%v", qn, bh.TotalQN),
 		}

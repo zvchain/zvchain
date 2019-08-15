@@ -25,18 +25,18 @@ import (
 
 func TestTransaction(t *testing.T) {
 	transaction := &Transaction{Value: NewBigInt(5000), Nonce: 2, GasLimit: NewBigInt(1000000000), GasPrice: NewBigInt(0)}
-	addr := common.HexToAddress("0xff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")
+	addr := common.StringToAddress("zvff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")
 	transaction.Source = &addr
 	fmt.Println(&addr)
-	addr = common.HexToAddress("0xff5a3f5747ada4eaa22f1d49c01e52ddb7875b4c")
+	addr = common.StringToAddress("zvff5a3f5747ada4eaa22f1d49c01e52ddb7875b4c")
 	transaction.Target = &addr
 	fmt.Println(&addr)
 	b, _ := serialize.EncodeToBytes(transaction)
 	fmt.Println(b)
-	addr2 := common.HexToAddress("0xff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")
+	addr2 := common.StringToAddress("zvff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")
 	transaction.Source = &addr2
 	fmt.Println(&addr2)
-	addr2 = common.HexToAddress("0xff5a3f5747ada4eaa22f1d49c01e52ddb7875b4c")
+	addr2 = common.StringToAddress("zvff5a3f5747ada4eaa22f1d49c01e52ddb7875b4c")
 	transaction.Target = &addr2
 	fmt.Println(&addr2)
 	c, _ := serialize.EncodeToBytes(transaction)
@@ -44,7 +44,7 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestTransactionsMarshalAndUnmarshal(t *testing.T) {
-	src := common.HexToAddress("0x123")
+	src := common.StringToAddress("zv123")
 	sign := common.HexToSign("0xa08da536660b93703b979a65e7059f8ef22d1c3c78c82d0ef09ecdaa587612e131800fb69b141db55a6a16bb6686904ea94e50a20603e6d7b84da15c4a77f73900")
 	tx := &Transaction{
 		Value:  NewBigInt(1),

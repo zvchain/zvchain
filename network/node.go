@@ -17,12 +17,13 @@ package network
 
 import (
 	"errors"
-	"github.com/zvchain/zvchain/log"
 	"math/rand"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 )
@@ -47,20 +48,22 @@ func (netID NodeID) IsValid() bool {
 }
 
 func (nid NodeID) GetHexString() string {
-	return common.ToHex(nid.Bytes())
+	return common.ToAddrHex(nid.Bytes())
 }
 
-func NewNodeID(hex string) NodeID {
+func NewNodeID(hex string) *NodeID {
 	var nid NodeID
 
 	if len(hex) == 0 {
-		return nid
+		return nil
 	}
-	if !strings.HasPrefix(hex, "0x") {
-		hex = "0x" + hex
+	if !strings.HasPrefix(hex, common.AddrPrefix) {
+		hex = common.AddrPrefix + hex
 	}
-	nid.SetBytes(common.FromHex(hex))
-	return nid
+
+	nid.SetBytes(common.StringToAddress(hex).Bytes())
+	return &nid
+
 }
 
 func (nid *NodeID) SetBytes(b []byte) {
@@ -186,32 +189,11 @@ func logDistance(a, b []byte) int {
 	return len(a)*8 - lz
 }
 
-func hashAtDistance(a []byte, n int) (b []byte) {
-	if n == 0 {
-		return a
-	}
-
-	b = a
-	pos := len(a) - n/8 - 1
-	bit := byte(0x01) << (byte(n%8) - 1)
-	if bit == 0 {
-		pos++
-		bit = 0x80
-	}
-	b[pos] = a[pos]&^bit | ^a[pos]&bit
-	for i := pos + 1; i < len(a); i++ {
-		b[i] = byte(rand.Intn(255))
-	}
-	return b
-}
-
 // InitSelfNode initialize local user's node
 func InitSelfNode(isSuper bool, ID NodeID) (*Node, error) {
 	ip := getLocalIP()
-	basePort := BasePort
 	port := SuperBasePort
 	if !isSuper {
-		basePort += 16
 		port = getAvailablePort(ip, BasePort)
 	}
 
@@ -223,10 +205,7 @@ func InitSelfNode(isSuper bool, ID NodeID) (*Node, error) {
 
 // getLocalIP is get intranet IP
 func getLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
-
-	if err != nil {
-	}
+	addrs, _ := net.InterfaceAddrs()
 
 	for _, address := range addrs {
 		// Check the IP address to determine whether to loop the address

@@ -9,9 +9,10 @@ func TestDecodeMessage(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
 
-	pdata := make([]byte, 1024, 1024)
+	p := newPeer(netCore.ID, 0)
+
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(int(MessageType_MessagePing), 1024, pdata)
 
@@ -31,9 +32,9 @@ func TestHandleMessagePanic(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	packet := encodePacket(int(1024), 1024, pdata)
 
@@ -49,9 +50,9 @@ func TestDecodeMessage2(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	for i := 0; i < 1024; i++ {
 		pdata[i] = byte(i % 256)
@@ -73,9 +74,9 @@ func TestHandleMessageUnknownMessage(t *testing.T) {
 	if InitTestNetwork() == false {
 		t.Fatalf("init network failed")
 	}
-	p := newPeer(NewNodeID(""), 0)
+	p := newPeer(netCore.ID, 0)
 
-	pdata := make([]byte, 1024, 1024)
+	pdata := make([]byte, 1024)
 
 	for i := 0; i < 1024; i++ {
 		pdata[i] = byte(i % 256)

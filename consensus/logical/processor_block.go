@@ -152,8 +152,13 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 	}
 
 	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
+	if !gpk.IsValid() {
+		stdLogger.Errorf("Fail to Deserialize pubkey %v", group.PublicKey())
+		err = core.ErrPkNil
+		return
+	}
 	pPubkey := p.getProposerPubKeyInBlock(bh)
-	if pPubkey == nil || !pPubkey.IsValid() || !gpk.IsValid() {
+	if pPubkey == nil || !pPubkey.IsValid() {
 		err = core.ErrPkNotExists
 		return
 	}
@@ -188,8 +193,13 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 	}
 
 	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
+	if !gpk.IsValid() {
+		stdLogger.Errorf("Fail to Deserialize pubkey %v", group.PublicKey())
+		err = core.ErrPkNil
+		return
+	}
 	ppk := p.getProposerPubKeyInBlock(bh)
-	if ppk == nil || !ppk.IsValid() || !gpk.IsValid() {
+	if ppk == nil || !ppk.IsValid() {
 		err = core.ErrPkNil
 		return
 	}

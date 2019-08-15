@@ -24,11 +24,13 @@ import (
 	"math/big"
 	"math/rand"
 	"reflect"
+	"strings"
 
 	"github.com/zvchain/zvchain/common/secp256k1"
 )
 
-const PREFIX = "0x"
+const HexPrefix = "0x"
+const AddrPrefix = "zv"
 
 // getDefaultCurve returns the default elliptic curve
 func getDefaultCurve() elliptic.Curve {
@@ -51,7 +53,7 @@ var (
 	addressT            = reflect.TypeOf(Address{})
 	BonusStorageAddress = BigToAddress(big.NewInt(0))
 
-	GroupTopAddress     = BigToAddress(big.NewInt(3)) //save the current top group
+	GroupTopAddress = BigToAddress(big.NewInt(3)) //save the current top group
 )
 
 func ShortHex(hex string) string {
@@ -66,7 +68,7 @@ type Address [AddressLength]byte
 
 // MarshalJSON encodes the address as byte array with json format
 func (a Address) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + a.Hex() + "\""), nil
+	return []byte("\"" + a.AddrPrefixString() + "\""), nil
 }
 
 // BytesToAddress returns the Address imported from the input byte array
@@ -79,15 +81,29 @@ func BytesToAddress(b []byte) Address {
 // BigToAddress returns the address of the input big integer assignment
 func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
 
-// HexToAddress returns the address of the input string assignment
-func HexToAddress(s string) Address { return BytesToAddress(FromHex(s)) }
+// HeToAddress returns the address of the input string assignment
+//func HeToAddress(s string) Address { return BytesToAddress(FromHex(s)) }
+
+// StringToAddress returns the address of the input string assignment
+func StringToAddress(s string) Address {
+	if len(s) > len(AddrPrefix) {
+		if AddrPrefix == strings.ToLower(s[0:len(AddrPrefix)]) {
+			s = s[len(AddrPrefix):]
+		}
+		if len(s)%2 == 1 {
+			s = "0" + s
+		}
+	}
+	bs, _ := hex.DecodeString(s)
+	return BytesToAddress(bs)
+}
 
 // SetBytes returns the address of the input byte array assignment
 func (a *Address) SetBytes(b []byte) {
 	if len(b) > len(a) {
 		b = b[len(b)-AddressLength:]
 	}
-	copy(a[:], b[:])
+	copy(a[AddressLength-len(b):], b[:])
 }
 
 // SetString returns the address of the input hex string assignment
@@ -107,16 +123,23 @@ func (a Address) MarshalText() ([]byte, error) {
 
 // UnmarshalText parses an address in hex syntax.
 func (a *Address) UnmarshalText(input []byte) error {
-	return UnmarshalFixedText("Address", input, a[:])
+	return UnmarshalAddr("Address", input, a[:])
 }
 
 // UnmarshalJSON parses an address in hex syntax with json format.
 func (a *Address) UnmarshalJSON(input []byte) error {
-	return UnmarshalFixedJSON(addressT, input, a[:])
+	return UnmarshalAddrJSON(addressT, input, a[:])
 }
 
-// Hex returns the hex string representation of a
-func (a Address) Hex() string { return ToHex(a[:]) }
+// ZvPrefixHex returns the hex string representation of a
+func (a Address) AddrPrefixString() string {
+	hexString := Bytes2Hex(a.Bytes())
+	// Prefer output of "0x0" instead of "0x"
+	if len(hexString) == 0 {
+		hexString = "0"
+	}
+	return AddrPrefix + hexString
+}
 
 // Bytes returns the byte array representation of a
 func (a Address) Bytes() []byte { return a[:] }
@@ -127,13 +150,8 @@ func (a Address) BigInteger() *big.Int { return new(big.Int).SetBytes(a[:]) }
 // Hash converts a to hash
 func (a Address) Hash() Hash { return BytesToHash(a[:]) }
 
-// isValid checks the validity of a
-func (a Address) IsValid() bool {
-	return len(a.Bytes()) > 0
-}
-
 func (a Address) String() string {
-	return ShortHex(a.Hex())
+	return ShortHex(a.AddrPrefixString())
 }
 
 ///////////////////////////////////////////////////////////////////////////////
