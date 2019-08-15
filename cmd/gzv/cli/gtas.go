@@ -298,9 +298,7 @@ func (gtas *Gtas) fullInit() error {
 	cfg := gtas.config
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
-	if !common.ValidateAddress(addressConfig) {
-		return errors.New("invalid miner address")
-	}
+
 	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password)
 	if err != nil {
 		return err
