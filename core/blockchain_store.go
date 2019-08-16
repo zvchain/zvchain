@@ -17,6 +17,8 @@ package core
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/common"
@@ -177,6 +179,13 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	defer chain.batch.Reset()
 
 	curr := chain.getLatestBlock()
+	if block.Height - curr.Height > 0 {
+		log.ELKLogger.WithFields(logrus.Fields{
+			"type": "resetTop",
+			"height": block.Height,
+		}).Debug(block.Height - curr.Height)
+	}
+
 	recoverTxs := make([]*types.Transaction, 0)
 	delRecepites := make([]common.Hash, 0)
 	for curr.Hash != block.Hash {
