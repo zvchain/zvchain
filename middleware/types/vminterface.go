@@ -25,13 +25,7 @@ import (
 	"github.com/zvchain/zvchain/storage/trie"
 )
 
-// AccountDBTS is a thread-safe interface for accessing account
-type AccountDBTS interface {
-	GetDataSafe(address common.Address, key []byte) []byte
-	SetDataSafe(address common.Address, key, val []byte)
-	RemoveDataSafe(address common.Address, key []byte)
-	DataIteratorSafe(address common.Address, prefix []byte) *trie.Iterator
-}
+
 
 type AccountDB interface {
 	CreateAccount(common.Address)
@@ -66,8 +60,6 @@ type AccountDB interface {
 	RevertToSnapshot(int)
 	Snapshot() int
 
-	AsAccountDBTS() AccountDBTS
-
 	Transfer(common.Address, common.Address, *big.Int)
 	CanTransfer(common.Address, *big.Int) bool
 }
@@ -82,10 +74,12 @@ type ChainReader interface {
 }
 
 // MinerOperationMessage generated when operate miner stake info
-type MinerOperationMessage interface {
-	OpType() int8
-	Operator() *common.Address
-	OpTarget() *common.Address
-	Amount() *big.Int // Operated value
-	Payload() []byte  // Data transfer by the message
+type TxMessage interface {
+	OpType() 			int8
+	Operator() 			*common.Address
+	OpTarget() 			*common.Address
+	Amount() 			*big.Int // Operated value
+	Payload() 			[]byte  // Data transfer by the message
+	GetExtraData() 		[]byte
+	GetHash()			common.Hash
 }

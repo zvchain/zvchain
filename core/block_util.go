@@ -77,11 +77,11 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	stateDB.SetBalance(*businessFoundationAddr, big.NewInt(0).SetUint64(businessFoundationToken))
 	teamFoundationAddr := setupFoundationContract(stateDB, types.AdminAddr, teamFoundationToken, 2)
 	stateDB.SetBalance(*teamFoundationAddr, big.NewInt(0).SetUint64(teamFoundationToken))
-	stateDB.SetNonce(common.StringToAddress(types.AdminAddr), 2)
+	stateDB.SetNonce(types.AdminAddr, 2)
 
 	// mining pool and circulates
-	stateDB.SetBalance(common.StringToAddress(types.MiningPoolAddr), big.NewInt(0).SetUint64(miningPoolToken))
-	stateDB.SetBalance(common.StringToAddress(types.CirculatesAddr), big.NewInt(0).SetUint64(circulatesToken))
+	stateDB.SetBalance(types.MiningPoolAddr, big.NewInt(0).SetUint64(miningPoolToken))
+	stateDB.SetBalance(types.CirculatesAddr, big.NewInt(0).SetUint64(circulatesToken))
 
 	// genesis balance: just for stakes two roles with minimum required value
 	genesisBalance := big.NewInt(0).SetUint64(4 * minimumStake())
@@ -91,10 +91,10 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	}
 }
 
-func setupFoundationContract(stateDB *account.AccountDB, adminAddr string, totalToken, nonce uint64) *common.Address {
-	code := fmt.Sprintf(foundationContract, adminAddr, totalToken)
+func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Address, totalToken, nonce uint64) *common.Address {
+	code := fmt.Sprintf(foundationContract, adminAddr.AddrPrefixString(), totalToken)
 	transaction := types.Transaction{}
-	addr := common.StringToAddress(adminAddr)
+	addr := adminAddr
 	transaction.Source = &addr
 	transaction.Value = &types.BigInt{Int: *big.NewInt(0)}
 	transaction.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}

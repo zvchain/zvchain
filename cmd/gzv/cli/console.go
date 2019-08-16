@@ -195,7 +195,8 @@ func (c *voteMinerPoolCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if strings.TrimSpace(c.addr) == "" {
+	c.addr = strings.TrimSpace(c.addr)
+	if c.addr == "" {
 		output("please input the address")
 		return false
 	}
@@ -245,7 +246,8 @@ func (c *cancelGuardCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if strings.TrimSpace(c.addr) == "" {
+	c.addr = strings.TrimSpace(c.addr)
+	if c.addr == "" {
 		output("please input the address")
 		return false
 	}

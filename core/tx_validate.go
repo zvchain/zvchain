@@ -343,11 +343,6 @@ func getValidator(tx *types.Transaction) validator {
 					return fmt.Errorf("could not vote myself")
 				}
 			}
-			if tx.Type == types.TransactionTypeCancelGuard{
-				if *tx.Source != types.AdminAddrType{
-					return fmt.Errorf("only admin can call")
-				}
-			}
 			// Validate state
 			if err := stateValidate(tx); err != nil {
 				return err

@@ -111,7 +111,7 @@ type BlockChain interface {
 type RewardManager interface {
 	GetRewardTransactionByBlockHash(blockHash common.Hash) *Transaction
 	GenerateReward(targetIds []int32, blockHash common.Hash, gSeed common.Hash, totalValue uint64, packFee uint64) (*Reward, *Transaction, error)
-	ParseRewardTransaction(transaction *Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error)
+	ParseRewardTransaction(msg TxMessage) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error)
 	CalculateCastRewardShare(height uint64, gasFee uint64) *CastRewardShare
 	HasRewardedOfBlock(blockHash common.Hash, accountdb AccountDB) bool
 	MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb AccountDB)

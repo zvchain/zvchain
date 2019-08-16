@@ -68,12 +68,12 @@ func NewRewardManager() *rewardManager {
 	return manager
 }
 
-func getRewardData(db types.AccountDBTS, key []byte) []byte {
-	return db.GetDataSafe(common.RewardStoreAddr, key)
+func getRewardData(db types.AccountDB, key []byte) []byte {
+	return db.GetData(common.RewardStoreAddr, key)
 }
 
-func setRewardData(db types.AccountDBTS, key, value []byte) {
-	db.SetDataSafe(common.RewardStoreAddr, key, value)
+func setRewardData(db types.AccountDB, key, value []byte) {
+	db.SetData(common.RewardStoreAddr, key, value)
 }
 
 func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
@@ -82,15 +82,15 @@ func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
 		log.DefaultLogger.Errorf("get lastdb failed,err = %v", err.Error())
 		return false
 	}
-	return getRewardData(accountDB.AsAccountDBTS(), blockHashByte) != nil
+	return getRewardData(accountDB, blockHashByte) != nil
 }
 func (rm *rewardManager) HasRewardedOfBlock(blockHash common.Hash, accountdb types.AccountDB) bool {
-	value := getRewardData(accountdb.AsAccountDBTS(), blockHash.Bytes())
+	value := getRewardData(accountdb, blockHash.Bytes())
 	return value != nil
 }
 
 func (rm *rewardManager) MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb types.AccountDB) {
-	setRewardData(accountdb.AsAccountDBTS(), blockHash.Bytes(), transactionHash.Bytes())
+	setRewardData(accountdb, blockHash.Bytes(), transactionHash.Bytes())
 }
 
 func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) *types.Transaction {
@@ -99,7 +99,7 @@ func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) 
 		log.DefaultLogger.Errorf("get lastdb failed,err = %v", err.Error())
 		return nil
 	}
-	transactionHash := getRewardData(accountDB.AsAccountDBTS(), blockHash.Bytes())
+	transactionHash := getRewardData(accountDB, blockHash.Bytes())
 	if transactionHash == nil {
 		return nil
 	}
@@ -141,8 +141,8 @@ func (rm *rewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 }
 
 // ParseRewardTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value
-func (rm *rewardManager) ParseRewardTransaction(transaction *types.Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
-	reader := bytes.NewReader(transaction.ExtraData)
+func (rm *rewardManager) ParseRewardTransaction(msg types.TxMessage) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error) {
+	reader := bytes.NewReader(msg.GetExtraData())
 	gSeedBytes := make([]byte, common.HashLength)
 	version, e := reader.ReadByte()
 	if e != nil {
@@ -186,12 +186,12 @@ func (rm *rewardManager) ParseRewardTransaction(transaction *types.Transaction) 
 		ids = append(ids, group.Members()[idx].ID())
 	}
 
-	blockHash = rm.parseRewardBlockHash(transaction)
+	blockHash = rm.parseRewardBlockHash(msg)
 	return gSeed, ids, blockHash, new(big.Int).SetUint64(common.ByteToUint64(pf)), nil
 }
 
-func (rm *rewardManager) parseRewardBlockHash(tx *types.Transaction) common.Hash {
-	return common.BytesToHash(tx.Data)
+func (rm *rewardManager) parseRewardBlockHash(msg types.TxMessage) common.Hash {
+	return common.BytesToHash(msg.Payload())
 }
 
 func (rm *rewardManager) blockRewards(height uint64) uint64 {

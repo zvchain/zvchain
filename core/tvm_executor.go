@@ -59,9 +59,7 @@ type stateTransition interface {
 }
 
 func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
-	base := newTransitionContext(db, tx, bh)
-
-	base.source = *tx.Source
+	base := newTransitionContext(db, tx, bh, bh.Height)
 	base.intrinsicGasUsed = intrinsicGas(tx)
 	base.gasUsed = base.intrinsicGasUsed
 	switch tx.Type {
@@ -72,19 +70,19 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 	case types.TransactionTypeContractCall:
 		return &contractCaller{transitionContext: base}
 	case types.TransactionTypeStakeAdd:
-		return &stakeAddOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+		return &stakeAddOp{transitionContext: base}
 	case types.TransactionTypeMinerAbort:
-		return &minerAbortOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+		return &minerAbortOp{transitionContext: base}
 	case types.TransactionTypeVoteMinerPool:
-		return &voteMinerPoolOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+		return &voteMinerPoolOp{transitionContext: base}
 	case types.TransactionTypeStakeReduce:
-		return &stakeReduceOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+		return &stakeReduceOp{transitionContext: base}
 	case types.TransactionTypeApplyGuardMiner:
-		return &applyGuardMinerOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+		return &applyGuardMinerOp{transitionContext: base}
 	case types.TransactionTypeStakeRefund:
-		return &stakeRefundOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+		return &stakeRefundOp{transitionContext: base}
 	case types.TransactionTypeCancelGuard:
-		return &cancelGuardOp{baseOperation:newBaseOperation(db, tx, bh.Height,base)}
+		return &cancelGuardOp{transitionContext: base}
 	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 		return &groupOperator{transitionContext: base}
 	default:
@@ -93,14 +91,12 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 }
 
 type transitionContext struct {
-	// Input
-	accountDB types.AccountDB
-	bh        *types.BlockHeader
-	tx        *types.Transaction
-	source    common.Address
-
+	accountDB        types.AccountDB
+	bh               *types.BlockHeader
+	msg              types.TxMessage
 	intrinsicGasUsed *big.Int
 	gasUsed          *big.Int
+	height           uint64
 }
 
 func (tc *transitionContext) GasUsed() *big.Int {
@@ -127,8 +123,8 @@ func (r *result) setError(err error, status types.ReceiptStatus) {
 	r.transitionStatus = status
 }
 
-func newTransitionContext(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) *transitionContext {
-	return &transitionContext{accountDB: db, tx: tx, bh: bh}
+func newTransitionContext(db types.AccountDB, tx types.TxMessage, bh *types.BlockHeader, height uint64) *transitionContext {
+	return &transitionContext{accountDB: db, msg: tx, bh: bh, height: height}
 }
 
 func checkState(db types.AccountDB, tx *types.Transaction, height uint64) error {
@@ -150,38 +146,15 @@ type unSupported struct {
 	typ int8
 }
 
-func (op *unSupported)GetBaseOperation()*baseOperation{
-	return nil
-}
-
-func (op *unSupported)Height()uint64{
-	return 0
-}
-func (op *unSupported)GetMinerType()types.MinerType{
-	return 0
-}
-func (op *unSupported)GetMinerPks()*types.MinerPks{
-	return nil
-}
-
-func (op *unSupported)GetDb()types.AccountDB{
-	return nil
-}
-
-func (op *unSupported) Value() uint64 {
-	return 0
-}
-
 func (op *unSupported) Operation() error {
 	return fmt.Errorf("unSupported tx type %v", op.typ)
 }
-
 
 func (op *unSupported) Source() common.Address {
 	return common.Address{}
 }
 
-func (op *unSupported)Target()common.Address{
+func (op *unSupported) Target() common.Address {
 	return common.Address{}
 }
 
@@ -189,9 +162,6 @@ func (op *unSupported) ParseTransaction() error {
 	return fmt.Errorf("unSupported tx type %v", op.typ)
 }
 
-func (op *unSupported) Validate() error {
-	return fmt.Errorf("unSupported tx type %v", op.typ)
-}
 func (op *unSupported) GasUsed() *big.Int {
 	return &big.Int{}
 }
@@ -202,12 +172,14 @@ func (op *unSupported) Transition() *result {
 type txTransfer struct {
 	*transitionContext
 	target common.Address
+	source common.Address
 	value  *big.Int
 }
 
 func (ss *txTransfer) ParseTransaction() error {
-	ss.target = *ss.tx.Target
-	ss.value = ss.tx.Value.Value()
+	ss.target = *ss.msg.OpTarget()
+	ss.value = ss.msg.Amount()
+	ss.source = *ss.msg.Operator()
 	return nil
 }
 
@@ -231,7 +203,7 @@ type groupOperator struct {
 }
 
 func (ss *groupOperator) ParseTransaction() error {
-	ss.groupOp = GroupManagerImpl.NewOperation(ss.accountDB, *ss.tx, ss.bh.Height)
+	ss.groupOp = GroupManagerImpl.NewOperation(ss.accountDB, ss.msg, ss.bh.Height)
 	return ss.groupOp.ParseTransaction()
 }
 
@@ -246,9 +218,12 @@ func (ss *groupOperator) Transition() *result {
 
 type contractCreator struct {
 	*transitionContext
+	tx     *types.Transaction
+	source common.Address
 }
 
 func (ss *contractCreator) ParseTransaction() error {
+	ss.source = *ss.msg.Operator()
 	return nil
 }
 
@@ -286,6 +261,7 @@ func (ss *contractCreator) Transition() *result {
 
 type contractCaller struct {
 	*transitionContext
+	tx *types.Transaction
 }
 
 func (ss *contractCaller) ParseTransaction() error {
@@ -339,7 +315,7 @@ type rewardExecutor struct {
 func (ss *rewardExecutor) ParseTransaction() error {
 	rm := BlockChainImpl.GetRewardManager()
 
-	_, targets, blockHash, packFee, err := rm.ParseRewardTransaction(ss.tx)
+	_, targets, blockHash, packFee, err := rm.ParseRewardTransaction(ss.msg)
 	if err != nil {
 		return err
 	}
@@ -347,7 +323,7 @@ func (ss *rewardExecutor) ParseTransaction() error {
 	ss.blockHash = blockHash
 
 	// Reward for each target address
-	ss.reward = ss.tx.Value.Value()
+	ss.reward = ss.msg.Amount()
 	ss.packFee = packFee
 
 	ss.targets = make([]common.Address, 0)
@@ -381,7 +357,7 @@ func (ss *rewardExecutor) Transition() *result {
 	ss.accountDB.AddBalance(ss.proposal, ss.packFee)
 
 	// Mark reward tx of the block has been executed
-	BlockChainImpl.GetRewardManager().MarkBlockRewarded(ss.blockHash, ss.tx.Hash, ss.accountDB)
+	BlockChainImpl.GetRewardManager().MarkBlockRewarded(ss.blockHash, ss.msg.GetHash(), ss.accountDB)
 	return ret
 }
 
@@ -410,7 +386,7 @@ func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *
 
 	// Reward tx is treated different from others
 	if tx.IsReward() {
-		executor := &rewardExecutor{transitionContext: newTransitionContext(accountDB, tx, bh)}
+		executor := &rewardExecutor{transitionContext: newTransitionContext(accountDB, tx, bh, bh.Height)}
 		// Reward tx should be removed from pool and not contained in the block when parse error
 		if err := executor.ParseTransaction(); err != nil {
 			return nil, err
@@ -522,18 +498,18 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(common.StringToAddress(types.DaemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(types.DaemonNodeAddress, big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(common.StringToAddress(types.UserNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(types.UserNodeAddress, big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	GroupManagerImpl.RegularCheck(accountDB, bh)
 
-	MinerManagerImpl.GuardNodesCheck(accountDB, bh)
+	MinerManagerImpl.GuardNodesCheck(accountDB, bh.Height)
 
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))

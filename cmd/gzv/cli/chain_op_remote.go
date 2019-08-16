@@ -248,7 +248,8 @@ func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Re
 		return r
 	}
 	aci := r.Data.(*Account)
-	if strings.TrimSpace(target) == "" {
+	target = strings.TrimSpace(target)
+	if target == "" {
 		return opError(fmt.Errorf("please input target address"))
 	}
 	if !common.ValidateAddress(target) {
