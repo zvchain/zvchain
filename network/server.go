@@ -216,8 +216,8 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 		}
 	}
 
-	if time.Since(begin) > 100*time.Millisecond {
-		//Logger.Infof("handle message cost time:%v,hash:%s,code:%d", time.Since(begin), message.Hash(), code)
+	if time.Since(begin) > 300*time.Millisecond {
+		Logger.Infof("handle message cost time:%v,hash:%s,code:%d", time.Since(begin), message.Hash(), code)
 	}
 }
 
