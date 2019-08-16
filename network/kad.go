@@ -46,7 +46,10 @@ const (
 // makeSha256Hash calculate the hash
 func makeSha256Hash(data []byte) []byte {
 	h := sha256.New()
-	h.Write(data)
+	_, e := h.Write(data)
+	if e != nil {
+		return make([]byte, 0)
+	}
 	return h.Sum(nil)
 }
 
@@ -101,19 +104,6 @@ func newKad(t NetInterface, ourID NodeID, ourAddr *nnet.UDPAddr, seeds []*Node) 
 	return kad, nil
 }
 
-// print bucket member information
-func (kad *Kad) print() {
-	Logger.Debugf(" [kad] print bucket size: %v", kad.len())
-
-	for i, b := range kad.buckets {
-		for _, n := range b.entries {
-			Logger.Debugf(" [kad] print bucket:%v id:%v  addr: IP:%v    Port:%v", i, n.ID.GetHexString(), n.IP, n.Port)
-		}
-	}
-
-	return
-}
-
 func (kad *Kad) seedRand() {
 	var b [8]byte
 	_, err := crand.Read(b[:])
@@ -127,41 +117,6 @@ func (kad *Kad) seedRand() {
 
 func (kad *Kad) Self() *Node {
 	return kad.self
-}
-
-func (kad *Kad) readRandomNodes(buf []*Node) (n int) {
-	if !kad.isInitDone() {
-		return 0
-	}
-	kad.mutex.Lock()
-	defer kad.mutex.Unlock()
-
-	var buckets [][]*Node
-	for _, b := range kad.buckets {
-		if len(b.entries) > 0 {
-			buckets = append(buckets, b.entries[:])
-		}
-	}
-	if len(buckets) == 0 {
-		return 0
-	}
-	for i := len(buckets) - 1; i > 0; i-- {
-		j := kad.rand.Intn(len(buckets))
-		buckets[i], buckets[j] = buckets[j], buckets[i]
-	}
-	var i, j int
-	for ; i < len(buf); i, j = i+1, (j+1)%len(buckets) {
-		b := buckets[j]
-		buf[i] = &(*b[0])
-		buckets[j] = b[1:]
-		if len(b) == 1 {
-			buckets = append(buckets[:j], buckets[j+1:]...)
-		}
-		if len(buckets) == 0 {
-			break
-		}
-	}
-	return i + 1
 }
 
 func (kad *Kad) Close() {
@@ -185,15 +140,6 @@ func (kad *Kad) setFallbackNodes(nodes []*Node) error {
 		kad.seeds = append(kad.seeds, &cpy)
 	}
 	return nil
-}
-
-func (kad *Kad) isInitDone() bool {
-	select {
-	case <-kad.initDone:
-		return true
-	default:
-		return false
-	}
 }
 
 // find node in buckets only
@@ -262,9 +208,8 @@ func (kad *Kad) lookup(targetID NodeID, refreshIfEmpty bool) []*Node {
 				asked[n.ID] = true
 				pendingQueries++
 				go func() {
-					r, err := kad.net.findNode(n.ID, n.addr(), targetID)
-					if err != nil {
-					}
+					r, _ := kad.net.findNode(n.ID, n.addr(), targetID)
+
 					reply <- kad.pingAll(r)
 				}()
 			}
@@ -421,8 +366,7 @@ func (kad *Kad) pingNode(id NodeID, addr *nnet.UDPAddr) (*Node, error) {
 		return nil, errors.New("is self")
 	}
 
-	var node *Node
-	node = kad.find(id)
+	node := kad.find(id)
 	age := nodeBondExpiration
 	fails := 0
 	pinged := false
@@ -447,8 +391,7 @@ func (kad *Kad) onPingNode(id NodeID, addr *nnet.UDPAddr) (*Node, error) {
 		return nil, errors.New("is self")
 	}
 
-	var node *Node
-	node = kad.find(id)
+	node := kad.find(id)
 	if node == nil {
 		node = NewNode(id, addr.IP, addr.Port)
 		kad.add(node)
@@ -456,15 +399,6 @@ func (kad *Kad) onPingNode(id NodeID, addr *nnet.UDPAddr) (*Node, error) {
 	}
 	node.pinged = true
 	return node, nil
-}
-
-func (kad *Kad) hasPinged(id NodeID) bool {
-	node := kad.find(id)
-
-	if node != nil {
-		return node.pinged
-	}
-	return false
 }
 
 func (kad *Kad) bucket(sha []byte) *bucket {
@@ -486,52 +420,13 @@ func (kad *Kad) add(new *Node) {
 	}
 }
 
-func (kad *Kad) stuff(nodes []*Node) {
-	kad.mutex.Lock()
-	defer kad.mutex.Unlock()
-
-	for _, n := range nodes {
-		if n.ID == kad.self.ID {
-			continue // don't add self
-		}
-		b := kad.bucket(n.sha)
-		if len(b.entries) < bucketSize {
-			kad.bumpOrAdd(b, n)
-		}
-	}
-}
-
-func (kad *Kad) delete(node *Node) {
-	kad.mutex.Lock()
-	defer kad.mutex.Unlock()
-
-	kad.deleteInBucket(kad.bucket(node.sha), node)
-}
-
 func (kad *Kad) addReplacement(b *bucket, n *Node) {
 	for _, e := range b.replacements {
 		if e.ID == n.ID {
 			return
 		}
 	}
-
 	b.replacements, _ = pushNode(b.replacements, n, maxReplacements)
-
-}
-
-func (kad *Kad) replace(b *bucket, last *Node) *Node {
-	if len(b.entries) == 0 || b.entries[len(b.entries)-1].ID != last.ID {
-		return nil
-	}
-	if len(b.replacements) == 0 {
-		kad.deleteInBucket(b, last)
-		return nil
-	}
-	r := b.replacements[kad.rand.Intn(len(b.replacements))]
-	b.replacements = deleteNode(b.replacements, r)
-	b.entries[len(b.entries)-1] = r
-
-	return r
 }
 
 func (b *bucket) bump(n *Node) bool {
@@ -558,10 +453,6 @@ func (kad *Kad) bumpOrAdd(b *bucket, n *Node) bool {
 	n.addedAt = time.Now()
 
 	return true
-}
-
-func (kad *Kad) deleteInBucket(b *bucket, n *Node) {
-	b.entries = deleteNode(b.entries, n)
 }
 
 func pushNode(list []*Node, n *Node, max int) ([]*Node, *Node) {

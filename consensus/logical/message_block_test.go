@@ -220,7 +220,6 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			args: args{
 				msg: &model.ConsensusCastMessage{
 					BH:        GenTestBH("ok"),
-					ProveHash: common.HexToHash(goodPreHash),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(GenTestBHHash("ok"), pt.ids[1], pt.msk[1]),
 					},
@@ -505,7 +504,6 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			args: args{
 				msg: &model.ConsensusCastMessage{
 					BH:        GenTestBH("ok"),
-					ProveHash: common.HexToHash(goodPreHash),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(GenTestBHHash("ok"), pt.ids[1], pt.msk[1]),
 					},
@@ -544,7 +542,6 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			args: args{
 				msg: &model.ConsensusCastMessage{
 					BH:        GenTestBH("ok"),
-					ProveHash: common.HexToHash(goodPreHash),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(GenTestBHHash("ok"), pt.ids[1], pt.msk[1]),
 					},

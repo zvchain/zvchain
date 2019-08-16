@@ -69,10 +69,8 @@ type GroupBrief struct {
 
 // NetworkServer defines some network transmission functions for various types of data.
 type NetworkServer interface {
-
 	// SendCastVerify happens at the proposal role.
-	// It send the message contains the proposed-block to all of the members of the verify-group for the verification consensus
-	SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief, proveHashs []common.Hash)
+	SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief)
 
 	// SendVerifiedCast broadcast the signed message for specified block proposal among group members
 	SendVerifiedCast(cvm *model.ConsensusVerifyMessage, gSeed common.Hash)

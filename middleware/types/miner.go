@@ -50,7 +50,6 @@ const (
 const (
 	pkSize    = 128
 	vrfPkSize = 32
-	fixLen  = 2
 )
 
 // Miner is the miner info including public keys and pledges
@@ -135,9 +134,9 @@ type StakeDetail struct {
 }
 
 type MinerPks struct {
-	MType 		MinerType
-	Pk    		[]byte
-	VrfPk 		[]byte
+	MType MinerType
+	Pk    []byte
+	VrfPk []byte
 }
 
 const PayloadVersion = 1
@@ -170,6 +169,7 @@ func EncodePayload(pks *MinerPks) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteByte(PayloadVersion)
 	buf.WriteByte(byte(pks.MType))
+
 	pkLen := len(pks.Pk)
 	vrfPkLen := len(pks.VrfPk)
 	if pkLen == pkSize && vrfPkLen == vrfPkSize {
@@ -181,8 +181,8 @@ func EncodePayload(pks *MinerPks) ([]byte, error) {
 
 // DecodePayload decodes the data field of the miner related transaction
 func DecodePayload(bs []byte) (*MinerPks, error) {
-	totalLen := fixLen +  pkSize + vrfPkSize
-	if len(bs) != fixLen && len(bs) != totalLen {
+	totalLen := 2 + pkSize + vrfPkSize
+	if len(bs) != 2 && len(bs) != totalLen {
 		return nil, fmt.Errorf("length error")
 	}
 	version := bs[0]
@@ -193,8 +193,8 @@ func DecodePayload(bs []byte) (*MinerPks, error) {
 		MType: MinerType(bs[1]),
 	}
 	if len(bs) == totalLen {
-		pks.Pk = bs[fixLen : fixLen+pkSize]
-		pks.VrfPk = bs[fixLen+pkSize:]
+		pks.Pk = bs[2 : 2+pkSize]
+		pks.VrfPk = bs[2+pkSize:]
 	}
 	return pks, nil
 }

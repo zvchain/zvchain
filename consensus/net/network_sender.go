@@ -17,13 +17,11 @@ package net
 
 import (
 	"github.com/gogo/protobuf/proto"
-	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
-	"github.com/zvchain/zvchain/log"
-	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
+	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 )
@@ -67,25 +65,19 @@ func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
 }
 
 // SendCastVerify happens at the proposal role.
-// It send the message contains the proposed-block to all of the members of the verify-group for the verification consensus
-func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief, proveHashs []common.Hash) {
+func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb *GroupBrief) {
 	bh := types.BlockHeaderToPb(&ccm.BH)
 	si := signDataToPb(&ccm.SI)
-
-	log.ELKLogger.WithFields(logrus.Fields{
-		"height": ccm.BH.Height,
-		"blockHash": ccm.BH.Hash.Hex(),
-	}).Debug("SendCastVerify")
-	for idx, mem := range gb.MemIds {
-		message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si, ProveHash: proveHashs[idx].Bytes()}
-		body, err := proto.Marshal(message)
-		if err != nil {
-			logger.Errorf("marshalConsensusCastMessage error:%v %v", err, mem.GetAddrString())
-			continue
-		}
-		m := network.Message{Code: network.CastVerifyMsg, Body: body}
-		ns.net.Send(mem.GetAddrString(), m)
+	message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si}
+	body, err := proto.Marshal(message)
+	if err != nil {
+		logger.Errorf("marshalConsensusCastMessage error:%v", err)
+		return
 	}
+
+	m := network.Message{Code: network.CastVerifyMsg, Body: body}
+
+	ns.net.SpreadToGroup(gb.GSeed.Hex(), id2String(gb.MemIds), m, nil)
 }
 
 // SendVerifiedCast broadcast the signed message for specified block proposal among group members

@@ -259,7 +259,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	block := new(types.Block)
 	block.Header = &types.BlockHeader{
 		Height:     0,
-		ExtraData:  common.Sha256([]byte("tas")),
+		ExtraData:  common.Sha256([]byte("zv")),
 		CurTime:    time2.TimeToTimeStamp(time.Date(2019, 4, 25, 0, 0, 0, 0, time.UTC)),
 		ProveValue: []byte{},
 		Elapsed:    0,
@@ -267,8 +267,8 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 		Nonce:      common.ChainDataVersion,
 	}
 
-	block.Header.Signature = common.Sha256([]byte("tas"))
-	block.Header.Random = common.Sha256([]byte("tas_initial_random"))
+	block.Header.Signature = common.Sha256([]byte("zv"))
+	block.Header.Random = common.Sha256([]byte("zv_initial_random"))
 
 	genesisInfo := chain.consensusHelper.GenerateGenesisInfo()
 	setupGenesisStateDB(stateDB, genesisInfo)

@@ -38,7 +38,7 @@ func (api *RpcExplorerImpl) Version() string {
 
 // ExplorerAccount is used in the blockchain browser to query account information
 func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(hash)) {
+	if !common.ValidateAddress(strings.TrimSpace(hash)) {
 		return failResult("Wrong param format")
 	}
 	impl := &RpcGtasImpl{}

@@ -61,9 +61,6 @@ type BlockChain interface {
 	// QueryBlockHeaderFloor query first block header whose height <= height
 	QueryBlockHeaderFloor(height uint64) *BlockHeader
 
-	// QueryBlockBytesFloor query the block byte slice by height
-	QueryBlockBytesFloor(height uint64) []byte
-
 	// BatchGetBlocksAfterHeight query blocks after the specified height
 	BatchGetBlocksAfterHeight(height uint64, limit int) []*Block
 

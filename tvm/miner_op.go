@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -13,32 +13,37 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package logical
+package tvm
 
 import (
-	"github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/consensus/base"
+	"math/big"
 )
 
-type proveChecker struct {
-	proposalVrfHashs *lru.Cache // Recently proposed vrf prove hash
+type minerOpMsg struct {
+	source  *common.Address
+	target  *common.Address
+	value   *big.Int
+	payload []byte
+	typ     int8
 }
 
-
-func newProveChecker() *proveChecker {
-	return &proveChecker{
-		proposalVrfHashs: common.MustNewLRUCache(50),
-	}
+func (msg *minerOpMsg) OpType() int8 {
+	return msg.typ
 }
 
-func (p *proveChecker) proveExists(pi base.VRFProve) bool {
-	hash := common.BytesToHash(base.VRFProof2hash(pi))
-	_, ok := p.proposalVrfHashs.Get(hash)
-	return ok
+func (msg *minerOpMsg) Operator() *common.Address {
+	return msg.source
 }
 
-func (p *proveChecker) addProve(pi base.VRFProve) {
-	hash := common.BytesToHash(base.VRFProof2hash(pi))
-	p.proposalVrfHashs.Add(hash, 1)
+func (msg *minerOpMsg) OpTarget() *common.Address {
+	return msg.target
+}
+
+func (msg *minerOpMsg) Amount() *big.Int {
+	return msg.value
+}
+
+func (msg *minerOpMsg) Payload() []byte {
+	return msg.payload
 }

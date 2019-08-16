@@ -167,6 +167,10 @@ func (rm *rewardManager) ParseRewardTransaction(msg types.TxMessage) (gSeed comm
 	idx := make([]byte, 2)
 
 	for n, e := reader.Read(idx); n > 0 && e == nil; n, e = reader.Read(idx) {
+		if e != nil {
+			err = fmt.Errorf("read target idex error: %v", e)
+			return
+		}
 		targetIdxs = append(targetIdxs, common.ByteToUInt16(idx))
 	}
 

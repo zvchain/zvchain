@@ -102,13 +102,6 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		return
 	}
 
-	// full book verification
-	existHash := p.proveChecker.genProveHash(bh.Height, preBH.Random, p.GetMinerID())
-	if msg.ProveHash != existHash {
-		err = fmt.Errorf("check prove hash fail, receive hash=%v, exist hash=%v", msg.ProveHash, existHash)
-		return
-	}
-
 	// get the verify context for the height, it will create the context if not exists
 	vctx = p.blockContexts.getOrNewVerifyContext(group, bh, preBH)
 	if vctx == nil {
