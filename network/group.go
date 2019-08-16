@@ -36,7 +36,7 @@ func groupRowSize(groupSize int) int {
 }
 
 func groupColumnSendCount(groupSize int) int {
-	sendSize := int(math.Ceil(float64(groupRowSize(groupSize)) / 2))
+	sendSize := 1 //int(math.Ceil(float64(groupRowSize(groupSize)) / 2))
 
 	return sendSize
 }
