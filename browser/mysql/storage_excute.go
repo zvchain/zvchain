@@ -34,13 +34,13 @@ func (storage *Storage) AddBatchAccount(accounts []*models.Account) bool {
 	return true
 }
 
-func (storage *Storage) GetAccountById(id string) []*models.Account {
+func (storage *Storage) GetAccountById(address string) []*models.Account {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return nil
 	}
 	accounts := make([]*models.Account, 1, 1)
-	storage.db.Where("id = ? ", id).Find(&accounts)
+	storage.db.Where("address = ? ", address).Find(&accounts)
 	return accounts
 }
