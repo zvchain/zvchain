@@ -5,7 +5,7 @@ import (
 	"github.com/zvchain/zvchain/browser/models"
 )
 
-func (storage *Storage) updateAccount(accounts []*models.Account) bool {
+func (storage *Storage) UpdateBatchAccount(accounts []*models.Account) bool {
 	//fmt.Println("[Storage] add log ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
@@ -20,7 +20,7 @@ func (storage *Storage) updateAccount(accounts []*models.Account) bool {
 	return true
 }
 
-func (storage *Storage) addAccount(accounts []*models.Account) bool {
+func (storage *Storage) AddBatchAccount(accounts []*models.Account) bool {
 	//fmt.Println("[Storage] add log ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
