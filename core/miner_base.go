@@ -211,12 +211,6 @@ func getFundGuardKey(prefix []byte, address common.Address) []byte {
 	return buf.Bytes()
 }
 
-func getMinerPoolKey(prefix []byte, address common.Address) []byte {
-	buf := bytes.NewBuffer(prefix)
-	buf.Write(address.Bytes())
-	return buf.Bytes()
-}
-
 func getMiner(db types.AccountDB, address common.Address, mType types.MinerType) (*types.Miner, error) {
 	data := db.GetData(address, getMinerKey(mType))
 	if data != nil && len(data) > 0 {
@@ -351,6 +345,11 @@ func updateFundGuardPoolStatus(db types.AccountDB, address common.Address,fnType
 func addFullStakeGuardPool(db types.AccountDB, address common.Address){
 	key := getFundGuardKey(common.KeyGuardNodes, address)
 	db.SetData(common.FullStakeGuardNodeAddr, key, []byte{1})
+}
+
+func isInFullStakeGuardNode(db types.AccountDB, address common.Address)bool{
+	key := getFundGuardKey(common.KeyGuardNodes, address)
+	return db.GetData(common.FullStakeGuardNodeAddr, key) != nil
 }
 
 func removeFullStakeGuardNodeFromPool(db types.AccountDB, address common.Address){
