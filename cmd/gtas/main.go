@@ -16,6 +16,8 @@
 package main
 
 import (
+	"flag"
+	"github.com/zvchain/zvchain/browser"
 	"runtime/debug"
 
 	"github.com/zvchain/zvchain/cmd/gtas/cli"
@@ -23,6 +25,24 @@ import (
 
 func main() {
 	debug.SetTraceback("all")
+
+	var dbAddr, rpcAddr string
+	var dbPort, rpcPort int
+	var dbUser, dbPassword string
+	var help bool
+	var reset bool
+
+	flag.BoolVar(&help, "h", false, "help")
+	flag.BoolVar(&reset, "reset", false, "reset database")
+	flag.StringVar(&dbAddr, "dbaddr", "10.0.0.13", "database address")
+	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
+	flag.IntVar(&dbPort, "dbport", 3306, "database port")
+	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
+	flag.StringVar(&dbUser, "dbuser", "root@root123", "database user")
+	flag.StringVar(&dbPassword, "dbpw", "", "database password")
+	flag.Parse()
+
+	browser.NewTablMmanagement(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
 	gtas := cli.NewGtas()
 	gtas.Run()
 }
