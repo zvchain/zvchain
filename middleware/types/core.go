@@ -74,6 +74,7 @@ func NewTransactionError(code int, msg string) *TransactionError {
 	return &TransactionError{Code: code, Message: msg}
 }
 
+const SystemTransactionOffset  = 100
 // Supported transaction types
 const (
 	TransactionTypeTransfer       = 0
@@ -90,10 +91,10 @@ const (
 	TransactionTypeCancelGuard     = 9 // cancel guard node,only admin can call
 
 	// Group operation related type
-	TransactionTypeGroupPiece       = 101 //group member upload his encrypted share piece
-	TransactionTypeGroupMpk         = 102 //group member upload his mpk
-	TransactionTypeGroupOriginPiece = 103 //group member upload origin share piece
-	TransactionTypeReward           = 104
+	TransactionTypeGroupPiece       = SystemTransactionOffset+1 //group member upload his encrypted share piece
+	TransactionTypeGroupMpk         = SystemTransactionOffset+2 //group member upload his mpk
+	TransactionTypeGroupOriginPiece = SystemTransactionOffset+3 //group member upload origin share piece
+	TransactionTypeReward           = SystemTransactionOffset+4
 )
 
 // Transaction denotes one transaction infos

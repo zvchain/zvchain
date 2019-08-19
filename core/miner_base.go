@@ -39,9 +39,9 @@ const (
 type FundGuardType byte
 
 const (
-	NormalNode FundGuardType = iota
-	FullStakeGuardNode
-	FundGuardNode
+	normalNodeType FundGuardType = iota
+	fullStakeGuardNodeType
+	fundGuardNodeType
 )
 
 // minimumStake shows miner can stake the min value
@@ -98,21 +98,21 @@ type voteInfo struct {
 
 func NewFundGuardNode() *fundGuardNode {
 	return &fundGuardNode{
-		Type:   FundGuardNode,
+		Type:   fundGuardNodeType,
 		Height: 0,
 	}
 }
 
 func(f*fundGuardNode)isFundGuard()bool{
-	return f.Type == FundGuardNode
+	return f.Type == fundGuardNodeType
 }
 
 func(f*fundGuardNode)isNormal()bool{
-	return f.Type == NormalNode
+	return f.Type == normalNodeType
 }
 
 func(f*fundGuardNode)isFullStakeGuardNode()bool{
-	return f.Type == FullStakeGuardNode
+	return f.Type == fullStakeGuardNodeType
 }
 
 func NewVoteInfo(height uint64) *voteInfo {

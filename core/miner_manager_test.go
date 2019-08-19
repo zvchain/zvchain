@@ -160,6 +160,15 @@ func TestVote(t *testing.T){
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 }
 
+func TestInvalidFullStakeGuardNode(t *testing.T){
+	setup()
+	defer clear()
+	MinerManagerImpl.genFundGuardNodes(accountDB)
+	ctx.source = &src
+	ctx.target = &src
+	testFullStakeFromSelf(ctx,t)
+}
+
 func TestFundApplyGuardNode(t *testing.T){
 	setup()
 	defer clear()
@@ -174,7 +183,6 @@ func TestFundApplyGuardNode(t *testing.T){
 	if dt.DisMissHeight != adjustWeightPeriod /2 {
 		t.Fatalf("except height = %v,but got %v",adjustWeightPeriod /2,dt.DisMissHeight)
 	}
-
 	if !isInFullStakeGuardNode(accountDB,*ctx.source){
 		t.Fatalf("except in full stake guard node,but got nil")
 	}

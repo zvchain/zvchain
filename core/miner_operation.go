@@ -92,7 +92,7 @@ func (op *voteMinerPoolOp) Transition() *result {
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processVote(op, targetMiner,baseOp.ticketsFullFunc())
+	err = baseOp.processVote(op, targetMiner,baseOp.afterTicketsFull)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -125,7 +125,7 @@ func (op *applyGuardMinerOp) Transition() *result {
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, miner)
-	err = baseOp.processApplyGuard(op, miner,baseOp.becomeFullGuardNodeFunc())
+	err = baseOp.processApplyGuard(op, miner,baseOp.afterBecomeFullGuardNode)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -161,7 +161,7 @@ func (op *reduceTicketsOp) Transition() *result {
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processReduceTicket(op, targetMiner,baseOp.afterTicketReduceFunc())
+	err = baseOp.processReduceTicket(op, targetMiner,baseOp.afterTicketReduce)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret

@@ -32,7 +32,7 @@ func validateKey(key string) bool {
 }
 
 func validateTxType(typ int) bool {
-	return typ < 100
+	return typ < types.SystemTransactionOffset
 }
 
 func validateMinerType(typ int) bool {
