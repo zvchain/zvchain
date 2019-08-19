@@ -8,6 +8,7 @@ import (
 
 const (
 	Blockrewardtophight = "block_reward.top_block_height"
+	LIMIT               = 20
 )
 
 func (storage *Storage) UpdateBatchAccount(accounts []*models.Account) bool {
@@ -50,6 +51,17 @@ func (storage *Storage) GetAccountById(address string) []*models.Account {
 	return accounts
 }
 
+func (storage *Storage) GetAccountByMaxPrimaryId(maxid uint64) []*models.Account {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	accounts := make([]*models.Account, LIMIT, LIMIT)
+	storage.db.Where("id > ? ", maxid).Limit(LIMIT).Find(&accounts)
+	return accounts
+}
+
 func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 	hight := storage.TopBlockRewardHeight()
 	if hight > 0 {
@@ -62,13 +74,13 @@ func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 
 }
 
-func (storage *Storage) UpdateAccountByColumn(account *models.Account, attrs ...interface{}) bool {
+func (storage *Storage) UpdateAccountByColumn(account *models.Account, attrs map[string]interface{}) bool {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	storage.db.Model(&account).UpdateColumn(attrs)
+	storage.db.Model(&account).Updates(attrs)
 
 	return true
 

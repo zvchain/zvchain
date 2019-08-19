@@ -25,4 +25,5 @@ func DataToString(data interface{}) string {
 	} else {
 		return ""
 	}
+
 }
