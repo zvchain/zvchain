@@ -20,6 +20,7 @@ package tvm
 */
 import "C"
 import (
+	"github.com/zvchain/zvchain/log"
 	"math/big"
 	"unsafe"
 
@@ -133,4 +134,84 @@ func EventCall(eventName *C.char, data *C.char) {
 func RemoveData(key *C.char) {
 	address := *controller.VM.ContractAddress
 	controller.AccountDB.RemoveData(address, []byte(C.GoString(key)))
+}
+
+func executeMinerOperation(msg types.MinerOperationMessage) bool {
+	success, err := controller.mm.ExecuteOperation(controller.AccountDB, msg, controller.BlockHeader.Height)
+	if err != nil {
+		log.TVMLogger.Errorf("execute operation error:%v, source:%v", err, msg.Operator().AddrPrefixString())
+	}
+	return success
+}
+
+//export MinerStake
+func MinerStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
+		return false
+	}
+	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
+	if !ok || value.Sign() < 0 || value.Cmp(common.MaxBigUint64) > 0 {
+		return false
+	}
+	mPks := &types.MinerPks{
+		MType: types.MinerType(byte(_type)),
+	}
+	payload, err := types.EncodePayload(mPks)
+	if err != nil {
+		log.TVMLogger.Errorf("encode payload error:%v", err)
+		return false
+	}
+	target := common.StringToAddress(minerAddrString)
+	msg := &minerOpMsg{
+		source:  controller.VM.ContractAddress,
+		target:  &target,
+		value:   value,
+		payload: payload,
+		typ:     types.TransactionTypeStakeAdd,
+	}
+
+	return executeMinerOperation(msg)
+
+}
+
+//export MinerCancelStake
+func MinerCancelStake(minerAddr *C.char, _type int, cvalue *C.char) bool {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
+		return false
+	}
+	value, ok := big.NewInt(0).SetString(C.GoString(cvalue), 10)
+	if !ok || value.Sign() <= 0 || value.Cmp(common.MaxBigUint64) > 0 {
+		return false
+	}
+	payload := []byte{byte(_type)}
+	target := common.StringToAddress(minerAddrString)
+	msg := &minerOpMsg{
+		source:  controller.VM.ContractAddress,
+		target:  &target,
+		value:   value,
+		payload: payload,
+		typ:     types.TransactionTypeStakeReduce,
+	}
+
+	return executeMinerOperation(msg)
+}
+
+//export MinerRefundStake
+func MinerRefundStake(minerAddr *C.char, _type int) bool {
+	minerAddrString := C.GoString(minerAddr)
+	if !common.ValidateAddress(minerAddrString) || _type != int(types.MinerTypeProposal) {
+		return false
+	}
+	payload := []byte{byte(_type)}
+	target := common.StringToAddress(minerAddrString)
+	msg := &minerOpMsg{
+		source:  controller.VM.ContractAddress,
+		target:  &target,
+		payload: payload,
+		typ:     types.TransactionTypeStakeRefund,
+	}
+
+	return executeMinerOperation(msg)
 }
