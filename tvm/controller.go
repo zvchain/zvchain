@@ -121,7 +121,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		con.GasLeft = uint64(con.VM.Gas())
 	}()
 	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
-	libLen, executeResult, err := con.VM.CreateContractInstance(msg)
+	executeResult, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return nil, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
@@ -137,7 +137,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		`, abi.FuncName))
 	}
 
-	con.VM.SetLibLine(libLen)
+	//con.VM.SetLibLine(libLen)
 
 	result := con.VM.executeABIKindEval(abi) //execute
 	transactionError := transactionErrorWith(result)

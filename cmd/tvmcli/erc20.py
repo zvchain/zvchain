@@ -6,8 +6,8 @@ class Token(object):
 
         self.totalSupply = 100000
 
-        self.balanceOf = TasCollectionStorage()
-        self.allowance = TasCollectionStorage()
+        self.balanceOf = zdict()
+        self.allowance = zdict()
 
         self.balanceOf['0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd'] = self.totalSupply
 

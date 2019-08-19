@@ -49,7 +49,10 @@ func _deployContract(contractName string, filePath string) string {
 			}
 		}
 	}
-	contractAddress := tvmCli.Deploy(contractName, codeStr)
+	contractAddress, err := tvmCli.Deploy(contractName, codeStr)
+	if err != nil {
+		fmt.Println(err)
+	}
 	tvmCli.DeleteTvmCli()
 	return contractAddress
 }
