@@ -2,6 +2,7 @@ package crontab
 
 import (
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/browser/transfer"
@@ -58,7 +59,10 @@ func (server *Crontab) fetchBlockRewards() {
 		server.blockHeight += 1
 		lock.Unlock()
 		accounts := server.blockTransfer.BlockRewardTOAccount(rewards)
-		server.storage.UpdateBatchAccount(accounts)
+		for _, account := range accounts {
+			server.storage.UpdateAccountByColumn(account, "rewards", gorm.Expr("rewards + ?", account.Rewards))
+
+		}
 		go server.fetchBlockRewards()
 
 	}

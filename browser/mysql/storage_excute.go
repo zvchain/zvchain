@@ -62,6 +62,18 @@ func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 
 }
 
+func (storage *Storage) UpdateAccountByColumn(account *models.Account, attrs ...interface{}) bool {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	storage.db.Model(&account).UpdateColumn(attrs)
+
+	return true
+
+}
+
 // get topblockreward height
 func (storage *Storage) TopBlockRewardHeight() uint64 {
 	if storage.db == nil {
