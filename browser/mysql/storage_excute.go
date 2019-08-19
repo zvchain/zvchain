@@ -2,7 +2,12 @@ package mysql
 
 import (
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
+)
+
+const (
+	Blockrewardtophight = "block_reward.top_block_height"
 )
 
 func (storage *Storage) UpdateBatchAccount(accounts []*models.Account) bool {
@@ -43,4 +48,30 @@ func (storage *Storage) GetAccountById(address string) []*models.Account {
 	accounts := make([]*models.Account, 1, 1)
 	storage.db.Where("address = ? ", address).Find(&accounts)
 	return accounts
+}
+
+func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
+	hight := storage.TopBlockRewardHeight()
+	if hight > 0 {
+		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
+	} else {
+		sys.Value = 1
+		storage.AddObjects(&sys)
+	}
+	return true
+
+}
+
+// get topblockreward height
+func (storage *Storage) TopBlockRewardHeight() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	sys := make([]models.Sys, 0, 1)
+	storage.db.Limit(1).Where("variable = ?", Blockrewardtophight).Find(&sys)
+	if len(sys) > 0 {
+		storage.topBlockHigh = sys[0].Value
+		return sys[0].Value
+	}
+	return 0
 }

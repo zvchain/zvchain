@@ -26,13 +26,14 @@ import (
 const PageSize uint64 = 20
 
 type Storage struct {
-	db         *gorm.DB
-	dbAddr     string
-	dbPort     int
-	dbUser     string
-	dbPassword string
-	rpcAddrStr string
-	accounts   []*models.Account
+	db           *gorm.DB
+	dbAddr       string
+	dbPort       int
+	dbUser       string
+	dbPassword   string
+	rpcAddrStr   string
+	topBlockHigh uint64
+	accounts     []*models.Account
 }
 
 func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *Storage {

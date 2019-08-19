@@ -34,3 +34,10 @@ type Account struct {
 	StakeFrom        uint64 `json:"stake_from"`
 	Balance          uint64 `json:"balance"`
 }
+
+type Sys struct {
+	gorm.Model
+	Variable string
+	Value    uint64
+	SetBy    string
+}
