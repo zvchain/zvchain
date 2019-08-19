@@ -23,24 +23,24 @@ import (
 var hashReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{64}$")
 var keyReg = regexp.MustCompile("^0[xX][0-9a-fA-F]{1,64}$")
 
-func validateHash(hash string) bool {
+func ValidateHash(hash string) bool {
 	return hashReg.MatchString(hash)
 }
 
-func validateKey(key string) bool {
+func ValidateKey(key string) bool {
 	return keyReg.MatchString(key)
 }
 
-func validateTxType(typ int) bool {
+func ValidateTxType(typ int) bool {
 	return typ != types.TransactionTypeReward && typ >= types.TransactionTypeTransfer && typ <= types.TransactionTypeStakeRefund
 }
 
-func validateMinerType(typ int) bool {
+func ValidateMinerType(typ int) bool {
 	mType := types.MinerType(typ)
 	return mType == types.MinerTypeVerify || mType == types.MinerTypeProposal
 }
 
-func validateStakeStatus(typ int) bool {
+func ValidateStakeStatus(typ int) bool {
 	st := types.StakeStatus(typ)
 	return st != types.Staked && st != types.StakeFrozen
 }

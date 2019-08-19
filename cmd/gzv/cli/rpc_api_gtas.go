@@ -89,11 +89,11 @@ func failResult(err string) (*Result, error) {
 
 // Tx is user transaction interface, used for sending transaction to the node
 func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
-	var txRaw = new(txRawData)
+	var txRaw = new(TxRawData)
 	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
 		return failResult(err.Error())
 	}
-	if !validateTxType(txRaw.TxType) {
+	if !ValidateTxType(txRaw.TxType) {
 		return failResult("Not supported txType")
 	}
 
@@ -105,7 +105,7 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 		}
 	}
 
-	trans := txRawToTransaction(txRaw)
+	trans := TxRawToTransaction(txRaw)
 
 	trans.Hash = trans.GenHash()
 
@@ -159,7 +159,7 @@ func (api *RpcGtasImpl) GetBlockByHeight(height uint64) (*Result, error) {
 }
 
 func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(hash)) {
+	if !ValidateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
 	b := core.BlockChainImpl.QueryBlockByHash(common.HexToHash(hash))
@@ -255,7 +255,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 }
 
 func (api *RpcGtasImpl) TransDetail(h string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(h)) {
+	if !ValidateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong hash format")
 	}
 	tx := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(h))
@@ -278,7 +278,7 @@ func (api *RpcGtasImpl) Nonce(addr string) (*Result, error) {
 }
 
 func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(h)) {
+	if !ValidateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong hash format")
 	}
 	hash := common.HexToHash(h)

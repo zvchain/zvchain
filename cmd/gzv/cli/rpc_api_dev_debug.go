@@ -250,7 +250,7 @@ func (api *RpcDevImpl) DebugGetRewardTxs(limit int) (*Result, error) {
 }
 
 func (api *RpcDevImpl) DebugGetRawTx(hash string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(hash)) {
+	if !ValidateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong param format")
 	}
 	tx := core.BlockChainImpl.GetTransactionByHash(false, false, common.HexToHash(hash))

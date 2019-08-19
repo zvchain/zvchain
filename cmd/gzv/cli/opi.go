@@ -29,7 +29,7 @@ var (
 	ErrInternal    = fmt.Errorf("internal error")
 )
 
-type txRawData struct {
+type TxRawData struct {
 	Target    string `json:"target"`
 	Value     uint64 `json:"value"`
 	Gas       uint64 `json:"gas"`
@@ -39,16 +39,6 @@ type txRawData struct {
 	Data      []byte `json:"data"`
 	Sign      string `json:"sign"`
 	ExtraData []byte `json:"extra_data"`
-}
-
-func opError(err error) *Result {
-	ret, _ := failResult(err.Error())
-	return ret
-}
-
-func opSuccess(data interface{}) *Result {
-	ret, _ := successResult(data)
-	return ret
 }
 
 type MinerInfo struct {
@@ -61,7 +51,7 @@ type MinerInfo struct {
 	AbortHeight uint64
 }
 
-func txRawToTransaction(tx *txRawData) *types.Transaction {
+func TxRawToTransaction(tx *TxRawData) *types.Transaction {
 	var target *common.Address
 	if tx.Target != "" {
 		t := common.StringToAddress(tx.Target)
@@ -83,63 +73,4 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 		Sign:      sign,
 		ExtraData: tx.ExtraData,
 	}
-}
-
-type accountOp interface {
-	NewAccount(password string, miner bool) *Result
-
-	AccountList() *Result
-
-	Lock(addr string) *Result
-
-	UnLock(addr string, password string, duration uint) *Result
-
-	AccountInfo() *Result
-
-	DeleteAccount() *Result
-
-	NewAccountByImportKey(key string, password string, miner bool) *Result
-
-	ExportKey(addr string) *Result
-
-	Close()
-}
-
-type chainOp interface {
-	// Connect connect node by ip and port
-	Connect(ip string, port int) error
-	// Endpoint returns current connected ip and port
-	Endpoint() string
-	// SendRaw send transaction to connected node
-	SendRaw(tx *txRawData) *Result
-	// Balance query Balance by address
-	Balance(addr string) *Result
-	// Nonce query Balance by address
-	Nonce(addr string) *Result
-	// MinerInfo query miner info by address
-	MinerInfo(addr string, detail string) *Result
-
-	BlockHeight() *Result
-
-	GroupHeight() *Result
-
-	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *Result
-
-	MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result
-
-	StakeRefund(target string, mtype int, gas, gasprice uint64) *Result
-
-	StakeReduce(target string, mtype int, value, gas, gasprice uint64) *Result
-
-	TxInfo(hash string) *Result
-
-	BlockByHash(hash string) *Result
-
-	BlockByHeight(h uint64) *Result
-
-	ViewContract(addr string) *Result
-
-	TxReceipt(hash string) *Result
-
-	GroupCheck(addr string) *Result
 }

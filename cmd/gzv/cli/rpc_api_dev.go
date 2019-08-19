@@ -101,7 +101,7 @@ func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, 
 
 // get transaction by hash
 func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(hash)) {
+	if !ValidateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
 	transaction := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(hash))
@@ -304,7 +304,7 @@ func (api *RpcDevImpl) Dashboard() (*Result, error) {
 }
 
 func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(h)) {
+	if !ValidateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong param format")
 	}
 	chain := core.BlockChainImpl
@@ -430,7 +430,7 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 }
 
 func (api *RpcDevImpl) BlockReceipts(h string) (*Result, error) {
-	if !validateHash(strings.TrimSpace(h)) {
+	if !ValidateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong param format")
 	}
 	chain := core.BlockChainImpl

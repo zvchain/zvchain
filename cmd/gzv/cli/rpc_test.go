@@ -26,7 +26,7 @@ import (
 	"github.com/zvchain/zvchain/core"
 )
 
-const code  =`
+const code = `
 
 # import account
 
@@ -170,7 +170,7 @@ func resetDb(dbPath string) error {
 }
 
 func TestMarshalTxRawData(t *testing.T) {
-	tx := &txRawData{
+	tx := &TxRawData{
 		Target:   "0x123",
 		Value:    100000000,
 		Gas:      1304,
@@ -186,7 +186,7 @@ func TestMarshalTxRawData(t *testing.T) {
 
 func TestUnmarhsalTxRawData(t *testing.T) {
 	s := `{"target":"0x123","value":23,"gas":99,"gasprice":2324,"tx_type":0,"nonce":0,"data":"","sign":"","extra_data":""}`
-	tx := &txRawData{}
+	tx := &TxRawData{}
 
 	err := json.Unmarshal([]byte(s), tx)
 	if err != nil {
@@ -194,8 +194,7 @@ func TestUnmarhsalTxRawData(t *testing.T) {
 	}
 }
 
-
-func TestParseABI(t *testing.T)  {
+func TestParseABI(t *testing.T) {
 	abi := parseABI(code)
 	fmt.Println(abi)
 }

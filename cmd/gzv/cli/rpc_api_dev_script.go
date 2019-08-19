@@ -28,7 +28,7 @@ func (api *RpcDevImpl) ScriptTransferTx(privateKey string, from string, to strin
 // TxUnSafe sends a transaction by submitting the privateKey.
 // It is not safe for users, used for testing purpose
 func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (*Result, error) {
-	txRaw := &txRawData{
+	txRaw := &TxRawData{
 		Target:   target,
 		Value:    common.TAS2RA(value),
 		Gas:      gas,
@@ -41,7 +41,7 @@ func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice,
 	if sk == nil {
 		return failResult(fmt.Sprintf("parse private key fail:%v", privateKey))
 	}
-	trans := txRawToTransaction(txRaw)
+	trans := TxRawToTransaction(txRaw)
 	trans.Hash = trans.GenHash()
 	sign, err := sk.Sign(trans.Hash.Bytes())
 	if err != nil {

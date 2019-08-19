@@ -42,31 +42,31 @@ type rpcApi interface {
 	Version() string
 }
 
-func (gtas *Gtas) addInstance(inst rpcApi) {
-	gtas.rpcInstances = append(gtas.rpcInstances, inst)
+func (gzv *Gzv) addInstance(inst rpcApi) {
+	gzv.RpcInstances = append(gzv.RpcInstances, inst)
 }
 
-func (gtas *Gtas) initRpcInstances() error {
-	level := gtas.config.rpcLevel
+func (gzv *Gzv) initRpcInstances() error {
+	level := gzv.Config.rpcLevel
 	if level < rpcLevelNone || level > rpcLevelDev {
 		return fmt.Errorf("rpc level error:%v", level)
 	}
 	base := &rpcBaseImpl{gr: getGroupReader()}
-	gtas.rpcInstances = make([]rpcApi, 0)
+	gzv.RpcInstances = make([]rpcApi, 0)
 	if level >= rpcLevelGtas {
-		gtas.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
+		gzv.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
 	}
 	if level >= rpcLevelExplorer {
-		gtas.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
+		gzv.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
 	}
 	if level >= rpcLevelDev {
-		gtas.addInstance(&RpcDevImpl{rpcBaseImpl: base})
+		gzv.addInstance(&RpcDevImpl{rpcBaseImpl: base})
 	}
 	return nil
 }
 
-// startHTTP initializes and starts the HTTP RPC endpoint.
-func startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
+// StartHTTP initializes and starts the HTTP RPC endpoint.
+func StartHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
 	if endpoint == "" {
 		return nil
@@ -98,23 +98,23 @@ func startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string,
 }
 
 // StartRPC RPC function
-func (gtas *Gtas) startRPC() error {
+func (gzv *Gzv) startRPC() error {
 	var err error
 
 	// init api instance
-	if err = gtas.initRpcInstances(); err != nil {
+	if err = gzv.initRpcInstances(); err != nil {
 		return err
 	}
 
 	apis := make([]rpc.API, 0)
-	for _, inst := range gtas.rpcInstances {
+	for _, inst := range gzv.RpcInstances {
 		apis = append(apis, rpc.API{Namespace: inst.Namespace(), Version: inst.Version(), Service: inst, Public: true})
 	}
-	host, port := gtas.config.rpcAddr, gtas.config.rpcPort
+	host, port := gzv.Config.rpcAddr, gzv.Config.rpcPort
 
 	for plus := 0; plus < 40; plus++ {
 		endpoint := fmt.Sprintf("%s:%d", host, port+uint16(plus))
-		err = startHTTP(endpoint, apis, []string{}, []string{}, []string{})
+		err = StartHTTP(endpoint, apis, []string{}, []string{}, []string{})
 		if err == nil {
 			log.DefaultLogger.Errorf("RPC serving on %v\n", endpoint)
 			return nil
