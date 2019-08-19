@@ -74,7 +74,7 @@ func (api *RpcGtasImpl) Version() string {
 
 func successResult(data interface{}) (*Result, error) {
 	return &Result{
-		Message: "success",
+		Message: "",
 		Data:    data,
 		Status:  0,
 	}, nil
@@ -83,7 +83,7 @@ func failResult(err string) (*Result, error) {
 	return &Result{
 		Message: err,
 		Data:    nil,
-		Status:  -1,
+		Status:  1,
 	}, nil
 }
 
