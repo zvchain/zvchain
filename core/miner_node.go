@@ -15,7 +15,7 @@ const (
 )
 
 type tickFullCallBack func(op *voteMinerPoolOp, targetMiner *types.Miner) error
-type becomeFullGuardNodeCallBack func(db types.AccountDB, address common.Address, height uint64) error
+type becomeFullGuardNodeCallBack func(db types.AccountDB, detailKey []byte,detail *stakeDetail,address common.Address, height uint64) error
 type reduceTicketCallBack func(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64) error
 
 type baseIdentityOp interface {
@@ -31,7 +31,7 @@ type baseIdentityOp interface {
 	checkUpperBound(miner *types.Miner, height uint64) bool
 
 	afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Miner) error
-	afterBecomeFullGuardNode(db types.AccountDB, address common.Address, height uint64) error
+	afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error
 	afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64) error
 }
 
@@ -113,15 +113,10 @@ func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.M
 	return nil
 }
 
-func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, address common.Address, height uint64) error {
-	detailKey := getDetailKey(address, types.MinerTypeProposal, types.Staked)
-	detail, err := getDetail(db, address, detailKey)
-	if err != nil {
-		return err
-	}
+func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte,detail *stakeDetail,address common.Address, height uint64) error {
 	detail.DisMissHeight = height + adjustWeightPeriod/2
 	addFullStakeGuardPool(db, address)
-	if err = setDetail(db, address, detailKey, detail); err != nil {
+	if err := setDetail(db, address, detailKey, detail); err != nil {
 		return err
 	}
 	return nil
@@ -135,12 +130,7 @@ func (g *GuardProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Mi
 	return nil
 }
 
-func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, address common.Address, height uint64) error {
-	detailKey := getDetailKey(address, types.MinerTypeProposal, types.Staked)
-	detail, err := getDetail(db, address, detailKey)
-	if err != nil {
-		return err
-	}
+func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error {
 	// it must be fund guard node
 	if detail.DisMissHeight == 0 {
 		detail.DisMissHeight = height + adjustWeightPeriod/2
@@ -264,7 +254,7 @@ func (b *BaseMiner) checkUpperBound(miner *types.Miner, height uint64) bool {
 	return checkUpperBound(miner, height)
 }
 
-func (b *BaseMiner) afterBecomeFullGuardNode(db types.AccountDB, address common.Address, height uint64) error {
+func (b *BaseMiner) afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error {
 	return nil
 }
 
@@ -420,29 +410,29 @@ func (b *BaseMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *types.
 	return nil
 }
 
-func (b *BaseMiner) checkApplyGuard(op *applyGuardMinerOp, miner *types.Miner) error {
+func (b *BaseMiner) checkApplyGuard(op *applyGuardMinerOp, miner *types.Miner,detailKey []byte,detail *stakeDetail) error {
 	if miner == nil {
 		return fmt.Errorf("no miner info")
 	}
-	detailKey := getDetailKey(op.targetAddr, types.MinerTypeProposal, types.Staked)
-	stakedDetail, err := getDetail(op.accountDB, op.targetAddr, detailKey)
-	if err != nil {
-		return err
-	}
-	if stakedDetail == nil {
+	if detail == nil {
 		return fmt.Errorf("target account has no staked detail data")
 	}
-	if !isFullStake(stakedDetail.Value, op.height) {
+	if !isFullStake(detail.Value, op.height) {
 		return fmt.Errorf("not full stake,apply guard faild")
 	}
-	if stakedDetail.DisMissHeight > op.height && stakedDetail.DisMissHeight-op.height > adjustWeightPeriod/2 {
+	if detail.DisMissHeight > op.height && detail.DisMissHeight-op.height > adjustWeightPeriod/2 {
 		return fmt.Errorf("apply guard time too long,addr is %s", op.targetAddr.String())
 	}
 	return nil
 }
 
 func (b *BaseMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Miner, becomeFullGuardNodeFunc becomeFullGuardNodeCallBack) error {
-	err := b.checkApplyGuard(op, miner)
+	detailKey := getDetailKey(op.targetAddr, types.MinerTypeProposal, types.Staked)
+	stakedDetail,err := getDetail(op.accountDB, op.targetAddr, detailKey)
+	if err != nil {
+		return err
+	}
+	err = b.checkApplyGuard(op, miner,detailKey,stakedDetail)
 	if err != nil {
 		return err
 	}
@@ -452,7 +442,7 @@ func (b *BaseMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Miner,
 		return err
 	}
 	if becomeFullGuardNodeFunc != nil {
-		err = becomeFullGuardNodeFunc(op.accountDB, op.targetAddr, op.height)
+		err = becomeFullGuardNodeFunc(op.accountDB, detailKey,stakedDetail,op.targetAddr, op.height)
 		if err != nil {
 			return err
 		}
@@ -589,7 +579,7 @@ func (u *UnSupportMiner) processApplyGuard(op *applyGuardMinerOp, targetMiner *t
 	return fmt.Errorf("unSupported apply guard")
 }
 
-func (u *UnSupportMiner) afterBecomeFullGuardNode(db types.AccountDB, address common.Address, height uint64) error {
+func (u *UnSupportMiner) afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error {
 	return nil
 }
 
