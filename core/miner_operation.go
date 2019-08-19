@@ -42,32 +42,6 @@ type mOperation interface {
 	Transition() *result     // Do the operation
 }
 
-// newOperation creates the mOperation instance base on msg type
-func newOperation(db types.AccountDB, msg types.TxMessage, height uint64) mOperation {
-	base := newTransitionContext(db, msg, nil, height)
-	var operation mOperation
-
-	switch msg.OpType() {
-	case types.TransactionTypeStakeAdd:
-		operation = &stakeAddOp{transitionContext: base}
-	case types.TransactionTypeMinerAbort:
-		operation = &minerAbortOp{transitionContext: base}
-	case types.TransactionTypeStakeReduce:
-		operation = &stakeReduceOp{transitionContext: base}
-	case types.TransactionTypeStakeRefund:
-		operation = &stakeRefundOp{transitionContext: base}
-	case types.TransactionTypeApplyGuardMiner:
-		operation = &applyGuardMinerOp{transitionContext: base}
-	case types.TransactionTypeVoteMinerPool:
-		operation = &voteMinerPoolOp{transitionContext: base}
-	case types.TransactionTypeCancelGuard:
-		operation = &cancelGuardOp{transitionContext: base}
-	default:
-		operation = &unSupported{typ: msg.OpType()}
-	}
-
-	return operation
-}
 
 type voteMinerPoolOp struct {
 	*transitionContext

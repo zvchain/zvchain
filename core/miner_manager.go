@@ -106,7 +106,7 @@ func (mm *MinerManager) fundGuardNodesCheck(accountDB types.AccountDB, height ui
 		if err != nil {
 			return err
 		}
-		err = updateFundGuardPoolStatus(accountDB, fd.Address, NormalNode, height)
+		err = updateFundGuardPoolStatus(accountDB, fd.Address, normalNodeType, height)
 		if err != nil {
 			return err
 		}
@@ -198,8 +198,9 @@ func (mm *MinerManager) ClearTicker() {
 
 // ExecuteOperation execute the miner operation
 func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.TxMessage, height uint64) (success bool, err error) {
-	operation := newOperation(accountDB, msg, height)
-	return mm.executeOperation(operation, accountDB)
+	ss := newTransitionContext(accountDB, msg, nil, height)
+	op := getOpByType(ss,msg.OpType())
+	return mm.executeOperation(op, accountDB)
 }
 
 // FreezeMiner execute the miner frozen operation

@@ -62,7 +62,11 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 	base := newTransitionContext(db, tx, bh, bh.Height)
 	base.intrinsicGasUsed = intrinsicGas(tx)
 	base.gasUsed = base.intrinsicGasUsed
-	switch tx.Type {
+	return getOpByType(base,tx.Type)
+}
+
+func getOpByType(base *transitionContext,txType int8)stateTransition{
+	switch txType {
 	case types.TransactionTypeTransfer:
 		return &txTransfer{transitionContext: base}
 	case types.TransactionTypeContractCreate:
@@ -86,7 +90,7 @@ func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.Blo
 	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 		return &groupOperator{transitionContext: base}
 	default:
-		return &unSupported{typ: tx.Type}
+		return &unSupported{typ: txType}
 	}
 }
 

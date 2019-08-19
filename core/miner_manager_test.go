@@ -138,7 +138,7 @@ func TestInit(t *testing.T){
 			t.Fatalf("except got value,but got nil")
 		}
 		if !fd.isFundGuard(){
-			t.Fatalf("except %v,but got %v",FundGuardNode,fd.Type)
+			t.Fatalf("except %v,but got %v",fundGuardNodeType,fd.Type)
 		}
 	}
 }
@@ -219,7 +219,7 @@ func TestNormalApplyGuardNode(t *testing.T){
 	if !isInFullStakeGuardNode(accountDB,*ctx.source){
 		t.Fatalf("except in full stake guard node,but got nil")
 	}
-	testApplyGuardNode(t,true,height)
+	testApplyGuardNode(t,false,height)
 	dt = getStakeDetail()
 	if dt.DisMissHeight != adjustWeightPeriod  {
 		t.Fatalf("except height = %v,but got %v",adjustWeightPeriod ,dt.DisMissHeight)
@@ -476,7 +476,7 @@ func testVote(t *testing.T,needSuccess bool){
 func testApplyGuardNode(t *testing.T,success bool,height uint64){
 	applyMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeApplyGuardMiner, 0,nil)
 	_, err := MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, height)
-	if err != nil {
+	if err != nil && success{
 		t.Fatalf("execute stake add msg error:%v", err)
 	}
 	miner, err := getMiner(accountDB, *ctx.source, ctx.mType)
