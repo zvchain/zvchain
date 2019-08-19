@@ -183,7 +183,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"type": "resetTop",
 			"height": block.Height,
-		}).Debug(block.Height - curr.Height)
+		}).Debug(curr.Height -block.Height)
 	}
 
 	recoverTxs := make([]*types.Transaction, 0)
