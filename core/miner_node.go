@@ -470,10 +470,10 @@ func (b *BaseMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Miner,
 	if vf != nil {
 		vf.CanVote = true
 		vf.Height = op.height
-	}
-	err = setVoteInfo(op.accountDB, op.targetAddr, vf)
-	if err != nil {
-		return err
+		err = setVoteInfo(op.accountDB, op.targetAddr, vf)
+		if err != nil {
+			return err
+		}
 	}
 	log.CoreLogger.Infof("apply guard success,address is %s,height is %v", op.targetAddr.String(), op.height)
 	return nil

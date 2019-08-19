@@ -182,7 +182,7 @@ func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.A
 	snapshot := accountDB.Snapshot()
 	if ret := operation.Transition(); ret.err != nil {
 		accountDB.RevertToSnapshot(snapshot)
-		return
+		return false,ret.err
 	}
 	return true, nil
 

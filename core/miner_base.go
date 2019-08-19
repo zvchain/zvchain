@@ -532,6 +532,7 @@ func processVote(op *voteMinerPoolOp) (error, bool) {
 			return err,false
 		}
 	}
+	oldTarget := vf.Target
 	// set vote false
 	err = voteMinerPool(op.accountDB, vf,op.source, op.targetAddr, op.height)
 	if err != nil {
@@ -540,10 +541,10 @@ func processVote(op *voteMinerPoolOp) (error, bool) {
 	var totalTickets uint64 = 0
 	var empty = common.Address{}
 	// vote target is old target
-	if vf.Target == op.targetAddr && vf.Target != empty {
+	if oldTarget == op.targetAddr && oldTarget != empty {
 		totalTickets = getTickets(op.accountDB, op.targetAddr)
 	} else {
-		if vf.Target != empty {
+		if oldTarget != empty {
 			//reduce ticket first
 			mop := newReduceTicketsOp(op.accountDB, vf.Target, op.source, op.height)
 			ret := mop.Transition()
@@ -574,7 +575,7 @@ func voteMinerPool(db types.AccountDB,vf *voteInfo,source,targetAddress common.A
 		}
 		db.SetData(source, common.KeyVote, bs)
 	} else {
-		return fmt.Errorf("cannot vote,address = %s", source.String())
+		return fmt.Errorf("you have voted,cannot vote,address = %s", source.String())
 	}
 	return nil
 }
