@@ -16,7 +16,6 @@
 package core
 
 import (
-	"container/heap"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -27,60 +26,6 @@ import (
 	"os"
 	"testing"
 )
-
-func TestVoteHeap(t *testing.T) {
-	vh := make(voteHeap, 0)
-	for i := 5; i >= 0; i-- {
-		vh = append(vh, uint64(i))
-	}
-	heap.Init(&vh)
-	t.Log(vh)
-	t.Log(vh[0])
-	if vh[0] != 0 {
-		t.Errorf("vote heap error")
-	}
-	vh[0] = 6
-	heap.Fix(&vh, 0)
-	t.Log(vh[0])
-	if vh[0] != 1 {
-		t.Errorf("vote heap error")
-	}
-	vh[0] = 9
-	heap.Fix(&vh, 0)
-	t.Log(vh[0])
-	if vh[0] != 2 {
-		t.Errorf("vote heap error")
-	}
-
-	vh[0] = 10
-	heap.Fix(&vh, 0)
-	t.Log(vh)
-	t.Log(vh[0])
-	if vh[0] != 3 {
-		t.Errorf("vote heap error")
-	}
-}
-
-func TestVoteHeap2(t *testing.T) {
-	vh := make(voteHeap, 0)
-	vh = append(vh, 43)
-	vh = append(vh, 61)
-	vh = append(vh, 55)
-	vh = append(vh, 36)
-	vh = append(vh, 26)
-	vh = append(vh, 48)
-	heap.Init(&vh)
-
-	t.Log(vh[0], vh)
-	arr := []uint64{59, 60, 58, 52}
-	for _, v := range arr {
-		if vh[0] < v {
-			vh[0] = v
-			heap.Fix(&vh, 0)
-			t.Log(vh[0], vh)
-		}
-	}
-}
 
 type groupHeader4CPTest struct {
 	seed common.Hash

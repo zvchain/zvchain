@@ -24,11 +24,6 @@ type Epoch interface {
 	Equal(e Epoch) bool
 }
 
-type GroupEpochAlg interface {
-	// createEpochByHeight returns the creating epoch ranges of the groups at the given block height
-	CreateEpochByHeight(h uint64) (start, end Epoch)
-}
-
 const (
 	EpochLength           = 400 // blocks per epoch
 	GroupLiveEpochs       = 2   // epochs one group can live
@@ -102,10 +97,12 @@ func (ge genesisEpoch) Add(delta int) Epoch {
 	return EpochAt(ge.Start() + uint64(delta)*EpochLength)
 }
 
+// EpochAt returns the Epoch of the given height
 func EpochAt(h uint64) Epoch {
 	return epoch(h / EpochLength)
 }
 
+// CreateEpochsOfActivatedGroupsAt returns the group-creating epoch ranges of the groups activated at the given height
 func CreateEpochsOfActivatedGroupsAt(h uint64) (start, end Epoch) {
 	ep := EpochAt(h)
 
@@ -114,11 +111,13 @@ func CreateEpochsOfActivatedGroupsAt(h uint64) (start, end Epoch) {
 	return
 }
 
+// ActivateEpochOfGroupsCreatedAt returns the active epoch of the groups  created at the given height
 func ActivateEpochOfGroupsCreatedAt(h uint64) Epoch {
 	ep := EpochAt(h)
 	return ep.Add(GroupActivateEpochGap + 1)
 }
 
+// DismissEpochOfGroupsCreatedAt returns the dismiss epoch of the groups created at the given height
 func DismissEpochOfGroupsCreatedAt(h uint64) Epoch {
 	activeEp := ActivateEpochOfGroupsCreatedAt(h)
 	return activeEp.Add(GroupLiveEpochs)

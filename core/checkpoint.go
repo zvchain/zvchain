@@ -30,29 +30,6 @@ const (
 	cpMinBlocks     = 10 // min blocks that a cp can occurs
 )
 
-type voteHeap []uint64
-
-func (h voteHeap) Less(i, j int) bool {
-	return h[i] < h[j]
-}
-
-func (h voteHeap) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
-}
-
-func (h voteHeap) Len() int {
-	return len(h)
-}
-
-func (h *voteHeap) Pop() (v interface{}) {
-	*h, v = (*h)[:h.Len()-1], (*h)[h.Len()-1]
-	return
-}
-
-func (h *voteHeap) Push(v interface{}) {
-	*h = append(*h, v.(uint64))
-}
-
 var cpAddress = common.BytesToAddress([]byte("cp_votes"))
 var cpVoteKey = []byte("votes")
 var cpEpochKey = []byte("epoch")

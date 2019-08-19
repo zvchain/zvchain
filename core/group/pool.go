@@ -68,6 +68,7 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 	return nil
 }
 
+// invalidate the groups create at the given epoch when blocks rollback
 func (p *pool) invalidateEpochGroupCache(ep types.Epoch) {
 	p.cachedByEpoch.Remove(ep.End())
 }
