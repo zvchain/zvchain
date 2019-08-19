@@ -17,6 +17,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
@@ -149,7 +150,7 @@ func (t *TvmCli) init() {
 	}
 }
 
-func (t *TvmCli) Deploy(contractName string, contractCode string) string {
+func (t *TvmCli) Deploy(contractName string, contractCode string) (string, error) {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 	transaction := Transaction{}
@@ -169,13 +170,16 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	jsonBytes, errMarsh := json.Marshal(contract)
 	if errMarsh != nil {
 		fmt.Println(errMarsh)
-		return ""
+		return "", errMarsh
 	}
 	state.CreateAccount(contractAddress)
 	state.SetCode(contractAddress, jsonBytes)
 
 	contract.ContractAddress = &contractAddress
-	controller.Deploy(&contract)
+	result, _, _ := controller.Deploy(&contract)
+	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
+		return "", errors.New(result.Content)
+	}
 	fmt.Println("gas: ", TransactionGasLimitMax-controller.VM.Gas())
 
 	hash, error := state.Commit(false)
@@ -185,7 +189,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	}
 	t.settings.SetString("root", "StateHash", hash.Hex())
 	fmt.Println(hash.Hex())
-	return contractAddress.AddrPrefixString()
+	return contractAddress.AddrPrefixString(), nil
 }
 
 func (t *TvmCli) Call(contractAddress string, abiJSON string) {
