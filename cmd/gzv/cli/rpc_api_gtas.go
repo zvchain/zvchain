@@ -76,14 +76,14 @@ func successResult(data interface{}) (*Result, error) {
 	return &Result{
 		Message: "",
 		Data:    data,
-		Status:  0,
+		Code:    0,
 	}, nil
 }
 func failResult(err string) (*Result, error) {
 	return &Result{
 		Message: err,
 		Data:    nil,
-		Status:  1,
+		Code:    1,
 	}, nil
 }
 

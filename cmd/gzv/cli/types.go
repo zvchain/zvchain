@@ -28,12 +28,12 @@ import (
 // Result is rpc request successfully returns the variable parameter
 type Result struct {
 	Message string      `json:"message"`
-	Status  int         `json:"status"`
+	Code    int         `json:"code"`
 	Data    interface{} `json:"data"`
 }
 
 func (r *Result) IsSuccess() bool {
-	return r.Status == 0
+	return r.Code == 0
 }
 
 // ErrorResult is rpc request error returned variable parameter
@@ -270,7 +270,7 @@ type ExplorerAccount struct {
 	Nonce     uint64                 `json:"nonce"`
 	Type      uint32                 `json:"type"`
 	CodeHash  string                 `json:"code_hash"`
-	ABI  	  []tvm.ABIVerify 		 `json:"abi"`
+	ABI       []tvm.ABIVerify        `json:"abi"`
 	Code      string                 `json:"code"`
 	StateData map[string]interface{} `json:"state_data"`
 }
