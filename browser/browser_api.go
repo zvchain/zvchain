@@ -11,15 +11,15 @@ const checkInterval = time.Second * 5
 
 var AddressCacheList map[string]uint64
 
-type TablMmanagement struct {
+type DBMmanagement struct {
 	blockHeight uint64
 	storage     *mysql.Storage //待迁移
 
 	isFetchingBlocks bool
 }
 
-func NewTablMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *TablMmanagement {
-	tablMmanagement := &TablMmanagement{}
+func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *DBMmanagement {
+	tablMmanagement := &DBMmanagement{}
 	tablMmanagement.blockHeight = uint64(0)
 
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
@@ -27,7 +27,7 @@ func NewTablMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword str
 	return tablMmanagement
 }
 
-func (tm *TablMmanagement) loop() {
+func (tm *DBMmanagement) loop() {
 	var (
 		check = time.NewTicker(checkInterval)
 	)
@@ -41,7 +41,7 @@ func (tm *TablMmanagement) loop() {
 	}
 }
 
-func (tm *TablMmanagement) fetchBlocks() {
+func (tm *DBMmanagement) fetchBlocks() {
 	if tm.isFetchingBlocks {
 		return
 	}

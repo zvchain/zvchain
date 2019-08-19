@@ -38,11 +38,11 @@ func main() {
 	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
 	flag.IntVar(&dbPort, "dbport", 3306, "database port")
 	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
-	flag.StringVar(&dbUser, "dbuser", "root@root123", "database user")
-	flag.StringVar(&dbPassword, "dbpw", "", "database password")
+	flag.StringVar(&dbUser, "dbuser", "root", "database user")
+	flag.StringVar(&dbPassword, "dbpw", "root123", "database password")
 	flag.Parse()
 
-	browser.NewTablMmanagement(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
+	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
 	gtas := cli.NewGtas()
 	gtas.Run()
 }
