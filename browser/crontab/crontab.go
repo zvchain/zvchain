@@ -83,7 +83,7 @@ func (crontab *Crontab) fetchBlockStake() {
 	if crontab.isFetchingStake {
 		return
 	}
-	//按页数和标记信息更新数据
+	//按页数和标记信息更新数据，标记信息更新sys数据
 	accounts := crontab.storage.GetAccountByMaxPrimaryId(10)
 	for _, account := range accounts {
 		minerinfo := crontab.GetMinerInfo(account.Address)
