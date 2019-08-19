@@ -87,10 +87,10 @@ func (crontab *Crontab) fetchBlockStake() {
 	accounts := crontab.storage.GetAccountByMaxPrimaryId(10)
 	for _, account := range accounts {
 		minerinfo := crontab.GetMinerInfo(account.Address)
-		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"proposal_stake": minerinfo[0].Stake, "verify_stake": minerinfo[1].Stake})
-
+		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"proposal_stake": minerinfo[0].Stake,
+			"other_stake":  minerinfo[1].Stake,
+			"verify_stake": minerinfo[2].Stake})
 	}
-
 }
 
 func (crontab *Crontab) GetMinerInfo(addr string) []*cli.MortGage {
@@ -102,11 +102,26 @@ func (crontab *Crontab) GetMinerInfo(addr string) []*cli.MortGage {
 	address := common.HexToAddress(addr)
 	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
 	if proposalInfo != nil {
-		morts = append(morts, cli.NewMortGageFromMiner(proposalInfo))
+		mort := cli.NewMortGageFromMiner(proposalInfo)
+		morts = append(morts, mort)
+		details := core.MinerManagerImpl.GetStakeDetails(common.HexToAddress(address), common.HexToAddress(address))
+		var count uint64 = 0
+		for _, detail := range details {
+			if detail.MType == types.MinerTypeProposal {
+				count += detail.Value
+			}
+		}
+		morts = append(morts, &cli.MortGage{
+			Stake:       mort.Stake - count,
+			ApplyHeight: 0,
+			Type:        "proposal node",
+			Status:      "all",
+		})
 	}
 	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
 	if verifierInfo != nil {
 		morts = append(morts, cli.NewMortGageFromMiner(verifierInfo))
 	}
+
 	return morts
 }
