@@ -104,7 +104,7 @@ func (crontab *Crontab) GetMinerInfo(addr string) []*cli.MortGage {
 	if proposalInfo != nil {
 		mort := cli.NewMortGageFromMiner(proposalInfo)
 		morts = append(morts, mort)
-		details := core.MinerManagerImpl.GetStakeDetails(common.HexToAddress(address), common.HexToAddress(address))
+		details := core.MinerManagerImpl.GetStakeDetails(address, address)
 		var count uint64 = 0
 		for _, detail := range details {
 			if detail.MType == types.MinerTypeProposal {
