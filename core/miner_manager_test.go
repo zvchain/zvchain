@@ -72,8 +72,8 @@ type mOperContext struct {
 }
 
 var (
-	src    = common.HexToAddress("0x123")
-	target = common.HexToAddress("0x456")
+	src    = common.StringToAddress("zv123")
+	target = common.StringToAddress("zv456")
 	ctx    = &mOperContext{
 		source:        &src,
 		target:        &target,

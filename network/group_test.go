@@ -1,0 +1,239 @@
+package network
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestGroupGenConnectNodesZero(t *testing.T) {
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
+
+	nodes := make([]NodeID, 0)
+
+	g := netCore.groupManager.buildGroup("test", nodes)
+	g.genConnectNodes()
+
+	fmt.Printf("nodes :%v", len(g.needConnectNodes))
+
+}
+
+func TestGroup(t *testing.T) {
+	if InitTestNetwork() == false {
+		t.Fatalf("init network failed")
+	}
+
+	nodes := []string{
+		"0x00c318574fd4756e72ab79ab7ddcd1bdd9e2ce3842253a8739f8ca227d0077b1",
+		"0x00c318574fd4756e72ab79ab7ddcd1bdd9e2ce3842253a8739f8ca227d0077b8",
+		"0x1e7ea67c13003e24f54fd15d5a8049c818bda43b2c4e1d0dc74cf0d6c97d8800",
+		"0x1e7ea67c13003e24f54fd15d5a8049c818bda43b2c4e1d0dc74cf0d6c97d88a0",
+		"0x2440ebda7e060b8aedfe401dda1f15a839ca6266e13c2185997c55dd099c1800",
+		"0x2440ebda7e060b8aedfe401dda1f15a839ca6266e13c2185997c55dd099c1847",
+		"0x2b8d09362515da99cbc58a1343e9abc291f65e1dd975e48a6389cb164b9b1400",
+		"0x2b8d09362515da99cbc58a1343e9abc291f65e1dd975e48a6389cb164b9b1412",
+		"0x2d59999a90e039ffcb513b6932704351a6af5516bb8b9f5cfe3beac0fbff0b00",
+		"0x2d59999a90e039ffcb513b6932704351a6af5516bb8b9f5cfe3beac0fbff0be8",
+		"0x2d7d49c3342f6ad421162b540c163284241da5060f5ec7c13a14dfc5d4463300",
+		"0x2d7d49c3342f6ad421162b540c163284241da5060f5ec7c13a14dfc5d44633c6",
+		"0x30476b75954edf58ca0b50f249dd4bdf82a77a50104a7660242980b26a773d00",
+		"0x30476b75954edf58ca0b50f249dd4bdf82a77a50104a7660242980b26a773dc8",
+		"0x36f0a907fcd26b0e4183bdc7414196f9c77ad723851e20fdec8b373135e77300",
+		"0x36f0a907fcd26b0e4183bdc7414196f9c77ad723851e20fdec8b373135e773f3",
+		"0x3997ec837b4410dc62a808bdb7cfd5a8160199ac01933b757e7f451b2f728000",
+		"0x3997ec837b4410dc62a808bdb7cfd5a8160199ac01933b757e7f451b2f7280dd",
+		"0x458f46b27e7986c6fc2634ffc46c4a900029872e01638b5e1a1d84fd4dce1800",
+		"0x458f46b27e7986c6fc2634ffc46c4a900029872e01638b5e1a1d84fd4dce183e",
+		"0x4ca7be3efc3c81abcdf268442a4302cae9a0127cbc5a2b9810488f4d0858c100",
+		"0x4ca7be3efc3c81abcdf268442a4302cae9a0127cbc5a2b9810488f4d0858c12c",
+		"0x4d152da247a90044d9e1dc38eae436131f64e35ae649e5800249c5ad988c0d00",
+		"0x4d152da247a90044d9e1dc38eae436131f64e35ae649e5800249c5ad988c0d1b",
+		"0x5c38dceb3fd413a9ec96d62c5e9d5f59a4aed55f2b72f88869f05b1abbefb200",
+		"0x5c38dceb3fd413a9ec96d62c5e9d5f59a4aed55f2b72f88869f05b1abbefb249",
+		"0x5c54d11011de08098ecf314374e3fd47c6f45b3259302788b5ba61523b8bff00",
+		"0x5c54d11011de08098ecf314374e3fd47c6f45b3259302788b5ba61523b8bff20",
+		"0x5ccd8c5bc888b0a207b4872490f6b090eafd614a2d86cb845aa5d225ad583d00",
+		"0x5ccd8c5bc888b0a207b4872490f6b090eafd614a2d86cb845aa5d225ad583dc8",
+		"0x6292e9b6e52edf22e17e774caa07c0880f8433fe02ef9f0181a85ac1ec966100",
+		"0x6292e9b6e52edf22e17e774caa07c0880f8433fe02ef9f0181a85ac1ec9661e8",
+		"0x6301cf53f2217e5b5bef4dfc3a786c7bcc614d31608406dac3b9589c43a7e800",
+		"0x6301cf53f2217e5b5bef4dfc3a786c7bcc614d31608406dac3b9589c43a7e874",
+		"0x70ff3822bca1f3e485335a5c2d808892cef07db8e80a16239bef2b71adcbea00",
+		"0x70ff3822bca1f3e485335a5c2d808892cef07db8e80a16239bef2b71adcbea25",
+		"0x75e8dd6b2a2397a84fab2bc7dde9e5993724eece0728d4a1e79b0db83930d900",
+		"0x75e8dd6b2a2397a84fab2bc7dde9e5993724eece0728d4a1e79b0db83930d9a0",
+		"0x7d0e67eaa410583ecc35fda617ae75a425f16882ae27d927d947c17516a35a00",
+		"0x7d0e67eaa410583ecc35fda617ae75a425f16882ae27d927d947c17516a35a84",
+		"0x83c036b9f51e707c8d437abf21a820f05699a9e469900b744567240743c4b400",
+		"0x83c036b9f51e707c8d437abf21a820f05699a9e469900b744567240743c4b4d8",
+		"0x85591e20b8138b9a5d17b32d6e92c1e04cc32027f47cffc94da1c90feba6f900",
+		"0x85591e20b8138b9a5d17b32d6e92c1e04cc32027f47cffc94da1c90feba6f99b",
+		"0x89a01709a82c63d89a9485a332a622b672d72ef6ffd1393fcce59cea723caa00",
+		"0x89a01709a82c63d89a9485a332a622b672d72ef6ffd1393fcce59cea723caa4b",
+		"0x8baa4f9d6d3e896a6e9bcafdfbfba20684865202b64f1482878b19cb396b4800",
+		"0x8baa4f9d6d3e896a6e9bcafdfbfba20684865202b64f1482878b19cb396b4849",
+		"0x9656b3de707f507161b8c9060210fa24cbb6eef1817a4177e1a97e2ce3a05600",
+		"0x9656b3de707f507161b8c9060210fa24cbb6eef1817a4177e1a97e2ce3a0565f",
+		"0x9d2961d1b4eb4af2d78cb9e29614756ab658671e453ea1f6ec26b4e918c79d00",
+		"0x9d2961d1b4eb4af2d78cb9e29614756ab658671e453ea1f6ec26b4e918c79d02",
+		"0x9e364fb7fa2b0e9b08d421f90d2a623905a5af37ae0f8620230417691a30fa00",
+		"0x9e364fb7fa2b0e9b08d421f90d2a623905a5af37ae0f8620230417691a30fa8f",
+		"0xa123e364ea5e7c875e2794be613e310c167c9b9d93d3a32f26c04a18831e2b00",
+		"0xa123e364ea5e7c875e2794be613e310c167c9b9d93d3a32f26c04a18831e2b5b",
+		"0xaa1dc19bce119fafaac96451c92600db1c2d5f5b56ed057652045b15ffd8dc00",
+		"0xaa1dc19bce119fafaac96451c92600db1c2d5f5b56ed057652045b15ffd8dc8b",
+		"0xaf9f16a75a4c4afa5e608d533e0b4eb9e67943bf179c4013916c246a15e0a500",
+		"0xaf9f16a75a4c4afa5e608d533e0b4eb9e67943bf179c4013916c246a15e0a55e",
+		"0xb00a3d28652aba54bfcb4a7427c22457c6c0076724102cdf7734f841be87ee00",
+		"0xb00a3d28652aba54bfcb4a7427c22457c6c0076724102cdf7734f841be87ee73",
+		"0xb286b2b4ba396d5f1476505c9725b43f6d0cd1bde392b4ceb0dcf32283850700",
+		"0xb286b2b4ba396d5f1476505c9725b43f6d0cd1bde392b4ceb0dcf32283850788",
+		"0xba6751e80f9c8ad978841f8ddd215fcfe1605e259c856e4345888f79c29b2600",
+		"0xba6751e80f9c8ad978841f8ddd215fcfe1605e259c856e4345888f79c29b26a5",
+		"0xc17fabd79191dbe2327adf54efeb5a46fc01dd57df5a1a1473b2857ebb792400",
+		"0xc17fabd79191dbe2327adf54efeb5a46fc01dd57df5a1a1473b2857ebb792400",
+		"0xc17fabd79191dbe2327adf54efeb5a46fc01dd57df5a1a1473b2857ebb792401",
+		"0xcb7ca57650ba0f4b375adeece2eba4104c54c010e40d7e726b6b8b6519fcaa00",
+		"0xcb7ca57650ba0f4b375adeece2eba4104c54c010e40d7e726b6b8b6519fcaa00",
+		"0xcb7ca57650ba0f4b375adeece2eba4104c54c010e40d7e726b6b8b6519fcaa5b",
+		"0xce843ee763f2b6f05217ad31c75e382f6fe70472a187ecbb6f45b0b4f55d1e00",
+		"0xce843ee763f2b6f05217ad31c75e382f6fe70472a187ecbb6f45b0b4f55d1e00",
+		"0xce843ee763f2b6f05217ad31c75e382f6fe70472a187ecbb6f45b0b4f55d1ecd",
+		"0xd3d410ec7c917f084e0f4b604c7008f01a923676d0352940f68a97264d49fb00",
+		"0xd3d410ec7c917f084e0f4b604c7008f01a923676d0352940f68a97264d49fb00",
+		"0xd3d410ec7c917f084e0f4b604c7008f01a923676d0352940f68a97264d49fb76",
+		"0xd5869bd928140cd4f21a359a0864e40a07a06752f39a6a2ba9be0bc640d52800",
+		"0xd5869bd928140cd4f21a359a0864e40a07a06752f39a6a2ba9be0bc640d52800",
+		"0xd5869bd928140cd4f21a359a0864e40a07a06752f39a6a2ba9be0bc640d528e2",
+		"0xd6db0cf2ceb1c600a12dc7cf0b492a952d911607dc8c0810fe9800f37e462d00",
+		"0xd6db0cf2ceb1c600a12dc7cf0b492a952d911607dc8c0810fe9800f37e462d00",
+		"0xd6db0cf2ceb1c600a12dc7cf0b492a952d911607dc8c0810fe9800f37e462d27",
+		"0xd983855d19e33df917c4b5d03886686ce2a0d02b0e913bfd8233544d2947e100",
+		"0xd983855d19e33df917c4b5d03886686ce2a0d02b0e913bfd8233544d2947e100",
+		"0xd983855d19e33df917c4b5d03886686ce2a0d02b0e913bfd8233544d2947e16d",
+		"0xe27532f917a2de44058d93b89d3a2f174be40a2dee89bae9fce65336d40a2400",
+		"0xe27532f917a2de44058d93b89d3a2f174be40a2dee89bae9fce65336d40a2400",
+		"0xe27532f917a2de44058d93b89d3a2f174be40a2dee89bae9fce65336d40a2456",
+		"0xe75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b000",
+		"0xe75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b000",
+		"0xe75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019",
+		"0xea31bcf9e87c2574d3c5ce10a08577e5eef11f9685b9d8ee69cb3adb86d02100",
+		"0xea31bcf9e87c2574d3c5ce10a08577e5eef11f9685b9d8ee69cb3adb86d02100",
+		"0xea31bcf9e87c2574d3c5ce10a08577e5eef11f9685b9d8ee69cb3adb86d021a4",
+		"0xefb8f93125963547741915130ffdfa0df0549fa48b2440d7183ce9b0b3d37f00",
+		"0xefb8f93125963547741915130ffdfa0df0549fa48b2440d7183ce9b0b3d37f00",
+		"0xefb8f93125963547741915130ffdfa0df0549fa48b2440d7183ce9b0b3d37f3f",
+		"0xfb29ccb9a49db4afffc892297e57ac22425df81291433977b78ca65574498500",
+		"0xfb29ccb9a49db4afffc892297e57ac22425df81291433977b78ca65574498500",
+		"0xfb29ccb9a49db4afffc892297e57ac22425df81291433977b78ca655744985b3",
+		"0xfb8541c52d57cc00e898c8493fdf362c513683240f571bc99438219da80cd600",
+		"0xfb8541c52d57cc00e898c8493fdf362c513683240f571bc99438219da80cd600",
+		"0xfb8541c52d57cc00e898c8493fdf362c513683240f571bc99438219da80cd665",
+		"0xff86d3a1102475e3a027d0f00347131483ef81b2d5abe8497551c9346ea23d00",
+		"0xff86d3a1102475e3a027d0f00347131483ef81b2d5abe8497551c9346ea23d00",
+		"0xff86d3a1102475e3a027d0f00347131483ef81b2d5abe8497551c9346ea23d98",
+	}
+
+	t.Run("GenConnectNodes9-0", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:9], 0, 4, 0, 3, 0, 3, 2)
+	})
+
+	t.Run("GenConnectNodes9-5", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:9], 5, 4, 1, 3, 1, 3, 1)
+	})
+
+	t.Run("GenConnectNodes9-8", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:9], 8, 4, 2, 3, 0, 0, 2)
+	})
+
+	t.Run("GenConnectNodes12-0", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:12], 0, 4, 0, 3, 0, 3, 2)
+	})
+
+	t.Run("GenConnectNodes12-5", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:12], 5, 4, 1, 3, 1, 3, 2)
+	})
+
+	t.Run("GenConnectNodes12-11", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:12], 11, 4, 2, 3, 3, 3, 2)
+	})
+
+	t.Run("GenConnectNodes46-2", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:46], 2, 7, 0, 7, 2, 6, 6)
+	})
+
+	t.Run("GenConnectNodes46-7", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:46], 7, 7, 1, 7, 0, 6, 6)
+	})
+
+	t.Run("GenConnectNodes46-45", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:46], 45, 7, 6, 7, 3, 4, 6)
+	})
+
+	t.Run("GenConnectNodes100-5", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:100], 5, 10, 0, 10, 5, 9, 9)
+	})
+
+	t.Run("GenConnectNodes100-66", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:100], 66, 10, 6, 10, 6, 9, 9)
+	})
+
+	t.Run("GenConnectNodes100-99", func(t *testing.T) {
+		GenConnectNodesTest(t, nodes[0:100], 99, 10, 9, 10, 9, 9, 9)
+	})
+
+	t.Run("genGroupRandomEntranceNodes", func(t *testing.T) {
+		entranceNodes := genGroupRandomEntranceNodes(nodes[0:100])
+		fmt.Printf("entranceNodes count:%v", len(entranceNodes))
+		if len(entranceNodes) != 5 {
+			t.Fatalf("entranceNodes count is not right:%v", len(entranceNodes))
+		}
+	})
+
+	t.Run("genGroupRandomEntranceNodes", func(t *testing.T) {
+		entranceNodes := genGroupRandomEntranceNodes(nodes[0:10])
+		fmt.Printf("entranceNodes count:%v", len(entranceNodes))
+		if len(entranceNodes) != 2 {
+			t.Fatalf("entranceNodes count is not right:%v", len(entranceNodes))
+		}
+	})
+
+	t.Run("genGroupRandomEntranceNodes", func(t *testing.T) {
+		entranceNodes := genGroupRandomEntranceNodes(nodes[0:25])
+		fmt.Printf("entranceNodes count:%v", len(entranceNodes))
+		if len(entranceNodes) != 3 {
+			t.Fatalf("entranceNodes count is not right:%v", len(entranceNodes))
+		}
+	})
+}
+
+func GenConnectNodesTest(t *testing.T, nodes []string, curIndex int, rowSize int, rowIndex int, rowCount int, columnIndex int, rowNodesCount int, columnNodesCount int) {
+
+	netCore.ID = *NewNodeID(nodes[curIndex])
+	g := netServerInstance.AddGroup("test", nodes)
+
+	if g.rowSize != rowSize {
+		t.Fatalf("rowSize is not right")
+	}
+
+	if g.rowIndex != rowIndex {
+		t.Fatalf("rowIndex is not right")
+	}
+
+	if g.columnIndex != columnIndex {
+		t.Fatalf("columnIndex is not right")
+	}
+
+	if g.rowCount != rowCount {
+		t.Fatalf("rowCount is not right")
+	}
+
+	if len(g.rowNodes) != rowNodesCount {
+		t.Fatalf("rowNodesCount is not right")
+	}
+
+	if len(g.columnNodes) != columnNodesCount {
+		t.Fatalf("columnNodesCount is not right")
+	}
+}

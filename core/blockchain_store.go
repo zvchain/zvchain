@@ -138,6 +138,9 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	}
 	// Remove eviction transactions from the transaction pool
 	if ps.evictedTxs != nil {
+		if len(ps.evictedTxs) > 0 {
+			Logger.Infof("block commit remove evictedTxs: %v, block height: %d", ps.evictedTxs, bh.Height)
+		}
 		removeTxs = append(removeTxs, ps.evictedTxs...)
 	}
 	chain.transactionPool.RemoveFromPool(removeTxs)
@@ -319,23 +322,6 @@ func (chain *FullBlockChain) queryBlockHashCeil(height uint64) *common.Hash {
 		return &hash
 	}
 	return nil
-}
-
-func (chain *FullBlockChain) queryBlockHeaderBytesFloor(height uint64) (common.Hash, []byte) {
-	iter := chain.blockHeight.NewIterator()
-	defer iter.Release()
-	if iter.Seek(common.UInt64ToByte(height)) {
-		realHeight := common.ByteToUInt64(iter.Key())
-		if realHeight == height {
-			hash := common.BytesToHash(iter.Value())
-			return hash, chain.queryBlockHeaderBytes(hash)
-		}
-	}
-	if iter.Prev() {
-		hash := common.BytesToHash(iter.Value())
-		return hash, chain.queryBlockHeaderBytes(hash)
-	}
-	return common.Hash{}, nil
 }
 
 func (chain *FullBlockChain) queryBlockHeaderByHeightFloor(height uint64) *types.BlockHeader {

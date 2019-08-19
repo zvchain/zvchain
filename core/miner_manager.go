@@ -174,7 +174,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
 		miner, err := getMiner(accountDB, addr, mType)
 		if err != nil {
-			Logger.Errorf("get all miner error:%v, addr:%v", err, addr.Hex())
+			Logger.Errorf("get all miner error:%v, addr:%v", err, addr.AddrPrefixString())
 			return nil
 		}
 		if miner != nil {
@@ -265,11 +265,11 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 			ds []*types.StakeDetail
 			ok bool
 		)
-		if ds, ok = ret[addr.Hex()]; !ok {
+		if ds, ok = ret[addr.AddrPrefixString()]; !ok {
 			ds = make([]*types.StakeDetail, 0)
 		}
 		ds = append(ds, detail)
-		ret[addr.Hex()] = ds
+		ret[addr.AddrPrefixString()] = ds
 	}
 	return ret
 }
@@ -288,7 +288,7 @@ func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 			break
 		}
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
-		mp[addr.Hex()] = struct{}{}
+		mp[addr.AddrPrefixString()] = struct{}{}
 	}
 	return mp
 }
@@ -313,16 +313,16 @@ func (mm *MinerManager) listenProposalUpdate() {
 		select {
 		case addr := <-mm.proposalAddCh:
 			mm.lock.Lock()
-			if _, ok := mm.existingProposal[addr.Hex()]; !ok {
-				mm.existingProposal[addr.Hex()] = struct{}{}
-				Logger.Debugf("Add proposer %v", addr.Hex())
+			if _, ok := mm.existingProposal[addr.AddrPrefixString()]; !ok {
+				mm.existingProposal[addr.AddrPrefixString()] = struct{}{}
+				Logger.Debugf("Add proposer %v", addr.AddrPrefixString())
 			}
 			mm.lock.Unlock()
 		case addr := <-mm.proposalRemoveCh:
 			mm.lock.Lock()
-			if _, ok := mm.existingProposal[addr.Hex()]; ok {
-				delete(mm.existingProposal, addr.Hex())
-				Logger.Debugf("Remove proposer %v", addr.Hex())
+			if _, ok := mm.existingProposal[addr.AddrPrefixString()]; ok {
+				delete(mm.existingProposal, addr.AddrPrefixString())
+				Logger.Debugf("Remove proposer %v", addr.AddrPrefixString())
 			}
 			mm.lock.Unlock()
 		}

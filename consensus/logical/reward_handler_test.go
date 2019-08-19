@@ -151,7 +151,7 @@ func NewProcessorTest() *ProcessorTest {
 	memIndex := make(map[string]int)
 	for i := 0; i < n; i++ {
 		mems[i] = &member{id: groupsig.DeserializeID(pt.ids[i].Serialize()), pk: groupsig.DeserializePubkeyBytes(pt.mpk[i].Serialize())}
-		memIndex[mems[i].id.GetHexString()] = i
+		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	pt.verifyGroup = &verifyGroup{
 		header:   &groupHeader{},

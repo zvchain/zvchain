@@ -17,9 +17,8 @@ package network
 
 import (
 	"bytes"
-	"math"
-	"math/rand"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -53,7 +52,7 @@ func newPeerManager() *PeerManager {
 	return pm
 }
 
-func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buffer, code uint32, relay bool) {
+func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buffer, code uint32) {
 
 	if packet == nil {
 		return
@@ -63,28 +62,20 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 	}
 	netID := genNetID(toid)
 	p := pm.peerByNetID(netID)
+
 	if p == nil {
 		p = newPeer(toid, 0)
 		p.connectTimeout = 0
 		p.connecting = false
 		pm.addPeer(netID, p)
 	}
-	if p.sessionID > 0 {
-		p.write(packet, code)
-		p.bytesSend += packet.Len()
-	} else if p.relayID.IsValid() && relay {
-		relayPeer := pm.peerByID(p.relayID)
-
-		if relayPeer != nil && relayPeer.sessionID > 0 {
-			Logger.Infof("[Relay] send with relay , relay node ID: %v ,to id :%v", p.relayID.GetHexString(), toid.GetHexString())
-			go pm.write(p.relayID, nil, packet, code, false)
-			return
-		}
-	}
+	p.write(packet, code)
+	p.bytesSend += packet.Len()
 
 	if p.sessionID != 0 {
 		return
 	}
+
 	if ((toaddr != nil && toaddr.IP != nil && toaddr.Port > 0) || pm.natTraversalEnable) && !p.connecting {
 		p.connectTimeout = uint64(time.Now().Add(connectTimeout).Unix())
 		p.connecting = true
@@ -101,11 +92,6 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 			P2PConnect(netID, toaddr.IP.String(), uint16(toaddr.Port))
 			Logger.Infof("connect node ,[direct]: id: %v ip: %v port:%v ", toid.GetHexString(), toaddr.IP.String(), uint16(toaddr.Port))
 		}
-	}
-
-	if !p.relayID.IsValid() && p.disconnectCount > 1 && p.bytesReceived == 0 && time.Since(p.relayTestTime) > RelayTestTimeOut {
-		p.relayTestTime = time.Now()
-		netCore.RelayTest(toid)
 	}
 }
 
@@ -149,7 +135,7 @@ func (pm *PeerManager) disconnect(id NodeID) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	p, _ := pm.peers[netID]
+	p := pm.peers[netID]
 	if p != nil {
 		Logger.Infof("disconnect ip:%v port:%v ", p.IP, p.Port)
 
@@ -167,8 +153,8 @@ func (pm *PeerManager) checkPeers() {
 	defer pm.mutex.RUnlock()
 	for nid, p := range pm.peers {
 		if !p.isAuthSucceed {
-			Logger.Infof("[PeerManager] [checkPeers] peer id:%v netid:%v ip:%v port:%v session:%v bytes recv:%v ,bytes send:%v disconnect count:%v send wait count:%v ping count:%d isAuthSucceed:%v",
-				p.ID.GetHexString(), nid, p.IP, p.Port, p.sessionID, p.bytesReceived, p.bytesSend, p.disconnectCount, p.sendWaitCount, p.pingCount, p.isAuthSucceed)
+			Logger.Infof("[PeerManager] [checkPeers] peer id:%v netid:%v ip:%v port:%v session:%v bytes recv:%v ,bytes send:%v  data size%v disconnect count:%v send wait count:%v ping count:%d isAuthSucceed:%v",
+				p.ID.GetHexString(), nid, p.IP, p.Port, p.sessionID, p.bytesReceived, p.bytesSend, p.getDataSize(), p.disconnectCount, p.sendWaitCount, p.pingCount, p.isAuthSucceed)
 
 			if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid() {
 				go netServerInstance.netCore.ping(p.ID, nil)
@@ -199,69 +185,6 @@ func (pm *PeerManager) broadcast(packet *bytes.Buffer, code uint32) {
 			p.write(packet, code)
 		}
 	}
-
-	return
-}
-
-func (pm *PeerManager) checkPeerSource() {
-	for _, p := range pm.peers {
-		if p.sessionID > 0 && p.source == PeerSourceUnkown {
-			node := netCore.kad.find(p.ID)
-			if node != nil {
-				p.source = PeerSourceKad
-			} else {
-				p.source = PeerSourceGroup
-			}
-		}
-	}
-}
-
-func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32) {
-	if packet == nil {
-		return
-	}
-	pm.mutex.RLock()
-	defer pm.mutex.RUnlock()
-	Logger.Infof("broadcast random total peer size:%v code:%v", len(pm.peers), code)
-
-	pm.checkPeerSource()
-	availablePeers := make([]*Peer, 0, 0)
-
-	for _, p := range pm.peers {
-		if p.isAvailable() {
-			availablePeers = append(availablePeers, p)
-		}
-	}
-	peerSize := len(availablePeers)
-	maxCount := int(math.Sqrt(float64(peerSize)))
-	if maxCount < 2 {
-		maxCount = 2
-	}
-
-	if len(availablePeers) < maxCount {
-		for _, p := range availablePeers {
-			p.write(packet, code)
-		}
-	} else {
-		nodesHasSend := make(map[int]bool)
-		r := rand.New(rand.NewSource(time.Now().Unix()))
-
-		for i := 0; i < peerSize && len(nodesHasSend) < maxCount; i++ {
-			peerIndex := r.Intn(peerSize)
-			if nodesHasSend[peerIndex] == true {
-				continue
-			}
-			nodesHasSend[peerIndex] = true
-			if peerIndex < len(availablePeers) {
-				p := availablePeers[peerIndex]
-				if p != nil {
-					p.write(packet, code)
-				}
-			}
-		}
-	}
-
-	return
 }
 
 func (pm *PeerManager) peerByID(id NodeID) *Peer {
@@ -270,14 +193,14 @@ func (pm *PeerManager) peerByID(id NodeID) *Peer {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	p, _ := pm.peers[netID]
+	p := pm.peers[netID]
 	return p
 }
 
 func (pm *PeerManager) peerByNetID(netID uint64) *Peer {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
-	p, _ := pm.peers[netID]
+	p := pm.peers[netID]
 	return p
 }
 
@@ -285,5 +208,20 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	pm.peers[netID] = peer
+
+}
+
+func (pm *PeerManager) ConnInfo() []Conn {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	connInfos := make([]Conn, 0)
+
+	for _, p := range pm.peers {
+		if p.sessionID > 0 && p.IP != nil && p.Port > 0 && p.isAuthSucceed {
+			c := Conn{ID: p.ID.GetHexString(), IP: p.IP.String(), Port: strconv.Itoa(p.Port)}
+			connInfos = append(connInfos, c)
+		}
+	}
+	return connInfos
 
 }

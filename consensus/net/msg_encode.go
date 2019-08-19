@@ -74,6 +74,7 @@ func marshalCastRewardTransSignMessage(msg *model.CastRewardTransSignMessage) ([
 func marshalReqProposalBlockMessage(msg *model.ReqProposalBlock) ([]byte, error) {
 	m := &tas_middleware_pb.ReqProposalBlockMessage{
 		Hash: msg.Hash.Bytes(),
+		Sign: signDataToPb(&msg.SI),
 	}
 	return proto.Marshal(m)
 }

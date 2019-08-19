@@ -17,9 +17,10 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/core/group"
 	"math/big"
 	"time"
+
+	"github.com/zvchain/zvchain/core/group"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -245,7 +246,7 @@ func (ss *contractCreator) Transition() *result {
 		contract := tvm.LoadContract(contractAddress)
 		isTransferSuccess := transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.tx.Value.Value())
 		if !isTransferSuccess {
-			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.Hex()), types.RSBalanceNotEnough)
+			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.AddrPrefixString()), types.RSBalanceNotEnough)
 		} else {
 			_, logs, err := controller.Deploy(contract)
 			ret.logs = logs
@@ -256,7 +257,7 @@ func (ss *contractCreator) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.Hex())
+				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.AddrPrefixString())
 			}
 		}
 	}
@@ -282,11 +283,11 @@ func (ss *contractCaller) Transition() *result {
 	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
 	contract := tvm.LoadContract(*tx.Target)
 	if contract.Code == "" {
-		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.Hex()), types.RSNoCodeError)
+		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.AddrPrefixString()), types.RSNoCodeError)
 	} else {
 		isTransferSuccess := transfer(ss.accountDB, *tx.Source, *contract.ContractAddress, tx.Value.Value())
 		if !isTransferSuccess {
-			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.Hex()), types.RSBalanceNotEnough)
+			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.AddrPrefixString()), types.RSBalanceNotEnough)
 		} else {
 			_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
 			ret.logs = logs
@@ -299,7 +300,7 @@ func (ss *contractCaller) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.Hex(), string(tx.Data))
+				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.AddrPrefixString(), string(tx.Data))
 			}
 		}
 	}
@@ -511,11 +512,11 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(common.HexToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(common.StringToAddress(daemonNodeAddress), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(common.HexToAddress(userNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(common.StringToAddress(userNodeAddress), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
@@ -525,7 +526,6 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	}
 
 	state = accountDB.IntermediateRoot(true)
-
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
@@ -536,7 +536,7 @@ func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bo
 	}
 	nonce := accountDB.GetNonce(*transaction.Source)
 	if transaction.Nonce != nonce+1 {
-		Logger.Infof("Tx nonce error! Hash:%s,Source:%s,expect nonce:%d,real nonce:%d ", transaction.Hash.Hex(), transaction.Source.Hex(), nonce+1, transaction.Nonce)
+		Logger.Infof("Tx nonce error! Hash:%s,Source:%s,expect nonce:%d,real nonce:%d ", transaction.Hash.Hex(), transaction.Source.AddrPrefixString(), nonce+1, transaction.Nonce)
 		return false
 	}
 	return true

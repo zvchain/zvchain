@@ -57,7 +57,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	initBalance()
 
 	queryAddr := "0xf77fa9ca98c46d534bd3d40c3488ed7a85c314db0fd1e79c6ccc75d79bd680bd"
-	b := BlockChainImpl.GetBalance(common.HexToAddress(queryAddr))
+	b := BlockChainImpl.GetBalance(common.StringToAddress(queryAddr))
 	addr := genHash("1")
 	fmt.Printf("balance = %d \n", b)
 	fmt.Printf("addr = %s \n", common.BytesToAddress(addr))
@@ -181,7 +181,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 
 	//txpool.AddTransaction(genContractTx(1, 20000000, "1", contractAddr.GetHexString(), 3, 0, []byte(`{"FuncName": "Test", "Args": [10.123, "ten", [1, 2], {"key":"value", "key2":"value2"}]}`), nil, 0))
-	fmt.Println(contractAddr.Hex())
+	fmt.Println(contractAddr.AddrPrefixString())
 	// 铸块2
 	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("123"), 0, *castor, groupid)
 
@@ -461,7 +461,7 @@ func genHash(hash string) []byte {
 func initBalance() {
 	blocks := GenCorrectBlocks()
 	stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
-	stateDB1.AddBalance(common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000000000000))
+	stateDB1.AddBalance(common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000000000000))
 	exc := &executePostState{state: stateDB1}
 	root := stateDB1.IntermediateRoot(true)
 	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())
@@ -531,7 +531,7 @@ func getAccount() *Account4Test {
 	account := &Account4Test{
 		Sk:       secKey.Hex(),
 		Pk:       secKey.GetPubKey().Hex(),
-		Address:  secKey.GetPubKey().GetAddress().Hex(),
+		Address:  secKey.GetPubKey().GetAddress().AddrPrefixString(),
 		Password: "Password",
 	}
 	return account

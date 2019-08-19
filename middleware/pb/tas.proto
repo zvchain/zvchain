@@ -191,7 +191,6 @@ message ConsensusCastMessage{
 
     required SignData	Sign = 3;
 
-    required bytes  ProveHash = 4;
 }
 message ConsensusVerifyMessage{
     required bytes BlockHash = 1;
@@ -241,6 +240,7 @@ message FindAncestorBlockResponse{
 
 message ReqProposalBlockMessage {
     required bytes Hash = 1;
+    required SignData Sign = 2;
 }
 
 message ResponseProposalBlockMessage {

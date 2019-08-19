@@ -54,19 +54,19 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 	source := pubkey.GetAddress()
 	data := common.Uint64ToByte(pa.CurTime)
 	buffer.Write(data)
-	if netServerInstance != nil {
+	if netServerInstance != nil && netServerInstance.netCore != nil {
 		buffer.Write(netServerInstance.netCore.ID.Bytes())
 	}
 
 	hash := common.BytesToHash(common.Sha256(buffer.Bytes()))
 	sign := common.BytesToSign(pa.Sign)
-	if sign == nil{
+	if sign == nil {
 		return false, ""
 	}
 
 	result := pubkey.Verify(hash.Bytes(), sign)
 
-	return result, source.Hex()
+	return result, source.AddrPrefixString()
 }
 
 func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {
@@ -95,8 +95,6 @@ func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {
 // Peer is node connection object
 type Peer struct {
 	ID             NodeID
-	relayID        NodeID
-	relayTestTime  time.Time
 	sessionID      uint32
 	IP             net.IP
 	Port           int
@@ -107,11 +105,9 @@ type Peer struct {
 	connecting     bool
 	pingCount      int
 	lastPingTime   time.Time
-	isPinged       bool
-	source         PeerSource
 
 	//groups which need this peer
-	groupIDs 		map[string]bool
+	groupIDs map[string]bool
 
 	bytesReceived   int
 	bytesSend       int
@@ -138,7 +134,7 @@ func (p *Peer) addRecvData(data []byte) {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return
 	}
 	b := netCore.bufferPool.getBuffer(len(data))
@@ -168,19 +164,19 @@ func (p *Peer) popData() *bytes.Buffer {
 func (p *Peer) addGroup(gID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	_,existed := p.groupIDs[gID]
+	_, existed := p.groupIDs[gID]
 	if !existed {
 		p.groupIDs[gID] = true
 	}
 }
 
-func (p *Peer) removeGroup(gID string){
+func (p *Peer) removeGroup(gID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	delete(p.groupIDs,gID)
+	delete(p.groupIDs, gID)
 }
 
-func (p *Peer) isGroupEmpty() bool{
+func (p *Peer) isGroupEmpty() bool {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	return len(p.groupIDs) == 0
@@ -270,6 +266,9 @@ func (p *Peer) resetData() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	p.recvList = list.New()
+	if p.sendList != nil {
+		p.sendList.reset()
+	}
 }
 
 func (p *Peer) setRemoteVerifyResult(result bool) {
@@ -349,7 +348,11 @@ func (p *Peer) verify(pac *PeerAuthContext) bool {
 	verifyResult, verifyID := p.remoteAuthContext.Verify()
 
 	p.verifyResult = verifyResult
-	p.ID = NewNodeID(verifyID)
+	nID := NewNodeID(verifyID)
+	if nID != nil {
+		p.ID = *nID
+	}
+
 	p.verifyUpdate()
 	return p.verifyResult
 }
@@ -357,6 +360,9 @@ func (p *Peer) verify(pac *PeerAuthContext) bool {
 func (p *Peer) write(packet *bytes.Buffer, code uint32) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	if packet == nil {
+		return
+	}
 	b := netCore.bufferPool.getBuffer(packet.Len())
 	b.Write(packet.Bytes())
 
@@ -380,6 +386,7 @@ func (p *Peer) IsCompatible() bool {
 }
 
 func (p *Peer) disconnect() {
+
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -387,5 +394,4 @@ func (p *Peer) disconnect() {
 		P2PShutdown(p.sessionID)
 		p.sessionID = 0
 	}
-	p.resetData()
 }

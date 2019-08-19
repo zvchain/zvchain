@@ -152,7 +152,7 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 	}
 
 	pPubkey := p.getProposerPubKeyInBlock(bh)
-	if pPubkey == nil {
+	if pPubkey == nil || !pPubkey.IsValid() {
 		err = core.ErrPkNotExists
 		return
 	}
@@ -190,7 +190,7 @@ func (p *Processor) VerifyBlockSign(bh *types.BlockHeader) (ok bool, err error) 
 	gpk := group.gpk
 
 	ppk := p.getProposerPubKeyInBlock(bh)
-	if ppk == nil {
+	if ppk == nil || !ppk.IsValid() {
 		err = core.ErrPkNil
 		return
 	}

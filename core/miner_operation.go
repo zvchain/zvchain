@@ -451,7 +451,7 @@ func (op *minerFreezeOp) Validate() error {
 
 func (op *minerFreezeOp) Operation() error {
 	if !op.opVerifyRole() {
-		return fmt.Errorf("not operates a verifier:%v", op.addr.Hex())
+		return fmt.Errorf("not operates a verifier:%v", op.addr.AddrPrefixString())
 	}
 	miner, err := op.getMiner(op.addr)
 	if err != nil {
@@ -519,7 +519,7 @@ func (op *minerPenaltyOp) Operation() error {
 		}
 		// Must not happen
 		if miner.Stake < op.value {
-			panic(fmt.Errorf("stake less than punish value:%v %v of %v", miner.Stake, op.value, addr.Hex()))
+			panic(fmt.Errorf("stake less than punish value:%v %v of %v", miner.Stake, op.value, addr.AddrPrefixString()))
 		}
 
 		// Sub total stake and update the miner status
@@ -556,7 +556,7 @@ func (op *minerPenaltyOp) Operation() error {
 		}
 		// Must not happen
 		if normalDetail == nil {
-			panic(fmt.Errorf("penalty can't find detail of the target:%v", addr.Hex()))
+			panic(fmt.Errorf("penalty can't find detail of the target:%v", addr.AddrPrefixString()))
 		}
 		if normalDetail.Value > op.value {
 			normalDetail.Value -= op.value
@@ -577,10 +577,10 @@ func (op *minerPenaltyOp) Operation() error {
 					return err
 				}
 				if frozenDetail == nil {
-					panic(fmt.Errorf("penalty can't find frozen detail of target:%v", addr.Hex()))
+					panic(fmt.Errorf("penalty can't find frozen detail of target:%v", addr.AddrPrefixString()))
 				}
 				if frozenDetail.Value < remain {
-					panic(fmt.Errorf("frozen detail value less than remain punish value %v %v %v", frozenDetail.Value, remain, addr.Hex()))
+					panic(fmt.Errorf("frozen detail value less than remain punish value %v %v %v", frozenDetail.Value, remain, addr.AddrPrefixString()))
 				}
 				frozenDetail.Value -= remain
 				frozenDetail.Height = op.height

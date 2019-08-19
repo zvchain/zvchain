@@ -61,7 +61,7 @@ func (sign *BaseSignedMessage) VerifySign(pk groupsig.Pubkey) (ok bool) {
 	}
 	ok = sign.SI.VerifySign(pk)
 	if !ok {
-		fmt.Printf("verifySign fail, pk=%v, id=%v, sign=%v, data=%v\n", pk.GetHexString(), sign.SI.SignMember.GetHexString(), sign.SI.DataSign.GetHexString(), sign.SI.DataHash.Hex())
+		fmt.Printf("verifySign fail, pk=%v, id=%v, sign=%v, data=%v\n", pk.GetHexString(), sign.SI.SignMember.GetAddrString(), sign.SI.DataSign.GetHexString(), sign.SI.DataHash.Hex())
 	}
 	return
 }
@@ -69,8 +69,7 @@ func (sign *BaseSignedMessage) VerifySign(pk groupsig.Pubkey) (ok bool) {
 // ConsensusCastMessage is the block proposal message from proposers
 // and handled by the verify-group members
 type ConsensusCastMessage struct {
-	BH        types.BlockHeader
-	ProveHash common.Hash
+	BH types.BlockHeader
 	BaseSignedMessage
 }
 
@@ -136,6 +135,11 @@ func (msg *CastRewardTransSignMessage) GenHash() common.Hash {
 // ReqProposalBlock requests the block body when the verification consensus is finished by the group members
 type ReqProposalBlock struct {
 	Hash common.Hash
+	BaseSignedMessage
+}
+
+func (req *ReqProposalBlock) GenHash() common.Hash {
+	return req.Hash
 }
 
 // ResponseProposalBlock responses the corresponding block body to the requester
