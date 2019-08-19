@@ -39,7 +39,7 @@ func TestGroupCreateTxs(t *testing.T) {
 	seed := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
 	sender := common.HexToAddress(account.Address).Bytes()
-	groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
+	groupSender := group.NewPacketSender(BlockChainImpl)
 
 	//Round 1
 	data := &group.EncryptedSharePiecePacketImpl{}
@@ -59,7 +59,7 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store := group.NewStore(BlockChainImpl.(*FullBlockChain))
+	store := group.NewStore(BlockChainImpl)
 	pieces, err := store.GetEncryptedPiecePackets(data)
 	if err != nil {
 		t.Fatalf("fail to GetEncryptedPiecePackets %v", err)
@@ -84,7 +84,7 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store = group.NewStore(BlockChainImpl.(*FullBlockChain))
+	store = group.NewStore(BlockChainImpl)
 	mpks, err := store.GetMpkPackets(mpkData)
 	if err != nil {
 		t.Fatalf("fail to GetMpkPackets %v", err)
@@ -112,7 +112,7 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store = group.NewStore(BlockChainImpl.(*FullBlockChain))
+	store = group.NewStore(BlockChainImpl)
 	ops, err := store.GetOriginPiecePackets(dataOp)
 	if err != nil {
 		t.Fatalf("fail to GetOriginPiecePackets %v", err)

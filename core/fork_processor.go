@@ -43,6 +43,9 @@ type blockVerifier interface {
 type peerCheckpoint interface {
 	checkPointOf(chainSlice []*types.Block) *types.BlockHeader
 }
+type msgSender interface {
+	Send(id string, msg network.Message) error
+}
 
 type forkSyncContext struct {
 	target                     string
@@ -73,9 +76,10 @@ func (fctx *forkSyncContext) allChainSliceRequested() bool {
 }
 
 type forkProcessor struct {
-	chain    *FullBlockChain
-	verifier blockVerifier
-	peerCP   peerCheckpoint
+	chain     *FullBlockChain
+	verifier  blockVerifier
+	peerCP    peerCheckpoint
+	msgSender msgSender
 
 	syncCtx *forkSyncContext
 
@@ -106,9 +110,10 @@ func (cs chainSlice) lastBlock() *types.BlockHeader {
 
 func initForkProcessor(chain *FullBlockChain, verifier blockVerifier) *forkProcessor {
 	fh := forkProcessor{
-		chain:    chain,
-		verifier: verifier,
-		peerCP:   chain.cpChecker,
+		chain:     chain,
+		verifier:  verifier,
+		peerCP:    chain.cpChecker,
+		msgSender: network.GetNetInstance(),
 	}
 	fh.logger = log.ForkLogger
 	notify.BUS.Subscribe(notify.ForkFindAncestorResponse, fh.onFindAncestorResponse)
@@ -120,8 +125,11 @@ func initForkProcessor(chain *FullBlockChain, verifier blockVerifier) *forkProce
 }
 
 func (fp *forkProcessor) targetTop(id string, bh *types.BlockHeader) *topBlockInfo {
-	targetTop := blockSync.getPeerTopBlock(id)
 	tb := newTopBlockInfo(bh)
+	if blockSync == nil {
+		return tb
+	}
+	targetTop := blockSync.getPeerTopBlock(id)
 	if targetTop != nil && targetTop.BW.MoreWeight(&tb.BlockWeight) {
 		return newTopBlockInfo(targetTop.BH)
 	}
@@ -150,10 +158,7 @@ func (fp *forkProcessor) getLocalPieceInfo(topHash common.Hash) []common.Hash {
 	return pieces
 }
 
-func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) {
-	if blockSync == nil {
-		return
-	}
+func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) (ret bool) {
 	if targetNode == "" {
 		return
 	}
@@ -180,11 +185,12 @@ func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) {
 		fp.logger.Debugf("local top more weight, won't process fork:local %v %v, target %v %v", localTop.Hash, localTop.Height, targetTop.Hash, targetTop.Height)
 		return
 	}
-
+	ret = true
 	ctx = fp.updateContext(targetNode, targetTop)
 
 	fp.logger.Debugf("fork process from %v: targetTop:%v-%v, local:%v-%v", ctx.target, ctx.targetTop.Hash.Hex(), ctx.targetTop.Height, ctx.localTop.Hash.Hex(), ctx.localTop.Height)
 	fp.findAncestorRequest(fp.chain.QueryTopBlock().Hash)
+	return
 }
 
 func (fp *forkProcessor) reqPieceTimeout() {
@@ -194,7 +200,7 @@ func (fp *forkProcessor) reqPieceTimeout() {
 	if fp.syncCtx == nil {
 		return
 	}
-
+	fp.logger.Warnf("req piece from %v timeout, target top %v", fp.syncCtx.target, fp.syncCtx.targetTop.Height)
 	peerManagerImpl.timeoutPeer(fp.syncCtx.target)
 	peerManagerImpl.updateReqBlockCnt(fp.syncCtx.target, false)
 	fp.reset()
@@ -233,7 +239,7 @@ func (fp *forkProcessor) findAncestorRequest(topHash common.Hash) {
 	fp.logger.Debugf("req piece from %v, reqCnt %v", fp.syncCtx.target, reqCnt)
 
 	message := network.Message{Code: network.ForkFindAncestorReq, Body: body}
-	network.GetNetInstance().Send(fp.syncCtx.target, message)
+	fp.msgSender.Send(fp.syncCtx.target, message)
 
 	fp.syncCtx.lastReqPiece = pieceReq
 
@@ -268,6 +274,9 @@ func (fp *forkProcessor) onFindAncestorReq(msg notify.Message) error {
 	if pieceReq.ReqCnt > maxReqBlockCount {
 		pieceReq.ReqCnt = maxReqBlockCount
 	}
+	if len(pieceReq.ChainPiece) == 0 {
+		return fmt.Errorf("chain pieces empty")
+	}
 
 	blocks := make([]*types.Block, 0)
 	ancestor := fp.findCommonAncestor(pieceReq.ChainPiece)
@@ -298,7 +307,7 @@ func (fp *forkProcessor) sendFindAncestorResponse(targetID string, msg *findAnce
 		return
 	}
 	message := network.Message{Code: network.ForkFindAncestorResponse, Body: body}
-	network.GetNetInstance().Send(targetID, message)
+	fp.msgSender.Send(targetID, message)
 }
 
 func (fp *forkProcessor) reqFinished(reset bool) {
@@ -321,6 +330,7 @@ func (fp *forkProcessor) getNextSyncHash() *common.Hash {
 
 	// If local cp higher than next block for sync, then stop syncing.
 	if bh.Height <= fp.syncCtx.localCP.Height {
+		fp.logger.Debugf("local cp higher than next block piece for finding ancestor: cp %v", fp.syncCtx.localCP.Height)
 		return nil
 	}
 	if bh != nil {
@@ -399,7 +409,7 @@ func (fp *forkProcessor) onFindAncestorResponse(msg notify.Message) error {
 		nextSync := fp.getNextSyncHash()
 		if nextSync != nil {
 			fp.logger.Debugf("cannot find common ancestor from %v, keep finding", source)
-			fp.findAncestorRequest(*nextSync)
+			go fp.findAncestorRequest(*nextSync)
 			reset = false
 		}
 	} else { // Common ancestor found
@@ -445,8 +455,8 @@ func (fp *forkProcessor) chainSliceRequest(target string, beginHeight, end uint6
 	}
 
 	message := network.Message{Code: network.ForkChainSliceReq, Body: body}
-	network.GetNetInstance().Send(target, message)
-	fp.logger.Debugf("keep requesting chain slice from %v, %-%v", target, beginHeight, end)
+	fp.msgSender.Send(target, message)
+	fp.logger.Debugf("keep requesting chain slice from %v, %v-%v", target, beginHeight, end)
 
 	// Start ticker
 	fp.chain.ticker.RegisterOneTimeRoutine(fp.timeoutTickerName(), func() bool {
@@ -494,9 +504,9 @@ func (fp *forkProcessor) onChainSliceRequest(msg notify.Message) error {
 		fp.logger.Errorf("marshalBlockMsgResponse error:%v", err)
 		return err
 	}
-	fp.logger.Debugf("onChainSliceRequest from %v, req %-%v, response %v", bs.Source(), req.begin, req.end, len(response.Blocks))
+	fp.logger.Debugf("onChainSliceRequest from %v, req %v-%v, response %v", bs.Source(), req.begin, req.end, len(response.Blocks))
 	message := network.Message{Code: network.ForkChainSliceResponse, Body: bytes}
-	network.GetNetInstance().Send(bs.Source(), message)
+	fp.msgSender.Send(bs.Source(), message)
 	return nil
 }
 
@@ -662,9 +672,13 @@ func unmarshalChainSliceReqMsg(b []byte) (*chainSliceReq, error) {
 	)
 	if m.Begin == nil {
 		begin = 0
+	} else {
+		begin = *m.Begin
 	}
 	if m.End == nil {
 		end = 0
+	} else {
+		end = *m.End
 	}
 	return &chainSliceReq{begin: begin, end: end}, nil
 }

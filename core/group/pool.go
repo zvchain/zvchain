@@ -102,6 +102,10 @@ func (p *pool) iterateByHeight(height uint64, iterFunc func(g *group) bool) {
 		if !iterFunc(current) {
 			break
 		}
+		// The genesis group visited
+		if current.Header().WorkHeight() == 0 {
+			break
+		}
 	}
 }
 
@@ -149,7 +153,7 @@ func (p *pool) groupsAfter(height uint64, limit int) []types.GroupI {
 	rs := make([]types.GroupI, 0)
 
 	p.iterateByHeight(common.MaxUint64, func(g *group) bool {
-		if g.Header().GroupHeight() > height {
+		if g.Header().GroupHeight() < height {
 			return false
 		}
 		rs = append(rs, g)

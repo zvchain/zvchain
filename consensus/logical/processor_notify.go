@@ -97,7 +97,8 @@ func (p *Processor) onBlockAddSuccess(message notify.Message) error {
 func (p *Processor) dissolveGroupNet(h uint64) {
 	p.groupNetBuilt.Range(func(key, value interface{}) bool {
 		g := value.(*verifyGroup)
-		if g.header.DismissHeight()+100 < h {
+		// DismissHeight()+100 may be overflow
+		if g.header.DismissHeight() < h && g.header.DismissHeight()+100 < h {
 			stdLogger.Debugf("release group net of %v at %v", g.header.Seed(), h)
 			p.NetServer.ReleaseGroupNet(g.header.Seed().Hex())
 			p.groupNetBuilt.Delete(key)

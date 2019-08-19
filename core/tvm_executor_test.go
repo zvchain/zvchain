@@ -28,7 +28,7 @@ var (
 type cp4Test struct {
 }
 
-func (cp *cp4Test) checkAndUpdate(db types.AccountDB, bh *types.BlockHeader) {
+func (cp *cp4Test) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
 	return
 }
 
@@ -38,7 +38,6 @@ func initExecutor() {
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
 			rewardManager:   NewRewardManager(),
 		},
-		cp: &cp4Test{},
 	}
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        100,
@@ -69,7 +68,7 @@ func initExecutor() {
 		},
 	}
 	if BlockChainImpl == nil {
-		BlockChainImpl = executor.bc
+		BlockChainImpl = executor.bc.(*FullBlockChain)
 	}
 
 	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})

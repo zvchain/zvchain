@@ -20,11 +20,10 @@ import (
 	"testing"
 )
 
-
 func TestFullBlockChain_QueryBlockFloor(t *testing.T) {
 	initContext4Test()
 	defer clear()
-	chain := BlockChainImpl.(*FullBlockChain)
+	chain := BlockChainImpl
 
 	fmt.Println("=====")
 	bh := chain.queryBlockHeaderByHeight(0)

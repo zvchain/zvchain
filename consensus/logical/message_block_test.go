@@ -609,12 +609,12 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 	p := processorTest
 	// set up group info
 	p.groupReader.cache.Add(common.HexToHash("0x00"), &verifyGroup{
-		header: &GroupHanderTest{},
+		header: &groupHeader{},
 		memIndex: map[string]int{
 			"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
 		}, members: []*member{&member{}}})
 	p.groupReader.cache.Add(common.HexToHash(otherGroup), &verifyGroup{
-		header: &GroupHanderTest{},
+		header: &groupHeader{},
 		memIndex: map[string]int{
 			"0x7310415c8c1ba2b1b074029a9a663ba20e8bba3fa7775d85e003b32b43514676": 0,
 		}, members: []*member{&member{}}})
@@ -871,7 +871,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH4, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH4.Hash: {BH: &testBH4, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{
-			header: GroupHeaderTest{},
+			header: &groupHeader{},
 		},
 		ts: p.ts,
 	})
@@ -879,7 +879,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH5, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH5.Hash: {BH: &testBH5, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
 		},
@@ -889,7 +889,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH6, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH6.Hash: {BH: &testBH6, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
 		},
@@ -900,7 +900,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH7, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH7.Hash: {BH: &testBH7, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
 		},
@@ -911,7 +911,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	vctx := &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH8.Hash: {BH: &testBH8, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1},
 		},
@@ -927,7 +927,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH9, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH9.Hash: {BH: &testBH9, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1, pt.ids[1].GetHexString(): 1},
 		},
@@ -938,7 +938,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH10, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH10.Hash: {BH: &testBH10, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 1, pt.ids[1].GetHexString(): 1},
 		},
@@ -952,7 +952,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH11, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH11.Hash: {BH: &testBH11, gSignGenerator: gsg}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{{pt.ids[1], pt.mpk[1]}},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
 		},
@@ -965,7 +965,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH12, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH12.Hash: {BH: &testBH12, gSignGenerator: model.NewGroupSignGenerator(1), rSignGenerator: rsg}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{{pt.ids[1], pt.mpk[1]}},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
 		},
@@ -979,7 +979,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	p.blockContexts.attachVctx(&testBH13, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH13.Hash: {BH: &testBH13, gSignGenerator: model.NewGroupSignGenerator(1), rSignGenerator: rsg1}},
 		group: &verifyGroup{
-			header:   GroupHeaderTest{},
+			header:   &groupHeader{},
 			members:  []*member{{pt.ids[1], pt.mpk[1]}},
 			memIndex: map[string]int{p.GetMinerID().GetHexString(): 0, pt.ids[1].GetHexString(): 0},
 		},

@@ -303,7 +303,7 @@ func (chain *FullBlockChain) CountBlocksInRange(startHeight uint64, endHeight ui
 
 func (chain *FullBlockChain) CheckPointAt(h uint64) *types.BlockHeader {
 	cp := chain.cpChecker.checkpointAt(h)
-	return chain.QueryBlockHeaderByHeight(cp)
+	return chain.QueryBlockHeaderFloor(cp)
 }
 
 // BatchGetBlocksBetween query blocks of the height range [start, end)

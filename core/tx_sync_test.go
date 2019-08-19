@@ -136,8 +136,8 @@ const (
 )
 
 const (
-	evilAddr = "0x0000000000000000000000000000000000000000000000000000000000000123"
-	kindAddr = "0x0000000000000000000000000000000000000000000000000000000000000abc"
+	evilAddr       = "0x0000000000000000000000000000000000000000000000000000000000000123"
+	kindAddr       = "0x0000000000000000000000000000000000000000000000000000000000000abc"
 	kindToEvilAddr = "0x0000000000000000000000000000000000000000000000000000000000000fff"
 )
 
@@ -165,26 +165,26 @@ var (
 	TxOverStateNonce1000 *types.Transaction
 	TxNoNonce            *types.Transaction
 
-	TxTypeTransfer            *types.Transaction
-	TxTypeContractCreate      *types.Transaction
-	TxTypeContractCreateEvil1 *types.Transaction
-	TxTypeContractCreateEvil2 *types.Transaction
-	TxTypeContractCall        *types.Transaction
-	TxTypeContractCallEvil1   *types.Transaction
-	TxTypeContractCallEvil2   *types.Transaction
-	TxTypeRewardBadData       *types.Transaction
+	TxTypeTransfer             *types.Transaction
+	TxTypeContractCreate       *types.Transaction
+	TxTypeContractCreateEvil1  *types.Transaction
+	TxTypeContractCreateEvil2  *types.Transaction
+	TxTypeContractCall         *types.Transaction
+	TxTypeContractCallEvil1    *types.Transaction
+	TxTypeContractCallEvil2    *types.Transaction
+	TxTypeRewardBadData        *types.Transaction
 	TxTypeRewardBadExtra       *types.Transaction
-	TxTypeStakeAddProposal    *types.Transaction
-	TxTypeStakeAddVerify      *types.Transaction
-	TxTypeStakeAddFakes       []*types.Transaction
-	TxTypeStakeAddFake1       *types.Transaction
-	TxTypeStakeAddFake2       *types.Transaction
-	TxTypeStakeAddFake3       *types.Transaction
-	TxTypeStakeAddFake4       *types.Transaction
-	TxTypeStakeAddFake5       *types.Transaction
-	TxTypeStakeReduce         *types.Transaction
-	TxTypeStakeReduceFake1    *types.Transaction
-	TxTypeMinerAbort          *types.Transaction
+	TxTypeStakeAddProposal     *types.Transaction
+	TxTypeStakeAddVerify       *types.Transaction
+	TxTypeStakeAddFakes        []*types.Transaction
+	TxTypeStakeAddFake1        *types.Transaction
+	TxTypeStakeAddFake2        *types.Transaction
+	TxTypeStakeAddFake3        *types.Transaction
+	TxTypeStakeAddFake4        *types.Transaction
+	TxTypeStakeAddFake5        *types.Transaction
+	TxTypeStakeReduce          *types.Transaction
+	TxTypeStakeReduceFake1     *types.Transaction
+	TxTypeMinerAbort           *types.Transaction
 	TxTypeStakeRefund          *types.Transaction
 	TxTypeEvil                 *types.Transaction
 	TxTypeGroupPiece           *types.Transaction
@@ -231,7 +231,7 @@ func init4TxSync() {
 	initPeerManager()
 	types.InitMiddleware()
 	initNetwork()
-	initTxSyncer(BlockChainImpl.(*FullBlockChain), BlockChainImpl.GetTransactionPool().(*txPool), NetImpl)
+	initTxSyncer(BlockChainImpl, BlockChainImpl.GetTransactionPool().(*txPool), NetImpl)
 	//network.Init(nil,nil,nil)
 
 	types.DefaultPVFunc = PvFuncTest
@@ -413,14 +413,14 @@ func (b *BigInt) GetBytesWithSign() []byte {
 
 func AddBalance() {
 	blocks := GenBlocks()
-	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 
 	stateDB.AddBalance(common.HexToAddress(adminAddress), new(big.Int).SetUint64(99999999999999999))
 
 	exc := &executePostState{state: stateDB}
 	root := stateDB.IntermediateRoot(true)
 	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())
-	BlockChainImpl.(*FullBlockChain).commitBlock(blocks[0], exc)
+	BlockChainImpl.commitBlock(blocks[0], exc)
 	lastBlockHash = blocks[0].Header.Hash
 }
 
@@ -576,7 +576,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 	if !isEvil {
 		seed := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 		sender := common.HexToAddress(adminAddress).Bytes()
-		//groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
+		//groupSender := group.NewPacketSender(BlockChainImpl)
 
 		//Round 1
 		data := &group.EncryptedSharePiecePacketImpl{}

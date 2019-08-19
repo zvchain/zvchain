@@ -115,7 +115,7 @@ type FullBlockChain struct {
 
 func getBlockChainConfig() *BlockChainConfig {
 	return &BlockChainConfig{
-		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b") + common.GlobalConf.GetString("instance", "index", ""),
+		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
 		block:  "bh",
 
 		blockHeight: "hi",
@@ -206,7 +206,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	GroupManagerImpl = group.NewManager(chain)
 
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
-	chain.executor = NewTVMExecutor(chain, chain.cpChecker)
+	chain.executor = NewTVMExecutor(chain)
+	chain.executor.addPostProcessor(GroupManagerImpl.RegularCheck)
+	chain.executor.addPostProcessor(chain.cpChecker.updateVotes)
 
 	if nil != chain.latestBlock {
 		if !chain.versionValidate() {
@@ -292,8 +294,9 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	stateDB.SetNonce(common.GroupTopAddress, 1)
 	stateDB.SetNonce(cpAddress, 1)
 
-	// mark cp at 0
-	chain.cpChecker.markCheckpoint(stateDB, 0)
+	// mark group votes at 0
+	chain.cpChecker.setGroupVotes(stateDB, []uint16{1})
+	chain.cpChecker.setGroupEpoch(stateDB, types.EpochAt(0))
 
 	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())

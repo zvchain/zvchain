@@ -151,12 +151,12 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		return
 	}
 
-	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
 	pPubkey := p.getProposerPubKeyInBlock(bh)
 	if pPubkey == nil {
 		err = core.ErrPkNotExists
 		return
 	}
+	gpk := group.gpk
 	pubArray := [2]groupsig.Pubkey{*pPubkey, gpk}
 	aggSign := groupsig.DeserializeSign(bh.Signature)
 	b := groupsig.VerifyAggregateSig(pubArray[:], bh.Hash.Bytes(), *aggSign)
@@ -187,7 +187,7 @@ func (p *Processor) VerifyBlockSign(bh *types.BlockHeader) (ok bool, err error) 
 		return
 	}
 
-	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
+	gpk := group.gpk
 
 	ppk := p.getProposerPubKeyInBlock(bh)
 	if ppk == nil {

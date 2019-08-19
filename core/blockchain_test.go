@@ -290,7 +290,7 @@ func TestBlockChain_GetBlockMessage(t *testing.T) {
 	if 3 != BlockChainImpl.Height() {
 		t.Fatalf("fail to add 3 blocks")
 	}
-	chain := BlockChainImpl.(*FullBlockChain)
+	chain := BlockChainImpl
 
 	header1 := chain.queryBlockHeaderByHeight(uint64(1))
 	header2 := chain.queryBlockHeaderByHeight(uint64(2))
@@ -324,7 +324,7 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 			t.Fatalf("fail to add empty block")
 		}
 	}
-	chain := BlockChainImpl.(*FullBlockChain)
+	chain := BlockChainImpl
 	lent := chain.topBlocks.Len()
 	fmt.Printf("len = %d \n", lent)
 	if 20 != chain.topBlocks.Len() {
@@ -351,7 +351,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	}
 	defer clear()
 
-	chain := BlockChainImpl.(*FullBlockChain)
+	chain := BlockChainImpl
 
 	// 查询创始块
 	blockHeader := BlockChainImpl.QueryTopBlock()
@@ -460,12 +460,12 @@ func genHash(hash string) []byte {
 
 func initBalance() {
 	blocks := GenCorrectBlocks()
-	stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 	stateDB1.AddBalance(common.HexToAddress("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000000000000))
 	exc := &executePostState{state: stateDB1}
 	root := stateDB1.IntermediateRoot(true)
 	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())
-	_, _ = BlockChainImpl.(*FullBlockChain).commitBlock(blocks[0], exc)
+	_, _ = BlockChainImpl.commitBlock(blocks[0], exc)
 }
 
 func clear() {
@@ -639,10 +639,10 @@ func (g *GroupHeader4Test) Seed() common.Hash {
 	return common.EmptyHash
 }
 func (g *GroupHeader4Test) WorkHeight() uint64 {
-	return uint64(1)
+	return uint64(0)
 }
 func (g *GroupHeader4Test) DismissHeight() uint64 {
-	return uint64(1)
+	return common.MaxUint64
 }
 func (g *GroupHeader4Test) PublicKey() []byte {
 	return make([]byte, 0)

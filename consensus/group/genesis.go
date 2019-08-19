@@ -62,7 +62,7 @@ func GenerateGenesis() *types.GenesisInfo {
 	}
 	members := make([]types.MemberI, len(genesis.Members))
 	for i, mem := range genesis.Members {
-		members[i] = &member{id: mem.ID, pk: mem.PK}
+		members[i] = &member{id: mem.ID.Serialize(), pk: mem.PK.Serialize()}
 	}
 	coreGroup := &group{header: gHeader, members: members}
 

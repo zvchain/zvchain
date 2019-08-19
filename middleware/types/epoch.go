@@ -21,6 +21,7 @@ type Epoch interface {
 	Next() Epoch
 	Prev() Epoch
 	Add(delta int) Epoch
+	Equal(e Epoch) bool
 }
 
 type GroupEpochAlg interface {
@@ -29,12 +30,16 @@ type GroupEpochAlg interface {
 }
 
 const (
-	EpochLength           = 8000 // blocks per epoch
-	GroupLiveEpochs       = 2    // epochs one group can live
-	GroupActivateEpochGap = 1    // The epoch gap after the group created can start working
+	EpochLength           = 400 // blocks per epoch
+	GroupLiveEpochs       = 2   // epochs one group can live
+	GroupActivateEpochGap = 1   // The epoch gap after the group created can start working
 )
 
 type epoch uint64
+
+func (e epoch) Equal(e2 Epoch) bool {
+	return e.End() == e2.End()
+}
 
 func (e epoch) Start() uint64 {
 	return uint64(e) * EpochLength
@@ -65,6 +70,11 @@ func (e epoch) Add(delta int) Epoch {
 }
 
 type genesisEpoch struct{}
+
+func (ge genesisEpoch) Equal(e Epoch) bool {
+	_, ok := e.(*genesisEpoch)
+	return ok
+}
 
 func (ge genesisEpoch) Start() uint64 {
 	return 0

@@ -270,7 +270,7 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		return
 	}
 	bh := slot.BH
-	gSeed := vctx.group.header.Seed()
+	gSeed := vctx.group.header.seed
 
 	if err = vctx.baseCheck(bh, cvm.SI.GetID()); err != nil {
 		return
