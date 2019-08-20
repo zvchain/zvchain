@@ -17,10 +17,8 @@ package logical
 
 import (
 	"fmt"
-	"math/big"
-	"sync"
-
 	"github.com/zvchain/zvchain/common"
+	"math/big"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -77,7 +75,6 @@ func (p *Processor) reserveBlock(vctx *VerifyContext, slot *SlotContext) {
 	defer traceLog.Log("threshold sign cost %v", p.ts.Now().Local().Sub(bh.CurTime.Local()).String())
 
 	if slot.IsRecovered() {
-		//vctx.markCastSuccess() //onBlockAddSuccess方法中也mark了，该处调用是异步的
 		p.blockContexts.addReservedVctx(vctx)
 		if !p.tryNotify(vctx) {
 			blog.warn("reserved, height=%v", vctx.castHeight)
@@ -239,15 +236,8 @@ func (p *Processor) blockProposal() {
 		block         *types.Block
 		proveTraceLog *monitor.PerformTraceLogger
 	)
-	// Parallelize the CastBlock and genProveHashs process
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		block = p.MainChain.CastBlock(uint64(height), pi, qn, p.GetMinerID().Serialize(), gb.GSeed)
-	}()
 
-	wg.Wait()
+	block = p.MainChain.CastBlock(uint64(height), pi, qn, p.GetMinerID().Serialize(), gb.GSeed)
 	if block == nil {
 		blog.error("MainChain::CastingBlock failed, height=%v", height)
 		return

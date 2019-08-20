@@ -24,10 +24,6 @@ import (
 	"github.com/zvchain/zvchain/monitor"
 )
 
-func (p *Processor) thresholdPieceVerify(vctx *VerifyContext, slot *SlotContext) {
-	p.reserveBlock(vctx, slot)
-}
-
 // verifyCastMessage verifies the message from proposal node
 // Especially, as it takes the previous blockHeader as input, future proposal messages is not processable by the method,
 // which may be triggered at the near future
@@ -81,6 +77,13 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			if err != nil {
 				return
 			}
+			// Checks if has signed more weight block
+			if vctx.castHeight > 1 && vctx.hasSignedMoreWeightThan(bh) {
+				max := vctx.getSignedMaxWeight()
+				err = fmt.Errorf("have signed a higher qn block %v,This block qn %v", max, bh.TotalQN)
+				return
+			}
+
 		}
 	}
 	castorDO := p.minerReader.getProposeMinerByHeight(castor, preBH.Height)
