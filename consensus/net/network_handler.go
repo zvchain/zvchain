@@ -95,7 +95,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			"now":       time.TSInstance.NowTime().Local(),
 			"from":      m.SI.GetID(),
 			"logId":     "12",
-		}).Debugf("OnMessageCast result:%v", err)
+		}).Debugf("OnMessageCast, preHash=%v, result:%v", m.BH.PreHash, err)
 	case network.VerifiedCastMsg:
 		m, e := unMarshalConsensusVerifyMessage(body)
 		if e != nil {
