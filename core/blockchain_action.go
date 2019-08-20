@@ -106,7 +106,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	exeTraceLog := monitor.NewPerformTraceLogger("Execute", common.Hash{}, height)
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
-
+	block.Header.CurTime = chain.ts.Now()
 	statehash, evitTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
 	exeTraceLog.SetEnd()
 
@@ -117,7 +117,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.StateTree = common.BytesToHash(statehash.Bytes())
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
-	block.Header.CurTime = chain.ts.Now()
+
 	block.Header.Elapsed = int32(block.Header.CurTime.Since(latestBlock.CurTime))
 
 	minElapse := chain.consensusHelper.GetBlockMinElapse()
