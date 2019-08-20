@@ -179,7 +179,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	defer chain.batch.Reset()
 
 	curr := chain.getLatestBlock()
-	if block.Height - curr.Height > 0 {
+	if curr.Height - block.Height  > 1 {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"type": "resetTop",
 			"height": block.Height,
