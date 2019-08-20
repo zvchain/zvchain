@@ -51,10 +51,10 @@ func (ws *WalletServer) Start() error {
 	return err
 }
 
-func (ws *WalletServer) SignData(source, target, unlockPassword string, value uint64, gas uint64, gaspriceStr string, txType int, nonce uint64, data string) *Result {
+func (ws *WalletServer) SignData(source, target, unlockPassword string, value uint64, gas uint64, gaspriceStr string, txType int, nonce uint64, data string) (*txRawData, *ErrorResult) {
 	gp, err := common.ParseCoin(gaspriceStr)
 	if err != nil {
-		return opError(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, gaspriceStr))
+		return nil, opErrorRes(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, gaspriceStr))
 	}
 	txRaw := &txRawData{
 		Target:   target,
@@ -67,32 +67,31 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value ui
 	}
 
 	r := ws.aop.UnLock(source, unlockPassword, 10)
-	if !r.IsSuccess() {
-		return r
+	if r != nil {
+		return nil, r
 	}
-	r = ws.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+	aci, resErr := ws.aop.AccountInfo()
+	if resErr != nil {
+		return nil, r
 	}
-	aci := r.Data.(*Account)
 
 	privateKey := common.HexToSecKey(aci.Sk)
 	pubkey := common.HexToPubKey(aci.Pk)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
-		return opError(fmt.Errorf("privatekey or pubkey error"))
+		return nil, opErrorRes(fmt.Errorf("privatekey or pubkey error"))
 	}
 	sourceAddr := pubkey.GetAddress()
 	if sourceAddr.AddrPrefixString() != aci.Address {
-		return opError(fmt.Errorf("address error"))
+		return nil, opErrorRes(fmt.Errorf("address error"))
 	}
 
 	tranx := txRawToTransaction(txRaw)
 	tranx.Hash = tranx.GenHash()
 	sign, err := privateKey.Sign(tranx.Hash.Bytes())
 	if err != nil {
-		return opError(err)
+		return nil, opErrorRes(err)
 	}
 	tranx.Sign = sign.Bytes()
 	txRaw.Sign = sign.Hex()
-	return opSuccess(txRaw)
+	return txRaw, nil
 }

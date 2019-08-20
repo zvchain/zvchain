@@ -16,6 +16,7 @@
 package cli
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
@@ -37,20 +38,20 @@ func (api *RpcExplorerImpl) Version() string {
 }
 
 // ExplorerAccount is used in the blockchain browser to query account information
-func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*ExplorerAccount, error) {
 	if !common.ValidateAddress(strings.TrimSpace(hash)) {
-		return failResult("Wrong param format")
+		return nil, fmt.Errorf("wrong param format")
 	}
 	impl := &RpcGtasImpl{}
 	return impl.ViewAccount(hash)
 }
 
 // ExplorerBlockDetail is used in the blockchain browser to query block details
-func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*ExplorerBlockDetail, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
-		return failResult("QueryBlock error")
+		return nil, fmt.Errorf("queryBlock error")
 	}
 	block := convertBlockHeader(b)
 
@@ -75,12 +76,12 @@ func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) 
 		EvictedReceipts: evictedReceipts,
 		Receipts:        receipts,
 	}
-	return successResult(bd)
+	return bd, nil
 }
 
 // ExplorerGroupsAfter is used in the blockchain browser to
 // query groups after the specified height
-func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) ([]*Group, error) {
 	groups := api.gr.GroupsAfter(height)
 
 	ret := make([]*Group, 0)
@@ -88,15 +89,15 @@ func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) 
 		group := convertGroup(g)
 		ret = append(ret, group)
 	}
-	return successResult(ret)
+	return ret, nil
 }
 
 // ExplorerBlockReward export reward transaction by block height
-func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*ExploreBlockReward, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
-		return failResult("nil block")
+		return nil, fmt.Errorf("nil block")
 	}
 	bh := b.Header
 
@@ -125,5 +126,5 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 		genReward.Success = true
 		ret.VerifierReward = *genReward
 	}
-	return successResult(ret)
+	return ret, nil
 }

@@ -19,13 +19,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/zvchain/zvchain/consensus/base"
-	"io/ioutil"
-	"net/http"
-
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/middleware/types"
+	"io/ioutil"
+	"net/http"
 )
 
 type RemoteChainOpImpl struct {
@@ -57,9 +56,9 @@ func (ca *RemoteChainOpImpl) Connect(ip string, port int) error {
 	return nil
 }
 
-func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Result {
+func (ca *RemoteChainOpImpl) request(method string, result interface{}, params ...interface{}) *ErrorResult {
 	if ca.base == "" {
-		return opError(ErrUnConnected)
+		return opErrorRes(ErrUnConnected)
 	}
 
 	param := RPCReqObj{
@@ -78,31 +77,34 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 
 	paramBytes, err := json.Marshal(param)
 	if err != nil {
-		return opError(err)
+		return opErrorRes(err)
 	}
 
 	resp, err := http.Post(ca.base, "application/json", bytes.NewReader(paramBytes))
 	if err != nil {
-		return opError(err)
+		return opErrorRes(err)
 	}
 	defer resp.Body.Close()
 	responseBytes, err := ioutil.ReadAll(resp.Body)
 	ret := &RPCResObj{}
 	if err := json.Unmarshal(responseBytes, ret); err != nil {
-		return opError(err)
+		return opErrorRes(err)
 	}
 	if ret.Error != nil {
-		return opError(fmt.Errorf(ret.Error.Message))
+		return ret.Error
 	}
-	return ret.Result
+	err = json.Unmarshal(ret.Result, &result)
+	if err != nil {
+		opErrorRes(err)
+	}
+
+	return nil
 }
 
-func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, error) {
-	ret := ca.request("nonce", addr)
-	if !ret.IsSuccess() {
-		return 0, fmt.Errorf(ret.Message)
-	}
-	return uint64(ret.Data.(float64)), nil
+func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, *ErrorResult) {
+	var nonce uint64
+	err := ca.request("nonce", &nonce, addr)
+	return nonce, err
 }
 
 // Endpoint returns current connected ip and port
@@ -111,26 +113,25 @@ func (ca *RemoteChainOpImpl) Endpoint() string {
 }
 
 // SendRaw send transaction to connected node
-func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) (string, *ErrorResult) {
+	aci, resErr := ca.aop.AccountInfo()
+	if resErr != nil {
+		return "", resErr
 	}
-	aci := r.Data.(*Account)
 	privateKey := common.HexToSecKey(aci.Sk)
 	pubkey := common.HexToPubKey(aci.Pk)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
-		return opError(fmt.Errorf("privatekey or pubkey error"))
+		return "", opErrorRes(fmt.Errorf("privatekey or pubkey error"))
 	}
 	source := pubkey.GetAddress()
 	if source.AddrPrefixString() != aci.Address {
-		return opError(fmt.Errorf("address error"))
+		return "", opErrorRes(fmt.Errorf("address error"))
 	}
 
 	if tx.Nonce == 0 {
 		nonce, err := ca.nonce(aci.Address)
 		if err != nil {
-			return opError(err)
+			return "", err
 		}
 		tx.Nonce = nonce
 	}
@@ -139,63 +140,80 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 	tranx.Hash = tranx.GenHash()
 	sign, err := privateKey.Sign(tranx.Hash.Bytes())
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
 	jsonByte, err := json.Marshal(tx)
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	// Signature is required here
-	return ca.request("tx", string(jsonByte))
+	var hash string
+	resErr = ca.request("tx", &hash, string(jsonByte))
+	return hash, resErr
 }
 
 // Balance query Balance by address
-func (ca *RemoteChainOpImpl) Balance(addr string) *Result {
-	return ca.request("balance", addr)
+func (ca *RemoteChainOpImpl) Balance(addr string) (float64, *ErrorResult) {
+	var balance float64
+	err := ca.request("balance", &balance, addr)
+	return balance, err
 }
 
 // Nonce query Balance by address
-func (ca *RemoteChainOpImpl) Nonce(addr string) *Result {
-	return ca.request("nonce", addr)
+func (ca *RemoteChainOpImpl) Nonce(addr string) (uint64, *ErrorResult) {
+	var nonce uint64
+	err := ca.request("nonce", &nonce, addr)
+	return nonce, err
 }
 
 // MinerInfo query miner info by address
-func (ca *RemoteChainOpImpl) MinerInfo(addr string, detail string) *Result {
-	return ca.request("minerInfo", addr, detail)
+func (ca *RemoteChainOpImpl) MinerInfo(addr string, detail string) (MinerStakeDetails, *ErrorResult) {
+	minerInfo := new(MinerStakeDetails)
+	err := ca.request("minerInfo", minerInfo, addr, detail)
+	return *minerInfo, err
 }
 
-func (ca *RemoteChainOpImpl) BlockHeight() *Result {
-	return ca.request("blockHeight")
+func (ca *RemoteChainOpImpl) BlockHeight() (uint64, *ErrorResult) {
+	var height uint64
+	err := ca.request("blockHeight", &height)
+	return height, err
 }
 
-func (ca *RemoteChainOpImpl) GroupHeight() *Result {
-	return ca.request("groupHeight")
+func (ca *RemoteChainOpImpl) GroupHeight() (uint64, *ErrorResult) {
+	var groupHeight uint64
+	err := ca.request("groupHeight", &groupHeight)
+	return groupHeight, err
 }
 
-func (ca *RemoteChainOpImpl) TxInfo(hash string) *Result {
-	return ca.request("transDetail", hash)
+func (ca *RemoteChainOpImpl) TxInfo(hash string) (Transaction, *ErrorResult) {
+	tx := new(Transaction)
+	err := ca.request("transDetail", tx, hash)
+	return *tx, err
 }
 
-func (ca *RemoteChainOpImpl) BlockByHash(hash string) *Result {
-	return ca.request("getBlockByHash", hash)
+func (ca *RemoteChainOpImpl) BlockByHash(hash string) (Block, *ErrorResult) {
+	block := new(Block)
+	err := ca.request("getBlockByHash", block, hash)
+	return *block, err
 }
 
-func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *Result {
-	return ca.request("getBlockByHeight", h)
+func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) (Block, *ErrorResult) {
+	block := new(Block)
+	err := ca.request("getBlockByHeight", block, h)
+	return *block, err
 }
 
 // StakeAdd adds stake for the given target account
-func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice uint64) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice uint64) (string, *ErrorResult) {
+	aci, resErr := ca.aop.AccountInfo()
+	if resErr != nil {
+		return "", resErr
 	}
-	aci := r.Data.(*Account)
 
 	if target == "" {
 		target = aci.Address
@@ -208,7 +226,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	// When stakes for himself, pks will be required
 	if aci.Address == target {
 		if aci.Miner == nil {
-			return opError(fmt.Errorf("the current account is not a miner account"))
+			return "", opErrorRes(fmt.Errorf("the current account is not a miner account"))
 		}
 		var bpk groupsig.Pubkey
 		bpk.SetHexString(aci.Miner.BPk)
@@ -217,7 +235,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	} else {
 		//if stake to Verify and target is not myself then return error
 		if pks.MType == types.MinerTypeVerify {
-			return opError(fmt.Errorf("you could not stake for other's verify node"))
+			return "", opErrorRes(fmt.Errorf("you could not stake for other's verify node"))
 		}
 	}
 
@@ -225,7 +243,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 
 	data, err := types.EncodePayload(pks)
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 	tx := &txRawData{
 		Target:   target,
@@ -240,26 +258,25 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 }
 
 // MinerAbort send stop mining transaction
-func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force bool) (string, *ErrorResult) {
+	aci, resErr := ca.aop.AccountInfo()
+	if resErr != nil {
+		return "", resErr
 	}
-	aci := r.Data.(*Account)
 	if aci.Miner == nil {
-		return opError(fmt.Errorf("the current account is not a miner account"))
+		return "", opErrorRes(fmt.Errorf("the current account is not a miner account"))
 	}
 	if !force {
-		checkResult := ca.GroupCheck(aci.Address)
-		if !checkResult.IsSuccess() {
-			return opError(fmt.Errorf(checkResult.Message))
+		groupInfo, resErr := ca.GroupCheck(aci.Address)
+		if resErr != nil {
+			return "", resErr
 		}
-		m := checkResult.Data.(map[string]interface{})
-		info := m["current_group_routine"]
+		//m := checkResult.Data.(map[string]interface{})
+		info := groupInfo.CurrentGroupRoutine
 		if info != nil {
-			selected := info.(map[string]interface{})["selected"]
-			if selected != nil && selected.(bool) {
-				return opError(fmt.Errorf("You are selected to join a group currently, abort operation may result in frozen. And you can specify the '-f' if you insist"))
+			selected := info.Selected
+			if selected {
+				return "", opErrorRes(fmt.Errorf("You are selected to join a group currently, abort operation may result in frozen. And you can specify the '-f' if you insist"))
 			}
 		}
 	}
@@ -275,12 +292,11 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force b
 }
 
 // StakeRefund send refund transaction. After the group is dissolved, the token will be refunded
-func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice uint64) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice uint64) (string, *ErrorResult) {
+	aci, resErr := ca.aop.AccountInfo()
+	if resErr != nil {
+		return "", resErr
 	}
-	aci := r.Data.(*Account)
 	if target == "" {
 		target = aci.Address
 	}
@@ -296,17 +312,16 @@ func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice
 }
 
 // StakeReduce send reduce stake transaction
-func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, gasPrice uint64) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, gasPrice uint64) (string, *ErrorResult) {
+	aci, resErr := ca.aop.AccountInfo()
+	if resErr != nil {
+		return "", resErr
 	}
-	aci := r.Data.(*Account)
 	if target == "" {
 		target = aci.Address
 	}
 	if value == 0 {
-		return opError(fmt.Errorf("value must > 0"))
+		return "", opErrorRes(fmt.Errorf("value must > 0"))
 	}
 	reduceValue := common.TAS2RA(value)
 	tx := &txRawData{
@@ -321,14 +336,20 @@ func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, g
 	return ca.SendRaw(tx)
 }
 
-func (ca *RemoteChainOpImpl) ViewContract(addr string) *Result {
-	return ca.request("viewAccount", addr)
+func (ca *RemoteChainOpImpl) ViewContract(addr string) (ExplorerAccount, *ErrorResult) {
+	account := new(ExplorerAccount)
+	err := ca.request("viewAccount", account, addr)
+	return *account, err
 }
 
-func (ca *RemoteChainOpImpl) TxReceipt(hash string) *Result {
-	return ca.request("txReceipt", hash)
+func (ca *RemoteChainOpImpl) TxReceipt(hash string) (ExecutedTransaction, *ErrorResult) {
+	receipt := new(ExecutedTransaction)
+	err := ca.request("txReceipt", receipt, hash)
+	return *receipt, err
 }
 
-func (ca *RemoteChainOpImpl) GroupCheck(addr string) *Result {
-	return ca.request("groupCheck", addr)
+func (ca *RemoteChainOpImpl) GroupCheck(addr string) (GroupCheckInfo, *ErrorResult) {
+	groupInfo := new(GroupCheckInfo)
+	err := ca.request("groupCheck", groupInfo, addr)
+	return *groupInfo, err
 }

@@ -41,15 +41,19 @@ type txRawData struct {
 	ExtraData []byte `json:"extra_data"`
 }
 
-func opError(err error) *Result {
-	ret, _ := failResult(err.Error())
-	return ret
+//func opError(err error) *Result {
+//	ret, _ := failResult(err.Error())
+//	return ret
+//}
+
+func opErrorRes(err error) *ErrorResult {
+	return failErrResult(err.Error())
 }
 
-func opSuccess(data interface{}) *Result {
-	ret, _ := successResult(data)
-	return ret
-}
+//func opSuccess(data interface{}) *Result {
+//	ret, _ := successResult(data)
+//	return ret
+//}
 
 type MinerInfo struct {
 	PK          string
@@ -86,21 +90,21 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 }
 
 type accountOp interface {
-	NewAccount(password string, miner bool) *Result
+	NewAccount(password string, miner bool) (string, *ErrorResult)
 
-	AccountList() *Result
+	AccountList() ([]string, *ErrorResult)
 
-	Lock(addr string) *Result
+	Lock(addr string) *ErrorResult
 
-	UnLock(addr string, password string, duration uint) *Result
+	UnLock(addr string, password string, duration uint) *ErrorResult
 
-	AccountInfo() *Result
+	AccountInfo() (*Account, *ErrorResult)
 
-	DeleteAccount() *Result
+	DeleteAccount() (string, *ErrorResult)
 
-	NewAccountByImportKey(key string, password string, miner bool) *Result
+	NewAccountByImportKey(key string, password string, miner bool) (string, *ErrorResult)
 
-	ExportKey(addr string) *Result
+	ExportKey(addr string) (string, *ErrorResult)
 
 	Close()
 }
@@ -111,35 +115,35 @@ type chainOp interface {
 	// Endpoint returns current connected ip and port
 	Endpoint() string
 	// SendRaw send transaction to connected node
-	SendRaw(tx *txRawData) *Result
+	SendRaw(tx *txRawData) (string, *ErrorResult)
 	// Balance query Balance by address
-	Balance(addr string) *Result
+	Balance(addr string) (float64, *ErrorResult)
 	// Nonce query Balance by address
-	Nonce(addr string) *Result
+	Nonce(addr string) (uint64, *ErrorResult)
 	// MinerInfo query miner info by address
-	MinerInfo(addr string, detail string) *Result
+	MinerInfo(addr string, detail string) (MinerStakeDetails, *ErrorResult)
 
-	BlockHeight() *Result
+	BlockHeight() (uint64, *ErrorResult)
 
-	GroupHeight() *Result
+	GroupHeight() (uint64, *ErrorResult)
 
-	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *Result
+	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) (string, *ErrorResult)
 
-	MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result
+	MinerAbort(mtype int, gas, gasprice uint64, force bool) (string, *ErrorResult)
 
-	StakeRefund(target string, mtype int, gas, gasprice uint64) *Result
+	StakeRefund(target string, mtype int, gas, gasprice uint64) (string, *ErrorResult)
 
-	StakeReduce(target string, mtype int, value, gas, gasprice uint64) *Result
+	StakeReduce(target string, mtype int, value, gas, gasprice uint64) (string, *ErrorResult)
 
-	TxInfo(hash string) *Result
+	TxInfo(hash string) (Transaction, *ErrorResult)
 
-	BlockByHash(hash string) *Result
+	BlockByHash(hash string) (Block, *ErrorResult)
 
-	BlockByHeight(h uint64) *Result
+	BlockByHeight(h uint64) (Block, *ErrorResult)
 
-	ViewContract(addr string) *Result
+	ViewContract(addr string) (ExplorerAccount, *ErrorResult)
 
-	TxReceipt(hash string) *Result
+	TxReceipt(hash string) (ExecutedTransaction, *ErrorResult)
 
-	GroupCheck(addr string) *Result
+	GroupCheck(addr string) (GroupCheckInfo, *ErrorResult)
 }

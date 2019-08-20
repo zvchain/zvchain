@@ -119,10 +119,10 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 			return nil, err
 		}
 
-		ret := aop.NewAccount(DefaultPassword, true)
-		if !ret.IsSuccess() {
-			fmt.Println(ret.Message)
-			return nil, err
+		_, res := aop.NewAccount(DefaultPassword, true)
+		if res != nil {
+			fmt.Println(res.Message)
+			return nil, fmt.Errorf(res.Message)
 		}
 		return aop, nil
 	}
@@ -277,14 +277,14 @@ func passwordHash(password string) string {
 }
 
 // NewAccount create a new account by password
-func (am *AccountManager) NewAccount(password string, miner bool) *Result {
+func (am *AccountManager) NewAccount(password string, miner bool) (string, *ErrorResult) {
 	privateKey, err := common.GenerateKey("")
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 	account, err := am.constructAccount(password, &privateKey, miner)
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 
 	ksr := &KeyStoreRaw{
@@ -292,48 +292,48 @@ func (am *AccountManager) NewAccount(password string, miner bool) *Result {
 		IsMiner: miner,
 	}
 	if err := am.storeAccount(account.Address, ksr, password); err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 	aci := &AccountInfo{
 		Account: *account,
 	}
 	am.accounts.Store(account.Address, aci)
 
-	return opSuccess(account.Address)
+	return account.Address, nil
 }
 
 // AccountList show account list
-func (am *AccountManager) AccountList() *Result {
+func (am *AccountManager) AccountList() ([]string, *ErrorResult) {
 	iter := am.store.NewIterator()
 	addrs := make([]string, 0)
 	for iter.Next() {
 		addrs = append(addrs, string(iter.Key()))
 	}
-	return opSuccess(addrs)
+	return addrs, nil
 }
 
 // Lock lock the account by address
-func (am *AccountManager) Lock(addr string) *Result {
+func (am *AccountManager) Lock(addr string) *ErrorResult {
 	aci, err := am.getAccountInfo(addr)
 	if err != nil {
-		return opError(err)
+		return opErrorRes(err)
 	}
 	aci.Status = statusLocked
-	return opSuccess(nil)
+	return nil
 }
 
 // UnLock unlock the account by address and password
-func (am *AccountManager) UnLock(addr string, password string, duration uint) *Result {
+func (am *AccountManager) UnLock(addr string, password string, duration uint) *ErrorResult {
 	var aci *AccountInfo
 	if v, ok := am.accounts.Load(addr); ok {
 		aci = v.(*AccountInfo)
 		if passwordHash(password) != aci.Password {
-			return opError(ErrPassword)
+			return opErrorRes(ErrPassword)
 		}
 	} else {
 		acc, err := am.loadAccount(addr, password)
 		if err != nil {
-			return opError(ErrPassword)
+			return opErrorRes(ErrPassword)
 		}
 		aci = &AccountInfo{
 			Account: *acc,
@@ -352,42 +352,45 @@ func (am *AccountManager) UnLock(addr string, password string, duration uint) *R
 	aci.UnLockExpire = time.Now().Add(time.Duration(duration) * time.Second)
 	am.unlockAccount = aci
 
-	return opSuccess(nil)
+	return nil
 }
 
 // AccountInfo show account info
-func (am *AccountManager) AccountInfo() *Result {
+func (am *AccountManager) AccountInfo() (*Account, *ErrorResult) {
 	addr := am.currentUnLockedAddr()
 	if addr == "" {
-		return opError(ErrUnlocked)
+		return nil, opErrorRes(ErrUnlocked)
 	}
 	aci, err := am.getAccountInfo(addr)
 	if err != nil {
-		return opError(err)
+		return nil, opErrorRes(err)
 	}
 	if !aci.unlocked() {
-		return opError(ErrUnlocked)
+		return nil, opErrorRes(ErrUnlocked)
 	}
 	aci.resetExpireTime()
-	return opSuccess(&aci.Account)
+	return &aci.Account, nil
 }
 
 // DeleteAccount delete current unlocked account
-func (am *AccountManager) DeleteAccount() *Result {
+func (am *AccountManager) DeleteAccount() (string, *ErrorResult) {
 	addr := am.currentUnLockedAddr()
 	if addr == "" {
-		return opError(ErrUnlocked)
+		return "", opErrorRes(ErrUnlocked)
 	}
 	aci, err := am.getAccountInfo(addr)
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 	if !aci.unlocked() {
-		return opError(ErrUnlocked)
+		return "", opErrorRes(ErrUnlocked)
 	}
 	am.accounts.Delete(addr)
-	am.store.Delete([]byte(addr))
-	return opSuccess(nil)
+	err = am.store.Delete([]byte(addr))
+	if err != nil {
+		return "", opErrorRes(err)
+	}
+	return addr, nil
 }
 
 func (am *AccountManager) Close() {
@@ -395,16 +398,16 @@ func (am *AccountManager) Close() {
 }
 
 // NewAccountByImportKey create a new account by the input private key
-func (am *AccountManager) NewAccountByImportKey(key string, password string, miner bool) *Result {
+func (am *AccountManager) NewAccountByImportKey(key string, password string, miner bool) (string, *ErrorResult) {
 	kBytes := common.FromHex(key)
 	privateKey := new(common.PrivateKey)
 	if !privateKey.ImportKey(kBytes) {
-		return opError(ErrInternal)
+		return "", opErrorRes(ErrInternal)
 	}
 
 	account, err := am.constructAccount(password, privateKey, miner)
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 
 	ksr := &KeyStoreRaw{
@@ -412,22 +415,22 @@ func (am *AccountManager) NewAccountByImportKey(key string, password string, min
 		IsMiner: miner,
 	}
 	if err := am.storeAccount(account.Address, ksr, password); err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 	aci := &AccountInfo{
 		Account: *account,
 	}
 	am.accounts.Store(account.Address, aci)
 
-	return opSuccess(account.Address)
+	return account.Address, nil
 }
 
 // ExportKey exports the private key of account
-func (am *AccountManager) ExportKey(addr string) *Result {
+func (am *AccountManager) ExportKey(addr string) (string, *ErrorResult) {
 	acc, err := am.getAccountInfo(addr)
 	if err != nil {
-		return opError(err)
+		return "", opErrorRes(err)
 	}
 	sk := common.HexToSecKey(acc.Sk)
-	return opSuccess(common.ToHex(sk.ExportKey()))
+	return common.ToHex(sk.ExportKey()), nil
 }
