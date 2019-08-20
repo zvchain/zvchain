@@ -30,6 +30,11 @@ import (
 	"github.com/zvchain/zvchain/monitor"
 )
 
+const (
+	blockSecondsBuffer  = 2 //Max acceptable seconds if block's curTime early than now() when validating the block
+	blockPreSendSeconds = 1 //Seconds of a proposer can dispatch the block header before the block's curTime
+)
+
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup
 func (p *Processor) triggerCastCheck() {
 	p.Ticker.StartAndTriggerRoutine(p.getCastCheckRoutineName())
@@ -284,9 +289,9 @@ func (p *Processor) blockProposal() {
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
 		offset := ccm.BH.CurTime.Since(p.ts.Now())
-		if offset > common.BlockPreSendSeconds {
+		if offset > blockPreSendSeconds {
 			blog.debug("sleep %d seconds before SendCastVerify. now: %v, block.curTime: %v", offset-1, p.ts.Now(), ccm.BH.CurTime)
-			time.Sleep(time.Second * time.Duration(offset-common.BlockPreSendSeconds))
+			time.Sleep(time.Second * time.Duration(offset-blockPreSendSeconds))
 		}
 		p.NetServer.SendCastVerify(ccm, gb)
 

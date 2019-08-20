@@ -206,7 +206,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		return
 	}
 
-	if p.ts.Since(bh.CurTime) < -common.BlockSecondsBuffer {
+	if p.ts.Since(bh.CurTime) < -blockSecondsBuffer {
 		err = fmt.Errorf("block too early: now %v, curtime %v", p.ts.Now(), bh.CurTime)
 		return
 	}

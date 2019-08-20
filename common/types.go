@@ -46,9 +46,6 @@ const (
 	AddressLength = 32 //Length of Address( golang.SHA3，256-bit)
 	HashLength    = 32 //Length of Hash (golang.SHA3, 256-bit)。
 
-	BlockSecondsBuffer  = 2 //Max acceptable seconds if block's curTime early than now() when validating the block
-	BlockPreSendSeconds = 1 //Seconds of a proposer can dispatch the block header before the block's curTime
-
 )
 
 var (
