@@ -28,6 +28,7 @@ import (
 type groupInfoReader interface {
 	// GetActivatedGroupsAt gets available groups' seed at the given height
 	GetActivatedGroupsAt(height uint64) []types.GroupI
+	GetLivedGroupsAt(height uint64) []types.GroupI
 	// GetGroupBySeed returns the group info of the given seed
 	GetGroupBySeed(seedHash common.Hash) types.GroupI
 	// GetGroupHeaderBySeed returns the group header info of the given seed

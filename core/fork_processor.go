@@ -564,10 +564,14 @@ func (fp *forkProcessor) allBlocksReceived() {
 		return
 	}
 	pre := ancestorPre
-	// Ensure blocks are chained
+	// Ensure blocks are chained and heights are legal
 	for _, block := range blocks {
 		if pre.Hash != block.Header.PreHash {
 			fp.logger.Errorf("blocks not chained: %v %v", pre.Height, block.Header.Height)
+			return
+		}
+		if block.Header.Height >= fp.syncCtx.requestChainSliceEndHeight {
+			fp.logger.Errorf("receives block higher than expect height: %v, expect %v", block.Header.Height, fp.syncCtx.requestChainSliceEndHeight)
 			return
 		}
 		pre = block.Header

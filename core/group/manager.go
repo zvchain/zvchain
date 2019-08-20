@@ -142,7 +142,7 @@ func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
 
 func (m *Manager) GetLivedGroupsAt(height uint64) []types.GroupI {
 	startEpoch, _ := types.CreateEpochsOfActivatedGroupsAt(height)
-	currentEp := types.EpochAt(m.chain.Height())
+	currentEp := types.EpochAt(height)
 
 	gis := make([]types.GroupI, 0)
 

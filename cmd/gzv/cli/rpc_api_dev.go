@@ -534,3 +534,16 @@ func (api *RpcDevImpl) MonitorAllMiners() (*Result, error) {
 	data["totalStake"] = totalStake
 	return successResult(data)
 }
+
+func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
+	groups := api.gr.GetLivedGroupsAt(height)
+	ret := make([]*Group, 0)
+	for _, group := range groups {
+		if group != nil {
+			g := convertGroup(group)
+			ret = append(ret, g)
+		}
+
+	}
+	return successResult(ret)
+}
