@@ -90,7 +90,7 @@ type FundModeType byte
 
 const (
 	SIXAddFive FundModeType = iota
-	SIXAddSix 
+	SIXAddSix
 )
 
 // Address data struct

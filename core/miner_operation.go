@@ -161,7 +161,7 @@ func (op *changeFundGuardMode) ParseTransaction() error {
 
 func (op *changeFundGuardMode) Transition() *result {
 	ret := newResult()
-	targetMiner, err := getMiner(op.accountDB,op.cancelTarget,types.MinerTypeProposal)
+	targetMiner, err := getMiner(op.accountDB,op.source,types.MinerTypeProposal)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
