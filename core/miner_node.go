@@ -366,9 +366,39 @@ func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) er
 	return nil
 }
 
+func checkVote(op *voteMinerPoolOp,vf *voteInfo)error{
+	sourceMiner, err := getMiner(op.accountDB,op.source,types.MinerTypeProposal)
+	if err != nil{
+		return err
+	}
+	if sourceMiner == nil{
+		return fmt.Errorf("miner info is nil,cannot vote")
+	}
+	if !sourceMiner.IsGuard(){
+		return fmt.Errorf("this miner is not guard node,can not vote")
+	}
+	var voteHeight uint64 =  0
+	if vf != nil{
+		voteHeight = vf.Height
+	}
+	canVote := checkCanVote(voteHeight,op.height)
+	if !canVote{
+		return fmt.Errorf("has voted in this round,can not vote")
+	}
+	return nil
+}
+
 func (b *BaseMiner) processVote(op *voteMinerPoolOp, targetMiner *types.Miner, ticketsFullFunc tickFullCallBack) error {
+	vf, err := getVoteInfo(op.accountDB, op.source)
+	if err != nil {
+		return err
+	}
+	err = checkVote(op,vf)
+	if err != nil{
+		return err
+	}
 	// process base
-	err, isFull := processVote(op)
+	err, isFull := processVote(op,vf)
 	if err != nil {
 		return err
 	}
@@ -453,7 +483,6 @@ func (b *BaseMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Miner,
 	}
 	// if this node is guard node,its has vote info,only set true
 	if vf != nil {
-		vf.CanVote = true
 		vf.Height = op.height
 		err = setVoteInfo(op.accountDB, op.targetAddr, vf)
 		if err != nil {

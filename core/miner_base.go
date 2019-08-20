@@ -91,9 +91,8 @@ type stakeDetail struct {
 }
 
 type voteInfo struct {
-	Target  common.Address // vote target addr,default empty adress
-	Height  uint64         // Operation height
-	CanVote bool           // if true then can vote
+	Target common.Address // vote target addr,default empty adress
+	Height uint64         // Operation height
 }
 
 func NewFundGuardNode() *fundGuardNode {
@@ -103,23 +102,32 @@ func NewFundGuardNode() *fundGuardNode {
 	}
 }
 
-func(f*fundGuardNode)isFundGuard()bool{
+func (f *fundGuardNode) isFundGuard() bool {
 	return f.Type == fundGuardNodeType
 }
 
-func(f*fundGuardNode)isNormal()bool{
+func (f *fundGuardNode) isNormal() bool {
 	return f.Type == normalNodeType
 }
 
-func(f*fundGuardNode)isFullStakeGuardNode()bool{
+func (f *fundGuardNode) isFullStakeGuardNode() bool {
 	return f.Type == fullStakeGuardNodeType
 }
 
-func NewVoteInfo(height uint64) *voteInfo {
+func checkCanVote(voteHeight, currentHeight uint64) bool {
+	if voteHeight == 0 {
+		return true
+	}
+	voteRound := voteHeight / (adjustWeightPeriod / 2)
+	currentRound := currentHeight / (adjustWeightPeriod / 2)
+
+	return currentRound > voteRound
+}
+
+func newVoteInfo() *voteInfo {
 	return &voteInfo{
-		Target:  common.Address{},
-		Height:  height,
-		CanVote: true,
+		Target: common.Address{},
+		Height: 0,
 	}
 }
 
@@ -284,8 +292,7 @@ func getProposalTotalStake(db types.AccountDB) uint64 {
 	return totalStake
 }
 
-
-func setFundGuardNode(db types.AccountDB,address common.Address,fn *fundGuardNode)error{
+func setFundGuardNode(db types.AccountDB, address common.Address, fn *fundGuardNode) error {
 	bs, err := msgpack.Marshal(fn)
 	if err != nil {
 		return err
@@ -297,66 +304,65 @@ func setFundGuardNode(db types.AccountDB,address common.Address,fn *fundGuardNod
 
 func addFundGuardPool(db types.AccountDB, address common.Address) error {
 	fg := NewFundGuardNode()
-	err := setFundGuardNode(db,address,fg)
+	err := setFundGuardNode(db, address, fg)
 	return err
 }
 
-func getFundGuardNode(db types.AccountDB, address common.Address)(*fundGuardNode,error){
+func getFundGuardNode(db types.AccountDB, address common.Address) (*fundGuardNode, error) {
 	key := getFundGuardKey(common.KeyGuardNodes, address)
 	bts := db.GetData(common.FundGuardNodeAddr, key)
-	if bts == nil{
-		return nil,nil
+	if bts == nil {
+		return nil, nil
 	}
 	var fn fundGuardNode
-	err := msgpack.Unmarshal(bts,&fn)
-	if err != nil{
-		return nil,err
+	err := msgpack.Unmarshal(bts, &fn)
+	if err != nil {
+		return nil, err
 	}
-	return &fn,nil
+	return &fn, nil
 }
 
-func hasScanedFundGuards(db types.AccountDB)bool{
+func hasScanedFundGuards(db types.AccountDB) bool {
 	bts := db.GetData(common.ScanAllFundGuardStatusAddr, common.KeyScanNodes)
-	if bts == nil{
+	if bts == nil {
 		return false
 	}
 	return true
 }
 
-func markScanedFundGuards(db types.AccountDB)bool{
-	db.SetData(common.ScanAllFundGuardStatusAddr, common.KeyScanNodes,[]byte{1})
+func markScanedFundGuards(db types.AccountDB) bool {
+	db.SetData(common.ScanAllFundGuardStatusAddr, common.KeyScanNodes, []byte{1})
 	return true
 }
 
-func updateFundGuardPoolStatus(db types.AccountDB, address common.Address,fnType FundGuardType,height uint64) error {
-	fn,err := getFundGuardNode(db,address)
-	if err != nil{
+func updateFundGuardPoolStatus(db types.AccountDB, address common.Address, fnType FundGuardType, height uint64) error {
+	fn, err := getFundGuardNode(db, address)
+	if err != nil {
 		return nil
 	}
-	if fn == nil{
-		return fmt.Errorf("fund  guard info is nil,addr is %s",address.String())
+	if fn == nil {
+		return fmt.Errorf("fund  guard info is nil,addr is %s", address.String())
 	}
 	fn.Height = height
 	fn.Type = fnType
-	err = setFundGuardNode(db,address,fn)
+	err = setFundGuardNode(db, address, fn)
 	return err
 }
 
-func addFullStakeGuardPool(db types.AccountDB, address common.Address){
+func addFullStakeGuardPool(db types.AccountDB, address common.Address) {
 	key := getFundGuardKey(common.KeyGuardNodes, address)
 	db.SetData(common.FullStakeGuardNodeAddr, key, []byte{1})
 }
 
-func isInFullStakeGuardNode(db types.AccountDB, address common.Address)bool{
+func isInFullStakeGuardNode(db types.AccountDB, address common.Address) bool {
 	key := getFundGuardKey(common.KeyGuardNodes, address)
 	return db.GetData(common.FullStakeGuardNodeAddr, key) != nil
 }
 
-func removeFullStakeGuardNodeFromPool(db types.AccountDB, address common.Address){
+func removeFullStakeGuardNodeFromPool(db types.AccountDB, address common.Address) {
 	key := getFundGuardKey(common.KeyGuardNodes, address)
 	db.RemoveData(common.FullStakeGuardNodeAddr, key)
 }
-
 
 func setVoteInfo(db types.AccountDB, address common.Address, vf *voteInfo) error {
 	bs, err := msgpack.Marshal(vf)
@@ -371,14 +377,14 @@ func delVoteInfo(db types.AccountDB, address common.Address) {
 	db.RemoveData(address, common.KeyVote)
 }
 
-func initVoteInfo(db types.AccountDB, address common.Address,height uint64) (*voteInfo,error) {
-	vote := NewVoteInfo(height)
+func initVoteInfo(db types.AccountDB, address common.Address, height uint64) (*voteInfo, error) {
+	vote := newVoteInfo()
 	bs, err := msgpack.Marshal(vote)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	db.SetData(address, common.KeyVote, bs)
-	return vote,nil
+	return vote, nil
 }
 
 func getVoteInfo(db types.AccountDB, address common.Address) (*voteInfo, error) {
@@ -394,7 +400,7 @@ func getVoteInfo(db types.AccountDB, address common.Address) (*voteInfo, error) 
 	return &vf, nil
 }
 
-func guardNodeExpired(db types.AccountDB, address common.Address, height uint64,isFundGuardNode bool) error {
+func guardNodeExpired(db types.AccountDB, address common.Address, height uint64, isFundGuardNode bool) error {
 	miner, err := getMiner(db, address, types.MinerTypeProposal)
 	if err != nil {
 		return err
@@ -408,8 +414,8 @@ func guardNodeExpired(db types.AccountDB, address common.Address, height uint64,
 		return err
 	}
 	// fund guard node is not in this pool,only full stake node in this pool
-	if !isFundGuardNode{
-		removeFullStakeGuardNodeFromPool(db,address)
+	if !isFundGuardNode {
+		removeFullStakeGuardNodeFromPool(db, address)
 	}
 	vf, err := getVoteInfo(db, address)
 	if err != nil {
@@ -494,47 +500,43 @@ func addToPool(db types.AccountDB, minerType types.MinerType, address common.Add
 	db.SetData(common.MinerPoolAddr, key, []byte{1})
 }
 
-
-func  addTicket(db types.AccountDB,address common.Address)uint64{
+func addTicket(db types.AccountDB, address common.Address) uint64 {
 	key := getTicketsKey(address)
-	totalTickets := getTotalTickets(db,key)
-	totalTickets+=1
+	totalTickets := getTotalTickets(db, key)
+	totalTickets += 1
 	db.SetData(common.MinerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
 	return totalTickets
 }
 
-func subTicket(db types.AccountDB,address common.Address)uint64{
+func subTicket(db types.AccountDB, address common.Address) uint64 {
 	key := getTicketsKey(address)
-	totalTickets := getTotalTickets(db,key)
+	totalTickets := getTotalTickets(db, key)
 	if totalTickets < 1 {
 		totalTickets = 0
-	}else{
-		totalTickets -=1
+	} else {
+		totalTickets -= 1
 	}
 	db.SetData(common.MinerPoolTicketsAddr, key, common.Uint64ToByte(totalTickets))
 	return totalTickets
 }
 
-
-func  getTickets(db types.AccountDB, address common.Address) uint64 {
+func getTickets(db types.AccountDB, address common.Address) uint64 {
 	key := getTicketsKey(address)
 	return getTotalTickets(db, key)
 }
 
-func processVote(op *voteMinerPoolOp) (error, bool) {
-	vf, err := getVoteInfo(op.accountDB, op.source)
-	if err != nil {
-		return err, false
-	}
+func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
+	var err error
 	if vf == nil {
-		vf,err = initVoteInfo(op.accountDB,op.source,op.height)
-		if err != nil{
-			return err,false
+		vf, err = initVoteInfo(op.accountDB, op.source, op.height)
+		if err != nil {
+			return err, false
 		}
 	}
+
 	oldTarget := vf.Target
 	// set vote false
-	err = voteMinerPool(op.accountDB, vf,op.source, op.targetAddr, op.height)
+	err = voteMinerPool(op.accountDB, vf, op.source, op.targetAddr, op.height)
 	if err != nil {
 		return err, false
 	}
@@ -553,29 +555,24 @@ func processVote(op *voteMinerPoolOp) (error, bool) {
 			}
 		}
 		// add tickets count
-		totalTickets = addTicket(op.accountDB,op.targetAddr)
+		totalTickets = addTicket(op.accountDB, op.targetAddr)
 	}
-	isFull := isFullTickets(totalTickets,op.height)
+	isFull := isFullTickets(totalTickets, op.height)
 	return nil, isFull
 }
 
-func isFullTickets(totalTickets uint64,height uint64)bool{
+func isFullTickets(totalTickets uint64, height uint64) bool {
 	needTickets := getValidTicketsByHeight(height)
 	return totalTickets >= needTickets
 }
 
-func voteMinerPool(db types.AccountDB,vf *voteInfo,source,targetAddress common.Address,height uint64)error{
-	if vf.CanVote {
-		vf.CanVote = false
-		vf.Height = height
-		vf.Target = targetAddress
-		bs, err := msgpack.Marshal(vf)
-		if err != nil {
-			return err
-		}
-		db.SetData(source, common.KeyVote, bs)
-	} else {
-		return fmt.Errorf("you have voted,cannot vote,address = %s", source.String())
+func voteMinerPool(db types.AccountDB, vf *voteInfo, source, targetAddress common.Address, height uint64) error {
+	vf.Height = height
+	vf.Target = targetAddress
+	bs, err := msgpack.Marshal(vf)
+	if err != nil {
+		return err
 	}
+	db.SetData(source, common.KeyVote, bs)
 	return nil
 }
