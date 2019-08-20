@@ -56,8 +56,8 @@ func (crontab *Crontab) fetchBlockRewards() {
 	crontab.isFetchingReward = true
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockHeight)
 	blockRewards, _ := crontab.rpcExplore.ExplorerBlockReward(crontab.blockHeight)
-	rewards := blockRewards.Data.(cli.ExploreBlockReward)
-	if rewards != nil {
+	if blockRewards.Data != nil {
+		rewards := blockRewards.Data.(cli.ExploreBlockReward)
 		sys := &models.Sys{
 			Variable: mysql.Blockrewardtophight,
 			SetBy:    "carrie.cxl",
@@ -86,42 +86,59 @@ func (crontab *Crontab) fetchBlockStake() {
 	//按页数和标记信息更新数据，标记信息更新sys数据
 	accounts := crontab.storage.GetAccountByMaxPrimaryId(10)
 	for _, account := range accounts {
-		minerinfo := crontab.GetMinerInfo(account.Address)
+		minerinfo, stakefrom := crontab.GetMinerInfo(account.Address)
 		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"proposal_stake": minerinfo[0].Stake,
 			"other_stake":  minerinfo[1].Stake,
-			"verify_stake": minerinfo[2].Stake})
+			"verify_stake": minerinfo[2].Stake,
+			"stake_from":   stakefrom})
 	}
 }
 
-func (crontab *Crontab) GetMinerInfo(addr string) []*cli.MortGage {
+func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 	if !util.ValidateAddress(strings.TrimSpace(addr)) {
-		return nil
+		return nil, ""
 	}
 
 	morts := make([]*cli.MortGage, 0)
 	address := common.HexToAddress(addr)
 	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	var stakefrom = ""
 	if proposalInfo != nil {
 		mort := cli.NewMortGageFromMiner(proposalInfo)
 		morts = append(morts, mort)
+		//get stakeinfo by miners themselves
 		details := core.MinerManagerImpl.GetStakeDetails(address, address)
-		var count uint64 = 0
+		var selfStakecount uint64 = 0
 		for _, detail := range details {
 			if detail.MType == types.MinerTypeProposal {
-				count += detail.Value
+				selfStakecount += detail.Value
 			}
 		}
 		morts = append(morts, &cli.MortGage{
-			Stake:       mort.Stake - count,
+			Stake:       mort.Stake - selfStakecount,
 			ApplyHeight: 0,
 			Type:        "proposal node",
-			Status:      "all",
+			Status:      "normal",
 		})
+		// check if contain other stake ,
+		//todo pool identify
+		if selfStakecount < mort.Stake {
+			stakefrom = crontab.getStakeFrom(address)
+		}
 	}
 	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
 	if verifierInfo != nil {
 		morts = append(morts, cli.NewMortGageFromMiner(verifierInfo))
 	}
 
-	return morts
+	return morts, stakefrom
+}
+
+func (crontab *Crontab) getStakeFrom(address common.Address) string {
+	allStakeDetails := core.MinerManagerImpl.GetAllStakeDetails(address)
+	var stakeFrom = ""
+	for from, _ := range allStakeDetails {
+		stakeFrom = stakeFrom + from + ","
+	}
+	return stakeFrom
 }
