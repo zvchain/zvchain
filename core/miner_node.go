@@ -191,6 +191,10 @@ func (m *MinerPoolProposalMiner) afterTicketsFull(op *voteMinerPoolOp, targetMin
 }
 
 func (b *BaseMiner) processMinerAbort(op *minerAbortOp, miner *types.Miner) error {
+	err := b.checkStakeAbort(op,miner)
+	if err != nil{
+		return err
+	}
 	remove := false
 	// Remove from pool if active
 	if miner.IsActive() {
