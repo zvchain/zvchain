@@ -111,15 +111,14 @@ func (op *applyGuardMinerOp) Transition() *result {
 type reduceTicketsOp struct {
 	*transitionContext
 	target common.Address
-	source    common.Address
+
 }
 
-func newReduceTicketsOp(db types.AccountDB, targetAddress common.Address, source common.Address, height uint64) *reduceTicketsOp {
+func newReduceTicketsOp(db types.AccountDB, targetAddress common.Address, height uint64) *reduceTicketsOp {
 	base := newTransitionContext(db, nil, nil, height)
 	return &reduceTicketsOp{
 		transitionContext: base,
 		target:         targetAddress,
-		source:            source,
 	}
 }
 

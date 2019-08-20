@@ -456,7 +456,7 @@ func guardNodeExpired(db types.AccountDB, address common.Address, height uint64,
 		delVoteInfo(db, address)
 		var empty = common.Address{}
 		if vf.Target != empty {
-			mop := newReduceTicketsOp(db, vf.Target, address, height)
+			mop := newReduceTicketsOp(db, vf.Target, height)
 			ret := mop.Transition()
 			if ret.err != nil {
 				return ret.err
@@ -579,7 +579,7 @@ func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 	} else {
 		if oldTarget != empty {
 			//reduce ticket first
-			mop := newReduceTicketsOp(op.accountDB, vf.Target, op.source, op.height)
+			mop := newReduceTicketsOp(op.accountDB, oldTarget,op.height)
 			ret := mop.Transition()
 			if ret.err != nil {
 				return ret.err, false
