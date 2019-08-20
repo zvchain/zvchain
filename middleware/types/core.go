@@ -88,7 +88,7 @@ const (
 	TransactionTypeStakeRefund     = 6
 	TransactionTypeApplyGuardMiner = 7 // apply guard node
 	TransactionTypeVoteMinerPool   = 8 // vote to miner pool
-	TransactionTypeCancelGuard     = 9 // cancel guard node,only admin can call
+	TransactionTypeChangeFundGuardMode     = 9 // in half of year,can choose 6+5 or 6+6
 
 	// Group operation related type
 	TransactionTypeGroupPiece       = SystemTransactionOffset+1 //group member upload his encrypted share piece

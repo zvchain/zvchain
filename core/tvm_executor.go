@@ -85,8 +85,8 @@ func getOpByType(base *transitionContext,txType int8)stateTransition{
 		return &applyGuardMinerOp{transitionContext: base}
 	case types.TransactionTypeStakeRefund:
 		return &stakeRefundOp{transitionContext: base}
-	case types.TransactionTypeCancelGuard:
-		return &cancelGuardOp{transitionContext: base}
+	case types.TransactionTypeChangeFundGuardMode:
+		return &changeFundGuardMode{transitionContext: base}
 	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 		return &groupOperator{transitionContext: base}
 	default:

@@ -79,27 +79,38 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, height uint64
 }
 
 func (mm *MinerManager) fundGuardNodesCheck(accountDB types.AccountDB, height uint64) error {
-	if height < adjustWeightPeriod+stakeBuffer {
+	err := mm.fundGuardSixAddFiveNodesCheck(accountDB,height)
+	if err != nil{
+		return err
+	}
+	err = mm.fundGuardSixAddSixNodesCheck(accountDB,height)
+	if err != nil{
+		return err
+	}
+	return nil
+}
+
+
+func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB, height uint64) error {
+	if height < adjustWeightPeriod / 2 || height > adjustWeightPeriod{
 		return nil
 	}
-	if height%3000 != 0 {
+	if height%1000 != 0 {
 		return nil
 	}
-	hasScanned := hasScanedFundGuards(accountDB)
+	hasScanned := hasScanedSixAddFiveFundGuards(accountDB)
 	if hasScanned {
 		return nil
 	}
-
 	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
 	if err != nil {
 		return err
 	}
-	if fds == nil {
-		return fmt.Errorf("fund check find fund guards node is nil")
-	}
-
 	for _, fd := range fds {
 		if !fd.isFundGuard() {
+			continue
+		}
+		if !fd.isSixAddFive(){
 			continue
 		}
 		err = guardNodeExpired(accountDB, fd.Address, height, true)
@@ -111,7 +122,42 @@ func (mm *MinerManager) fundGuardNodesCheck(accountDB types.AccountDB, height ui
 			return err
 		}
 	}
-	markScanedFundGuards(accountDB)
+	markScanedSixAddFiveFundGuards(accountDB)
+	return nil
+}
+
+func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, height uint64) error {
+	if height < adjustWeightPeriod || height > adjustWeightPeriod*2{
+		return nil
+	}
+	if height%1000 != 0 {
+		return nil
+	}
+	hasScanned := hasScanedSixAddSixFundGuards(accountDB)
+	if hasScanned {
+		return nil
+	}
+	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
+	if err != nil {
+		return err
+	}
+	for _, fd := range fds {
+		if !fd.isFundGuard() {
+			continue
+		}
+		if !fd.isSixAddSix(){
+			continue
+		}
+		err = guardNodeExpired(accountDB, fd.Address, height, true)
+		if err != nil {
+			return err
+		}
+		err = updateFundGuardPoolStatus(accountDB, fd.Address, normalNodeType, height)
+		if err != nil {
+			return err
+		}
+	}
+	markScanedSixAddSixFundGuards(accountDB)
 	return nil
 }
 

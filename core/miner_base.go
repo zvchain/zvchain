@@ -76,6 +76,7 @@ func getValidTicketsByHeight(height uint64) uint64 {
 type fundGuardNode struct {
 	Type   FundGuardType
 	Height uint64 // Operation height
+	FundModeType common.FundModeType   //default 6+6
 }
 
 type fundGuardNodeDetail struct {
@@ -99,8 +100,17 @@ func NewFundGuardNode() *fundGuardNode {
 	return &fundGuardNode{
 		Type:   fundGuardNodeType,
 		Height: 0,
+		FundModeType:common.SIXAddSix,
 	}
 }
+func (f *fundGuardNode) isSixAddSix() bool {
+	return f.FundModeType == common.SIXAddSix
+}
+
+func (f *fundGuardNode) isSixAddFive() bool {
+	return f.FundModeType == common.SIXAddFive
+}
+
 
 func (f *fundGuardNode) isFundGuard() bool {
 	return f.Type == fundGuardNodeType
@@ -322,17 +332,35 @@ func getFundGuardNode(db types.AccountDB, address common.Address) (*fundGuardNod
 	return &fn, nil
 }
 
-func hasScanedFundGuards(db types.AccountDB) bool {
-	bts := db.GetData(common.ScanAllFundGuardStatusAddr, common.KeyScanNodes)
+func hasScanedSixAddFiveFundGuards(db types.AccountDB) bool {
+	bts := db.GetData(common.ScanAllFundGuardStatusAddr, common.KeyScanSixAddFiveNodes)
 	if bts == nil {
 		return false
 	}
 	return true
 }
 
-func markScanedFundGuards(db types.AccountDB) bool {
-	db.SetData(common.ScanAllFundGuardStatusAddr, common.KeyScanNodes, []byte{1})
+func markScanedSixAddFiveFundGuards(db types.AccountDB)  {
+	db.SetData(common.ScanAllFundGuardStatusAddr, common.KeyScanSixAddFiveNodes, []byte{1})
+}
+
+func hasScanedSixAddSixFundGuards(db types.AccountDB) bool {
+	bts := db.GetData(common.ScanAllFundGuardStatusAddr, common.KeyScanSixAddSixNodes)
+	if bts == nil {
+		return false
+	}
 	return true
+}
+
+func markScanedSixAddSixFundGuards(db types.AccountDB) {
+	db.SetData(common.ScanAllFundGuardStatusAddr, common.KeyScanSixAddSixNodes, []byte{1})
+}
+
+func updateFundGuardMode(db types.AccountDB, fn *fundGuardNode,address common.Address, mode common.FundModeType, height uint64) error {
+	fn.Height = height
+	fn.FundModeType = mode
+	err := setFundGuardNode(db, address, fn)
+	return err
 }
 
 func updateFundGuardPoolStatus(db types.AccountDB, address common.Address, fnType FundGuardType, height uint64) error {
@@ -377,7 +405,7 @@ func delVoteInfo(db types.AccountDB, address common.Address) {
 	db.RemoveData(address, common.KeyVote)
 }
 
-func initVoteInfo(db types.AccountDB, address common.Address, height uint64) (*voteInfo, error) {
+func initVoteInfo(db types.AccountDB, address common.Address) (*voteInfo, error) {
 	vote := newVoteInfo()
 	bs, err := msgpack.Marshal(vote)
 	if err != nil {
@@ -528,7 +556,7 @@ func getTickets(db types.AccountDB, address common.Address) uint64 {
 func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 	var err error
 	if vf == nil {
-		vf, err = initVoteInfo(op.accountDB, op.source, op.height)
+		vf, err = initVoteInfo(op.accountDB, op.source)
 		if err != nil {
 			return err, false
 		}

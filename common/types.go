@@ -73,7 +73,8 @@ var (
 	KeyVote                   = []byte("votekey")
 	KeyTickets                = []byte("tickets")
 	KeyGuardNodes             = []byte("guard")
-	KeyScanNodes              = []byte("scan")
+	KeyScanSixAddFiveNodes    = []byte("s1")
+	KeyScanSixAddSixNodes     = []byte("s2")
 )
 
 var PunishmentDetailAddr = BigToAddress(big.NewInt(0))
@@ -84,6 +85,13 @@ func ShortHex(hex string) string {
 	}
 	return hex[:6] + "-" + hex[len(hex)-6:]
 }
+
+type FundModeType byte
+
+const (
+	SIXAddFive FundModeType = iota
+	SIXAddSix 
+)
 
 // Address data struct
 type Address [AddressLength]byte

@@ -30,7 +30,7 @@ const (
 	oneDayBlocks   = 86400 / onBlockSeconds      // Blocks generated in one day on average
 	twoDayBlocks   = 2 * oneDayBlocks            // Blocks generated in two days on average, used when executes the miner refund
 	stakeBuffer    = 15 * oneDayBlocks
-	cancelFundGuardBuffer    = 7 * oneDayBlocks
+	changeFundGuardModeBuffer    = 7 * oneDayBlocks
 )
 
 // mOperation define some functions on miner operation
@@ -144,20 +144,22 @@ func (op *reduceTicketsOp) Transition() *result {
 }
 
 // stakeAddOp is for the stake add operation, miner can add stake for himself3 or others
-type cancelGuardOp struct {
+type changeFundGuardMode struct {
 	*transitionContext
-	cancelTarget common.Address
+	source common.Address
+	mode common.FundModeType
 }
 
-func (op *cancelGuardOp) ParseTransaction() error {
+func (op *changeFundGuardMode) ParseTransaction() error {
 	if op.msg.OpTarget() == nil {
 		return fmt.Errorf("target can not be nil")
 	}
-	op.cancelTarget = *op.msg.OpTarget()
+	op.source = *op.msg.Operator()
+	op.mode = common.FundModeType(op.msg.Payload()[0])
 	return nil
 }
 
-func (op *cancelGuardOp) Transition() *result {
+func (op *changeFundGuardMode) Transition() *result {
 	ret := newResult()
 	targetMiner, err := getMiner(op.accountDB,op.cancelTarget,types.MinerTypeProposal)
 	if err != nil {
@@ -165,7 +167,7 @@ func (op *cancelGuardOp) Transition() *result {
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processCancelGuard(op, targetMiner)
+	err = baseOp.processChangeFundGuardMode(op, targetMiner)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret

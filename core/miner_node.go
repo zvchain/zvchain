@@ -25,7 +25,7 @@ type baseIdentityOp interface {
 	processVote(op *voteMinerPoolOp, targetMiner *types.Miner, ticketsFullFunc tickFullCallBack) error
 	processApplyGuard(op *applyGuardMinerOp, targetMiner *types.Miner, becomeFullGuardNodeFunc becomeFullGuardNodeCallBack) error
 	processReduceTicket(op *reduceTicketsOp, targetMiner *types.Miner, afterTicketReduceFunc reduceTicketCallBack) error
-	processCancelGuard(op *cancelGuardOp, targetMiner *types.Miner) error
+	processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error
 
 	checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error
 	checkUpperBound(miner *types.Miner, height uint64) bool
@@ -150,27 +150,6 @@ func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB,detailK
 
 func (g *GuardProposalMiner) processVote(op *voteMinerPoolOp, targetMiner *types.Miner, ticketsFullFunc tickFullCallBack) error {
 	return fmt.Errorf("guard node not support vote")
-}
-
-func (g *GuardProposalMiner) processCancelGuard(op *cancelGuardOp, targetMiner *types.Miner) error {
-	if op.height < adjustWeightPeriod/2-cancelFundGuardBuffer || op.height > adjustWeightPeriod/2+cancelFundGuardBuffer {
-		return fmt.Errorf("cancel fund guard must be in suitable height,addr is %s", op.cancelTarget.String())
-	}
-	fn, err := getFundGuardNode(op.accountDB, op.cancelTarget)
-	if err != nil {
-		return err
-	}
-	if fn == nil {
-		return fmt.Errorf("fund  guard info is nil,addr is %s", op.cancelTarget.String())
-	}
-	if !fn.isFundGuard() {
-		return fmt.Errorf("only fund guard can do this operator ,addr is %s,type is %d", op.cancelTarget.String(), fn.Type)
-	}
-	err = updateFundGuardPoolStatus(op.accountDB, op.cancelTarget, normalNodeType, op.height)
-	if err != nil {
-		return err
-	}
-	return guardNodeExpired(op.accountDB, op.cancelTarget, op.height, true)
 }
 
 func (m *MinerPoolProposalMiner) checkUpperBound(miner *types.Miner, height uint64) bool {
@@ -497,8 +476,22 @@ func (b *BaseMiner) afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, t
 	return nil
 }
 
-func (b *BaseMiner) processCancelGuard(op *cancelGuardOp, targetMiner *types.Miner) error {
-	return fmt.Errorf("unSupported cancel guard")
+func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error{
+	if op.height > adjustWeightPeriod/2-changeFundGuardModeBuffer {
+		return fmt.Errorf("changge fund guard mode must be in suitable height,addr is %s,current height is %v", op.source.String(),op.height)
+	}
+	fn, err := getFundGuardNode(op.accountDB, op.source)
+	if err != nil {
+		return err
+	}
+	if fn == nil {
+		return fmt.Errorf("fund  guard info is nil,addr is %s", op.source.String())
+	}
+	if !fn.isFundGuard() {
+		return fmt.Errorf("only fund guard can do this operator ,addr is %s,type is %d", op.source.String(), fn.Type)
+	}
+	err = updateFundGuardMode(op.accountDB,fn,op.source,op.mode,op.height)
+	return err
 }
 
 func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, checkUpperBound func(miner *types.Miner, height uint64) bool) error {
@@ -596,8 +589,8 @@ func (u *UnSupportMiner) processVote(op *voteMinerPoolOp, targetMiner *types.Min
 	return fmt.Errorf("unSupported miner abort")
 }
 
-func (u *UnSupportMiner) processCancelGuard(op *cancelGuardOp, targetMiner *types.Miner) error {
-	return fmt.Errorf("unSupported cancel guard")
+func (u *UnSupportMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error{
+	return fmt.Errorf("unSupported change fund guard mode")
 }
 
 func (u *UnSupportMiner) afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Miner) error {
