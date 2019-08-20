@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
+
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/consensus/net"
@@ -26,7 +27,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 	"math/big"
-	"sync"
 )
 
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup
@@ -77,7 +77,6 @@ func (p *Processor) reserveBlock(vctx *VerifyContext, slot *SlotContext) {
 	defer traceLog.Log("threshold sign cost %v", p.ts.Now().Local().Sub(bh.CurTime.Local()).String())
 
 	if slot.IsRecovered() {
-		//vctx.markCastSuccess() //onBlockAddSuccess方法中也mark了，该处调用是异步的
 		p.blockContexts.addReservedVctx(vctx)
 		if !p.tryNotify(vctx) {
 			blog.warn("reserved, height=%v", vctx.castHeight)
@@ -181,13 +180,12 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 	// sign the message and send to other members in the verifyGroup
 	if msg.GenSign(model.NewSecKeyInfo(p.GetMinerID(), sKey), msg) {
 		log.ELKLogger.WithFields(logrus.Fields{
-			"height": bh.Height,
+			"height":    bh.Height,
 			"blockHash": bh.Hash.Hex(),
-			"now": p.ts.NowTime().Local(),
-			"logId": "31",
+			"now":       p.ts.NowTime().Local(),
+			"logId":     "31",
 		}).Debug("ReqProposalBlock")
 
-	
 		p.NetServer.ReqProposalBlock(msg, slot.castor.GetAddrString())
 		result = fmt.Sprintf("Request block body from %v", slot.castor.GetAddrString())
 
@@ -249,15 +247,8 @@ func (p *Processor) blockProposal() {
 		block         *types.Block
 		proveTraceLog *monitor.PerformTraceLogger
 	)
-	// Parallelize the CastBlock and genProveHashs process
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		block = p.MainChain.CastBlock(uint64(height), pi, qn, p.GetMinerID().Serialize(), gb.GSeed)
-	}()
 
-	wg.Wait()
+	block = p.MainChain.CastBlock(uint64(height), pi, qn, p.GetMinerID().Serialize(), gb.GSeed)
 	if block == nil {
 		blog.error("MainChain::CastingBlock failed, height=%v", height)
 		return

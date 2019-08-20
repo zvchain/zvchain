@@ -87,14 +87,15 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			err = e
 			return e
 		}
+		err = c.processor.OnMessageCast(m)
+
 		log.ELKLogger.WithFields(logrus.Fields{
 			"height":    m.BH.Height,
 			"blockHash": m.BH.Hash.Hex(),
 			"now":       time.TSInstance.NowTime().Local(),
 			"from":      m.SI.GetID(),
 			"logId":     "12",
-		}).Debug("OnMessageCast")
-		err = c.processor.OnMessageCast(m)
+		}).Debugf("OnMessageCast result:%v", err)
 	case network.VerifiedCastMsg:
 		m, e := unMarshalConsensusVerifyMessage(body)
 		if e != nil {

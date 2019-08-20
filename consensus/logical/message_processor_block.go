@@ -27,12 +27,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
-
 )
-
-func (p *Processor) thresholdPieceVerify(vctx *VerifyContext, slot *SlotContext) {
-	p.reserveBlock(vctx, slot)
-}
 
 // verifyCastMessage verifies the message from proposal node
 // Especially, as it takes the previous blockHeader as input, future proposal messages is not processable by the method,
@@ -87,6 +82,13 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			if err != nil {
 				return
 			}
+			// Checks if has signed more weight block
+			if vctx.castHeight > 1 && vctx.hasSignedMoreWeightThan(bh) {
+				max := vctx.getSignedMaxWeight()
+				err = fmt.Errorf("have signed a higher qn block %v,This block qn %v", max, bh.TotalQN)
+				return
+			}
+
 		}
 	}
 	castorDO := p.MinerReader.getProposeMinerByHeight(castor, preBH.Height)
@@ -135,9 +137,9 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 
 		log.ELKLogger.WithFields(logrus.Fields{
 			"blockHash": cvm.BlockHash.Hex(),
-			"height": bh.Height,
-			"now":time.TSInstance.NowTime().Local(),
-			"logId": "21",
+			"height":    bh.Height,
+			"now":       time.TSInstance.NowTime().Local(),
+			"logId":     "21",
 		}).Debug("SendVerifiedCast")
 
 		p.NetServer.SendVerifiedCast(&cvm, gSeed)
@@ -386,22 +388,24 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 
 	return
 }
+
 var logCache *lru.Cache
-func sendElkOmvLog(blockHash common.Hash, height uint64)  {
+
+func sendElkOmvLog(blockHash common.Hash, height uint64) {
 	if logCache == nil {
 		logCache = common.MustNewLRUCache(120)
 	}
-	if logCache.Contains(blockHash){
+	if logCache.Contains(blockHash) {
 		return
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": blockHash,
-		"height": height,
-		"now":time.TSInstance.NowTime().Local(),
+		"height":    height,
+		"now":       time.TSInstance.NowTime().Local(),
 		//"from": cvm.SI.GetID(),
 		"logId": "22",
 	}).Debug("OMV")
-	logCache.ContainsOrAdd(blockHash,1)
+	logCache.ContainsOrAdd(blockHash, 1)
 }
 
 // OnMessageCastRewardSignReq handles reward transaction signature requests
@@ -434,16 +438,16 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	}()
 
 	pb := p.blockContexts.getProposed(msg.Hash)
-	var height uint64 = 0;
+	var height uint64 = 0
 	if pb != nil && pb.block != nil {
 		height = pb.block.Header.Height
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": msg.Hash,
-		"height": height,
-		"now":time.TSInstance.NowTime().Local(),
-		"from":sourceID,
-		"logId": "32",
+		"height":    height,
+		"now":       time.TSInstance.NowTime().Local(),
+		"from":      sourceID,
+		"logId":     "32",
 	}).Debug("OnMessageReqProposalBlock")
 
 	if pb == nil || pb.block == nil {
@@ -500,10 +504,10 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": m.Hash,
-		"height": pb.block.Header.Height,
-		"sourceID": sourceID,
-		"now":time.TSInstance.NowTime().Local(),
-		"logId": "41",
+		"height":    pb.block.Header.Height,
+		"sourceID":  sourceID,
+		"now":       time.TSInstance.NowTime().Local(),
+		"logId":     "41",
 	}).Debug("ResponseProposalBlock")
 	p.NetServer.ResponseProposalBlock(m, sourceID)
 
@@ -536,9 +540,9 @@ func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBl
 
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": msg.Hash,
-		"height": height,
-		"now":time.TSInstance.NowTime().Local(),
-		"logId": "42",
+		"height":    height,
+		"now":       time.TSInstance.NowTime().Local(),
+		"logId":     "42",
 	}).Debug("OnMessageResponseProposalBlock")
 
 	if p.blockOnChain(msg.Hash) {

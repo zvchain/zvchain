@@ -211,7 +211,7 @@ func (fp *forkProcessor) findCommonAncestor(piece []common.Hash) *common.Hash {
 	return nil
 }
 
-func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message)error {
+func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
@@ -264,9 +264,9 @@ func (fp *forkProcessor) reqFinished(id string, reset bool) {
 		return
 	}
 	peerManagerImpl.heardFromPeer(id)
-	fp.chain.ticker.RemoveRoutine(fp.timeoutTickerName(id))
 	peerManagerImpl.updateReqBlockCnt(id, true)
 	if reset {
+		fp.chain.ticker.RemoveRoutine(fp.timeoutTickerName(id))
 		fp.reset()
 	}
 	return
@@ -282,7 +282,7 @@ func (fp *forkProcessor) getNextSyncHash() *common.Hash {
 	return nil
 }
 
-func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
+func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	fp.lock.Lock()

@@ -178,17 +178,15 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	defer chain.batch.Reset()
 
+	rollbackNum := 0
+
 	curr := chain.getLatestBlock()
-	if curr.Height - block.Height  > 1 {
-		log.ELKLogger.WithFields(logrus.Fields{
-			"type": "resetTop",
-			"height": block.Height,
-		}).Debug(curr.Height -block.Height)
-	}
+	oldTop := curr
 
 	recoverTxs := make([]*types.Transaction, 0)
 	delRecepites := make([]common.Hash, 0)
 	for curr.Hash != block.Hash {
+		rollbackNum++
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
 			return err
@@ -235,7 +233,15 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	chain.transactionPool.BackToPool(recoverTxs)
 
-	GroupManagerImpl.ResetToTop(state,block)
+	GroupManagerImpl.ResetToTop(state, block)
+
+	if oldTop.Height-block.Height > 1 {
+		log.ELKLogger.WithFields(logrus.Fields{
+			"type":     "resetTop",
+			"height":   block.Height,
+			"rollback": rollbackNum,
+		}).Debug(oldTop.Height-block.Height, rollbackNum)
+	}
 
 	return nil
 }
