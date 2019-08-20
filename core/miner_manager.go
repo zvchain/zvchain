@@ -390,6 +390,7 @@ func (mm *MinerManager) getStakeDetail(address, source common.Address, status ty
 			UpdateHeight: detail.Height,
 			Status:       status,
 			MType:        mType,
+			DisMissHeight:detail.DisMissHeight,
 		}
 	}
 	return nil

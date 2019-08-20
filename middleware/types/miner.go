@@ -131,6 +131,7 @@ type StakeDetail struct {
 	Status       StakeStatus
 	UpdateHeight uint64
 	MType        MinerType
+	DisMissHeight uint64
 }
 
 type MinerPks struct {

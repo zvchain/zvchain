@@ -101,7 +101,7 @@ type MortGage struct {
 	Type               string `json:"type"`
 	Status             string `json:"miner_status"`
 	StatusUpdateHeight uint64 `json:"status_update_height"`
-	Identity 		   string `json:"identity"`
+	Identity           string `json:"identity"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
@@ -117,11 +117,11 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	}
 
 	i := "normal node"
-	if miner.IsMinerPool(){
+	if miner.IsMinerPool() {
 		i = "miner pool node"
-	}else if miner.IsInvalidMinerPool(){
+	} else if miner.IsInvalidMinerPool() {
 		i = "invalid miner pool node"
-	}else if miner.IsGuard(){
+	} else if miner.IsGuard() {
 		i = "guard node"
 	}
 	mg := &MortGage{
@@ -130,16 +130,17 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 		Type:               t,
 		Status:             status,
 		StatusUpdateHeight: miner.StatusUpdateHeight,
-		Identity:		    i,
+		Identity:           i,
 	}
 	return mg
 }
 
 type StakeDetail struct {
-	Value        uint64 `json:"value"`
-	UpdateHeight uint64 `json:"update_height"`
-	MType        string `json:"m_type"`
-	Status       string `json:"stake_status"`
+	Value         uint64 `json:"value"`
+	UpdateHeight  uint64 `json:"update_height"`
+	MType         string `json:"m_type"`
+	Status        string `json:"stake_status"`
+	DisMissHeight uint64 `json:"dismiss_height"`
 }
 
 type MinerStakeDetails struct {
@@ -281,7 +282,7 @@ type ExplorerAccount struct {
 	Nonce     uint64                 `json:"nonce"`
 	Type      uint32                 `json:"type"`
 	CodeHash  string                 `json:"code_hash"`
-	ABI  	  []tvm.ABIVerify 		 `json:"abi"`
+	ABI       []tvm.ABIVerify        `json:"abi"`
 	Code      string                 `json:"code"`
 	StateData map[string]interface{} `json:"state_data"`
 }
