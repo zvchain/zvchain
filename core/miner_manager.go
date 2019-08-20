@@ -317,9 +317,11 @@ func (mm *MinerManager) GetProposalTotalStake(height uint64) uint64 {
 func (mm *MinerManager) GetAllFullStakeGuardNodes(accountDB types.AccountDB) []common.Address {
 	var addrs []common.Address
 	iter := accountDB.DataIterator(common.FullStakeGuardNodeAddr, common.KeyGuardNodes)
-	for iter.Next() {
-		addr := common.BytesToAddress(iter.Key[len(common.KeyGuardNodes):])
-		addrs = append(addrs, addr)
+	if iter != nil{
+		for iter.Next() {
+			addr := common.BytesToAddress(iter.Key[len(common.KeyGuardNodes):])
+			addrs = append(addrs, addr)
+		}
 	}
 	return addrs
 }

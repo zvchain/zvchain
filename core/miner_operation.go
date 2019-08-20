@@ -154,7 +154,14 @@ func (op *changeFundGuardMode) ParseTransaction() error {
 	if op.msg.OpTarget() == nil {
 		return fmt.Errorf("target can not be nil")
 	}
+	if len(op.msg.Payload()) != 1 {
+		return fmt.Errorf("data length should be 1")
+	}
+	if err := fundGuardModeCheck(common.FundModeType(op.msg.Payload()[0])); err != nil {
+		return err
+	}
 	op.source = *op.msg.Operator()
+
 	op.mode = common.FundModeType(op.msg.Payload()[0])
 	return nil
 }
