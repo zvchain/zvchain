@@ -1,8 +1,10 @@
 package core
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 	"math/big"
 	"testing"
 )
@@ -156,25 +158,50 @@ func TestStakeSelf(t *testing.T) {
 	}
 }
 
-func TestScanSixAddFiveFundGuardNode(t *testing.T) {
+func TestScan(t *testing.T) {
 	setup()
 	defer clear()
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 	ctx.source = &types.ExtractGuardNodes[0]
 	testChangeFundMode(t, 0, true)
+	accountDB.(*account.AccountDB).Commit(true)
 	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod / 2+1000)
 	fd, _ := getFundGuardNode(accountDB, types.ExtractGuardNodes[0])
 	if !fd.isNormal() {
-		t.Fatalf("except normal,but got %v", fd.FundModeType)
+		t.Fatalf("except normal,but got %v", fd.Type)
 	}
-
-
+	miner, err := getMiner(accountDB, *ctx.source, ctx.mType)
+	if err != nil{
+		t.Fatalf("error is %v",err)
+	}
+	if !miner.IsNormal(){
+		t.Fatalf("except miner is normal,but got %v",miner.Type)
+	}
 	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
 	for _, addr := range types.ExtractGuardNodes {
 		fd, _ := getFundGuardNode(accountDB, addr)
 		if !fd.isNormal() {
 			t.Fatalf("except normal,but got %v", fd.FundModeType)
 		}
+	}
+	ctx.source = &guardNode1
+	ctx.target = &guardNode1
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, 0)
+	miner, err = getMiner(accountDB, *ctx.source, ctx.mType)
+	if err != nil{
+		t.Fatalf("error is %v",err)
+	}
+	if !miner.IsGuard(){
+		t.Fatalf("except miner is guard,but got %v",miner.Type)
+	}
+
+	accountDB.(*account.AccountDB).Commit(true)
+	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+
+	isFullGuard := isInFullStakeGuardNode(accountDB,*ctx.source)
+	if isFullGuard{
+		t.Fatalf("except not in full guard node,but got in full guard node")
 	}
 }
 
@@ -190,15 +217,6 @@ func TestChangeFundMode(t *testing.T) {
 
 	ctx.source = &guardNode1
 	testChangeFundMode(t, 1, false)
-}
-
-func TestInvalidFullStakeGuardNode(t *testing.T) {
-	setup()
-	defer clear()
-	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &src
-	ctx.target = &src
-	testFullStakeFromSelf(t)
 }
 
 func TestFundApplyGuardNode(t *testing.T) {
@@ -496,6 +514,7 @@ func testChangeFundMode(t *testing.T, tp byte, needSuccess bool) {
 	var height uint64 = 0
 	var err error
 	var fd *fundGuardNode
+	fmt.Printf("source = %s \n",ctx.source.AddrPrefixString())
 	applyMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeChangeFundGuardMode, 0, []byte{tp})
 	_, err = MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, height)
 	if !needSuccess {

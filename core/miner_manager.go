@@ -165,7 +165,7 @@ func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint
 	if height < adjustWeightPeriod/2 {
 		return nil
 	}
-	if height%3000 != 0 {
+	if height%1000 != 0 {
 		return nil
 	}
 
