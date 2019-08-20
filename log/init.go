@@ -36,7 +36,7 @@ func Init() {
 	StatisticsLogger = RusPlus.Logger(logsDir+"statistics", MaxFileSize, Level)
 	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, Level)
 	PerformLogger = RusPlus.Logger(logsDir+"perform", MaxFileSize, Level)
-	ELKLogger = RusPlus.Logger(logsDir+"ELK", MaxFileSize, Level)
+	ELKLogger = RusPlus.Logger(logsDir+"NetTest", MaxFileSize, Level)
 	//ELKLogger.Hooks.Add(logstash().(logrus.Hook))
 }
 
