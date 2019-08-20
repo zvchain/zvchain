@@ -152,8 +152,13 @@ func TestStakeMax(t *testing.T){
 	ctx.source = &src
 	ctx.target = &src
 	testFullStakeFromSelf(t)
+
+	ctx.stakeAddValue = 100 *  common.ZVC
 	testStakeAddFromSelf(t,false)
-	//genePoolMiner(t)
+	genePoolMiner(t)
+
+
+
 }
 
 func TestStakeSelf(t *testing.T) {
@@ -302,12 +307,6 @@ func TestNormalApplyGuardNode(t *testing.T) {
 	}
 }
 
-func TestMinerPool(t *testing.T) {
-	setup()
-	defer clear()
-	genePoolMiner(t)
-}
-
 func TestFailVote(t *testing.T) {
 	setup()
 	defer clear()
@@ -422,8 +421,14 @@ func testStakeAddFromSelf(t *testing.T,needSuccess bool) {
 
 	stakeAddMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
 	_, err = MinerManagerImpl.ExecuteOperation(accountDB, stakeAddMsg, 0)
-	if err != nil && needSuccess {
-		t.Fatalf("execute stake add msg error:%v", err)
+	if needSuccess{
+		if err != nil{
+			t.Fatalf("execute stake add msg error:%v", err)
+		}
+	}else{
+		if err == nil{
+			t.Fatalf("except err is nil,but got error")
+		}
 	}
 }
 
