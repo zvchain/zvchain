@@ -216,10 +216,10 @@ func (p *Processor) blockProposal() {
 		return
 	}
 
-	if height > 1 && p.proveChecker.proveExists(pi) {
-		blog.warn("vrf prove exist, not proposal")
-		return
-	}
+	//if height > 1 && p.proveChecker.proveExists(pi) {
+	//	blog.warn("vrf prove exist, not proposal")
+	//	return
+	//}
 
 	if worker.timeout() {
 		blog.warn("vrf worker timeout")
