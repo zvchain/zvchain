@@ -74,9 +74,9 @@ func getValidTicketsByHeight(height uint64) uint64 {
 }
 
 type fundGuardNode struct {
-	Type   FundGuardType
-	Height uint64 // Operation height
-	FundModeType common.FundModeType   //default 6+6
+	Type         FundGuardType
+	Height       uint64              // Operation height
+	FundModeType common.FundModeType //default 6+6
 }
 
 type fundGuardNodeDetail struct {
@@ -98,9 +98,9 @@ type voteInfo struct {
 
 func NewFundGuardNode() *fundGuardNode {
 	return &fundGuardNode{
-		Type:   fundGuardNodeType,
-		Height: 0,
-		FundModeType:common.SIXAddSix,
+		Type:         fundGuardNodeType,
+		Height:       0,
+		FundModeType: common.SIXAddSix,
 	}
 }
 func (f *fundGuardNode) isSixAddSix() bool {
@@ -110,7 +110,6 @@ func (f *fundGuardNode) isSixAddSix() bool {
 func (f *fundGuardNode) isSixAddFive() bool {
 	return f.FundModeType == common.SIXAddFive
 }
-
 
 func (f *fundGuardNode) isFundGuard() bool {
 	return f.Type == fundGuardNodeType
@@ -204,7 +203,11 @@ func isFullStake(stake, height uint64) bool {
 }
 
 func checkMinerPoolUpperBound(miner *types.Miner, height uint64) bool {
-	return miner.Stake <= maximumStake(height)*getValidTicketsByHeight(height)
+	return miner.Stake <= getFullMinerPoolStake(height)
+}
+
+func getFullMinerPoolStake(height uint64)uint64{
+	return maximumStake(height)*getValidTicketsByHeight(height)
 }
 
 func checkLowerBound(miner *types.Miner) bool {
@@ -340,7 +343,7 @@ func hasScanedSixAddFiveFundGuards(db types.AccountDB) bool {
 	return true
 }
 
-func markScanedSixAddFiveFundGuards(db types.AccountDB)  {
+func markScanedSixAddFiveFundGuards(db types.AccountDB) {
 	db.SetData(common.ScanAllFundGuardStatusAddr, common.KeyScanSixAddFiveNodes, []byte{1})
 }
 
@@ -356,7 +359,7 @@ func markScanedSixAddSixFundGuards(db types.AccountDB) {
 	db.SetData(common.ScanAllFundGuardStatusAddr, common.KeyScanSixAddSixNodes, []byte{1})
 }
 
-func updateFundGuardMode(db types.AccountDB, fn *fundGuardNode,address common.Address, mode common.FundModeType, height uint64) error {
+func updateFundGuardMode(db types.AccountDB, fn *fundGuardNode, address common.Address, mode common.FundModeType, height uint64) error {
 	fn.Height = height
 	fn.FundModeType = mode
 	err := setFundGuardNode(db, address, fn)

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
@@ -147,6 +146,16 @@ func TestInit(t *testing.T) {
 	}
 }
 
+func TestStakeMax(t *testing.T){
+	setup()
+	defer clear()
+	ctx.source = &src
+	ctx.target = &src
+	testFullStakeFromSelf(t)
+	testStakeAddFromSelf(t,false)
+	//genePoolMiner(t)
+}
+
 func TestStakeSelf(t *testing.T) {
 	setup()
 	defer clear()
@@ -170,6 +179,10 @@ func TestScan(t *testing.T) {
 	if !fd.isNormal() {
 		t.Fatalf("except normal,but got %v", fd.Type)
 	}
+	scanned :=hasScanedSixAddFiveFundGuards(accountDB)
+	if !scanned{
+		t.Fatalf("except true,but got false")
+	}
 	miner, err := getMiner(accountDB, *ctx.source, ctx.mType)
 	if err != nil{
 		t.Fatalf("error is %v",err)
@@ -178,6 +191,10 @@ func TestScan(t *testing.T) {
 		t.Fatalf("except miner is normal,but got %v",miner.Type)
 	}
 	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	scanned =hasScanedSixAddSixFundGuards(accountDB)
+	if !scanned{
+		t.Fatalf("except true,but got false")
+	}
 	for _, addr := range types.ExtractGuardNodes {
 		fd, _ := getFundGuardNode(accountDB, addr)
 		if !fd.isNormal() {
@@ -306,7 +323,7 @@ func testStakeSelfProposal(t *testing.T) {
 	ctx.source = &src
 	ctx.target = &src
 	ctx.mType = types.MinerTypeProposal
-	testStakeAddFromSelf(ctx, t)
+	testStakeAddFromSelf(t,true)
 
 	total := getTotalStake()
 	if total != 0 {
@@ -329,7 +346,7 @@ func testStakeSelfProposal(t *testing.T) {
 	}
 
 	ctx.stakeAddValue = 400 * common.ZVC
-	testStakeAddFromSelf(ctx, t)
+	testStakeAddFromSelf(t,true)
 	total = getTotalStake()
 	if total != 500*common.ZVC {
 		t.Fatalf("except %v,but got %v", 500*common.ZVC, total)
@@ -356,7 +373,7 @@ func testStakeSelfVerify(t *testing.T) {
 	ctx.source = &src
 	ctx.target = &src
 	ctx.mType = types.MinerTypeVerify
-	testStakeAddFromSelf(ctx, t)
+	testStakeAddFromSelf(t,true)
 	miner, err := getMiner(accountDB, *ctx.source, ctx.mType)
 
 	if err != nil {
@@ -373,7 +390,7 @@ func testStakeSelfVerify(t *testing.T) {
 		t.Fatalf("except %v,but got %v", ctx.stakeAddValue, dt.Value)
 	}
 	ctx.stakeAddValue = 400 * common.ZVC
-	testStakeAddFromSelf(ctx, t)
+	testStakeAddFromSelf(t,true)
 	miner, err = getMiner(accountDB, *ctx.source, ctx.mType)
 
 	if err != nil {
@@ -392,7 +409,7 @@ func testStakeSelfVerify(t *testing.T) {
 
 }
 
-func testStakeAddFromSelf(ctx *mOperContext, t *testing.T) {
+func testStakeAddFromSelf(t *testing.T,needSuccess bool) {
 	var mpks = &types.MinerPks{
 		MType: ctx.mType,
 		Pk:    common.FromHex("0x215fdace84c59a6d86e1cbe4238c3e4a5d7a6e07f6d4c5603399e573cc05a32617faae51cfd3fce7c84447522e52a1439f46fc5adb194240325fcb800a189ae129ebca2b59999a9ecd16e03184e7fe578418b20cbcdc02129adc79bf090534a80fb9076c3518ae701477220632008fc67981e2a1be97a160a2f9b5804f9b280f"),
@@ -405,7 +422,7 @@ func testStakeAddFromSelf(ctx *mOperContext, t *testing.T) {
 
 	stakeAddMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
 	_, err = MinerManagerImpl.ExecuteOperation(accountDB, stakeAddMsg, 0)
-	if err != nil {
+	if err != nil && needSuccess {
 		t.Fatalf("execute stake add msg error:%v", err)
 	}
 }
@@ -514,7 +531,6 @@ func testChangeFundMode(t *testing.T, tp byte, needSuccess bool) {
 	var height uint64 = 0
 	var err error
 	var fd *fundGuardNode
-	fmt.Printf("source = %s \n",ctx.source.AddrPrefixString())
 	applyMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeChangeFundGuardMode, 0, []byte{tp})
 	_, err = MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, height)
 	if !needSuccess {

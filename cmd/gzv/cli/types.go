@@ -143,6 +143,11 @@ type StakeDetail struct {
 	DisMissHeight uint64 `json:"dismiss_height"`
 }
 
+type MinerPoolDetail struct {
+	CurrentStake uint64 `json:"current_stake"`
+	FullStake    uint64 `json:"full_stake"`
+}
+
 type MinerStakeDetails struct {
 	Overview []*MortGage               `json:"overview,omitempty"`
 	Details  map[string][]*StakeDetail `json:"details,omitempty"`

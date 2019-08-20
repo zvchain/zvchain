@@ -179,7 +179,25 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
 	return successResult(block)
 }
 
+func (api *RpcGtasImpl) MinerPoolInfo(addr string,height uint64) (*Result, error) {
+	addr = strings.TrimSpace(addr)
+	if !common.ValidateAddress(strings.TrimSpace(addr)) {
+		return failResult("Wrong account address format")
+	}
+	miner:= core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal,height)
+	if miner == nil || !miner.IsMinerPool(){
+		return failResult("data is nil")
+	}
+	fullStake := core.MinerManagerImpl.GetFullMinerPoolStake(height)
+	dt := &MinerPoolDetail{
+		CurrentStake:miner.Stake,
+		FullStake:fullStake,
+	}
+	return successResult(dt)
+}
+
 func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
+	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}

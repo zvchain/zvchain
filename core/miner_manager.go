@@ -79,20 +79,19 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, height uint64
 }
 
 func (mm *MinerManager) fundGuardNodesCheck(accountDB types.AccountDB, height uint64) error {
-	err := mm.fundGuardSixAddFiveNodesCheck(accountDB,height)
-	if err != nil{
+	err := mm.fundGuardSixAddFiveNodesCheck(accountDB, height)
+	if err != nil {
 		return err
 	}
-	err = mm.fundGuardSixAddSixNodesCheck(accountDB,height)
-	if err != nil{
+	err = mm.fundGuardSixAddSixNodesCheck(accountDB, height)
+	if err != nil {
 		return err
 	}
 	return nil
 }
 
-
 func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB, height uint64) error {
-	if height < adjustWeightPeriod / 2 || height > adjustWeightPeriod{
+	if height < adjustWeightPeriod/2 || height > adjustWeightPeriod {
 		return nil
 	}
 	if height%1000 != 0 {
@@ -110,7 +109,7 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 		if !fd.isFundGuard() {
 			continue
 		}
-		if !fd.isSixAddFive(){
+		if !fd.isSixAddFive() {
 			continue
 		}
 		err = guardNodeExpired(accountDB, fd.Address, height, true)
@@ -127,7 +126,7 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 }
 
 func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, height uint64) error {
-	if height < adjustWeightPeriod || height > adjustWeightPeriod*2{
+	if height < adjustWeightPeriod || height > adjustWeightPeriod*2 {
 		return nil
 	}
 	if height%1000 != 0 {
@@ -145,7 +144,7 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 		if !fd.isFundGuard() {
 			continue
 		}
-		if !fd.isSixAddSix(){
+		if !fd.isSixAddSix() {
 			continue
 		}
 		err = guardNodeExpired(accountDB, fd.Address, height, true)
@@ -228,7 +227,7 @@ func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.A
 	snapshot := accountDB.Snapshot()
 	if ret := operation.Transition(); ret.err != nil {
 		accountDB.RevertToSnapshot(snapshot)
-		return false,ret.err
+		return false, ret.err
 	}
 	return true, nil
 
@@ -245,7 +244,7 @@ func (mm *MinerManager) ClearTicker() {
 // ExecuteOperation execute the miner operation
 func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.TxMessage, height uint64) (success bool, err error) {
 	ss := newTransitionContext(accountDB, msg, nil, height)
-	op := getOpByType(ss,msg.OpType())
+	op := getOpByType(ss, msg.OpType())
 	return mm.executeOperation(op, accountDB)
 }
 
@@ -288,6 +287,10 @@ func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.Miner
 	return miner
 }
 
+func (mm *MinerManager) GetFullMinerPoolStake(height uint64) uint64 {
+	return getFullMinerPoolStake(height)
+}
+
 // GetMiner return miner info stored in db of the given address and the miner type at the given height
 func (mm *MinerManager) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {
 	db, err := BlockChainImpl.GetAccountDBByHeight(height)
@@ -317,7 +320,7 @@ func (mm *MinerManager) GetProposalTotalStake(height uint64) uint64 {
 func (mm *MinerManager) GetAllFullStakeGuardNodes(accountDB types.AccountDB) []common.Address {
 	var addrs []common.Address
 	iter := accountDB.DataIterator(common.FullStakeGuardNodeAddr, common.KeyGuardNodes)
-	if iter != nil{
+	if iter != nil {
 		for iter.Next() {
 			addr := common.BytesToAddress(iter.Key[len(common.KeyGuardNodes):])
 			addrs = append(addrs, addr)
@@ -384,13 +387,13 @@ func (mm *MinerManager) getStakeDetail(address, source common.Address, status ty
 	}
 	if detail != nil {
 		return &types.StakeDetail{
-			Source:       source,
-			Target:       address,
-			Value:        detail.Value,
-			UpdateHeight: detail.Height,
-			Status:       status,
-			MType:        mType,
-			DisMissHeight:detail.DisMissHeight,
+			Source:        source,
+			Target:        address,
+			Value:         detail.Value,
+			UpdateHeight:  detail.Height,
+			Status:        status,
+			MType:         mType,
+			DisMissHeight: detail.DisMissHeight,
 		}
 	}
 	return nil
