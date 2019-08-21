@@ -20,8 +20,8 @@ type Crontab struct {
 	accountPrimaryId uint64
 	isFetchingReward bool
 	isFetchingStake  bool
-	rpcExplore       Explore
-	transfer         Transfer
+	rpcExplore       *Explore
+	transfer         *Transfer
 }
 
 func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Crontab {
