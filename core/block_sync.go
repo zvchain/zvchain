@@ -215,7 +215,6 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	return nil
 }
 func (bs *blockSyncer) trySyncRoutine() bool {
-	bs.candidatePoolDump()
 	return bs.syncFrom("")
 }
 
