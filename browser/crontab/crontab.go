@@ -6,7 +6,6 @@ import (
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/browser/transfer"
-	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/cmd/gzv/cli"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
@@ -87,15 +86,16 @@ func (crontab *Crontab) fetchBlockStake() {
 	accounts := crontab.storage.GetAccountByMaxPrimaryId(10)
 	for _, account := range accounts {
 		minerinfo, stakefrom := crontab.GetMinerInfo(account.Address)
-		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"proposal_stake": minerinfo[0].Stake,
-			"other_stake":  minerinfo[1].Stake,
-			"verify_stake": minerinfo[2].Stake,
-			"stake_from":   stakefrom})
+		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{
+			"proposal_stake": minerinfo[0].Stake,
+			"other_stake":    minerinfo[1].Stake,
+			"verify_stake":   minerinfo[2].Stake,
+			"stake_from":     stakefrom})
 	}
 }
 
 func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
-	if !util.ValidateAddress(strings.TrimSpace(addr)) {
+	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return nil, ""
 	}
 
@@ -120,10 +120,13 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 			Type:        "proposal node",
 			Status:      "normal",
 		})
+		if selfStakecount > 0 {
+			stakefrom = addr
+		}
 		// check if contain other stake ,
 		//todo pool identify
 		if selfStakecount < mort.Stake {
-			stakefrom = crontab.getStakeFrom(address)
+			stakefrom = stakefrom + "," + crontab.getStakeFrom(address)
 		}
 	}
 	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
@@ -137,8 +140,15 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 func (crontab *Crontab) getStakeFrom(address common.Address) string {
 	allStakeDetails := core.MinerManagerImpl.GetAllStakeDetails(address)
 	var stakeFrom = ""
+	index := 0
 	for from, _ := range allStakeDetails {
-		stakeFrom = stakeFrom + from + ","
+		if from != address.String() {
+			index += 1
+			if index > 1 {
+				break
+			}
+			stakeFrom = stakeFrom + from + ","
+		}
 	}
-	return stakeFrom
+	return strings.Trim(stakeFrom, ",")
 }
