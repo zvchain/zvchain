@@ -30,7 +30,7 @@ type Account struct {
 	Group            string `json:"group"`
 	TotalTransaction uint64 `json:"total_transaction"`
 	Rewards          uint64 `json:"rewards" gorm:"index"`
-	Status           string `json:"status" gorm:"index"`
+	Status           byte   `json:"status" gorm:"index"`
 	StakeFrom        string `json:"stake_from"`
 	Balance          uint64 `json:"balance"`
 }

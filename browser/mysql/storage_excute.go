@@ -34,7 +34,7 @@ func (storage *Storage) AddBatchAccount(accounts []*models.Account) bool {
 	}
 	for i := 0; i < len(accounts); i++ {
 		if accounts[i] != nil {
-			storage.AddObjects(&accounts[i])
+			storage.AddObjects(accounts[i])
 		}
 	}
 	return true
@@ -68,7 +68,7 @@ func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
 	} else {
 		sys.Value = 1
-		storage.AddObjects(&sys)
+		storage.AddObjects(sys)
 	}
 	return true
 

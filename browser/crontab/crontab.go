@@ -95,7 +95,7 @@ func (crontab *Crontab) fetchBlockStake() {
 			"other_stake":    minerinfo[1].Stake,
 			"verify_stake":   minerinfo[2].Stake,
 			"stake_from":     stakefrom,
-			"status":         minerinfo[0].Status})
+			"status":         crontab.transferstatus(minerinfo[0].Status)})
 	}
 }
 
@@ -139,6 +139,14 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 		morts = append(morts, cli.NewMortGageFromMiner(verifierInfo))
 	}
 	return morts, stakefrom
+}
+func (crontab *Crontab) transferstatus(status string) types.MinerStatus {
+	var statusMap = map[string]types.MinerStatus{
+		"normal":   types.MinerStatusActive,
+		"prepared": types.MinerStatusPrepare,
+		"frozen":   types.MinerStatusFrozen,
+	}
+	return statusMap[status]
 }
 
 func (crontab *Crontab) getStakeFrom(address common.Address) string {
