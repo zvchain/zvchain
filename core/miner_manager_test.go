@@ -185,6 +185,34 @@ func TestInsteadStake(t *testing.T) {
 	testStakeFromOther(t,true)
 }
 
+
+func TestInvalidMinerPoolAction(t *testing.T){
+	setup()
+	defer clear()
+	genePoolMiner(t)
+	accountDB.(*account.AccountDB).Commit(true)
+	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	miner, err := getMiner(accountDB, minerPool, ctx.mType)
+	if err != nil{
+		t.Fatalf("error is %v",err)
+	}
+	if !miner.IsInvalidMinerPool(){
+		t.Fatalf("except invalid miner pool,but got %v",miner.Identity)
+	}
+	ctx.source  = &minerPool
+	ctx.target  = &minerPool
+	ctx.stakeAddValue = 100  * common.ZVC
+	testStakeAddFromSelf(t,false)
+
+	ctx.source  = &src
+	ctx.target  = &minerPool
+	testStakeFromOther(t,false)
+
+	ctx.source  = &minerPool
+	ctx.target  = &minerPool
+	testStakeAbort(t,false)
+}
+
 func TestStakeMax(t *testing.T) {
 	setup()
 	defer clear()
@@ -355,8 +383,26 @@ func TestInvalid(t *testing.T) {
 	if isFullGuard {
 		t.Fatalf("need not in full guard,but in guard")
 	}
-
 }
+
+func TestNotFullGuardNode(t *testing.T){
+	setup()
+	defer clear()
+	MinerManagerImpl.genFundGuardNodes(accountDB)
+
+	ctx.source = &guardNode1
+	ctx.target = &guardNode1
+	ctx.height = 6000000
+	testFullStakeFromSelf(t)
+	miner, err := getMiner(accountDB, *ctx.source, ctx.mType)
+	if err != nil {
+		t.Fatalf("error is %v", err)
+	}
+	if !miner.IsGuard(){
+		t.Fatalf("except miner is guard,but got %v", miner.Type)
+	}
+}
+
 
 func TestScan(t *testing.T) {
 	setup()
@@ -618,6 +664,20 @@ func testStakeAddFromSelf(t *testing.T, needSuccess bool) {
 	}
 }
 
+func testStakeAbort(t *testing.T, success bool) {
+	stakeAbortMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeMinerAbort, 0, []byte{byte(ctx.mType)})
+	_, err := MinerManagerImpl.ExecuteOperation(accountDB, stakeAbortMsg, 0)
+	if success {
+		if err != nil {
+			t.Fatalf("execute stake abort msg error:%v", err)
+		}
+	} else {
+		if err == nil {
+			t.Fatalf("except got err,but got nil")
+		}
+	}
+}
+
 func testStakeFromOther(t *testing.T, success bool) {
 	var mpks = &types.MinerPks{
 		MType: ctx.mType,
@@ -678,7 +738,7 @@ func testFullStakeFromSelf(t *testing.T) {
 		t.Fatalf("encode payload error:%v", err)
 	}
 	stakeAddMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeStakeAdd, ctx.stakeAddValue, bs)
-	_, err = MinerManagerImpl.ExecuteOperation(accountDB, stakeAddMsg, 0)
+	_, err = MinerManagerImpl.ExecuteOperation(accountDB, stakeAddMsg, ctx.height)
 	if err != nil {
 		t.Fatalf("execute stake add msg error:%v", err)
 	}
