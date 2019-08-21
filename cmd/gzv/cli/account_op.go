@@ -427,6 +427,10 @@ func (am *AccountManager) NewAccountByImportKey(key string, password string, min
 
 // ExportKey exports the private key of account
 func (am *AccountManager) ExportKey(addr string) (string, error) {
+	unlockAddr := am.currentUnLockedAddr()
+	if unlockAddr == "" || unlockAddr != addr {
+		return "", ErrUnlocked
+	}
 	acc, err := am.getAccountInfo(addr)
 	if err != nil {
 		return "", err

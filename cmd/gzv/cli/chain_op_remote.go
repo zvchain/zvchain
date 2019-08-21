@@ -189,7 +189,7 @@ func (ca *RemoteChainOpImpl) BlockByHash(hash string) *RPCResObjCmd {
 }
 
 func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *RPCResObjCmd {
-	res := ca.request("getBlockByHeight")
+	res := ca.request("getBlockByHeight", h)
 	return res
 }
 
