@@ -38,7 +38,7 @@ func (storage *Storage) AddBatchAccount(accounts []*models.Account) bool {
 	}
 	for i := 0; i < len(accounts); i++ {
 		if accounts[i] != nil {
-			storage.AddObjects(&accounts[i])
+			storage.AddObjects(accounts[i])
 		}
 	}
 	return true
@@ -72,7 +72,7 @@ func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
 	} else {
 		sys.Value = 1
-		storage.AddObjects(&sys)
+		storage.AddObjects(sys)
 	}
 	return true
 
@@ -121,7 +121,7 @@ func (storage *Storage) TopBlockRewardHeight(variable string) uint64 {
 	sys := make([]models.Sys, 0, 1)
 	storage.db.Limit(1).Where("variable = ?", variable).Find(&sys)
 	if len(sys) > 0 {
-		storage.topBlockHight = sys[0].Value
+		storage.topBlockHigh = sys[0].Value
 		return sys[0].Value
 	}
 	return 0
@@ -134,7 +134,7 @@ func (storage *Storage) TopBlockHeight() uint64 {
 	sys := make([]models.Sys, 0, 1)
 	storage.db.Limit(1).Where("variable = ?", Blocktophight).Find(&sys)
 	if len(sys) > 0 {
-		storage.topBlockHight = sys[0].Value
+		//storage.topBlockHigh = sys[0].Value
 		return sys[0].Value
 	}
 	return 0
@@ -147,7 +147,7 @@ func (storage *Storage) TopGroupHeight() uint64 {
 	sys := make([]models.Sys, 0, 1)
 	storage.db.Limit(1).Where("variable = ?", GroupTopHeight).Find(&sys)
 	if len(sys) > 0 {
-		storage.topBlockHight = sys[0].Value
+		//storage.topBlockHigh = sys[0].Value
 		return sys[0].Value
 	}
 	return 0
@@ -160,7 +160,7 @@ func (storage *Storage) TopPrepareGroupHeight() uint64 {
 	sys := make([]models.Sys, 0, 1)
 	storage.db.Limit(1).Where("variable = ?", PrepareGroupTopHeight).Find(&sys)
 	if len(sys) > 0 {
-		storage.topBlockHight = sys[0].Value
+		//storage.topBlockHigh = sys[0].Value
 		return sys[0].Value
 	}
 	return 0
@@ -173,7 +173,7 @@ func (storage *Storage) TopDismissGroupHeight() uint64 {
 	sys := make([]models.Sys, 0, 1)
 	storage.db.Limit(1).Where("variable = ?", DismissGropHeight).Find(&sys)
 	if len(sys) > 0 {
-		storage.topBlockHight = sys[0].Value
+		//storage.topBlockHigh = sys[0].Value
 		return sys[0].Value
 	}
 	return 0

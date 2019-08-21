@@ -18,6 +18,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/browser/crontab"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"os"
@@ -376,6 +377,11 @@ func (gtas *Gtas) fullInit() error {
 	if cfg.enableMonitor || common.GlobalConf.GetBool("gtas", "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
+	crontab.NewServer(common.GlobalConf.GetString("gtas", "browser_db_host", ""),
+		3306,
+		common.GlobalConf.GetString("gtas", "browser_db_user", ""),
+		common.GlobalConf.GetString("gtas", "browser_db_password", ""),
+		false)
 	return nil
 }
 
