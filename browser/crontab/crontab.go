@@ -6,17 +6,13 @@ import (
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/browser/transfer"
-	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/cmd/gzv/cli"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"strings"
-	"sync"
 	"time"
 )
-
-var lock sync.Mutex
 
 const checkInterval = time.Second * 10
 
@@ -47,6 +43,17 @@ func (crontab *Crontab) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
+	go crontab.fetchBlockRewards()
+	go crontab.fetchBlockStake()
+
+	for {
+		select {
+		case <-check.C:
+			go crontab.fetchBlockRewards()
+			go crontab.fetchBlockStake()
+
+		}
+	}
 }
 
 func (crontab *Crontab) fetchBlockRewards() {
@@ -62,15 +69,11 @@ func (crontab *Crontab) fetchBlockRewards() {
 			Variable: mysql.Blockrewardtophight,
 			SetBy:    "carrie.cxl",
 		}
-		lock.Lock()
 		crontab.storage.AddBlockRewardSystemconfig(sys)
 		crontab.blockHeight += 1
-		lock.Unlock()
 		accounts := crontab.blockTransfer.BlockRewardTOAccount(rewards)
 		for _, account := range accounts {
-
 			crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)})
-
 		}
 		go crontab.fetchBlockRewards()
 
@@ -87,15 +90,17 @@ func (crontab *Crontab) fetchBlockStake() {
 	accounts := crontab.storage.GetAccountByMaxPrimaryId(10)
 	for _, account := range accounts {
 		minerinfo, stakefrom := crontab.GetMinerInfo(account.Address)
-		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"proposal_stake": minerinfo[0].Stake,
-			"other_stake":  minerinfo[1].Stake,
-			"verify_stake": minerinfo[2].Stake,
-			"stake_from":   stakefrom})
+		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{
+			"proposal_stake": minerinfo[0].Stake,
+			"other_stake":    minerinfo[1].Stake,
+			"verify_stake":   minerinfo[2].Stake,
+			"stake_from":     stakefrom,
+			"status":         minerinfo[0].Status})
 	}
 }
 
 func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
-	if !util.ValidateAddress(strings.TrimSpace(addr)) {
+	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return nil, ""
 	}
 
@@ -120,25 +125,34 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 			Type:        "proposal node",
 			Status:      "normal",
 		})
+		if selfStakecount > 0 {
+			stakefrom = addr
+		}
 		// check if contain other stake ,
 		//todo pool identify
 		if selfStakecount < mort.Stake {
-			stakefrom = crontab.getStakeFrom(address)
+			stakefrom = stakefrom + "," + crontab.getStakeFrom(address)
 		}
 	}
 	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
 	if verifierInfo != nil {
 		morts = append(morts, cli.NewMortGageFromMiner(verifierInfo))
 	}
-
 	return morts, stakefrom
 }
 
 func (crontab *Crontab) getStakeFrom(address common.Address) string {
 	allStakeDetails := core.MinerManagerImpl.GetAllStakeDetails(address)
 	var stakeFrom = ""
+	index := 0
 	for from, _ := range allStakeDetails {
-		stakeFrom = stakeFrom + from + ","
+		if from != address.String() {
+			index += 1
+			if index > 1 {
+				break
+			}
+			stakeFrom = stakeFrom + from + ","
+		}
 	}
-	return stakeFrom
+	return strings.Trim(stakeFrom, ",")
 }

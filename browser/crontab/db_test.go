@@ -13,10 +13,10 @@ func TestDB2(t *testing.T) {
 		end := uint64((i + 1) * 1000000)
 		fmt.Printf("index : begin:%v end:%v\n", begin, end)
 		acc := server.storage.GetAccountById("0x07eafa7c040e9537837e1c3c3580d87633b019c8ae4f9a5b954c5806340e0886")
-		bool := server.storage.UpdateAccountByColumn(acc[0], map[string]interface{}{"proposal_stake": 1,
-			"other_stake":  2,
-			"verify_stake": 3,
-			"stake_from":   "jack"})
+		bool := server.storage.UpdateAccountByColumn(acc[0], map[string]interface{}{"proposal_stake": 11,
+			"other_stake":  22,
+			"verify_stake": 33,
+			"stake_from":   "CARRIE"})
 		sys := &models.Sys{
 			Variable: "block_reward.top_block_height",
 			SetBy:    "carrie.cxl",

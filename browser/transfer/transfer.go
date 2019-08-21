@@ -9,10 +9,10 @@ type Transfer struct {
 }
 
 func (transfer *Transfer) BlockRewardTOAccount(reward cli.ExploreBlockReward) []*models.Account {
-	accounts := make([]*models.Account, 0)
+	accounts := make([]*models.Account, 0, 0)
 	account := &models.Account{
 		Address: reward.ProposalID,
-		Rewards: reward.ProposalReward,
+		Rewards: reward.ProposalReward + reward.ProposalGasFeeReward,
 	}
 
 	accounts = append(accounts, account)
