@@ -74,10 +74,10 @@ func (ns *NetworkServerImpl) SendCastVerify(ccm *model.ConsensusCastMessage, gb 
 	message := &tas_middleware_pb.ConsensusCastMessage{Bh: bh, Sign: si}
 
 	log.ELKLogger.WithFields(logrus.Fields{
-		"height": ccm.BH.Height,
+		"height":    ccm.BH.Height,
 		"blockHash": ccm.BH.Hash.Hex(),
-		"now":time.TSInstance.NowTime().Local(),
-		"logId": "11",
+		"now":       time.TSInstance.NowTime().Local(),
+		"logId":     "11",
 	}).Debug("SendMessageCast, group number:", len(gb.MemIds))
 
 	body, err := proto.Marshal(message)
@@ -142,13 +142,11 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	}
 
 	log.ELKLogger.WithFields(logrus.Fields{
-		"height": block.Header.Height,
+		"height":    block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
-		"now": time.TSInstance.NowTime().Local(),
-		"logId": "51",
-	}).Debug("BroadcastNewBlock, heavy miners:",len(heavyMinerMembers),", group members:", len(validGroupMembers))
-
-	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))
+		"now":       time.TSInstance.NowTime().Local(),
+		"logId":     "51",
+	}).Debug("BroadcastNewBlock, heavy miners:", len(heavyMinerMembers), ", group members:", len(validGroupMembers))
 
 	// Broadcast to the next group of light nodes
 	//
@@ -156,6 +154,8 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	if len(validGroupMembers) > 0 {
 		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, []byte(blockMsg.Hash()))
 	}
+
+	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))
 
 }
 
