@@ -48,8 +48,28 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	nodesIndex := make([]int, 0)
 	nodes := make([]NodeID, 0)
 
+	connectNodes := make([]NodeID, 0)
+
 	if totalSize == 0 {
 		return nodes
+	}
+	maxSize := groupColumnSendCount(totalSize)
+
+	for i := 0; i < totalSize; i++ {
+		ID := NewNodeID(members[i])
+		if ID == nil || *ID == netCore.ID {
+			continue
+		}
+
+		p := netCore.peerManager.peerByID(*ID)
+		if p != nil && p.sessionID > 0 {
+			continue
+		}
+		connectNodes = append(connectNodes, *ID)
+	}
+
+	if len(connectNodes) >= maxSize {
+		return connectNodes[0:maxSize]
 	}
 
 	rowSize := groupRowSize(totalSize)
@@ -65,7 +85,6 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	}
 
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	maxSize := groupColumnSendCount(totalSize)
 	for i := 0; i < totalSize; i++ {
 		peerIndex := rand.Intn(totalSize)
 		columnIndex := peerIndex % rowSize
@@ -88,11 +107,11 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 				nodes = append(nodes, *nID)
 			}
 		}
-		if len(nodesIndex) >= maxSize {
+		if len(nodesIndex) >= maxSize-len(connectNodes) {
 			break
 		}
 	}
-
+	nodes = append(nodes, connectNodes...)
 	return nodes
 }
 
