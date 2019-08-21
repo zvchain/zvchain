@@ -36,10 +36,10 @@ char* wrap_get_balance(const char* address)
 	return GetBalance(address);
 }
 
-void wrap_remove_data(char* key)
+void wrap_remove_data(const char* key, int key_len)
 {
-	void RemoveData(char* );
-	RemoveData(key);
+	void RemoveData(const char* , int);
+	RemoveData(key, key_len);
 }
 
 void wrap_get_data(const char* key, int key_len, char** value, int* value_len)
@@ -212,9 +212,6 @@ func bridgeInit() {
 	C.gas_limit_fn = (C.gas_limit_fn_t)(unsafe.Pointer(C.wrap_tx_gas_limit))
 	C.contract_call_fn = (C.contract_call_fn_t)(unsafe.Pointer(C.wrap_contract_call))
 	C.event_call_fn = (C.event_call_fn_t)(unsafe.Pointer(C.wrap_event_call))
-	C.miner_stake_fn = (C.miner_stake_fn_t)(unsafe.Pointer(C.wrap_miner_stake))
-	C.miner_cancel_stake = (C.miner_cancel_stake_fn_t)(unsafe.Pointer(C.wrap_miner_cancel_stake))
-	C.miner_refund_stake = (C.miner_refund_stake_fn_t)(unsafe.Pointer(C.wrap_miner_refund_stake))
 }
 
 // Contract Contract contains the base message of a contract
@@ -362,6 +359,7 @@ type Msg struct {
 
 // CreateContractInstance Create contract instance
 func (tvm *TVM) CreateContractInstance(msg Msg) (*ExecuteResult, error) {
+	C.tvm_set_register()
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
 	C.tvm_set_msg(sender, value);
@@ -482,6 +480,8 @@ func (tvm *TVM) funcCall(funcName string, JSONArgs string) *ExecuteResult {
 
 // Deploy TVM Deploy the contract code and load msg
 func (tvm *TVM) Deploy(msg Msg) *ExecuteResult {
+	C.tvm_set_register()
+
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
 	C.tvm_set_msg(sender, value);
