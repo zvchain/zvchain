@@ -114,7 +114,7 @@ func newGroupReader(infoReader groupInfoReader, skReader skStorage) *groupReader
 	return &groupReader{
 		skStore: skReader,
 		reader:  infoReader,
-		cache:   common.MustNewLRUCache(50),
+		cache:   common.MustNewLRUCache(200),
 	}
 }
 
@@ -138,7 +138,7 @@ func (gr *groupReader) getGroupBySeed(seed common.Hash) *verifyGroup {
 	}
 	g := gr.reader.GetGroupBySeed(seed)
 	if g != nil {
-		stdLogger.Debugf("get group seed %v len %v", seed, g.Members())
+		stdLogger.Debugf("get group seed %v len %v,cacheLen = %v", seed, g.Members(),gr.cache.Len())
 		gi := convertGroupI(g)
 		gr.cache.ContainsOrAdd(gi.header.Seed(), gi)
 		return gi
