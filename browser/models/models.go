@@ -27,6 +27,9 @@ type Account struct {
 	VerifyStake      uint64 `json:"verify_stake"`
 	OtherStake       uint64 `json:"other_stake"`
 	Group            string `json:"group"`
+	WorkGroup        uint64 `json:"work_group"`
+	DismissGroup     uint64 `json:"dismiss_group"`
+	PrepareGroup     uint64 `json:"prepare_group"`
 	TotalTransaction uint64 `json:"total_transaction"`
 	Rewards          uint64 `json:"rewards"`
 	Status           uint64 `json:"status"`
@@ -39,4 +42,15 @@ type Sys struct {
 	Variable string
 	Value    uint64
 	SetBy    string
+}
+
+type Group struct {
+	Id            string   `json:"id" gorm:"index"`
+	Height        uint64   `json:"height" gorm:"index"`
+	WorkHeight    uint64   `json:"work_height"`
+	DismissHeight uint64   `json:"dismiss_height"`
+	Threshold     uint64   `json:"threshold"`
+	Members       []string `json:"members" gorm:"-"`
+	MemberCount   uint64   `json:"member_count" `
+	MembersStr    string   `json:"members_str"  gorm:"type:TEXT;size:65000"`
 }
