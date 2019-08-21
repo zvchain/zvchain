@@ -173,6 +173,16 @@ func TestInsteadStake(t *testing.T) {
 	ctx.source = &src
 	ctx.target = &minerPool
 	testStakeFromOther(t, true)
+
+	ctx.source =  &minerPool
+	ctx.target = &src
+	ctx.stakeAddValue = 100 * common.ZVC
+	testStakeFromOther(t, false)
+
+	ctx.source = &types.MiningPoolAddr
+	ctx.target = &normal1
+	ctx.stakeAddValue = 100 * common.ZVC
+	testStakeFromOther(t,true)
 }
 
 func TestStakeMax(t *testing.T) {
