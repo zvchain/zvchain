@@ -94,6 +94,7 @@ func (crontab *Crontab) fetchBlockStake() {
 			"proposal_stake": minerinfo[0].Stake,
 			"other_stake":    minerinfo[1].Stake,
 			"verify_stake":   minerinfo[2].Stake,
+			"total_stake":    minerinfo[0].Stake + minerinfo[2].Stake,
 			"stake_from":     stakefrom,
 			"status":         crontab.transferstatus(minerinfo[0].Status)})
 	}
