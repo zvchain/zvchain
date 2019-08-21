@@ -26,14 +26,14 @@ import (
 const PageSize uint64 = 20
 
 type Storage struct {
-	db           *gorm.DB
-	dbAddr       string
-	dbPort       int
-	dbUser       string
-	dbPassword   string
-	rpcAddrStr   string
-	topBlockHigh uint64
-	accounts     []*models.Account
+	db            *gorm.DB
+	dbAddr        string
+	dbPort        int
+	dbUser        string
+	dbPassword    string
+	rpcAddrStr    string
+	topBlockHight uint64
+	accounts      []*models.Account
 }
 
 func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *Storage {
@@ -108,7 +108,7 @@ func (storage *Storage) AddObjects(object interface{}) bool {
 	}
 	timeBegin := time.Now()
 	tx := storage.db.Begin()
-	tx.Create(object)
+	tx.Create(&object)
 	tx.Commit()
 	fmt.Println("[Storage]  objects cost: ", time.Since(timeBegin), "，len :")
 	return true

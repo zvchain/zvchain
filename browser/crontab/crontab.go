@@ -30,7 +30,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcA
 
 	server := &Crontab{}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
-	server.blockHeight = server.storage.TopBlockRewardHeight()
+	server.blockHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtophight)
 	if server.blockHeight > 0 {
 		server.blockHeight += 1
 	}

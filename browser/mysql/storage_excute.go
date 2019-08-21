@@ -7,8 +7,12 @@ import (
 )
 
 const (
-	Blockrewardtophight = "block_reward.top_block_height"
-	LIMIT               = 20
+	Blockrewardtophight   = "block_reward.top_block_height"
+	Blocktophight         = "block.top_block_height"
+	GroupTopHeight        = "group.top_group_height"
+	PrepareGroupTopHeight = "group.top_prepare_group_height"
+	DismissGropHeight     = "group.top_dismiss_group_height"
+	LIMIT                 = 20
 )
 
 func (storage *Storage) UpdateBatchAccount(accounts []*models.Account) bool {
@@ -63,7 +67,7 @@ func (storage *Storage) GetAccountByMaxPrimaryId(maxid uint64) []*models.Account
 }
 
 func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
-	hight := storage.TopBlockRewardHeight()
+	hight := storage.TopBlockRewardHeight(Blockrewardtophight)
 	if hight > 0 {
 		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
 	} else {
@@ -73,6 +77,29 @@ func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 	return true
 
 }
+
+func (storage *Storage) AddBlockHeightSystemconfig(sys *models.Sys) bool {
+	hight := storage.TopGroupHeight()
+	if hight > 0 {
+		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
+	} else {
+		sys.Value = 1
+		storage.AddObjects(&sys)
+	}
+	return true
+
+}
+
+//func (storage *Storage) AddGroupHeightSystemconfig(sys *models.Sys) bool {
+//	hight := storage.TopGroupHeight()
+//	if hight > 0 {
+//		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
+//	} else {
+//		sys.Value = 1
+//		storage.AddObjects(&sys)
+//	}
+//	return true
+//}
 
 func (storage *Storage) UpdateAccountByColumn(account *models.Account, attrs map[string]interface{}) bool {
 	//fmt.Println("[Storage] add Verification ")
@@ -87,14 +114,66 @@ func (storage *Storage) UpdateAccountByColumn(account *models.Account, attrs map
 }
 
 // get topblockreward height
-func (storage *Storage) TopBlockRewardHeight() uint64 {
+func (storage *Storage) TopBlockRewardHeight(variable string) uint64 {
 	if storage.db == nil {
 		return 0
 	}
 	sys := make([]models.Sys, 0, 1)
-	storage.db.Limit(1).Where("variable = ?", Blockrewardtophight).Find(&sys)
+	storage.db.Limit(1).Where("variable = ?", variable).Find(&sys)
 	if len(sys) > 0 {
-		storage.topBlockHigh = sys[0].Value
+		storage.topBlockHight = sys[0].Value
+		return sys[0].Value
+	}
+	return 0
+}
+
+func (storage *Storage) TopBlockHeight() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	sys := make([]models.Sys, 0, 1)
+	storage.db.Limit(1).Where("variable = ?", Blocktophight).Find(&sys)
+	if len(sys) > 0 {
+		storage.topBlockHight = sys[0].Value
+		return sys[0].Value
+	}
+	return 0
+}
+
+func (storage *Storage) TopGroupHeight() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	sys := make([]models.Sys, 0, 1)
+	storage.db.Limit(1).Where("variable = ?", GroupTopHeight).Find(&sys)
+	if len(sys) > 0 {
+		storage.topBlockHight = sys[0].Value
+		return sys[0].Value
+	}
+	return 0
+}
+
+func (storage *Storage) TopPrepareGroupHeight() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	sys := make([]models.Sys, 0, 1)
+	storage.db.Limit(1).Where("variable = ?", PrepareGroupTopHeight).Find(&sys)
+	if len(sys) > 0 {
+		storage.topBlockHight = sys[0].Value
+		return sys[0].Value
+	}
+	return 0
+}
+
+func (storage *Storage) TopDismissGroupHeight() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	sys := make([]models.Sys, 0, 1)
+	storage.db.Limit(1).Where("variable = ?", DismissGropHeight).Find(&sys)
+	if len(sys) > 0 {
+		storage.topBlockHight = sys[0].Value
 		return sys[0].Value
 	}
 	return 0
