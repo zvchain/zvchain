@@ -97,11 +97,14 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *RPCR
 	return ret
 }
 
-func (ca *RemoteChainOpImpl) nonce(addr string) uint64 {
+func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, *RPCResObjCmd) {
 	var nonce uint64
 	res := ca.request("nonce", addr)
-	json.Unmarshal(res.Result, &nonce)
-	return nonce
+	if res != nil {
+		json.Unmarshal(res.Result, &nonce)
+		return nonce, res
+	}
+	return nonce, nil
 }
 
 // Endpoint returns current connected ip and port
@@ -130,8 +133,13 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *RPCResObjCmd {
 	}
 
 	if tx.Nonce == 0 {
-		nonce := ca.nonce(aci.Address)
-		tx.Nonce = nonce
+		nonce, res := ca.nonce(aci.Address)
+		if res != nil {
+			tx.Nonce = nonce
+		} else {
+			return nil
+		}
+
 	}
 
 	tranx := txRawToTransaction(tx)
