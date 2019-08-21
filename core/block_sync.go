@@ -215,7 +215,6 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	return nil
 }
 func (bs *blockSyncer) trySyncRoutine() bool {
-	bs.candidatePoolDump()
 	return bs.syncFrom("")
 }
 
@@ -487,15 +486,6 @@ func marshalBlockMsgResponse(bmr *blockResponseMessage) ([]byte, error) {
 	}
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
 	return proto.Marshal(&message)
-}
-
-func (bs *blockSyncer) candidatePoolDump() {
-	bs.logger.Debugf("Candidate Pool Dump:")
-	bs.lock.RLock()
-	defer bs.lock.RUnlock()
-	for id, topBlockInfo := range bs.candidatePool {
-		bs.logger.Debugf("Candidate id:%s,totalQn:%d, height:%d,topHash:%s, evil:%v", id, topBlockInfo.BH.TotalQN, topBlockInfo.BH.Height, topBlockInfo.BH.Hash.Hex(), peerManagerImpl.isEvil(id))
-	}
 }
 
 func marshalTopBlockInfo(header *types.BlockHeader) ([]byte, error) {
