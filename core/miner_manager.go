@@ -91,7 +91,7 @@ func (mm *MinerManager) fundGuardNodesCheck(accountDB types.AccountDB, height ui
 }
 
 func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB, height uint64) error {
-	if height < adjustWeightPeriod/2 || height > adjustWeightPeriod {
+	if height < adjustWeightPeriod/2 || height > adjustWeightPeriod*2 {
 		return nil
 	}
 	if height%1000 != 0 {
@@ -126,7 +126,7 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 }
 
 func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, height uint64) error {
-	if height < adjustWeightPeriod || height > adjustWeightPeriod*2 {
+	if height < adjustWeightPeriod || height > adjustWeightPeriod*3 {
 		return nil
 	}
 	if height%1000 != 0 {

@@ -30,7 +30,6 @@ const (
 	oneDayBlocks   = 86400 / onBlockSeconds      // Blocks generated in one day on average
 	twoDayBlocks   = 2 * oneDayBlocks            // Blocks generated in two days on average, used when executes the miner refund
 	stakeBuffer    = 15 * oneDayBlocks
-	changeFundGuardModeBuffer    = 7 * oneDayBlocks
 )
 
 // mOperation define some functions on miner operation

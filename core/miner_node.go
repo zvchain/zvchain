@@ -486,7 +486,7 @@ func (b *BaseMiner) afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, t
 }
 
 func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error{
-	if op.height > adjustWeightPeriod/2-changeFundGuardModeBuffer {
+	if op.height > adjustWeightPeriod/2 {
 		return fmt.Errorf("changge fund guard mode must be in suitable height,addr is %s,current height is %v", op.source.String(),op.height)
 	}
 	fn, err := getFundGuardNode(op.accountDB, op.source)

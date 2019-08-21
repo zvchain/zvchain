@@ -280,6 +280,40 @@ func TestStakeSelf(t *testing.T) {
 	}
 }
 
+func TestRepeatVote(t *testing.T){
+	setup()
+	defer clear()
+	ctx.source = &normal2
+	ctx.target = &normal2
+	testFullStakeFromSelf(t)
+	var height uint64 = 0
+	testApplyGuardNode(t, true, height)
+
+	ctx.target = &normal3
+	ctx.height = 10
+	testVote(t,true)
+
+	ctx.height = 20
+	testVote(t,false)
+
+	ctx.height = adjustWeightPeriod / 2 + 10
+	testVote(t,true)
+
+	ctx.source = &normal1
+	ctx.target = &guardNode1
+	testVote(t,false)
+
+	genePoolMiner(t)
+	ctx.source = &normal1
+	ctx.target = &normal1
+	ctx.stakeAddValue = 100 * common.ZVC
+	testStakeAddFromSelf(t,true)
+
+	ctx.source = &normal1
+	ctx.target = &minerPool
+	testVote(t,false)
+}
+
 func TestVoteOther(t *testing.T) {
 	setup()
 	defer clear()
@@ -394,12 +428,36 @@ func TestNotFullGuardNode(t *testing.T){
 	ctx.target = &guardNode1
 	ctx.height = 6000000
 	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true,ctx.height)
 	miner, err := getMiner(accountDB, *ctx.source, ctx.mType)
 	if err != nil {
 		t.Fatalf("error is %v", err)
 	}
 	if !miner.IsGuard(){
 		t.Fatalf("except miner is guard,but got %v", miner.Type)
+	}
+	accountDB.(*account.AccountDB).Commit(true)
+	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	detail := getStakeDetail()
+	if detail.MarkNotFullHeight != adjustWeightPeriod+1000{
+		t.Fatalf("except height = %v,but got %v",adjustWeightPeriod+1000,detail.MarkNotFullHeight)
+	}
+	accountDB.(*account.AccountDB).Commit(true)
+	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+stakeBuffer + 2000)
+
+	detail = getStakeDetail()
+
+	miner, err = getMiner(accountDB, *ctx.source, ctx.mType)
+	if err != nil {
+		t.Fatalf("error is %v", err)
+	}
+	if !miner.IsNormal(){
+		t.Fatalf("except miner is normal,but got %v", miner.Type)
+	}
+
+	isFullGuard := isInFullStakeGuardNode(accountDB, *ctx.source)
+	if isFullGuard {
+		t.Fatalf("except not in full guard node,but got in full guard node")
 	}
 }
 
@@ -911,10 +969,6 @@ func testVote(t *testing.T, needSuccess bool) {
 		}
 		if vote == nil {
 			t.Fatalf("except vote false ,but got vote true")
-		}
-	} else {
-		if vote != nil {
-			t.Fatalf("except vote nil ,but got value")
 		}
 	}
 }
