@@ -195,7 +195,6 @@ func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *RPCResObjCmd {
 
 // StakeAdd adds stake for the given target account
 func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice uint64) *RPCResObjCmd {
-	//res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
 		output(err)
@@ -265,7 +264,6 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force b
 			output(res.Error)
 			return nil
 		}
-		//m := checkResult.Data.(map[string]interface{})
 		groupInfo := new(GroupCheckInfo)
 		err := json.Unmarshal(res.Result, groupInfo)
 		if err != nil {
