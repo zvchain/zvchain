@@ -136,7 +136,8 @@ func EventCall(eventName *C.char, data *C.char) {
 }
 
 //export RemoveData
-func RemoveData(key *C.char) {
+func RemoveData(key *C.char, kenLen C.int) {
 	address := *controller.VM.ContractAddress
-	controller.AccountDB.RemoveData(address, []byte(C.GoString(key)))
+	k := C.GoBytes(unsafe.Pointer(key), kenLen)
+	controller.AccountDB.RemoveData(address, k)
 }

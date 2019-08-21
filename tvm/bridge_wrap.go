@@ -36,10 +36,10 @@ char* wrap_get_balance(const char* address)
 	return GetBalance(address);
 }
 
-void wrap_remove_data(char* key)
+void wrap_remove_data(const char* key, int key_len)
 {
-	void RemoveData(char* );
-	RemoveData(key);
+	void RemoveData(const char* , int);
+	RemoveData(key, key_len);
 }
 
 void wrap_get_data(const char* key, int key_len, char** value, int* value_len)
@@ -344,6 +344,7 @@ type Msg struct {
 
 // CreateContractInstance Create contract instance
 func (tvm *TVM) CreateContractInstance(msg Msg) (*ExecuteResult, error) {
+	C.tvm_set_register()
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
 	C.tvm_set_msg(sender, value);
@@ -464,6 +465,8 @@ func (tvm *TVM) funcCall(funcName string, JSONArgs string) *ExecuteResult {
 
 // Deploy TVM Deploy the contract code and load msg
 func (tvm *TVM) Deploy(msg Msg) *ExecuteResult {
+	C.tvm_set_register()
+
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
 	C.tvm_set_msg(sender, value);
