@@ -278,7 +278,8 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if strings.TrimSpace(c.addr) == "" {
+	c.addr = strings.TrimSpace(c.addr)
+	if c.addr == "" {
 		output("please input the address")
 		c.fs.PrintDefaults()
 		return false
@@ -287,7 +288,7 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		output("Wrong address format")
 		return false
 	}
-	if c.detail != "" && c.detail != "all" && !common.ValidateAddress(c.detail) {
+	if c.detail != "" && !common.ValidateAddress(c.detail) {
 		output("Wrong address format")
 		return false
 	}

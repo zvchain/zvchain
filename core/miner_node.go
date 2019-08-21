@@ -90,6 +90,11 @@ func (i *InvalidProposalMiner) processApplyGuard(op *applyGuardMinerOp, miner *t
 	return fmt.Errorf("invalid miner pool not support apply guard node")
 }
 
+func (g *InvalidProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
+	return fmt.Errorf("invalid miner pool not support stake add")
+}
+
+
 func (v *VerifyMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
 	//verify node must can stake by myself
 	if op.addSource != op.addTarget {

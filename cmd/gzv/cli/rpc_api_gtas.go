@@ -100,8 +100,8 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 	// Check the address for the specified tx types
 	switch txRaw.TxType {
 	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
-		 types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce,types.TransactionTypeApplyGuardMiner,
-		 types.TransactionTypeStakeRefund,types.TransactionTypeVoteMinerPool,types.TransactionTypeChangeFundGuardMode:
+		types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeApplyGuardMiner,
+		types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool, types.TransactionTypeChangeFundGuardMode:
 		if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}
@@ -179,19 +179,19 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Result, error) {
 	return successResult(block)
 }
 
-func (api *RpcGtasImpl) MinerPoolInfo(addr string,height uint64) (*Result, error) {
+func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	miner:= core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal,height)
-	if miner == nil || !miner.IsMinerPool(){
+	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
+	if miner == nil || !miner.IsMinerPool() {
 		return failResult("data is nil")
 	}
 	fullStake := core.MinerManagerImpl.GetFullMinerPoolStake(height)
 	dt := &MinerPoolDetail{
-		CurrentStake:miner.Stake,
-		FullStake:fullStake,
+		CurrentStake: miner.Stake,
+		FullStake:    fullStake,
 	}
 	return successResult(dt)
 }
@@ -201,10 +201,14 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	if detail != "" && !common.ValidateAddress(strings.TrimSpace(detail)) {
-		return failResult("Wrong detail address format")
+	detail = strings.TrimSpace(detail)
+	if detail == "" {
+		detail = addr
+	} else {
+		if !common.ValidateAddress(strings.TrimSpace(detail)) {
+			return failResult("Wrong detail address format")
+		}
 	}
-
 	mTypeString := func(mt types.MinerType) string {
 		if types.IsVerifyRole(mt) {
 			return "verifier"
@@ -227,11 +231,11 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 		details := make([]*StakeDetail, 0)
 		for _, d := range dts {
 			dt := &StakeDetail{
-				Value:        uint64(common.RA2TAS(d.Value)),
-				UpdateHeight: d.UpdateHeight,
-				MType:        mTypeString(d.MType),
-				Status:       statusString(d.Status),
-				DisMissHeight:d.DisMissHeight,
+				Value:         uint64(common.RA2TAS(d.Value)),
+				UpdateHeight:  d.UpdateHeight,
+				MType:         mTypeString(d.MType),
+				Status:        statusString(d.Status),
+				DisMissHeight: d.DisMissHeight,
 			}
 			details = append(details, dt)
 		}
@@ -251,16 +255,12 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 	}
 	minerDetails.Overview = morts
 	// Get details
-	switch detail {
-	case "":
+	details := core.MinerManagerImpl.GetStakeDetails(address, common.StringToAddress(detail))
+	m := make(map[string][]*StakeDetail)
+	dts := convertDetails(details)
+	m[detail] = dts
+	minerDetails.Details = m
 
-	default:
-		details := core.MinerManagerImpl.GetStakeDetails(address, common.StringToAddress(detail))
-		m := make(map[string][]*StakeDetail)
-		dts := convertDetails(details)
-		m[detail] = dts
-		minerDetails.Details = m
-	}
 	return successResult(minerDetails)
 }
 
