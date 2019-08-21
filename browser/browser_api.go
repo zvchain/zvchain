@@ -1,19 +1,30 @@
 package browser
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/core"
+	"strings"
 	"time"
 )
 
 const checkInterval = time.Second * 5
 
+const (
+	dismissGroup = iota
+	workGroup
+	prepareGroup
+)
+
 var AddressCacheList map[string]uint64
 
 type DBMmanagement struct {
-	blockHeight uint64
-	storage     *mysql.Storage //待迁移
+	blockHeight       uint64
+	gropHeight        uint64
+	workGropHeight    uint64
+	dismissGropHeight uint64
+	storage           *mysql.Storage //待迁移
 
 	isFetchingBlocks bool
 }
@@ -86,6 +97,8 @@ func (tm *DBMmanagement) fetchBlocks() {
 
 }
 
+//storage.db.Where("id > ? ", maxid).Limit(LIMIT).Find(&accounts)
+
 //func (tm *DBMmanagement)fetchMinerInfo()  {
 //	//MSQ去数据
 //	db:=tm.storage.GetDB()
@@ -119,19 +132,59 @@ func (tm *DBMmanagement) fetchBlocks() {
 //		//verifyStake
 //
 //		//otherstake
-//
-//		//
-//
-//		//
-//
-//		//for   {
-//		//
-//		//}
-//
-//		//再次插入MSQ
-//	}
-//}
 
 func (tm *DBMmanagement) fetchGroup() {
+	//读本地数据库表
+	db := tm.storage.GetDB()
+	if db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+	}
+	//sys:= make([]models.Sys, 0, 1)
+	groups := make([]models.Group, 1, 1)
+	//marke:=tm.dismissGropHeight
 
+	//解散组
+	db.Where("dismiss_height <= ? AND id > ?", tm.blockHeight, tm.dismissGropHeight).Find(&groups)
+	tm.dismissGropHeight = groups[len(groups)-1].Height
+	//sys[0] todo
+	//tm.storage.UpdateObject(sys)
+	go handelInGroup(tm, groups, dismissGroup)
+
+	//marke=tm.dismissGropHeight-marke
+	//查找工作组
+	db.Where("work_height <= ? AND dismiss_height > ? ? AND id > ?", tm.blockHeight, tm.blockHeight, tm.workGropHeight).Find(&groups)
+	tm.workGropHeight = groups[len(groups)-1].Height
+	go handelInGroup(tm, groups, workGroup)
+
+	//准备组
+	db.Where("work_height > ? AND id > ?", tm.blockHeight, tm.gropHeight).Find(&groups)
+	tm.gropHeight = groups[len(groups)-1].Height
+	go handelInGroup(tm, groups, prepareGroup)
+
+}
+
+func handelInGroup(tm *DBMmanagement, groups []models.Group, groupState int) bool {
+	var account models.Account
+	for _, grop := range groups {
+		addresInfos := strings.Split(grop.MembersStr, "\r\n")
+		for _, addr := range addresInfos {
+			account.Address = addr
+			tm.storage.GetDB().Where("address = ? ", addr).Find(&account)
+
+			switch groupState {
+			case prepareGroup:
+				account.PrepareGroup += 1
+			case workGroup:
+				account.WorkGroup += 1
+			case dismissGroup:
+				account.WorkGroup -= 1
+				account.DismissGroup += 1
+			}
+
+			if !tm.storage.UpdateObject(account) {
+				return false
+			}
+		}
+	}
+	return true
 }
