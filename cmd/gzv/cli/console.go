@@ -844,15 +844,31 @@ func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error 
 	return nil
 }
 
-func handleCmd(handle func() (interface{}, *ErrorResult)) {
-	res, errRes := handle()
-	if errRes != nil {
-		bs, err := json.MarshalIndent(errRes, "", "\t")
-		if err != nil {
-			output(err.Error())
+func handleCmdForChain(handle func() *RPCResObjCmd) {
+	res := handle()
+	if res != nil {
+		if res.Error != nil {
+			bs, err := json.MarshalIndent(res.Error, "", "\t")
+			if err != nil {
+				output(err.Error())
+			} else {
+				output(string(bs))
+			}
 		} else {
-			output(string(bs))
+			bs, err := json.MarshalIndent(res.Result, "", "\t")
+			if err != nil {
+				output(err.Error())
+			} else {
+				output(string(bs))
+			}
 		}
+	}
+}
+
+func handleCmdForAccount(handle func() (interface{}, error)) {
+	res, err := handle()
+	if err != nil {
+		output(err)
 	} else {
 		bs, err := json.MarshalIndent(res, "", "\t")
 		if err != nil {
@@ -861,16 +877,6 @@ func handleCmd(handle func() (interface{}, *ErrorResult)) {
 			output(string(bs))
 		}
 	}
-	//if !errRes.IsSuccess() {
-	//	output(ret.Message)
-	//} else {
-	//	bs, errRes := json.MarshalIndent(ret, "", "\t")
-	//	if errRes != nil {
-	//		output(errRes.Error())
-	//	} else {
-	//		output(string(bs))
-	//	}
-	//}
 }
 
 func unlockLoop(cmd *unlockCmd, acm accountOp) {
@@ -889,7 +895,7 @@ func unlockLoop(cmd *unlockCmd, acm accountOp) {
 			fmt.Printf("unlock will last %v secs:%v\n", cmd.duration, cmd.addr)
 			break
 		} else {
-			fmt.Fprintln(os.Stderr, resErr.Message)
+			fmt.Fprintln(os.Stderr, resErr.Error())
 		}
 	}
 }
@@ -948,7 +954,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdNewAccount.name:
 			cmd := genNewAccountCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForAccount(func() (interface{}, error) {
 					return acm.NewAccount(cmd.password, cmd.miner)
 				})
 			}
@@ -959,7 +965,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdHelp.name:
 			Usage()
 		case cmdAccountList.name:
-			handleCmd(func() (interface{}, *ErrorResult) {
+			handleCmdForAccount(func() (interface{}, error) {
 				return acm.AccountList()
 			})
 		case cmdUnlock.name:
@@ -968,11 +974,11 @@ func loop(acm accountOp, chainOp chainOp) {
 				unlockLoop(cmd, acm)
 			}
 		case cmdAccountInfo.name:
-			handleCmd(func() (interface{}, *ErrorResult) {
+			handleCmdForAccount(func() (interface{}, error) {
 				return acm.AccountInfo()
 			})
 		case cmdDelAccount.name:
-			handleCmd(func() (interface{}, *ErrorResult) {
+			handleCmdForAccount(func() (interface{}, error) {
 				return acm.DeleteAccount()
 			})
 		case cmdConnect.name:
@@ -984,14 +990,14 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdBalance.name:
 			cmd := genBalanceCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.Balance(cmd.addr)
 				})
 			}
 		case cmdNonce.name:
 			cmd := genNonceCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.Nonce(cmd.addr)
 				})
 			}
@@ -999,22 +1005,22 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdMinerInfo.name:
 			cmd := genMinerInfoCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerInfo(cmd.addr, cmd.detail)
 				})
 			}
 		case cmdBlockHeight.name:
-			handleCmd(func() (interface{}, *ErrorResult) {
+			handleCmdForChain(func() *RPCResObjCmd {
 				return chainOp.BlockHeight()
 			})
 		case cmdGroupHeight.name:
-			handleCmd(func() (interface{}, *ErrorResult) {
+			handleCmdForChain(func() *RPCResObjCmd {
 				return chainOp.GroupHeight()
 			})
 		case cmdTx.name:
 			cmd := genTxCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					if cmd.executed {
 						return chainOp.TxReceipt(cmd.hash)
 					}
@@ -1024,7 +1030,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdBlock.name:
 			cmd := genBlockCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					if cmd.hash != "" {
 						return chainOp.BlockByHash(cmd.hash)
 					}
@@ -1034,63 +1040,63 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdSendTx.name:
 			cmd := genSendTxCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.SendRaw(cmd.toTxRaw())
 				})
 			}
 		case cmdStakeAdd.name:
 			cmd := genStakeAddCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.StakeAdd(cmd.target, cmd.mtype, cmd.stake, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdMinerAbort.name:
 			cmd := genMinerAbortCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerAbort(cmd.mtype, cmd.gaslimit, cmd.gasPrice, cmd.forceAbort)
 				})
 			}
 		case cmdStakeRefund.name:
 			cmd := genStakeRefundCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.StakeRefund(cmd.target, cmd.mtype, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdStakeReduce.name:
 			cmd := genStakeReduceCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.StakeReduce(cmd.target, cmd.mtype, cmd.value, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdViewContract.name:
 			cmd := genViewContractCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.ViewContract(cmd.addr)
 				})
 			}
 		case cmdImportKey.name:
 			cmd := genImportKeyCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForAccount(func() (interface{}, error) {
 					return acm.NewAccountByImportKey(cmd.key, cmd.password, cmd.miner)
 				})
 			}
 		case cmdExportKey.name:
 			cmd := genExportKeyCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForAccount(func() (interface{}, error) {
 					return acm.ExportKey(cmd.addr)
 				})
 			}
 		case cmdGroupCheck.name:
 			cmd := genGroupCheckCmd()
 			if cmd.parse(args) {
-				handleCmd(func() (interface{}, *ErrorResult) {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.GroupCheck(cmd.addr)
 				})
 			}

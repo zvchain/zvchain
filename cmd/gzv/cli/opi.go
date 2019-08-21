@@ -41,19 +41,9 @@ type txRawData struct {
 	ExtraData []byte `json:"extra_data"`
 }
 
-//func opError(err error) *Result {
-//	ret, _ := failResult(err.Error())
-//	return ret
-//}
-
 func opErrorRes(err error) *ErrorResult {
 	return failErrResult(err.Error())
 }
-
-//func opSuccess(data interface{}) *Result {
-//	ret, _ := successResult(data)
-//	return ret
-//}
 
 type MinerInfo struct {
 	PK          string
@@ -90,21 +80,21 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 }
 
 type accountOp interface {
-	NewAccount(password string, miner bool) (string, *ErrorResult)
+	NewAccount(password string, miner bool) (string, error)
 
-	AccountList() ([]string, *ErrorResult)
+	AccountList() ([]string, error)
 
-	Lock(addr string) *ErrorResult
+	Lock(addr string) error
 
-	UnLock(addr string, password string, duration uint) *ErrorResult
+	UnLock(addr string, password string, duration uint) error
 
-	AccountInfo() (*Account, *ErrorResult)
+	AccountInfo() (*Account, error)
 
-	DeleteAccount() (string, *ErrorResult)
+	DeleteAccount() (string, error)
 
-	NewAccountByImportKey(key string, password string, miner bool) (string, *ErrorResult)
+	NewAccountByImportKey(key string, password string, miner bool) (string, error)
 
-	ExportKey(addr string) (string, *ErrorResult)
+	ExportKey(addr string) (string, error)
 
 	Close()
 }
@@ -115,35 +105,35 @@ type chainOp interface {
 	// Endpoint returns current connected ip and port
 	Endpoint() string
 	// SendRaw send transaction to connected node
-	SendRaw(tx *txRawData) (string, *ErrorResult)
+	SendRaw(tx *txRawData) *RPCResObjCmd
 	// Balance query Balance by address
-	Balance(addr string) (float64, *ErrorResult)
+	Balance(addr string) *RPCResObjCmd
 	// Nonce query Balance by address
-	Nonce(addr string) (uint64, *ErrorResult)
+	Nonce(addr string) *RPCResObjCmd
 	// MinerInfo query miner info by address
-	MinerInfo(addr string, detail string) (MinerStakeDetails, *ErrorResult)
+	MinerInfo(addr string, detail string) *RPCResObjCmd
 
-	BlockHeight() (uint64, *ErrorResult)
+	BlockHeight() *RPCResObjCmd
 
-	GroupHeight() (uint64, *ErrorResult)
+	GroupHeight() *RPCResObjCmd
 
-	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) (string, *ErrorResult)
+	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *RPCResObjCmd
 
-	MinerAbort(mtype int, gas, gasprice uint64, force bool) (string, *ErrorResult)
+	MinerAbort(mtype int, gas, gasprice uint64, force bool) *RPCResObjCmd
 
-	StakeRefund(target string, mtype int, gas, gasprice uint64) (string, *ErrorResult)
+	StakeRefund(target string, mtype int, gas, gasprice uint64) *RPCResObjCmd
 
-	StakeReduce(target string, mtype int, value, gas, gasprice uint64) (string, *ErrorResult)
+	StakeReduce(target string, mtype int, value, gas, gasprice uint64) *RPCResObjCmd
 
-	TxInfo(hash string) (Transaction, *ErrorResult)
+	TxInfo(hash string) *RPCResObjCmd
 
-	BlockByHash(hash string) (Block, *ErrorResult)
+	BlockByHash(hash string) *RPCResObjCmd
 
-	BlockByHeight(h uint64) (Block, *ErrorResult)
+	BlockByHeight(h uint64) *RPCResObjCmd
 
-	ViewContract(addr string) (ExplorerAccount, *ErrorResult)
+	ViewContract(addr string) *RPCResObjCmd
 
-	TxReceipt(hash string) (ExecutedTransaction, *ErrorResult)
+	TxReceipt(hash string) *RPCResObjCmd
 
-	GroupCheck(addr string) (GroupCheckInfo, *ErrorResult)
+	GroupCheck(addr string) *RPCResObjCmd
 }

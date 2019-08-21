@@ -81,6 +81,11 @@ type RPCResObj struct {
 	Error   *ErrorResult `json:"error,omitempty"`
 }
 
+type RPCResObjCmd struct {
+	Result RawMessage   `json:"result,omitempty"`
+	Error  *ErrorResult `json:"error,omitempty"`
+}
+
 // Transactions in the buffer pool transaction list
 type Transactions struct {
 	Hash      string `json:"hash"`
