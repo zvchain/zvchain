@@ -73,6 +73,9 @@ func (storage *Storage) Init(reset bool) {
 	if !db.HasTable(&models.Account{}) {
 		db.CreateTable(&models.Account{})
 	}
+	if !db.HasTable(&models.Sys{}) {
+		db.CreateTable(&models.Sys{})
+	}
 
 }
 
@@ -105,7 +108,7 @@ func (storage *Storage) AddObjects(object interface{}) bool {
 	}
 	timeBegin := time.Now()
 	tx := storage.db.Begin()
-	tx.Create(&object)
+	tx.Create(object)
 	tx.Commit()
 	fmt.Println("[Storage]  objects cost: ", time.Since(timeBegin), "，len :")
 	return true

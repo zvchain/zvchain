@@ -29,14 +29,14 @@ type Account struct {
 	Group            string `json:"group"`
 	TotalTransaction uint64 `json:"total_transaction"`
 	Rewards          uint64 `json:"rewards"`
-	Status           uint64 `json:"status"`
-	StakeFrom        uint64 `json:"stake_from"`
+	Status           string `json:"status"`
+	StakeFrom        string `json:"stake_from"`
 	Balance          uint64 `json:"balance"`
 }
 
 type Sys struct {
 	gorm.Model
-	Variable string
-	Value    uint64
-	SetBy    string
+	Variable string `json:"variable"`
+	Value    uint64 `json:"value"`
+	SetBy    string `json:"set_by"`
 }

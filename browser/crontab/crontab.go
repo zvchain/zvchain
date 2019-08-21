@@ -11,11 +11,8 @@ import (
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"strings"
-	"sync"
 	"time"
 )
-
-var lock sync.Mutex
 
 const checkInterval = time.Second * 10
 
@@ -46,6 +43,17 @@ func (crontab *Crontab) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
+	go crontab.fetchBlockRewards()
+	go crontab.fetchBlockStake()
+
+	for {
+		select {
+		case <-check.C:
+			go crontab.fetchBlockRewards()
+			go crontab.fetchBlockStake()
+
+		}
+	}
 }
 
 func (crontab *Crontab) fetchBlockRewards() {
@@ -61,15 +69,11 @@ func (crontab *Crontab) fetchBlockRewards() {
 			Variable: mysql.Blockrewardtophight,
 			SetBy:    "carrie.cxl",
 		}
-		lock.Lock()
 		crontab.storage.AddBlockRewardSystemconfig(sys)
 		crontab.blockHeight += 1
-		lock.Unlock()
 		accounts := crontab.blockTransfer.BlockRewardTOAccount(rewards)
 		for _, account := range accounts {
-
 			crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)})
-
 		}
 		go crontab.fetchBlockRewards()
 
@@ -90,7 +94,8 @@ func (crontab *Crontab) fetchBlockStake() {
 			"proposal_stake": minerinfo[0].Stake,
 			"other_stake":    minerinfo[1].Stake,
 			"verify_stake":   minerinfo[2].Stake,
-			"stake_from":     stakefrom})
+			"stake_from":     stakefrom,
+			"status":         minerinfo[0].Status})
 	}
 }
 
@@ -133,7 +138,6 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 	if verifierInfo != nil {
 		morts = append(morts, cli.NewMortGageFromMiner(verifierInfo))
 	}
-
 	return morts, stakefrom
 }
 
