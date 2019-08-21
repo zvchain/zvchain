@@ -35,7 +35,7 @@ type BlockChain interface {
 	// 1, the block already exist on the blockchain, then we should discard it
 	// 2, the same height block with a larger QN value on the chain, then we should discard it
 	// 3, need adjust the blockchain, there will be a fork
-	AddBlockOnChain(source string, b *Block) AddBlockResult
+	AddBlockOnChain(source string, b *RawBlock) AddBlockResult
 
 	// TotalQN of chain
 	TotalQN() uint64
@@ -44,28 +44,28 @@ type BlockChain interface {
 	LatestStateDB() (AccountDB, error)
 
 	// QueryBlockByHash query the block by hash
-	QueryBlockByHash(hash common.Hash) *Block
+	QueryBlockByHash(hash common.Hash) *RawBlock
 
 	// QueryBlockByHeight query the block by height
-	QueryBlockByHeight(height uint64) *Block
+	QueryBlockByHeight(height uint64) *RawBlock
 
 	// QueryBlockCeil query first block whose height >= height
-	QueryBlockCeil(height uint64) *Block
+	QueryBlockCeil(height uint64) *RawBlock
 
 	// QueryBlockHeaderCeil query first block header whose height >= height
 	QueryBlockHeaderCeil(height uint64) *BlockHeader
 
 	// QueryBlockFloor query first block whose height <= height
-	QueryBlockFloor(height uint64) *Block
+	QueryBlockFloor(height uint64) *RawBlock
 
 	// QueryBlockHeaderFloor query first block header whose height <= height
 	QueryBlockHeaderFloor(height uint64) *BlockHeader
 
 	// BatchGetBlocksAfterHeight query blocks after the specified height
-	BatchGetBlocksAfterHeight(height uint64, limit int) []*Block
+	BatchGetBlocksAfterHeight(height uint64, limit int) []*RawBlock
 
 	// GetTransactionByHash get a transaction by hash
-	GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *Transaction
+	GetTransactionByHash(onlyReward bool, h common.Hash) *Transaction
 
 	// GetTransactionPool return the transaction pool waiting for the block
 	GetTransactionPool() TransactionPool
@@ -124,14 +124,14 @@ type TransactionPool interface {
 	// PackForCast returns a list of transactions for casting a block
 	PackForCast() []*Transaction
 
-	// AddTransaction add new transaction to the transaction pool
+	// AddTransaction adds new transaction to the transaction pool which will be broadcast
 	AddTransaction(tx *Transaction) (bool, error)
 
 	// AddTransactions add new transactions to the transaction pool
 	AddTransactions(txs []*Transaction) int
 
-	// AsyncAddTxs rcv transactions broadcast from other nodes
-	AsyncAddTxs(txs []*Transaction)
+	// AsyncAddTransaction adds transaction to the transaction pool which won't be broadcast
+	AsyncAddTransaction(tx *Transaction) error
 
 	// GetTransaction trys to find a transaction from pool by hash and return it
 	GetTransaction(reward bool, hash common.Hash) *Transaction

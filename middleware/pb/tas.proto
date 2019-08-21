@@ -12,7 +12,7 @@ message Message{
 }
 
 
-message Transaction{
+message RawTransaction{
 
     optional bytes Data  = 1 ;
 
@@ -20,15 +20,13 @@ message Transaction{
 
     required uint64 Nonce = 3;
 
-//    optional bytes Source  = 4 ;
+    required bytes Source  = 4 ;
 
-    optional bytes Target  = 4 ;
+    optional bytes Target  = 5 ;
 
-    required bytes GasLimit = 5;
+    required bytes GasLimit = 6;
 
-    required bytes GasPrice = 6;
-
-    required bytes Hash  = 7 ;
+    required bytes GasPrice = 7;
 
     optional bytes ExtraData  = 8 ;
 
@@ -54,9 +52,9 @@ message TrieNodes{
 }
 
 
-message TransactionSlice{
+message RawTransactionSlice{
 
-    repeated Transaction transactions = 1;
+    repeated RawTransaction transactions = 1;
 }
 
 message ChainPieceReq{
@@ -112,15 +110,15 @@ message BlockHeader{
 
 }
 
-message Block{
+message RawBlock{
     required BlockHeader Header = 1;
 
-    repeated Transaction transactions = 2;
+    repeated RawTransaction transactions = 2;
 
 }
 
 message BlockSlice{
-    repeated Block Blocks = 1;
+    repeated RawBlock Blocks = 1;
 }
 
 
@@ -142,7 +140,7 @@ message StateInfoReq{
 
     required uint64 Height = 1;
 
-    optional TransactionSlice Transactions = 2;
+    optional RawTransactionSlice Transactions = 2;
 
     repeated  bytes Addresses = 3;
 
@@ -229,12 +227,12 @@ message TopBlockInfo{
 }
 
 message BlockResponseMsg{
-    repeated Block Blocks = 1;
+    repeated RawBlock Blocks = 1;
 }
 
 message ChainPieceBlockMsg{
     required BlockHeader TopHeader = 1;
-    repeated Block Blocks  = 2;
+    repeated RawBlock Blocks  = 2;
     required bool FindAncestor = 3;
 }
 
@@ -245,5 +243,5 @@ message ReqProposalBlockMessage {
 
 message ResponseProposalBlockMessage {
     required bytes Hash = 1;
-    repeated Transaction Transactions = 2;
+    repeated RawTransaction Transactions = 2;
 }

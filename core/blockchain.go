@@ -81,7 +81,7 @@ type FullBlockChain struct {
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
 
-	topBlocks *lru.Cache
+	topRawBlocks *lru.Cache
 
 	rwLock sync.RWMutex // Read-write lock
 
@@ -92,8 +92,8 @@ type FullBlockChain struct {
 
 	executor *TVMExecutor
 
-	futureBlocks   *lru.Cache
-	verifiedBlocks *lru.Cache
+	futureRawBlocks *lru.Cache
+	verifiedBlocks  *lru.Cache
 
 	isAdjusting bool // isAdjusting which means there may be a fork
 
@@ -137,9 +137,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		consensusHelper: helper,
 		ticker:          ticker.NewGlobalTicker("chain"),
 		ts:              time2.TSInstance,
-		futureBlocks:    common.MustNewLRUCache(10),
+		futureRawBlocks: common.MustNewLRUCache(10),
 		verifiedBlocks:  common.MustNewLRUCache(10),
-		topBlocks:       common.MustNewLRUCache(20),
+		topRawBlocks:    common.MustNewLRUCache(20),
 		Account:         minerAccount,
 	}
 
@@ -228,7 +228,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)
-	GroupManagerImpl.InitManager(MinerManagerImpl,chain.consensusHelper.GenerateGenesisInfo())
+	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 	return nil
@@ -328,14 +328,14 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
-	if chain.blocks  != nil{
+	if chain.blocks != nil {
 		chain.blocks.Close()
 	}
-	if chain.blockHeight != nil{
+	if chain.blockHeight != nil {
 		chain.blockHeight.Close()
 	}
 
-	if chain.stateDb != nil{
+	if chain.stateDb != nil {
 		chain.stateDb.Close()
 	}
 

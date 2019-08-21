@@ -104,10 +104,11 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 			return failResult("Wrong target address format")
 		}
 	}
+	if !common.ValidateAddress(txRaw.Source) {
+		return failResult("Wrong source address")
+	}
 
 	trans := txRawToTransaction(txRaw)
-
-	trans.Hash = trans.GenHash()
 
 	if err := sendTransaction(trans); err != nil {
 		return failResult(err.Error())

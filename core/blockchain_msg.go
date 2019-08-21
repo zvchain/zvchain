@@ -26,7 +26,7 @@ func (chain *FullBlockChain) initMessageHandler() {
 	notify.BUS.Subscribe(notify.NewBlock, chain.newBlockHandler)
 }
 
-func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
+func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
@@ -37,7 +37,7 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
 		return err
 	}
 
-	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))
+	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.RawTxs))
 	chain.AddBlockOnChain(source, block)
 	return nil
 }

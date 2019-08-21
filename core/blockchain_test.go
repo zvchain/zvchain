@@ -325,9 +325,9 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 		}
 	}
 	chain := BlockChainImpl.(*FullBlockChain)
-	lent := chain.topBlocks.Len()
+	lent := chain.topRawBlocks.Len()
 	fmt.Printf("len = %d \n", lent)
-	if 20 != chain.topBlocks.Len() {
+	if 20 != chain.topRawBlocks.Len() {
 		t.Fatalf("error for size:20")
 	}
 
@@ -337,7 +337,7 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 			t.Fatalf("fail to get lowest block from ldb,%d", i)
 		}
 
-		lowest, ok := chain.topBlocks.Get(lowestLDB.Hash)
+		lowest, ok := chain.topRawBlocks.Get(lowestLDB.Hash)
 		if !ok || nil == lowest {
 			t.Fatalf("fail to get lowest block from cache,%d", i)
 		}

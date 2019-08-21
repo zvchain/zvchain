@@ -26,12 +26,12 @@ import (
 
 const codecVersion = 1
 
-func marshalTx(tx *types.Transaction) ([]byte, error) {
+func marshalTx(tx *types.RawTransaction) ([]byte, error) {
 	return msgpack.Marshal(tx)
 }
 
-func unmarshalTx(data []byte) (*types.Transaction, error) {
-	var tx types.Transaction
+func unmarshalTx(data []byte) (*types.RawTransaction, error) {
+	var tx types.RawTransaction
 	err := msgpack.Unmarshal(data, &tx)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func encodeBlockTransactions(b *types.Block) ([]byte, error) {
 	if len(b.Transactions) > 0 {
 		txBuf := bytes.NewBuffer([]byte{})
 		for _, tx := range b.Transactions {
-			txBytes, err := marshalTx(tx)
+			txBytes, err := marshalTx(tx.RawTransaction)
 			if err != nil {
 				return nil, err
 			}
@@ -64,11 +64,11 @@ func encodeBlockTransactions(b *types.Block) ([]byte, error) {
 	return dataBuf.Bytes(), nil
 }
 
-func decodeBlockTransactions(data []byte) ([]*types.Transaction, error) {
+func decodeBlockTransactions(data []byte) ([]*types.RawTransaction, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("data is empty")
 	}
-	txs := make([]*types.Transaction, 0)
+	txs := make([]*types.RawTransaction, 0)
 	dataReader := bytes.NewReader(data)
 
 	twoBytes := make([]byte, 2)
@@ -110,7 +110,7 @@ func decodeBlockTransactions(data []byte) ([]*types.Transaction, error) {
 	return txs, nil
 }
 
-func decodeTransaction(idx int, txHash common.Hash, data []byte) (*types.Transaction, error) {
+func decodeTransaction(idx int, data []byte) (*types.RawTransaction, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("data is empty")
 	}
@@ -150,9 +150,6 @@ func decodeTransaction(idx int, txHash common.Hash, data []byte) (*types.Transac
 			tx, err := unmarshalTx(txBytes)
 			if err != nil {
 				return nil, err
-			}
-			if tx.Hash != txHash {
-				return nil, fmt.Errorf("tx hash err")
 			}
 			return tx, nil
 		}

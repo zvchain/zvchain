@@ -110,7 +110,7 @@ func (fp *forkProcessor) getLocalPieceInfo(topHash common.Hash) []common.Hash {
 	return pieces
 }
 
-func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) {
+func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.RawBlock) {
 	if blockSync == nil {
 		return
 	}
@@ -211,7 +211,7 @@ func (fp *forkProcessor) findCommonAncestor(piece []common.Hash) *common.Hash {
 	return nil
 }
 
-func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message)error {
+func (fp *forkProcessor) chainPieceBlockReqHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
@@ -282,7 +282,7 @@ func (fp *forkProcessor) getNextSyncHash() *common.Hash {
 	return nil
 }
 
-func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message)error {
+func (fp *forkProcessor) chainPieceBlockHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	fp.lock.Lock()

@@ -382,7 +382,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) error {
 		count++
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
-	txs := make([]*types.Transaction, 0)
+	txs := make([]*types.RawTransaction, 0)
 	for _, txHash := range hashs {
 		tx := BlockChainImpl.GetTransactionByHash(false, false, txHash)
 		if tx != nil {
