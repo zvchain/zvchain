@@ -1,14 +1,13 @@
-package transfer
+package crontab
 
 import (
 	"github.com/zvchain/zvchain/browser/models"
-	"github.com/zvchain/zvchain/cmd/gzv/cli"
 )
 
 type Transfer struct {
 }
 
-func (transfer *Transfer) BlockRewardTOAccount(reward cli.ExploreBlockReward) []*models.Account {
+func (transfer *Transfer) BlockRewardTOAccount(reward *ExploreBlockReward) []*models.Account {
 	accounts := make([]*models.Account, 0, 0)
 	account := &models.Account{
 		Address: reward.ProposalID,

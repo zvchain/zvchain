@@ -5,8 +5,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
-	"github.com/zvchain/zvchain/browser/transfer"
-	"github.com/zvchain/zvchain/cmd/gzv/cli"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -17,19 +15,19 @@ import (
 const checkInterval = time.Second * 10
 
 type Crontab struct {
-	blockTransfer    *transfer.Transfer
 	storage          *mysql.Storage
 	blockHeight      uint64
 	accountPrimaryId uint64
 	isFetchingReward bool
 	isFetchingStake  bool
-	rpcExplore       *cli.RpcExplorerImpl
+	rpcExplore       Explore
+	transfer         Transfer
 }
 
-func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *Crontab {
+func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Crontab {
 
 	server := &Crontab{}
-	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
+	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
 	server.blockHeight = server.storage.TopBlockRewardHeight()
 	if server.blockHeight > 0 {
 		server.blockHeight += 1
@@ -62,16 +60,15 @@ func (crontab *Crontab) fetchBlockRewards() {
 	}
 	crontab.isFetchingReward = true
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockHeight)
-	blockRewards, _ := crontab.rpcExplore.ExplorerBlockReward(crontab.blockHeight)
-	if blockRewards.Data != nil {
-		rewards := blockRewards.Data.(cli.ExploreBlockReward)
+	rewards := crontab.rpcExplore.GetRewardByHeight(crontab.blockHeight)
+	if rewards != nil {
 		sys := &models.Sys{
 			Variable: mysql.Blockrewardtophight,
 			SetBy:    "carrie.cxl",
 		}
 		crontab.storage.AddBlockRewardSystemconfig(sys)
 		crontab.blockHeight += 1
-		accounts := crontab.blockTransfer.BlockRewardTOAccount(rewards)
+		accounts := crontab.transfer.BlockRewardTOAccount(rewards)
 		for _, account := range accounts {
 			crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)})
 		}
@@ -100,17 +97,17 @@ func (crontab *Crontab) fetchBlockStake() {
 	}
 }
 
-func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
+func (crontab *Crontab) GetMinerInfo(addr string) ([]*MortGage, string) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return nil, ""
 	}
 
-	morts := make([]*cli.MortGage, 0)
+	morts := make([]*MortGage, 0)
 	address := common.StringToAddress(addr)
 	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
 	var stakefrom = ""
 	if proposalInfo != nil {
-		mort := cli.NewMortGageFromMiner(proposalInfo)
+		mort := NewMortGageFromMiner(proposalInfo)
 		morts = append(morts, mort)
 		//get stakeinfo by miners themselves
 		details := core.MinerManagerImpl.GetStakeDetails(address, address)
@@ -120,7 +117,7 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 				selfStakecount += detail.Value
 			}
 		}
-		morts = append(morts, &cli.MortGage{
+		morts = append(morts, &MortGage{
 			Stake:       mort.Stake - selfStakecount,
 			ApplyHeight: 0,
 			Type:        "proposal node",
@@ -137,7 +134,7 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*cli.MortGage, string) {
 	}
 	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
 	if verifierInfo != nil {
-		morts = append(morts, cli.NewMortGageFromMiner(verifierInfo))
+		morts = append(morts, NewMortGageFromMiner(verifierInfo))
 	}
 	return morts, stakefrom
 }
