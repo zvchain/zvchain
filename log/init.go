@@ -1,15 +1,13 @@
 package log
 
 import (
-	"net"
 	"os"
-
-	"github.com/bshuster-repo/logrus-logstash-hook"
 )
 
 func Init() {
 
 	RusPlus = New(nil)
+
 	StdLogger.SetLevel(Level)
 	logsDir := "./logs/"
 
@@ -37,19 +35,4 @@ func Init() {
 	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, Level)
 	PerformLogger = RusPlus.Logger(logsDir+"perform", MaxFileSize, Level)
 	ELKLogger = RusPlus.Logger(logsDir+"NetTest", MaxFileSize, Level)
-	//ELKLogger.Hooks.Add(logstash().(logrus.Hook))
-}
-
-func logstash() interface{} {
-	conn, err := net.Dial("tcp", "47.252.87.139:5566")
-	if err != nil {
-		panic("")
-	}
-
-	hook, err := logrustash.NewHookWithConn(conn, "gzv")
-	if err != nil {
-		panic("")
-	}
-
-	return hook
 }
