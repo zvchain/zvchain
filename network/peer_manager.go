@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+const MAX_PEER_SIZE = 512
+
 // PeerManager is node connection management
 type PeerManager struct {
 	peers              map[uint64]*Peer // Key is the network ID
@@ -67,7 +69,9 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 		p = newPeer(toid, 0)
 		p.connectTimeout = 0
 		p.connecting = false
-		pm.addPeer(netID, p)
+		if !pm.addPeer(netID, p) {
+			return
+		}
 	}
 	p.write(packet, code)
 	p.bytesSend += packet.Len()
@@ -102,7 +106,10 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 	if p == nil {
 		p = newPeer(NodeID{}, session)
 		p.connectTimeout = uint64(time.Now().Add(connectTimeout).Unix())
-		pm.addPeer(id, p)
+		if !pm.addPeer(id, p) {
+			P2PShutdown(session)
+			return
+		}
 	}
 	p.onConnect(id, session, p2pType, isAccepted)
 	Logger.Infof("new connection, node id:%v  netid :%v session:%v isAccepted:%v ", p.ID.GetHexString(), id, session, isAccepted)
@@ -204,11 +211,15 @@ func (pm *PeerManager) peerByNetID(netID uint64) *Peer {
 	return p
 }
 
-func (pm *PeerManager) addPeer(netID uint64, peer *Peer) {
+func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
+	if len(pm.peers) > MAX_PEER_SIZE {
+		Logger.Infof("addPeer failed, peer size over %v ", MAX_PEER_SIZE)
+		return false
+	}
 	pm.peers[netID] = peer
-
+	return true
 }
 
 func (pm *PeerManager) ConnInfo() []Conn {
