@@ -16,12 +16,11 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/account"
-	"io"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -36,20 +35,11 @@ func _deployContract(contractName string, filePath string) string {
 		panic("")
 	}
 	defer f.Close()
-	codeStr := ""
-	buf := bufio.NewReader(f)
-	for {
-		line, err := buf.ReadString('\n')
-		codeStr = fmt.Sprintf("%s%s \n", codeStr, line)
-		if err != nil {
-			if err == io.EOF {
-				break
-			} else {
-				panic("")
-			}
-		}
+	codeStr, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		panic(err)
 	}
-	contractAddress, err := tvmCli.Deploy(contractName, codeStr)
+	contractAddress, err := tvmCli.Deploy(contractName, string(codeStr))
 	if err != nil {
 		fmt.Println(err)
 	}

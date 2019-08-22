@@ -1,4 +1,6 @@
+
 class Token(object):
+
     def __init__(self):
         self.name = 'ZVC Token'
         self.symbol = "ZVC"

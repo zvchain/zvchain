@@ -258,9 +258,9 @@ func (tvm *TVM) SetGas(gas int) {
 }
 
 // SetLibLine Correct the error line when python code is running
-func (tvm *TVM) SetLibLine(line int) {
-	C.tvm_set_lib_line(C.int(line))
-}
+//func (tvm *TVM) SetLibLine(line int) {
+//	C.tvm_set_lib_line(C.int(line))
+//}
 
 // DelTVM Run tvm gc to collect mem
 func (tvm *TVM) DelTVM() {
