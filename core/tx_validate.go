@@ -146,6 +146,13 @@ func minerTypeCheck(mt types.MinerType) error {
 	return nil
 }
 
+func fundGuardModeCheck(md common.FundModeType) error {
+	if md != common.SIXAddFive && md != common.SIXAddSix{
+		return fmt.Errorf("unknown fund guard mode %v", md)
+	}
+	return nil
+}
+
 func stakeAddValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
@@ -208,6 +215,37 @@ func stakeRefundValidator(tx *types.Transaction) error {
 	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
 		return err
 	}
+	return nil
+}
+
+func applyGuardValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	return nil
+}
+
+func voteMinerPoolValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	return nil
+}
+
+func changeFundGuardModeValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
+		return err
+	}
+	if !types.IsInExtractGuardNodes(*tx.Target){
+		return fmt.Errorf("operator addr is not in extract guard nodes")
+	}
+	if len(tx.Data) != 1 {
+		return fmt.Errorf("data length should be 1")
+	}
+
 	return nil
 }
 
@@ -290,6 +328,12 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
+			case types.TransactionTypeApplyGuardMiner:
+				err = applyGuardValidator(tx)
+			case types.TransactionTypeVoteMinerPool:
+				err = voteMinerPoolValidator(tx)
+			case types.TransactionTypeChangeFundGuardMode:
+				err = changeFundGuardModeValidator(tx)
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			default:
@@ -308,7 +352,11 @@ func getValidator(tx *types.Transaction) validator {
 					return fmt.Errorf("could not abort for other node")
 				}
 			}
-
+			if tx.Type == types.TransactionTypeVoteMinerPool {
+				if bytes.Compare(tx.Target.Bytes(), tx.Source.Bytes()) == 0 {
+					return fmt.Errorf("could not vote myself")
+				}
+			}
 			// Validate state
 			if err := stateValidate(tx); err != nil {
 				return err
