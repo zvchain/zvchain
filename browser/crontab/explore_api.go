@@ -57,9 +57,25 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	}
 	return mg
 }
-func (api *Explore) GetRewardByHeight(height uint64) *ExploreBlockReward {
+
+func (api *Explore) GetPreHightRewardByHeight(height uint64) []*ExploreBlockReward {
 	chain := core.BlockChainImpl
-	b := chain.QueryBlockCeil(height)
+	b := chain.QueryBlockByHeight(height)
+	exploreBlockReward := make([]*ExploreBlockReward, 0, 0)
+	if b.Transactions != nil {
+		for _, tx := range b.Transactions {
+			if tx.IsReward() {
+				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
+				reward := api.GetRewardByBlock(block)
+				exploreBlockReward = append(exploreBlockReward, reward)
+			}
+		}
+	}
+	return exploreBlockReward
+
+}
+func (api *Explore) GetRewardByBlock(b *types.Block) *ExploreBlockReward {
+	chain := core.BlockChainImpl
 	if b == nil {
 		return nil
 	}

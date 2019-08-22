@@ -106,7 +106,7 @@ func (crontab *Crontab) fetchBlockRewards() {
 	}
 	crontab.isFetchingReward = true
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockHeight)
-	rewards := crontab.rpcExplore.GetRewardByHeight(crontab.blockHeight)
+	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockHeight)
 	if rewards != nil {
 		sys := &models.Sys{
 			Variable: mysql.Blockrewardtophight,
@@ -114,7 +114,7 @@ func (crontab *Crontab) fetchBlockRewards() {
 		}
 		crontab.storage.AddBlockRewardSystemconfig(sys)
 		crontab.blockHeight += 1
-		accounts := crontab.transfer.BlockRewardTOAccount(rewards)
+		accounts := crontab.transfer.RewardsToAccounts(rewards)
 		for _, account := range accounts {
 			crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)})
 		}
