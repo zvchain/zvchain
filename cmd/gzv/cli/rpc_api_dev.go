@@ -547,3 +547,25 @@ func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
 	}
 	return successResult(ret)
 }
+
+func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
+	if b > e {
+		return failResult("begin larger than end")
+	}
+	heights := core.BlockChainImpl.ScanBlockHeightsInRange(b, e)
+	drops := make([]uint64, 0)
+	for i, h := 0, b; h <= e && i < len(heights); h++ {
+		if heights[i] == h {
+			i++
+		} else {
+			drops = append(drops, h)
+		}
+	}
+	dropRate := float64(len(drops)) / float64(e-b+1)
+	ret := make(map[string]interface{})
+	ret["expect_heights"] = e - b + 1
+	ret["real_heights"] = len(heights)
+	ret["drop_rate"] = dropRate
+	ret["drops"] = drops
+	return successResult(ret)
+}
