@@ -171,6 +171,7 @@ func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *t
 		if miner == nil {
 			return fmt.Errorf("find miner pool miner is nil,addr is %s", op.target.String())
 		}
+		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v",op.target.String(),op.height)
 		miner.UpdateIdentity(types.InValidMinerPool, op.height)
 		remove := false
 		// Remove from pool if active
@@ -422,7 +423,7 @@ func (b *BaseMiner) afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Min
 
 func (b *BaseMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *types.Miner, afterTicketReduceFunc reduceTicketCallBack) error {
 	totalTickets := subTicket(op.accountDB, op.target)
-	log.CoreLogger.Infof("reduce ticket success,target is %s,height is %v",op.target,op.height)
+	log.CoreLogger.Infof("reduce ticket success,target is %s,height is %v,tickets = %d",op.target,op.height,totalTickets)
 	if afterTicketReduceFunc != nil {
 		return afterTicketReduceFunc(op, targetMiner, totalTickets)
 	}
