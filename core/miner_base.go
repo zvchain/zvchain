@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
@@ -588,6 +589,7 @@ func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 		// add tickets count
 		totalTickets = addTicket(op.accountDB, op.targetAddr)
 	}
+	log.CoreLogger.Infof("vote success,source = %s,target =%s,current tickets = %d,height = %v",op.source,op.targetAddr,totalTickets,op.height)
 	isFull := isFullTickets(totalTickets, op.height)
 	return nil, isFull
 }

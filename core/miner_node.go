@@ -371,7 +371,7 @@ func checkVote(op *voteMinerPoolOp,vf *voteInfo)error{
 	}
 	canVote := checkCanVote(voteHeight,op.height)
 	if !canVote{
-		return fmt.Errorf("has voted in this round,can not vote")
+		return fmt.Errorf("has voted in this round,can not vote,source = %s,target = %s,last vote height = %v,current height = %v",op.source,op.targetAddr,voteHeight,op.height)
 	}
 	return nil
 }
@@ -402,7 +402,7 @@ func (b *BaseMiner) processVote(op *voteMinerPoolOp, targetMiner *types.Miner, t
 }
 
 func (b *BaseMiner) afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Miner) error {
-	Logger.Infof("address %s is upgrade miner pool", op.targetAddr.String())
+	Logger.Infof("address %s is upgrade miner pool at height %v", op.targetAddr.String(),op.height)
 	if targetMiner == nil {
 		targetMiner = &types.Miner{
 			ID:          op.targetAddr.Bytes(),
@@ -422,6 +422,7 @@ func (b *BaseMiner) afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Min
 
 func (b *BaseMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *types.Miner, afterTicketReduceFunc reduceTicketCallBack) error {
 	totalTickets := subTicket(op.accountDB, op.target)
+	log.CoreLogger.Infof("reduce ticket success,target is %s,height is %v",op.target,op.height)
 	if afterTicketReduceFunc != nil {
 		return afterTicketReduceFunc(op, targetMiner, totalTickets)
 	}

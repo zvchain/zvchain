@@ -96,12 +96,13 @@ type CastStat struct {
 }
 
 type MortGage struct {
-	Stake              uint64 `json:"stake"`
-	ApplyHeight        uint64 `json:"apply_height"`
-	Type               string `json:"type"`
-	Status             string `json:"miner_status"`
-	StatusUpdateHeight uint64 `json:"status_update_height"`
-	Identity           string `json:"identity"`
+	Stake                uint64 `json:"stake"`
+	ApplyHeight          uint64 `json:"apply_height"`
+	Type                 string `json:"type"`
+	Status               string `json:"miner_status"`
+	StatusUpdateHeight   uint64 `json:"status_update_height"`
+	Identity             string `json:"identity"`
+	IdentityUpdateHeight uint64 `json:"identity_update_height"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
