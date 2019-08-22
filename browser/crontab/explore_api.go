@@ -11,11 +11,11 @@ import (
 type Explore struct{}
 
 type MortGage struct {
-	Stake              uint64 `json:"stake"`
-	ApplyHeight        uint64 `json:"apply_height"`
-	Type               string `json:"type"`
-	Status             string `json:"miner_status"`
-	StatusUpdateHeight uint64 `json:"status_update_height"`
+	Stake              uint64            `json:"stake"`
+	ApplyHeight        uint64            `json:"apply_height"`
+	Type               string            `json:"type"`
+	Status             types.MinerStatus `json:"miner_status"`
+	StatusUpdateHeight uint64            `json:"status_update_height"`
 }
 
 type ExploreBlockReward struct {
@@ -42,11 +42,11 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	if miner.IsVerifyRole() {
 		t = "verify node"
 	}
-	status := "prepared"
+	status := types.MinerStatusPrepare
 	if miner.IsActive() {
-		status = "normal"
+		status = types.MinerStatusActive
 	} else if miner.IsFrozen() {
-		status = "frozen"
+		status = types.MinerStatusFrozen
 	}
 	mg := &MortGage{
 		Stake:              uint64(common.RA2TAS(miner.Stake)),
