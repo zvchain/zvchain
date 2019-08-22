@@ -43,5 +43,5 @@ func validateMinerType(typ int) bool {
 
 func validateFundGuardMode(mode int) bool {
 	md := common.FundModeType(mode)
-	return  md == common.SIXAddFive || md == common.SIXAddSix
+	return md == common.SIXAddFive || md == common.SIXAddSix
 }

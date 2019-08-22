@@ -207,8 +207,8 @@ func checkMinerPoolUpperBound(miner *types.Miner, height uint64) bool {
 	return miner.Stake <= getFullMinerPoolStake(height)
 }
 
-func getFullMinerPoolStake(height uint64)uint64{
-	return maximumStake(height)*getValidTicketsByHeight(height)
+func getFullMinerPoolStake(height uint64) uint64 {
+	return maximumStake(height) * getValidTicketsByHeight(height)
 }
 
 func checkLowerBound(miner *types.Miner) bool {
@@ -580,7 +580,7 @@ func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 	} else {
 		if oldTarget != empty {
 			//reduce ticket first
-			mop := newReduceTicketsOp(op.accountDB, oldTarget,op.height)
+			mop := newReduceTicketsOp(op.accountDB, oldTarget, op.height)
 			ret := mop.Transition()
 			if ret.err != nil {
 				return ret.err, false
@@ -589,7 +589,7 @@ func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 		// add tickets count
 		totalTickets = addTicket(op.accountDB, op.targetAddr)
 	}
-	log.CoreLogger.Infof("vote success,source = %s,target =%s,current tickets = %d,height = %v",op.source,op.targetAddr,totalTickets,op.height)
+	log.CoreLogger.Infof("vote success,source = %s,target =%s,current tickets = %d,height = %v", op.source, op.targetAddr, totalTickets, op.height)
 	isFull := isFullTickets(totalTickets, op.height)
 	return nil, isFull
 }

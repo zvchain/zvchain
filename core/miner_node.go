@@ -15,7 +15,7 @@ const (
 )
 
 type tickFullCallBack func(op *voteMinerPoolOp, targetMiner *types.Miner) error
-type becomeFullGuardNodeCallBack func(db types.AccountDB, detailKey []byte,detail *stakeDetail,address common.Address, height uint64) error
+type becomeFullGuardNodeCallBack func(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error
 type reduceTicketCallBack func(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64) error
 
 type baseIdentityOp interface {
@@ -31,7 +31,7 @@ type baseIdentityOp interface {
 	checkUpperBound(miner *types.Miner, height uint64) bool
 
 	afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Miner) error
-	afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error
+	afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error
 	afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64) error
 }
 
@@ -94,7 +94,6 @@ func (g *InvalidProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.
 	return fmt.Errorf("invalid miner pool not support stake add")
 }
 
-
 func (v *VerifyMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
 	//verify node must can stake by myself
 	if op.addSource != op.addTarget {
@@ -118,7 +117,7 @@ func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.M
 	return nil
 }
 
-func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte,detail *stakeDetail,address common.Address, height uint64) error {
+func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error {
 	detail.DisMissHeight = height + adjustWeightPeriod/2
 	addFullStakeGuardPool(db, address)
 	if err := setDetail(db, address, detailKey, detail); err != nil {
@@ -135,7 +134,7 @@ func (g *GuardProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Mi
 	return nil
 }
 
-func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error {
+func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error {
 	// it must be fund guard node
 	if detail.DisMissHeight == 0 {
 		detail.DisMissHeight = height + adjustWeightPeriod/2
@@ -171,7 +170,7 @@ func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *t
 		if miner == nil {
 			return fmt.Errorf("find miner pool miner is nil,addr is %s", op.target.String())
 		}
-		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v",op.target.String(),op.height)
+		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v", op.target.String(), op.height)
 		miner.UpdateIdentity(types.InValidMinerPool, op.height)
 		remove := false
 		// Remove from pool if active
@@ -197,8 +196,8 @@ func (m *MinerPoolProposalMiner) afterTicketsFull(op *voteMinerPoolOp, targetMin
 }
 
 func (b *BaseMiner) processMinerAbort(op *minerAbortOp, miner *types.Miner) error {
-	err := b.checkStakeAbort(op,miner)
-	if err != nil{
+	err := b.checkStakeAbort(op, miner)
+	if err != nil {
 		return err
 	}
 	remove := false
@@ -243,7 +242,7 @@ func (b *BaseMiner) checkUpperBound(miner *types.Miner, height uint64) bool {
 	return checkUpperBound(miner, height)
 }
 
-func (b *BaseMiner) afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error {
+func (b *BaseMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error {
 	return nil
 }
 
@@ -257,7 +256,7 @@ func (b *BaseMiner) checkCanReduce(op *stakeReduceOp, minerType types.MinerType,
 			return fmt.Errorf("active verify miner cann't reduce stake to below bound")
 		}
 		// prepared status,check node is in live group
-		if GroupManagerImpl.GetGroupStoreReader().MinerLiveGroupCount(op.cancelTarget, op.height) > 0 {
+		if !GroupManagerImpl.MinerJoinedLivedGroupCountFilter(1, op.height)(op.cancelTarget) {
 			return fmt.Errorf("miner still in active groups, cannot reduce stake")
 		}
 	}
@@ -355,24 +354,24 @@ func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) er
 	return nil
 }
 
-func checkVote(op *voteMinerPoolOp,vf *voteInfo)error{
-	sourceMiner, err := getMiner(op.accountDB,op.source,types.MinerTypeProposal)
-	if err != nil{
+func checkVote(op *voteMinerPoolOp, vf *voteInfo) error {
+	sourceMiner, err := getMiner(op.accountDB, op.source, types.MinerTypeProposal)
+	if err != nil {
 		return err
 	}
-	if sourceMiner == nil{
+	if sourceMiner == nil {
 		return fmt.Errorf("miner info is nil,cannot vote")
 	}
-	if !sourceMiner.IsGuard(){
+	if !sourceMiner.IsGuard() {
 		return fmt.Errorf("this miner is not guard node,can not vote")
 	}
-	var voteHeight uint64 =  0
-	if vf != nil{
+	var voteHeight uint64 = 0
+	if vf != nil {
 		voteHeight = vf.Height
 	}
-	canVote := checkCanVote(voteHeight,op.height)
-	if !canVote{
-		return fmt.Errorf("has voted in this round,can not vote,source = %s,target = %s,last vote height = %v,current height = %v",op.source,op.targetAddr,voteHeight,op.height)
+	canVote := checkCanVote(voteHeight, op.height)
+	if !canVote {
+		return fmt.Errorf("has voted in this round,can not vote,source = %s,target = %s,last vote height = %v,current height = %v", op.source, op.targetAddr, voteHeight, op.height)
 	}
 	return nil
 }
@@ -382,17 +381,17 @@ func (b *BaseMiner) processVote(op *voteMinerPoolOp, targetMiner *types.Miner, t
 	if err != nil {
 		return err
 	}
-	err = checkVote(op,vf)
-	if err != nil{
+	err = checkVote(op, vf)
+	if err != nil {
 		return err
 	}
 	// process base
-	err, isFull := processVote(op,vf)
+	err, isFull := processVote(op, vf)
 	if err != nil {
 		return err
 	}
 	if isFull {
-		if ticketsFullFunc != nil{
+		if ticketsFullFunc != nil {
 			err = ticketsFullFunc(op, targetMiner)
 			if err != nil {
 				return err
@@ -403,7 +402,7 @@ func (b *BaseMiner) processVote(op *voteMinerPoolOp, targetMiner *types.Miner, t
 }
 
 func (b *BaseMiner) afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Miner) error {
-	Logger.Infof("address %s is upgrade miner pool at height %v", op.targetAddr.String(),op.height)
+	Logger.Infof("address %s is upgrade miner pool at height %v", op.targetAddr.String(), op.height)
 	if targetMiner == nil {
 		targetMiner = &types.Miner{
 			ID:          op.targetAddr.Bytes(),
@@ -423,14 +422,14 @@ func (b *BaseMiner) afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Min
 
 func (b *BaseMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *types.Miner, afterTicketReduceFunc reduceTicketCallBack) error {
 	totalTickets := subTicket(op.accountDB, op.target)
-	log.CoreLogger.Infof("reduce ticket success,target is %s,height is %v,tickets = %d",op.target,op.height,totalTickets)
+	log.CoreLogger.Infof("reduce ticket success,target is %s,height is %v,tickets = %d", op.target, op.height, totalTickets)
 	if afterTicketReduceFunc != nil {
 		return afterTicketReduceFunc(op, targetMiner, totalTickets)
 	}
 	return nil
 }
 
-func (b *BaseMiner) checkApplyGuard(op *applyGuardMinerOp, miner *types.Miner,detailKey []byte,detail *stakeDetail) error {
+func (b *BaseMiner) checkApplyGuard(op *applyGuardMinerOp, miner *types.Miner, detailKey []byte, detail *stakeDetail) error {
 	if miner == nil {
 		return fmt.Errorf("no miner info")
 	}
@@ -448,11 +447,11 @@ func (b *BaseMiner) checkApplyGuard(op *applyGuardMinerOp, miner *types.Miner,de
 
 func (b *BaseMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Miner, becomeFullGuardNodeFunc becomeFullGuardNodeCallBack) error {
 	detailKey := getDetailKey(op.targetAddr, types.MinerTypeProposal, types.Staked)
-	stakedDetail,err := getDetail(op.accountDB, op.targetAddr, detailKey)
+	stakedDetail, err := getDetail(op.accountDB, op.targetAddr, detailKey)
 	if err != nil {
 		return err
 	}
-	err = b.checkApplyGuard(op, miner,detailKey,stakedDetail)
+	err = b.checkApplyGuard(op, miner, detailKey, stakedDetail)
 	if err != nil {
 		return err
 	}
@@ -462,7 +461,7 @@ func (b *BaseMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Miner,
 		return err
 	}
 	if becomeFullGuardNodeFunc != nil {
-		err = becomeFullGuardNodeFunc(op.accountDB, detailKey,stakedDetail,op.targetAddr, op.height)
+		err = becomeFullGuardNodeFunc(op.accountDB, detailKey, stakedDetail, op.targetAddr, op.height)
 		if err != nil {
 			return err
 		}
@@ -487,9 +486,9 @@ func (b *BaseMiner) afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, t
 	return nil
 }
 
-func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error{
+func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error {
 	if op.height > adjustWeightPeriod/2 {
-		return fmt.Errorf("changge fund guard mode must be in suitable height,addr is %s,current height is %v", op.source.String(),op.height)
+		return fmt.Errorf("changge fund guard mode must be in suitable height,addr is %s,current height is %v", op.source.String(), op.height)
 	}
 	fn, err := getFundGuardNode(op.accountDB, op.source)
 	if err != nil {
@@ -501,7 +500,7 @@ func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMi
 	if !fn.isFundGuard() {
 		return fmt.Errorf("only fund guard can do this operator ,addr is %s,type is %d", op.source.String(), fn.Type)
 	}
-	err = updateFundGuardMode(op.accountDB,fn,op.source,op.mode,op.height)
+	err = updateFundGuardMode(op.accountDB, fn, op.source, op.mode, op.height)
 	return err
 }
 
@@ -600,7 +599,7 @@ func (u *UnSupportMiner) processVote(op *voteMinerPoolOp, targetMiner *types.Min
 	return fmt.Errorf("unSupported miner abort")
 }
 
-func (u *UnSupportMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error{
+func (u *UnSupportMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMiner *types.Miner) error {
 	return fmt.Errorf("unSupported change fund guard mode")
 }
 
@@ -612,7 +611,7 @@ func (u *UnSupportMiner) processApplyGuard(op *applyGuardMinerOp, targetMiner *t
 	return fmt.Errorf("unSupported apply guard")
 }
 
-func (u *UnSupportMiner) afterBecomeFullGuardNode(db types.AccountDB,detailKey []byte,detail *stakeDetail, address common.Address, height uint64) error {
+func (u *UnSupportMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error {
 	return nil
 }
 
@@ -620,7 +619,7 @@ func (u *UnSupportMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *t
 	return fmt.Errorf("unSupported reduce ticket")
 }
 
-func (u *UnSupportMiner) afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64)error {
+func (u *UnSupportMiner) afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64) error {
 	return nil
 }
 

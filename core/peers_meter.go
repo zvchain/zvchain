@@ -106,7 +106,7 @@ type peerManager struct {
 
 func initPeerManager() {
 	badPeerMeter := peerManager{
-		peerMeters: common.MustNewLRUCache(100),
+		peerMeters: common.MustNewLRUCache(200),
 	}
 	peerManagerImpl = &badPeerMeter
 }

@@ -131,7 +131,7 @@ func unmarshalReqProposalBlockMessage(b []byte) (*model.ReqProposalBlock, error)
 		return nil, fmt.Errorf("unmarshalReqProposalBlockMessage:%v", e)
 	}
 	m := &model.ReqProposalBlock{
-		Hash: common.BytesToHash(message.Hash),
+		Hash:              common.BytesToHash(message.Hash),
 		BaseSignedMessage: *baseMessage(message.Sign),
 	}
 	return m, nil

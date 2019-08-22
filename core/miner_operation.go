@@ -41,7 +41,6 @@ type mOperation interface {
 	Transition() *result     // Do the operation
 }
 
-
 type voteMinerPoolOp struct {
 	*transitionContext
 	source     common.Address
@@ -59,13 +58,13 @@ func (op *voteMinerPoolOp) ParseTransaction() error {
 
 func (op *voteMinerPoolOp) Transition() *result {
 	ret := newResult()
-	targetMiner, err := getMiner(op.accountDB,op.targetAddr,types.MinerTypeProposal)
+	targetMiner, err := getMiner(op.accountDB, op.targetAddr, types.MinerTypeProposal)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processVote(op, targetMiner,baseOp.afterTicketsFull)
+	err = baseOp.processVote(op, targetMiner, baseOp.afterTicketsFull)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -88,7 +87,7 @@ func (op *applyGuardMinerOp) ParseTransaction() error {
 
 func (op *applyGuardMinerOp) Transition() *result {
 	ret := newResult()
-	miner, err := getMiner(op.accountDB,op.targetAddr,types.MinerTypeProposal)
+	miner, err := getMiner(op.accountDB, op.targetAddr, types.MinerTypeProposal)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -98,7 +97,7 @@ func (op *applyGuardMinerOp) Transition() *result {
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, miner)
-	err = baseOp.processApplyGuard(op, miner,baseOp.afterBecomeFullGuardNode)
+	err = baseOp.processApplyGuard(op, miner, baseOp.afterBecomeFullGuardNode)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -110,14 +109,13 @@ func (op *applyGuardMinerOp) Transition() *result {
 type reduceTicketsOp struct {
 	*transitionContext
 	target common.Address
-
 }
 
 func newReduceTicketsOp(db types.AccountDB, targetAddress common.Address, height uint64) *reduceTicketsOp {
 	base := newTransitionContext(db, nil, nil, height)
 	return &reduceTicketsOp{
 		transitionContext: base,
-		target:         targetAddress,
+		target:            targetAddress,
 	}
 }
 
@@ -127,13 +125,13 @@ func (op *reduceTicketsOp) ParseTransaction() error {
 
 func (op *reduceTicketsOp) Transition() *result {
 	ret := newResult()
-	targetMiner, err := getMiner(op.accountDB,op.target,types.MinerTypeProposal)
+	targetMiner, err := getMiner(op.accountDB, op.target, types.MinerTypeProposal)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
 	}
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processReduceTicket(op, targetMiner,baseOp.afterTicketReduce)
+	err = baseOp.processReduceTicket(op, targetMiner, baseOp.afterTicketReduce)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -145,7 +143,7 @@ func (op *reduceTicketsOp) Transition() *result {
 type changeFundGuardMode struct {
 	*transitionContext
 	source common.Address
-	mode common.FundModeType
+	mode   common.FundModeType
 }
 
 func (op *changeFundGuardMode) ParseTransaction() error {
@@ -166,7 +164,7 @@ func (op *changeFundGuardMode) ParseTransaction() error {
 
 func (op *changeFundGuardMode) Transition() *result {
 	ret := newResult()
-	targetMiner, err := getMiner(op.accountDB,op.source,types.MinerTypeProposal)
+	targetMiner, err := getMiner(op.accountDB, op.source, types.MinerTypeProposal)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -246,7 +244,7 @@ func (op *minerAbortOp) ParseTransaction() error {
 
 func (op *minerAbortOp) Transition() *result {
 	ret := newResult()
-	miner, err := getMiner(op.accountDB,op.addr,op.minerType)
+	miner, err := getMiner(op.accountDB, op.addr, op.minerType)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -277,10 +275,9 @@ func (op *stakeReduceOp) ParseTransaction() error {
 	return nil
 }
 
-
 func (op *stakeReduceOp) Transition() *result {
 	ret := newResult()
-	miner, err := getMiner(op.accountDB,op.cancelTarget,op.minerType)
+	miner, err := getMiner(op.accountDB, op.cancelTarget, op.minerType)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -299,7 +296,7 @@ type stakeRefundOp struct {
 	*transitionContext
 	refundTarget common.Address
 	refundSource common.Address
-	minerType  types.MinerType
+	minerType    types.MinerType
 }
 
 func (op *stakeRefundOp) ParseTransaction() error {
@@ -313,7 +310,7 @@ func (op *stakeRefundOp) Transition() *result {
 	ret := newResult()
 	// Get the detail in target account: frozen-detail of the source
 	frozenDetailKey := getDetailKey(op.refundSource, op.minerType, types.StakeFrozen)
-	frozenDetail, err := getDetail(op.accountDB,op.refundTarget, frozenDetailKey)
+	frozenDetail, err := getDetail(op.accountDB, op.refundTarget, frozenDetailKey)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -329,7 +326,7 @@ func (op *stakeRefundOp) Transition() *result {
 	}
 
 	// Remove frozen data
-	removeDetail(op.accountDB,op.refundTarget, frozenDetailKey)
+	removeDetail(op.accountDB, op.refundTarget, frozenDetailKey)
 
 	// Restore the balance
 	op.accountDB.AddBalance(op.refundSource, new(big.Int).SetUint64(frozenDetail.Value))
@@ -351,7 +348,7 @@ func (op *minerFreezeOp) ParseTransaction() error {
 
 func (op *minerFreezeOp) Transition() *result {
 	ret := newResult()
-	miner, err := getMiner(op.accountDB,op.addr,types.MinerTypeVerify)
+	miner, err := getMiner(op.accountDB, op.addr, types.MinerTypeVerify)
 	if err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
@@ -371,12 +368,12 @@ func (op *minerFreezeOp) Transition() *result {
 
 	// Remove from pool if active
 	if miner.IsActive() {
-		removeFromPool(op.accountDB,types.MinerTypeVerify,op.addr, miner.Stake)
+		removeFromPool(op.accountDB, types.MinerTypeVerify, op.addr, miner.Stake)
 	}
 
 	// Update the miner status
 	miner.UpdateStatus(types.MinerStatusFrozen, op.height)
-	if err := setMiner(op.accountDB,miner); err != nil {
+	if err := setMiner(op.accountDB, miner); err != nil {
 		ret.setError(err, types.RSFail)
 		return ret
 	}
@@ -399,7 +396,7 @@ func (op *minerPenaltyOp) Transition() *result {
 	ret := newResult()
 	// Firstly, frozen the targets
 	for _, addr := range op.targets {
-		miner, err := getMiner(op.accountDB,addr,types.MinerTypeVerify)
+		miner, err := getMiner(op.accountDB, addr, types.MinerTypeVerify)
 		if err != nil {
 			ret.setError(err, types.RSFail)
 			return ret
@@ -415,7 +412,7 @@ func (op *minerPenaltyOp) Transition() *result {
 
 		// Remove from pool if active
 		if miner.IsActive() {
-			removeFromPool(op.accountDB,types.MinerTypeVerify,addr, miner.Stake)
+			removeFromPool(op.accountDB, types.MinerTypeVerify, addr, miner.Stake)
 		}
 		// Must not happen
 		if miner.Stake < op.value {
@@ -425,13 +422,13 @@ func (op *minerPenaltyOp) Transition() *result {
 		// Sub total stake and update the miner status
 		miner.Stake -= op.value
 		miner.UpdateStatus(types.MinerStatusFrozen, op.height)
-		if err := setMiner(op.accountDB,miner); err != nil {
+		if err := setMiner(op.accountDB, miner); err != nil {
 			ret.setError(err, types.RSFail)
 			return ret
 		}
 		// Add punishment detail
 		punishmentKey := getDetailKey(common.PunishmentDetailAddr, types.MinerTypeVerify, types.StakePunishment)
-		punishmentDetail, err := getDetail(op.accountDB,addr, punishmentKey)
+		punishmentDetail, err := getDetail(op.accountDB, addr, punishmentKey)
 		if err != nil {
 			ret.setError(err, types.RSFail)
 			return ret
@@ -446,14 +443,14 @@ func (op *minerPenaltyOp) Transition() *result {
 		}
 		punishmentDetail.Height = op.height
 		// Update the punishment detail of target
-		if err := setDetail(op.accountDB,addr, punishmentKey, punishmentDetail); err != nil {
+		if err := setDetail(op.accountDB, addr, punishmentKey, punishmentDetail); err != nil {
 			ret.setError(err, types.RSFail)
 			return ret
 		}
 
 		// Sub the stake detail
 		normalStakeKey := getDetailKey(addr, types.MinerTypeVerify, types.Staked)
-		normalDetail, err := getDetail(op.accountDB,addr, normalStakeKey)
+		normalDetail, err := getDetail(op.accountDB, addr, normalStakeKey)
 		if err != nil {
 			ret.setError(err, types.RSFail)
 			return ret
@@ -465,19 +462,19 @@ func (op *minerPenaltyOp) Transition() *result {
 		if normalDetail.Value > op.value {
 			normalDetail.Value -= op.value
 			normalDetail.Height = op.height
-			if err := setDetail(op.accountDB,addr, normalStakeKey, normalDetail); err != nil {
+			if err := setDetail(op.accountDB, addr, normalStakeKey, normalDetail); err != nil {
 				ret.setError(err, types.RSFail)
 				return ret
 			}
 		} else {
 			remain := op.value - normalDetail.Value
 			normalDetail.Value = 0
-			removeDetail(op.accountDB,addr, normalStakeKey)
+			removeDetail(op.accountDB, addr, normalStakeKey)
 
 			// Need to sub frozen stake detail if remain > 0
 			if remain > 0 {
 				frozenKey := getDetailKey(addr, types.MinerTypeVerify, types.StakeFrozen)
-				frozenDetail, err := getDetail(op.accountDB,addr, frozenKey)
+				frozenDetail, err := getDetail(op.accountDB, addr, frozenKey)
 				if err != nil {
 					ret.setError(err, types.RSFail)
 					return ret
@@ -490,7 +487,7 @@ func (op *minerPenaltyOp) Transition() *result {
 				}
 				frozenDetail.Value -= remain
 				frozenDetail.Height = op.height
-				if err := setDetail(op.accountDB,addr, frozenKey, frozenDetail); err != nil {
+				if err := setDetail(op.accountDB, addr, frozenKey, frozenDetail); err != nil {
 					ret.setError(err, types.RSFail)
 					return ret
 				}

@@ -29,13 +29,10 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 )
 
-
-const teamFoundationToken = 750000000 * common.ZVC                                             // amount of tokens that belong to team
-const businessFoundationToken = 250000000 * common.ZVC                                         // amount of tokens that belongs to business
-const miningPoolToken = 425000000 * common.ZVC                                                 // amount of tokens that belongs to mining pool
-const circulatesToken = 75000000 * common.ZVC                                                  // amount of tokens that belongs to circulates
-
-
+const teamFoundationToken = 750000000 * common.ZVC     // amount of tokens that belong to team
+const businessFoundationToken = 250000000 * common.ZVC // amount of tokens that belongs to business
+const miningPoolToken = 425000000 * common.ZVC         // amount of tokens that belongs to mining pool
+const circulatesToken = 75000000 * common.ZVC          // amount of tokens that belongs to circulates
 
 func calcTxTree(txs []*types.Transaction) common.Hash {
 	if nil == txs || 0 == len(txs) {
@@ -49,7 +46,6 @@ func calcTxTree(txs []*types.Transaction) common.Hash {
 	}
 	return common.BytesToHash(common.Sha256(buf.Bytes()))
 }
-
 
 func calcReceiptsTree(receipts types.Receipts) common.Hash {
 	if nil == receipts || 0 == len(receipts) {

@@ -77,9 +77,9 @@ func setRewardData(db types.AccountDB, key, value []byte) {
 }
 
 func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
-	accountDB, err := BlockChainImpl.LatestStateDB()
-	if err != nil {
-		log.DefaultLogger.Errorf("get lastdb failed,err = %v", err.Error())
+	accountDB, error := BlockChainImpl.LatestAccountDB()
+	if error != nil {
+		log.DefaultLogger.Errorf("get lastdb failed,error = %v", error.Error())
 		return false
 	}
 	return getRewardData(accountDB, blockHashByte) != nil
@@ -94,9 +94,9 @@ func (rm *rewardManager) MarkBlockRewarded(blockHash common.Hash, transactionHas
 }
 
 func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) *types.Transaction {
-	accountDB, err := BlockChainImpl.LatestStateDB()
-	if err != nil {
-		log.DefaultLogger.Errorf("get lastdb failed,err = %v", err.Error())
+	accountDB, error := BlockChainImpl.LatestAccountDB()
+	if error != nil {
+		log.DefaultLogger.Errorf("get lastdb failed,error = %v", error.Error())
 		return nil
 	}
 	transactionHash := getRewardData(accountDB, blockHash.Bytes())
@@ -175,7 +175,7 @@ func (rm *rewardManager) ParseRewardTransaction(msg types.TxMessage) (gSeed comm
 	}
 
 	gSeed = common.BytesToHash(gSeedBytes)
-	group := GroupManagerImpl.GetGroupStoreReader().GetGroupBySeed(gSeed)
+	group := GroupManagerImpl.GetGroupBySeed(gSeed)
 	if group == nil {
 		err = fmt.Errorf("group is nil, gseed=%v", gSeed)
 		return

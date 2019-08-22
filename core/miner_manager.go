@@ -31,7 +31,7 @@ import (
 const (
 	heavyMinerNetTriggerInterval = 10
 	buildVirtualNetRoutineName   = "build_virtual_net"
-	checkInterval = 1000
+	checkInterval                = 1000
 )
 
 var MinerManagerImpl *MinerManager
@@ -184,9 +184,8 @@ func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint
 	return nil
 }
 
-
 func (mm *MinerManager) GetTickets(db types.AccountDB, address common.Address) uint64 {
-	return getTickets(db,address)
+	return getTickets(db, address)
 }
 
 func (mm *MinerManager) checkFullStakeGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) error {
@@ -280,7 +279,7 @@ func (mm *MinerManager) MinerPenalty(accountDB types.AccountDB, penalty types.Pu
 
 // GetMiner return the latest miner info stored in db of the given address and the miner type
 func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
-	accontDB, err := BlockChainImpl.LatestStateDB()
+	accontDB, err := BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		Logger.Errorf("get accontDB failed,error = %v", err.Error())
 		return nil
@@ -299,9 +298,9 @@ func (mm *MinerManager) GetFullMinerPoolStake(height uint64) uint64 {
 
 // GetMiner return miner info stored in db of the given address and the miner type at the given height
 func (mm *MinerManager) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {
-	db, err := BlockChainImpl.GetAccountDBByHeight(height)
+	db, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
-		Logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+		Logger.Errorf("AccountDBAt error:%v, height:%v", err, height)
 		return nil
 	}
 	miner, err := getMiner(db, address, mType)
@@ -314,7 +313,7 @@ func (mm *MinerManager) GetMiner(address common.Address, mType types.MinerType, 
 
 // GetProposalTotalStake returns the chain's total staked value of proposals at the specific block height
 func (mm *MinerManager) GetProposalTotalStake(height uint64) uint64 {
-	accountDB, err := BlockChainImpl.GetAccountDBByHeight(height)
+	accountDB, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
 		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return 0
@@ -353,7 +352,7 @@ func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]
 
 // GetAllMiners returns all miners of the the specified type at the given height
 func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
-	accountDB, err := BlockChainImpl.GetAccountDBByHeight(height)
+	accountDB, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
 		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return nil
@@ -381,7 +380,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 }
 
 func (mm *MinerManager) getStakeDetail(address, source common.Address, status types.StakeStatus, mType types.MinerType) *types.StakeDetail {
-	db, error := BlockChainImpl.LatestStateDB()
+	db, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		Logger.Errorf("get accountdb failed,error = %v", error.Error())
 		return nil
@@ -431,7 +430,7 @@ func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Ad
 // GetAllStakeDetails returns all stake details of the given account
 func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]*types.StakeDetail {
 	ret := make(map[string][]*types.StakeDetail)
-	accontDB, error := BlockChainImpl.LatestStateDB()
+	accontDB, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		Logger.Errorf("get accountdb failed,err = %v", error.Error())
 		return ret
@@ -473,7 +472,7 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 
 func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 	mp := make(map[string]struct{})
-	accountDB, error := BlockChainImpl.LatestStateDB()
+	accountDB, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		Logger.Errorf("get accountdb failed,error = %v", error.Error())
 		return mp

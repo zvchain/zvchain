@@ -162,7 +162,7 @@ func (ca *RemoteChainOpImpl) Balance(addr string) *Result {
 
 // MinerPoolInfo query miner pool info by address
 func (ca *RemoteChainOpImpl) MinerPoolInfo(addr string) *Result {
-	return ca.request("minerPoolInfo", addr,0)
+	return ca.request("minerPoolInfo", addr, 0)
 }
 
 // TicketsInfo query tickets by address
@@ -250,8 +250,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	return ca.SendRaw(tx)
 }
 
-
-func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int,gas, gasprice uint64) *Result {
+func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r
@@ -262,7 +261,7 @@ func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int,gas, gasprice uint64) 
 		Gas:      gas,
 		Gasprice: gasprice,
 		TxType:   types.TransactionTypeChangeFundGuardMode,
-		Data: []byte{byte(mode)},
+		Data:     []byte{byte(mode)},
 	}
 	return ca.SendRaw(tx)
 }

@@ -71,7 +71,7 @@ func (m *Manager) NewOperation(db types.AccountDB, tx types.TxMessage, height ui
 // sendPieceOp is for the group piece upload operation in round one
 type sendPieceOp struct {
 	*baseOperation
-	data types.EncryptedSharePiecePacket
+	data   types.EncryptedSharePiecePacket
 	source common.Address
 }
 

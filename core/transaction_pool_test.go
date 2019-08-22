@@ -40,8 +40,8 @@ func TestCreatePool(t *testing.T) {
 	pk, err := sign.RecoverPubkey(transaction.Hash.Bytes())
 	src := pk.GetAddress()
 
-	accountDB,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
+	accountDB, error := BlockChainImpl.LatestAccountDB()
+	if error != nil {
 		t.Fatalf("fail get account db")
 	}
 	accountDB.AddBalance(src, new(big.Int).SetUint64(111111111222))
@@ -93,8 +93,8 @@ func TestContainer(t *testing.T) {
 	}
 	src := pk.GetAddress()
 
-	accountDB,err:=BlockChainImpl.LatestStateDB()
-	if err != nil{
+	accountDB, err := BlockChainImpl.LatestAccountDB()
+	if err != nil {
 		t.Fatalf("get status failed")
 	}
 	accountDB.AddBalance(src, new(big.Int).SetUint64(111111111111111111))

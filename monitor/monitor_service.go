@@ -257,6 +257,8 @@ func (ms *MonitorService) UpdateNodeInfo(ni *NodeInfo) {
 			if affet <= 0 {
 				sess.Table("nodes").Data(dm).Insert()
 			}
+		} else {
+			log.ConsensusStdLogger.Errorf("update node info error:%v", err)
 		}
 	}
 }

@@ -95,16 +95,16 @@ func (pkt *mpkPacket) Sign() []byte {
 }
 
 type member struct {
-	id groupsig.ID
-	pk groupsig.Pubkey
+	id []byte
+	pk []byte
 }
 
 func (m *member) ID() []byte {
-	return m.id.Serialize()
+	return m.id
 }
 
 func (m *member) PK() []byte {
-	return m.pk.Serialize()
+	return m.pk
 }
 
 type groupHeader struct {
@@ -200,12 +200,12 @@ func idleCreateResult(err error) *createResult {
 func generateGroupInfo(packets []types.MpkPacket, era *era, gpk groupsig.Pubkey, threshold int) *group {
 	members := make([]types.MemberI, 0)
 	for _, pkt := range packets {
-		members = append(members, &member{id: groupsig.DeserializeID(pkt.Sender()), pk: groupsig.DeserializePubkeyBytes(pkt.Mpk())})
+		members = append(members, &member{id: pkt.Sender(), pk: pkt.Mpk()})
 	}
 	gHeader := &groupHeader{
 		seed:          era.Seed(),
-		workHeight:    era.end(),
-		dismissHeight: era.end() + lifeWindow,
+		workHeight:    types.ActivateEpochOfGroupsCreatedAt(era.seedHeight).Start(),
+		dismissHeight: types.DismissEpochOfGroupsCreatedAt(era.seedHeight).Start(),
 		gpk:           gpk,
 		threshold:     uint32(threshold),
 	}

@@ -115,7 +115,7 @@ func sourceRecover(tx *types.Transaction) error {
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
 func stateValidate(tx *types.Transaction) error {
-	accountDB, err := BlockChainImpl.LatestStateDB()
+	accountDB, err := BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		return fmt.Errorf("fail get last state db,error = %v", err.Error())
 	}
@@ -147,7 +147,7 @@ func minerTypeCheck(mt types.MinerType) error {
 }
 
 func fundGuardModeCheck(md common.FundModeType) error {
-	if md != common.SIXAddFive && md != common.SIXAddSix{
+	if md != common.SIXAddFive && md != common.SIXAddSix {
 		return fmt.Errorf("unknown fund guard mode %v", md)
 	}
 	return nil
@@ -239,7 +239,7 @@ func changeFundGuardModeValidator(tx *types.Transaction) error {
 	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
 		return err
 	}
-	if !types.IsInExtractGuardNodes(*tx.Target){
+	if !types.IsInExtractGuardNodes(*tx.Target) {
 		return fmt.Errorf("operator addr is not in extract guard nodes")
 	}
 	if len(tx.Data) != 1 {

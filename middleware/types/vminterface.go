@@ -25,8 +25,6 @@ import (
 	"github.com/zvchain/zvchain/storage/trie"
 )
 
-
-
 type AccountDB interface {
 	CreateAccount(common.Address)
 
@@ -75,11 +73,11 @@ type ChainReader interface {
 
 // MinerOperationMessage generated when operate miner stake info
 type TxMessage interface {
-	OpType() 			int8
-	Operator() 			*common.Address
-	OpTarget() 			*common.Address
-	Amount() 			*big.Int // Operated value
-	Payload() 			[]byte  // Data transfer by the message
-	GetExtraData() 		[]byte
-	GetHash()			common.Hash
+	OpType() int8
+	Operator() *common.Address
+	OpTarget() *common.Address
+	Amount() *big.Int // Operated value
+	Payload() []byte  // Data transfer by the message
+	GetExtraData() []byte
+	GetHash() common.Hash
 }

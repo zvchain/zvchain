@@ -59,11 +59,6 @@ message TransactionSlice{
     repeated Transaction transactions = 1;
 }
 
-message ChainPieceReq{
-    repeated bytes Pieces = 1;
-    optional int32 ReqCnt = 2;
-}
-
 message SyncRequest {
     required uint64 ReqHeight = 1;
     required int32 ReqSize = 2;
@@ -232,7 +227,12 @@ message BlockResponseMsg{
     repeated Block Blocks = 1;
 }
 
-message ChainPieceBlockMsg{
+message FindAncestorReq {
+    repeated bytes Pieces = 1;
+    optional int32 ReqCnt = 2;
+}
+
+message FindAncestorBlockResponse{
     required BlockHeader TopHeader = 1;
     repeated Block Blocks  = 2;
     required bool FindAncestor = 3;
@@ -246,4 +246,9 @@ message ReqProposalBlockMessage {
 message ResponseProposalBlockMessage {
     required bytes Hash = 1;
     repeated Transaction Transactions = 2;
+}
+
+message ChainSliceReq {
+    required uint64 Begin = 1;
+    required uint64 End = 2;
 }

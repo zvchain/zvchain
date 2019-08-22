@@ -29,7 +29,7 @@ func init() {
 }
 func initContext() {
 	initContext4Test()
-	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
+	blockSyncForTest = newBlockSyncer(BlockChainImpl)
 	blockSyncForTest.logger = log.BlockSyncLogger
 
 	initPeerManager()
@@ -130,21 +130,21 @@ func TestBlockReqHandler(t *testing.T) {
 
 	var ReqHeight uint64 = 10
 	ReqSize := 10
-	blocks := BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks := BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 10 {
 		t.Fatalf("expect 10,bug got %d", len(blocks))
 	}
 
 	ReqHeight = 0
 	ReqSize = 16
-	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks = BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 16 {
 		t.Fatalf("expect 16,bug got %d", len(blocks))
 	}
 
 	ReqHeight = 83
 	ReqSize = 16
-	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks = BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 16 {
 		t.Fatalf("expect 16,bug got %d", len(blocks))
 	}
@@ -152,7 +152,7 @@ func TestBlockReqHandler(t *testing.T) {
 	//max height is 99
 	ReqHeight = 99
 	ReqSize = 16
-	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks = BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 1 {
 		t.Fatalf("expect 1,bug got %d", len(blocks))
 	}
@@ -226,7 +226,7 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 
 	//this is roll back error!
-	if BlockChainImpl.(*FullBlockChain).latestBlock.Hash == middleBlockHash {
+	if BlockChainImpl.latestBlock.Hash == middleBlockHash {
 		t.Fatalf("hash error")
 	}
 	if err != nil {
@@ -243,7 +243,7 @@ func TestNewBlockHandler(t *testing.T) {
 	bts, _ := proto.Marshal(&message)
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 
-	err := BlockChainImpl.(*FullBlockChain).newBlockHandler(msg)
+	err := BlockChainImpl.newBlockHandler(msg)
 	if err != nil {
 		t.Fatalf("expect got no error,but got error")
 	}
@@ -275,22 +275,22 @@ func clearDB() {
 
 func insertBlocks() {
 	blocks := GenBlocks()
-	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 	exc := &executePostState{state: stateDB}
 	for i := 0; i < len(blocks); i++ {
-		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i], exc)
+		BlockChainImpl.commitBlock(blocks[i], exc)
 		lastBlockHash = blocks[i].Header.Hash
 	}
 }
 
 func insertCorrectHashBlocks() {
 	blocks := GenCorrectBlocks()
-	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 	exc := &executePostState{state: stateDB}
 	for i := 0; i < len(blocks); i++ {
 		root := stateDB.IntermediateRoot(true)
 		blocks[i].Header.StateTree = common.BytesToHash(root.Bytes())
-		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i], exc)
+		BlockChainImpl.commitBlock(blocks[i], exc)
 		lastBlockHash = blocks[i].Header.Hash
 		if i == 4 {
 			middleBlockHash = blocks[i].Header.Hash

@@ -206,8 +206,6 @@ func (c *ticketsInfo) parse(args []string) bool {
 	return true
 }
 
-
-
 type minerPoolInfoCmd struct {
 	baseCmd
 	addr string
@@ -692,13 +690,12 @@ func (c *changeGuardNodeCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if !validateFundGuardMode(c.mode){
-		output("Unsupported mode type %d",c.mode)
+	if !validateFundGuardMode(c.mode) {
+		output("Unsupported mode type %d", c.mode)
 		return false
 	}
 	return c.parseGasPrice()
 }
-
 
 type stakeRefundCmd struct {
 	gasBaseCmd
@@ -905,7 +902,7 @@ var cmdUnlock = genUnlockCmd()
 var cmdBalance = genBalanceCmd()
 var cmdNonce = genNonceCmd()
 var cmdMinerPoolInfo = genMinerPoolInfoCmd()
-var cmdTicketsInfo =genTicketsInfoCmd()
+var cmdTicketsInfo = genTicketsInfoCmd()
 var cmdAccountInfo = genBaseCmd("accountinfo", "get the info of the current unlocked account")
 var cmdDelAccount = genBaseCmd("delaccount", "delete the info of the current unlocked account")
 var cmdMinerInfo = genMinerInfoCmd()
@@ -1216,10 +1213,10 @@ func loop(acm accountOp, chainOp chainOp) {
 				})
 			}
 		case cmdChangeGuardNode.name:
-			cmd:= genChangeGuardNodeCmd()
-			if cmd.parse(args){
+			cmd := genChangeGuardNodeCmd()
+			if cmd.parse(args) {
 				handleCmd(func() *Result {
-					return chainOp.ChangeFundGuardMode(cmd.mode,cmd.gaslimit,cmd.gasPrice)
+					return chainOp.ChangeFundGuardMode(cmd.mode, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdStakeRefund.name:

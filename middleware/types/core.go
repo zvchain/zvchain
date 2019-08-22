@@ -74,7 +74,8 @@ func NewTransactionError(code int, msg string) *TransactionError {
 	return &TransactionError{Code: code, Message: msg}
 }
 
-const SystemTransactionOffset  = 100
+const SystemTransactionOffset = 100
+
 // Supported transaction types
 const (
 	TransactionTypeTransfer       = 0
@@ -82,19 +83,19 @@ const (
 	TransactionTypeContractCall   = 2
 
 	// Miner operation related type
-	TransactionTypeStakeAdd        = 3
-	TransactionTypeMinerAbort      = 4
-	TransactionTypeStakeReduce     = 5
-	TransactionTypeStakeRefund     = 6
-	TransactionTypeApplyGuardMiner = 7 // apply guard node
-	TransactionTypeVoteMinerPool   = 8 // vote to miner pool
-	TransactionTypeChangeFundGuardMode     = 9 // in half of year,can choose 6+5 or 6+6
+	TransactionTypeStakeAdd            = 3
+	TransactionTypeMinerAbort          = 4
+	TransactionTypeStakeReduce         = 5
+	TransactionTypeStakeRefund         = 6
+	TransactionTypeApplyGuardMiner     = 7 // apply guard node
+	TransactionTypeVoteMinerPool       = 8 // vote to miner pool
+	TransactionTypeChangeFundGuardMode = 9 // in half of year,can choose 6+5 or 6+6
 
 	// Group operation related type
-	TransactionTypeGroupPiece       = SystemTransactionOffset+1 //group member upload his encrypted share piece
-	TransactionTypeGroupMpk         = SystemTransactionOffset+2 //group member upload his mpk
-	TransactionTypeGroupOriginPiece = SystemTransactionOffset+3 //group member upload origin share piece
-	TransactionTypeReward           = SystemTransactionOffset+4
+	TransactionTypeGroupPiece       = SystemTransactionOffset + 1 //group member upload his encrypted share piece
+	TransactionTypeGroupMpk         = SystemTransactionOffset + 2 //group member upload his mpk
+	TransactionTypeGroupOriginPiece = SystemTransactionOffset + 3 //group member upload origin share piece
+	TransactionTypeReward           = SystemTransactionOffset + 4
 )
 
 // Transaction denotes one transaction infos

@@ -41,10 +41,10 @@ const (
 )
 
 const (
-	MinerNormal NodeIdentity 	   = 0 // this is normal miner node,cannot be stake by others and stake to others
-	MinerGuard                     = 1 // this miner is gurad miner node,cannot be stake by others
-	MinerPool                      = 2 // this is miner pool node,can stake by others
-	InValidMinerPool			   = 3 // this is invalid miner pool.only can be reduce before meeting the minimum number of votes
+	MinerNormal      NodeIdentity = 0 // this is normal miner node,cannot be stake by others and stake to others
+	MinerGuard                    = 1 // this miner is gurad miner node,cannot be stake by others
+	MinerPool                     = 2 // this is miner pool node,can stake by others
+	InValidMinerPool              = 3 // this is invalid miner pool.only can be reduce before meeting the minimum number of votes
 )
 
 const (
@@ -62,7 +62,7 @@ type Miner struct {
 	StatusUpdateHeight   uint64
 	Type                 MinerType
 	Status               MinerStatus
-	Identity	         NodeIdentity
+	Identity             NodeIdentity
 	IdentityUpdateHeight uint64
 }
 
@@ -125,12 +125,12 @@ const (
 
 // StakeDetail expresses the stake detail
 type StakeDetail struct {
-	Source       common.Address
-	Target       common.Address
-	Value        uint64
-	Status       StakeStatus
-	UpdateHeight uint64
-	MType        MinerType
+	Source        common.Address
+	Target        common.Address
+	Value         uint64
+	Status        StakeStatus
+	UpdateHeight  uint64
+	MType         MinerType
 	DisMissHeight uint64
 }
 
