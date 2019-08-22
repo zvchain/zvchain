@@ -187,6 +187,7 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, erro
 	var db types.AccountDB
 	var err error
 	if height == 0 {
+		height = core.BlockChainImpl.Height()
 		db, err = core.BlockChainImpl.LatestStateDB()
 	} else {
 		db, err = core.BlockChainImpl.GetAccountDBByHeight(height)
