@@ -17,6 +17,7 @@ const checkInterval = time.Second * 10
 type Crontab struct {
 	storage          *mysql.Storage
 	blockHeight      uint64
+	page             uint64
 	accountPrimaryId uint64
 	isFetchingReward bool
 	isFetchingStake  bool
@@ -42,16 +43,61 @@ func (crontab *Crontab) loop() {
 	)
 	defer check.Stop()
 	go crontab.fetchBlockRewards()
-	go crontab.fetchBlockStake()
+	go crontab.fetchBlockStakeAll()
 
 	for {
 		select {
 		case <-check.C:
 			go crontab.fetchBlockRewards()
-			go crontab.fetchBlockStake()
+			go crontab.fetchBlockStakeAll()
 
 		}
 	}
+}
+func (crontab *Crontab) fetchBlockStakeAll() {
+	if crontab.isFetchingStake {
+		return
+	}
+	crontab.isFetchingStake = true
+
+	//按页数和标记信息更新数据，标记信息更新sys数据
+	accounts := crontab.storage.GetAccountByPage(crontab.page)
+	if accounts != nil {
+		for _, account := range accounts {
+			crontab.updateAccountStake(account)
+		}
+		crontab.page += 1
+		go crontab.fetchBlockStakeAll()
+	}
+
+	crontab.isFetchingStake = false
+
+}
+
+func (crontab *Crontab) updateAccountStake(account *models.Account) {
+	if account == nil {
+		return
+
+	}
+	minerinfo, stakefrom := crontab.GetMinerInfo(account.Address)
+	if len(minerinfo) > 0 {
+		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{
+			"proposal_stake": minerinfo[0].Stake,
+			"other_stake":    minerinfo[1].Stake,
+			"verify_stake":   minerinfo[2].Stake,
+			"total_stake":    minerinfo[0].Stake + minerinfo[2].Stake,
+			"stake_from":     stakefrom,
+			"status":         minerinfo[0].Status})
+	}
+}
+
+func (crontab *Crontab) fetchBlockStakeByAdress(address string) {
+	//根据账户地址更新质押信息，前提是存在交易类型为质押时
+	account := &models.Account{
+		Address: address,
+	}
+	crontab.updateAccountStake(account)
+
 }
 
 func (crontab *Crontab) fetchBlockRewards() {
@@ -79,24 +125,6 @@ func (crontab *Crontab) fetchBlockRewards() {
 
 }
 
-func (crontab *Crontab) fetchBlockStake() {
-	if crontab.isFetchingStake {
-		return
-	}
-	//按页数和标记信息更新数据，标记信息更新sys数据
-	accounts := crontab.storage.GetAccountByMaxPrimaryId(10)
-	for _, account := range accounts {
-		minerinfo, stakefrom := crontab.GetMinerInfo(account.Address)
-		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{
-			"proposal_stake": minerinfo[0].Stake,
-			"other_stake":    minerinfo[1].Stake,
-			"verify_stake":   minerinfo[2].Stake,
-			"total_stake":    minerinfo[0].Stake + minerinfo[2].Stake,
-			"stake_from":     stakefrom,
-			"status":         crontab.transferstatus(minerinfo[0].Status)})
-	}
-}
-
 func (crontab *Crontab) GetMinerInfo(addr string) ([]*MortGage, string) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return nil, ""
@@ -121,7 +149,7 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*MortGage, string) {
 			Stake:       mort.Stake - selfStakecount,
 			ApplyHeight: 0,
 			Type:        "proposal node",
-			Status:      "normal",
+			Status:      types.MinerStatusActive,
 		})
 		if selfStakecount > 0 {
 			stakefrom = addr
@@ -137,14 +165,6 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*MortGage, string) {
 		morts = append(morts, NewMortGageFromMiner(verifierInfo))
 	}
 	return morts, stakefrom
-}
-func (crontab *Crontab) transferstatus(status string) types.MinerStatus {
-	var statusMap = map[string]types.MinerStatus{
-		"normal":   types.MinerStatusActive,
-		"prepared": types.MinerStatusPrepare,
-		"frozen":   types.MinerStatusFrozen,
-	}
-	return statusMap[status]
 }
 
 func (crontab *Crontab) getStakeFrom(address common.Address) string {

@@ -66,6 +66,17 @@ func (storage *Storage) GetAccountByMaxPrimaryId(maxid uint64) []*models.Account
 	return accounts
 }
 
+func (storage *Storage) GetAccountByPage(page uint64) []*models.Account {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	accounts := make([]*models.Account, LIMIT, LIMIT)
+	storage.db.Offset((page) * LIMIT).Limit(LIMIT).Find(&accounts)
+	return accounts
+}
+
 func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 	hight := storage.TopBlockRewardHeight(Blockrewardtophight)
 	if hight > 0 {
