@@ -228,6 +228,7 @@ func (ms *MonitorService) UpdateNodeInfo(ni *NodeInfo) {
 		ms.lastUpdate = time.Now()
 		connection, err := gorose.Open(ms.cfg)
 		if err != nil {
+			log.ConsensusStdLogger.Errorf("open mysql error:%v", err)
 			return
 		}
 		if connection == nil {
@@ -255,8 +256,13 @@ func (ms *MonitorService) UpdateNodeInfo(ni *NodeInfo) {
 		affet, err := sess.Table("nodes").Where(fmt.Sprintf("MinerId='%v'", ms.nodeID)).Data(dm).Update()
 		if err == nil {
 			if affet <= 0 {
-				sess.Table("nodes").Data(dm).Insert()
+				_, err := sess.Table("nodes").Data(dm).Insert()
+				if err != nil {
+					log.ConsensusStdLogger.Errorf("insert node info error:%v", err)
+				}
 			}
+		} else {
+			log.ConsensusStdLogger.Errorf("update node info error:%v", err)
 		}
 	}
 }
@@ -288,6 +294,6 @@ func (ms *MonitorService) insertMinerID() {
 			sess.Table("nodes").Data(dm).Insert()
 		}
 	} else {
-		fmt.Printf("insert nodes fail, sql=%v, err=%v\n", sess.LastSql, err)
+		log.ConsensusStdLogger.Errorf("insert nodes fail, sql=%v, err=%v\n", sess.LastSql, err)
 	}
 }
