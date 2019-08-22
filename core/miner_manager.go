@@ -31,6 +31,7 @@ import (
 const (
 	heavyMinerNetTriggerInterval = 10
 	buildVirtualNetRoutineName   = "build_virtual_net"
+	checkInterval = 1000
 )
 
 var MinerManagerImpl *MinerManager
@@ -94,7 +95,7 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 	if height < adjustWeightPeriod/2 || height > adjustWeightPeriod*2 {
 		return nil
 	}
-	if height%1000 != 0 {
+	if height%checkInterval != 0 {
 		return nil
 	}
 	hasScanned := hasScanedSixAddFiveFundGuards(accountDB)
@@ -129,7 +130,7 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 	if height < adjustWeightPeriod || height > adjustWeightPeriod*3 {
 		return nil
 	}
-	if height%1000 != 0 {
+	if height%checkInterval != 0 {
 		return nil
 	}
 	hasScanned := hasScanedSixAddSixFundGuards(accountDB)
@@ -164,7 +165,7 @@ func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint
 	if height < adjustWeightPeriod/2 {
 		return nil
 	}
-	if height%1000 != 0 {
+	if height%checkInterval != 0 {
 		return nil
 	}
 
