@@ -54,9 +54,7 @@ const (
 	// ini configuration file chain section
 	chainSection = "chain"
 	// The key below the chain section
-	databaseKey = "database"
-	// ini configuration file statistics section
-	statisticsSection = "statistics"
+	databaseKey = "db_blocks"
 )
 
 type Gtas struct {
@@ -213,9 +211,8 @@ func (gtas *Gtas) Run() {
 		}()
 
 		common.GlobalConf.SetInt(instanceSection, indexKey, *instanceIndex)
-		databaseValue := "d" + strconv.Itoa(*instanceIndex)
+		databaseValue := "d_b" + strconv.Itoa(*instanceIndex)
 		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
-		common.GlobalConf.SetBool(statisticsSection, "enable", *statisticsEnable)
 		types.InitMiddleware()
 
 		if *natAddr != "" {

@@ -61,8 +61,8 @@ func InitParam(cc common.SectionConfManager) {
 	Param = ConsensusParam{
 		GroupMemberMax:    cc.GetInt("group_member_max", GroupMaxMembers),
 		GroupMemberMin:    cc.GetInt("group_member_min", GroupMinMembers),
-		MaxWaitBlockTime:  cc.GetInt("max_wait_block_time", MaxWaitBlockTime),
-		MaxGroupCastTime:  cc.GetInt("max_group_cast_time", MaxGroupBlockTime),
+		MaxWaitBlockTime:  MaxWaitBlockTime,
+		MaxGroupCastTime:  MaxGroupBlockTime,
 		MaxQN:             5,
 		MaxFutureBlock:    MaxUnknownBlocks,
 		PotentialProposal: 10,
