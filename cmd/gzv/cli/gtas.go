@@ -54,9 +54,7 @@ const (
 	// ini configuration file chain section
 	chainSection = "chain"
 	// The key below the chain section
-	databaseKey = "database"
-	// ini configuration file statistics section
-	statisticsSection = "statistics"
+	databaseKey = "db_blocks"
 )
 
 type Gzv struct {
@@ -140,12 +138,8 @@ func (gzv *Gzv) Run() {
 	go gzv.exit(ctrlC, quitChan)
 	kingpin.HelpFlag.Short('h')
 	configFile := kingpin.Flag("config", "Config file").Default("zv.ini").String()
-	_ = kingpin.Flag("metrics", "enable metrics").Bool()
-	_ = kingpin.Flag("dashboard", "enable metrics dashboard").Bool()
 	pprofPort := kingpin.Flag("pprof", "enable pprof").Default("23333").Uint()
-	statisticsEnable := kingpin.Flag("statistics", "enable statistics").Bool()
 	keystore := kingpin.Flag("keystore", "the keystore path, default is current path").Default("keystore").Short('k').String()
-	*statisticsEnable = false
 
 	// Rpc analysis
 	rpc := kingpin.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelNone), 10)).Int()
@@ -181,9 +175,8 @@ func (gzv *Gzv) Run() {
 	}()
 
 	common.GlobalConf.SetInt(instanceSection, indexKey, *instanceIndex)
-	databaseValue := "d" + strconv.Itoa(*instanceIndex)
+	databaseValue := "d_b" + strconv.Itoa(*instanceIndex)
 	common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
-	common.GlobalConf.SetBool(statisticsSection, "enable", *statisticsEnable)
 	types.InitMiddleware()
 
 	if *natAddr != "" {

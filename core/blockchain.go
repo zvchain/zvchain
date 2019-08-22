@@ -113,7 +113,7 @@ type FullBlockChain struct {
 
 func getBlockChainConfig() *BlockChainConfig {
 	return &BlockChainConfig{
-		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b") + common.GlobalConf.GetString("instance", "index", ""),
+		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b"+common.GlobalConf.GetString("instance", "index", "0")),
 		block:  "bh",
 
 		blockHeight: "hi",
