@@ -529,6 +529,14 @@ func TestChangeFundMode(t *testing.T) {
 
 	ctx.source = &guardNode1
 	testChangeFundMode(t, 1, false)
+
+	ctx.height = 100
+	ctx.source = &types.ExtractGuardNodes[0]
+	testChangeFundMode(t, 1, true)
+
+	ctx.height = adjustWeightPeriod/2 + 1
+	ctx.source = &types.ExtractGuardNodes[0]
+	testChangeFundMode(t, 1, false)
 }
 
 func TestFundApplyGuardNode(t *testing.T) {
@@ -928,11 +936,10 @@ func genePoolMiner(t *testing.T) {
 }
 
 func testChangeFundMode(t *testing.T, tp byte, needSuccess bool) {
-	var height uint64 = 0
 	var err error
 	var fd *fundGuardNode
 	applyMsg := genMOperMsg(ctx.source, ctx.source, types.TransactionTypeChangeFundGuardMode, 0, []byte{tp})
-	_, err = MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, height)
+	_, err = MinerManagerImpl.ExecuteOperation(accountDB, applyMsg, ctx.height)
 	if !needSuccess {
 		if err == nil {
 			t.Fatalf("except got err,but got nil")
