@@ -33,6 +33,19 @@ type AddBlockResult int8
 // gasLimitMax expresses the max gasLimit of a transaction
 var gasLimitMax = new(BigInt).SetUint64(500000)
 
+var (
+	AdminAddr         = common.StringToAddress("zv28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b") // address of admin who can control foundation contract
+	MiningPoolAddr    = common.StringToAddress("zv01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0") // address of mining pool in pre-distribution
+	CirculatesAddr    = common.StringToAddress("zvebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3") // address of circulates in pre-distribution
+	UserNodeAddress   = common.StringToAddress("zve30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139") // address of official reserved user node address
+	DaemonNodeAddress = common.StringToAddress("zvae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122") // address of official reserved daemon node address
+)
+
+var ExtractGuardNodes = []common.Address{
+	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
+	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
+} // init gurad miner nodes
+
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
@@ -61,23 +74,28 @@ func NewTransactionError(code int, msg string) *TransactionError {
 	return &TransactionError{Code: code, Message: msg}
 }
 
+const SystemTransactionOffset = 100
+
 // Supported transaction types
 const (
 	TransactionTypeTransfer       = 0
 	TransactionTypeContractCreate = 1
 	TransactionTypeContractCall   = 2
-	TransactionTypeReward         = 3
 
 	// Miner operation related type
-	TransactionTypeStakeAdd    = 4
-	TransactionTypeMinerAbort  = 5
-	TransactionTypeStakeReduce = 6
-	TransactionTypeStakeRefund = 7
+	TransactionTypeStakeAdd            = 3
+	TransactionTypeMinerAbort          = 4
+	TransactionTypeStakeReduce         = 5
+	TransactionTypeStakeRefund         = 6
+	TransactionTypeApplyGuardMiner     = 7 // apply guard node
+	TransactionTypeVoteMinerPool       = 8 // vote to miner pool
+	TransactionTypeChangeFundGuardMode = 9 // in half of year,can choose 6+5 or 6+6
 
 	// Group operation related type
-	TransactionTypeGroupPiece       = 9  //group member upload his encrypted share piece
-	TransactionTypeGroupMpk         = 10 //group member upload his mpk
-	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
+	TransactionTypeGroupPiece       = SystemTransactionOffset + 1 //group member upload his encrypted share piece
+	TransactionTypeGroupMpk         = SystemTransactionOffset + 2 //group member upload his mpk
+	TransactionTypeGroupOriginPiece = SystemTransactionOffset + 3 //group member upload origin share piece
+	TransactionTypeReward           = SystemTransactionOffset + 4
 )
 
 // RawTransaction denotes one raw transaction infos used for network transmission and storage system
@@ -111,6 +129,10 @@ func NewTransaction(raw *RawTransaction, hash common.Hash) *Transaction {
 
 func (tx *RawTransaction) GetNonce() uint64 {
 	return tx.Nonce
+}
+
+func (tx *RawTransaction) GetExtraData() []byte {
+	return tx.ExtraData
 }
 
 func (tx *RawTransaction) GetSign() []byte {
@@ -316,4 +338,13 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 
 func (bw BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
+}
+
+func IsInExtractGuardNodes(addr common.Address) bool {
+	for _, addrStr := range ExtractGuardNodes {
+		if addrStr == addr {
+			return true
+		}
+	}
+	return false
 }

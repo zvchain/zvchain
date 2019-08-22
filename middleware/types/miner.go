@@ -32,10 +32,19 @@ const (
 
 type MinerStatus byte
 
+type NodeIdentity byte
+
 const (
 	MinerStatusPrepare MinerStatus = 0 // Miner prepare status, maybe abort or not enough stake or without pks,cannot participated any mining process
 	MinerStatusActive              = 1 // Miner is activated, can participated in mining
 	MinerStatusFrozen              = 2 // Miner frozen by system, cannot participated any mining process
+)
+
+const (
+	MinerNormal      NodeIdentity = 0 // this is normal miner node,cannot be stake by others and stake to others
+	MinerGuard                    = 1 // this miner is gurad miner node,cannot be stake by others
+	MinerPool                     = 2 // this is miner pool node,can stake by others
+	InValidMinerPool              = 3 // this is invalid miner pool.only can be reduce before meeting the minimum number of votes
 )
 
 const (
@@ -45,14 +54,16 @@ const (
 
 // Miner is the miner info including public keys and pledges
 type Miner struct {
-	ID                 []byte
-	PublicKey          []byte
-	VrfPublicKey       []byte
-	ApplyHeight        uint64
-	Stake              uint64
-	StatusUpdateHeight uint64
-	Type               MinerType
-	Status             MinerStatus
+	ID                   []byte
+	PublicKey            []byte
+	VrfPublicKey         []byte
+	ApplyHeight          uint64
+	Stake                uint64
+	StatusUpdateHeight   uint64
+	Type                 MinerType
+	Status               MinerStatus
+	Identity             NodeIdentity
+	IdentityUpdateHeight uint64
 }
 
 func (m *Miner) IsActive() bool {
@@ -65,6 +76,22 @@ func (m *Miner) IsPrepare() bool {
 	return m.Status == MinerStatusPrepare
 }
 
+func (m *Miner) IsGuard() bool {
+	return m.Identity == MinerGuard
+}
+
+func (m *Miner) IsNormal() bool {
+	return m.Identity == MinerNormal
+}
+
+func (m *Miner) IsMinerPool() bool {
+	return m.Identity == MinerPool
+}
+
+func (m *Miner) IsInvalidMinerPool() bool {
+	return m.Identity == InValidMinerPool
+}
+
 func (m *Miner) PksCompleted() bool {
 	return len(m.PublicKey) == pkSize && len(m.VrfPublicKey) == vrfPkSize
 }
@@ -72,6 +99,11 @@ func (m *Miner) PksCompleted() bool {
 func (m *Miner) UpdateStatus(status MinerStatus, height uint64) {
 	m.StatusUpdateHeight = height
 	m.Status = status
+}
+
+func (m *Miner) UpdateIdentity(identity NodeIdentity, height uint64) {
+	m.IdentityUpdateHeight = height
+	m.Identity = identity
 }
 
 func (m *Miner) IsProposalRole() bool {
@@ -93,12 +125,13 @@ const (
 
 // StakeDetail expresses the stake detail
 type StakeDetail struct {
-	Source       common.Address
-	Target       common.Address
-	Value        uint64
-	Status       StakeStatus
-	UpdateHeight uint64
-	MType        MinerType
+	Source        common.Address
+	Target        common.Address
+	Value         uint64
+	Status        StakeStatus
+	UpdateHeight  uint64
+	MType         MinerType
+	DisMissHeight uint64
 }
 
 type MinerPks struct {
