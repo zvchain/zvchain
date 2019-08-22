@@ -19,7 +19,7 @@ const (
 	prepareGroup
 )
 
-var AddressCacheList map[string]uint64
+//var AddressCacheList map[string]uint64
 
 type DBMmanagement struct {
 	sync.Mutex
@@ -41,6 +41,7 @@ func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword strin
 	tablMmanagement.prepareGroupHeight = tablMmanagement.storage.TopPrepareGroupHeight()
 	tablMmanagement.dismissGropHeight = tablMmanagement.storage.TopDismissGroupHeight()
 
+	go tablMmanagement.loop()
 	return tablMmanagement
 }
 
@@ -69,22 +70,20 @@ func (tm *DBMmanagement) fetchAccounts() {
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
 
-	if block != nil {
-		AddressCacheList = make(map[string]uint64)
+	if block != nil && block.Transactions != nil {
+		AddressCacheList := make(map[string]uint64)
 		for _, tx := range block.Transactions {
-			if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
-				AddressCacheList[tx.Source.AddrPrefixString()] += 1
+			if tx.Source != nil {
+				if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
+					AddressCacheList[tx.Source.AddrPrefixString()] += 1
+				} else {
+					AddressCacheList[tx.Source.AddrPrefixString()] = 1
+				}
 			} else {
-				AddressCacheList[tx.Source.AddrPrefixString()] = 1
+				continue
 			}
+
 		}
-		//块高存储持久化
-		sys := &models.Sys{
-			Variable: mysql.Blockrewardtophight,
-			SetBy:    "wujia",
-		}
-		tm.storage.AddBlockHeightSystemconfig(sys)
-		tm.blockHeight = block.Header.Height + 1
 
 		//begain
 		accounts := &models.Account{}
@@ -96,7 +95,9 @@ func (tm *DBMmanagement) fetchAccounts() {
 				accounts.Address = address
 				//accounts.TotalTransaction = totalTx
 				//高度存储持久化
-				tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction = ?", totalTx)})
+				if !tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction = ?", totalTx)}) {
+					return
+				}
 				//tm.storage.UpdateObject(accounts)
 
 				//存在账号
@@ -104,14 +105,22 @@ func (tm *DBMmanagement) fetchAccounts() {
 				accounts.Address = address
 				//accounts.TotalTransaction = totalTx + targetAddrInfo[0].TotalTransaction
 				//高度存储持久化
-				tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)})
+				if !tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)}) {
+					return
+				}
 				//tm.storage.UpdateObject(accounts)
 			}
 		}
+		//块高存储持久化
+		sys := &models.Sys{
+			Variable: mysql.Blockrewardtophight,
+			SetBy:    "wujia",
+		}
+		tm.storage.AddBlockHeightSystemconfig(sys)
+		tm.blockHeight = block.Header.Height + 1
+		go tm.fetchAccounts()
 	}
-	go tm.fetchAccounts()
 	tm.isFetchingBlocks = false
-
 }
 
 func (tm *DBMmanagement) fetchGroup() {
@@ -133,7 +142,11 @@ func (tm *DBMmanagement) fetchGroup() {
 	tm.storage.UpdateObject(sys)
 	go func() {
 		if handelInGroup(tm, groups, dismissGroup) {
-			tm.dismissGropHeight = groups[len(groups)-1].Height
+			if len(groups) > 0 {
+				tm.dismissGropHeight = groups[len(groups)-1].Height
+			} else {
+				tm.dismissGropHeight = 0
+			}
 			sys := &models.Sys{
 				Variable: mysql.DismissGropHeight,
 				SetBy:    "wujia",
@@ -148,7 +161,10 @@ func (tm *DBMmanagement) fetchGroup() {
 				sys.Value = 1
 				tm.storage.AddObjects(&sys)
 			}
+		} else {
+			return
 		}
+
 	}()
 
 	//查找工作组
@@ -156,7 +172,11 @@ func (tm *DBMmanagement) fetchGroup() {
 	fmt.Println("[server]  fetchGroup height:", tm.groupHeight)
 	go func() {
 		if handelInGroup(tm, groups, workGroup) {
-			tm.groupHeight = groups[len(groups)-1].Height
+			if len(groups) > 0 {
+				tm.groupHeight = groups[len(groups)-1].Height
+			} else {
+				tm.groupHeight = 0
+			}
 			sys := &models.Sys{
 				Variable: mysql.GroupTopHeight,
 				SetBy:    "wujia",
@@ -170,6 +190,8 @@ func (tm *DBMmanagement) fetchGroup() {
 				sys.Value = 1
 				tm.storage.AddObjects(&sys)
 			}
+		} else {
+			return
 		}
 	}()
 
@@ -178,7 +200,11 @@ func (tm *DBMmanagement) fetchGroup() {
 	fmt.Println("[server]  fetchPrepareGroup height:", tm.prepareGroupHeight)
 	go func() {
 		if handelInGroup(tm, groups, prepareGroup) {
-			tm.prepareGroupHeight = groups[len(groups)-1].Height
+			if len(groups) > 0 {
+				tm.prepareGroupHeight = groups[len(groups)-1].Height
+			} else {
+				tm.prepareGroupHeight = 0
+			}
 			sys := &models.Sys{
 				Variable: mysql.PrepareGroupTopHeight,
 				SetBy:    "wujia",
@@ -192,6 +218,8 @@ func (tm *DBMmanagement) fetchGroup() {
 				sys.Value = 1
 				tm.storage.AddObjects(&sys)
 			}
+		} else {
+			return
 		}
 	}()
 

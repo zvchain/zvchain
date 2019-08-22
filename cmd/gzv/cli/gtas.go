@@ -417,7 +417,7 @@ func NewBrowserDBMmanagement() {
 	if help {
 		flag.Usage()
 	}
-	fmt.Println("flags:", dbAddr, dbPort, dbUser, dbPassword, reset)
+	fmt.Println("browserdbmmanagement flags:", dbAddr, dbPort, dbUser, dbPassword, reset)
 	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
 }
 
