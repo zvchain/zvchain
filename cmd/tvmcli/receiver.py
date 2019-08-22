@@ -1,4 +1,4 @@
-# event = Event("receiver")
+event = Event("receiver")
 class Receiver():
     def __init__(self):
         print('__init__', msg)
@@ -6,7 +6,7 @@ class Receiver():
 
     @register.public(str)
     def set_name(self, name):
-        # event.emit(name=name)
+        event.emit(name=name)
         print('set_name', msg)
         print('set_name', name)
         self.name = name
@@ -19,7 +19,7 @@ class Receiver():
     def call_contract2(self, addr, times):
         if times == 0:
             return
-        # event.emit(times)
+        event.emit(times)
         # error
         Contract(addr).contract_call2(addr, times-1)
 
@@ -27,5 +27,5 @@ class Receiver():
     def call_contract3(self, addr, times):
         if times == 0:
             return
-        # event.emit(times)
+        event.emit(times)
         Contract(addr).call_contract3(addr, times-1)
