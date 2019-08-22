@@ -96,11 +96,13 @@ type CastStat struct {
 }
 
 type MortGage struct {
-	Stake              uint64 `json:"stake"`
-	ApplyHeight        uint64 `json:"apply_height"`
-	Type               string `json:"type"`
-	Status             string `json:"miner_status"`
-	StatusUpdateHeight uint64 `json:"status_update_height"`
+	Stake                uint64 `json:"stake"`
+	ApplyHeight          uint64 `json:"apply_height"`
+	Type                 string `json:"type"`
+	Status               string `json:"miner_status"`
+	StatusUpdateHeight   uint64 `json:"status_update_height"`
+	Identity             string `json:"identity"`
+	IdentityUpdateHeight uint64 `json:"identity_update_height"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
@@ -114,21 +116,38 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	} else if miner.IsFrozen() {
 		status = "frozen"
 	}
+
+	i := "normal node"
+	if miner.IsMinerPool() {
+		i = "miner pool node"
+	} else if miner.IsInvalidMinerPool() {
+		i = "invalid miner pool node"
+	} else if miner.IsGuard() {
+		i = "guard node"
+	}
 	mg := &MortGage{
 		Stake:              uint64(common.RA2TAS(miner.Stake)),
 		ApplyHeight:        miner.ApplyHeight,
 		Type:               t,
 		Status:             status,
 		StatusUpdateHeight: miner.StatusUpdateHeight,
+		Identity:           i,
 	}
 	return mg
 }
 
 type StakeDetail struct {
-	Value        uint64 `json:"value"`
-	UpdateHeight uint64 `json:"update_height"`
-	MType        string `json:"m_type"`
-	Status       string `json:"stake_status"`
+	Value         uint64 `json:"value"`
+	UpdateHeight  uint64 `json:"update_height"`
+	MType         string `json:"m_type"`
+	Status        string `json:"stake_status"`
+	DisMissHeight uint64 `json:"dismiss_height"`
+}
+
+type MinerPoolDetail struct {
+	CurrentStake uint64 `json:"current_stake"`
+	FullStake    uint64 `json:"full_stake"`
+	Tickets      uint64 `json:tickets`
 }
 
 type MinerStakeDetails struct {

@@ -73,7 +73,7 @@ func (ms *msgShower) showHeightRoutine() bool {
 
 	if ms.apply != nil && !ms.applied {
 		balance := core.BlockChainImpl.GetBalance(common.BytesToAddress(ms.id))
-		if balance.Int64() >= core.MinMinerStake {
+		if balance.Uint64() >= core.MinMinerStake {
 			ms.showMsg("Balance enough! auto apply miner")
 			ms.apply()
 			ms.applied = true
@@ -87,7 +87,7 @@ func (ms *msgShower) txSuccess(tx common.Hash) bool {
 	return receipt != nil && receipt.Success()
 }
 
-func (ms *msgShower) onBlockAddSuccess(message notify.Message) error{
+func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 	b := message.GetData().(*types.Block)
 	if bytes.Equal(b.Header.Castor, ms.id) {
 		ms.showMsg("congratulations, you mined block height %v success!", b.Header.Height)
@@ -138,13 +138,13 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error{
 	return nil
 }
 
-func (ms *msgShower) blockSync(message notify.Message) error{
+func (ms *msgShower) blockSync(message notify.Message) error {
 	cand := message.GetData().(*core.SyncCandidateInfo)
 	ms.showMsg("sync block from %v[height=%v], localHeight=%v, reqHeight %v", cand.Candidate, cand.CandidateHeight, core.BlockChainImpl.Height(), cand.ReqHeight)
 	return nil
 }
 
-func (ms *msgShower) messageToConsole(message notify.Message) error{
+func (ms *msgShower) messageToConsole(message notify.Message) error {
 	ms.showMsg(message.GetData().(string))
 	return nil
 }

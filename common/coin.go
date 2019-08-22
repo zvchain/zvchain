@@ -30,9 +30,9 @@ import (
 
 const (
 	RA  uint64 = 1
-	KRA        = 1000
-	MRA        = 1000000
-	ZVC        = 1000000000
+	KRA uint64 = 1000
+	MRA uint64 = 1000000
+	ZVC uint64 = 1000000000
 )
 
 var (
