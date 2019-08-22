@@ -16,9 +16,6 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"github.com/zvchain/zvchain/browser"
 	"runtime/debug"
 
 	"github.com/zvchain/zvchain/cmd/gzv/cli"
@@ -26,27 +23,6 @@ import (
 
 func main() {
 	debug.SetTraceback("all")
-
-	var dbAddr, rpcAddr string
-	var dbPort, rpcPort int
-	var dbUser, dbPassword string
-	var help bool
-	var reset bool
-
-	flag.BoolVar(&help, "h", false, "help")
-	flag.BoolVar(&reset, "reset", false, "reset database")
-	flag.StringVar(&dbAddr, "dbaddr", "10.0.0.13", "database address")
-	flag.IntVar(&dbPort, "dbport", 3306, "database port")
-	flag.StringVar(&dbUser, "dbuser", "root", "database user")
-	flag.StringVar(&dbPassword, "dbpw", "root123", "database password")
-	flag.Parse()
-
-	if help {
-		flag.Usage()
-	}
-	fmt.Println("flags:", dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
-	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
-
 	gtas := cli.NewGtas()
 	gtas.Run()
 }

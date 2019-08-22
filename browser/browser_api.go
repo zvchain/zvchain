@@ -49,20 +49,22 @@ func (tm *DBMmanagement) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
-	go tm.fetchBlocks()
+	//go tm.fetchAccounts()
 	for {
 		select {
 		case <-check.C:
-			go tm.fetchBlocks()
+			go tm.fetchAccounts()
+			go tm.fetchGroup()
 		}
 	}
 }
 
-func (tm *DBMmanagement) fetchBlocks() {
+func (tm *DBMmanagement) fetchAccounts() {
 	if tm.isFetchingBlocks {
 		return
 	}
 	tm.isFetchingBlocks = true
+	fmt.Println("[server]  fetchBlock height:", tm.blockHeight)
 
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
@@ -107,12 +109,15 @@ func (tm *DBMmanagement) fetchBlocks() {
 			}
 		}
 	}
-	go tm.fetchBlocks()
+	go tm.fetchAccounts()
 	tm.isFetchingBlocks = false
 
 }
 
 func (tm *DBMmanagement) fetchGroup() {
+
+	fmt.Println("[server]  fetchGroup height:", tm.groupHeight)
+
 	//读本地数据库表
 	db := tm.storage.GetDB()
 	if db == nil {
@@ -124,6 +129,7 @@ func (tm *DBMmanagement) fetchGroup() {
 
 	//解散组
 	db.Where("dismiss_height <= ? AND id > ?", tm.blockHeight, tm.dismissGropHeight).Find(&groups)
+	fmt.Println("[server]  fetchDismissGroup height:", tm.dismissGropHeight)
 	tm.storage.UpdateObject(sys)
 	go func() {
 		if handelInGroup(tm, groups, dismissGroup) {
@@ -147,6 +153,7 @@ func (tm *DBMmanagement) fetchGroup() {
 
 	//查找工作组
 	db.Where("work_height <= ? AND dismiss_height > ? ? AND id > ?", tm.blockHeight, tm.blockHeight, tm.groupHeight).Find(&groups)
+	fmt.Println("[server]  fetchGroup height:", tm.groupHeight)
 	go func() {
 		if handelInGroup(tm, groups, workGroup) {
 			tm.groupHeight = groups[len(groups)-1].Height
@@ -168,6 +175,7 @@ func (tm *DBMmanagement) fetchGroup() {
 
 	//准备组
 	db.Where("work_height > ? AND id > ?", tm.blockHeight, tm.prepareGroupHeight).Find(&groups)
+	fmt.Println("[server]  fetchPrepareGroup height:", tm.prepareGroupHeight)
 	go func() {
 		if handelInGroup(tm, groups, prepareGroup) {
 			tm.prepareGroupHeight = groups[len(groups)-1].Height
