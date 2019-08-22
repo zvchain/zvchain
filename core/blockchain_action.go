@@ -330,6 +330,9 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		newTop := chain.queryBlockHeaderByHash(bh.PreHash)
 		old := chain.latestBlock
 		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
+		if old.Height-newTop.Height >= 4 {
+			chain.logLongForkReset([]*types.Block{b}, newTop)
+		}
 		if e := chain.resetTop(newTop); e != nil {
 			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash, newTop.Hash, newTop.Height)
 			ret = types.AddBlockFailed
@@ -502,6 +505,18 @@ func (chain *FullBlockChain) ensureBlocksChained(blocks []*types.Block) bool {
 	return true
 }
 
+func (chain *FullBlockChain) logLongForkReset(peerBlocks []*types.Block, newTop *types.BlockHeader) {
+	localSlice := make([]string, 0)
+	for curr := chain.latestBlock; curr.Hash != newTop.PreHash; curr = chain.queryBlockHeaderByHash(curr.PreHash) {
+		localSlice = append(localSlice, fmt.Sprintf("%v-%v-%v", curr.Hash, curr.Height, curr.PreHash))
+	}
+	peerSlice := make([]string, 0)
+	for i := len(peerBlocks) - 1; i >= 0; i-- {
+		b := peerBlocks[i].Header
+		peerSlice = append(peerSlice, fmt.Sprintf("%v-%v-%v", b.Hash, b.Height, b.PreHash))
+	}
+}
+
 func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, blocks []*types.Block, callback batchAddBlockCallback) {
 	if !chain.ensureBlocksChained(blocks) {
 		Logger.Errorf("%v blocks not chained! size %v", module, len(blocks))
@@ -534,6 +549,9 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, 
 		pre := chain.QueryBlockHeaderByHash(firstBH.Header.PreHash)
 		if pre != nil {
 			last := addBlocks[len(addBlocks)-1].Header
+			if localTop.Height-pre.Height >= 4 {
+				chain.logLongForkReset(addBlocks, pre)
+			}
 			Logger.Debugf("%v batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", module, localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
 			chain.ResetTop(pre)
 		} else {
