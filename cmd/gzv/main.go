@@ -35,10 +35,8 @@ func main() {
 
 	flag.BoolVar(&help, "h", false, "help")
 	flag.BoolVar(&reset, "reset", false, "reset database")
-	flag.StringVar(&dbAddr, "dbaddr", "localhost", "database address")
-	flag.StringVar(&rpcAddr, "rpcaddr", "10.0.0.13", "RPC address")
+	flag.StringVar(&dbAddr, "dbaddr", "10.0.0.13", "database address")
 	flag.IntVar(&dbPort, "dbport", 3306, "database port")
-	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
 	flag.StringVar(&dbUser, "dbuser", "root", "database user")
 	flag.StringVar(&dbPassword, "dbpw", "root123", "database password")
 	flag.Parse()
@@ -47,7 +45,7 @@ func main() {
 		flag.Usage()
 	}
 	fmt.Println("flags:", dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
-	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
+	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
 
 	gtas := cli.NewGtas()
 	gtas.Run()

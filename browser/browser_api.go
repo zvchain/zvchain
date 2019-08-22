@@ -32,15 +32,14 @@ type DBMmanagement struct {
 	isFetchingBlocks bool
 }
 
-func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *DBMmanagement {
+func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *DBMmanagement {
 	tablMmanagement := &DBMmanagement{}
-	tablMmanagement.blockHeight = uint64(0)
+	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
+
 	tablMmanagement.blockHeight = tablMmanagement.storage.TopBlockHeight()
 	tablMmanagement.groupHeight = tablMmanagement.storage.TopGroupHeight()
 	tablMmanagement.prepareGroupHeight = tablMmanagement.storage.TopPrepareGroupHeight()
 	tablMmanagement.dismissGropHeight = tablMmanagement.storage.TopDismissGroupHeight()
-
-	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
 
 	return tablMmanagement
 }
