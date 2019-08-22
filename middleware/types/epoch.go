@@ -25,9 +25,9 @@ type Epoch interface {
 }
 
 const (
-	EpochLength           = 400 // blocks per epoch
-	GroupLiveEpochs       = 2   // epochs one group can live
-	GroupActivateEpochGap = 1   // The epoch gap after the group created can start working
+	EpochLength           = 8000 // blocks per epoch
+	GroupLiveEpochs       = 2    // epochs one group can live
+	GroupActivateEpochGap = 1    // The epoch gap after the group created can start working
 )
 
 type epoch uint64

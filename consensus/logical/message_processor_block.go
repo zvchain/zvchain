@@ -216,7 +216,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		return
 	}
 
-	if bh.Elapsed <= 0 {
+	if bh.Elapsed < 0 {
 		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
 		return
 	}

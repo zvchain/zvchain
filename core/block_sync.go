@@ -288,7 +288,7 @@ func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo) {
 		return
 	}
 
-	bs.logger.Debugf("Req block to:%s,height:%d", id, height)
+	bs.logger.Debugf("request block from:%s,height:%d", id, height)
 
 	br := &syncRequest{
 		ReqHeight: height,
@@ -377,6 +377,16 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		//do nothing
 		return fmt.Errorf("bs is nil")
 	}
+
+	bs.lock.RLock()
+	// Maybe sync timeout and discard the response
+	_, ok := bs.syncingPeers[source]
+	bs.lock.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("didn't ever sync from the source:%v", source)
+	}
+
 	var complete = false
 	defer func() {
 		if !complete {
@@ -400,8 +410,12 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		peerTop := bs.getPeerTopBlock(source)
 		localTop := newTopBlockInfo(bs.chain.QueryTopBlock())
 
+		if peerTop == nil {
+			bs.logger.Debugf("peer top is nil, and won't process:%v", source)
+			return fmt.Errorf("peer top is nil")
+		}
 		// First compare weights
-		if peerTop != nil && localTop.MoreWeight(peerTop.BW) {
+		if localTop.MoreWeight(peerTop.BW) {
 			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
 			return nil
 		}

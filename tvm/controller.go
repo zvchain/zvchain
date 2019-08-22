@@ -48,7 +48,7 @@ type Controller struct {
 
 // MinerManager MinerManager is the interface of the miner manager
 type MinerManager interface {
-	ExecuteOperation(accountdb types.AccountDB, msg types.MinerOperationMessage, height uint64) (success bool, err error)
+	ExecuteOperation(accountdb types.AccountDB, msg types.TxMessage, height uint64) (success bool, err error)
 }
 
 // NewController New a TVM controller

@@ -25,9 +25,9 @@ import (
 
 const (
 	groupThreshold  = 0.67
-	groupNumMin     = 3
+	groupNumMin     = 10
 	cpMaxScanEpochs = 10 // max scan epoch when finding the check point
-	cpMinBlocks     = 10 // min blocks that a cp can occurs
+	cpMinBlocks     = 20 // min blocks that a cp can occurs
 )
 
 var cpAddress = common.BytesToAddress([]byte("cp_votes"))

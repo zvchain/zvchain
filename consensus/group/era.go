@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	maxGroupPerEpoch        = 5 //25 // max group num can be created during one epoch
-	steadyStateBackTrackGap = 5 //20 // The gap from the present to the steady state
+	maxGroupPerEpoch        = 25 // max group num can be created during one epoch
+	steadyStateBackTrackGap = 20 // The gap from the present to the steady state
 
 	// era window consist of following graph:
 	/* ^seed |---gap1---|---round1:encrypted share piece---|--gap2--|---round2:mpk share---|---gap3---|---round3:origin share piece---|---gap4---|end$ */

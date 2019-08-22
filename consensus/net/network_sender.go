@@ -187,8 +187,7 @@ func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMe
 		return
 	}
 	m := network.Message{Code: network.CastRewardSignGot, Body: body}
-
-	ns.net.SendWithGroupRelay(msg.Launcher.GetAddrString(), msg.GSeed.Hex(), m)
+	ns.net.Send(msg.Launcher.GetAddrString(), m)
 }
 
 // ReqProposalBlock request block body from the target

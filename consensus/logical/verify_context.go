@@ -162,7 +162,7 @@ func (vc *VerifyContext) updateSignedMaxWeightBlock(bh *types.BlockHeader) bool 
 }
 
 func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (err error) {
-	if bh.Elapsed <= 0 {
+	if bh.Elapsed < 0 {
 		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
 		return
 	}
