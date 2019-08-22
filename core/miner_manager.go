@@ -183,6 +183,11 @@ func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint
 	return nil
 }
 
+
+func (mm *MinerManager) GetTickets(db types.AccountDB, address common.Address) uint64 {
+	return getTickets(db,address)
+}
+
 func (mm *MinerManager) checkFullStakeGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) error {
 	detailKey := getDetailKey(address, types.MinerTypeProposal, types.Staked)
 	stakedDetail, err := getDetail(db, address, detailKey)

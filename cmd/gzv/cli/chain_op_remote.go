@@ -98,7 +98,6 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *Resu
 	return ret.Result
 }
 
-
 func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, error) {
 	ret := ca.request("nonce", addr)
 	if !ret.IsSuccess() {
@@ -159,6 +158,16 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *Result {
 // Balance query Balance by address
 func (ca *RemoteChainOpImpl) Balance(addr string) *Result {
 	return ca.request("balance", addr)
+}
+
+// MinerPoolInfo query miner pool info by address
+func (ca *RemoteChainOpImpl) MinerPoolInfo(addr string) *Result {
+	return ca.request("minerPoolInfo", addr,0)
+}
+
+// TicketsInfo query tickets by address
+func (ca *RemoteChainOpImpl) TicketsInfo(addr string) *Result {
+	return ca.request("ticketsInfo", addr)
 }
 
 // Nonce query Balance by address
@@ -241,8 +250,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	return ca.SendRaw(tx)
 }
 
-
-func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Result{
+func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r
@@ -267,7 +275,7 @@ func (ca *RemoteChainOpImpl)VoteMinerPool(target string,gas, gasprice uint64)*Re
 	return ca.SendRaw(tx)
 }
 
-func (ca *RemoteChainOpImpl)ApplyGuardMiner(gas, gasprice uint64) *Result{
+func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {
 		return r

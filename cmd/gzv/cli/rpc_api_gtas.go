@@ -184,16 +184,41 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, erro
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
-	if miner == nil || !miner.IsMinerPool() {
+	var db types.AccountDB
+	var err error
+	if height == 0 {
+		db, err = core.BlockChainImpl.LatestStateDB()
+	} else {
+		db, err = core.BlockChainImpl.GetAccountDBByHeight(height)
+	}
+	if err != nil || db == nil {
 		return failResult("data is nil")
 	}
+	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
+	if miner == nil || !miner.IsMinerPool() {
+		return failResult("this addr is not miner pool")
+	}
+	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
 	fullStake := core.MinerManagerImpl.GetFullMinerPoolStake(height)
 	dt := &MinerPoolDetail{
 		CurrentStake: miner.Stake,
 		FullStake:    fullStake,
+		Tickets:      tickets,
 	}
 	return successResult(dt)
+}
+
+func (api *RpcGtasImpl) TicketsInfo(addr string) (*Result, error) {
+	addr = strings.TrimSpace(addr)
+	if !common.ValidateAddress(strings.TrimSpace(addr)) {
+		return failResult("Wrong account address format")
+	}
+	db, err := core.BlockChainImpl.LatestStateDB()
+	if err != nil || db == nil {
+		return failResult("data is nil")
+	}
+	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
+	return successResult(tickets)
 }
 
 func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
