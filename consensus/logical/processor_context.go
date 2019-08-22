@@ -128,9 +128,12 @@ func (bctx *castBlockContexts) removeReservedVctx(height uint64) {
 	bctx.reservedVctx.Remove(height)
 }
 
-func (bctx *castBlockContexts) addReservedVctx(vctx *VerifyContext) bool {
-	_, load := bctx.reservedVctx.ContainsOrAdd(vctx.castHeight, vctx)
-	return !load
+func (bctx *castBlockContexts) addReservedVctx(vctx *VerifyContext) {
+	v, ok := bctx.reservedVctx.Peek(vctx.castHeight)
+	if ok {
+		stdLogger.Debugf("replace reserved vctx: height=%v, old pre=%v, new pre=%v", vctx.castHeight, v.(*VerifyContext).prevBH.Hash, vctx.prevBH.Hash)
+	}
+	bctx.reservedVctx.Add(vctx.castHeight, vctx)
 }
 
 func (bctx *castBlockContexts) forEachReservedVctx(f func(vctx *VerifyContext) bool) {

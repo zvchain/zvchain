@@ -161,6 +161,10 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		result = "already on chain"
 		return
 	}
+	if !p.blockOnChain(bh.PreHash) {
+		result = fmt.Sprintf("pre not exist: hash=%v", bh.PreHash)
+		return
+	}
 
 	gpk := vctx.group.header.gpk
 
@@ -206,7 +210,7 @@ func (p *Processor) blockProposal() {
 	}
 	height := worker.castHeight
 
-	if !p.ts.NowAfter(worker.baseBH.CurTime) {
+	if p.ts.Since(worker.baseBH.CurTime) < 0 {
 		blog.error("not the time!now=%v, pre=%v, height=%v", p.ts.Now(), worker.baseBH.CurTime, height)
 		return
 	}

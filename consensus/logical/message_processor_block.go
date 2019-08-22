@@ -348,6 +348,16 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 	}
 	traceLog.SetHeight(vctx.castHeight)
 
+	vctxExist := p.blockContexts.getVctxByHeight(vctx.castHeight)
+	if vctxExist == nil || vctxExist.prevBH.Hash != vctx.prevBH.Hash {
+		expectHash := "nil"
+		if vctxExist != nil {
+			expectHash = common.ShortHex(vctxExist.prevBH.Hash.Hex())
+		}
+		err = fmt.Errorf("vctx has changed, height=%v, expect pre=%v, real pre=%v", vctx.castHeight, expectHash, vctx.prevBH.Hash)
+		return
+	}
+
 	// Do the verification work
 	ret, err = p.doVerify(cvm, vctx)
 
