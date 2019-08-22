@@ -54,7 +54,7 @@ func (tm *DBMmanagement) loop() {
 	for {
 		select {
 		case <-check.C:
-			go tm.fetchAccounts()
+			//go tm.fetchAccounts()
 			go tm.fetchGroup()
 		}
 	}
@@ -65,55 +65,53 @@ func (tm *DBMmanagement) fetchAccounts() {
 		return
 	}
 	tm.isFetchingBlocks = true
-	fmt.Println("[server]  fetchBlock height:", tm.blockHeight)
+	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight)
 
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
 
-	if block != nil && block.Transactions != nil {
-		AddressCacheList := make(map[string]uint64)
-		for _, tx := range block.Transactions {
-			if tx.Source != nil {
-				if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
-					AddressCacheList[tx.Source.AddrPrefixString()] += 1
+	if block != nil {
+		if len(block.Transactions) > 0 {
+			AddressCacheList := make(map[string]uint64)
+			for _, tx := range block.Transactions {
+				if tx.Source != nil {
+					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
+						AddressCacheList[tx.Source.AddrPrefixString()] += 1
+					} else {
+						AddressCacheList[tx.Source.AddrPrefixString()] = 1
+					}
 				} else {
-					AddressCacheList[tx.Source.AddrPrefixString()] = 1
+					continue
 				}
-			} else {
-				continue
+
 			}
+			//begain
+			accounts := &models.Account{}
+			for address, totalTx := range AddressCacheList {
+				targetAddrInfo := tm.storage.GetAccountById(address)
+				//不存在账号
+				if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
+					accounts.Address = address
+					accounts.TotalTransaction = totalTx
+					if tm.storage.AddObjects(accounts) {
+						return
+					}
+					//存在账号
+				} else {
+					accounts.Address = address
+					accounts.TotalTransaction = totalTx
+					accounts.ID = targetAddrInfo[0].ID
+					if !tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)}) {
+						return
+					}
 
-		}
-
-		//begain
-		accounts := &models.Account{}
-		for address, totalTx := range AddressCacheList {
-
-			targetAddrInfo := tm.storage.GetAccountById(address)
-			//不存在账号
-			if targetAddrInfo == nil {
-				accounts.Address = address
-				//accounts.TotalTransaction = totalTx
-				//高度存储持久化
-				if !tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction = ?", totalTx)}) {
-					return
 				}
-				//tm.storage.UpdateObject(accounts)
-
-				//存在账号
-			} else {
-				accounts.Address = address
-				//accounts.TotalTransaction = totalTx + targetAddrInfo[0].TotalTransaction
-				//高度存储持久化
-				if !tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)}) {
-					return
-				}
-				//tm.storage.UpdateObject(accounts)
 			}
 		}
+
 		//块高存储持久化
 		sys := &models.Sys{
-			Variable: mysql.Blockrewardtophight,
+			Variable: mysql.Blocktophight,
 			SetBy:    "wujia",
 		}
 		tm.storage.AddBlockHeightSystemconfig(sys)
@@ -124,22 +122,33 @@ func (tm *DBMmanagement) fetchAccounts() {
 }
 
 func (tm *DBMmanagement) fetchGroup() {
-
-	fmt.Println("[server]  fetchGroup height:", tm.groupHeight)
+	fmt.Println("[DBMmanagement]  fetchGroup height:", tm.groupHeight)
 
 	//读本地数据库表
 	db := tm.storage.GetDB()
 	if db == nil {
-		fmt.Println("[Storage] storage.db == nil")
+		fmt.Println("[DBMmanagement] storage.db == nil")
+		return
 	}
-	sys := make([]models.Sys, 0, 1)
 	groups := make([]models.Group, 1, 1)
-	//marke:=tm.dismissGropHeight
 
-	//解散组
-	db.Where("dismiss_height <= ? AND id > ?", tm.blockHeight, tm.dismissGropHeight).Find(&groups)
-	fmt.Println("[server]  fetchDismissGroup height:", tm.dismissGropHeight)
-	tm.storage.UpdateObject(sys)
+	// Dissmiss
+	handelDismissGroup(tm, db, groups)
+
+	//Work
+	handelWorkGroup(tm, db, groups)
+
+	//Prepare
+	handelPrepareGroup(tm, db, groups)
+}
+
+func handelDismissGroup(tm *DBMmanagement, db *gorm.DB, groups []models.Group) {
+	fmt.Println("[DBMmanagement]  fetchDismissGroup height:", tm.dismissGropHeight)
+	db.Where("dismiss_height <= ? AND height > ?", tm.blockHeight, tm.dismissGropHeight).Order("height").Find(&groups)
+	if groups == nil || len(groups) < 1 {
+		return
+	}
+	//fmt.Println("[DBMmanagement]  fetchDismissGroup height:", groups[len(groups)-1].Height)
 	go func() {
 		if handelInGroup(tm, groups, dismissGroup) {
 			if len(groups) > 0 {
@@ -147,29 +156,27 @@ func (tm *DBMmanagement) fetchGroup() {
 			} else {
 				tm.dismissGropHeight = 0
 			}
-			sys := &models.Sys{
-				Variable: mysql.DismissGropHeight,
-				SetBy:    "wujia",
-			}
-			//tm.storage.AddBlockHeightSystemconfig(sys)
+
 			//高度存储持久化
 			hight := tm.storage.TopDismissGroupHeight()
-			if hight > 0 {
-				db.Model(&sys).UpdateColumn("value", gorm.Expr("value = ?", groups[len(groups)-1].Height))
-				//db.Model(&sys).Update(Addr{RoleType:1})
-			} else {
-				sys.Value = 1
-				tm.storage.AddObjects(&sys)
-			}
+			AddGroupHeightSystemconfig(mysql.DismissGropHeight, tm, db, groups, hight)
 		} else {
 			return
 		}
-
 	}()
 
-	//查找工作组
-	db.Where("work_height <= ? AND dismiss_height > ? ? AND id > ?", tm.blockHeight, tm.blockHeight, tm.groupHeight).Find(&groups)
-	fmt.Println("[server]  fetchGroup height:", tm.groupHeight)
+}
+
+func handelWorkGroup(tm *DBMmanagement, db *gorm.DB, groups []models.Group) {
+	fmt.Println("[DBMmanagement]  fetchGroup height:", tm.groupHeight)
+	db.Where("work_height <= ? AND dismiss_height > ? AND height > ?", tm.blockHeight, tm.blockHeight, tm.groupHeight).Order("height").Find(&groups)
+	if groups == nil || len(groups) < 1 {
+		return
+	}
+	//fmt.Println("[DBMmanagement]  fetchGroup height:", groups[len(groups)-1].Height)
+	if groups == nil {
+		return
+	}
 	go func() {
 		if handelInGroup(tm, groups, workGroup) {
 			if len(groups) > 0 {
@@ -177,27 +184,23 @@ func (tm *DBMmanagement) fetchGroup() {
 			} else {
 				tm.groupHeight = 0
 			}
-			sys := &models.Sys{
-				Variable: mysql.GroupTopHeight,
-				SetBy:    "wujia",
-			}
-			//tm.storage.AddGroupHeightSystemconfig(sys)
+
 			//高度存储持久化
 			hight := tm.storage.TopGroupHeight()
-			if hight > 0 {
-				db.Model(&sys).UpdateColumn("value", gorm.Expr("value = ?", groups[len(groups)-1].Height))
-			} else {
-				sys.Value = 1
-				tm.storage.AddObjects(&sys)
-			}
+			AddGroupHeightSystemconfig(mysql.GroupTopHeight, tm, db, groups, hight)
 		} else {
 			return
 		}
 	}()
+}
 
-	//准备组
-	db.Where("work_height > ? AND id > ?", tm.blockHeight, tm.prepareGroupHeight).Find(&groups)
-	fmt.Println("[server]  fetchPrepareGroup height:", tm.prepareGroupHeight)
+func handelPrepareGroup(tm *DBMmanagement, db *gorm.DB, groups []models.Group) {
+	fmt.Println("[DBMmanagement]  fetchPrepareGroup height:", tm.prepareGroupHeight)
+	db.Where("work_height > ? AND height > ?", tm.blockHeight, tm.prepareGroupHeight).Order("height").Find(&groups)
+	if groups == nil || len(groups) < 1 {
+		return
+	}
+	//fmt.Println("[DBMmanagement]  fetchPrepareGroup height:", groups[len(groups)-1].Height)
 	go func() {
 		if handelInGroup(tm, groups, prepareGroup) {
 			if len(groups) > 0 {
@@ -205,24 +208,26 @@ func (tm *DBMmanagement) fetchGroup() {
 			} else {
 				tm.prepareGroupHeight = 0
 			}
-			sys := &models.Sys{
-				Variable: mysql.PrepareGroupTopHeight,
-				SetBy:    "wujia",
-			}
-			//tm.storage.AddBlockHeightSystemconfig(sys)
 			//高度存储持久化
 			hight := tm.storage.TopPrepareGroupHeight()
-			if hight > 0 {
-				db.Model(&sys).UpdateColumn("value", gorm.Expr("value = ?", groups[len(groups)-1].Height))
-			} else {
-				sys.Value = 1
-				tm.storage.AddObjects(&sys)
-			}
+			AddGroupHeightSystemconfig(mysql.PrepareGroupTopHeight, tm, db, groups, hight)
 		} else {
 			return
 		}
 	}()
+}
 
+func AddGroupHeightSystemconfig(groupstate string, tm *DBMmanagement, db *gorm.DB, groups []models.Group, hight uint64) {
+	sys := &models.Sys{
+		Variable: groupstate,
+		SetBy:    "wujia",
+	}
+	//高度存储持久化
+	if hight > 0 {
+		db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", groups[len(groups)-1].Height-hight))
+	} else {
+		tm.storage.AddObjects(&sys)
+	}
 }
 
 func handelInGroup(tm *DBMmanagement, groups []models.Group, groupState int) bool {
