@@ -138,7 +138,7 @@ func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detail
 	// it must be fund guard node
 	if detail.DisMissHeight == 0 {
 		detail.DisMissHeight = height + adjustWeightPeriod/2
-		err := updateFundGuardPoolStatus(db, address, fundGuardNodeType, height)
+		err := updateFundGuardPoolStatus(db, address, fullStakeGuardNodeType, height)
 		if err != nil {
 			return err
 		}
