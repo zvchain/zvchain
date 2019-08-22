@@ -40,8 +40,10 @@ const (
 	NewBlockMsg        uint32 = 10004
 
 	//The following two messages are used for block fork processing
-	ReqChainPieceBlock uint32 = 10008
-	ChainPieceBlock    uint32 = 10009
+	ForkFindAncestorResponse uint32 = 10008
+	ForkFindAncestorReq      uint32 = 10009
+	ForkChainSliceReq        uint32 = 10013
+	ForkChainSliceResponse   uint32 = 10014
 
 	//The following three message are used for tx sync
 	TxSyncNotify   uint32 = 10010

@@ -58,6 +58,13 @@ type stateTransition interface {
 	GasUsed() *big.Int       // Total gas use during the transition
 }
 
+type checkpointUpdator interface {
+	updateVotes(db types.AccountDB, bh *types.BlockHeader)
+}
+
+// Process after all transactions executed
+type statePostProcessor func(db types.AccountDB, bh *types.BlockHeader)
+
 func newStateTransition(db types.AccountDB, tx *types.Transaction, bh *types.BlockHeader) stateTransition {
 	base := newTransitionContext(db, tx, bh)
 
@@ -363,13 +370,19 @@ func (ss *rewardExecutor) Transition() *result {
 }
 
 type TVMExecutor struct {
-	bc types.BlockChain
+	bc    types.BlockChain
+	procs []statePostProcessor
 }
 
 func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
 	return &TVMExecutor{
-		bc: bc,
+		bc:    bc,
+		procs: make([]statePostProcessor, 0),
 	}
+}
+
+func (executor *TVMExecutor) addPostProcessor(proc statePostProcessor) {
+	executor.procs = append(executor.procs, proc)
 }
 
 func doTransition(accountDB types.AccountDB, ss stateTransition) *result {
@@ -508,7 +521,9 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
-	GroupManagerImpl.RegularCheck(accountDB, bh)
+	for _, proc := range executor.procs {
+		proc(accountDB, bh)
+	}
 
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))

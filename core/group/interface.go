@@ -21,23 +21,17 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-type minerReader interface {
+type minerPunishment interface {
 	MinerFrozen(accountDB types.AccountDB, miner common.Address, height uint64) (success bool, err error)
 	MinerPenalty(accountDB types.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error)
 }
 
 type chainReader interface {
 	Height() uint64
-	QueryTopBlock() *types.BlockHeader
-	QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
-	QueryBlockHeaderByHeight(height uint64) *types.BlockHeader
-	HasBlock(hash common.Hash) bool
-	HasHeight(height uint64) bool
-
-	LatestStateDB() (types.AccountDB, error)
+	LatestAccountDB() (types.AccountDB, error)
 	MinerSk() string
 	AddTransactionToPool(tx *types.Transaction) (bool, error)
-	GetAccountDBByHeight(height uint64) (types.AccountDB, error)
+	AccountDBAt(height uint64) (types.AccountDB, error)
 }
 
 // Round 1 tx data,implement common.EncryptedSharePiecePacket
@@ -173,7 +167,6 @@ type groupHeader struct {
 	PublicKeyD     []byte      `msgpack:"pd"` // group's public key
 	ThresholdD     uint32      `msgpack:"th"` // the threshold number to validate a block for this group
 	PreSeed        common.Hash `msgpack:"ps"` // seed of pre group
-	BlockHeight    uint64      `msgpack:"bh"` // block height when creating
 	GroupHeightD   uint64      `msgpack:"gh"` // group height
 }
 
@@ -198,8 +191,15 @@ func (g *groupHeader) Threshold() uint32 {
 func (g *groupHeader) GroupHeight() uint64 {
 	return g.GroupHeightD
 }
+func (g *groupHeader) livedAt(height uint64) bool {
+	return g.DismissHeight() > height
+}
 
-func newGroup(i types.GroupI, bh uint64, top *group) *group {
+func (g *groupHeader) activatedAt(height uint64) bool {
+	return g.WorkHeight() <= height && g.livedAt(height)
+}
+
+func newGroup(i types.GroupI, top *group) *group {
 	var (
 		preSeed        = common.EmptyHash
 		gh      uint64 = 0
@@ -208,14 +208,15 @@ func newGroup(i types.GroupI, bh uint64, top *group) *group {
 		preSeed = top.HeaderD.SeedD
 		gh = top.HeaderD.GroupHeight() + 1
 	}
-	header := &groupHeader{i.Header().Seed(),
-		i.Header().WorkHeight(),
-		i.Header().DismissHeight(),
-		i.Header().PublicKey(),
-		i.Header().Threshold(),
-		preSeed,
-		bh,
-		gh}
+	header := &groupHeader{
+		SeedD:          i.Header().Seed(),
+		WorkHeightD:    i.Header().WorkHeight(),
+		DismissHeightD: i.Header().DismissHeight(),
+		PublicKeyD:     i.Header().PublicKey(),
+		ThresholdD:     i.Header().Threshold(),
+		PreSeed:        preSeed,
+		GroupHeightD:   gh,
+	}
 	members := make([]*member, 0)
 	for _, m := range i.Members() {
 		mem := &member{m.ID(), m.PK()}

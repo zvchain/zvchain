@@ -91,7 +91,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 
 		}
 	}
-	castorDO := p.MinerReader.getProposeMinerByHeight(castor, preBH.Height)
+	castorDO := p.minerReader.getProposeMinerByHeight(castor, preBH.Height)
 	if castorDO == nil {
 		err = fmt.Errorf("castorDO nil id=%v", castor)
 		return
@@ -276,7 +276,7 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		return
 	}
 	bh := slot.BH
-	gSeed := vctx.group.header.Seed()
+	gSeed := vctx.group.header.seed
 
 	if err = vctx.baseCheck(bh, cvm.SI.GetID()); err != nil {
 		return
@@ -380,6 +380,16 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 		return
 	}
 	traceLog.SetHeight(vctx.castHeight)
+
+	vctxExist := p.blockContexts.getVctxByHeight(vctx.castHeight)
+	if vctxExist == nil || vctxExist.prevBH.Hash != vctx.prevBH.Hash {
+		expectHash := "nil"
+		if vctxExist != nil {
+			expectHash = common.ShortHex(vctxExist.prevBH.Hash.Hex())
+		}
+		err = fmt.Errorf("vctx has changed, height=%v, expect pre=%v, real pre=%v", vctx.castHeight, expectHash, vctx.prevBH.Hash)
+		return
+	}
 
 	// Do the verification work
 	ret, err = p.doVerify(cvm, vctx)

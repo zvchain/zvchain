@@ -36,7 +36,7 @@ func (p *Processor) setVrfWorker(vrf *vrfWorker) {
 }
 
 func (p *Processor) getSelfMinerDO() *model.SelfMinerDO {
-	md := p.MinerReader.getLatestProposeMiner(p.GetMinerID())
+	md := p.minerReader.getLatestProposeMiner(p.GetMinerID())
 	if md != nil {
 		p.mi.MinerDO = *md
 	}
@@ -44,7 +44,7 @@ func (p *Processor) getSelfMinerDO() *model.SelfMinerDO {
 }
 
 func (p *Processor) CanPropose() bool {
-	miner := p.MinerReader.getLatestProposeMiner(p.GetMinerID())
+	miner := p.minerReader.getLatestProposeMiner(p.GetMinerID())
 	if miner == nil {
 		return false
 	}
@@ -59,19 +59,19 @@ func (p *Processor) CalcBlockHeaderQN(bh *types.BlockHeader) uint64 {
 	if pre == nil {
 		return 0
 	}
-	miner := p.MinerReader.getProposeMinerByHeight(castor, pre.Height)
+	miner := p.minerReader.getProposeMinerByHeight(castor, pre.Height)
 	if miner == nil {
 		stdLogger.Warnf("CalcBHQN getMiner nil id=%v, bh=%v", castor, bh.Hash)
 		return 0
 	}
-	totalStake := p.MinerReader.getTotalStake(pre.Height)
+	totalStake := p.minerReader.getTotalStake(pre.Height)
 	_, qn := vrfSatisfy(pi, miner.Stake, totalStake)
 	return qn
 }
 
 // GetVrfThreshold returns the vrf threshold of current node under the specified stake
 func (p *Processor) GetVrfThreshold(stake uint64) float64 {
-	totalStake := p.MinerReader.getTotalStake(p.MainChain.Height())
+	totalStake := p.minerReader.getTotalStake(p.MainChain.Height())
 	if totalStake == 0 {
 		return 0
 	}
@@ -84,10 +84,10 @@ func (p *Processor) GetVrfThreshold(stake uint64) float64 {
 func (p *Processor) GetAllMinerDOs() []*model.MinerDO {
 	h := p.MainChain.Height()
 	dos := make([]*model.MinerDO, 0)
-	miners := p.MinerReader.getAllMinerDOByType(types.MinerTypeProposal, h)
+	miners := p.minerReader.getAllMinerDOByType(types.MinerTypeProposal, h)
 	dos = append(dos, miners...)
 
-	miners = p.MinerReader.getAllMinerDOByType(types.MinerTypeVerify, h)
+	miners = p.minerReader.getAllMinerDOByType(types.MinerTypeVerify, h)
 	dos = append(dos, miners...)
 	return dos
 }
@@ -131,7 +131,7 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 		}
 	}
 
-	gpk := groupsig.DeserializePubkeyBytes(group.header.PublicKey())
+	gpk := group.header.gpk
 	gSign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
 	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gSign) {
 		return false, fmt.Errorf("verify reward sign fail, gSign=%v", gSign.GetHexString())

@@ -90,7 +90,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	src := pk.GetAddress()
 	balance := uint64(100000000)
 
-	stateDB, err := BlockChainImpl.LatestStateDB()
+	stateDB, err := BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		t.Fatalf("get status error!")
 	}
@@ -170,7 +170,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
 	src = pk.GetAddress()
 
-	stateDB, error := BlockChainImpl.LatestStateDB()
+	stateDB, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		t.Fatalf("status failed")
 	}
@@ -290,7 +290,7 @@ func TestBlockChain_GetBlockMessage(t *testing.T) {
 	if 3 != BlockChainImpl.Height() {
 		t.Fatalf("fail to add 3 blocks")
 	}
-	chain := BlockChainImpl.(*FullBlockChain)
+	chain := BlockChainImpl
 
 	header1 := chain.queryBlockHeaderByHeight(uint64(1))
 	header2 := chain.queryBlockHeaderByHeight(uint64(2))
@@ -324,7 +324,7 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 			t.Fatalf("fail to add empty block")
 		}
 	}
-	chain := BlockChainImpl.(*FullBlockChain)
+	chain := BlockChainImpl
 	lent := chain.topBlocks.Len()
 	fmt.Printf("len = %d \n", lent)
 	if 20 != chain.topBlocks.Len() {
@@ -351,7 +351,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	}
 	defer clear()
 
-	chain := BlockChainImpl.(*FullBlockChain)
+	chain := BlockChainImpl
 
 	// 查询创始块
 	blockHeader := BlockChainImpl.QueryTopBlock()
@@ -460,12 +460,12 @@ func genHash(hash string) []byte {
 
 func initBalance() {
 	blocks := GenCorrectBlocks()
-	stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 	stateDB1.AddBalance(common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000000000000))
 	exc := &executePostState{state: stateDB1}
 	root := stateDB1.IntermediateRoot(true)
 	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())
-	_, _ = BlockChainImpl.(*FullBlockChain).commitBlock(blocks[0], exc)
+	_, _ = BlockChainImpl.commitBlock(blocks[0], exc)
 }
 
 func clear() {
@@ -571,7 +571,7 @@ func (helper *ConsensusHelperImpl4Test) VerifyNewBlock(bh *types.BlockHeader, pr
 	return true, nil
 }
 
-func (helper *ConsensusHelperImpl4Test) VerifyBlockHeader(bh *types.BlockHeader) (bool, error) {
+func (helper *ConsensusHelperImpl4Test) VerifyBlockSign(bh *types.BlockHeader) (bool, error) {
 	return true, nil
 }
 
@@ -593,6 +593,10 @@ func (helper *ConsensusHelperImpl4Test) EstimatePreHeight(bh *types.BlockHeader)
 
 func (helper *ConsensusHelperImpl4Test) CalculateQN(bh *types.BlockHeader) uint64 {
 	return uint64(11)
+}
+
+func (helper *ConsensusHelperImpl4Test) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
+	return true, nil
 }
 
 type Account4Test struct {
@@ -635,10 +639,10 @@ func (g *GroupHeader4Test) Seed() common.Hash {
 	return common.EmptyHash
 }
 func (g *GroupHeader4Test) WorkHeight() uint64 {
-	return uint64(1)
+	return uint64(0)
 }
 func (g *GroupHeader4Test) DismissHeight() uint64 {
-	return uint64(1)
+	return common.MaxUint64
 }
 func (g *GroupHeader4Test) PublicKey() []byte {
 	return make([]byte, 0)

@@ -37,23 +37,23 @@ func (p *Processor) triggerCastCheck() {
 func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
 	var hash = calcRandomHash(preBH, height)
 
-	groupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(height)
+	groupIS := p.groupReader.getActivatedGroupsByHeight(height)
 	// Must not happen
-	if len(groupSeeds) == 0 {
-		panic("no available groupSeeds")
+	if len(groupIS) == 0 {
+		panic("no available groupIS")
 	}
-	seeds := make([]string, len(groupSeeds))
-	for _, seed := range groupSeeds {
-		seeds = append(seeds, common.ShortHex(seed.Seed().Hex()))
+	seeds := make([]string, len(groupIS))
+	for _, g := range groupIS {
+		seeds = append(seeds, common.ShortHex(g.header.Seed().Hex()))
 	}
 
 	value := hash.Big()
-	index := value.Mod(value, big.NewInt(int64(len(groupSeeds))))
+	index := value.Mod(value, big.NewInt(int64(len(groupIS))))
 
-	selectedGroup := groupSeeds[index.Int64()]
+	selectedGroup := groupIS[index.Int64()]
 
-	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupSeeds), height, seeds, selectedGroup.Seed())
-	return selectedGroup.Seed()
+	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupIS), height, seeds, selectedGroup.header.Seed())
+	return selectedGroup.header.Seed()
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {
@@ -162,8 +162,12 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		result = "already on chain"
 		return
 	}
+	if !p.blockOnChain(bh.PreHash) {
+		result = fmt.Sprintf("pre not exist: hash=%v", bh.PreHash)
+		return
+	}
 
-	gpk := groupsig.DeserializePubkeyBytes(vctx.group.header.PublicKey())
+	gpk := vctx.group.header.gpk
 
 	// Group signature verification passed
 	if !slot.VerifyGroupSigns(gpk, vctx.prevBH.Random) {
@@ -214,12 +218,12 @@ func (p *Processor) blockProposal() {
 	}
 	height := worker.castHeight
 
-	if !p.ts.NowAfter(worker.baseBH.CurTime) {
+	if p.ts.Since(worker.baseBH.CurTime) < 0 {
 		blog.error("not the time!now=%v, pre=%v, height=%v", p.ts.Now(), worker.baseBH.CurTime, height)
 		return
 	}
 
-	totalStake := p.MinerReader.getTotalStake(worker.baseBH.Height)
+	totalStake := p.minerReader.getTotalStake(worker.baseBH.Height)
 	blog.debug("totalStake height=%v, stake=%v", height, totalStake)
 	pi, qn, err := worker.Prove(totalStake)
 	if err != nil {

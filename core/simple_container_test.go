@@ -83,7 +83,7 @@ var container *simpleContainer
 
 func execute(t *testing.T, tx types.Transaction) {
 	fmt.Printf("executing transacition : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
-	BlockChainImpl.(*FullBlockChain).latestStateDB.SetNonce(*tx.Source, tx.Nonce)
+	BlockChainImpl.latestStateDB.SetNonce(*tx.Source, tx.Nonce)
 }
 
 func Test_push(t *testing.T) {

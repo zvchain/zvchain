@@ -90,7 +90,7 @@ func setup() {
 	if err != nil {
 		panic("init fail " + err.Error())
 	}
-	db, error := BlockChainImpl.LatestStateDB()
+	db, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		panic("init fail " + err.Error())
 	}

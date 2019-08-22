@@ -48,7 +48,7 @@ type Processor struct {
 	// miner releted
 	mi            *model.SelfMinerDO // Current miner information
 	genesisMember bool               // Whether current node is one of the genesis verifyGroup members
-	MinerReader   *MinerPoolReader   // Miner info storeReader
+	minerReader   *MinerPoolReader   // Miner info storeReader
 
 	// block generate related
 	blockContexts    *castBlockContexts   // Stores the proposal messages for proposal role and the verification context for verify roles
@@ -75,7 +75,7 @@ type Processor struct {
 
 	ts time.TimeService // Network-wide time service, regardless of local time
 
-	livedGroups sync.Map //groups lived
+	groupNetBuilt sync.Map // Store groups that have built group-network
 
 	rewardHandler *RewardHandler
 }
@@ -136,14 +136,13 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.ts = time.TSInstance
 	p.isCasting = 0
 
-	p.MinerReader = newMinerPoolReader(p, core.MinerManagerImpl)
+	p.minerReader = newMinerPoolReader(p, core.MinerManagerImpl)
 
 	p.Ticker = ticker.NewGlobalTicker("consensus")
 
-	provider := &core.GroupManagerImpl
-	sr := group2.InitRoutine(p.MinerReader, p.MainChain, provider, &mi)
+	provider := core.GroupManagerImpl
+	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
-	p.livedGroups = sync.Map{}
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())
@@ -151,7 +150,6 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	}
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, p.onBlockAddSuccess)
-	notify.BUS.Subscribe(notify.GroupAddSucc, p.onGroupAddSuccess)
 
 	return true
 }
@@ -168,7 +166,7 @@ func (p Processor) GetMinerInfo() *model.MinerDO {
 // isCastLegal check if the block header is legal
 func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHeader) (err error) {
 	castor := groupsig.DeserializeID(bh.Castor)
-	minerDO := p.MinerReader.getProposeMinerByHeight(castor, preHeader.Height)
+	minerDO := p.minerReader.getProposeMinerByHeight(castor, preHeader.Height)
 	if minerDO == nil {
 		err = fmt.Errorf("minerDO is nil, id=%v", castor)
 		return
@@ -177,7 +175,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 		err = fmt.Errorf("miner can't cast at height, id=%v, height=%v, status=%v", castor, bh.Height, minerDO.Status)
 		return
 	}
-	totalStake := p.MinerReader.getTotalStake(preHeader.Height)
+	totalStake := p.minerReader.getTotalStake(preHeader.Height)
 	// Check if the vrf threshold is satisfied
 	if ok2, err2 := vrfVerifyBlock(bh, preHeader, minerDO, totalStake); !ok2 {
 		err = fmt.Errorf("vrf verify block fail, err=%v", err2)
@@ -197,7 +195,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 // getProposerPubKey get the public key of proposer miner in the specified block
 func (p Processor) getProposerPubKeyInBlock(bh *types.BlockHeader) *groupsig.Pubkey {
 	castor := groupsig.DeserializeID(bh.Castor)
-	castorMO := p.MinerReader.getLatestProposeMiner(castor)
+	castorMO := p.minerReader.getLatestProposeMiner(castor)
 	if castorMO != nil {
 		return &castorMO.PK
 	}
@@ -258,23 +256,13 @@ func (p *Processor) initLivedGroup() {
 		}
 	}
 
-	livedGroupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(p.MainChain.Height())
-	for _, seed := range livedGroupSeeds {
-		g := p.groupReader.getGroupBySeed(seed.Seed())
-		stdLogger.Debugf("group seed %v", g.header.Seed())
-		for _, mem := range g.members {
-			stdLogger.Debugf("member %v", mem.id)
-		}
-		if g == nil {
-			continue
-		}
-		if !g.hasMember(p.GetMinerID()) {
-			continue
-		}
-		stdLogger.Debugf("build group net %v", seed.Seed())
-		// Build group net
-		p.NetServer.BuildGroupNet(seed.Seed().Hex(), g.getMembers())
-	}
+	currentHeight := p.MainChain.Height()
+	currEpoch := types.EpochAt(currentHeight)
+
+	// Build group-net of groups activated at current epoch
+	p.buildGroupNetOfActivateEpochAt(currEpoch)
+	// Try to build group-net of groups will be activated at next epoch
+	p.buildGroupNetOfNextEpoch(currentHeight)
 }
 
 // Ready check if the processor engine is initialized and ready for message processing

@@ -176,8 +176,8 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 	}
 
 	// Check verifyGroup id
-	if vc.group.header.Seed() != bh.Group {
-		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.header.Seed(), bh.Group)
+	if vc.group.header.seed != bh.Group {
+		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.header.seed, bh.Group)
 	}
 
 	if vc.castSuccess() || vc.isNotified() {

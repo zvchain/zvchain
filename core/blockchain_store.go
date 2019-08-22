@@ -185,6 +185,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	recoverTxs := make([]*types.Transaction, 0)
 	delRecepites := make([]common.Hash, 0)
+	removeBlocks := make([]*types.BlockHeader, 0)
+
 	for curr.Hash != block.Hash {
 		rollbackNum++
 		// Delete the old block header
@@ -208,6 +210,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		}
 
 		chain.removeTopBlock(curr.Hash)
+		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
 		if curr.PreHash == block.Hash {
 			break
@@ -233,7 +236,9 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	chain.transactionPool.BackToPool(recoverTxs)
 
-	GroupManagerImpl.ResetToTop(state, block)
+	for _, b := range removeBlocks {
+		GroupManagerImpl.OnBlockRemove(b)
+	}
 
 	if oldTop.Height-block.Height > 1 {
 		log.ELKLogger.WithFields(logrus.Fields{
@@ -407,29 +412,28 @@ func (chain *FullBlockChain) batchGetBlocksAfterHeight(h uint64, limit int) []*t
 	return blocks
 }
 
-// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
+// scanBlockHeightsInRange returns the heights of block in the given height range. the block with startHeight and endHeight
 // will be included
-func (chain *FullBlockChain) countBlocksInRange(startHeight uint64, endHeight uint64) uint64 {
+func (chain *FullBlockChain) scanBlockHeightsInRange(startHeight uint64, endHeight uint64) []uint64 {
 	iter := chain.blockHeight.NewIterator()
 	defer iter.Release()
 	// No higher block after the specified block height
 	if !iter.Seek(common.UInt64ToByte(startHeight)) {
-		return 0
+		return []uint64{}
 	}
 
-	var cnt uint64 = 0
+	hs := make([]uint64, 0)
 	for {
 		height := common.ByteToUInt64(iter.Key())
 		if height > endHeight {
 			break
 		}
-
+		hs = append(hs, height)
 		if !iter.Next() {
 			break
 		}
-		cnt++
 	}
-	return cnt
+	return hs
 }
 
 func (chain *FullBlockChain) queryBlockHeaderByHeight(height uint64) *types.BlockHeader {
@@ -517,4 +521,33 @@ func (chain *FullBlockChain) queryBlockTransactionsOptional(txIdx int, height ui
 	}
 	Logger.Errorf("queryBlockTransactionsOptional decode tx error: hash=%v, err=%v", txHash.Hex(), err.Error())
 	return nil
+}
+
+// batchGetBlocksBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) batchGetBlocksBetween(begin, end uint64) []*types.Block {
+	blocks := make([]*types.Block, 0)
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(begin)) {
+		return blocks
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height >= end {
+			break
+		}
+		hash := common.BytesToHash(iter.Value())
+		b := chain.queryBlockByHash(hash)
+		if b == nil {
+			break
+		}
+
+		blocks = append(blocks, b)
+		if !iter.Next() {
+			break
+		}
+	}
+	return blocks
 }

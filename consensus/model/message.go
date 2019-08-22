@@ -69,7 +69,7 @@ func (sign *BaseSignedMessage) VerifySign(pk groupsig.Pubkey) (ok bool) {
 // ConsensusCastMessage is the block proposal message from proposers
 // and handled by the verify-group members
 type ConsensusCastMessage struct {
-	BH        types.BlockHeader
+	BH types.BlockHeader
 	BaseSignedMessage
 }
 
