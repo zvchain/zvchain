@@ -242,7 +242,7 @@ func (ms *MonitorService) UpdateNodeInfo(ni *NodeInfo) {
 		dm["NType"] = ms.nodeInfo.Type
 		dm["VrfThreshold"] = ms.nodeInfo.VrfThreshold
 		dm["PStake"] = ms.nodeInfo.PStake
-		dm["SaveHeight"] = ms.nodeInfo.BlockHeight
+		dm["BlockHeight"] = ms.nodeInfo.BlockHeight
 		dm["GroupHeight"] = ms.nodeInfo.GroupHeight
 		dm["TxPoolCount"] = ms.nodeInfo.TxPoolCount
 		dm["CPU"] = ms.resStat.CPU
@@ -257,6 +257,8 @@ func (ms *MonitorService) UpdateNodeInfo(ni *NodeInfo) {
 			if affet <= 0 {
 				sess.Table("nodes").Data(dm).Insert()
 			}
+		} else {
+			log.ConsensusStdLogger.Errorf("update node info error:%v", err)
 		}
 	}
 }
