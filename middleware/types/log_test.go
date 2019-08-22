@@ -30,7 +30,7 @@ var unmarshalLogTests = map[string]struct {
 	wantError error
 }{
 	"ok": {
-		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","blockHash":"0x656c34545f90a730a19008c0e7a7cd4fb3895064b48d6d69761bd5abad681056","blockNumber":2019236,"data":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoFVpDZ24AAA=","logIndex":2,"topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x00000000000000000000000080b2c9d7cbbf30a1b0fc8983c647d754c6525615"],"transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3}`,
+		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","blockHash":"0x656c34545f90a730a19008c0e7a7cd4fb3895064b48d6d69761bd5abad681056","blockNumber":2019236,"data":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoFVpDZ24AAA=","logIndex":2,"topics":"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3}`,
 		want: &Log{
 			Address:     common.StringToAddress("zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019"),
 			BlockNumber: 2019236,
@@ -38,14 +38,11 @@ var unmarshalLogTests = map[string]struct {
 			Index:       2,
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
-			Topics: []common.Hash{
-				common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
-				common.HexToHash("0x00000000000000000000000080b2c9d7cbbf30a1b0fc8983c647d754c6525615"),
-			},
+			Topic:       common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 		},
 	},
 	"empty data": {
-		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","blockHash":"0x656c34545f90a730a19008c0e7a7cd4fb3895064b48d6d69761bd5abad681056","blockNumber":2019236,"data":"","logIndex":2,"topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x00000000000000000000000080b2c9d7cbbf30a1b0fc8983c647d754c6525615"],"transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3}`,
+		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","blockHash":"0x656c34545f90a730a19008c0e7a7cd4fb3895064b48d6d69761bd5abad681056","blockNumber":2019236,"data":"","logIndex":2,"topics":"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3}`,
 		want: &Log{
 			Address:     common.StringToAddress("zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019"),
 			BlockNumber: 2019236,
@@ -53,14 +50,11 @@ var unmarshalLogTests = map[string]struct {
 			Index:       2,
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
-			Topics: []common.Hash{
-				common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
-				common.HexToHash("0x00000000000000000000000080b2c9d7cbbf30a1b0fc8983c647d754c6525615"),
-			},
+			Topic:       common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 		},
 	},
 	"missing block fields (pending logs)": {
-		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","data":"","logIndex":0,"topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"],"transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3}`,
+		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","data":"","logIndex":0,"topics":"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3}`,
 		want: &Log{
 			Address:     common.StringToAddress("zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019"),
 			BlockNumber: 0,
@@ -68,13 +62,11 @@ var unmarshalLogTests = map[string]struct {
 			Index:       0,
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
-			Topics: []common.Hash{
-				common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
-			},
+			Topic:       common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 		},
 	},
 	"Removed: true": {
-		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","blockHash":"0x656c34545f90a730a19008c0e7a7cd4fb3895064b48d6d69761bd5abad681056","blockNumber":2019236,"data":"","logIndex":2,"topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"],"transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3,"removed":true}`,
+		input: `{"address":"zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019","blockHash":"0x656c34545f90a730a19008c0e7a7cd4fb3895064b48d6d69761bd5abad681056","blockNumber":2019236,"data":"","logIndex":2,"topics":"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","transactionHash":"0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e","transactionIndex":3,"removed":true}`,
 		want: &Log{
 			Address:     common.StringToAddress("zve75051bf0048decaffa55e3a9fa33e87ed802aaba5038b0fd7f49401f5d8b019"),
 			BlockNumber: 2019236,
@@ -82,9 +74,8 @@ var unmarshalLogTests = map[string]struct {
 			Index:       2,
 			TxIndex:     3,
 			TxHash:      common.HexToHash("0x3b198bfd5d2907285af009e9ae84a0ecd63677110d89d7e030251acb87f6487e"),
-			Topics: []common.Hash{
-				common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
-			},
+			Topic:       common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+
 			Removed: true,
 		},
 	},
