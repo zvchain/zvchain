@@ -103,12 +103,6 @@ func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log,
 		return result, nil, transactionError
 	}
 
-	result = con.VM.storeData() //store
-	transactionError = transactionErrorWith(result)
-	if transactionError != nil {
-		return result, nil, transactionError
-	}
-
 	return result, con.VM.Logs, nil
 }
 
@@ -141,12 +135,6 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 
 	result := con.VM.executeABIKindEval(abi) //execute
 	transactionError := transactionErrorWith(result)
-	if transactionError != nil {
-		return result, nil, transactionError
-	}
-
-	result = con.VM.storeData() //store
-	transactionError = transactionErrorWith(result)
 	if transactionError != nil {
 		return result, nil, transactionError
 	}

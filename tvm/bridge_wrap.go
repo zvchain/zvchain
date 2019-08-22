@@ -174,13 +174,6 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		return result
 	}
 	finalResult := controller.VM.executeABIKindEval(abi)
-	if finalResult.ResultType == C.RETURN_TYPE_EXCEPTION {
-		return finalResult
-	}
-	result = controller.VM.storeData()
-	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
-		return result
-	}
 	return finalResult
 }
 
@@ -318,24 +311,6 @@ func compareSlice(a, b []string) bool {
 	return true
 }
 
-func (tvm *TVM) ExportABI(contract *Contract) string {
-
-	str := tasExportABI()
-	err := tvm.ExecuteScriptVMSucceed(str)
-	if err != nil {
-		return ""
-	}
-	result := tvm.ExecuteScriptKindFile(contract.Code)
-	return result.Abi
-}
-
-// storeData flush data to db
-func (tvm *TVM) storeData() *ExecuteResult {
-	script := pycodeStoreContractData()
-	result := tvm.executePycode(script, C.PARSE_KIND_FILE)
-	return result
-}
-
 // Msg Msg is msg instance which store running message when running a contract
 type Msg struct {
 	Data  []byte
@@ -403,6 +378,15 @@ func (tvm *TVM) executeScriptKindEval(script string) *ExecuteResult {
 // ExecuteScriptKindFile Execute file and returns result
 func (tvm *TVM) ExecuteScriptKindFile(script string) *ExecuteResult {
 	return tvm.executePycode(script, C.PARSE_KIND_FILE)
+}
+
+func (tvm *TVM) ExportABI() (string, error) {
+	C.tvm_set_register()
+	result := tvm.executePycode(tvm.Code, C.PARSE_KIND_FILE)
+	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
+		return "", errors.New(result.Content)
+	}
+	return C.GoString(C.tvm_export_abi()), nil
 }
 
 func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *ExecuteResult {
