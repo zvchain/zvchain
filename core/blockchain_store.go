@@ -73,8 +73,13 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	defer traceLog.Log("")
 
 	bh := block.Header
+
+	var (
+		headerBytes []byte
+		bodyBytes   []byte
+	)
 	//b := time.Now()
-	headerBytes, err := types.MarshalBlockHeader(bh)
+	headerBytes, err = types.MarshalBlockHeader(bh)
 	//ps.ts.AddStat("MarshalBlockHeader", time.Since(b))
 	if err != nil {
 		Logger.Errorf("Fail to json Marshal, error:%s", err.Error())
@@ -82,7 +87,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	}
 
 	//b = time.Now()
-	bodyBytes, err := encodeBlockTransactions(block)
+	bodyBytes, err = encodeBlockTransactions(block)
 	//ps.ts.AddStat("encodeBlockTransactions", time.Since(b))
 	if err != nil {
 		Logger.Errorf("encode block transaction error:%v", err)
