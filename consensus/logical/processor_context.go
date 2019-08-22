@@ -220,16 +220,19 @@ func (bctx *castBlockContexts) getOrNewVctx(group *verifyGroup, height uint64, e
 			preOld := bctx.chain.QueryBlockHeaderByHash(vctx.prevBH.Hash)
 			// The original preBH may be removed by the fork adjustment, then the vctx is invalid, re-use the new preBH
 			if preOld == nil {
+				blog.debug("replace old vctx because old pre not exist:%v, height=%v", vctx.prevBH.Hash, vctx.prevBH.Height)
 				vctx = bctx.replaceVerifyCtx(group, height, expireTime, preBH)
 				return vctx
 			}
 			preNew := bctx.chain.QueryBlockHeaderByHash(preBH.Hash)
 			// The new preBH doesn't exist, it may be forked, and it returns nil directly here.
 			if preNew == nil {
+				blog.debug("discard new block because new pre not exists:%v, height=%v", preBH.Hash, preBH.Height)
 				return nil
 			}
 			// Both old and new preBH are not empty, take high preBH?
 			if preOld.Height < preNew.Height {
+				blog.debug("replace old vctx because new pre higher than old:new height=%v, old height=%v", preNew.Height, vctx.prevBH.Height)
 				vctx = bctx.replaceVerifyCtx(group, height, expireTime, preNew)
 			}
 		} else {
