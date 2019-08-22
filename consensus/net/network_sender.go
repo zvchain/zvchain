@@ -166,7 +166,7 @@ func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMe
 		return
 	}
 	m := network.Message{Code: network.CastRewardSignGot, Body: body}
-
+	ns.send2Self(msg.SI.GetID(), m)
 	ns.net.SendWithGroupRelay(msg.Launcher.GetAddrString(), msg.GSeed.Hex(), m)
 }
 
