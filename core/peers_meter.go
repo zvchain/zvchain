@@ -112,7 +112,7 @@ func initPeerManager() {
 }
 
 func (bpm *peerManager) isPeerExists(id string) bool {
-	_,ok := bpm.peerMeters.Get(id)
+	_, ok := bpm.peerMeters.Get(id)
 	return ok
 }
 
@@ -124,9 +124,7 @@ func (bpm *peerManager) getOrAddPeer(id string) *peerMeter {
 			reqBlockCount:  maxReqBlockCount,
 			evilExpireTime: time.Now(),
 		}
-		if exit, _ = bpm.peerMeters.ContainsOrAdd(id, v); exit {
-			v, _ = bpm.peerMeters.Get(id)
-		}
+		bpm.peerMeters.Add(id, v)
 	}
 	return v.(*peerMeter)
 }
@@ -157,6 +155,9 @@ func (bpm *peerManager) timeoutPeer(id string) {
 
 func (bpm *peerManager) isEvil(id string) bool {
 	if id == "" {
+		return false
+	}
+	if !bpm.isPeerExists(id) {
 		return false
 	}
 	pm := bpm.getOrAddPeer(id)

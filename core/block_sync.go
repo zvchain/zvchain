@@ -171,7 +171,7 @@ func (bs *blockSyncer) getCandidate() (string, *types.CandidateBlockHeader) {
 
 func (bs *blockSyncer) checkEvilAndDelete(candidateID string) bool {
 	if peerManagerImpl.isEvil(candidateID) {
-		bs.logger.Debugf("peer meter evil id:%+v", peerManagerImpl.getOrAddPeer(candidateID))
+		bs.logger.Debugf("peer meter evil id:%v", candidateID)
 		delete(bs.candidatePool, candidateID)
 		return true
 	}
@@ -215,7 +215,6 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	return nil
 }
 func (bs *blockSyncer) trySyncRoutine() bool {
-	bs.candidatePoolDump()
 	return bs.syncFrom("")
 }
 

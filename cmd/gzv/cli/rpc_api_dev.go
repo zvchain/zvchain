@@ -552,6 +552,9 @@ func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
 	if b > e {
 		return failResult("begin larger than end")
 	}
+	if e == 0 {
+		e = core.BlockChainImpl.Height()
+	}
 	heights := core.BlockChainImpl.ScanBlockHeightsInRange(b, e)
 	drops := make([]uint64, 0)
 	for i, h := 0, b; h <= e && i < len(heights); h++ {
