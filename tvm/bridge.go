@@ -124,7 +124,7 @@ func ContractCall(addressC *C.char, funName *C.char, jsonParms *C.char, cResult 
 func EventCall(eventName *C.char, data *C.char) {
 
 	var log types.Log
-	log.Topics = append(log.Topics, common.BytesToHash(common.Sha256([]byte(C.GoString(eventName)))))
+	log.Topic = common.BytesToHash(common.Sha256([]byte(C.GoString(eventName))))
 	log.Index = uint(len(controller.VM.Logs))
 	log.Data = []byte(C.GoString(data))
 	log.TxHash = controller.Transaction.GetHash()
