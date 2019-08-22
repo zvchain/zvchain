@@ -50,7 +50,7 @@ func (storage *Storage) GetAccountById(address string) []*models.Account {
 		fmt.Println("[Storage] storage.db == nil")
 		return nil
 	}
-	accounts := make([]*models.Account, 1, 1)
+	accounts := make([]*models.Account, 0, 0)
 	storage.db.Where("address = ? ", address).Find(&accounts)
 	return accounts
 }
@@ -83,7 +83,7 @@ func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
 	} else {
 		sys.Value = 1
-		storage.AddObjects(sys)
+		storage.AddObjects(&sys)
 	}
 	return true
 

@@ -40,7 +40,7 @@ func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword strin
 	tablMmanagement.groupHeight = tablMmanagement.storage.TopGroupHeight()
 	tablMmanagement.prepareGroupHeight = tablMmanagement.storage.TopPrepareGroupHeight()
 	tablMmanagement.dismissGropHeight = tablMmanagement.storage.TopDismissGroupHeight()
-
+	go tablMmanagement.loop()
 	return tablMmanagement
 }
 
@@ -70,6 +70,9 @@ func (tm *DBMmanagement) fetchBlocks() {
 	if block != nil {
 		AddressCacheList = make(map[string]uint64)
 		for _, tx := range block.Transactions {
+			if tx.Source == nil {
+				continue
+			}
 			if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
 				AddressCacheList[tx.Source.AddrPrefixString()] += 1
 			} else {
@@ -82,7 +85,7 @@ func (tm *DBMmanagement) fetchBlocks() {
 			SetBy:    "wujia",
 		}
 		tm.storage.AddBlockHeightSystemconfig(sys)
-		tm.blockHeight = block.Header.Height + 1
+		//tm.blockHeight = block.Header.Height + 1
 
 		//begain
 		accounts := &models.Account{}
@@ -90,24 +93,23 @@ func (tm *DBMmanagement) fetchBlocks() {
 
 			targetAddrInfo := tm.storage.GetAccountById(address)
 			//不存在账号
-			if targetAddrInfo == nil {
+			if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
 				accounts.Address = address
-				//accounts.TotalTransaction = totalTx
+				accounts.TotalTransaction = totalTx
 				//高度存储持久化
-				tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction = ?", totalTx)})
-				//tm.storage.UpdateObject(accounts)
-
+				tm.storage.AddObjects(accounts)
 				//存在账号
 			} else {
 				accounts.Address = address
-				//accounts.TotalTransaction = totalTx + targetAddrInfo[0].TotalTransaction
+				accounts.ID = targetAddrInfo[0].ID
 				//高度存储持久化
 				tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)})
-				//tm.storage.UpdateObject(accounts)
 			}
 		}
 	}
-	go tm.fetchBlocks()
+	tm.blockHeight = tm.blockHeight + 1
+
+	//go tm.fetchBlocks()
 	tm.isFetchingBlocks = false
 
 }
