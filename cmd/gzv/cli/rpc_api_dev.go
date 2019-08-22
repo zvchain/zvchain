@@ -549,11 +549,11 @@ func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
 }
 
 func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
-	if b > e {
-		return failResult("begin larger than end")
-	}
 	if e == 0 {
 		e = core.BlockChainImpl.Height()
+	}
+	if b > e {
+		return failResult("begin larger than end")
 	}
 	heights := core.BlockChainImpl.ScanBlockHeightsInRange(b, e)
 	drops := make([]uint64, 0)
