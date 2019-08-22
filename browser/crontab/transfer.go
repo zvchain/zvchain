@@ -7,7 +7,18 @@ import (
 type Transfer struct {
 }
 
-func (transfer *Transfer) BlockRewardTOAccount(reward *ExploreBlockReward) []*models.Account {
+func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) []*models.Account {
+	exploreraccount := make([]*models.Account, 0, 0)
+	if rewards != nil && len(rewards) > 0 {
+		for _, reward := range rewards {
+			account := transfer.blockRewardTOAccount(reward)
+			exploreraccount = append(exploreraccount, account...)
+		}
+	}
+	return exploreraccount
+
+}
+func (transfer *Transfer) blockRewardTOAccount(reward *ExploreBlockReward) []*models.Account {
 	accounts := make([]*models.Account, 0, 0)
 	account := &models.Account{
 		Address: reward.ProposalID,

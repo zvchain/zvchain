@@ -117,8 +117,11 @@ func (storage *Storage) UpdateAccountByColumn(account *models.Account, attrs map
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	storage.db.Model(&account).Updates(attrs)
-
+	if account.Address != "" {
+		storage.db.Model(&account).Where("address = ?", account.Address).Updates(attrs)
+	} else {
+		storage.db.Model(&account).Updates(attrs)
+	}
 	return true
 
 }
