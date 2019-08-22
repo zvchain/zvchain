@@ -236,15 +236,16 @@ func changeFundGuardModeValidator(tx *types.Transaction) error {
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
 	}
+	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
+		return err
+	}
 	if !types.IsInExtractGuardNodes(*tx.Target){
 		return fmt.Errorf("operator addr is not in extract guard nodes")
 	}
 	if len(tx.Data) != 1 {
 		return fmt.Errorf("data length should be 1")
 	}
-	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
-		return err
-	}
+
 	return nil
 }
 

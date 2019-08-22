@@ -250,6 +250,23 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	return ca.SendRaw(tx)
 }
 
+
+func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int,gas, gasprice uint64) *Result {
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	tx := &txRawData{
+		Target:   aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeChangeFundGuardMode,
+		Data: []byte{byte(mode)},
+	}
+	return ca.SendRaw(tx)
+}
+
 func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) *Result {
 	r := ca.aop.AccountInfo()
 	if !r.IsSuccess() {

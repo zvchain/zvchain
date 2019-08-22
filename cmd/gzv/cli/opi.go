@@ -127,6 +127,8 @@ type chainOp interface {
 
 	VoteMinerPool(address string, gas, gasprice uint64) *Result
 
+	ChangeFundGuardMode(mode int,gas, gasprice uint64) *Result
+
 	BlockHeight() *Result
 
 	GroupHeight() *Result

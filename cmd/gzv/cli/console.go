@@ -134,8 +134,7 @@ func (c *balanceCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	c.addr = strings.TrimSpace(c.addr)
-	if c.addr == "" {
+	if strings.TrimSpace(c.addr) == "" {
 		output("please input the address")
 		c.fs.PrintDefaults()
 		return false
@@ -310,8 +309,7 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	c.addr = strings.TrimSpace(c.addr)
-	if c.addr == "" {
+	if strings.TrimSpace(c.addr) == "" {
 		output("please input the address")
 		c.fs.PrintDefaults()
 		return false
@@ -675,6 +673,33 @@ func (c *minerAbortCmd) parse(args []string) bool {
 	return c.parseGasPrice()
 }
 
+type changeGuardNodeCmd struct {
+	gasBaseCmd
+	mode int
+}
+
+func genChangeGuardNodeCmd() *changeGuardNodeCmd {
+	c := &changeGuardNodeCmd{
+		gasBaseCmd: *genGasBaseCmd("changemode", "only can changed by fund guard node"),
+	}
+	c.initBase()
+	c.fs.IntVar(&c.mode, "mode", 0, "mode type :0=6+5, 1= 6+6")
+	return c
+}
+
+func (c *changeGuardNodeCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if !validateFundGuardMode(c.mode){
+		output("Unsupported mode type %d",c.mode)
+		return false
+	}
+	return c.parseGasPrice()
+}
+
+
 type stakeRefundCmd struct {
 	gasBaseCmd
 	mtype  int
@@ -892,8 +917,10 @@ var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
 var cmdApplyGuardMiner = genApplyGuardMinerCmd()
 var cmdVoteMinerPool = genVoteMinerPoolCmd()
+
 var cmdStakeAdd = genStakeAddCmd()
 var cmdMinerAbort = genMinerAbortCmd()
+var cmdChangeGuardNode = genChangeGuardNodeCmd()
 var cmdStakeRefund = genStakeRefundCmd()
 var cmdStakeReduce = genStakeReduceCmd()
 var cmdViewContract = genViewContractCmd()
@@ -926,6 +953,7 @@ func init() {
 	list = append(list, &cmdSendTx.baseCmd)
 	list = append(list, &cmdStakeAdd.baseCmd)
 	list = append(list, &cmdMinerAbort.baseCmd)
+	list = append(list, &cmdChangeGuardNode.baseCmd)
 	list = append(list, &cmdStakeRefund.baseCmd)
 	list = append(list, &cmdViewContract.baseCmd)
 	list = append(list, &cmdStakeReduce.baseCmd)
@@ -1185,6 +1213,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return chainOp.MinerAbort(cmd.mtype, cmd.gaslimit, cmd.gasPrice, cmd.forceAbort)
+				})
+			}
+		case cmdChangeGuardNode.name:
+			cmd:= genChangeGuardNodeCmd()
+			if cmd.parse(args){
+				handleCmd(func() *Result {
+					return chainOp.ChangeFundGuardMode(cmd.mode,cmd.gaslimit,cmd.gasPrice)
 				})
 			}
 		case cmdStakeRefund.name:

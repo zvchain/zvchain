@@ -87,7 +87,7 @@ func failResult(err string) (*Result, error) {
 	}, nil
 }
 
-// Tx is user transaction interface, used for sending transaction to the node
+// Tx is user transaction interfavlce, used for sending transaction to the node
 func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 	var txRaw = new(txRawData)
 	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
@@ -195,8 +195,13 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, erro
 		return failResult("data is nil")
 	}
 	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
-	if miner == nil || !miner.IsMinerPool() {
-		return failResult("this addr is not miner pool")
+	if miner == nil{
+		msg :=fmt.Sprintf("this miner is nil,addr is %s",addr)
+		return failResult(msg)
+	}
+	if !miner.IsMinerPool() {
+		msg :=fmt.Sprintf("this addr is not miner pool,identity is %d",miner.Identity)
+		return failResult(msg)
 	}
 	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
 	fullStake := core.MinerManagerImpl.GetFullMinerPoolStake(height)

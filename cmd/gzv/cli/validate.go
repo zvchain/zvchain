@@ -16,6 +16,7 @@
 package cli
 
 import (
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"regexp"
 )
@@ -38,4 +39,9 @@ func validateTxType(typ int) bool {
 func validateMinerType(typ int) bool {
 	mType := types.MinerType(typ)
 	return mType == types.MinerTypeVerify || mType == types.MinerTypeProposal
+}
+
+func validateFundGuardMode(mode int) bool {
+	md := common.FundModeType(mode)
+	return  md == common.SIXAddFive || md == common.SIXAddSix
 }
