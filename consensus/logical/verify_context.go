@@ -162,7 +162,7 @@ func (vc *VerifyContext) updateSignedMaxWeightBlock(bh *types.BlockHeader) bool 
 }
 
 func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (err error) {
-	if bh.Elapsed <= 0 {
+	if bh.Elapsed < 0 {
 		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
 		return
 	}
@@ -176,8 +176,8 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 	}
 
 	// Check verifyGroup id
-	if vc.group.header.Seed() != bh.Group {
-		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.header.Seed(), bh.Group)
+	if vc.group.header.seed != bh.Group {
+		return fmt.Errorf("groupId error:vc-%v, bh-%v", vc.group.header.seed, bh.Group)
 	}
 
 	// Only sign blocks with higher weights than that have been signed

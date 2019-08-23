@@ -221,7 +221,7 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 
 	blockSize := 0
 	for _, v := range b.Transactions {
-		blockSize +=v.Size()
+		blockSize += v.Size()
 	}
 	if blockSize > txAccumulateSizeMaxPerBlock {
 		return false, ErrBlockSizeLimit
@@ -262,9 +262,9 @@ func (chain *FullBlockChain) addBlockOnChain(source string, b *types.Block) (ret
 		return types.BlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, b); !ok {
-		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists{
+		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists {
 			ret = types.AddBlockConsensusFailed
-		} else{
+		} else {
 			ret = types.AddBlockFailed
 		}
 		err = e
@@ -410,7 +410,7 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Tra
 	defer batchTraceLog.Log("size=%v", len(addTxs))
 	chain.txBatch.batchAdd(addTxs)
 	for _, tx := range addTxs {
-		if !tx.IsReward() && tx.Source == nil{
+		if !tx.IsReward() && tx.Source == nil {
 			Logger.Errorf("tx source recover fail:%s", tx.Hash.Hex())
 			return false
 		}
@@ -477,13 +477,9 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 
 func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 	notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: remoteBlock})
-	newGroup := GroupManagerImpl.GroupCreatedInCurrentBlock(remoteBlock)
-	if newGroup != nil {
-		notify.BUS.Publish(notify.GroupAddSucc, &notify.GroupOnChainSuccMessage{Group: newGroup})
-	}
 }
 
-func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error{
+func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	b := message.GetData().(*types.Block)
 	if value, _ := chain.futureBlocks.Get(b.Header.Hash); value != nil {
 		block := value.(*types.Block)

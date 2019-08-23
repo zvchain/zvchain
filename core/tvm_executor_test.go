@@ -25,6 +25,13 @@ var (
 	accountdb account.AccountDatabase
 )
 
+type cp4Test struct {
+}
+
+func (cp *cp4Test) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
+	return
+}
+
 func initExecutor() {
 	executor = &TVMExecutor{
 		bc: &FullBlockChain{
@@ -60,8 +67,8 @@ func initExecutor() {
 			rewardManager:   NewRewardManager(),
 		},
 	}
-	if BlockChainImpl == nil{
-		BlockChainImpl = executor.bc
+	if BlockChainImpl == nil {
+		BlockChainImpl = executor.bc.(*FullBlockChain)
 	}
 
 	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
@@ -189,5 +196,3 @@ func Test_validGasPrice(t *testing.T) {
 	}
 
 }
-
-

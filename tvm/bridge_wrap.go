@@ -89,21 +89,6 @@ void wrap_event_call(const char* event, const char* json_parms)
     void EventCall(const char*, const char*);
     EventCall(event, json_parms);
 }
-
-_Bool wrap_miner_stake(const char* minerAddr, int _type, const char* value) {
-	_Bool MinerStake(const char*, int, const char*);
-	return MinerStake(minerAddr, _type, value);
-}
-
-_Bool wrap_miner_cancel_stake(const char* minerAddr, int _type, const char* value) {
-	_Bool MinerCancelStake(const char*, int, const char*);
-	return MinerCancelStake(minerAddr, _type, value);
-}
-
-_Bool wrap_miner_refund_stake(const char* minerAddr, int _type) {
-	_Bool MinerRefundStake(const char*, int);
-	return MinerRefundStake(minerAddr, _type);
-}
 */
 import "C"
 import (

@@ -296,7 +296,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000 {
-		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce)
+		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d, source:%s ", stateNonce+1, tx.Nonce, tx.Source.AddrPrefixString())
 		Logger.Warn(err)
 		return
 	}
@@ -304,7 +304,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	success, evicted := c.pending.push(tx, stateNonce)
 	if !success {
 		if len(c.queue) > c.queueLimit {
-			err = fmt.Errorf("tx_pool's queue is full. current queue size: %d",len(c.queue))
+			err = fmt.Errorf("tx_pool's queue is full. current queue size: %d", len(c.queue))
 			return
 		}
 		c.queue[tx.Hash] = tx
