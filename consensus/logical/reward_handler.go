@@ -60,6 +60,7 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 			log.ELKLogger.WithFields(logrus.Fields{
 				"height": bh.Height,
 				"blockHash": bh.Height,
+				"type":"reward",
 				"error": err,
 			}).Debug("reward 2 error")
 		}
@@ -75,6 +76,7 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": bh.Height,
 		"blockHash": bh.Hash,
+		"type":"reward",
 	}).Debug("reward 2 receive")
 
 	fmt.Printf("OMCRS start block height = %d, blockHash = %v \n", bh.Height, bh.Hash)
@@ -114,7 +116,8 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 			"height": bh.Height,
 			"blockHash": bh.Hash,
 			"txHash": slot.rewardTrans.Hash,
-		}).Debug("AddTransaction")
+			"type":"reward",
+		}).Debug("reward 2 AddTx")
 		return nil
 	} else {
 		if slot.rewardGSignGen != nil {
@@ -161,6 +164,7 @@ func (rh *RewardHandler) OnMessageCastRewardSignReq(msg *model.CastRewardTransSi
 		"height": bh.Height,
 		"blockHash": bh.Height,
 		"txHash": reward.TxHash,
+		"type":"reward",
 	}).Debug("reward 1 receive")
 	send, err = rh.signCastRewardReq(msg, bh)
 	return err
@@ -279,6 +283,7 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 			"height": bh.Height,
 			"blockHash": bh.Height,
 			"txHash": reward.TxHash,
+			"type":"reward",
 		}).Debug("reward 2 send")
 
 		rh.processor.SendCastRewardSign(signMsg)
@@ -326,7 +331,8 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height": bh.Height,
 		"blockHash": bh.Height,
-	}).Debug("reqRewardTransSign start ")
+		"type":"reward",
+	}).Debug("reward 1 sign")
 
 	// If you sign yourself, you don't have to send it again
 	if slot.hasSignedRewardTx() {
@@ -380,7 +386,8 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 			log.ELKLogger.WithFields(logrus.Fields{
 				"height": bh.Height,
 				"blockHash": bh.Height,
-			}).Debug("reward 1 send ")
+				"type":"reward",
+			}).Debug("reward 1 send")
 		} else {
 			blog.error("genSign fail, id=%v, sk=%v", ski.ID, ski.SK)
 		}
