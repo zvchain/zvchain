@@ -77,13 +77,61 @@ func (storage *Storage) GetAccountByPage(page uint64) []*models.Account {
 	return accounts
 }
 
-func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
-	hight := storage.TopBlockRewardHeight(Blockrewardtophight)
-	if hight > 0 {
-		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
+func (storage *Storage) AddBlockRewardMysqlTransaction(accounts []*models.Account) bool {
+	if storage.db == nil {
+		return false
+	}
+	tx := storage.db.Begin()
+
+	updateReward := func(account *models.Account) error {
+		return tx.Model(&account).
+			Where("address = ?", account.Address).
+			Updates(map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)}).Error
+	}
+	for _, account := range accounts {
+		if account.Address == "" {
+			continue
+		}
+		if !errors(updateReward(account)) {
+			tx.Rollback()
+			return false
+		}
+	}
+	if !increwardBlockheightTosys(tx) {
+		return false
+
+	}
+	tx.Commit()
+	return true
+}
+
+func increwardBlockheightTosys(tx *gorm.DB) bool {
+
+	sys := &models.Sys{
+		Variable: Blockrewardtophight,
+		SetBy:    "carrie.cxl",
+	}
+	sysConfig := make([]models.Sys, 0, 0)
+	tx.Limit(1).Where("variable = ?", Blockrewardtophight).Find(&sysConfig)
+	if sysConfig != nil && len(sysConfig) > 0 {
+		if !errors(tx.Model(&sysConfig[0]).UpdateColumn("value", gorm.Expr("value + ?", 1)).Error) {
+			tx.Rollback()
+			return false
+		}
 	} else {
-		sys.Value = 1
-		storage.AddObjects(&sys)
+		if !errors(tx.Create(&sys).Error) {
+			tx.Rollback()
+			return false
+		}
+
+	}
+	return true
+}
+
+func errors(error error) bool {
+	if error != nil {
+		fmt.Println("update addblockreward error", error)
+		return false
 	}
 	return true
 
