@@ -36,6 +36,6 @@ const GtasVersion = "0.9.14"
 
 const ConsensusVersion = 1
 
-const ChainDataVersion = 13
+const ChainDataVersion = 12
 
 const ProtocolVersion = 1

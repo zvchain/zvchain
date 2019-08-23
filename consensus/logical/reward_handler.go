@@ -2,6 +2,8 @@ package logical
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"strings"
 	"time"
 
@@ -51,19 +53,33 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		send bool
 		err  error
 	)
-
+	bh := rh.processor.GetBlockHeaderByHash(msg.BlockHash)
 	defer func() {
 		tLog.logEnd("reward send:%v, ret:%v", send, err)
+		if err != nil {
+			log.ELKLogger.WithFields(logrus.Fields{
+				"height": bh.Height,
+				"blockHash": bh.Height,
+				"type":"reward",
+				"error": err,
+			}).Debug("reward 2 error")
+		}
 	}()
 
 	// If the block related to the reward transaction is not on the chain, then drop the messages
 	// This could happened after one fork process
-	bh := rh.processor.GetBlockHeaderByHash(msg.BlockHash)
+
 	if bh == nil {
 		err = fmt.Errorf("block not exist, hash=%v", msg.BlockHash)
 		return err
 	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": bh.Height,
+		"blockHash": bh.Hash,
+		"type":"reward",
+	}).Debug("reward 2 receive")
 
+	fmt.Printf("OMCRS start block height = %d, blockHash = %v \n", bh.Height, bh.Hash)
 	gSeed := bh.Group
 	group := rh.processor.GetGroupBySeed(gSeed)
 	if group == nil {
@@ -96,6 +112,12 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		_, err2 := rh.processor.AddTransaction(slot.rewardTrans)
 		send = true
 		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v, ret=%v", slot.rewardTrans.Hash, err2)
+		log.ELKLogger.WithFields(logrus.Fields{
+			"height": bh.Height,
+			"blockHash": bh.Hash,
+			"txHash": slot.rewardTrans.Hash,
+			"type":"reward",
+		}).Debug("reward 2 AddTx")
 		return nil
 	} else {
 		if slot.rewardGSignGen != nil {
@@ -131,13 +153,19 @@ func (rh *RewardHandler) OnMessageCastRewardSignReq(msg *model.CastRewardTransSi
 	// At this point the block is not necessarily on the chain
 	// in case that, the message will be cached
 	bh := rh.processor.GetBlockHeaderByHash(reward.BlockHash)
+
 	if bh == nil {
 		err = fmt.Errorf("future reward request receive and cached, hash=%v", reward.BlockHash)
 		msg.ReceiveTime = time.Now()
 		rh.futureRewardReqs.addMessage(reward.BlockHash, msg)
 		return err
 	}
-
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": bh.Height,
+		"blockHash": bh.Height,
+		"txHash": reward.TxHash,
+		"type":"reward",
+	}).Debug("reward 1 receive")
 	send, err = rh.signCastRewardReq(msg, bh)
 	return err
 }
@@ -251,6 +279,13 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 	}
 	ski := model.NewSecKeyInfo(rh.processor.GetMinerID(), rh.processor.GetGroupSignatureSeckey(gSeed))
 	if signMsg.GenSign(ski, signMsg) {
+		log.ELKLogger.WithFields(logrus.Fields{
+			"height": bh.Height,
+			"blockHash": bh.Height,
+			"txHash": reward.TxHash,
+			"type":"reward",
+		}).Debug("reward 2 send")
+
 		rh.processor.SendCastRewardSign(signMsg)
 	} else {
 		err = fmt.Errorf("signCastRewardReq genSign fail, id=%v, sk=%v", ski.ID, ski.SK)
@@ -293,6 +328,12 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		blog.error("slot not verified or success,status=%v", slot.GetSlotStatus())
 		return
 	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height": bh.Height,
+		"blockHash": bh.Height,
+		"type":"reward",
+	}).Debug("reward 1 sign")
+
 	// If you sign yourself, you don't have to send it again
 	if slot.hasSignedRewardTx() {
 		blog.warn("has signed reward tx")
@@ -342,6 +383,11 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 			}
 
 			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
+			log.ELKLogger.WithFields(logrus.Fields{
+				"height": bh.Height,
+				"blockHash": bh.Height,
+				"type":"reward",
+			}).Debug("reward 1 send")
 		} else {
 			blog.error("genSign fail, id=%v, sk=%v", ski.ID, ski.SK)
 		}
