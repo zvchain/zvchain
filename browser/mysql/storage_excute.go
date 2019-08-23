@@ -93,6 +93,16 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts []*models.Accoun
 			return false
 		}
 	}
+	if !increwardBlockheightTosys(tx) {
+		return false
+
+	}
+	tx.Commit()
+	return true
+}
+
+func increwardBlockheightTosys(tx *gorm.DB) bool {
+
 	sys := &models.Sys{
 		Variable: Blockrewardtophight,
 		SetBy:    "carrie.cxl",
@@ -111,9 +121,7 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts []*models.Accoun
 		}
 
 	}
-	tx.Commit()
 	return true
-
 }
 
 func errors(error error) bool {
