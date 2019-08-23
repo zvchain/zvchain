@@ -36,7 +36,7 @@ func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword strin
 	tablMmanagement := &DBMmanagement{}
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
 
-	tablMmanagement.blockHeight = tablMmanagement.storage.TopBlockHeight()
+	tablMmanagement.blockHeight, _ = tablMmanagement.storage.TopBlockHeight()
 	tablMmanagement.groupHeight = tablMmanagement.storage.TopGroupHeight()
 	tablMmanagement.prepareGroupHeight = tablMmanagement.storage.TopPrepareGroupHeight()
 	tablMmanagement.dismissGropHeight = tablMmanagement.storage.TopDismissGroupHeight()
@@ -50,12 +50,12 @@ func (tm *DBMmanagement) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
-	//go tm.fetchAccounts()
+	go tm.fetchAccounts()
 	for {
 		select {
 		case <-check.C:
-			//go tm.fetchAccounts()
-			go tm.fetchGroup()
+			go tm.fetchAccounts()
+			//go tm.fetchGroup()
 		}
 	}
 }
@@ -75,6 +75,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 			AddressCacheList := make(map[string]uint64)
 			for _, tx := range block.Transactions {
 				if tx.Source != nil {
+					fmt.Println("》》》》》》》》》》》》》》》》》》》》》》》》》发现交易", tx.Source)
 					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
 					} else {
@@ -83,7 +84,6 @@ func (tm *DBMmanagement) fetchAccounts() {
 				} else {
 					continue
 				}
-
 			}
 			//begain
 			accounts := &models.Account{}
@@ -250,7 +250,7 @@ func handelInGroup(tm *DBMmanagement, groups []models.Group, groupState int) boo
 				account.WorkGroup -= 1
 				account.DismissGroup += 1
 			}
-			if !tm.storage.UpdateObject(account) {
+			if !tm.storage.UpdateObject(&account) {
 				return false
 			}
 		}

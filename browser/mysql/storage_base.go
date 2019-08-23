@@ -90,7 +90,7 @@ func (storage *Storage) UpdateObject(object interface{}) bool {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	storage.db.Model(&object).Updates(object)
+	storage.db.Model(object).Updates(object)
 	return true
 }
 

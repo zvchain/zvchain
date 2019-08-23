@@ -90,14 +90,13 @@ func (storage *Storage) AddBlockRewardSystemconfig(sys *models.Sys) bool {
 }
 
 func (storage *Storage) AddBlockHeightSystemconfig(sys *models.Sys) bool {
-	hight := storage.TopBlockHeight()
-	if hight != 0 {
-		storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
-	} else {
+	hight, isempty := storage.TopBlockHeight()
+	if hight == 0 && isempty == false {
 		storage.AddObjects(&sys)
+	} else {
+		storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
 	}
 	return true
-
 }
 
 //func (storage *Storage) AddGroupHeightSystemconfig(sys *models.Sys) bool {
@@ -140,17 +139,17 @@ func (storage *Storage) TopBlockRewardHeight(variable string) uint64 {
 	return 0
 }
 
-func (storage *Storage) TopBlockHeight() uint64 {
+func (storage *Storage) TopBlockHeight() (uint64, bool) {
 	if storage.db == nil {
-		return 0
+		return 0, false
 	}
 	sys := make([]models.Sys, 0, 1)
 	storage.db.Limit(1).Where("variable = ?", Blocktophight).Find(&sys)
 	if len(sys) > 0 {
 		//storage.topBlockHigh = sys[0].Value
-		return sys[0].Value
+		return sys[0].Value, true
 	}
-	return 0
+	return 0, false
 }
 
 func (storage *Storage) TopGroupHeight() uint64 {
