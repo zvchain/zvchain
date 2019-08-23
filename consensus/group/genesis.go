@@ -17,12 +17,13 @@ package group
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"strings"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/middleware/types"
-	"io/ioutil"
-	"strings"
 )
 
 // GenesisDefaultGroupInfo represent for the basic info of the genesis verifyGroup
@@ -54,7 +55,7 @@ func GenerateGenesis() *types.GenesisInfo {
 	f := common.GlobalConf.GetSectionManager("consensus").GetString("genesis_group_info", "genesis_group.info")
 	genesis := genGenesisStaticGroupInfo(f)
 	gHeader := &groupHeader{
-		seed:          genesis.Seed,
+		seed:          genGenesisGroupSeed(genesis),
 		workHeight:    0,
 		dismissHeight: common.MaxUint64,
 		gpk:           genesis.Gpk,
@@ -102,4 +103,8 @@ func genGenesisStaticGroupInfo(f string) *genesisGroupMarshal {
 		panic(err)
 	}
 	return genesis
+}
+
+func genGenesisGroupSeed(genesis *genesisGroupMarshal) common.Hash {
+	return common.BytesToHash(genesis.Gpk.Serialize())
 }
