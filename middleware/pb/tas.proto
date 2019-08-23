@@ -46,20 +46,9 @@ message TransactionRequestMessage{
 //    required bytes BlockPv = 4;
 }
 
-message TrieNodes{
-
-    repeated TrieNode TrieNodes = 1;
-}
-
-
 message RawTransactionSlice{
 
     repeated RawTransaction transactions = 1;
-}
-
-message ChainPieceReq{
-    repeated bytes Pieces = 1;
-    optional int32 ReqCnt = 2;
 }
 
 message SyncRequest {
@@ -110,7 +99,7 @@ message BlockHeader{
 
 }
 
-message RawBlock{
+message Block{
     required BlockHeader Header = 1;
 
     repeated RawTransaction transactions = 2;
@@ -118,7 +107,7 @@ message RawBlock{
 }
 
 message BlockSlice{
-    repeated RawBlock Blocks = 1;
+    repeated Block Blocks = 1;
 }
 
 
@@ -126,44 +115,6 @@ message BlockSlice{
 message Hashes{
 
     repeated bytes hashes = 1;
-}
-
-
-message TotalQnInfo{
-
-    required uint64 TotalQn = 1;
-
-    required uint64 Height = 2;
-}
-
-message StateInfoReq{
-
-    required uint64 Height = 1;
-
-    optional RawTransactionSlice Transactions = 2;
-
-    repeated  bytes Addresses = 3;
-
-    required bytes BlockHash = 4;
-}
-
-message  StateInfo  {
-    required uint64 Height = 1;
-
-    repeated TrieNode TrieNodes = 2;
-
-    required bytes BlockHash = 3;
-
-    required bytes ProBlockStateRoot = 4;
-
-}
-
-message TrieNode{
-
-    required bytes Key  = 1;
-
-    required bytes Data  = 2;
-
 }
 
 
@@ -227,12 +178,17 @@ message TopBlockInfo{
 }
 
 message BlockResponseMsg{
-    repeated RawBlock Blocks = 1;
+    repeated Block Blocks = 1;
 }
 
-message ChainPieceBlockMsg{
+message FindAncestorReq {
+    repeated bytes Pieces = 1;
+    optional int32 ReqCnt = 2;
+}
+
+message FindAncestorBlockResponse{
     required BlockHeader TopHeader = 1;
-    repeated RawBlock Blocks  = 2;
+    repeated Block Blocks  = 2;
     required bool FindAncestor = 3;
 }
 
@@ -244,4 +200,9 @@ message ReqProposalBlockMessage {
 message ResponseProposalBlockMessage {
     required bytes Hash = 1;
     repeated RawTransaction Transactions = 2;
+}
+
+message ChainSliceReq {
+    required uint64 Begin = 1;
+    required uint64 End = 2;
 }

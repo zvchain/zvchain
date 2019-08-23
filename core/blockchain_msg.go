@@ -37,7 +37,7 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error {
 		return err
 	}
 
-	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.RawTxs))
+	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))
 	chain.AddBlockOnChain(source, block)
 	return nil
 }

@@ -157,7 +157,9 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	if tx.Target != nil {
 		buffer.Write(tx.Target.Bytes())
 	}
-	buffer.Write(tx.Source.Bytes())
+	if tx.Source != nil {
+		buffer.Write(tx.Source.Bytes())
+	}
 	buffer.WriteByte(byte(tx.Type))
 	buffer.Write(tx.GasLimit.GetBytesWithSign())
 	buffer.Write(tx.GasPrice.GetBytesWithSign())
@@ -270,23 +272,7 @@ func (bh *BlockHeader) HasTransactions() bool {
 // Block is the block data structure consists of the header and transactions as body
 type Block struct {
 	Header       *BlockHeader
-	Transactions []*Transaction
-}
-
-func (b *Block) GetTransactionHashs() []common.Hash {
-	if b.Transactions == nil {
-		return []common.Hash{}
-	}
-	hashs := make([]common.Hash, 0)
-	for _, tx := range b.Transactions {
-		hashs = append(hashs, tx.Hash)
-	}
-	return hashs
-}
-
-type RawBlock struct {
-	Header *BlockHeader
-	RawTxs []*RawTransaction
+	Transactions []*RawTransaction
 }
 
 // BlockWeight denotes the weight of one block

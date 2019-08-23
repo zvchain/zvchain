@@ -179,7 +179,7 @@ func (bs *blockSyncer) checkEvilAndDelete(candidateID string) bool {
 }
 
 func (bs *blockSyncer) checkBlockHeaderAndAddBlack(candidateID string, bh *types.BlockHeader) bool {
-	_, err := BlockChainImpl.GetConsensusHelper().VerifyBlockHeader(bh)
+	_, err := BlockChainImpl.GetConsensusHelper().VerifyBlockSign(bh)
 	if err != nil && (err != ErrGroupNotExists && err != ErrPkNil) {
 		bs.addBlack(candidateID)
 		return false
@@ -288,7 +288,7 @@ func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo) {
 		return
 	}
 
-	bs.logger.Debugf("Req block to:%s,height:%d", id, height)
+	bs.logger.Debugf("request block from:%s,height:%d", id, height)
 
 	br := &syncRequest{
 		ReqHeight: height,
@@ -334,7 +334,7 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) error {
 		bs.logger.Warn(err)
 		return err
 	}
-	blockHeader, e := bs.unMarshalTopBlockInfo(bnm.Body())
+	blockHeader, e := unMarshalTopBlockInfo(bnm.Body())
 	if e != nil {
 		err := fmt.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
 		bs.logger.Error(err)
@@ -377,6 +377,16 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		//do nothing
 		return fmt.Errorf("bs is nil")
 	}
+
+	bs.lock.RLock()
+	// Maybe sync timeout and discard the response
+	_, ok := bs.syncingPeers[source]
+	bs.lock.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("didn't ever sync from the source:%v", source)
+	}
+
 	var complete = false
 	defer func() {
 		if !complete {
@@ -384,7 +394,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		}
 	}()
 
-	blockResponse, e := bs.unMarshalBlockMsgResponse(m.Body())
+	blockResponse, e := unMarshalBlockMsgResponse(m.Body())
 	if e != nil {
 		err := fmt.Errorf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
 		bs.logger.Error(err)
@@ -400,15 +410,19 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		peerTop := bs.getPeerTopBlock(source)
 		localTop := newTopBlockInfo(bs.chain.QueryTopBlock())
 
+		if peerTop == nil {
+			bs.logger.Debugf("peer top is nil, and won't process:%v", source)
+			return fmt.Errorf("peer top is nil")
+		}
 		// First compare weights
-		if peerTop != nil && localTop.MoreWeight(peerTop.BW) {
+		if localTop.MoreWeight(peerTop.BW) {
 			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
 			return nil
 		}
 
 		allSuccess := true
 		hasAddBlack := false
-		bs.chain.batchAddBlockOnChain(source, "sync", blocks, func(b *types.Block, ret types.AddBlockResult) bool {
+		err := bs.chain.batchAddBlockOnChain(source, false, blocks, func(b *types.Block, ret types.AddBlockResult) bool {
 			bs.logger.Debugf("sync block from %v, hash=%v,height=%v,addResult=%v", source, b.Header.Hash.Hex(), b.Header.Height, ret)
 			if ret == types.AddBlockSucc || ret == types.BlockExisted {
 				return true
@@ -420,6 +434,9 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 			allSuccess = false
 			return false
 		})
+		if err != nil {
+			bs.logger.Warnf("add blocks from %v error:%v, block range %v-%v", source, err, blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
+		}
 
 		// The weight is still low, continue to synchronize (must add blocks
 		// is successful, otherwise it will cause an infinite loop)
@@ -503,21 +520,19 @@ func marshalTopBlockInfo(header *types.BlockHeader) ([]byte, error) {
 	return proto.Marshal(&blockInfo)
 }
 
-func (bs *blockSyncer) unMarshalTopBlockInfo(b []byte) (*types.BlockHeader, error) {
+func unMarshalTopBlockInfo(b []byte) (*types.BlockHeader, error) {
 	message := new(tas_middleware_pb.TopBlockInfo)
 	e := proto.Unmarshal(b, message)
 	if e != nil {
-		bs.logger.Errorf("unMarshalBlockInfo error:%s", e.Error())
 		return nil, e
 	}
 	return types.PbToBlockHeader(message.TopHeader), nil
 }
 
-func (bs *blockSyncer) unMarshalBlockMsgResponse(b []byte) (*blockResponseMessage, error) {
+func unMarshalBlockMsgResponse(b []byte) (*blockResponseMessage, error) {
 	message := new(tas_middleware_pb.BlockResponseMsg)
 	e := proto.Unmarshal(b, message)
 	if e != nil {
-		bs.logger.Errorf("unMarshalBlockMsgResponse error:%s", e.Error())
 		return nil, e
 	}
 	blocks := make([]*types.Block, 0)

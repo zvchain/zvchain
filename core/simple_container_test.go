@@ -43,24 +43,28 @@ var (
 
 	gasLimit = types.NewBigInt(10000)
 
-	tx1  = &types.Transaction{Hash: common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4"), Nonce: 3, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr0}
-	tx2  = &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d88d"), Nonce: 1, GasPrice: types.NewBigInt(20000), GasLimit: gasLimit, Source: &addr1}
-	tx3  = &types.Transaction{Hash: common.HexToHash("d1f1134223133d8ab88897b3ffc68c4797697b4e8603a7fd6a76722e3cc615ae"), Nonce: 1, GasPrice: types.NewBigInt(17000), GasLimit: gasLimit, Source: &addr2}
-	tx4  = &types.Transaction{Hash: common.HexToHash("b4f213b67242f9439d62549fc128e98efe21b935b4a211b52b9b0b1812a57165"), Nonce: 1, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr3} //
-	tx5  = &types.Transaction{Hash: common.HexToHash("80aa134ea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7123"), Nonce: 4, GasPrice: types.NewBigInt(11000), GasLimit: gasLimit, Source: &addr0}
-	tx6  = &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d31a"), Nonce: 3, GasPrice: types.NewBigInt(21000), GasLimit: gasLimit, Source: &addr1}
-	tx7  = &types.Transaction{Hash: common.HexToHash("d1f1134223133d8ab88897b3ffc68c4797697b4e8603a7fd6a76722e3cc617fa"), Nonce: 2, GasPrice: types.NewBigInt(9000), GasLimit: gasLimit, Source: &addr2}
-	tx8  = &types.Transaction{Hash: common.HexToHash("3761a47f2b6745f1fefff25d529d18bd92ca460892f929b749e3995c4baac2d2"), Nonce: 1, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr0}
-	tx9  = &types.Transaction{Hash: common.HexToHash("6d0edf5dc9d37e79d248b0f31796cfed580604b4ca1bcdd5aa696da6765a6054"), Nonce: 2, GasPrice: types.NewBigInt(9000), GasLimit: gasLimit, Source: &addr0}
-	tx10 = &types.Transaction{Hash: common.HexToHash("49892838a63742cc522ad7a8c8be0f4360b13e83062a808a042c0b65b1fa096a"), Nonce: 1, GasPrice: types.NewBigInt(11000), GasLimit: gasLimit, Source: &addr0}
-	tx11 = &types.Transaction{Hash: common.HexToHash("e41fe4ff98d0fc7df69686e79fa920bdfad6180d5162ce5324863f580522980a"), Nonce: 3, GasPrice: types.NewBigInt(11000), GasLimit: gasLimit, Source: &addr0}
-	tx12 = &types.Transaction{Hash: common.HexToHash("b57b9520513eac56dc83af561d606340b8ac041b97f1741ccd11fc9c0cc098bd"), Nonce: 5, GasPrice: types.NewBigInt(8000), GasLimit: gasLimit, Source: &addr4}
-	tx13 = &types.Transaction{Hash: common.HexToHash("1a375c639553f66d0ae4316bde2fc82a7b04a688ec63df04d63ff7f2b8d467ca"), Nonce: 1, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
-	tx14 = &types.Transaction{Hash: common.HexToHash("ca1896f3507580ef6f3c43d76bb097540f9281c5529c968f3e8f7328276ffe11"), Nonce: 1, GasPrice: types.NewBigInt(21000), GasLimit: gasLimit, Source: &addr1}
-	tx15 = &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a"), Nonce: 1, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
+	tx1  = genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4", 1, types.NewBigInt(20000), gasLimit, &addr1)
+	tx2  = genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d88d", 1, types.NewBigInt(20000), gasLimit, &addr1)
+	tx3  = genTx4Test("d1f1134223133d8ab88897b3ffc68c4797697b4e8603a7fd6a76722e3cc615ae", 1, types.NewBigInt(17000), gasLimit, &addr2)
+	tx4  = genTx4Test("b4f213b67242f9439d62549fc128e98efe21b935b4a211b52b9b0b1812a57165", 1, types.NewBigInt(10000), gasLimit, &addr3)
+	tx5  = genTx4Test("80aa134ea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7123", 4, types.NewBigInt(11000), gasLimit, &addr0)
+	tx6  = genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d31a", 3, types.NewBigInt(21000), gasLimit, &addr1)
+	tx7  = genTx4Test("d1f1134223133d8ab88897b3ffc68c4797697b4e8603a7fd6a76722e3cc617fa", 2, types.NewBigInt(9000), gasLimit, &addr2)
+	tx8  = genTx4Test("3761a47f2b6745f1fefff25d529d18bd92ca460892f929b749e3995c4baac2d2", 1, types.NewBigInt(10000), gasLimit, &addr0)
+	tx9  = genTx4Test("6d0edf5dc9d37e79d248b0f31796cfed580604b4ca1bcdd5aa696da6765a6054", 2, types.NewBigInt(9000), gasLimit, &addr0)
+	tx10 = genTx4Test("49892838a63742cc522ad7a8c8be0f4360b13e83062a808a042c0b65b1fa096a", 1, types.NewBigInt(11000), gasLimit, &addr0)
+	tx11 = genTx4Test("e41fe4ff98d0fc7df69686e79fa920bdfad6180d5162ce5324863f580522980a", 3, types.NewBigInt(11000), gasLimit, &addr0)
+	tx12 = genTx4Test("b57b9520513eac56dc83af561d606340b8ac041b97f1741ccd11fc9c0cc098bd", 5, types.NewBigInt(8000), gasLimit, &addr4)
+	tx13 = genTx4Test("1a375c639553f66d0ae4316bde2fc82a7b04a688ec63df04d63ff7f2b8d467ca", 1, types.NewBigInt(10000), gasLimit, &addr5)
+	tx14 = genTx4Test("ca1896f3507580ef6f3c43d76bb097540f9281c5529c968f3e8f7328276ffe11", 1, types.NewBigInt(21000), gasLimit, &addr1)
+	tx15 = genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a", 1, types.NewBigInt(10000), gasLimit, &addr5)
 
 	//txadd  = &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e54"), Nonce: 2, GasPrice: 21000, Source: &addr1}
 )
+
+func genTx4Test(hash string, nonce uint64, gasprice, gaslimit *types.BigInt, source *common.Address) *types.Transaction {
+	return &types.Transaction{Hash: common.HexToHash(hash), RawTransaction: &types.RawTransaction{Nonce: nonce, GasPrice: gasprice, GasLimit: gaslimit, Source: source}}
+}
 
 func printQueue() {
 	for _, tx := range container.queue {
@@ -83,13 +87,13 @@ var container *simpleContainer
 
 func execute(t *testing.T, tx types.Transaction) {
 	fmt.Printf("executing transacition : source = %x, nonce = %d, gas = %d \n", tx.Source, tx.Nonce, tx.GasPrice)
-	BlockChainImpl.(*FullBlockChain).latestStateDB.SetNonce(*tx.Source, tx.Nonce)
+	BlockChainImpl.latestStateDB.SetNonce(*tx.Source, tx.Nonce)
 }
 
 func Test_push(t *testing.T) {
-	t1 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d881"), Nonce: 1, GasPrice: types.NewBigInt(20000), GasLimit: gasLimit, Source: &addr1}
-	t2 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882"), Nonce: 1, GasPrice: types.NewBigInt(19999), GasLimit: gasLimit, Source: &addr1}
-	t3 := &types.Transaction{Hash: common.HexToHash("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d883"), Nonce: 2, GasPrice: types.NewBigInt(20000), GasLimit: gasLimit, Source: &addr1}
+	t1 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882", 1, types.NewBigInt(20000), gasLimit, &addr1)
+	t2 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882", 1, types.NewBigInt(20000), gasLimit, &addr1)
+	t3 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882", 2, types.NewBigInt(20000), gasLimit, &addr1)
 
 	err := initContext4Test()
 	defer clearDB()
@@ -152,10 +156,9 @@ func Test_simpleContainer_forEach(t *testing.T) {
 	}
 
 	container = newSimpleContainer(10, 3, BlockChainImpl)
-
-	tx22 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a"), Nonce: 1, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
-	tx23 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5b"), Nonce: 1, GasPrice: types.NewBigInt(9999), GasLimit: gasLimit, Source: &addr5}
-	tx24 := &types.Transaction{Hash: common.HexToHash("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5c"), Nonce: 2, GasPrice: types.NewBigInt(10000), GasLimit: gasLimit, Source: &addr5}
+	tx22 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a", 1, types.NewBigInt(10000), gasLimit, &addr5)
+	tx23 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a", 1, types.NewBigInt(10000), gasLimit, &addr5)
+	tx24 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a", 2, types.NewBigInt(10000), gasLimit, &addr5)
 	_ = container.push(tx22)
 	_ = container.push(tx23)
 	_ = container.push(tx24)

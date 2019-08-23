@@ -73,8 +73,13 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	defer traceLog.Log("")
 
 	bh := block.Header
+
+	var (
+		headerBytes []byte
+		bodyBytes   []byte
+	)
 	//b := time.Now()
-	headerBytes, err := types.MarshalBlockHeader(bh)
+	headerBytes, err = types.MarshalBlockHeader(bh)
 	//ps.ts.AddStat("MarshalBlockHeader", time.Since(b))
 	if err != nil {
 		Logger.Errorf("Fail to json Marshal, error:%s", err.Error())
@@ -82,7 +87,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	}
 
 	//b = time.Now()
-	bodyBytes, err := encodeBlockTransactions(block)
+	bodyBytes, err = encodeBlockTransactions(block)
 	//ps.ts.AddStat("encodeBlockTransactions", time.Since(b))
 	if err != nil {
 		Logger.Errorf("encode block transaction error:%v", err)
@@ -133,8 +138,8 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	// If the block is successfully submitted, the transaction
 	// corresponding to the transaction pool should be deleted
 	removeTxs := make([]common.Hash, 0)
-	if block.Transactions != nil {
-		removeTxs = append(removeTxs, block.GetTransactionHashs()...)
+	if len(ps.txs) > 0 {
+		removeTxs = append(removeTxs, ps.txs.txsHashes()...)
 	}
 	// Remove eviction transactions from the transaction pool
 	if ps.evictedTxs != nil {
@@ -179,6 +184,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	curr := chain.getLatestBlock()
 	recoverTxs := make([]*types.Transaction, 0)
 	delReceipts := make([]common.Hash, 0)
+	removeBlocks := make([]*types.BlockHeader, 0)
+
 	for curr.Hash != block.Hash {
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
@@ -200,6 +207,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		}
 
 		chain.removeTopBlock(curr.Hash)
+		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
 		if curr.PreHash == block.Hash {
 			break
@@ -225,7 +233,9 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	chain.transactionPool.BackToPool(recoverTxs)
 
-	GroupManagerImpl.ResetToTop(state, block)
+	for _, b := range removeBlocks {
+		GroupManagerImpl.OnBlockRemove(b)
+	}
 
 	return nil
 }
@@ -366,8 +376,8 @@ func (chain *FullBlockChain) queryBlockTransactionsAll(hash common.Hash) []*type
 	return txs
 }
 
-func (chain *FullBlockChain) batchGetBlocksAfterHeight(h uint64, limit int) []*types.RawBlock {
-	blocks := make([]*types.RawBlock, 0)
+func (chain *FullBlockChain) batchGetBlocksAfterHeight(h uint64, limit int) []*types.Block {
+	blocks := make([]*types.Block, 0)
 	iter := chain.blockHeight.NewIterator()
 	defer iter.Release()
 
@@ -391,29 +401,28 @@ func (chain *FullBlockChain) batchGetBlocksAfterHeight(h uint64, limit int) []*t
 	return blocks
 }
 
-// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
+// scanBlockHeightsInRange returns the heights of block in the given height range. the block with startHeight and endHeight
 // will be included
-func (chain *FullBlockChain) countBlocksInRange(startHeight uint64, endHeight uint64) uint64 {
+func (chain *FullBlockChain) scanBlockHeightsInRange(startHeight uint64, endHeight uint64) []uint64 {
 	iter := chain.blockHeight.NewIterator()
 	defer iter.Release()
 	// No higher block after the specified block height
 	if !iter.Seek(common.UInt64ToByte(startHeight)) {
-		return 0
+		return []uint64{}
 	}
 
-	var cnt uint64 = 0
+	hs := make([]uint64, 0)
 	for {
 		height := common.ByteToUInt64(iter.Key())
 		if height > endHeight {
 			break
 		}
-
+		hs = append(hs, height)
 		if !iter.Next() {
 			break
 		}
-		cnt++
 	}
-	return cnt
+	return hs
 }
 
 func (chain *FullBlockChain) queryBlockHeaderByHeight(height uint64) *types.BlockHeader {
@@ -424,16 +433,16 @@ func (chain *FullBlockChain) queryBlockHeaderByHeight(height uint64) *types.Bloc
 	return nil
 }
 
-func (chain *FullBlockChain) queryBlockByHash(hash common.Hash) *types.RawBlock {
+func (chain *FullBlockChain) queryBlockByHash(hash common.Hash) *types.Block {
 	bh := chain.queryBlockHeaderByHash(hash)
 	if bh == nil {
 		return nil
 	}
 
 	txs := chain.queryBlockTransactionsAll(hash)
-	b := &types.RawBlock{
-		Header: bh,
-		RawTxs: txs,
+	b := &types.Block{
+		Header:       bh,
+		Transactions: txs,
 	}
 	return b
 }
@@ -456,7 +465,7 @@ func (chain *FullBlockChain) queryBlockHeaderByHash(hash common.Hash) *types.Blo
 	return nil
 }
 
-func (chain *FullBlockChain) addTopBlock(b *types.RawBlock) {
+func (chain *FullBlockChain) addTopBlock(b *types.Block) {
 	chain.topRawBlocks.Add(b.Header.Hash, b)
 }
 
@@ -464,14 +473,14 @@ func (chain *FullBlockChain) removeTopBlock(hash common.Hash) {
 	chain.topRawBlocks.Remove(hash)
 }
 
-func (chain *FullBlockChain) getTopBlockByHash(hash common.Hash) *types.RawBlock {
+func (chain *FullBlockChain) getTopBlockByHash(hash common.Hash) *types.Block {
 	if v, ok := chain.topRawBlocks.Get(hash); ok {
-		return v.(*types.RawBlock)
+		return v.(*types.Block)
 	}
 	return nil
 }
 
-func (chain *FullBlockChain) getTopBlockByHeight(height uint64) *types.RawBlock {
+func (chain *FullBlockChain) getTopBlockByHeight(height uint64) *types.Block {
 	if chain.topRawBlocks.Len() == 0 {
 		return nil
 	}
@@ -499,4 +508,33 @@ func (chain *FullBlockChain) queryBlockTransactionsOptional(txIdx int, height ui
 		return tx
 	}
 	return nil
+}
+
+// batchGetBlocksBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) batchGetBlocksBetween(begin, end uint64) []*types.Block {
+	blocks := make([]*types.Block, 0)
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(begin)) {
+		return blocks
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height >= end {
+			break
+		}
+		hash := common.BytesToHash(iter.Value())
+		b := chain.queryBlockByHash(hash)
+		if b == nil {
+			break
+		}
+
+		blocks = append(blocks, b)
+		if !iter.Next() {
+			break
+		}
+	}
+	return blocks
 }

@@ -109,7 +109,7 @@ func sourceRecover(tx *types.Transaction) error {
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
 func stateValidate(tx *types.Transaction) (balance *big.Int, err error) {
-	accountDB, err := BlockChainImpl.LatestStateDB()
+	accountDB, err := BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		return nil, fmt.Errorf("fail get last state db,error = %v", err.Error())
 	}
@@ -325,6 +325,9 @@ func getValidator(tx *types.Transaction) validator {
 			// Validate gas
 			if err = gasValidate(tx); err != nil {
 				return err
+			}
+			if tx.Source == nil {
+				return fmt.Errorf("source is nil")
 			}
 			var balance *big.Int
 			// Validate state

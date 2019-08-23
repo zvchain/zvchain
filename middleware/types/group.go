@@ -145,22 +145,6 @@ type GroupStoreReader interface {
 
 	// HasSentOriginPiecePacket checks if the given sender has sent the packet yet
 	HasSentOriginPiecePacket(sender []byte, seed SeedI) bool
-
-	// GetAvailableGroupSeeds gets available groups' seed at the given height
-	GetAvailableGroupSeeds(height uint64) []SeedI
-
-	// GetGroupBySeed returns the group info of the given seed
-	GetGroupBySeed(seedHash common.Hash) GroupI
-
-	// GetGroupHeaderBySeed returns the group header info of the given seed
-	GetGroupHeaderBySeed(seedHash common.Hash) GroupHeaderI
-
-	// MinerLiveGroupCount returns the lived-group number the given address participates in on the given height
-	MinerLiveGroupCount(addr common.Address, height uint64) int
-
-	// FilterMinerGroupCountLessThan returns function to check if the miners joined live group count less than the
-	// maxCount in a given block height
-	IsMinerGroupCountLessThan(maxCount int, height uint64) func(addr common.Address) bool
 }
 
 // GroupPacketSender provides functions for sending packets

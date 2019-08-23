@@ -35,34 +35,34 @@ type BlockChain interface {
 	// 1, the block already exist on the blockchain, then we should discard it
 	// 2, the same height block with a larger QN value on the chain, then we should discard it
 	// 3, need adjust the blockchain, there will be a fork
-	AddBlockOnChain(source string, b *RawBlock) AddBlockResult
+	AddBlockOnChain(source string, b *Block) AddBlockResult
 
 	// TotalQN of chain
 	TotalQN() uint64
 
-	// LatestStateDB returns chain's last account database
-	LatestStateDB() (AccountDB, error)
+	// LatestAccountDB returns chain's last account database
+	LatestAccountDB() (AccountDB, error)
 
 	// QueryBlockByHash query the block by hash
-	QueryBlockByHash(hash common.Hash) *RawBlock
+	QueryBlockByHash(hash common.Hash) *Block
 
 	// QueryBlockByHeight query the block by height
-	QueryBlockByHeight(height uint64) *RawBlock
+	QueryBlockByHeight(height uint64) *Block
 
 	// QueryBlockCeil query first block whose height >= height
-	QueryBlockCeil(height uint64) *RawBlock
+	QueryBlockCeil(height uint64) *Block
 
 	// QueryBlockHeaderCeil query first block header whose height >= height
 	QueryBlockHeaderCeil(height uint64) *BlockHeader
 
 	// QueryBlockFloor query first block whose height <= height
-	QueryBlockFloor(height uint64) *RawBlock
+	QueryBlockFloor(height uint64) *Block
 
 	// QueryBlockHeaderFloor query first block header whose height <= height
 	QueryBlockHeaderFloor(height uint64) *BlockHeader
 
 	// BatchGetBlocksAfterHeight query blocks after the specified height
-	BatchGetBlocksAfterHeight(height uint64, limit int) []*RawBlock
+	BatchGetBlocksAfterHeight(height uint64, limit int) []*Block
 
 	// GetTransactionByHash get a transaction by hash
 	GetTransactionByHash(onlyReward bool, h common.Hash) *Transaction
@@ -88,8 +88,8 @@ type BlockChain interface {
 	// GetAccountDBByHash returns account database with specified block hash
 	GetAccountDBByHash(hash common.Hash) (AccountDB, error)
 
-	// GetAccountDBByHeight returns account database with specified block height
-	GetAccountDBByHeight(height uint64) (AccountDB, error)
+	// AccountDBAt returns account database with specified block height
+	AccountDBAt(height uint64) (AccountDB, error)
 
 	// GetConsensusHelper returns consensus helper reference
 	GetConsensusHelper() ConsensusHelper
@@ -126,9 +126,6 @@ type TransactionPool interface {
 
 	// AddTransaction adds new transaction to the transaction pool which will be broadcast
 	AddTransaction(tx *Transaction) (bool, error)
-
-	// AddTransactions add new transactions to the transaction pool
-	AddTransactions(txs []*Transaction) int
 
 	// AsyncAddTransaction adds transaction to the transaction pool which won't be broadcast
 	AsyncAddTransaction(tx *Transaction) error

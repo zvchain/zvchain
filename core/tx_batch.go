@@ -22,7 +22,7 @@ func newTxBatchAdder(pool types.TransactionPool) *txBatchAdder {
 	}
 }
 
-func (tv *txBatchAdder) batchAdd(txs []*types.Transaction) error {
+func (tv *txBatchAdder) batchAdd(txs txSlice) error {
 	if len(txs) == 0 {
 		return nil
 	}

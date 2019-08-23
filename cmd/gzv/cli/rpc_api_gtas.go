@@ -26,8 +26,9 @@ import (
 )
 
 type groupInfoReader interface {
-	// GetAvailableGroupSeeds gets available groups' seed at the given height
-	GetAvailableGroupSeeds(height uint64) []types.SeedI
+	// GetActivatedGroupsAt gets available groups' seed at the given height
+	GetActivatedGroupsAt(height uint64) []types.GroupI
+	GetLivedGroupsAt(height uint64) []types.GroupI
 	// GetGroupBySeed returns the group info of the given seed
 	GetGroupBySeed(seedHash common.Hash) types.GroupI
 	// GetGroupHeaderBySeed returns the group header info of the given seed
@@ -39,23 +40,21 @@ type groupInfoReader interface {
 	GetLivedGroupsByMember(address common.Address, height uint64) []types.GroupI
 }
 
-type currentEraStatus interface {
-	MinerSelected() bool
-	MinerStatus() int
-	GroupHeight() uint64
-	GroupSeed() common.Hash
-}
-
 type groupRoutineChecker interface {
 	CurrentEraCheck(address common.Address) (selected bool, seed common.Hash, seedHeight uint64, stage int)
 }
 
+type blockReader interface {
+	CheckPointAt(h uint64) *types.BlockHeader
+}
+
 func getGroupReader() groupInfoReader {
-	return &core.GroupManagerImpl
+	return core.GroupManagerImpl
 }
 
 type rpcBaseImpl struct {
 	gr groupInfoReader
+	br blockReader
 }
 
 // RpcGtasImpl provides rpc service for users to interact with remote nodes
@@ -133,7 +132,7 @@ func (api *RpcGtasImpl) Balance(account string) (*Result, error) {
 	}, nil
 }
 
-// BlockHeight query block height
+// SaveHeight query block height
 func (api *RpcGtasImpl) BlockHeight() (*Result, error) {
 	height := core.BlockChainImpl.QueryTopBlock().Height
 	return successResult(height)
@@ -189,9 +188,9 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, erro
 	var err error
 	if height == 0 {
 		height = core.BlockChainImpl.Height()
-		db, err = core.BlockChainImpl.LatestStateDB()
+		db, err = core.BlockChainImpl.LatestAccountDB()
 	} else {
-		db, err = core.BlockChainImpl.GetAccountDBByHeight(height)
+		db, err = core.BlockChainImpl.AccountDBAt(height)
 	}
 	if err != nil || db == nil {
 		return failResult("data is nil")
@@ -220,7 +219,7 @@ func (api *RpcGtasImpl) TicketsInfo(addr string) (*Result, error) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return failResult("Wrong account address format")
 	}
-	db, err := core.BlockChainImpl.LatestStateDB()
+	db, err := core.BlockChainImpl.LatestAccountDB()
 	if err != nil || db == nil {
 		return failResult("data is nil")
 	}
@@ -300,7 +299,7 @@ func (api *RpcGtasImpl) TransDetail(h string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong hash format")
 	}
-	tx := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(h))
+	tx := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(h))
 
 	if tx != nil {
 		trans := convertTransaction(tx)
@@ -326,7 +325,7 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 	hash := common.HexToHash(h)
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
-		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
+		tx := core.BlockChainImpl.GetTransactionByHash(false, hash)
 		return successResult(convertExecutedTransaction(&types.ExecutedTransaction{
 			Receipt:     rc,
 			Transaction: tx,
@@ -340,7 +339,7 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*Result, error) {
 	if !common.ValidateAddress(strings.TrimSpace(hash)) {
 		return failResult("Wrong address format")
 	}
-	accountDb, err := core.BlockChainImpl.LatestStateDB()
+	accountDb, err := core.BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		return failResult("Get status failed")
 	}
@@ -476,4 +475,9 @@ func (api *RpcGtasImpl) GroupCheck(addr string) (*Result, error) {
 	}
 
 	return successResult(&GroupCheckInfo{JoinedGroups: jgs, CurrentGroupRoutine: currentInfo})
+}
+
+func (api *RpcGtasImpl) CheckPointAt(h uint64) (*Result, error) {
+	cp := api.br.CheckPointAt(h)
+	return successResult(cp)
 }

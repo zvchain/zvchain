@@ -117,20 +117,19 @@ func (p PacketSender) SendOriginPiecePacket(packet types.OriginSharePiecePacket)
 }
 
 func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*types.Transaction, error) {
-	db, err := p.chain.LatestStateDB()
+	db, err := p.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return nil, err
 	}
 
-	tx := &types.Transaction{}
-	tx.Data = data
-	tx.Type = txType
-	tx.GasPrice = p.baseGasPrice
-	tx.GasLimit = p.baseGasLimit
-	tx.Nonce = db.GetNonce(source) + 1
-	tx.Hash = tx.GenHash()
-
+	raw := &types.RawTransaction{}
+	raw.Data = data
+	raw.Type = txType
+	raw.GasPrice = p.baseGasPrice
+	raw.GasLimit = p.baseGasLimit
+	raw.Nonce = db.GetNonce(source) + 1
+	tx := types.NewTransaction(raw, raw.GenHash())
 	sk := common.HexToSecKey(p.chain.MinerSk())
 	if sk == nil {
 		return nil, fmt.Errorf("fail to get miner's sk")
@@ -139,7 +138,7 @@ func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*t
 	if err != nil {
 		return nil, err
 	}
-	tx.Sign = sign.Bytes()
+	raw.Sign = sign.Bytes()
 	return tx, nil
 }
 

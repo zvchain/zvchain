@@ -28,13 +28,13 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 )
 
-type batchAddBlockCallback func(b *types.RawBlock, ret types.AddBlockResult) bool
+type batchAddBlockCallback func(b *types.Block, ret types.AddBlockResult) bool
 
 type executePostState struct {
 	state      *account.AccountDB
 	receipts   types.Receipts
 	evictedTxs []common.Hash
-	txs        []*types.Transaction
+	txs        txSlice
 	ts         *common.TimeStatCtx
 }
 
@@ -106,14 +106,14 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
 	block.Header.CurTime = chain.ts.Now()
-	statehash, evitTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
+	stateRoot, evictHashs, txSlice, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
 	exeTraceLog.SetEnd()
 
-	block.Transactions = transactions
+	block.Transactions = txSlice.txsToRaw()
 	block.Header.GasFee = gasFee
-	block.Header.TxTree = calcTxTree(block.Transactions)
+	block.Header.TxTree = txSlice.calcTxTree()
 
-	block.Header.StateTree = common.BytesToHash(statehash.Bytes())
+	block.Header.StateTree = common.BytesToHash(stateRoot.Bytes())
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
 	block.Header.Elapsed = int32(block.Header.CurTime.Since(latestBlock.CurTime))
@@ -132,25 +132,25 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	chain.verifiedBlocks.Add(block.Header.Hash, &executePostState{
 		state:      state,
 		receipts:   receipts,
-		evictedTxs: evitTxs,
-		txs:        block.Transactions,
+		evictedTxs: evictHashs,
+		txs:        txSlice,
 	})
 	return block
 }
 
-func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, rawTxs []*types.RawTransaction) (txs []*types.Transaction, ok bool) {
+func (chain *FullBlockChain) verifyTxs(block *types.Block) (txs txSlice, ok bool) {
 	begin := time.Now()
-
+	bh := block.Header
 	traceLog := monitor.NewPerformTraceLogger("verifyTxs", bh.Hash, bh.Height)
 	traceLog.SetParent("addBlockOnChain")
 
 	var err error
 	defer func() {
-		Logger.Infof("verifyTxs hash:%v,height:%d,totalQn:%d,preHash:%v,len tx:%d, cost:%v, err=%v", bh.Hash.Hex(), bh.Height, bh.TotalQN, bh.PreHash.Hex(), len(rawTxs), time.Since(begin).String(), err)
+		Logger.Infof("verifyTxs hash:%v,height:%d,totalQn:%d,preHash:%v,len tx:%d, cost:%v, err=%v", bh.Hash.Hex(), bh.Height, bh.TotalQN, bh.PreHash.Hex(), len(block.Transactions), time.Since(begin).String(), err)
 		traceLog.Log("err=%v", err)
 	}()
 
-	return chain.validateTxs(bh, rawTxs)
+	return chain.validateTxs(block)
 }
 
 // AddBlockOnChain add a block on blockchain, there are five cases of return value：
@@ -160,7 +160,7 @@ func (chain *FullBlockChain) verifyTxs(bh *types.BlockHeader, rawTxs []*types.Ra
 //		1, the block already exist on the blockchain, then we should discard it
 // 		2, the same height block with a larger QN value on the chain, then we should discard it
 // 		3, need adjust the blockchain, there will be a fork
-func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.RawBlock) types.AddBlockResult {
+func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) types.AddBlockResult {
 	ret, _ := chain.addBlockOnChain(source, b)
 	return ret
 }
@@ -181,7 +181,7 @@ func (chain *FullBlockChain) consensusVerifyBlock(bh *types.BlockHeader) (bool, 
 	return result, err
 }
 
-func (chain *FullBlockChain) processFutureBlock(b *types.RawBlock, source string) {
+func (chain *FullBlockChain) processFutureBlock(b *types.Block, source string) {
 	chain.futureRawBlocks.Add(b.Header.PreHash, b)
 	if source == "" {
 		return
@@ -197,7 +197,7 @@ func (chain *FullBlockChain) processFutureBlock(b *types.RawBlock, source string
 	}
 }
 
-func (chain *FullBlockChain) validateBlock(source string, b *types.RawBlock) (bool, error) {
+func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool, error) {
 
 	if b == nil {
 		return false, fmt.Errorf("block is nil")
@@ -216,7 +216,7 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.RawBlock) (bo
 	}
 
 	blockSize := 0
-	for _, v := range b.RawTxs {
+	for _, v := range b.Transactions {
 		blockSize += v.Size()
 	}
 	if blockSize > txAccumulateSizeMaxPerBlock {
@@ -230,20 +230,20 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.RawBlock) (bo
 	return true, nil
 }
 
-func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawBlock) (ret types.AddBlockResult, err error) {
+func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
 	begin := time.Now()
 
-	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", rawBlock.Header.Hash, rawBlock.Header.Height)
+	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
 
 	defer func() {
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", rawBlock.Header.Hash, rawBlock.Header.Height, err, time.Since(begin).String())
+		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
 	}()
 
-	if rawBlock == nil {
+	if block == nil {
 		return types.AddBlockFailed, fmt.Errorf("nil block")
 	}
-	bh := rawBlock.Header
+	bh := block.Header
 
 	if bh.Hash != bh.GenHash() {
 		Logger.Debugf("Validate block hash error!")
@@ -252,12 +252,12 @@ func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawB
 	}
 
 	topBlock := chain.getLatestBlock()
-	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", rawBlock.Header.Hash, rawBlock.Header.PreHash, rawBlock.Header.Height, rawBlock.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
+	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", block.Header.Hash, block.Header.PreHash, block.Header.Height, block.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
 
 	if chain.HasBlock(bh.Hash) {
 		return types.BlockExisted, ErrBlockExist
 	}
-	if ok, e := chain.validateBlock(source, rawBlock); !ok {
+	if ok, e := chain.validateBlock(source, block); !ok {
 		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists {
 			ret = types.AddBlockConsensusFailed
 		} else {
@@ -267,7 +267,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawB
 		return
 	}
 
-	txs, ok := chain.verifyTxs(bh, rawBlock.RawTxs)
+	txSlice, ok := chain.verifyTxs(block)
 	if !ok {
 		Logger.Errorf("Fail to verifyTxs")
 		ret = types.AddBlockFailed
@@ -275,14 +275,12 @@ func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawB
 		return
 	}
 
-	block := &types.Block{Header: bh, Transactions: txs}
-
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
 
 	defer func() {
 		if ret == types.AddBlockSucc {
-			chain.addTopBlock(rawBlock)
+			chain.addTopBlock(block)
 			chain.successOnChainCallBack(block)
 		}
 	}()
@@ -296,7 +294,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawB
 	}
 
 	if !chain.HasBlock(bh.PreHash) {
-		chain.processFutureBlock(rawBlock, source)
+		chain.processFutureBlock(block, source)
 		ret = types.AddBlockFailed
 		err = ErrPreNotExist
 		return
@@ -304,7 +302,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawB
 
 	// Add directly to the blockchain
 	if bh.PreHash == topBlock.Hash {
-		ok, e := chain.transitAndCommit(block)
+		ok, e := chain.transitAndCommit(block, txSlice)
 		if ok {
 			ret = types.AddBlockSucc
 			return
@@ -340,7 +338,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawB
 			return
 		}
 
-		ok, e := chain.transitAndCommit(block)
+		ok, e := chain.transitAndCommit(block, txSlice)
 		if ok {
 			ret = types.AddBlockSucc
 			return
@@ -352,17 +350,19 @@ func (chain *FullBlockChain) addBlockOnChain(source string, rawBlock *types.RawB
 	}
 }
 
-func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err error) {
-
+func (chain *FullBlockChain) transitAndCommit(block *types.Block, tSlice txSlice) (ok bool, err error) {
+	if len(block.Transactions) != len(tSlice) {
+		return false, fmt.Errorf("txslice len not equal to block transactions:%v %v", len(block.Transactions), len(tSlice))
+	}
 	// Check if all txs exist in the pool to ensure the basic validation is done
-	for _, tx := range block.Transactions {
+	for _, tx := range tSlice {
 		if exist, _ := chain.GetTransactionPool().IsTransactionExisted(tx.Hash); !exist {
 			return false, fmt.Errorf("tx is not in the pool %v", tx.Hash)
 		}
 	}
 
 	// Execute the transactions. Must be serialized execution
-	executeTxResult, ps := chain.executeTransaction(block)
+	executeTxResult, ps := chain.executeTransaction(block, tSlice)
 	if !executeTxResult {
 		err = fmt.Errorf("execute transaction fail")
 		return
@@ -373,28 +373,31 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block) (ok bool, err 
 }
 
 // validateTxs check tx sign and recover source
-func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.RawTransaction) ([]*types.Transaction, bool) {
-	rets := make([]*types.Transaction, 0)
-	if txs == nil || len(txs) == 0 {
+func (chain *FullBlockChain) validateTxs(block *types.Block) (txSlice, bool) {
+	bh := block.Header
+	rawTxs := block.Transactions
+
+	rets := make(txSlice, 0)
+	if rawTxs == nil || len(rawTxs) == 0 {
 		return rets, true
 	}
 
 	traceLog := monitor.NewPerformTraceLogger("validateTxs", bh.Hash, bh.Height)
 	traceLog.SetParent("verifyTxs")
-	defer traceLog.Log("size=%v", len(txs))
+	defer traceLog.Log("size=%v", len(rawTxs))
 
-	addTxs := make([]*types.Transaction, 0)
-	for _, tx := range txs {
-		txHash := tx.GenHash()
-		poolTx := chain.transactionPool.GetTransaction(tx.IsReward(), txHash)
+	addTxs := make(txSlice, 0)
+	for _, rawTx := range rawTxs {
+		txHash := rawTx.GenHash()
+		poolTx := chain.transactionPool.GetTransaction(rawTx.IsReward(), txHash)
 		if poolTx != nil {
-			if !bytes.Equal(tx.Sign, poolTx.Sign) {
-				Logger.Debugf("fail to validate txs: sign diff at %v, [%v %v]", txHash.Hex(), tx.Sign, poolTx.Sign)
+			if !bytes.Equal(rawTx.Sign, poolTx.Sign) {
+				Logger.Debugf("fail to validate rawTxs: sign diff at %v, [%v %v]", txHash.Hex(), rawTx.Sign, poolTx.Sign)
 				return nil, false
 			}
 			rets = append(rets, poolTx)
 		} else {
-			newTx := types.NewTransaction(tx, txHash)
+			newTx := types.NewTransaction(rawTx, txHash)
 			rets = append(rets, newTx)
 			addTxs = append(addTxs, newTx)
 		}
@@ -409,11 +412,11 @@ func (chain *FullBlockChain) validateTxs(bh *types.BlockHeader, txs []*types.Raw
 		return nil, false
 	}
 
-	Logger.Debugf("block %v, validate txs size %v, recover cnt %v", bh.Hash.Hex(), len(txs), len(addTxs))
+	Logger.Debugf("block %v, validate rawTxs size %v, recover cnt %v", bh.Hash.Hex(), len(rawTxs), len(addTxs))
 	return rets, true
 }
 
-func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *executePostState) {
+func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlice) (bool, *executePostState) {
 	traceLog := monitor.NewPerformTraceLogger("executeTransaction", block.Header.Hash, block.Header.Height)
 	traceLog.SetParent("commitBlock")
 	defer traceLog.Log("size=%v", len(block.Transactions))
@@ -436,14 +439,14 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 		return false, nil
 	}
 
-	stateTree, evictTxs, transactions, receipts, gasFee, err := chain.executor.Execute(state, block.Header, block.Transactions, false, nil)
-	txTree := calcTxTree(transactions)
+	stateTree, evictTxs, executedSlice, receipts, gasFee, err := chain.executor.Execute(state, block.Header, slice, false, nil)
+	txTree := executedSlice.calcTxTree()
 	if txTree != block.Header.TxTree {
 		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree, block.Header.TxTree)
 		return false, nil
 	}
-	if len(transactions) != len(block.Transactions) {
-		Logger.Errorf("Fail to verify transactions, length1: %d length2: %d", len(transactions), len(block.Transactions))
+	if len(executedSlice) != len(block.Transactions) {
+		Logger.Errorf("Fail to verify executedSlice, length1: %d length2: %d", len(executedSlice), len(block.Transactions))
 		return false, nil
 	}
 	if gasFee != block.Header.GasFee {
@@ -460,26 +463,22 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block) (bool, *exec
 		return false, nil
 	}
 
-	Logger.Infof("executeTransactions block height=%v,preHash=%x", block.Header.Height, preRoot)
+	Logger.Infof("executeTransactions block height=%v,preHash=%v", block.Header.Height, preRoot)
 	//taslog.Flush()
 
-	eps := &executePostState{state: state, receipts: receipts, evictedTxs: evictTxs, txs: block.Transactions}
+	eps := &executePostState{state: state, receipts: receipts, evictedTxs: evictTxs, txs: executedSlice}
 	chain.verifiedBlocks.Add(block.Header.Hash, eps)
 	return true, eps
 }
 
 func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 	notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: remoteBlock})
-	newGroup := GroupManagerImpl.GroupCreatedInCurrentBlock(remoteBlock)
-	if newGroup != nil {
-		notify.BUS.Publish(notify.GroupAddSucc, &notify.GroupOnChainSuccMessage{Group: newGroup})
-	}
 }
 
 func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	b := message.GetData().(*types.Block)
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
-		rawBlock := value.(*types.RawBlock)
+		rawBlock := value.(*types.Block)
 		Logger.Debugf("Get rawBlock from future blocks,hash:%s,height:%d", rawBlock.Header.Hash.Hex(), rawBlock.Header.Height)
 		chain.addBlockOnChain("", rawBlock)
 		chain.futureRawBlocks.Remove(b.Header.Hash)
@@ -487,7 +486,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	return nil
 }
 
-func (chain *FullBlockChain) ensureBlocksChained(rawBlocks []*types.RawBlock) bool {
+func (chain *FullBlockChain) ensureBlocksChained(rawBlocks []*types.Block) bool {
 	if len(rawBlocks) <= 1 {
 		return true
 	}
@@ -499,10 +498,9 @@ func (chain *FullBlockChain) ensureBlocksChained(rawBlocks []*types.RawBlock) bo
 	return true
 }
 
-func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, rawBlocks []*types.RawBlock, callback batchAddBlockCallback) {
+func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, rawBlocks []*types.Block, callback batchAddBlockCallback) error {
 	if !chain.ensureBlocksChained(rawBlocks) {
-		Logger.Errorf("%v rawBlocks not chained! size %v", module, len(rawBlocks))
-		return
+		return fmt.Errorf("blocks not chained")
 	}
 
 	chain.batchMu.Lock()
@@ -510,7 +508,7 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, 
 
 	localTop := chain.latestBlock
 
-	var addBlocks []*types.RawBlock
+	var addBlocks []*types.Block
 	for i, b := range rawBlocks {
 		if !chain.hasBlock(b.Header.Hash) {
 			addBlocks = rawBlocks[i:]
@@ -518,20 +516,26 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, 
 		}
 	}
 	if addBlocks == nil || len(addBlocks) == 0 {
-		return
+		return fmt.Errorf("nothing to add")
 	}
 	firstBH := addBlocks[0]
 	if firstBH.Header.PreHash != localTop.Hash {
-		pre := chain.QueryBlockHeaderByHash(firstBH.Header.PreHash)
-		if pre != nil {
-			last := addBlocks[len(addBlocks)-1].Header
-			Logger.Debugf("%v batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", module, localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
-			chain.ResetTop(pre)
-		} else {
-			// There will fork, we have to deal with it
-			Logger.Debugf("%v batchAdd detect fork from %v: local %v %v, peer %v %v", module, source, localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
+		// cannot reset in the block sync situation, and start the fork process
+		if !canReset {
 			go chain.forkProcessor.tryToProcessFork(source, firstBH)
-			return
+			return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
+		} else {
+			pre := chain.QueryBlockHeaderByHash(firstBH.Header.PreHash)
+			if pre != nil {
+				last := addBlocks[len(addBlocks)-1].Header
+				chain.ResetTop(pre)
+				Logger.Debugf("batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
+			} else {
+				// There will fork, we have to deal with it
+				Logger.Debugf("batchAdd detect fork from %v: local %v %v, peer %v %v", source, localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
+				go chain.forkProcessor.tryToProcessFork(source, firstBH)
+				return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
+			}
 		}
 	}
 	chain.isAdjusting = true
@@ -545,4 +549,5 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, module string, 
 			break
 		}
 	}
+	return nil
 }

@@ -126,12 +126,13 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 		i = "guard node"
 	}
 	mg := &MortGage{
-		Stake:              uint64(common.RA2TAS(miner.Stake)),
-		ApplyHeight:        miner.ApplyHeight,
-		Type:               t,
-		Status:             status,
-		StatusUpdateHeight: miner.StatusUpdateHeight,
-		Identity:           i,
+		Stake:                uint64(common.RA2TAS(miner.Stake)),
+		ApplyHeight:          miner.ApplyHeight,
+		Type:                 t,
+		Status:               status,
+		StatusUpdateHeight:   miner.StatusUpdateHeight,
+		Identity:             i,
+		IdentityUpdateHeight: miner.IdentityUpdateHeight,
 	}
 	return mg
 }

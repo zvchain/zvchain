@@ -258,8 +258,8 @@ func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64)
 	aci := r.Data.(*Account)
 	tx := &txRawData{
 		Target:   aci.Address,
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		TxType:   types.TransactionTypeChangeFundGuardMode,
 		Data:     []byte{byte(mode)},
 	}
@@ -284,8 +284,8 @@ func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) 
 	}
 	tx := &txRawData{
 		Target:   target,
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		TxType:   types.TransactionTypeVoteMinerPool,
 	}
 	return ca.SendRaw(tx)
@@ -299,8 +299,8 @@ func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *Result {
 	aci := r.Data.(*Account)
 	tx := &txRawData{
 		Target:   aci.Address,
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		TxType:   types.TransactionTypeApplyGuardMiner,
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)

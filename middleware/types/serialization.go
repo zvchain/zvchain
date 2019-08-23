@@ -45,8 +45,8 @@ func UnMarshalTransactions(b []byte) ([]*RawTransaction, error) {
 }
 
 // UnMarshalBlock deserialize from []byte to *Block
-func UnMarshalBlock(bytes []byte) (*RawBlock, error) {
-	b := new(tas_middleware_pb.RawBlock)
+func UnMarshalBlock(bytes []byte) (*Block, error) {
+	b := new(tas_middleware_pb.Block)
 	error := proto.Unmarshal(bytes, b)
 	if error != nil {
 		MiddleWareLogger.Errorf("[handler]Unmarshal Block error:%s", error.Error())
@@ -76,7 +76,7 @@ func MarshalTransactions(txs []*RawTransaction) ([]byte, error) {
 }
 
 // MarshalBlock serialize *Block
-func MarshalBlock(b *RawBlock) ([]byte, error) {
+func MarshalBlock(b *Block) ([]byte, error) {
 	block := BlockToPb(b)
 	if block == nil {
 		return nil, nil
@@ -192,13 +192,13 @@ func PbToBlockHeader(h *tas_middleware_pb.BlockHeader) *BlockHeader {
 	return &header
 }
 
-func PbToBlock(b *tas_middleware_pb.RawBlock) *RawBlock {
+func PbToBlock(b *tas_middleware_pb.Block) *Block {
 	if b == nil {
 		return nil
 	}
 	h := PbToBlockHeader(b.Header)
 	txs := PbToTransactions(b.Transactions)
-	block := &RawBlock{Header: h, RawTxs: txs}
+	block := &Block{Header: h, Transactions: txs}
 	return block
 }
 
@@ -264,12 +264,12 @@ func BlockHeaderToPb(h *BlockHeader) *tas_middleware_pb.BlockHeader {
 	return &header
 }
 
-func BlockToPb(b *RawBlock) *tas_middleware_pb.RawBlock {
+func BlockToPb(b *Block) *tas_middleware_pb.Block {
 	if b == nil {
 		return nil
 	}
 	header := BlockHeaderToPb(b.Header)
-	transactions := TransactionsToPb(b.RawTxs)
-	block := tas_middleware_pb.RawBlock{Header: header, Transactions: transactions}
+	transactions := TransactionsToPb(b.Transactions)
+	block := tas_middleware_pb.Block{Header: header, Transactions: transactions}
 	return &block
 }

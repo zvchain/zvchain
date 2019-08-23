@@ -49,7 +49,7 @@ func encodeBlockTransactions(b *types.Block) ([]byte, error) {
 	if len(b.Transactions) > 0 {
 		txBuf := bytes.NewBuffer([]byte{})
 		for _, tx := range b.Transactions {
-			txBytes, err := marshalTx(tx.RawTransaction)
+			txBytes, err := marshalTx(tx)
 			if err != nil {
 				return nil, err
 			}

@@ -138,7 +138,7 @@ func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detail
 	// it must be fund guard node
 	if detail.DisMissHeight == 0 {
 		detail.DisMissHeight = height + adjustWeightPeriod/2
-		err := updateFundGuardPoolStatus(db, address, fundGuardNodeType, height)
+		err := updateFundGuardPoolStatus(db, address, fullStakeGuardNodeType, height)
 		if err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func (b *BaseMiner) checkCanReduce(op *stakeReduceOp, minerType types.MinerType,
 			return fmt.Errorf("active verify miner cann't reduce stake to below bound")
 		}
 		// prepared status,check node is in live group
-		if GroupManagerImpl.GetGroupStoreReader().MinerLiveGroupCount(op.cancelTarget, op.height) > 0 {
+		if !GroupManagerImpl.MinerJoinedLivedGroupCountFilter(1, op.height)(op.cancelTarget) {
 			return fmt.Errorf("miner still in active groups, cannot reduce stake")
 		}
 	}

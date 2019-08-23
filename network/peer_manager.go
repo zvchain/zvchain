@@ -38,16 +38,16 @@ func newPeerManager() *PeerManager {
 		peers: make(map[uint64]*Peer),
 	}
 	priorityTable = map[uint32]SendPriorityType{
-		BlockInfoNotifyMsg: SendPriorityHigh,
-		NewBlockMsg:        SendPriorityHigh,
-		ReqBlock:           SendPriorityHigh,
-		BlockResponseMsg:   SendPriorityHigh,
-		ReqChainPieceBlock: SendPriorityHigh,
-		ChainPieceBlock:    SendPriorityHigh,
-		CastVerifyMsg:      SendPriorityHigh,
-		VerifiedCastMsg:    SendPriorityHigh,
-		CastRewardSignReq:  SendPriorityMedium,
-		CastRewardSignGot:  SendPriorityMedium,
+		BlockInfoNotifyMsg:       SendPriorityHigh,
+		NewBlockMsg:              SendPriorityHigh,
+		ReqBlock:                 SendPriorityHigh,
+		BlockResponseMsg:         SendPriorityHigh,
+		ForkFindAncestorResponse: SendPriorityHigh,
+		ForkFindAncestorReq:      SendPriorityHigh,
+		CastVerifyMsg:            SendPriorityHigh,
+		VerifiedCastMsg:          SendPriorityHigh,
+		CastRewardSignReq:        SendPriorityMedium,
+		CastRewardSignGot:        SendPriorityMedium,
 	}
 	return pm
 }

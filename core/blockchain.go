@@ -49,9 +49,9 @@ var (
 	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
 
-var BlockChainImpl types.BlockChain
+var BlockChainImpl *FullBlockChain
 
-var GroupManagerImpl group.Manager
+var GroupManagerImpl *group.Manager
 
 var Logger *logrus.Logger
 
@@ -109,11 +109,13 @@ type FullBlockChain struct {
 	ticker *ticker.GlobalTicker // Ticker is a global time ticker
 	ts     time2.TimeService
 	types.Account
+
+	cpChecker *cpChecker
 }
 
 func getBlockChainConfig() *BlockChainConfig {
 	return &BlockChainConfig{
-		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b") + common.GlobalConf.GetString("instance", "index", ""),
+		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
 		block:  "bh",
 
 		blockHeight: "hi",
@@ -199,11 +201,16 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
-	chain.executor = NewTVMExecutor(chain)
-
 	chain.latestBlock = chain.loadCurrentBlock()
 
 	GroupManagerImpl = group.NewManager(chain)
+
+	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
+	executor := NewTVMExecutor(chain)
+	executor.addPostProcessor(GroupManagerImpl.RegularCheck)
+	executor.addPostProcessor(chain.cpChecker.updateVotes)
+	executor.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
+	chain.executor = executor
 
 	if nil != chain.latestBlock {
 		if !chain.versionValidate() {
@@ -224,11 +231,13 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		chain.insertGenesisBlock()
 	}
 
-	chain.forkProcessor = initForkProcessor(chain)
+	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
 	initMinerManager(chain.ticker)
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
+
+	chain.cpChecker.init()
 
 	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 	return nil
@@ -286,6 +295,11 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	stateDB.SetNonce(common.MinerPoolAddr, 1)
 	stateDB.SetNonce(common.RewardStoreAddr, 1)
 	stateDB.SetNonce(common.GroupTopAddress, 1)
+	stateDB.SetNonce(cpAddress, 1)
+
+	// mark group votes at 0
+	chain.cpChecker.setGroupVotes(stateDB, []uint16{1})
+	chain.cpChecker.setGroupEpoch(stateDB, types.EpochAt(0))
 
 	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
