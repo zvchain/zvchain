@@ -45,7 +45,7 @@ func (helper *ConsensusHelperImpl) GenerateGenesisInfo() *types.GenesisInfo {
 
 // VRFProve2Value convert the vrf prove to big int
 func (helper *ConsensusHelperImpl) VRFProve2Value(prove []byte) *big.Int {
-	if len(prove) != ed25519.ProveSize{
+	if len(prove) != ed25519.ProveSize {
 		return big.NewInt(0)
 	}
 	return base.VRFProof2hash(base.VRFProve(prove)).Big()
@@ -69,9 +69,9 @@ func (helper *ConsensusHelperImpl) VerifyNewBlock(bh *types.BlockHeader, preBH *
 	return Proc.VerifyBlock(bh, preBH)
 }
 
-// VerifyBlockHeader verify the blockheader: mainly verify the group signature
-func (helper *ConsensusHelperImpl) VerifyBlockHeader(bh *types.BlockHeader) (bool, error) {
-	return Proc.VerifyBlockHeader(bh)
+// VerifyBlockSign verify the blockheader: mainly verify the group signature
+func (helper *ConsensusHelperImpl) VerifyBlockSign(bh *types.BlockHeader) (bool, error) {
+	return Proc.VerifyBlockSign(bh)
 }
 
 // VerifyRewardTransaction verify reward transaction
@@ -86,4 +86,8 @@ func (helper *ConsensusHelperImpl) EstimatePreHeight(bh *types.BlockHeader) uint
 		return 0
 	}
 	return height - uint64(math.Ceil(float64(bh.Elapsed)/float64(model.Param.MaxGroupCastTime)))
+}
+
+func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
+	return Proc.VerifyBlockHeaders(pre, bh)
 }

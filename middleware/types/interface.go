@@ -40,8 +40,8 @@ type BlockChain interface {
 	// TotalQN of chain
 	TotalQN() uint64
 
-	// LatestStateDB returns chain's last account database
-	LatestStateDB() (AccountDB, error)
+	// LatestAccountDB returns chain's last account database
+	LatestAccountDB() (AccountDB, error)
 
 	// QueryBlockByHash query the block by hash
 	QueryBlockByHash(hash common.Hash) *Block
@@ -88,8 +88,8 @@ type BlockChain interface {
 	// GetAccountDBByHash returns account database with specified block hash
 	GetAccountDBByHash(hash common.Hash) (AccountDB, error)
 
-	// GetAccountDBByHeight returns account database with specified block height
-	GetAccountDBByHeight(height uint64) (AccountDB, error)
+	// AccountDBAt returns account database with specified block height
+	AccountDBAt(height uint64) (AccountDB, error)
 
 	// GetConsensusHelper returns consensus helper reference
 	GetConsensusHelper() ConsensusHelper
@@ -108,7 +108,7 @@ type BlockChain interface {
 type RewardManager interface {
 	GetRewardTransactionByBlockHash(blockHash common.Hash) *Transaction
 	GenerateReward(targetIds []int32, blockHash common.Hash, gSeed common.Hash, totalValue uint64, packFee uint64) (*Reward, *Transaction, error)
-	ParseRewardTransaction(transaction *Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error)
+	ParseRewardTransaction(msg TxMessage) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error)
 	CalculateCastRewardShare(height uint64, gasFee uint64) *CastRewardShare
 	HasRewardedOfBlock(blockHash common.Hash, accountdb AccountDB) bool
 	MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb AccountDB)

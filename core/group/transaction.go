@@ -117,7 +117,7 @@ func (p PacketSender) SendOriginPiecePacket(packet types.OriginSharePiecePacket)
 }
 
 func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*types.Transaction, error) {
-	db, err := p.chain.LatestStateDB()
+	db, err := p.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return nil, err

@@ -18,8 +18,10 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"sync"
 
+	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -29,6 +31,7 @@ import (
 const (
 	heavyMinerNetTriggerInterval = 10
 	buildVirtualNetRoutineName   = "build_virtual_net"
+	checkInterval                = 1000
 )
 
 var MinerManagerImpl *MinerManager
@@ -57,18 +60,179 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 	go MinerManagerImpl.listenProposalUpdate()
 }
 
-func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.AccountDB) (success bool, err error) {
-
-	if err = operation.Validate(); err != nil {
-		return
+// GuardNodesCheck check guard nodes is expired
+func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, height uint64) {
+	snapshot := accountDB.Snapshot()
+	err := mm.fullStakeGuardNodesCheck(accountDB, height)
+	if err != nil {
+		accountDB.RevertToSnapshot(snapshot)
+		log.CoreLogger.Errorf("check full guard node error,error is %s", err.Error())
 	}
+
+	snapshot = accountDB.Snapshot()
+	err = mm.fundGuardNodesCheck(accountDB, height)
+	if err != nil {
+		accountDB.RevertToSnapshot(snapshot)
+		log.CoreLogger.Errorf("check fund guard node error,error is %s", err.Error())
+	} else {
+		log.CoreLogger.Infof("scan all fund guard nodes success")
+	}
+}
+
+func (mm *MinerManager) fundGuardNodesCheck(accountDB types.AccountDB, height uint64) error {
+	err := mm.fundGuardSixAddFiveNodesCheck(accountDB, height)
+	if err != nil {
+		return err
+	}
+	err = mm.fundGuardSixAddSixNodesCheck(accountDB, height)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB, height uint64) error {
+	if height < adjustWeightPeriod/2 || height > adjustWeightPeriod*2 {
+		return nil
+	}
+	if height%checkInterval != 0 {
+		return nil
+	}
+	hasScanned := hasScanedSixAddFiveFundGuards(accountDB)
+	if hasScanned {
+		return nil
+	}
+	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
+	if err != nil {
+		return err
+	}
+	for _, fd := range fds {
+		if !fd.isFundGuard() {
+			continue
+		}
+		if !fd.isSixAddFive() {
+			continue
+		}
+		err = guardNodeExpired(accountDB, fd.Address, height, true)
+		if err != nil {
+			return err
+		}
+		err = updateFundGuardPoolStatus(accountDB, fd.Address, normalNodeType, height)
+		if err != nil {
+			return err
+		}
+	}
+	markScanedSixAddFiveFundGuards(accountDB)
+	return nil
+}
+
+func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, height uint64) error {
+	if height < adjustWeightPeriod || height > adjustWeightPeriod*3 {
+		return nil
+	}
+	if height%checkInterval != 0 {
+		return nil
+	}
+	hasScanned := hasScanedSixAddSixFundGuards(accountDB)
+	if hasScanned {
+		return nil
+	}
+	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
+	if err != nil {
+		return err
+	}
+	for _, fd := range fds {
+		if !fd.isFundGuard() {
+			continue
+		}
+		if !fd.isSixAddSix() {
+			continue
+		}
+		err = guardNodeExpired(accountDB, fd.Address, height, true)
+		if err != nil {
+			return err
+		}
+		err = updateFundGuardPoolStatus(accountDB, fd.Address, normalNodeType, height)
+		if err != nil {
+			return err
+		}
+	}
+	markScanedSixAddSixFundGuards(accountDB)
+	return nil
+}
+
+func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint64) error {
+	if height < adjustWeightPeriod/2 {
+		return nil
+	}
+	if height%checkInterval != 0 {
+		return nil
+	}
+
+	fullStakeAddress := mm.GetAllFullStakeGuardNodes(db)
+	if fullStakeAddress == nil || len(fullStakeAddress) == 0 {
+		return nil
+	}
+
+	var err error
+	for _, addr := range fullStakeAddress {
+		err = mm.checkFullStakeGuardNodeExpired(db, addr, height)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (mm *MinerManager) GetTickets(db types.AccountDB, address common.Address) uint64 {
+	return getTickets(db, address)
+}
+
+func (mm *MinerManager) checkFullStakeGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) error {
+	detailKey := getDetailKey(address, types.MinerTypeProposal, types.Staked)
+	stakedDetail, err := getDetail(db, address, detailKey)
+	if err != nil {
+		return err
+	}
+	if stakedDetail == nil {
+		return fmt.Errorf("check guard nodes,find stake detail is nil,address is %s", address.String())
+	}
+	if height > (stakedDetail.DisMissHeight + stakeBuffer) {
+		return mm.processGuardNodeExpired(db, address, height)
+	}
+	if stakedDetail.MarkNotFullHeight > 0 {
+		if height > stakedDetail.MarkNotFullHeight+stakeBuffer {
+			return mm.processGuardNodeExpired(db, address, height)
+		}
+	} else {
+		if !isFullStake(stakedDetail.Value, height) {
+			stakedDetail.MarkNotFullHeight = height
+			err = setDetail(db, address, detailKey, stakedDetail)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func (mm *MinerManager) processGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) error {
+	err := guardNodeExpired(db, address, height, false)
+	if err != nil {
+		return fmt.Errorf("processGuardNodeExpired error :%v", err)
+	}
+	return nil
+}
+
+func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.AccountDB) (success bool, err error) {
 	if err = operation.ParseTransaction(); err != nil {
 		return
 	}
 	snapshot := accountDB.Snapshot()
-	if err = operation.Operation(); err != nil {
+	if ret := operation.Transition(); ret.err != nil {
 		accountDB.RevertToSnapshot(snapshot)
-		return
+		return false, ret.err
 	}
 	return true, nil
 
@@ -83,27 +247,26 @@ func (mm *MinerManager) ClearTicker() {
 }
 
 // ExecuteOperation execute the miner operation
-func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.MinerOperationMessage, height uint64) (success bool, err error) {
-	operation := newOperation(accountDB, msg, height)
-	return mm.executeOperation(operation, accountDB)
+func (mm *MinerManager) ExecuteOperation(accountDB types.AccountDB, msg types.TxMessage, height uint64) (success bool, err error) {
+	ss := newTransitionContext(accountDB, msg, nil, height)
+	op := getOpByType(ss, msg.OpType())
+	return mm.executeOperation(op, accountDB)
 }
 
 // FreezeMiner execute the miner frozen operation
 func (mm *MinerManager) MinerFrozen(accountDB types.AccountDB, miner common.Address, height uint64) (success bool, err error) {
-	base := newBaseOperation(accountDB, nil, height)
-	base.minerType = types.MinerTypeVerify
-	operation := &minerFreezeOp{baseOperation: base, addr: miner}
+	base := newTransitionContext(accountDB, nil, nil, height)
+	operation := &minerFreezeOp{transitionContext: base, addr: miner}
 	return mm.executeOperation(operation, accountDB)
 }
 
 func (mm *MinerManager) MinerPenalty(accountDB types.AccountDB, penalty types.PunishmentMsg, height uint64) (success bool, err error) {
-	base := newBaseOperation(accountDB, nil, height)
-	base.minerType = types.MinerTypeVerify
+	base := newTransitionContext(accountDB, nil, nil, height)
 	operation := &minerPenaltyOp{
-		baseOperation: base,
-		targets:       make([]common.Address, len(penalty.PenaltyTarget())),
-		rewards:       make([]common.Address, len(penalty.RewardTarget())),
-		value:         minimumStake(),
+		transitionContext: base,
+		targets:           make([]common.Address, len(penalty.PenaltyTarget())),
+		rewards:           make([]common.Address, len(penalty.RewardTarget())),
+		value:             minimumStake(),
 	}
 	for i, id := range penalty.PenaltyTarget() {
 		operation.targets[i] = common.BytesToAddress(id)
@@ -116,7 +279,7 @@ func (mm *MinerManager) MinerPenalty(accountDB types.AccountDB, penalty types.Pu
 
 // GetMiner return the latest miner info stored in db of the given address and the miner type
 func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.MinerType) *types.Miner {
-	accontDB, err := BlockChainImpl.LatestStateDB()
+	accontDB, err := BlockChainImpl.LatestAccountDB()
 	if err != nil {
 		Logger.Errorf("get accontDB failed,error = %v", err.Error())
 		return nil
@@ -129,11 +292,15 @@ func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.Miner
 	return miner
 }
 
+func (mm *MinerManager) GetFullMinerPoolStake(height uint64) uint64 {
+	return getFullMinerPoolStake(height)
+}
+
 // GetMiner return miner info stored in db of the given address and the miner type at the given height
 func (mm *MinerManager) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {
-	db, err := BlockChainImpl.GetAccountDBByHeight(height)
+	db, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
-		Logger.Errorf("GetAccountDBByHeight error:%v, height:%v", err, height)
+		Logger.Errorf("AccountDBAt error:%v, height:%v", err, height)
 		return nil
 	}
 	miner, err := getMiner(db, address, mType)
@@ -146,29 +313,57 @@ func (mm *MinerManager) GetMiner(address common.Address, mType types.MinerType, 
 
 // GetProposalTotalStake returns the chain's total staked value of proposals at the specific block height
 func (mm *MinerManager) GetProposalTotalStake(height uint64) uint64 {
-	accountDB, err := BlockChainImpl.GetAccountDBByHeight(height)
+	accountDB, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
-		Logger.Errorf("Get account db by height %d error:%s", height, err.Error())
+		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return 0
 	}
 
-	return getProposalTotalStake(accountDB.AsAccountDBTS())
+	return getProposalTotalStake(accountDB)
+}
+
+func (mm *MinerManager) GetAllFullStakeGuardNodes(accountDB types.AccountDB) []common.Address {
+	var addrs []common.Address
+	iter := accountDB.DataIterator(common.FullStakeGuardNodeAddr, common.KeyGuardNodes)
+	if iter != nil {
+		for iter.Next() {
+			addr := common.BytesToAddress(iter.Key[len(common.KeyGuardNodes):])
+			addrs = append(addrs, addr)
+		}
+	}
+	return addrs
+}
+
+func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]*fundGuardNodeDetail, error) {
+	var fds []*fundGuardNodeDetail
+	iter := accountDB.DataIterator(common.FundGuardNodeAddr, common.KeyGuardNodes)
+	for iter.Next() {
+		addr := common.BytesToAddress(iter.Key[len(common.KeyGuardNodes):])
+		bytes := iter.Value
+		var fn fundGuardNode
+		err := msgpack.Unmarshal(bytes, &fn)
+		if err != nil {
+			return nil, fmt.Errorf("get fund guard nodes error,error = %s", err.Error())
+		}
+		fds = append(fds, &fundGuardNodeDetail{Address: addr, fundGuardNode: &fn})
+	}
+	return fds, nil
 }
 
 // GetAllMiners returns all miners of the the specified type at the given height
 func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
-	accountDB, err := BlockChainImpl.GetAccountDBByHeight(height)
+	accountDB, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
-		Logger.Errorf("Get account db by height %d error:%s", height, err.Error())
+		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return nil
 	}
 	var prefix []byte
 	if types.IsVerifyRole(mType) {
-		prefix = prefixPoolVerifier
+		prefix = common.PrefixPoolVerifier
 	} else {
-		prefix = prefixPoolProposal
+		prefix = common.PrefixPoolProposal
 	}
-	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
+	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
 	miners := make([]*types.Miner, 0)
 	for iter.Next() {
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
@@ -185,7 +380,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 }
 
 func (mm *MinerManager) getStakeDetail(address, source common.Address, status types.StakeStatus, mType types.MinerType) *types.StakeDetail {
-	db, error := BlockChainImpl.LatestStateDB()
+	db, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		Logger.Errorf("get accountdb failed,error = %v", error.Error())
 		return nil
@@ -197,12 +392,13 @@ func (mm *MinerManager) getStakeDetail(address, source common.Address, status ty
 	}
 	if detail != nil {
 		return &types.StakeDetail{
-			Source:       source,
-			Target:       address,
-			Value:        detail.Value,
-			UpdateHeight: detail.Height,
-			Status:       status,
-			MType:        mType,
+			Source:        source,
+			Target:        address,
+			Value:         detail.Value,
+			UpdateHeight:  detail.Height,
+			Status:        status,
+			MType:         mType,
+			DisMissHeight: detail.DisMissHeight,
 		}
 	}
 	return nil
@@ -234,18 +430,18 @@ func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Ad
 // GetAllStakeDetails returns all stake details of the given account
 func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]*types.StakeDetail {
 	ret := make(map[string][]*types.StakeDetail)
-	accontDB, error := BlockChainImpl.LatestStateDB()
+	accontDB, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		Logger.Errorf("get accountdb failed,err = %v", error.Error())
 		return ret
 	}
-	iter := accontDB.DataIterator(address, prefixDetail)
+	iter := accontDB.DataIterator(address, common.PrefixDetail)
 	if iter == nil {
 		return nil
 	}
 	for iter.Next() {
 		// finish the iterator
-		if !bytes.HasPrefix(iter.Key, prefixDetail) {
+		if !bytes.HasPrefix(iter.Key, common.PrefixDetail) {
 			break
 		}
 		addr, mt, st := parseDetailKey(iter.Key)
@@ -276,13 +472,13 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 
 func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
 	mp := make(map[string]struct{})
-	accountDB, error := BlockChainImpl.LatestStateDB()
+	accountDB, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		Logger.Errorf("get accountdb failed,error = %v", error.Error())
 		return mp
 	}
-	prefix := prefixPoolProposal
-	iter := accountDB.AsAccountDBTS().DataIteratorSafe(minerPoolAddr, prefix)
+	prefix := common.PrefixPoolProposal
+	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
 	for iter != nil && iter.Next() {
 		if !bytes.HasPrefix(iter.Key, prefix) {
 			break
@@ -366,6 +562,11 @@ func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.Accoun
 		Type:   types.TransactionTypeStakeAdd,
 		Data:   data,
 	}
+	err = mm.ValidateStakeAdd(tx)
+	if err != nil {
+		panic(fmt.Errorf("add genesis miner validate error:%v", err))
+	}
+
 	_, err = mm.ExecuteOperation(db, tx, 0)
 	if err != nil {
 		panic(fmt.Errorf("add genesis miner error:%v", err))
@@ -373,6 +574,22 @@ func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.Accoun
 	// Add nonce or else the account maybe marked as deleted because zero nonce, zero balance, empty data
 	nonce := db.GetNonce(addr)
 	db.SetNonce(addr, nonce+1)
+}
+
+func (mm *MinerManager) ValidateStakeAdd(tx *types.Transaction) error {
+	if len(tx.Data) == 0 {
+		return fmt.Errorf("payload length error")
+	}
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	if tx.Value == nil {
+		return fmt.Errorf("amount is nil")
+	}
+	if !tx.Value.Value().IsUint64() {
+		return fmt.Errorf("amount type not uint64")
+	}
+	return nil
 }
 
 func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.AccountDB) {
@@ -383,5 +600,22 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 		// Add as proposer
 		miner.Type = types.MinerTypeProposal
 		mm.addGenesisMinerStake(miner, accountDB)
+	}
+}
+
+func (mm *MinerManager) genFundGuardNodes(accountDB types.AccountDB) {
+	for _, addr := range types.ExtractGuardNodes {
+		miner := &types.Miner{ID: addr.Bytes(), Type: types.MinerTypeProposal, Identity: types.MinerGuard, Status: types.MinerStatusPrepare, ApplyHeight: 0, Stake: 0}
+		bs, err := msgpack.Marshal(miner)
+		if err != nil {
+			panic("encode miner failed")
+		}
+		accountDB.SetData(common.BytesToAddress(miner.ID), getMinerKey(miner.Type), bs)
+		err = addFundGuardPool(accountDB, addr)
+		if err != nil {
+			panic("encode fund guard failed")
+		}
+		nonce := accountDB.GetNonce(addr)
+		accountDB.SetNonce(addr, nonce+1)
 	}
 }

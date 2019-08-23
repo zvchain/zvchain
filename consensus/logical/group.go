@@ -28,10 +28,54 @@ type member struct {
 	pk groupsig.Pubkey
 }
 
+type groupHeader struct {
+	seed          common.Hash
+	workHeight    uint64
+	dismissHeight uint64
+	gpk           groupsig.Pubkey
+	threshold     uint32
+	groupHeight   uint64
+}
+
+func (gh *groupHeader) Seed() common.Hash {
+	return gh.seed
+}
+
+func (gh *groupHeader) WorkHeight() uint64 {
+	return gh.workHeight
+}
+
+func (gh *groupHeader) DismissHeight() uint64 {
+	return gh.dismissHeight
+}
+
+func (gh *groupHeader) PublicKey() []byte {
+	return gh.gpk.Serialize()
+}
+
+func (gh *groupHeader) Threshold() uint32 {
+	return gh.threshold
+}
+
+func (gh *groupHeader) GroupHeight() uint64 {
+	return gh.groupHeight
+}
+
 type verifyGroup struct {
-	header   types.GroupHeaderI
+	header   *groupHeader
 	members  []*member
 	memIndex map[string]int
+}
+
+func convertGroupHeaderI(gh types.GroupHeaderI) *groupHeader {
+	return &groupHeader{
+		seed:          gh.Seed(),
+		workHeight:    gh.WorkHeight(),
+		dismissHeight: gh.DismissHeight(),
+		gpk:           groupsig.DeserializePubkeyBytes(gh.PublicKey()),
+		threshold:     gh.Threshold(),
+		groupHeight:   gh.GroupHeight(),
+	}
 }
 
 func convertGroupI(g types.GroupI) *verifyGroup {
@@ -42,7 +86,7 @@ func convertGroupI(g types.GroupI) *verifyGroup {
 		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	return &verifyGroup{
-		header:   g.Header(),
+		header:   convertGroupHeaderI(g.Header()),
 		memIndex: memIndex,
 		members:  mems,
 	}
@@ -95,14 +139,18 @@ type skStorage interface {
 }
 
 type groupInfoReader interface {
-	// GetAvailableGroupSeeds gets available groups' seed at the given height
-	GetAvailableGroupSeeds(height uint64) []types.SeedI
+	// GetActivatedGroupSeeds gets activated groups' seed at the given height
+	GetActivatedGroupsAt(height uint64) []types.GroupI
+	// GetLivedGroupsAt gets lived groups
+	GetLivedGroupsAt(height uint64) []types.GroupI
 	// GetGroupBySeed returns the group info of the given seed
 	GetGroupBySeed(seedHash common.Hash) types.GroupI
 	// GetGroupHeaderBySeed returns the group header info of the given seed
 	GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI
 	Height() uint64
 }
+
+type groupGetter func(seed common.Hash) types.GroupI
 
 type groupReader struct {
 	skStore skStorage
@@ -114,41 +162,56 @@ func newGroupReader(infoReader groupInfoReader, skReader skStorage) *groupReader
 	return &groupReader{
 		skStore: skReader,
 		reader:  infoReader,
-		cache:   common.MustNewLRUCache(50),
+		cache:   common.MustNewLRUCache(200),
 	}
 }
 
-func (gr *groupReader) getGroupHeaderBySeed(seed common.Hash) types.GroupHeaderI {
-	if v, ok := gr.cache.Get(seed); ok {
-		return v.(*verifyGroup).header
+func (gr *groupReader) getGroupHeaderBySeed(seed common.Hash) *groupHeader {
+	g := gr.getGroupBySeed(seed)
+	if g == nil {
+		return nil
 	}
-	g := gr.reader.GetGroupHeaderBySeed(seed)
-	if g != nil {
-		gr.cache.ContainsOrAdd(seed, &verifyGroup{header: g})
-	}
-	return g
+	return g.header
 }
 
 func (gr *groupReader) getGroupBySeed(seed common.Hash) *verifyGroup {
-	if v, ok := gr.cache.Get(seed); ok {
-		g := v.(*verifyGroup)
-		if len(g.members) > 0 {
-			return g
-		}
-	}
-	g := gr.reader.GetGroupBySeed(seed)
-	if g != nil {
-		stdLogger.Debugf("get group seed %v len %v", seed, g.Members())
-		gi := convertGroupI(g)
-		gr.cache.ContainsOrAdd(gi.header.Seed(), gi)
-		return gi
-	}
-	return nil
+	return gr.tryToGetOrConvert(seed, gr.reader.GetGroupBySeed)
 }
 
-func (gr *groupReader) getAvailableGroupSeedsByHeight(h uint64) []types.SeedI {
-	gs := gr.reader.GetAvailableGroupSeeds(h)
-	return gs
+func (gr *groupReader) tryToGetOrConvert(seed common.Hash, getter groupGetter) *verifyGroup {
+	if v, ok := gr.cache.Get(seed); !ok {
+		g := getter(seed)
+		if g == nil {
+			return nil
+		}
+		gi := convertGroupI(g)
+		gr.cache.ContainsOrAdd(gi.header.seed, gi)
+		return gi
+	} else {
+		return v.(*verifyGroup)
+	}
+}
+
+func (gr *groupReader) getActivatedGroupsByHeight(h uint64) []*verifyGroup {
+	gs := gr.reader.GetActivatedGroupsAt(h)
+	vgs := make([]*verifyGroup, len(gs))
+	for i, gi := range gs {
+		vgs[i] = gr.tryToGetOrConvert(gi.Header().Seed(), func(seed common.Hash) types.GroupI {
+			return gi
+		})
+	}
+	return vgs
+}
+
+func (gr *groupReader) getLivedGroupsByHeight(h uint64) []*verifyGroup {
+	gs := gr.reader.GetLivedGroupsAt(h)
+	vgs := make([]*verifyGroup, len(gs))
+	for i, gi := range gs {
+		vgs[i] = gr.tryToGetOrConvert(gi.Header().Seed(), func(seed common.Hash) types.GroupI {
+			return gi
+		})
+	}
+	return vgs
 }
 
 func (gr *groupReader) getGroupSignatureSeckey(seed common.Hash) groupsig.Seckey {

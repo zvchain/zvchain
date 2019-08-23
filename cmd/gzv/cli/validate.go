@@ -16,6 +16,7 @@
 package cli
 
 import (
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"regexp"
 )
@@ -32,7 +33,7 @@ func validateKey(key string) bool {
 }
 
 func validateTxType(typ int) bool {
-	return typ != types.TransactionTypeReward && typ >= types.TransactionTypeTransfer && typ <= types.TransactionTypeStakeRefund
+	return typ < types.SystemTransactionOffset
 }
 
 func validateMinerType(typ int) bool {
@@ -40,7 +41,7 @@ func validateMinerType(typ int) bool {
 	return mType == types.MinerTypeVerify || mType == types.MinerTypeProposal
 }
 
-func validateStakeStatus(typ int) bool {
-	st := types.StakeStatus(typ)
-	return st != types.Staked && st != types.StakeFrozen
+func validateFundGuardMode(mode int) bool {
+	md := common.FundModeType(mode)
+	return md == common.SIXAddFive || md == common.SIXAddSix
 }

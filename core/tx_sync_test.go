@@ -231,7 +231,7 @@ func init4TxSync() {
 	initPeerManager()
 	types.InitMiddleware()
 	initNetwork()
-	initTxSyncer(BlockChainImpl.(*FullBlockChain), BlockChainImpl.GetTransactionPool().(*txPool), NetImpl)
+	initTxSyncer(BlockChainImpl, BlockChainImpl.GetTransactionPool().(*txPool), NetImpl)
 	//network.Init(nil,nil,nil)
 
 	types.DefaultPVFunc = PvFuncTest
@@ -413,14 +413,14 @@ func (b *BigInt) GetBytesWithSign() []byte {
 
 func AddBalance() {
 	blocks := GenBlocks()
-	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 
 	stateDB.AddBalance(common.StringToAddress(adminAddress), new(big.Int).SetUint64(99999999999999999))
 
 	exc := &executePostState{state: stateDB}
 	root := stateDB.IntermediateRoot(true)
 	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())
-	BlockChainImpl.(*FullBlockChain).commitBlock(blocks[0], exc)
+	BlockChainImpl.commitBlock(blocks[0], exc)
 	lastBlockHash = blocks[0].Header.Hash
 }
 
