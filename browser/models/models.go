@@ -23,14 +23,14 @@ type Account struct {
 	gorm.Model
 	Address          string `json:"address" gorm:"unique_index"`
 	RoleType         uint64 `json:"role_type" gorm:"index"`
-	ProposalStake    uint64 `json:"proposal_stake"`
-	VerifyStake      uint64 `json:"verify_stake"`
+	ProposalStake    uint64 `json:"proposal_stake" gorm:"index"`
+	VerifyStake      uint64 `json:"verify_stake" gorm:"index"`
 	TotalStake       uint64 `json:"total_stake" gorm:"index"`
-	OtherStake       uint64 `json:"other_stake"`
+	OtherStake       uint64 `json:"other_stake" gorm:"index"`
 	Group            string `json:"group"`
-	WorkGroup        uint64 `json:"work_group"`
-	DismissGroup     uint64 `json:"dismiss_group"`
-	PrepareGroup     uint64 `json:"prepare_group"`
+	WorkGroup        uint64 `json:"work_group" gorm:"index"`
+	DismissGroup     uint64 `json:"dismiss_group" gorm:"index"`
+	PrepareGroup     uint64 `json:"prepare_group" gorm:"index"`
 	TotalTransaction uint64 `json:"total_transaction"`
 	Rewards          uint64 `json:"rewards" gorm:"index"`
 	Status           byte   `json:"status" gorm:"index"`
