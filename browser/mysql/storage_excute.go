@@ -82,13 +82,17 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts []*models.Accoun
 		return false
 	}
 	tx := storage.db.Begin()
+
+	updateReward := func(account *models.Account) error {
+		return tx.Model(&account).
+			Where("address = ?", account.Address).
+			Updates(map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)}).Error
+	}
 	for _, account := range accounts {
 		if account.Address == "" {
 			continue
 		}
-		if !errors(tx.Model(&account).
-			Where("address = ?", account.Address).
-			Updates(map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)}).Error) {
+		if !errors(updateReward(account)) {
 			tx.Rollback()
 			return false
 		}
