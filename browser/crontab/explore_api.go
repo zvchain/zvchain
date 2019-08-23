@@ -67,7 +67,9 @@ func (api *Explore) GetPreHightRewardByHeight(height uint64) []*ExploreBlockRewa
 			if tx.IsReward() {
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
 				reward := api.GetRewardByBlock(block)
-				exploreBlockReward = append(exploreBlockReward, reward)
+				if reward != nil {
+					exploreBlockReward = append(exploreBlockReward, reward)
+				}
 			}
 		}
 	}

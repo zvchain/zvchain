@@ -2,7 +2,6 @@ package crontab
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/common"
@@ -108,15 +107,10 @@ func (crontab *Crontab) fetchBlockRewards() {
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockHeight)
 	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockHeight)
 	if rewards != nil {
-		sys := &models.Sys{
-			Variable: mysql.Blockrewardtophight,
-			SetBy:    "carrie.cxl",
-		}
-		crontab.storage.AddBlockRewardSystemconfig(sys)
-		crontab.blockHeight += 1
+
 		accounts := crontab.transfer.RewardsToAccounts(rewards)
-		for _, account := range accounts {
-			crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)})
+		if crontab.storage.AddBlockRewardMysqlTransaction(accounts) {
+			crontab.blockHeight += 1
 		}
 		go crontab.fetchBlockRewards()
 
