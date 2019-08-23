@@ -60,19 +60,25 @@ func GetBalance(addressC *C.char) *C.char {
 }
 
 //export GetData
-func GetData(key *C.char) *C.char {
+func GetData(key *C.char, keyLen C.int, value **C.char, valueLen *C.int) {
 	//hash := common.StringToHash(C.GoString(hashC))
 	address := *controller.VM.ContractAddress
-	state := controller.AccountDB.GetData(address, []byte(C.GoString(key)))
-	return C.CString(string(state))
+	state := controller.AccountDB.GetData(address, C.GoBytes(unsafe.Pointer(key), keyLen))
+	if state == nil {
+		*value = nil
+		*valueLen = -1
+	} else {
+		*value = (*C.char)(C.CBytes(state))
+		*valueLen = C.int(len(state))
+	}
 }
 
 //export SetData
-func SetData(keyC *C.char, data *C.char) {
+func SetData(key *C.char, kenLen C.int, value *C.char, valueLen C.int) {
 	address := *controller.VM.ContractAddress
-	key := []byte(C.GoString(keyC))
-	state := []byte(C.GoString(data))
-	controller.AccountDB.SetData(address, key, state)
+	k := C.GoBytes(unsafe.Pointer(key), kenLen)
+	v := C.GoBytes(unsafe.Pointer(value), valueLen)
+	controller.AccountDB.SetData(address, k, v)
 }
 
 //export BlockHash
@@ -117,7 +123,7 @@ func ContractCall(addressC *C.char, funName *C.char, jsonParms *C.char, cResult 
 func EventCall(eventName *C.char, data *C.char) {
 
 	var log types.Log
-	log.Topics = append(log.Topics, common.BytesToHash(common.Sha256([]byte(C.GoString(eventName)))))
+	log.Topic = common.BytesToHash(common.Sha256([]byte(C.GoString(eventName))))
 	log.Index = uint(len(controller.VM.Logs))
 	log.Data = []byte(C.GoString(data))
 	log.TxHash = controller.Transaction.GetHash()
@@ -130,7 +136,8 @@ func EventCall(eventName *C.char, data *C.char) {
 }
 
 //export RemoveData
-func RemoveData(key *C.char) {
+func RemoveData(key *C.char, kenLen C.int) {
 	address := *controller.VM.ContractAddress
-	controller.AccountDB.RemoveData(address, []byte(C.GoString(key)))
+	k := C.GoBytes(unsafe.Pointer(key), kenLen)
+	controller.AccountDB.RemoveData(address, k)
 }

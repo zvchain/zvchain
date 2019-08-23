@@ -132,6 +132,7 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 		Status:             status,
 		StatusUpdateHeight: miner.StatusUpdateHeight,
 		Identity:           i,
+		IdentityUpdateHeight:miner.IdentityUpdateHeight,
 	}
 	return mg
 }
