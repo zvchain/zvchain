@@ -253,7 +253,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 				UpdateHeight:  d.UpdateHeight,
 				MType:         mTypeString(d.MType),
 				Status:        statusString(d.Status),
-				DisMissHeight: d.DisMissHeight,
+				ExpiredHeight: d.DisMissHeight,
 			}
 			details = append(details, dt)
 		}

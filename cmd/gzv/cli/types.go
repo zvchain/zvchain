@@ -142,7 +142,7 @@ type StakeDetail struct {
 	UpdateHeight  uint64 `json:"update_height"`
 	MType         string `json:"m_type"`
 	Status        string `json:"stake_status"`
-	DisMissHeight uint64 `json:"dismiss_height"`
+	ExpiredHeight uint64 `json:"expired_height"`
 }
 
 type MinerPoolDetail struct {
