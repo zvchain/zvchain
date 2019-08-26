@@ -30,7 +30,7 @@ type Log struct {
 	// address of the contract that generated the event
 	Address common.Address `json:"address" gencodec:"required"`
 	// list of topics provided by the contract.
-	Topics []common.Hash `json:"topics" gencodec:"required"`
+	Topic common.Hash `json:"topic" gencodec:"required"`
 	// supplied by the contract, usually ABI-encoded
 	Data []byte `json:"data" gencodec:"required"`
 
@@ -51,5 +51,5 @@ type Log struct {
 }
 
 func (l *Log) String() string {
-	return fmt.Sprintf(`log: %x %x %x %x %d %d`, l.Address, l.Topics, l.Data, l.TxHash, l.TxIndex, l.Index)
+	return fmt.Sprintf(`log: %x %x %x %x %d %d`, l.Address, l.Topic, l.Data, l.TxHash, l.TxIndex, l.Index)
 }
