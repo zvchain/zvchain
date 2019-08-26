@@ -322,7 +322,7 @@ func (tvm *TVM) CreateContractInstance(msg Msg) (*ExecuteResult, error) {
 	C.tvm_set_register()
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
-	C.tvm_set_msg(sender, value);
+	C.tvm_set_msg(sender, value)
 	C.free(unsafe.Pointer(sender))
 
 	result, err := tvm.ExecuteScriptVMSucceedResults(tvm.Code)
@@ -386,7 +386,11 @@ func (tvm *TVM) ExportABI() (string, error) {
 	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
 		return "", errors.New(result.Content)
 	}
-	return C.GoString(C.tvm_export_abi()), nil
+	var abi_c *C.char
+	C.tvm_export_abi(&abi_c)
+	abi := C.GoString(abi_c)
+	C.free(unsafe.Pointer(abi_c))
+	return abi, nil
 }
 
 func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *ExecuteResult {
@@ -453,7 +457,7 @@ func (tvm *TVM) Deploy(msg Msg) *ExecuteResult {
 
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
-	C.tvm_set_msg(sender, value);
+	C.tvm_set_msg(sender, value)
 	C.free(unsafe.Pointer(sender))
 
 	result := tvm.executePycode(tvm.Code, C.PARSE_KIND_FILE)

@@ -255,9 +255,7 @@ func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64)
 	if !r.IsSuccess() {
 		return r
 	}
-	aci := r.Data.(*Account)
 	tx := &txRawData{
-		Target:   aci.Address,
 		GasLimit: gas,
 		GasPrice: gasprice,
 		TxType:   types.TransactionTypeChangeFundGuardMode,
@@ -298,7 +296,6 @@ func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *Result {
 	}
 	aci := r.Data.(*Account)
 	tx := &txRawData{
-		Target:   aci.Address,
 		GasLimit: gas,
 		GasPrice: gasprice,
 		TxType:   types.TransactionTypeApplyGuardMiner,

@@ -188,7 +188,13 @@ func (tx RawTransaction) GetGasLimit() uint64 {
 	return tx.GasLimit.Uint64()
 }
 func (tx RawTransaction) GetValue() uint64 {
+	if tx.Value == nil {
+		return 0
+	}
 	return tx.Value.Uint64()
+}
+func (tx RawTransaction) GetGasLimitOriginal() *big.Int {
+	return tx.GasLimit.Value()
 }
 
 func (tx RawTransaction) GetSource() *common.Address { return tx.Source }

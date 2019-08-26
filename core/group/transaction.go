@@ -128,6 +128,7 @@ func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*t
 	raw.Type = txType
 	raw.GasPrice = p.baseGasPrice
 	raw.GasLimit = p.baseGasLimit
+	raw.Source = &source
 	raw.Nonce = db.GetNonce(source) + 1
 	tx := types.NewTransaction(raw, raw.GenHash())
 	sk := common.HexToSecKey(p.chain.MinerSk())

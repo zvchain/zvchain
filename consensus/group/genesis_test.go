@@ -76,7 +76,7 @@ func generateSharePiece(miner *model.SelfMinerDO, cands candidates, seed common.
 
 func TestGenerateGenesisGroup(t *testing.T) {
 	keyFile := "key_file_test"
-	seed := common.Hash{}
+	seed := common.BytesToHash([]byte("zvchain genesis group"))
 	miners := createMinerDOs(keyFile)
 	if len(miners) == 0 {
 		t.Errorf("no miners")

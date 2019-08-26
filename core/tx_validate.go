@@ -172,9 +172,6 @@ func minerAbortValidator(tx *types.Transaction) error {
 	if len(tx.Data) != 1 {
 		return fmt.Errorf("data length should be 1")
 	}
-	if tx.Target == nil {
-		return fmt.Errorf("target is nil")
-	}
 	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
 		return err
 	}
@@ -217,9 +214,6 @@ func stakeRefundValidator(tx *types.Transaction) error {
 }
 
 func applyGuardValidator(tx *types.Transaction) error {
-	if tx.Target == nil {
-		return fmt.Errorf("target is nil")
-	}
 	return nil
 }
 
@@ -231,9 +225,6 @@ func voteMinerPoolValidator(tx *types.Transaction) error {
 }
 
 func changeFundGuardModeValidator(tx *types.Transaction) error {
-	if tx.Target == nil {
-		return fmt.Errorf("target is nil")
-	}
 	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
 		return err
 	}
