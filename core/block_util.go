@@ -89,7 +89,7 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 
 func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Address, totalToken, nonce uint64) *common.Address {
 	code := fmt.Sprintf(foundationContract, adminAddr.AddrPrefixString(), totalToken)
-	transaction := types.Transaction{}
+	transaction := &types.Transaction{}
 	addr := adminAddr
 	transaction.Source = &addr
 	transaction.Value = &types.BigInt{Int: *big.NewInt(0)}
