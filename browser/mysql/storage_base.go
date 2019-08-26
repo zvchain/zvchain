@@ -73,6 +73,9 @@ func (storage *Storage) Init(reset bool) {
 	if !db.HasTable(&models.Sys{}) {
 		db.CreateTable(&models.Sys{})
 	}
+	if !db.HasTable(&models.PoolStake{}) {
+		db.CreateTable(&models.PoolStake{})
+	}
 
 }
 

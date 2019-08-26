@@ -19,6 +19,13 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+type PoolStake struct {
+	gorm.Model
+	Address string `json:"address" gorm:"index"`
+	Stake   uint64 `json:"stake" gorm:"index"`
+	From    string `json:"from" gorm:"index"`
+}
+
 type Account struct {
 	gorm.Model
 	Address          string `json:"address" gorm:"unique_index"`
