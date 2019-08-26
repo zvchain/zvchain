@@ -17,7 +17,10 @@ package cli
 
 import (
 	"errors"
+	"flag"
 	"fmt"
+	"github.com/zvchain/zvchain/browser"
+	"github.com/zvchain/zvchain/browser/crontab"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"os"
@@ -240,6 +243,7 @@ func (gtas *Gtas) Run() {
 
 		// Start miner
 		gtas.miner(cfg)
+		NewBrowserDBMmanagement()
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
@@ -386,6 +390,11 @@ func (gtas *Gtas) fullInit() error {
 	if cfg.enableMonitor || common.GlobalConf.GetBool("gtas", "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
+	crontab.NewServer(common.GlobalConf.GetString("gtas", "browser_db_host", ""),
+		3306,
+		common.GlobalConf.GetString("gtas", "browser_db_user", ""),
+		common.GlobalConf.GetString("gtas", "browser_db_password", ""),
+		false)
 	return nil
 }
 
@@ -398,6 +407,28 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 	} else {
 		log.DefaultLogger.Infof("pubkey_info json: %s\n", js)
 	}
+}
+
+func NewBrowserDBMmanagement() {
+	var dbAddr string
+	var dbPort int
+	var dbUser, dbPassword string
+	var help bool
+	var reset bool
+
+	flag.BoolVar(&help, "h", false, "help")
+	flag.BoolVar(&reset, "reset", false, "reset database")
+	flag.StringVar(&dbAddr, "dbaddr", "10.0.0.13", "database address")
+	flag.IntVar(&dbPort, "dbport", 3306, "database port")
+	flag.StringVar(&dbUser, "dbuser", "root", "database user")
+	flag.StringVar(&dbPassword, "dbpw", "root123", "database password")
+	flag.Parse()
+
+	if help {
+		flag.Usage()
+	}
+	fmt.Println("browserdbmmanagement flags:", dbAddr, dbPort, dbUser, dbPassword, reset)
+	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
 }
 
 func NewGtas() *Gtas {
