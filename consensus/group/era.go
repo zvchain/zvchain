@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	maxGroupPerEpoch        = 25 // max group num can be created during one epoch
+	maxGroupPerEpoch        = 1  // max group num can be created during one epoch
 	steadyStateBackTrackGap = 20 // The gap from the present to the steady state
 
 	// era window consist of following graph:
