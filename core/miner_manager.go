@@ -74,8 +74,6 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, height uint64
 	if err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		log.CoreLogger.Errorf("check fund guard node error,error is %s", err.Error())
-	} else {
-		log.CoreLogger.Infof("scan all fund guard nodes success")
 	}
 }
 
@@ -98,8 +96,10 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 	if height%checkInterval != 0 {
 		return nil
 	}
+	log.CoreLogger.Infof("begin scan 6+5 mode")
 	hasScanned := hasScanedSixAddFiveFundGuards(accountDB)
 	if hasScanned {
+		log.CoreLogger.Infof("begin scan 6+5 mode,find has scanned")
 		return nil
 	}
 	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
@@ -123,6 +123,7 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 		}
 	}
 	markScanedSixAddFiveFundGuards(accountDB)
+	log.CoreLogger.Infof("scan 6+5 over")
 	return nil
 }
 
@@ -133,8 +134,10 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 	if height%checkInterval != 0 {
 		return nil
 	}
+	log.CoreLogger.Infof("begin scan 6+6 mode")
 	hasScanned := hasScanedSixAddSixFundGuards(accountDB)
 	if hasScanned {
+		log.CoreLogger.Infof("begin scan 6+6 mode,has scanned")
 		return nil
 	}
 	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
@@ -158,6 +161,7 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 		}
 	}
 	markScanedSixAddSixFundGuards(accountDB)
+	log.CoreLogger.Infof("scan 6+6 mode over")
 	return nil
 }
 
@@ -168,7 +172,7 @@ func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint
 	if height%checkInterval != 0 {
 		return nil
 	}
-
+	log.CoreLogger.Infof("begin process full stake guard nodes")
 	fullStakeAddress := mm.GetAllFullStakeGuardNodes(db)
 	if fullStakeAddress == nil || len(fullStakeAddress) == 0 {
 		return nil
