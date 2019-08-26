@@ -22,7 +22,7 @@ import (
 type PoolStake struct {
 	gorm.Model
 	Address string `json:"address" gorm:"index"`
-	Stake   uint64 `json:"stake" gorm:"index"`
+	Stake   int64  `json:"stake" gorm:"index"`
 	From    string `json:"from" gorm:"index"`
 }
 
@@ -43,6 +43,8 @@ type Account struct {
 	Status           byte   `json:"status" gorm:"index"`
 	StakeFrom        string `json:"stake_from"`
 	Balance          uint64 `json:"balance"`
+	ExtraData        string `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
+
 }
 
 type Sys struct {

@@ -105,6 +105,54 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts []*models.Accoun
 	return true
 }
 
+func (storage *Storage) AddOrUpPoolStakeFrom(stakefrom []*models.PoolStake) bool {
+	if storage.db == nil {
+		return false
+	}
+	tx := storage.db.Begin()
+
+	updateStakefrom := func(stake *models.PoolStake) error {
+		expression := map[string]interface{}{"from": stake.From,
+			"stake": gorm.Expr("stake + ?", stake.Stake)}
+		if stake.Stake < 0 {
+			expression = map[string]interface{}{"from": stake.From,
+				"stake": gorm.Expr("stake - ?", -stake.Stake)}
+		}
+		return tx.Model(&stake).
+			Where("id = ?", stake.ID).
+			Updates(expression).Error
+	}
+
+	addStakefrom := func(stake *models.PoolStake) error {
+		return tx.Create(&stake).Error
+	}
+
+	for _, stake := range stakefrom {
+		stakeInfo := getstakefrom(tx, stake.Address, stake.From)
+		if stakeInfo != nil {
+			stake.ID = stakeInfo.ID
+			if !errors(updateStakefrom(stake)) {
+				tx.Rollback()
+				return false
+			}
+		} else {
+			if !errors(addStakefrom(stake)) {
+				tx.Rollback()
+				return false
+			}
+		}
+	}
+	tx.Commit()
+	return true
+
+}
+
+func getstakefrom(tx *gorm.DB, address string, from string) *models.PoolStake {
+	stake := &models.PoolStake{}
+	tx.Limit(1).Where("address = ? and from = ?", address, from).Find(stake)
+	return stake
+
+}
 func increwardBlockheightTosys(tx *gorm.DB) bool {
 
 	sys := &models.Sys{

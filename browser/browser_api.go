@@ -6,6 +6,7 @@ import (
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/middleware/types"
 	"strings"
 	"sync"
 	"time"
@@ -73,6 +74,8 @@ func (tm *DBMmanagement) fetchAccounts() {
 	if block != nil {
 		if len(block.Transactions) > 0 {
 			AddressCacheList := make(map[string]uint64)
+			stakelist := make(map[string]map[string]int64)
+
 			for _, tx := range block.Transactions {
 				if tx.Source != nil {
 					fmt.Println("》》》》》》》》》》》》》》》》》》》》》》》》》发现交易", tx.Source)
@@ -80,6 +83,22 @@ func (tm *DBMmanagement) fetchAccounts() {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
+					}
+					if _, exists := stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()]; exists {
+						if tx.Type == types.TransactionTypeStakeAdd {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
+						}
+						if tx.Type == types.TransactionTypeStakeReduce {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
+						}
+
+					} else {
+						if tx.Type == types.TransactionTypeStakeAdd {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
+						}
+						if tx.Type == types.TransactionTypeStakeReduce {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
+						}
 					}
 				} else {
 					continue
@@ -107,6 +126,9 @@ func (tm *DBMmanagement) fetchAccounts() {
 
 				}
 			}
+			//生成质押来源信息
+			generateStakefromByTransaction(tm, stakelist)
+
 		}
 
 		//块高存储持久化
@@ -256,4 +278,21 @@ func handelInGroup(tm *DBMmanagement, groups []models.Group, groupState int) boo
 		}
 	}
 	return true
+}
+
+//genrate stake from by transaction
+func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[string]int64) {
+	poolstakefrom := make([]*models.PoolStake, 0, 0)
+	for address, fromList := range stakelist {
+		for from, stake := range fromList {
+			poolstake := &models.PoolStake{
+				Address: address,
+				Stake:   stake,
+				From:    from,
+			}
+			poolstakefrom = append(poolstakefrom, poolstake)
+		}
+	}
+	tm.storage.AddOrUpPoolStakeFrom(poolstakefrom)
+
 }
