@@ -386,7 +386,11 @@ func (tvm *TVM) ExportABI() (string, error) {
 	if result.ResultType == C.RETURN_TYPE_EXCEPTION {
 		return "", errors.New(result.Content)
 	}
-	return C.GoString(C.tvm_export_abi()), nil
+	var abi_c *C.char
+	C.tvm_export_abi(&abi_c)
+	abi := C.GoString(abi_c)
+	C.free(unsafe.Pointer(abi_c))
+	return abi, nil
 }
 
 func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *ExecuteResult {
