@@ -125,12 +125,12 @@ func pbToTransaction(t *tas_middleware_pb.RawTransaction) *RawTransaction {
 	}
 
 	var (
-		target *common.Address
+		target common.Address
 		source common.Address
 	)
 	if t.Target != nil {
 		t := common.BytesToAddress(t.Target)
-		target = &t
+		target = t
 	}
 	source = common.BytesToAddress(t.Source)
 
@@ -143,7 +143,7 @@ func pbToTransaction(t *tas_middleware_pb.RawTransaction) *RawTransaction {
 		Data:      t.Data,
 		Value:     value,
 		Nonce:     ensureUint64(t.Nonce),
-		Target:    target,
+		Target:    &target,
 		GasLimit:  gasLimit,
 		GasPrice:  gasPrice,
 		ExtraData: t.ExtraData,
@@ -208,9 +208,13 @@ func transactionToPb(t *RawTransaction) *tas_middleware_pb.RawTransaction {
 	}
 	var (
 		target []byte
+		source []byte
 	)
 	if t.Target != nil {
 		target = t.Target.Bytes()
+	}
+	if t.Source != nil {
+		source = t.Source.Bytes()
 	}
 	tp := int32(t.Type)
 	transaction := tas_middleware_pb.RawTransaction{
@@ -223,7 +227,7 @@ func transactionToPb(t *RawTransaction) *tas_middleware_pb.RawTransaction {
 		ExtraData: t.ExtraData,
 		Type:      &tp,
 		Sign:      t.Sign,
-		Source:    t.Source.Bytes(),
+		Source:    source,
 	}
 	return &transaction
 }
