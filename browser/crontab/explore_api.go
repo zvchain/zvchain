@@ -11,11 +11,13 @@ import (
 type Explore struct{}
 
 type MortGage struct {
-	Stake              uint64            `json:"stake"`
-	ApplyHeight        uint64            `json:"apply_height"`
-	Type               string            `json:"type"`
-	Status             types.MinerStatus `json:"miner_status"`
-	StatusUpdateHeight uint64            `json:"status_update_height"`
+	Stake                uint64             `json:"stake"`
+	ApplyHeight          uint64             `json:"apply_height"`
+	Type                 string             `json:"type"`
+	Status               types.MinerStatus  `json:"miner_status"`
+	StatusUpdateHeight   uint64             `json:"status_update_height"`
+	Identity             types.NodeIdentity `json:"identity"`
+	IdentityUpdateHeight uint64             `json:"identity_update_height"`
 }
 
 type ExploreBlockReward struct {
@@ -48,12 +50,23 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	} else if miner.IsFrozen() {
 		status = types.MinerStatusFrozen
 	}
+
+	i := types.MinerNormal
+	if miner.IsMinerPool() {
+		i = types.MinerPool
+	} else if miner.IsInvalidMinerPool() {
+		i = types.InValidMinerPool
+	} else if miner.IsGuard() {
+		i = types.MinerGuard
+	}
 	mg := &MortGage{
-		Stake:              uint64(common.RA2TAS(miner.Stake)),
-		ApplyHeight:        miner.ApplyHeight,
-		Type:               t,
-		Status:             status,
-		StatusUpdateHeight: miner.StatusUpdateHeight,
+		Stake:                uint64(common.RA2TAS(miner.Stake)),
+		ApplyHeight:          miner.ApplyHeight,
+		Type:                 t,
+		Status:               status,
+		StatusUpdateHeight:   miner.StatusUpdateHeight,
+		Identity:             i,
+		IdentityUpdateHeight: miner.IdentityUpdateHeight,
 	}
 	return mg
 }

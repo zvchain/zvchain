@@ -86,7 +86,9 @@ func (crontab *Crontab) updateAccountStake(account *models.Account) {
 			"verify_stake":   minerinfo[2].Stake,
 			"total_stake":    minerinfo[0].Stake + minerinfo[2].Stake,
 			"stake_from":     stakefrom,
-			"status":         minerinfo[0].Status})
+			"status":         minerinfo[0].Status,
+			"role_type":      minerinfo[0].Identity,
+		})
 	}
 }
 
@@ -124,7 +126,7 @@ func (crontab *Crontab) GetMinerInfo(addr string) ([]*MortGage, string) {
 		return nil, ""
 	}
 
-	morts := make([]*MortGage, 0)
+	morts := make([]*MortGage, 0, 0)
 	address := common.StringToAddress(addr)
 	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
 	var stakefrom = ""

@@ -292,6 +292,9 @@ func handelInGroup(tm *DBMmanagement, groups []models.Group, groupState int) boo
 
 //genrate stake from by transaction
 func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[string]int64) {
+	if stakelist == nil {
+		return
+	}
 	poolstakefrom := make([]*models.PoolStake, 0, 0)
 	for address, fromList := range stakelist {
 		for from, stake := range fromList {
