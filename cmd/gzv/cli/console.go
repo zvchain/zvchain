@@ -247,8 +247,7 @@ func (c *connectCmd) parse(args []string) bool {
 
 type txCmd struct {
 	baseCmd
-	hash     string
-	executed bool
+	hash string
 }
 
 func genTxCmd() *txCmd {
@@ -256,11 +255,40 @@ func genTxCmd() *txCmd {
 		baseCmd: *genBaseCmd("tx", "get transaction detail"),
 	}
 	c.fs.StringVar(&c.hash, "hash", "", "the hex transaction hash")
-	c.fs.BoolVar(&c.executed, "executed", false, "get executed transaction detail")
 	return c
 }
 
 func (c *txCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if strings.TrimSpace(c.hash) == "" {
+		output("please input the transaction hash")
+		c.fs.PrintDefaults()
+		return false
+	}
+	if !validateHash(c.hash) {
+		output("Wrong hash format")
+		return false
+	}
+	return true
+}
+
+type receiptCmd struct {
+	baseCmd
+	hash string
+}
+
+func genReceiptCmd() *receiptCmd {
+	c := &receiptCmd{
+		baseCmd: *genBaseCmd("receipt", "get transaction receipt"),
+	}
+	c.fs.StringVar(&c.hash, "hash", "", "the hex transaction hash")
+	return c
+}
+
+func (c *receiptCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
 		output(err.Error())
 		return false
@@ -771,6 +799,7 @@ var cmdConnect = genConnectCmd()
 var cmdBlockHeight = genBaseCmd("blockheight", "the current block height")
 var cmdGroupHeight = genBaseCmd("groupheight", "the current group height")
 var cmdTx = genTxCmd()
+var cmdReceipt = genReceiptCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
 
@@ -800,6 +829,7 @@ func init() {
 	list = append(list, cmdBlockHeight)
 	list = append(list, cmdGroupHeight)
 	list = append(list, &cmdTx.baseCmd)
+	list = append(list, &cmdReceipt.baseCmd)
 	list = append(list, &cmdBlock.baseCmd)
 	list = append(list, &cmdSendTx.baseCmd)
 	list = append(list, &cmdStakeAdd.baseCmd)
@@ -1021,10 +1051,14 @@ func loop(acm accountOp, chainOp chainOp) {
 			cmd := genTxCmd()
 			if cmd.parse(args) {
 				handleCmdForChain(func() *RPCResObjCmd {
-					if cmd.executed {
-						return chainOp.TxReceipt(cmd.hash)
-					}
 					return chainOp.TxInfo(cmd.hash)
+				})
+			}
+		case cmdReceipt.name:
+			cmd := genReceiptCmd()
+			if cmd.parse(args) {
+				handleCmdForChain(func() *RPCResObjCmd {
+					return chainOp.TxReceipt(cmd.hash)
 				})
 			}
 		case cmdBlock.name:
