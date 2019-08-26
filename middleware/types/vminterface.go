@@ -79,5 +79,9 @@ type TxMessage interface {
 	Amount() *big.Int // Operated value
 	Payload() []byte  // Data transfer by the message
 	GetExtraData() []byte
+	GetGasLimit() uint64
 	GetHash() common.Hash
+	GetValue() uint64
+	GetNonce() uint64
+	GetGasLimitOriginal()*big.Int
 }
