@@ -307,7 +307,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 
 	success, evicted, conflicted := c.pending.push(tx, stateNonce)
 	if !success {
-		err = c.addToQueue(tx)
+		evicted, conflicted, err = c.addToQueue(tx)
 		if err != nil {
 			return
 		}
@@ -323,16 +323,20 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	return
 }
 
-func (c *simpleContainer) addToQueue(tx *types.Transaction) (err error){
+func (c *simpleContainer) addToQueue(tx *types.Transaction) (evicted *types.Transaction, conflicted *types.Transaction, err error) {
 	if len(c.queue) > c.queueLimit {
-		err = fmt.Errorf("tx_pool's queue is full. current queue size: %d",len(c.queue))
+		err = fmt.Errorf("tx_pool's queue is full. current queue size: %d", len(c.queue))
 		return
 	}
 	for _, old := range c.queue {
-		if old.Nonce == tx.Nonce && bytes.Equal(old.Source.Bytes(),tx.Source.Bytes())  {
-			if old.GasPrice.Cmp(tx.GasPrice.Value()) >= 0{
-				err = fmt.Errorf("exists a transaction with same nonce: %v", old.Hash.Hex())
+		if old.Nonce == tx.Nonce && bytes.Equal(old.Source.Bytes(), tx.Source.Bytes()) {
+			if old.GasPrice.Cmp(tx.GasPrice.Value()) >= 0 {
+				evicted = tx
+				conflicted = old
 				return
+			} else {
+				evicted = old
+				conflicted = tx
 			}
 		}
 	}
