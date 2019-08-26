@@ -139,7 +139,6 @@ func (op *reduceTicketsOp) Transition() *result {
 	return ret
 }
 
-// stakeAddOp is for the stake add operation, miner can add stake for himself3 or others
 type changeFundGuardMode struct {
 	*transitionContext
 	source common.Address
