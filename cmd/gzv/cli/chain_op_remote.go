@@ -172,12 +172,12 @@ func (ca *RemoteChainOpImpl) Balance(addr string) *RPCResObjCmd {
 }
 
 // MinerPoolInfo query miner pool info by address
-func (ca *RemoteChainOpImpl) MinerPoolInfo(addr string) *Result {
+func (ca *RemoteChainOpImpl) MinerPoolInfo(addr string) *RPCResObjCmd {
 	return ca.request("minerPoolInfo", addr, 0)
 }
 
 // TicketsInfo query tickets by address
-func (ca *RemoteChainOpImpl) TicketsInfo(addr string) *Result {
+func (ca *RemoteChainOpImpl) TicketsInfo(addr string) *RPCResObjCmd {
 	return ca.request("ticketsInfo", addr)
 }
 
@@ -266,12 +266,12 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	return ca.SendRaw(tx)
 }
 
-func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64) *RPCResObjCmd {
+	aci, err := ca.aop.AccountInfo()
+	if err != nil {
+		output(err)
+		return nil
 	}
-	aci := r.Data.(*Account)
 	tx := &txRawData{
 		Target:   aci.Address,
 		Gas:      gas,
@@ -282,21 +282,24 @@ func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64)
 	return ca.SendRaw(tx)
 }
 
-func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) *RPCResObjCmd {
+	aci, err := ca.aop.AccountInfo()
+	if err != nil {
+		output(err)
+		return nil
 	}
-	aci := r.Data.(*Account)
 	target = strings.TrimSpace(target)
 	if target == "" {
-		return opError(fmt.Errorf("please input target address"))
+		output(fmt.Errorf("please input target address"))
+		return nil
 	}
 	if !common.ValidateAddress(target) {
-		return opError(fmt.Errorf("Wrong address format"))
+		output(fmt.Errorf("wrong address format"))
+		return nil
 	}
 	if aci.Address == target {
-		return opError(fmt.Errorf("you could not vote to myself"))
+		output(fmt.Errorf("you could not vote to myself"))
+		return nil
 	}
 	tx := &txRawData{
 		Target:   target,
@@ -307,12 +310,12 @@ func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) 
 	return ca.SendRaw(tx)
 }
 
-func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *Result {
-	r := ca.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd {
+	aci, err := ca.aop.AccountInfo()
+	if err != nil {
+		output(err)
+		return nil
 	}
-	aci := r.Data.(*Account)
 	tx := &txRawData{
 		Target:   aci.Address,
 		Gas:      gas,

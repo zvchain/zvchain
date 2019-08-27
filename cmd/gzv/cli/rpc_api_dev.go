@@ -532,7 +532,7 @@ func (api *RpcDevImpl) MonitorAllMiners() (map[string]interface{}, error) {
 	return data, nil
 }
 
-func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetLivedGroup(height uint64) ([]*Group, error) {
 	groups := api.gr.GetLivedGroupsAt(height)
 	ret := make([]*Group, 0)
 	for _, group := range groups {
@@ -542,15 +542,15 @@ func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
 		}
 
 	}
-	return successResult(ret)
+	return ret, nil
 }
 
-func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
+func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (map[string]interface{}, error) {
 	if e == 0 {
 		e = core.BlockChainImpl.Height()
 	}
 	if b > e {
-		return failResult("begin larger than end")
+		return nil, fmt.Errorf("begin larger than end")
 	}
 	heights := core.BlockChainImpl.ScanBlockHeightsInRange(b, e)
 	drops := make([]uint64, 0)
@@ -567,5 +567,5 @@ func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
 	ret["real_heights"] = len(heights)
 	ret["drop_rate"] = dropRate
 	ret["drops"] = drops
-	return successResult(ret)
+	return ret, nil
 }

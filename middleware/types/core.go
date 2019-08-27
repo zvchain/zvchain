@@ -187,7 +187,6 @@ func (tx *Transaction) IsReward() bool {
 
 func (tx Transaction) GetData() []byte { return tx.Data }
 
-
 func (tx Transaction) GetGasLimitOriginal() *big.Int {
 	return tx.GasLimit.Value()
 }
@@ -196,7 +195,7 @@ func (tx Transaction) GetGasLimit() uint64 {
 	return tx.GasLimit.Uint64()
 }
 func (tx Transaction) GetValue() uint64 {
-	if tx.Value == nil{
+	if tx.Value == nil {
 		return 0
 	}
 	return tx.Value.Uint64()

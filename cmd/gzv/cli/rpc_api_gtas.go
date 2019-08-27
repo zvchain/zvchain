@@ -71,22 +71,6 @@ func (api *RpcGtasImpl) Version() string {
 	return "1"
 }
 
-//func successResult(data interface{}) (*Result, error) {
-//	return &Result{
-//		Message: "",
-//		Data:    data,
-//		Code:    0,
-//	}, nil
-//}
-
-//func failResult(err string) (*Result, error) {
-//	return &Result{
-//		Message: err,
-//		Data:    nil,
-//		Code:    1,
-//	}, nil
-//}
-
 func failErrResult(err string) *ErrorResult {
 	return &ErrorResult{
 		Message: err,
@@ -183,10 +167,10 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Block, error) {
 	return block, nil
 }
 
-func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, error) {
+func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDetail, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
-		return failResult("Wrong account address format")
+		return nil, fmt.Errorf("Wrong account address format")
 	}
 	var db types.AccountDB
 	var err error
@@ -197,16 +181,16 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, erro
 		db, err = core.BlockChainImpl.AccountDBAt(height)
 	}
 	if err != nil || db == nil {
-		return failResult("data is nil")
+		return nil, fmt.Errorf("data is nil")
 	}
 	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
 	if miner == nil {
 		msg := fmt.Sprintf("this miner is nil,addr is %s", addr)
-		return failResult(msg)
+		return nil, fmt.Errorf(msg)
 	}
 	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
 	var fullStake uint64 = 0
-	if miner.IsMinerPool(){
+	if miner.IsMinerPool() {
 		fullStake = core.MinerManagerImpl.GetFullMinerPoolStake(height)
 	}
 	dt := &MinerPoolDetail{
@@ -216,7 +200,7 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, erro
 		Identity:     uint64(miner.Identity),
 		ValidTickets: core.MinerManagerImpl.GetValidTicketsByHeight(height),
 	}
-	return successResult(dt)
+	return dt, nil
 }
 
 func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*MinerStakeDetails, error) {
@@ -470,7 +454,7 @@ func (api *RpcGtasImpl) GroupCheck(addr string) (*GroupCheckInfo, error) {
 	return &GroupCheckInfo{JoinedGroups: jgs, CurrentGroupRoutine: currentInfo}, nil
 }
 
-func (api *RpcGtasImpl) CheckPointAt(h uint64) (*Result, error) {
+func (api *RpcGtasImpl) CheckPointAt(h uint64) (*types.BlockHeader, error) {
 	cp := api.br.CheckPointAt(h)
-	return successResult(cp)
+	return cp, nil
 }

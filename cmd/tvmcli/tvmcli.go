@@ -238,7 +238,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 func (t *TvmCli) ExportAbi(contractName string, contractCode string) {
 	contract := tvm.Contract{
 		ContractName: contractName,
-		Code: contractCode,
+		Code:         contractCode,
 		//ContractAddress: &contractAddress,
 	}
 	vm := tvm.NewTVM(nil, &contract)

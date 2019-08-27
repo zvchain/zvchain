@@ -1157,21 +1157,21 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdMinerPoolInfo.name:
 			cmd := genMinerPoolInfoCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerPoolInfo(cmd.addr)
 				})
 			}
 		case cmdApplyGuardMiner.name:
 			cmd := genApplyGuardMinerCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.ApplyGuardMiner(cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdVoteMinerPool.name:
 			cmd := genVoteMinerPoolCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.VoteMinerPool(cmd.addr, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
@@ -1231,7 +1231,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdChangeGuardNode.name:
 			cmd := genChangeGuardNodeCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.ChangeFundGuardMode(cmd.mode, cmd.gaslimit, cmd.gasPrice)
 				})
 			}

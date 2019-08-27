@@ -83,5 +83,5 @@ type TxMessage interface {
 	GetHash() common.Hash
 	GetValue() uint64
 	GetNonce() uint64
-	GetGasLimitOriginal()*big.Int
+	GetGasLimitOriginal() *big.Int
 }

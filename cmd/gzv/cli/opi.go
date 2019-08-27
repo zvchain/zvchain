@@ -115,15 +115,15 @@ type chainOp interface {
 
 	BlockHeight() *RPCResObjCmd
 
-	MinerPoolInfo(addr string) *Result
+	MinerPoolInfo(addr string) *RPCResObjCmd
 
-	TicketsInfo(addr string) *Result
+	TicketsInfo(addr string) *RPCResObjCmd
 
-	ApplyGuardMiner(gas, gasprice uint64) *Result
+	ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd
 
-	VoteMinerPool(address string, gas, gasprice uint64) *Result
+	VoteMinerPool(address string, gas, gasprice uint64) *RPCResObjCmd
 
-	ChangeFundGuardMode(mode int, gas, gasprice uint64) *Result
+	ChangeFundGuardMode(mode int, gas, gasprice uint64) *RPCResObjCmd
 
 	GroupHeight() *RPCResObjCmd
 
