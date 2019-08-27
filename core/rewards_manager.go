@@ -103,7 +103,7 @@ func (rm *rewardManager) GetRewardTransactionByBlockHash(blockHash common.Hash) 
 	if transactionHash == nil {
 		return nil
 	}
-	transaction := BlockChainImpl.GetTransactionByHash(true, false, common.BytesToHash(transactionHash))
+	transaction := BlockChainImpl.GetTransactionByHash(true, common.BytesToHash(transactionHash))
 	return transaction
 }
 
@@ -128,16 +128,17 @@ func (rm *rewardManager) GenerateReward(targetIds []int32, blockHash common.Hash
 		buffer.Write(common.UInt16ToByte(uint16(idIdx)))
 	}
 
-	transaction := &types.Transaction{}
-	transaction.Data = blockHash.Bytes()
-	transaction.ExtraData = buffer.Bytes()
+	txRaw := &types.RawTransaction{}
+	txRaw.Data = blockHash.Bytes()
+	txRaw.ExtraData = buffer.Bytes()
 
-	transaction.Value = types.NewBigInt(totalValue / uint64(len(targetIds)))
-	transaction.Type = types.TransactionTypeReward
-	transaction.GasPrice = types.NewBigInt(0)
-	transaction.GasLimit = types.NewBigInt(0)
-	transaction.Hash = transaction.GenHash()
-	return &types.Reward{TxHash: transaction.Hash, TargetIds: targetIds, BlockHash: blockHash, Group: gSeed, TotalValue: totalValue}, transaction, nil
+	txRaw.Value = types.NewBigInt(totalValue / uint64(len(targetIds)))
+	txRaw.Type = types.TransactionTypeReward
+	txRaw.GasPrice = types.NewBigInt(0)
+	txRaw.GasLimit = types.NewBigInt(0)
+
+	tx := types.NewTransaction(txRaw, txRaw.GenHash())
+	return &types.Reward{TxHash: tx.Hash, TargetIds: targetIds, BlockHash: blockHash, Group: gSeed, TotalValue: totalValue}, tx, nil
 }
 
 // ParseRewardTransaction parse a bonus transaction and  returns the group id, targetIds, block hash and transcation value

@@ -145,7 +145,7 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 	gpk := group.header.gpk
 	gSign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
 	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gSign) {
-		return false, fmt.Errorf("verify reward sign fail, gSign=%v", gSign.GetHexString())
+		return false, fmt.Errorf("verify reward sign fail, blockHash=%v, gSign=%v, txHash=%v, gpk=%v, tx=%+v", blockHash, gSign.GetHexString(), tx.Hash.Hex(), gpk.GetHexString(), tx.RawTransaction)
 	}
 
 	return true, nil

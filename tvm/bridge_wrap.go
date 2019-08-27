@@ -239,7 +239,7 @@ func NewTVMForRetainContext(sender *common.Address, contract *Contract, logs []*
 	return tvm
 }
 
-// Gas Get the gas left of the TVM
+// GasLimit Get the gas left of the TVM
 func (tvm *TVM) Gas() int {
 	return int(C.tvm_get_gas())
 }
@@ -322,7 +322,7 @@ func (tvm *TVM) CreateContractInstance(msg Msg) (*ExecuteResult, error) {
 	C.tvm_set_register()
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
-	C.tvm_set_msg(sender, value);
+	C.tvm_set_msg(sender, value)
 	C.free(unsafe.Pointer(sender))
 
 	result, err := tvm.ExecuteScriptVMSucceedResults(tvm.Code)
@@ -457,7 +457,7 @@ func (tvm *TVM) Deploy(msg Msg) *ExecuteResult {
 
 	sender := C.CString(tvm.Sender.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
-	C.tvm_set_msg(sender, value);
+	C.tvm_set_msg(sender, value)
 	C.free(unsafe.Pointer(sender))
 
 	result := tvm.executePycode(tvm.Code, C.PARSE_KIND_FILE)

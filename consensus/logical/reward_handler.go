@@ -363,9 +363,9 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		if msg.GenSign(ski, msg) {
 			rh.processor.SendCastRewardSignReq(msg)
 
-			if stdLogger != nil {
-				stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", reward.TxHash.Hex(), ski.SK.GetHexString(), rh.processor.GetMinerID(), msg.SI.DataSign.GetHexString(), group.header.Seed())
-			}
+			//if stdLogger != nil {
+			//	stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", reward.TxHash.Hex(), ski.SK.GetHexString(), rh.processor.GetMinerID(), msg.SI.DataSign.GetHexString(), group.header.Seed())
+			//}
 
 			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
 		} else {

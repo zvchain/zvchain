@@ -436,10 +436,10 @@ func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *
 }
 
 // Execute executes all types transactions and returns the receipts
-func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed []*types.Transaction, recps []*types.Receipt, gasFee uint64, err error) {
+func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
 	beginTime := time.Now()
 	receipts := make([]*types.Receipt, 0)
-	transactions := make([]*types.Transaction, 0)
+	transactions := make(txSlice, 0)
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager().(*rewardManager)
@@ -523,8 +523,6 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)
 	}
-
-	MinerManagerImpl.GuardNodesCheck(accountDB, bh.Height)
 
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))

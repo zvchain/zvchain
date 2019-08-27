@@ -422,7 +422,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 
 		allSuccess := true
 		hasAddBlack := false
-		bs.chain.batchAddBlockOnChain(source, "sync", blocks, func(b *types.Block, ret types.AddBlockResult) bool {
+		err := bs.chain.batchAddBlockOnChain(source, false, blocks, func(b *types.Block, ret types.AddBlockResult) bool {
 			bs.logger.Debugf("sync block from %v, hash=%v,height=%v,addResult=%v", source, b.Header.Hash.Hex(), b.Header.Height, ret)
 			if ret == types.AddBlockSucc || ret == types.BlockExisted {
 				return true
@@ -434,6 +434,9 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 			allSuccess = false
 			return false
 		})
+		if err != nil {
+			bs.logger.Warnf("add blocks from %v error:%v, block range %v-%v", source, err, blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
+		}
 
 		// The weight is still low, continue to synchronize (must add blocks
 		// is successful, otherwise it will cause an infinite loop)

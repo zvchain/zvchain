@@ -61,16 +61,16 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 }
 
 // GuardNodesCheck check guard nodes is expired
-func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, height uint64) {
+func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.BlockHeader) {
 	snapshot := accountDB.Snapshot()
-	err := mm.fullStakeGuardNodesCheck(accountDB, height)
+	err := mm.fullStakeGuardNodesCheck(accountDB, bh.Height)
 	if err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		log.CoreLogger.Errorf("check full guard node error,error is %s", err.Error())
 	}
 
 	snapshot = accountDB.Snapshot()
-	err = mm.fundGuardNodesCheck(accountDB, height)
+	err = mm.fundGuardNodesCheck(accountDB, bh.Height)
 	if err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		log.CoreLogger.Errorf("check fund guard node error,error is %s", err.Error())
@@ -564,13 +564,14 @@ func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.Accoun
 		panic(fmt.Errorf("encode payload error:%v", err))
 	}
 	addr := common.BytesToAddress(miner.ID)
-	tx := &types.Transaction{
+	raw := &types.RawTransaction{
 		Source: &addr,
 		Value:  types.NewBigInt(miner.Stake),
 		Target: &addr,
 		Type:   types.TransactionTypeStakeAdd,
 		Data:   data,
 	}
+	tx := types.NewTransaction(raw, raw.GenHash())
 	err = mm.ValidateStakeAdd(tx)
 	if err != nil {
 		panic(fmt.Errorf("add genesis miner validate error:%v", err))
