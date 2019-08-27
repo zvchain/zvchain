@@ -61,8 +61,8 @@ func (ca *RemoteChainOpImpl) Connect(ip string, port int) error {
 func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *RPCResObjCmd {
 	ret := &RPCResObjCmd{}
 	if ca.base == "" {
-		output(ErrUnConnected)
-		return nil
+		ret.Error = opErrorRes(ErrUnConnected)
+		return ret
 	}
 
 	param := RPCReqObj{
@@ -81,8 +81,8 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *RPCR
 
 	paramBytes, err := json.Marshal(param)
 	if err != nil {
-		output(err)
-		return nil
+		ret.Error = opErrorRes(err)
+		return ret
 	}
 
 	resp, err := http.Post(ca.base, "application/json", bytes.NewReader(paramBytes))
@@ -92,6 +92,10 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *RPCR
 	}
 	defer resp.Body.Close()
 	responseBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		ret.Error = opErrorRes(err)
+		return ret
+	}
 	if err := json.Unmarshal(responseBytes, ret); err != nil {
 		ret.Error = opErrorRes(err)
 		return ret
@@ -99,12 +103,17 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *RPCR
 	return ret
 }
 
-func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, *RPCResObjCmd) {
+func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, *ErrorResult) {
 	var nonce uint64
 	res := ca.request("nonce", addr)
-	if res != nil {
-		json.Unmarshal(res.Result, &nonce)
-		return nonce, res
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	if res.Result != nil {
+		err := json.Unmarshal(res.Result, &nonce)
+		if err != nil {
+			return 0, opErrorRes(err)
+		}
 	}
 	return nonce, nil
 }
@@ -119,45 +128,45 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *RPCResObjCmd {
 	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 	privateKey := common.HexToSecKey(aci.Sk)
 	pubkey := common.HexToPubKey(aci.Pk)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
-		output(fmt.Errorf("privatekey or pubkey error"))
-		return nil
+		res.Error = opErrorRes(fmt.Errorf("privatekey or pubkey error"))
+		return res
 	}
 	source := pubkey.GetAddress()
 	if source.AddrPrefixString() != aci.Address {
-		output(fmt.Errorf("privatekey or pubkey error"))
-		return nil
+		res.Error = opErrorRes(fmt.Errorf("privatekey or pubkey error"))
+		return res
 	}
 
 	if tx.Nonce == 0 {
-		nonce, res := ca.nonce(aci.Address)
-		if res != nil {
+		nonce, errRes := ca.nonce(aci.Address)
+		if errRes == nil {
 			tx.Nonce = nonce
 		} else {
-			return nil
+			res.Error = errRes
+			return res
 		}
 
 	}
-
 	tranx := txRawToTransaction(tx)
 	tranx.Hash = tranx.GenHash()
 	sign, err := privateKey.Sign(tranx.Hash.Bytes())
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
 	jsonByte, err := json.Marshal(tx)
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
@@ -213,12 +222,13 @@ func (ca *RemoteChainOpImpl) BlockByHeight(h uint64) *RPCResObjCmd {
 	return res
 }
 
-// StakeAdd adds stake for the given target account
+// StakeAdd adds value for the given target account
 func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, gas, gasPrice uint64) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 
 	if target == "" {
@@ -232,18 +242,18 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	// When stakes for himself, pks will be required
 	if aci.Address == target {
 		if aci.Miner == nil {
-			output(fmt.Errorf("the current account is not a miner account"))
-			return nil
+			res.Error = opErrorRes(fmt.Errorf("the current account is not a miner account"))
+			return res
 		}
 		var bpk groupsig.Pubkey
 		bpk.SetHexString(aci.Miner.BPk)
 		pks.Pk = bpk.Serialize()
 		pks.VrfPk = base.Hex2VRFPublicKey(aci.Miner.VrfPk)
 	} else {
-		//if stake to Verify and target is not myself then return error
+		//if value to Verify and target is not myself then return error
 		if pks.MType == types.MinerTypeVerify {
-			output(fmt.Errorf("you could not stake for other's verify node"))
-			return nil
+			res.Error = opErrorRes(fmt.Errorf("you could not value for other's verify node"))
+			return res
 		}
 	}
 
@@ -251,8 +261,8 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 
 	data, err := types.EncodePayload(pks)
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 	tx := &txRawData{
 		Target:   target,
@@ -328,35 +338,35 @@ func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd
 
 // MinerAbort send stop mining transaction
 func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force bool) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 
 	if aci.Miner == nil {
-		output(fmt.Errorf("the current account is not a miner account"))
-		return nil
+		res.Error = opErrorRes(fmt.Errorf("the current account is not a miner account"))
+		return res
 	}
 	if !force {
-		res := ca.GroupCheck(aci.Address)
-		if res.Error != nil {
-			output(res.Error)
-			return nil
+		groupCheckRes := ca.GroupCheck(aci.Address)
+		if groupCheckRes.Error != nil {
+			return groupCheckRes
 		}
 		groupInfo := new(GroupCheckInfo)
-		err := json.Unmarshal(res.Result, groupInfo)
+		err := json.Unmarshal(groupCheckRes.Result, groupInfo)
 		if err != nil {
-			output(err)
-			return nil
+			res.Error = opErrorRes(err)
+			return res
 		}
 
 		info := groupInfo.CurrentGroupRoutine
 		if info != nil {
 			selected := info.Selected
 			if selected {
-				output(fmt.Errorf("you are selected to join a group currently, abort operation may result in frozen. And you can specify the '-f' if you insist"))
-				return nil
+				res.Error = opErrorRes(fmt.Errorf("you are selected to join a group currently, abort operation may result in frozen. And you can specify the '-f' if you insist"))
+				return res
 			}
 		}
 	}
@@ -373,10 +383,11 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force b
 
 // StakeRefund send refund transaction. After the group is dissolved, the token will be refunded
 func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice uint64) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 
 	if target == "" {
@@ -393,19 +404,20 @@ func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice
 	return ca.SendRaw(tx)
 }
 
-// StakeReduce send reduce stake transaction
+// StakeReduce send reduce value transaction
 func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, gasPrice uint64) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 	if target == "" {
 		target = aci.Address
 	}
 	if value == 0 {
-		output(fmt.Errorf("value must > 0"))
-		return nil
+		res.Error = opErrorRes(fmt.Errorf("value must > 0"))
+		return res
 	}
 	reduceValue := common.TAS2RA(value)
 	tx := &txRawData{
