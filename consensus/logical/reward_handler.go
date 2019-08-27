@@ -217,8 +217,7 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 			return
 		}
 
-		// Reuse the original generator to avoid duplicate signature verification
-		gSignGenerator := slot.gSignGenerator
+		tempGSignGenerator := model.NewGroupSignGenerator(int(group.header.Threshold()))
 
 		for idx, idIndex := range msg.Reward.TargetIds {
 			mem := group.getMemberAt(int(idIndex))
@@ -229,29 +228,33 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 			}
 			sign := msg.SignedPieces[idx]
 
-			// If no signature of the given id, then verification will be needed.
-			if sig, ok := gSignGenerator.GetWitness(mem.id); !ok {
+			// If no signature of the given id in the slot, then verification will be needed.
+			if sig, ok := slot.gSignGenerator.GetWitness(mem.id); !ok {
 				if !groupsig.VerifySig(mem.pk, bh.Hash.Bytes(), sign) {
 					err = fmt.Errorf("verify member sign fail, id=%v", mem.id)
 					return
 				}
-				// Join the generator
-				gSignGenerator.AddWitnessForce(mem.id, sign)
+				// Add sign to the slot gSignGenerator
+				slot.gSignGenerator.AddWitnessForce(mem.id, sign)
+				// Add sign to the temp gSignGenerator
+				tempGSignGenerator.AddWitness(mem.id, sign)
 			} else { // If the signature of the id already exists locally, just judge whether it is the same as the local signature.
 				if !sign.IsEqual(sig) {
 					err = fmt.Errorf("member sign different id=%v", mem.id)
 					return
 				}
+				// Add sign to the temp gSignGenerator
+				tempGSignGenerator.AddWitness(mem.id, sign)
 			}
 		}
 
-		if !gSignGenerator.Recovered() {
+		if !tempGSignGenerator.Recovered() {
 			err = fmt.Errorf("recover verifyGroup sign fail")
 			return
 		}
 
 		bhSign := groupsig.DeserializeSign(bh.Signature)
-		aggSign := slot.GetAggregatedSign()
+		aggSign := slot.aggregateSign(tempGSignGenerator.GetGroupSign())
 		if aggSign == nil {
 			err = fmt.Errorf("obtain the Aggregated signature fail")
 			return
