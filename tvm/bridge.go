@@ -114,9 +114,6 @@ func ContractCall(addressC *C.char, funName *C.char, jsonParms *C.char, cResult 
 	if goResult.Content != "" {
 		ccResult.content = C.CString(goResult.Content)
 	}
-	if goResult.Abi != "" {
-		ccResult.abi = C.CString(goResult.Abi)
-	}
 }
 
 //export EventCall

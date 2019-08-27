@@ -69,6 +69,8 @@ func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
 	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
 		if result.ErrorCode == types.TVMGasNotEnoughError {
 			return types.NewTransactionError(types.TVMGasNotEnoughError, "does not have enough gas to run!")
+		} else if result.ErrorCode == types.TVMCheckABIError {
+			return types.NewTransactionError(types.TVMCheckABIError, result.Content)
 		} else {
 			return types.NewTransactionError(types.TVMExecutedError, result.Content)
 		}
@@ -105,9 +107,9 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		con.GasLeft = uint64(con.VM.Gas())
 	}()
 	msg := Msg{Data: con.Transaction.Payload(), Value: con.Transaction.GetValue()}
-	executeResult, err := con.VM.CreateContractInstance(msg)
+	result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
-		return nil, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
+		return result, nil, transactionErrorWith(result)
 	}
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
@@ -115,15 +117,9 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
 	}
 
-	if !con.VM.VerifyABI(executeResult.Abi, abi) {
-		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, fmt.Sprintf(`
-			checkABI failed. abi:%s
-		`, abi.FuncName))
-	}
-
 	//con.VM.SetLibLine(libLen)
 
-	result := con.VM.executeABIKindEval(abi) //execute
+	result = con.VM.executeABIKindEval(abi) //execute
 	transactionError := transactionErrorWith(result)
 	if transactionError != nil {
 		return result, nil, transactionError
