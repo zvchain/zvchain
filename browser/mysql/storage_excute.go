@@ -173,6 +173,21 @@ func (storage *Storage) UpdateAccountByColumn(account *models.Account, attrs map
 
 }
 
+func (storage *Storage) UpdateAccountbyAddress(account *models.Account, attrs map[string]interface{}) bool {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	if account.Address != "" {
+		storage.db.Model(&account).Where("address = ?", account.Address).Updates(attrs)
+	} else {
+		return false
+	}
+	return true
+
+}
+
 // get topblockreward height
 func (storage *Storage) TopBlockRewardHeight(variable string) uint64 {
 	if storage.db == nil {

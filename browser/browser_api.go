@@ -5,6 +5,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
+	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 	"github.com/zvchain/zvchain/core"
 	"strings"
 	"sync"
@@ -32,9 +33,9 @@ type DBMmanagement struct {
 	isFetchingBlocks bool
 }
 
-func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *DBMmanagement {
+func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *DBMmanagement {
 	tablMmanagement := &DBMmanagement{}
-	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
+	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
 
 	tablMmanagement.blockHeight, _ = tablMmanagement.storage.TopBlockHeight()
 	tablMmanagement.groupHeight = tablMmanagement.storage.TopGroupHeight()
@@ -73,7 +74,17 @@ func (tm *DBMmanagement) fetchAccounts() {
 	if block != nil {
 		if len(block.Transactions) > 0 {
 			AddressCacheList := make(map[string]uint64)
+			PoolList := make(map[string]uint64)
 			for _, tx := range block.Transactions {
+				if tx.Type == 6 {
+					if tx.Target != nil {
+						if _, exists := PoolList[tx.Target.AddrPrefixString()]; exists {
+							PoolList[tx.Target.AddrPrefixString()] += 1
+						} else {
+							PoolList[tx.Target.AddrPrefixString()] = 1
+						}
+					}
+				}
 				if tx.Source != nil {
 					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
@@ -92,6 +103,10 @@ func (tm *DBMmanagement) fetchAccounts() {
 				if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
 					accounts.Address = address
 					accounts.TotalTransaction = totalTx
+					if PoolList[address] != 0 {
+						//todo
+					}
+					accounts.Balance = tm.fetchbalance(address)
 					if tm.storage.AddObjects(accounts) {
 						return
 					}
@@ -100,7 +115,12 @@ func (tm *DBMmanagement) fetchAccounts() {
 					accounts.Address = address
 					accounts.TotalTransaction = totalTx
 					accounts.ID = targetAddrInfo[0].ID
-					if !tm.storage.UpdateAccountByColumn(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)}) {
+					accounts.Balance = tm.fetchbalance(address)
+					if PoolList[address] != 0 {
+						//todo
+					}
+					if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)}) ||
+						tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"balance": accounts.Balance}) {
 						return
 					}
 
@@ -122,6 +142,28 @@ func (tm *DBMmanagement) fetchAccounts() {
 	tm.isFetchingBlocks = false
 }
 
+func (tm *DBMmanagement) fetchbalance(addr string) float64 {
+	beginTime := time.Now()
+	client, err := rpc.Dial(tm.storage.GetRpc()) //Dial(storage.rpcAddrStr)
+	if err != nil {
+		return 0
+	}
+	defer client.Close()
+	var result map[string]interface{}
+	//call remote procedure with args
+	err = client.Call(&result, "Gzv_balance", addr)
+	if err != nil {
+		fmt.Println("[fetcher]  Gzv_balance error :", err)
+		return 0
+	}
+	if result["data"] == nil {
+		return 0
+	}
+	fmt.Println("[Gzv_balance]  result :", result, "delay:", time.Since(beginTime))
+
+	return result["data"].(float64)
+}
+
 func (tm *DBMmanagement) fetchGroup() {
 	fmt.Println("[DBMmanagement]  fetchGroup height:", tm.groupHeight)
 
@@ -133,7 +175,7 @@ func (tm *DBMmanagement) fetchGroup() {
 	}
 	groups := make([]models.Group, 1, 1)
 
-	// Dissmiss
+	//Dissmiss
 	handelDismissGroup(tm, db, groups)
 
 	//Work
