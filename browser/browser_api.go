@@ -330,7 +330,11 @@ func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[
 	}
 	poolstakefrom := make([]*models.PoolStake, 0, 0)
 	for address, fromList := range stakelist {
-		//detail := tm.storage.GetAccountById(address)
+		/*detail := tm.storage.GetAccountById(address)
+		if detail != nil && len(detail) >0{
+
+
+		}*/
 
 		for from, stake := range fromList {
 

@@ -105,7 +105,7 @@ func (api *Explore) GetRewardByBlock(b *types.Block) *ExploreBlockReward {
 		for _, tx := range b.Transactions {
 			if tx.IsReward() {
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
-				receipt := chain.GetTransactionPool().GetReceipt(tx.Hash)
+				receipt := chain.GetTransactionPool().GetReceipt(tx.GenHash())
 				if receipt != nil && block != nil && receipt.Success() {
 					share := rm.CalculateCastRewardShare(bh.Height, 0)
 					packedReward += share.ForRewardTxPacking
