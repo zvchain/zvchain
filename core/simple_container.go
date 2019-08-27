@@ -337,6 +337,7 @@ func (c *simpleContainer) addToQueue(tx *types.Transaction) (evicted *types.Tran
 			} else {
 				evicted = old
 				conflicted = tx
+				delete(c.queue, evicted.Hash)
 			}
 		}
 	}
