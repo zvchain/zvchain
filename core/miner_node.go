@@ -173,7 +173,7 @@ func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *t
 		if miner == nil {
 			return fmt.Errorf("find miner pool miner is nil,addr is %s", op.target.String())
 		}
-		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets", op.target.String(), op.height,totalTickets)
+		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.String(), op.height,totalTickets)
 		miner.UpdateIdentity(types.InValidMinerPool, op.height)
 		remove := false
 		// Remove from pool if active
