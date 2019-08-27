@@ -87,7 +87,8 @@ func (crontab *Crontab) fetchPoolVotes() {
 				}
 				if extra.Vote != tickets {
 					extra.Vote = tickets
-					crontab.storage.UpdateAccountByColumn(pool, map[string]interface{}{"extra_data": json.Marshal(extra)})
+					result, _ := json.Marshal(extra)
+					crontab.storage.UpdateAccountByColumn(pool, map[string]interface{}{"extra_data": string(result)})
 				}
 			}
 		}
