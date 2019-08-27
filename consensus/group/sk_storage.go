@@ -24,9 +24,7 @@ import (
 )
 
 const (
-	maxItems        = 20000 // Maximum seckeys stored in the skStorage. It only need to keep the lived-group-msk which the number is far enough
-	expireHeightGap = 2 * lifeWindow
-	skEncVersion    = 1
+	skEncVersion = 1
 )
 
 var (

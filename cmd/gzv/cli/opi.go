@@ -115,6 +115,16 @@ type chainOp interface {
 
 	BlockHeight() *RPCResObjCmd
 
+	MinerPoolInfo(addr string) *Result
+
+	TicketsInfo(addr string) *Result
+
+	ApplyGuardMiner(gas, gasprice uint64) *Result
+
+	VoteMinerPool(address string, gas, gasprice uint64) *Result
+
+	ChangeFundGuardMode(mode int, gas, gasprice uint64) *Result
+
 	GroupHeight() *RPCResObjCmd
 
 	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *RPCResObjCmd

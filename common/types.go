@@ -48,13 +48,36 @@ const (
 	GroupIDLength = 32 //Length of Group
 )
 
+// Special account address
+// Need to access by AccountDBTS for concurrent situations
 var (
-	hashT               = reflect.TypeOf(Hash{})
-	addressT            = reflect.TypeOf(Address{})
-	BonusStorageAddress = BigToAddress(big.NewInt(0))
+	hashT                      = reflect.TypeOf(Hash{})
+	addressT                   = reflect.TypeOf(Address{})
+	BonusStorageAddress        = BigToAddress(big.NewInt(0))
+	MinerPoolAddr              = BigToAddress(big.NewInt(1)) // The Address storing total stakes of each roles and addresses of all active nodes
+	RewardStoreAddr            = BigToAddress(big.NewInt(2)) // The Address storing the block hash corresponding to the reward transaction
+	GroupTopAddress            = BigToAddress(big.NewInt(3)) //save the current top group
+	MinerPoolTicketsAddr       = BigToAddress(big.NewInt(4)) // The Address storing all miner pool tickets
+	FundGuardNodeAddr          = BigToAddress(big.NewInt(5)) // The Address storing all fund gurad nodes
+	FullStakeGuardNodeAddr     = BigToAddress(big.NewInt(6)) // The Address storing all full stake guard nodes
+	ScanAllFundGuardStatusAddr = BigToAddress(big.NewInt(7)) // The Address mark is scanned all fund guard nodes
 
-	GroupTopAddress = BigToAddress(big.NewInt(3)) //save the current top group
 )
+
+var (
+	PrefixMiner               = []byte("minfo")
+	PrefixDetail              = []byte("dt")
+	PrefixPoolProposal        = []byte("p")
+	PrefixPoolVerifier        = []byte("v")
+	KeyPoolProposalTotalStake = []byte("totalstake")
+	KeyVote                   = []byte("votekey")
+	KeyTickets                = []byte("tickets")
+	KeyGuardNodes             = []byte("guard")
+	KeyScanSixAddFiveNodes    = []byte("s1")
+	KeyScanSixAddSixNodes     = []byte("s2")
+)
+
+var PunishmentDetailAddr = BigToAddress(big.NewInt(0))
 
 func ShortHex(hex string) string {
 	if len(hex) < 12 {
@@ -62,6 +85,13 @@ func ShortHex(hex string) string {
 	}
 	return hex[:6] + "-" + hex[len(hex)-6:]
 }
+
+type FundModeType byte
+
+const (
+	SIXAddFive FundModeType = iota
+	SIXAddSix
+)
 
 // Address data struct
 type Address [AddressLength]byte

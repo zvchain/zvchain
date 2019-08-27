@@ -19,12 +19,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
-	"github.com/zvchain/zvchain/consensus/groupsig"
-	"github.com/zvchain/zvchain/middleware/types"
 	"io/ioutil"
 	"net/http"
+	"strings"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/middleware/types"
 )
 
 type RemoteChainOpImpl struct {
@@ -169,6 +171,16 @@ func (ca *RemoteChainOpImpl) Balance(addr string) *RPCResObjCmd {
 	return ca.request("balance", addr)
 }
 
+// MinerPoolInfo query miner pool info by address
+func (ca *RemoteChainOpImpl) MinerPoolInfo(addr string) *Result {
+	return ca.request("minerPoolInfo", addr, 0)
+}
+
+// TicketsInfo query tickets by address
+func (ca *RemoteChainOpImpl) TicketsInfo(addr string) *Result {
+	return ca.request("ticketsInfo", addr)
+}
+
 // Nonce query Balance by address
 func (ca *RemoteChainOpImpl) Nonce(addr string) *RPCResObjCmd {
 	return ca.request("nonce", addr)
@@ -249,6 +261,63 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		Gasprice: gasPrice,
 		TxType:   types.TransactionTypeStakeAdd,
 		Data:     data,
+	}
+	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
+	return ca.SendRaw(tx)
+}
+
+func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64) *Result {
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	tx := &txRawData{
+		Target:   aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeChangeFundGuardMode,
+		Data:     []byte{byte(mode)},
+	}
+	return ca.SendRaw(tx)
+}
+
+func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) *Result {
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return opError(fmt.Errorf("please input target address"))
+	}
+	if !common.ValidateAddress(target) {
+		return opError(fmt.Errorf("Wrong address format"))
+	}
+	if aci.Address == target {
+		return opError(fmt.Errorf("you could not vote to myself"))
+	}
+	tx := &txRawData{
+		Target:   target,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeVoteMinerPool,
+	}
+	return ca.SendRaw(tx)
+}
+
+func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *Result {
+	r := ca.aop.AccountInfo()
+	if !r.IsSuccess() {
+		return r
+	}
+	aci := r.Data.(*Account)
+	tx := &txRawData{
+		Target:   aci.Address,
+		Gas:      gas,
+		Gasprice: gasprice,
+		TxType:   types.TransactionTypeApplyGuardMiner,
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	return ca.SendRaw(tx)

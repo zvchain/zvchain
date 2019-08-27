@@ -1,15 +1,17 @@
+
 class Token(object):
+
     def __init__(self):
         self.name = 'ZVC Token'
-        self.symbol = "TAS"
+        self.symbol = "ZVC"
         self.decimal = 3
 
         self.totalSupply = 100000
 
-        self.balanceOf = TasCollectionStorage()
-        self.allowance = TasCollectionStorage()
+        self.balanceOf = zdict()
+        self.allowance = zdict()
 
-        self.balanceOf['0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd'] = self.totalSupply
+        self.balanceOf['zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd'] = self.totalSupply
 
         # self.owner = msg.sender
 

@@ -86,7 +86,7 @@ func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (float64, 
 	if !common.ValidateAddress(strings.TrimSpace(account)) {
 		return 0, fmt.Errorf("wrong account address format")
 	}
-	db, err := core.BlockChainImpl.GetAccountDBByHeight(height)
+	db, err := core.BlockChainImpl.AccountDBAt(height)
 	if err != nil {
 		return 0, fmt.Errorf("this height is invalid")
 	}
@@ -184,10 +184,9 @@ func (api *RpcDevImpl) GetCurrentWorkGroup() ([]*Group, error) {
 }
 
 func (api *RpcDevImpl) GetWorkGroup(height uint64) ([]*Group, error) {
-	seeds := api.gr.GetAvailableGroupSeeds(height)
+	groups := api.gr.GetActivatedGroupsAt(height)
 	ret := make([]*Group, 0)
-	for _, seed := range seeds {
-		group := api.gr.GetGroupBySeed(seed.Seed())
+	for _, group := range groups {
 		if group != nil {
 			g := convertGroup(group)
 			ret = append(ret, g)
@@ -531,4 +530,42 @@ func (api *RpcDevImpl) MonitorAllMiners() (map[string]interface{}, error) {
 	data["maxStake"] = maxStake
 	data["totalStake"] = totalStake
 	return data, nil
+}
+
+func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
+	groups := api.gr.GetLivedGroupsAt(height)
+	ret := make([]*Group, 0)
+	for _, group := range groups {
+		if group != nil {
+			g := convertGroup(group)
+			ret = append(ret, g)
+		}
+
+	}
+	return successResult(ret)
+}
+
+func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
+	if e == 0 {
+		e = core.BlockChainImpl.Height()
+	}
+	if b > e {
+		return failResult("begin larger than end")
+	}
+	heights := core.BlockChainImpl.ScanBlockHeightsInRange(b, e)
+	drops := make([]uint64, 0)
+	for i, h := 0, b; h <= e && i < len(heights); h++ {
+		if heights[i] == h {
+			i++
+		} else {
+			drops = append(drops, h)
+		}
+	}
+	dropRate := float64(len(drops)) / float64(e-b+1)
+	ret := make(map[string]interface{})
+	ret["expect_heights"] = e - b + 1
+	ret["real_heights"] = len(heights)
+	ret["drop_rate"] = dropRate
+	ret["drops"] = drops
+	return successResult(ret)
 }
