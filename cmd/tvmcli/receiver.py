@@ -20,6 +20,7 @@ class Receiver():
         if times == 0:
             return
         event.emit(times)
+        # error
         Contract(addr).contract_call2(addr, times-1)
 
     @register.public(str, int)

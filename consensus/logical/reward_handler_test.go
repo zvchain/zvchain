@@ -154,7 +154,7 @@ func NewProcessorTest() *ProcessorTest {
 		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	pt.verifyGroup = &verifyGroup{
-		header:   &GroupHanderTest{},
+		header:   &groupHeader{},
 		memIndex: memIndex,
 		members:  mems,
 	}

@@ -176,6 +176,87 @@ func (c *nonceCmd) parse(args []string) bool {
 	return true
 }
 
+type minerPoolInfoCmd struct {
+	baseCmd
+	addr string
+}
+
+func genMinerPoolInfoCmd() *minerPoolInfoCmd {
+	c := &minerPoolInfoCmd{
+		baseCmd: *genBaseCmd("minerpoolinfo", "view miner pool info by address"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "miner pool info address")
+	return c
+}
+
+func (c *minerPoolInfoCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	c.addr = strings.TrimSpace(c.addr)
+	if c.addr == "" {
+		output("please input the address")
+		return false
+	}
+	if !common.ValidateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return true
+}
+
+type voteMinerPoolCmd struct {
+	gasBaseCmd
+	addr string
+}
+
+func genVoteMinerPoolCmd() *voteMinerPoolCmd {
+	c := &voteMinerPoolCmd{
+		gasBaseCmd: *genGasBaseCmd("voteminerpool", "only guard miner node can for vote miner pool, each guard miner node can only vote once"),
+	}
+	c.initBase()
+	c.fs.StringVar(&c.addr, "addr", "", "your vote address")
+	return c
+}
+
+func (c *voteMinerPoolCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	c.addr = strings.TrimSpace(c.addr)
+	if c.addr == "" {
+		output("please input the address")
+		return false
+	}
+	if !common.ValidateAddress(c.addr) {
+		output("Wrong address format")
+		return false
+	}
+	return c.parseGasPrice()
+}
+
+type applyGuardMinerCmd struct {
+	gasBaseCmd
+}
+
+func genApplyGuardMinerCmd() *applyGuardMinerCmd {
+	c := &applyGuardMinerCmd{
+		gasBaseCmd: *genGasBaseCmd("applyguard", "apply guard miner node"),
+	}
+	c.initBase()
+	return c
+}
+
+func (c *applyGuardMinerCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	return c.parseGasPrice()
+}
+
 type minerInfoCmd struct {
 	baseCmd
 	addr   string
@@ -187,7 +268,7 @@ func genMinerInfoCmd() *minerInfoCmd {
 		baseCmd: *genBaseCmd("minerinfo", "get the info of the miner"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the miner address")
-	c.fs.StringVar(&c.detail, "detail", "", "show the details of the stake from the given address, no details shows if empty, all details shows if set all")
+	c.fs.StringVar(&c.detail, "detail", "", "show the details of the stake from the given address, no details shows if empty")
 	return c
 }
 
@@ -205,7 +286,7 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		output("Wrong address format")
 		return false
 	}
-	if c.detail != "" && c.detail != "all" && !common.ValidateAddress(c.detail) {
+	if c.detail != "" && !common.ValidateAddress(c.detail) {
 		output("Wrong address format")
 		return false
 	}
@@ -560,6 +641,32 @@ func (c *minerAbortCmd) parse(args []string) bool {
 	return c.parseGasPrice()
 }
 
+type changeGuardNodeCmd struct {
+	gasBaseCmd
+	mode int
+}
+
+func genChangeGuardNodeCmd() *changeGuardNodeCmd {
+	c := &changeGuardNodeCmd{
+		gasBaseCmd: *genGasBaseCmd("changemode", "only can changed by fund guard node"),
+	}
+	c.initBase()
+	c.fs.IntVar(&c.mode, "mode", 0, "mode type :0=6+5, 1= 6+6")
+	return c
+}
+
+func (c *changeGuardNodeCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	if !validateFundGuardMode(c.mode) {
+		output("Unsupported mode type %d", c.mode)
+		return false
+	}
+	return c.parseGasPrice()
+}
+
 type stakeRefundCmd struct {
 	gasBaseCmd
 	mtype  int
@@ -764,6 +871,7 @@ var cmdAccountList = genBaseCmd("accountlist", "list the account of the keystore
 var cmdUnlock = genUnlockCmd()
 var cmdBalance = genBalanceCmd()
 var cmdNonce = genNonceCmd()
+var cmdMinerPoolInfo = genMinerPoolInfoCmd()
 var cmdAccountInfo = genBaseCmd("accountinfo", "get the info of the current unlocked account")
 var cmdDelAccount = genBaseCmd("delaccount", "delete the info of the current unlocked account")
 var cmdMinerInfo = genMinerInfoCmd()
@@ -773,9 +881,12 @@ var cmdGroupHeight = genBaseCmd("groupheight", "the current group height")
 var cmdTx = genTxCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
+var cmdApplyGuardMiner = genApplyGuardMinerCmd()
+var cmdVoteMinerPool = genVoteMinerPoolCmd()
 
 var cmdStakeAdd = genStakeAddCmd()
 var cmdMinerAbort = genMinerAbortCmd()
+var cmdChangeGuardNode = genChangeGuardNodeCmd()
 var cmdStakeRefund = genStakeRefundCmd()
 var cmdStakeReduce = genStakeReduceCmd()
 var cmdViewContract = genViewContractCmd()
@@ -793,9 +904,12 @@ func init() {
 	list = append(list, &cmdUnlock.baseCmd)
 	list = append(list, &cmdBalance.baseCmd)
 	list = append(list, &cmdNonce.baseCmd)
+	list = append(list, &cmdMinerPoolInfo.baseCmd)
 	list = append(list, cmdAccountInfo)
 	list = append(list, cmdDelAccount)
 	list = append(list, &cmdMinerInfo.baseCmd)
+	list = append(list, &cmdApplyGuardMiner.baseCmd)
+	list = append(list, &cmdVoteMinerPool.baseCmd)
 	list = append(list, &cmdConnect.baseCmd)
 	list = append(list, cmdBlockHeight)
 	list = append(list, cmdGroupHeight)
@@ -804,6 +918,7 @@ func init() {
 	list = append(list, &cmdSendTx.baseCmd)
 	list = append(list, &cmdStakeAdd.baseCmd)
 	list = append(list, &cmdMinerAbort.baseCmd)
+	list = append(list, &cmdChangeGuardNode.baseCmd)
 	list = append(list, &cmdStakeRefund.baseCmd)
 	list = append(list, &cmdViewContract.baseCmd)
 	list = append(list, &cmdStakeReduce.baseCmd)
@@ -988,6 +1103,27 @@ func loop(acm accountOp, chainOp chainOp) {
 					return chainOp.MinerInfo(cmd.addr, cmd.detail)
 				})
 			}
+		case cmdMinerPoolInfo.name:
+			cmd := genMinerPoolInfoCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return chainOp.MinerPoolInfo(cmd.addr)
+				})
+			}
+		case cmdApplyGuardMiner.name:
+			cmd := genApplyGuardMinerCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return chainOp.ApplyGuardMiner(cmd.gaslimit, cmd.gasPrice)
+				})
+			}
+		case cmdVoteMinerPool.name:
+			cmd := genVoteMinerPoolCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return chainOp.VoteMinerPool(cmd.addr, cmd.gaslimit, cmd.gasPrice)
+				})
+			}
 		case cmdBlockHeight.name:
 			handleCmd(func() *Result {
 				return chainOp.BlockHeight()
@@ -1035,6 +1171,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmd(func() *Result {
 					return chainOp.MinerAbort(cmd.mtype, cmd.gaslimit, cmd.gasPrice, cmd.forceAbort)
+				})
+			}
+		case cmdChangeGuardNode.name:
+			cmd := genChangeGuardNodeCmd()
+			if cmd.parse(args) {
+				handleCmd(func() *Result {
+					return chainOp.ChangeFundGuardMode(cmd.mode, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdStakeRefund.name:

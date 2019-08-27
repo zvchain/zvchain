@@ -131,7 +131,7 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 		}
 	}
 
-	gpk := groupsig.DeserializePubkeyBytes(group.header.PublicKey())
+	gpk := group.header.gpk
 	gSign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
 	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gSign) {
 		return false, fmt.Errorf("verify reward sign fail, gSign=%v", gSign.GetHexString())

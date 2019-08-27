@@ -26,7 +26,7 @@ import (
 	"github.com/zvchain/zvchain/core"
 )
 
-const code  =`
+const code = `
 
 # import account
 
@@ -194,8 +194,7 @@ func TestUnmarhsalTxRawData(t *testing.T) {
 	}
 }
 
-
-func TestParseABI(t *testing.T)  {
+func TestParseABI(t *testing.T) {
 	abi := parseABI(code)
 	fmt.Println(abi)
 }
