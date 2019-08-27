@@ -152,14 +152,13 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	//
 	// Prevent duplicate broadcasts
 	msgID := []byte(blockMsg.Hash())
-
-	//change message id
-	//msgID[0] += 1
-	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, msgID)
-
 	if len(validGroupMembers) > 0 {
 		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, msgID)
 	}
+
+	//change message id
+	msgID[0] += 1
+	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, msgID)
 
 }
 

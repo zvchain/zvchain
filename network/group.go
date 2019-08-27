@@ -55,22 +55,22 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	}
 	maxSize := groupColumnSendCount(totalSize)
 
-	//for i := 0; i < totalSize; i++ {
-	//	ID := NewNodeID(members[i])
-	//	if ID == nil || *ID == netCore.ID {
-	//		continue
-	//	}
-	//
-	//	p := netCore.peerManager.peerByID(*ID)
-	//	if p != nil && p.isAvailable() {
-	//		continue
-	//	}
-	//	connectNodes = append(connectNodes, *ID)
-	//}
-	//
-	//if len(connectNodes) >= maxSize {
-	//	return connectNodes[0:maxSize]
-	//}
+	for i := 0; i < totalSize; i++ {
+		ID := NewNodeID(members[i])
+		if ID == nil || *ID == netCore.ID {
+			continue
+		}
+
+		p := netCore.peerManager.peerByID(*ID)
+		if p != nil && p.isAvailable() {
+			continue
+		}
+		connectNodes = append(connectNodes, *ID)
+	}
+
+	if len(connectNodes) >= maxSize {
+		return connectNodes[0:maxSize]
+	}
 
 	rowSize := groupRowSize(totalSize)
 
