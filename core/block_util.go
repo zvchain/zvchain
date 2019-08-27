@@ -34,14 +34,32 @@ const businessFoundationToken = 250000000 * common.ZVC // amount of tokens that 
 const miningPoolToken = 425000000 * common.ZVC         // amount of tokens that belongs to mining pool
 const circulatesToken = 75000000 * common.ZVC          // amount of tokens that belongs to circulates
 
-func calcTxTree(txs []*types.Transaction) common.Hash {
-	if nil == txs || 0 == len(txs) {
+type txSlice []*types.Transaction
+
+func (ts txSlice) txsToRaw() []*types.RawTransaction {
+	raws := make([]*types.RawTransaction, len(ts))
+	for i, tx := range ts {
+		raws[i] = tx.RawTransaction
+	}
+	return raws
+}
+
+func (ts txSlice) txsHashes() []common.Hash {
+	hs := make([]common.Hash, len(ts))
+	for i, tx := range ts {
+		hs[i] = tx.Hash
+	}
+	return hs
+}
+
+func (ts txSlice) calcTxTree() common.Hash {
+	if nil == ts || 0 == len(ts) {
 		return common.EmptyHash
 	}
 
 	buf := new(bytes.Buffer)
 
-	for _, tx := range txs {
+	for _, tx := range ts {
 		buf.Write(tx.Hash.Bytes())
 	}
 	return common.BytesToHash(common.Sha256(buf.Bytes()))
@@ -89,12 +107,12 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 
 func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Address, totalToken, nonce uint64) *common.Address {
 	code := fmt.Sprintf(foundationContract, adminAddr.AddrPrefixString(), totalToken)
-	transaction := &types.Transaction{}
+	txRaw := &types.RawTransaction{}
 	addr := adminAddr
-	transaction.Source = &addr
-	transaction.Value = &types.BigInt{Int: *big.NewInt(0)}
-	transaction.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}
-	controller := tvm.NewController(stateDB, nil, nil, transaction, 0, nil)
+	txRaw.Source = &addr
+	txRaw.Value = &types.BigInt{Int: *big.NewInt(0)}
+	txRaw.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}
+	controller := tvm.NewController(stateDB, nil, nil, types.NewTransaction(txRaw, txRaw.GenHash()), 0, nil)
 	contract := tvm.Contract{
 		Code:         code,
 		ContractName: "Foundation",
@@ -103,7 +121,7 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Addres
 	if err != nil {
 		panic("deploy FoundationContract error")
 	}
-	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.GetSource()[:], common.Uint64ToByte(nonce))))
+	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(txRaw.GetSource()[:], common.Uint64ToByte(nonce))))
 	stateDB.CreateAccount(contractAddress)
 	stateDB.SetCode(contractAddress, jsonBytes)
 

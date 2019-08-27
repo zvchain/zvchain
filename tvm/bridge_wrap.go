@@ -229,7 +229,7 @@ func NewTVMForRetainContext(sender *common.Address, contract *Contract, logs []*
 	return tvm
 }
 
-// Gas Get the gas left of the TVM
+// GasLimit Get the gas left of the TVM
 func (tvm *TVM) Gas() int {
 	return int(C.tvm_get_gas())
 }
