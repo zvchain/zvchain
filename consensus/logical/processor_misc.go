@@ -124,10 +124,21 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 	if group == nil {
 		return false, common.ErrGroupNil
 	}
+	marks := make([]int, group.memberSize())
 	for _, id := range targetIds {
 		mid := groupsig.DeserializeID(id)
-		if !mid.IsValid() || !group.hasMember(mid) {
+		if !mid.IsValid() {
 			return false, fmt.Errorf("invalid group member,id=%v", mid)
+		}
+		idx := group.getMemberIndex(mid)
+		if idx < 0 {
+			return false, fmt.Errorf("member id not exist:%v", mid)
+		}
+		// duplication check
+		if marks[idx] == 0 {
+			marks[idx] = 1
+		} else {
+			return false, fmt.Errorf("duplicated target id:%v at %v", mid, targetIds)
 		}
 	}
 

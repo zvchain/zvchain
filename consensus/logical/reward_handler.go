@@ -151,7 +151,19 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 		err = fmt.Errorf("vctx is nil,%v height=%v", vctx == nil, bh.Height)
 		return
 	}
-
+	group := vctx.group
+	if gSeed != group.header.seed {
+		err = fmt.Errorf("group seed error, expect %v, infact %v", group.header.seed, gSeed)
+		return
+	}
+	if gSeed != reward.Group {
+		err = fmt.Errorf("groupSeed not equal %v %v", bh.Group, reward.Group)
+		return
+	}
+	if !group.hasMember(msg.SI.GetID()) {
+		err = fmt.Errorf("member %v dosen't belong to the group %v", msg.SI.GetID(), gSeed)
+		return
+	}
 	slot := vctx.GetSlotByHash(bh.Hash)
 	if slot == nil {
 		err = fmt.Errorf("slot is nil")
@@ -164,29 +176,41 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 		return
 	}
 
-	if gSeed != reward.Group {
-		err = fmt.Errorf("groupSeed not equal %v %v", bh.Group, reward.Group)
+	rewardShare := rh.processor.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
+	genReward, _, err2 := rh.processor.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
+	if err2 != nil {
+		err = err2
 		return
 	}
+	if genReward.TxHash != reward.TxHash {
+		err = fmt.Errorf("reward txHash diff %v %v", genReward.TxHash, reward.TxHash)
+		return
+	}
+
+	if len(msg.Reward.TargetIds) != len(msg.SignedPieces) {
+		err = fmt.Errorf("targetId len differ from signedpiece len %v %v", len(msg.Reward.TargetIds), len(msg.SignedPieces))
+		return
+	}
+	if len(msg.Reward.TargetIds) > group.memberSize() {
+		err = fmt.Errorf("target id size larger than member size")
+		return
+	}
+	// target ids legacy check
+	marks := make([]int, group.memberSize())
+	for _, idIdx := range msg.Reward.TargetIds {
+		if idIdx < 0 || idIdx >= int32(group.memberSize()) {
+			err = fmt.Errorf("target id error:%v %v", idIdx, msg.Reward.TargetIds)
+			return
+		}
+		if marks[idIdx] == 0 {
+			marks[idIdx] = 1
+		} else {
+			err = fmt.Errorf("duplicate target id found:%v %v", idIdx, msg.Reward.TargetIds)
+			return
+		}
+	}
+
 	if !slot.hasSignedTxHash(reward.TxHash) {
-		rewardShare := rh.processor.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
-		genReward, _, err2 := rh.processor.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
-		if err2 != nil {
-			err = err2
-			return
-		}
-		if genReward.TxHash != reward.TxHash {
-			err = fmt.Errorf("reward txHash diff %v %v", genReward.TxHash, reward.TxHash)
-			return
-		}
-
-		if len(msg.Reward.TargetIds) != len(msg.SignedPieces) {
-			err = fmt.Errorf("targetId len differ from signedpiece len %v %v", len(msg.Reward.TargetIds), len(msg.SignedPieces))
-			return
-		}
-
-		group := vctx.group
-
 		mpk := group.getMemberPubkey(msg.SI.GetID())
 		if !msg.VerifySign(mpk) {
 			err = fmt.Errorf("verify sign fail, gseed=%v, uid=%v", gSeed, msg.SI.GetID())
@@ -205,10 +229,9 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 			}
 			sign := msg.SignedPieces[idx]
 
-			// If there is no local id signature, you need to verify the signature.
+			// If no signature of the given id, then verification will be needed.
 			if sig, ok := gSignGenerator.GetWitness(mem.id); !ok {
-				pk := group.getMemberPubkey(mem.id)
-				if !groupsig.VerifySig(pk, bh.Hash.Bytes(), sign) {
+				if !groupsig.VerifySig(mem.pk, bh.Hash.Bytes(), sign) {
 					err = fmt.Errorf("verify member sign fail, id=%v", mem.id)
 					return
 				}

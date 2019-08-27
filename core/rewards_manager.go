@@ -183,7 +183,7 @@ func (rm *rewardManager) ParseRewardTransaction(msg types.TxMessage) (gSeed comm
 	ids := make([][]byte, 0)
 
 	for _, idx := range targetIdxs {
-		if idx > uint16(len(group.Members())) {
+		if idx >= uint16(len(group.Members())) {
 			err = fmt.Errorf("target index exceed: group size %v, index %v", len(group.Members()), idx)
 			return
 		}
