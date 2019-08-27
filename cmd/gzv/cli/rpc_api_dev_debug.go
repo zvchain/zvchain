@@ -27,8 +27,7 @@ type rewardTxHash struct {
 	TxHash, BlockHash common.Hash
 }
 
-
-func (api *RpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
+func (api *RpcDevImpl) DebugGetTxs(limit int) ([]string, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetReceived()
 
 	hashs := make([]string, 0)

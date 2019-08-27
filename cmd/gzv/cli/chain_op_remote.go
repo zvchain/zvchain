@@ -278,7 +278,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 
 func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64) *RPCResObjCmd {
 	res := new(RPCResObjCmd)
-	aci, err := ca.aop.AccountInfo()
+	_, err := ca.aop.AccountInfo()
 	if err != nil {
 		res.Error = opErrorRes(err)
 		return res

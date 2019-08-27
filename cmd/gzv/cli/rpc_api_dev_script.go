@@ -30,7 +30,7 @@ func (api *RpcDevImpl) ScriptTransferTx(privateKey string, from string, to strin
 func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (string, error) {
 	sk := common.HexToSecKey(privateKey)
 	if sk == nil {
-		return "",fmt.Errorf("parse private key fail:%v", privateKey)
+		return "", fmt.Errorf("parse private key fail:%v", privateKey)
 	}
 	src := sk.GetPubKey().GetAddress()
 	txRaw := &txRawData{
