@@ -110,8 +110,8 @@ type RawTransaction struct {
 	GasPrice *BigInt `msgpack:"gp"`
 
 	ExtraData []byte          `msgpack:"ed"`
-	Sign      []byte          `msgpack:"si"`  // The Sign of the sender
-	Source    *common.Address `msgpack:"src"` // Sender address, recovered from sign
+	Sign      []byte          `msgpack:"si"`            // The Sign of the sender
+	Source    *common.Address `msgpack:"src,omitempty"` // Sender address, recovered from sign
 }
 
 // Transaction denotes one transaction infos
