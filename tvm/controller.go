@@ -105,9 +105,9 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		con.GasLeft = uint64(con.VM.Gas())
 	}()
 	msg := Msg{Data: con.Transaction.Payload(), Value: con.Transaction.GetValue()}
-	_, err := con.VM.CreateContractInstance(msg)
+	result, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
-		return nil, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
+		return result, nil, transactionErrorWith(result)
 	}
 	abi := ABI{}
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
@@ -117,7 +117,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 
 	//con.VM.SetLibLine(libLen)
 
-	result := con.VM.executeABIKindEval(abi) //execute
+	result = con.VM.executeABIKindEval(abi) //execute
 	transactionError := transactionErrorWith(result)
 	if transactionError != nil {
 		return result, nil, transactionError

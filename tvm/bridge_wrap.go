@@ -148,11 +148,8 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	}
 
 	msg := Msg{Data: []byte{}, Value: 0}
-	_, err := controller.VM.CreateContractInstance(msg)
+	result, err := controller.VM.CreateContractInstance(msg)
 	if err != nil {
-		result.ResultType = C.RETURN_TYPE_EXCEPTION
-		result.ErrorCode = types.TVMExecutedError
-		result.Content = err.Error()
 		return result
 	}
 
