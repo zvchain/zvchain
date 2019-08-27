@@ -142,6 +142,7 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *RPCResObjCmd {
 		res.Error = opErrorRes(fmt.Errorf("privatekey or pubkey error"))
 		return res
 	}
+	tx.Source = aci.Address
 
 	if tx.Nonce == 0 {
 		nonce, errRes := ca.nonce(aci.Address)
@@ -154,7 +155,6 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *RPCResObjCmd {
 
 	}
 	tranx := txRawToTransaction(tx)
-	tranx.Hash = tranx.GenHash()
 	sign, err := privateKey.Sign(tranx.Hash.Bytes())
 	if err != nil {
 		res.Error = opErrorRes(err)
@@ -267,8 +267,8 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 	tx := &txRawData{
 		Target:   target,
 		Value:    st,
-		Gas:      gas,
-		Gasprice: gasPrice,
+		GasLimit: gas,
+		GasPrice: gasPrice,
 		TxType:   types.TransactionTypeStakeAdd,
 		Data:     data,
 	}
@@ -284,9 +284,8 @@ func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64)
 		return res
 	}
 	tx := &txRawData{
-		Target:   aci.Address,
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		TxType:   types.TransactionTypeChangeFundGuardMode,
 		Data:     []byte{byte(mode)},
 	}
@@ -315,8 +314,8 @@ func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) 
 	}
 	tx := &txRawData{
 		Target:   target,
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		TxType:   types.TransactionTypeVoteMinerPool,
 	}
 	return ca.SendRaw(tx)
@@ -330,9 +329,8 @@ func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd
 		return res
 	}
 	tx := &txRawData{
-		Target:   aci.Address,
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		TxType:   types.TransactionTypeApplyGuardMiner,
 	}
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
@@ -374,9 +372,8 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force b
 		}
 	}
 	tx := &txRawData{
-		Target:   aci.Address,
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		TxType:   types.TransactionTypeMinerAbort,
 		Data:     []byte{byte(mtype)},
 	}
@@ -398,8 +395,8 @@ func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice
 	}
 	tx := &txRawData{
 		Target:   target,
-		Gas:      gas,
-		Gasprice: gasPrice,
+		GasLimit: gas,
+		GasPrice: gasPrice,
 		TxType:   types.TransactionTypeStakeRefund,
 		Data:     []byte{byte(mType)},
 	}
@@ -425,8 +422,8 @@ func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, g
 	reduceValue := common.TAS2RA(value)
 	tx := &txRawData{
 		Target:   target,
-		Gas:      gas,
-		Gasprice: gasPrice,
+		GasLimit: gas,
+		GasPrice: gasPrice,
 		Value:    reduceValue,
 		TxType:   types.TransactionTypeStakeReduce,
 		Data:     []byte{byte(mType)},

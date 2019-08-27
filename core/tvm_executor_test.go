@@ -83,7 +83,7 @@ func randomAddress() common.Address {
 func genRandomTx() *types.Transaction {
 	target := randomAddress()
 	source := randomAddress()
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Value:    types.NewBigInt(1),
 		Nonce:    1,
 		Target:   &target,
@@ -92,8 +92,7 @@ func genRandomTx() *types.Transaction {
 		GasLimit: types.NewBigInt(10000),
 		GasPrice: types.NewBigInt(1000),
 	}
-	tx.Hash = tx.GenHash()
-	return tx
+	return types.NewTransaction(tx, tx.GenHash())
 }
 
 func TestTVMExecutor_Execute(t *testing.T) {

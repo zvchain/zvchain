@@ -488,8 +488,8 @@ func (c *sendTxCmd) toTxRaw() *txRawData {
 		Value:     value,
 		TxType:    c.txType,
 		Data:      []byte(c.data),
-		Gas:       c.gaslimit,
-		Gasprice:  c.gasPrice,
+		GasLimit:  c.gaslimit,
+		GasPrice:  c.gasPrice,
 		Nonce:     c.nonce,
 		ExtraData: []byte(c.extraData),
 	}

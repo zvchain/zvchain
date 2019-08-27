@@ -30,10 +30,11 @@ var (
 )
 
 type txRawData struct {
+	Source    string `json:"source"`
 	Target    string `json:"target"`
 	Value     uint64 `json:"value"`
-	Gas       uint64 `json:"gas"`
-	Gasprice  uint64 `json:"gasprice"`
+	GasLimit  uint64 `json:"gas_limit"`
+	GasPrice  uint64 `json:"gas_price"`
 	TxType    int    `json:"tx_type"`
 	Nonce     uint64 `json:"nonce"`
 	Data      []byte `json:"data"`
@@ -61,22 +62,25 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 		t := common.StringToAddress(tx.Target)
 		target = &t
 	}
+	src := common.StringToAddress(tx.Source)
 	var sign []byte
 	if tx.Sign != "" {
 		sign = common.HexToSign(tx.Sign).Bytes()
 	}
 
-	return &types.Transaction{
+	raw := &types.RawTransaction{
 		Data:      tx.Data,
 		Value:     types.NewBigInt(tx.Value),
 		Nonce:     tx.Nonce,
 		Target:    target,
 		Type:      int8(tx.TxType),
-		GasLimit:  types.NewBigInt(tx.Gas),
-		GasPrice:  types.NewBigInt(tx.Gasprice),
+		GasLimit:  types.NewBigInt(tx.GasLimit),
+		GasPrice:  types.NewBigInt(tx.GasPrice),
 		Sign:      sign,
 		ExtraData: tx.ExtraData,
+		Source:    &src,
 	}
+	return &types.Transaction{RawTransaction: raw, Hash: raw.GenHash()}
 }
 
 type accountOp interface {

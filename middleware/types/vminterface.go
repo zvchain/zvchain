@@ -71,7 +71,7 @@ type ChainReader interface {
 	HasHeight(height uint64) bool
 }
 
-// MinerOperationMessage generated when operate miner stake info
+// TxMessage generated when operate miner stake info
 type TxMessage interface {
 	OpType() int8
 	Operator() *common.Address

@@ -62,8 +62,8 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value ui
 	txRaw := &txRawData{
 		Target:   target,
 		Value:    value,
-		Gas:      gas,
-		Gasprice: gp,
+		GasLimit: gas,
+		GasPrice: gp,
 		TxType:   txType,
 		Nonce:    nonce,
 		Data:     []byte(data),
@@ -93,7 +93,6 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value ui
 	}
 
 	tranx := txRawToTransaction(txRaw)
-	tranx.Hash = tranx.GenHash()
 	sign, err := privateKey.Sign(tranx.Hash.Bytes())
 	if err != nil {
 		res.Error = opErrorRes(err)

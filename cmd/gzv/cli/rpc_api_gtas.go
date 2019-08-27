@@ -91,16 +91,17 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (string, error) {
 	// Check the address for the specified tx types
 	switch txRaw.TxType {
 	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
-		types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeApplyGuardMiner,
-		types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool, types.TransactionTypeChangeFundGuardMode:
+		types.TransactionTypeStakeReduce,
+		types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool:
 		if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
 			return "", fmt.Errorf("wrong target address format")
 		}
 	}
+	if !common.ValidateAddress(txRaw.Source) {
+		return "", fmt.Errorf("wrong source address")
+	}
 
 	trans := txRawToTransaction(txRaw)
-
-	trans.Hash = trans.GenHash()
 
 	if err := sendTransaction(trans); err != nil {
 		return "", err
@@ -276,7 +277,7 @@ func (api *RpcGtasImpl) TransDetail(h string) (*Transaction, error) {
 	if !validateHash(strings.TrimSpace(h)) {
 		return nil, fmt.Errorf("wrong hash format")
 	}
-	tx := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(h))
+	tx := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(h))
 
 	if tx != nil {
 		trans := convertTransaction(tx)
@@ -302,7 +303,7 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*ExecutedTransaction, error) {
 	hash := common.HexToHash(h)
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
-		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
+		tx := core.BlockChainImpl.GetTransactionByHash(false, hash)
 		return convertExecutedTransaction(&types.ExecutedTransaction{
 			Receipt:     rc,
 			Transaction: tx,

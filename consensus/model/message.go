@@ -145,5 +145,5 @@ func (req *ReqProposalBlock) GenHash() common.Hash {
 // ResponseProposalBlock responses the corresponding block body to the requester
 type ResponseProposalBlock struct {
 	Hash         common.Hash
-	Transactions []*types.Transaction
+	Transactions []*types.RawTransaction
 }
