@@ -346,11 +346,11 @@ func BlockToPbOnlyTxs(blocks []*types.Block) []*tas_middleware_pb.Block {
 	return pbblocks
 }
 
-func TransactionsToPb(txs []*types.Transaction) []*tas_middleware_pb.Transaction {
+func TransactionsToPb(txs []*types.RawTransaction) []*tas_middleware_pb.RawTransaction {
 	if txs == nil {
 		return nil
 	}
-	transactions := make([]*tas_middleware_pb.Transaction, 0)
+	transactions := make([]*tas_middleware_pb.RawTransaction, 0)
 	for _, t := range txs {
 		transaction := transactionToPb(t)
 		transactions = append(transactions, transaction)
@@ -358,7 +358,7 @@ func TransactionsToPb(txs []*types.Transaction) []*tas_middleware_pb.Transaction
 	return transactions
 }
 
-func transactionToPb(t *types.Transaction) *tas_middleware_pb.Transaction {
+func transactionToPb(t *types.RawTransaction) *tas_middleware_pb.RawTransaction {
 	if t == nil {
 		return nil
 	}
@@ -369,14 +369,13 @@ func transactionToPb(t *types.Transaction) *tas_middleware_pb.Transaction {
 		target = t.Target.Bytes()
 	}
 	tp := int32(t.Type)
-	transaction := tas_middleware_pb.Transaction{
+	transaction := tas_middleware_pb.RawTransaction{
 		Data:      t.Data,
 		Value:     t.Value.GetBytesWithSign(),
 		Nonce:     &t.Nonce,
 		Target:    target,
 		GasLimit:  t.GasLimit.GetBytesWithSign(),
 		GasPrice:  t.GasPrice.GetBytesWithSign(),
-		Hash:      t.Hash.Bytes(),
 		ExtraData: t.ExtraData,
 		Type:      &tp,
 		Sign:      t.Sign,

@@ -724,10 +724,10 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 	data5 = append(data5, 0)
 	datas := [][]byte{data1, data2, data3, data4, data5}
 
-	var txs []*types.Transaction
+	var txs []*types.RawTransaction
 	targetbyte := common.StringToAddress(target)
 	for i := 0; i < 5; i++ {
-		tx := &types.Transaction{
+		tx := &types.RawTransaction{
 			Data:     datas[i],
 			Value:    types.NewBigInt(value),
 			Nonce:    Nonce,

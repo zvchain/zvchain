@@ -42,17 +42,15 @@ func (chain *FullBlockChain) TotalQN() uint64 {
 }
 
 // GetTransactionByHash get a transaction by hash
-func (chain *FullBlockChain) GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *types.Transaction {
+func (chain *FullBlockChain) GetTransactionByHash(onlyReward bool, h common.Hash) *types.Transaction {
 	tx := chain.transactionPool.GetTransaction(onlyReward, h)
 	if tx == nil {
 		chain.rwLock.RLock()
 		defer chain.rwLock.RUnlock()
 		rc := chain.transactionPool.GetReceipt(h)
 		if rc != nil {
-			tx = chain.queryBlockTransactionsOptional(int(rc.TxIndex), rc.Height, h)
-			if tx != nil && needSource {
-				tx.RecoverSource()
-			}
+			txRaw := chain.queryBlockTransactionsOptional(int(rc.TxIndex), rc.Height)
+			return types.NewTransaction(txRaw, rc.TxHash)
 		}
 	}
 	return tx

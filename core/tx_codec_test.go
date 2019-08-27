@@ -40,7 +40,7 @@ func genTx(source string, target string) *types.Transaction {
 		targetAddr = &targetbyte
 	}
 
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Data:      []byte{13, 23},
 		GasPrice:  types.NewBigInt(1),
 		Source:    sourceAddr,
@@ -51,8 +51,7 @@ func genTx(source string, target string) *types.Transaction {
 		GasLimit:  types.NewBigInt(10000000),
 		Type:      1,
 	}
-	tx.Hash = tx.GenHash()
-	return tx
+	return types.NewTransaction(tx, tx.GenHash())
 }
 
 func genBlockHeader() *types.BlockHeader {
@@ -125,7 +124,7 @@ func TestDecodeBlockTransactionWithTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, tx := range txs {
-		if tx.Hash != b.Transactions[i].Hash {
+		if tx.GenHash() != b.Transactions[i].Hash {
 			t.Fatal("tx hash error")
 		}
 	}
@@ -149,15 +148,12 @@ func TestDecodeTransactionByHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx, err := decodeTransaction(testIndex, testHash, bs)
+	tx, err := decodeTransaction(testIndex, bs)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tx.Hash != tx.GenHash() {
+	if testHash != tx.GenHash() {
 		t.Fatal("gen hash diff")
-	}
-	if tx.Hash != testHash {
-		t.Fatal("hash diff")
 	}
 	t.Log("success")
 }
@@ -177,7 +173,7 @@ func TestMarshalSign(t *testing.T) {
 
 func TestMarshalTx(t *testing.T) {
 	tx := genTx("0x123", "0x2343")
-	bs, err := marshalTx(tx)
+	bs, err := marshalTx(tx.RawTransaction)
 	t.Logf("%+v, %v", tx, tx.Source)
 	if err != nil {
 		t.Fatal(err)

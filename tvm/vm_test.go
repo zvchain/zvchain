@@ -185,17 +185,6 @@ with open("a.txt", "w") as f:
 	}
 }
 
-func TestVm(t *testing.T) {
-	vm := TVM{}
-	vm.Contract = &Contract{}
-	vm.ContractName = "Token"
-	abi := ABI{
-		FuncName: "balance_of",
-		Args:     []interface{}{"0x6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd\")\ntas_Token.transfer('0x123',50)=\n(\""},
-	}
-	fmt.Println(vm.generateScript(abi))
-}
-
 func TestTVM_VerifyABI1(t *testing.T) {
 	contractAddr := common.StringToAddress("zv123")
 	senderAddr := common.StringToAddress("zv456")
@@ -220,7 +209,7 @@ func TestTVM_VerifyABI1(t *testing.T) {
 		Data:  []byte{},
 		Value: 0,
 	}
-	_, result, err := vm.CreateContractInstance(msg)
+	result, err := vm.CreateContractInstance(msg)
 	if err != nil {
 		t.Error("CreateContractInstance err:", err)
 	}
@@ -228,9 +217,6 @@ func TestTVM_VerifyABI1(t *testing.T) {
 	//result := vm.ExecuteScriptKindFile(contract.Code)
 	fmt.Println("result:", result)
 
-	if !vm.VerifyABI(result.Abi, abi) {
-		t.Error("VerifyABI err")
-	}
 }
 
 func TestTVM_VerifyABI2(t *testing.T) {
@@ -257,7 +243,7 @@ func TestTVM_VerifyABI2(t *testing.T) {
 		Data:  []byte{},
 		Value: 0,
 	}
-	_, result, err := vm.CreateContractInstance(msg)
+	result, err := vm.CreateContractInstance(msg)
 	if err != nil {
 		t.Error("CreateContractInstance err:", err)
 	}
@@ -265,7 +251,4 @@ func TestTVM_VerifyABI2(t *testing.T) {
 	//result := vm.ExecuteScriptKindFile(contract.Code)
 	fmt.Println("result:", result)
 
-	if !vm.VerifyABI(result.Abi, abi) {
-		t.Error("VerifyABI err")
-	}
 }

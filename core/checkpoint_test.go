@@ -209,7 +209,6 @@ func (db *accountDB4CPTest) Snapshot() int {
 	panic("implement me")
 }
 
-
 func (db *accountDB4CPTest) Transfer(common.Address, common.Address, *big.Int) {
 	panic("implement me")
 }

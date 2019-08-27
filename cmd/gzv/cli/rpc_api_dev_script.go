@@ -21,36 +21,38 @@ import (
 	"github.com/zvchain/zvchain/common"
 )
 
-func (api *RpcDevImpl) ScriptTransferTx(privateKey string, from string, to string, amount uint64, nonce uint64, txType int, gasPrice uint64) (*Result, error) {
+func (api *RpcDevImpl) ScriptTransferTx(privateKey string, from string, to string, amount uint64, nonce uint64, txType int, gasPrice uint64) (string, error) {
 	return api.TxUnSafe(privateKey, to, amount, gasPrice, gasPrice, nonce, txType, "")
 }
 
 // TxUnSafe sends a transaction by submitting the privateKey.
 // It is not safe for users, used for testing purpose
-func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (*Result, error) {
+func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (string, error) {
+	sk := common.HexToSecKey(privateKey)
+	if sk == nil {
+		return "", fmt.Errorf("parse private key fail:%v", privateKey)
+	}
+	src := sk.GetPubKey().GetAddress()
 	txRaw := &txRawData{
+		Source:   src.AddrPrefixString(),
 		Target:   target,
 		Value:    common.TAS2RA(value),
-		Gas:      gas,
-		Gasprice: gasprice,
+		GasLimit: gas,
+		GasPrice: gasprice,
 		Nonce:    nonce,
 		TxType:   txType,
 		Data:     []byte(data),
 	}
-	sk := common.HexToSecKey(privateKey)
-	if sk == nil {
-		return failResult(fmt.Sprintf("parse private key fail:%v", privateKey))
-	}
+
 	trans := txRawToTransaction(txRaw)
-	trans.Hash = trans.GenHash()
 	sign, err := sk.Sign(trans.Hash.Bytes())
 	if err != nil {
-		failResult(err.Error())
+		return "", err
 	}
 	trans.Sign = sign.Bytes()
 
 	if err := sendTransaction(trans); err != nil {
-		return failResult(err.Error())
+		return "", nil
 	}
-	return successResult(trans.Hash.Hex())
+	return trans.Hash.Hex(), nil
 }

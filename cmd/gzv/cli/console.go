@@ -56,6 +56,15 @@ func output(msg ...interface{}) {
 	fmt.Println(msg...)
 }
 
+func outputJSONErr(result *ErrorResult) {
+	bs, err := json.MarshalIndent(result, "", "\t")
+	if err != nil {
+		output(err.Error())
+	} else {
+		output(string(bs))
+	}
+}
+
 func genNewAccountCmd() *newAccountCmd {
 	c := &newAccountCmd{
 		baseCmd: *genBaseCmd("newaccount", "create account"),
@@ -68,7 +77,7 @@ func genNewAccountCmd() *newAccountCmd {
 func (c *newAccountCmd) parse(args []string) bool {
 	err := c.fs.Parse(args)
 	if err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	pass := strings.TrimSpace(c.password)
@@ -100,7 +109,7 @@ func genUnlockCmd() *unlockCmd {
 
 func (c *unlockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -110,7 +119,7 @@ func (c *unlockCmd) parse(args []string) bool {
 	}
 
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -131,7 +140,7 @@ func genBalanceCmd() *balanceCmd {
 
 func (c *balanceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -140,7 +149,7 @@ func (c *balanceCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -161,7 +170,7 @@ func genNonceCmd() *nonceCmd {
 
 func (c *nonceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -170,7 +179,7 @@ func (c *nonceCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -274,7 +283,7 @@ func genMinerInfoCmd() *minerInfoCmd {
 
 func (c *minerInfoCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -283,11 +292,11 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	if c.detail != "" && !common.ValidateAddress(c.detail) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -310,7 +319,7 @@ func genConnectCmd() *connectCmd {
 
 func (c *connectCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.host) == "" {
@@ -328,8 +337,7 @@ func (c *connectCmd) parse(args []string) bool {
 
 type txCmd struct {
 	baseCmd
-	hash     string
-	executed bool
+	hash string
 }
 
 func genTxCmd() *txCmd {
@@ -337,13 +345,12 @@ func genTxCmd() *txCmd {
 		baseCmd: *genBaseCmd("tx", "get transaction detail"),
 	}
 	c.fs.StringVar(&c.hash, "hash", "", "the hex transaction hash")
-	c.fs.BoolVar(&c.executed, "executed", false, "get executed transaction detail")
 	return c
 }
 
 func (c *txCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.hash) == "" {
@@ -352,7 +359,37 @@ func (c *txCmd) parse(args []string) bool {
 		return false
 	}
 	if !validateHash(c.hash) {
-		output("Wrong hash format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong hash format")))
+		return false
+	}
+	return true
+}
+
+type receiptCmd struct {
+	baseCmd
+	hash string
+}
+
+func genReceiptCmd() *receiptCmd {
+	c := &receiptCmd{
+		baseCmd: *genBaseCmd("receipt", "get transaction receipt"),
+	}
+	c.fs.StringVar(&c.hash, "hash", "", "the hex transaction hash")
+	return c
+}
+
+func (c *receiptCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		outputJSONErr(opErrorRes(err))
+		return false
+	}
+	if strings.TrimSpace(c.hash) == "" {
+		output("please input the transaction hash")
+		c.fs.PrintDefaults()
+		return false
+	}
+	if !validateHash(c.hash) {
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong hash format")))
 		return false
 	}
 	return true
@@ -375,12 +412,12 @@ func genBlockCmd() *blockCmd {
 
 func (c *blockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if len(c.hash) > 0 {
 		if !validateHash(c.hash) {
-			output("Wrong hash format")
+			outputJSONErr(opErrorRes(fmt.Errorf("wrong hash format")))
 			return false
 		}
 	}
@@ -404,7 +441,7 @@ func genGasBaseCmd(n string, h string) *gasBaseCmd {
 func (c *gasBaseCmd) parseGasPrice() bool {
 	gp, err := common.ParseCoin(c.gasPriceStr)
 	if err != nil {
-		output(fmt.Sprintf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, c.gasPriceStr))
+		outputJSONErr(opErrorRes(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, c.gasPriceStr)))
 		return false
 	}
 	c.gasPrice = gp
@@ -451,8 +488,8 @@ func (c *sendTxCmd) toTxRaw() *txRawData {
 		Value:     value,
 		TxType:    c.txType,
 		Data:      []byte(c.data),
-		Gas:       c.gaslimit,
-		Gasprice:  c.gasPrice,
+		GasLimit:  c.gaslimit,
+		GasPrice:  c.gasPrice,
 		Nonce:     c.nonce,
 		ExtraData: []byte(c.extraData),
 	}
@@ -460,11 +497,11 @@ func (c *sendTxCmd) toTxRaw() *txRawData {
 
 func (c *sendTxCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if !validateTxType(c.txType) {
-		output("Not supported transaction type")
+		outputJSONErr(opErrorRes(fmt.Errorf("not supported transaction type")))
 		return false
 	}
 	if c.txType == types.TransactionTypeTransfer || c.txType == types.TransactionTypeContractCall {
@@ -474,7 +511,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 			return false
 		} else {
 			if !common.ValidateAddress(strings.TrimSpace(c.to)) {
-				output("Wrong address format")
+				outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 				return false
 			}
 		}
@@ -485,7 +522,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 	}
 
 	if _, err := parseRaFromString(c.value); err != nil {
-		output(err)
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 
@@ -504,7 +541,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			output("read the "+c.contractPath+"file failed ", err)
+			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -512,7 +549,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		jsonBytes, errMarsh := json.Marshal(contract)
 		if errMarsh != nil {
-			output("Marshal contract failed: ", errMarsh)
+			outputJSONErr(opErrorRes(fmt.Errorf("marshal contract failed: ", errMarsh)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -527,7 +564,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			output("read the "+c.contractPath+"file failed ", err)
+			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -579,34 +616,34 @@ func parseRaFromString(number string) (uint64, error) {
 
 type stakeAddCmd struct {
 	gasBaseCmd
-	stake  uint64
+	value  uint64
 	mtype  int
 	target string
 }
 
 func genStakeAddCmd() *stakeAddCmd {
 	c := &stakeAddCmd{
-		gasBaseCmd: *genGasBaseCmd("stakeadd", "add stake for the target miner"),
+		gasBaseCmd: *genGasBaseCmd("stakeadd", "add value for the target miner"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of ZVC, default 500ZVC")
+	c.fs.Uint64Var(&c.value, "value", 500, "freeze value of ZVC, default 500ZVC")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
-	c.fs.StringVar(&c.target, "target", "", "stake add target address, default the operator if not specified")
+	c.fs.StringVar(&c.target, "target", "", "value add target address, default the operator if not specified")
 	return c
 }
 
 func (c *stakeAddCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	if len(strings.TrimSpace(c.target)) > 0 {
 		if !common.ValidateAddress(c.target) {
-			output("Wrong address format")
+			outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 			return false
 		}
 	}
@@ -631,11 +668,11 @@ func genMinerAbortCmd() *minerAbortCmd {
 
 func (c *minerAbortCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	return c.parseGasPrice()
@@ -675,7 +712,7 @@ type stakeRefundCmd struct {
 
 func genStakeRefundCmd() *stakeRefundCmd {
 	c := &stakeRefundCmd{
-		gasBaseCmd: *genGasBaseCmd("stakerefund", "apply to refund the miner freeze stake"),
+		gasBaseCmd: *genGasBaseCmd("stakerefund", "apply to refund the miner freeze value"),
 	}
 	c.initBase()
 	c.fs.IntVar(&c.mtype, "type", 0, "refund miner type: 0=verify node, 1=proposal node, default 0")
@@ -685,15 +722,15 @@ func genStakeRefundCmd() *stakeRefundCmd {
 
 func (c *stakeRefundCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.target != "" && !common.ValidateAddress(c.target) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	return c.parseGasPrice()
@@ -708,7 +745,7 @@ type stakeReduceCmd struct {
 
 func genStakeReduceCmd() *stakeReduceCmd {
 	c := &stakeReduceCmd{
-		gasBaseCmd: *genGasBaseCmd("stakereduce", "reduce stake of the given address"),
+		gasBaseCmd: *genGasBaseCmd("stakereduce", "reduce value of the given address"),
 	}
 	c.initBase()
 	c.fs.IntVar(&c.mtype, "type", 0, "receiver's type: 0=verify node, 1=proposal node, default 0")
@@ -719,15 +756,15 @@ func genStakeReduceCmd() *stakeReduceCmd {
 
 func (c *stakeReduceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.target != "" && !common.ValidateAddress(c.target) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	return c.parseGasPrice()
@@ -742,13 +779,13 @@ func genViewContractCmd() *viewContractCmd {
 	c := &viewContractCmd{
 		baseCmd: *genBaseCmd("viewcontract", "view contract data"),
 	}
-	c.fs.StringVar(&c.addr, "target", "", "address of the contract")
+	c.fs.StringVar(&c.addr, "addr", "", "address of the contract")
 	return c
 }
 
 func (c *viewContractCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.addr == "" {
@@ -756,7 +793,7 @@ func (c *viewContractCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -782,7 +819,7 @@ func genImportKeyCmd() *importKeyCmd {
 func (c *importKeyCmd) parse(args []string) bool {
 	err := c.fs.Parse(args)
 	if err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	key := strings.TrimSpace(c.key)
@@ -791,7 +828,7 @@ func (c *importKeyCmd) parse(args []string) bool {
 		return false
 	}
 	if !validateKey(key) {
-		output("Private key is invalid")
+		outputJSONErr(opErrorRes(fmt.Errorf("private key is invalid")))
 		return false
 	}
 	pass := strings.TrimSpace(c.password)
@@ -821,7 +858,7 @@ func genExportKeyCmd() *exportKeyCmd {
 
 func (c *exportKeyCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.addr == "" {
@@ -829,7 +866,7 @@ func (c *exportKeyCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -850,7 +887,7 @@ func genGroupCheckCmd() *groupCheckCmd {
 
 func (c *groupCheckCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.addr == "" {
@@ -858,7 +895,7 @@ func (c *groupCheckCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -879,6 +916,7 @@ var cmdConnect = genConnectCmd()
 var cmdBlockHeight = genBaseCmd("blockheight", "the current block height")
 var cmdGroupHeight = genBaseCmd("groupheight", "the current group height")
 var cmdTx = genTxCmd()
+var cmdReceipt = genReceiptCmd()
 var cmdBlock = genBlockCmd()
 var cmdSendTx = genSendTxCmd()
 var cmdApplyGuardMiner = genApplyGuardMinerCmd()
@@ -914,6 +952,7 @@ func init() {
 	list = append(list, cmdBlockHeight)
 	list = append(list, cmdGroupHeight)
 	list = append(list, &cmdTx.baseCmd)
+	list = append(list, &cmdReceipt.baseCmd)
 	list = append(list, &cmdBlock.baseCmd)
 	list = append(list, &cmdSendTx.baseCmd)
 	list = append(list, &cmdStakeAdd.baseCmd)
@@ -959,12 +998,33 @@ func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error 
 	return nil
 }
 
-func handleCmd(handle func() *Result) {
-	ret := handle()
-	if !ret.IsSuccess() {
-		output(ret.Message)
+func handleCmdForChain(handle func() *RPCResObjCmd) {
+	res := handle()
+	if res != nil {
+		if res.Error != nil {
+			bs, err := json.MarshalIndent(res.Error, "", "\t")
+			if err != nil {
+				output(err.Error())
+			} else {
+				output(string(bs))
+			}
+		} else {
+			bs, err := json.MarshalIndent(res.Result, "", "\t")
+			if err != nil {
+				output(err.Error())
+			} else {
+				output(string(bs))
+			}
+		}
+	}
+}
+
+func handleCmdForAccount(handle func() (interface{}, error)) {
+	res, err := handle()
+	if err != nil {
+		output(err)
 	} else {
-		bs, err := json.MarshalIndent(ret, "", "\t")
+		bs, err := json.MarshalIndent(res, "", "\t")
 		if err != nil {
 			output(err.Error())
 		} else {
@@ -984,12 +1044,12 @@ func unlockLoop(cmd *unlockCmd, acm accountOp) {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		ret := acm.UnLock(cmd.addr, string(bs), cmd.duration)
-		if ret.IsSuccess() {
+		resErr := acm.UnLock(cmd.addr, string(bs), cmd.duration)
+		if resErr == nil {
 			fmt.Printf("unlock will last %v secs:%v\n", cmd.duration, cmd.addr)
 			break
 		} else {
-			fmt.Fprintln(os.Stderr, ret.Message)
+			fmt.Fprintln(os.Stderr, resErr.Error())
 		}
 	}
 }
@@ -1048,7 +1108,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdNewAccount.name:
 			cmd := genNewAccountCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForAccount(func() (interface{}, error) {
 					return acm.NewAccount(cmd.password, cmd.miner)
 				})
 			}
@@ -1059,7 +1119,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdHelp.name:
 			Usage()
 		case cmdAccountList.name:
-			handleCmd(func() *Result {
+			handleCmdForAccount(func() (interface{}, error) {
 				return acm.AccountList()
 			})
 		case cmdUnlock.name:
@@ -1068,11 +1128,11 @@ func loop(acm accountOp, chainOp chainOp) {
 				unlockLoop(cmd, acm)
 			}
 		case cmdAccountInfo.name:
-			handleCmd(func() *Result {
+			handleCmdForAccount(func() (interface{}, error) {
 				return acm.AccountInfo()
 			})
 		case cmdDelAccount.name:
-			handleCmd(func() *Result {
+			handleCmdForAccount(func() (interface{}, error) {
 				return acm.DeleteAccount()
 			})
 		case cmdConnect.name:
@@ -1084,14 +1144,14 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdBalance.name:
 			cmd := genBalanceCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.Balance(cmd.addr)
 				})
 			}
 		case cmdNonce.name:
 			cmd := genNonceCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.Nonce(cmd.addr)
 				})
 			}
@@ -1099,53 +1159,57 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdMinerInfo.name:
 			cmd := genMinerInfoCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerInfo(cmd.addr, cmd.detail)
 				})
 			}
 		case cmdMinerPoolInfo.name:
 			cmd := genMinerPoolInfoCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerPoolInfo(cmd.addr)
 				})
 			}
 		case cmdApplyGuardMiner.name:
 			cmd := genApplyGuardMinerCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.ApplyGuardMiner(cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdVoteMinerPool.name:
 			cmd := genVoteMinerPoolCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.VoteMinerPool(cmd.addr, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdBlockHeight.name:
-			handleCmd(func() *Result {
+			handleCmdForChain(func() *RPCResObjCmd {
 				return chainOp.BlockHeight()
 			})
 		case cmdGroupHeight.name:
-			handleCmd(func() *Result {
+			handleCmdForChain(func() *RPCResObjCmd {
 				return chainOp.GroupHeight()
 			})
 		case cmdTx.name:
 			cmd := genTxCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
-					if cmd.executed {
-						return chainOp.TxReceipt(cmd.hash)
-					}
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.TxInfo(cmd.hash)
+				})
+			}
+		case cmdReceipt.name:
+			cmd := genReceiptCmd()
+			if cmd.parse(args) {
+				handleCmdForChain(func() *RPCResObjCmd {
+					return chainOp.TxReceipt(cmd.hash)
 				})
 			}
 		case cmdBlock.name:
 			cmd := genBlockCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					if cmd.hash != "" {
 						return chainOp.BlockByHash(cmd.hash)
 					}
@@ -1155,70 +1219,70 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdSendTx.name:
 			cmd := genSendTxCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.SendRaw(cmd.toTxRaw())
 				})
 			}
 		case cmdStakeAdd.name:
 			cmd := genStakeAddCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
-					return chainOp.StakeAdd(cmd.target, cmd.mtype, cmd.stake, cmd.gaslimit, cmd.gasPrice)
+				handleCmdForChain(func() *RPCResObjCmd {
+					return chainOp.StakeAdd(cmd.target, cmd.mtype, cmd.value, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdMinerAbort.name:
 			cmd := genMinerAbortCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerAbort(cmd.mtype, cmd.gaslimit, cmd.gasPrice, cmd.forceAbort)
 				})
 			}
 		case cmdChangeGuardNode.name:
 			cmd := genChangeGuardNodeCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.ChangeFundGuardMode(cmd.mode, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdStakeRefund.name:
 			cmd := genStakeRefundCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.StakeRefund(cmd.target, cmd.mtype, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdStakeReduce.name:
 			cmd := genStakeReduceCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.StakeReduce(cmd.target, cmd.mtype, cmd.value, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdViewContract.name:
 			cmd := genViewContractCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.ViewContract(cmd.addr)
 				})
 			}
 		case cmdImportKey.name:
 			cmd := genImportKeyCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForAccount(func() (interface{}, error) {
 					return acm.NewAccountByImportKey(cmd.key, cmd.password, cmd.miner)
 				})
 			}
 		case cmdExportKey.name:
 			cmd := genExportKeyCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForAccount(func() (interface{}, error) {
 					return acm.ExportKey(cmd.addr)
 				})
 			}
 		case cmdGroupCheck.name:
 			cmd := genGroupCheckCmd()
 			if cmd.parse(args) {
-				handleCmd(func() *Result {
+				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.GroupCheck(cmd.addr)
 				})
 			}
