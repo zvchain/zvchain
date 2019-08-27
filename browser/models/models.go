@@ -42,7 +42,7 @@ type Account struct {
 	Rewards          uint64 `json:"rewards" gorm:"index"`
 	Status           byte   `json:"status" gorm:"index"`
 	StakeFrom        string `json:"stake_from"`
-	Balance          uint64 `json:"balance"`
+	Balance          float64 `json:"balance"`
 	ExtraData        string `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
 
 }

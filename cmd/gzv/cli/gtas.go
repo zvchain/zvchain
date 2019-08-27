@@ -410,8 +410,8 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 }
 
 func NewBrowserDBMmanagement() {
-	var dbAddr string
-	var dbPort int
+	var dbAddr, rpcAddr string
+	var dbPort, rpcPort int
 	var dbUser, dbPassword string
 	var help bool
 	var reset bool
@@ -419,7 +419,9 @@ func NewBrowserDBMmanagement() {
 	flag.BoolVar(&help, "h", false, "help")
 	flag.BoolVar(&reset, "reset", false, "reset database")
 	flag.StringVar(&dbAddr, "dbaddr", "10.0.0.13", "database address")
+	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
 	flag.IntVar(&dbPort, "dbport", 3306, "database port")
+	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
 	flag.StringVar(&dbUser, "dbuser", "root", "database user")
 	flag.StringVar(&dbPassword, "dbpw", "root123", "database password")
 	flag.Parse()
@@ -428,7 +430,7 @@ func NewBrowserDBMmanagement() {
 		flag.Usage()
 	}
 	fmt.Println("browserdbmmanagement flags:", dbAddr, dbPort, dbUser, dbPassword, reset)
-	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
+	browser.NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
 }
 
 func NewGtas() *Gtas {
