@@ -107,7 +107,6 @@ type ExecuteResult struct {
 	ResultType int
 	ErrorCode  int
 	Content    string
-	Abi        string
 }
 
 // CallContract Execute the function of a contract which python code store in contractAddr
@@ -149,7 +148,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	}
 
 	msg := Msg{Data: []byte{}, Value: 0}
-	executeResult, err := controller.VM.CreateContractInstance(msg)
+	_, err := controller.VM.CreateContractInstance(msg)
 	if err != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
 		result.ErrorCode = types.TVMExecutedError
@@ -167,12 +166,6 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 		return result
 	}
 
-	if !controller.VM.VerifyABI(executeResult.Abi, abi) {
-		result.ResultType = C.RETURN_TYPE_EXCEPTION
-		result.ErrorCode = types.TVMCheckABIError
-		result.Content = fmt.Sprintf("checkABI failed. abi:%s", abi.FuncName)
-		return result
-	}
 	finalResult := controller.VM.executeABIKindEval(abi)
 	return finalResult
 }
@@ -261,45 +254,6 @@ func (tvm *TVM) DelTVM() {
 	C.tvm_gc()
 }
 
-func (tvm *TVM) VerifyABI(standardABI string, callABI ABI) bool {
-	//TODO:
-	return true
-	var standardABIStruct []ABIVerify
-	err := json.Unmarshal([]byte(standardABI), &standardABIStruct)
-	if err != nil {
-		fmt.Println("abi unmarshal err:", err)
-		return false
-	}
-
-	var argsType []string
-	for i := 0; i < len(callABI.Args); i++ {
-
-		switch callABI.Args[i].(type) {
-		case float64:
-			argsType = append(argsType, "int")
-		case string:
-			argsType = append(argsType, "str")
-		case bool:
-			argsType = append(argsType, "bool")
-		case []interface{}:
-			argsType = append(argsType, "list")
-		case map[string]interface{}:
-			argsType = append(argsType, "dict")
-		default:
-			argsType = append(argsType, "unknow")
-		}
-	}
-
-	for _, value := range standardABIStruct {
-		if value.FuncName == callABI.FuncName {
-			if len(value.Args) == len(callABI.Args) {
-				return compareSlice(value.Args, argsType)
-			}
-		}
-	}
-	return false
-}
-
 func compareSlice(a, b []string) bool {
 
 	for key, value := range a {
@@ -321,9 +275,12 @@ type Msg struct {
 func (tvm *TVM) CreateContractInstance(msg Msg) (*ExecuteResult, error) {
 	C.tvm_set_register()
 	sender := C.CString(tvm.Sender.AddrPrefixString())
+	this := C.CString(tvm.ContractAddress.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
-	C.tvm_set_msg(sender, value);
+	C.tvm_set_msg(sender, value)
+	C.tvm_set_this(this)
 	C.free(unsafe.Pointer(sender))
+	C.free(unsafe.Pointer(this))
 
 	result, err := tvm.ExecuteScriptVMSucceedResults(tvm.Code)
 	return result, err
@@ -412,9 +369,6 @@ func (tvm *TVM) executePycode(code string, parseKind C.tvm_parse_kind_t) *Execut
 	if cResult.content != nil {
 		result.Content = C.GoString(cResult.content)
 	}
-	if cResult.abi != nil {
-		result.Abi = C.GoString(cResult.abi)
-	}
 	//C.printResult((*C.ExecuteResult)(unsafe.Pointer(cResult)))
 	C.tvm_deinit_result((*C.tvm_execute_result_t)(unsafe.Pointer(cResult)))
 	return result
@@ -438,9 +392,6 @@ func (tvm *TVM) funcCall(funcName string, JSONArgs string) *ExecuteResult {
 	if cResult.content != nil {
 		result.Content = C.GoString(cResult.content)
 	}
-	if cResult.abi != nil {
-		result.Abi = C.GoString(cResult.abi)
-	}
 	//C.tvm_print_result((*C.tvm_execute_result_t)(unsafe.Pointer(cResult)))
 	C.tvm_deinit_result((*C.tvm_execute_result_t)(unsafe.Pointer(cResult)))
 	return result
@@ -456,9 +407,12 @@ func (tvm *TVM) Deploy(msg Msg) *ExecuteResult {
 	C.tvm_set_register()
 
 	sender := C.CString(tvm.Sender.AddrPrefixString())
+	this := C.CString(tvm.ContractAddress.AddrPrefixString())
 	value := C.ulonglong(msg.Value)
-	C.tvm_set_msg(sender, value);
+	C.tvm_set_msg(sender, value)
 	C.free(unsafe.Pointer(sender))
+	C.tvm_set_this(this)
+	C.free(unsafe.Pointer(this))
 
 	result := tvm.executePycode(tvm.Code, C.PARSE_KIND_FILE)
 	if result.ResultType == C.RETURN_TYPE_EXCEPTION {

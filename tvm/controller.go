@@ -105,7 +105,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		con.GasLeft = uint64(con.VM.Gas())
 	}()
 	msg := Msg{Data: con.Transaction.Payload(), Value: con.Transaction.GetValue()}
-	executeResult, err := con.VM.CreateContractInstance(msg)
+	_, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return nil, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
 	}
@@ -113,12 +113,6 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
-	}
-
-	if !con.VM.VerifyABI(executeResult.Abi, abi) {
-		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, fmt.Sprintf(`
-			checkABI failed. abi:%s
-		`, abi.FuncName))
 	}
 
 	//con.VM.SetLibLine(libLen)
