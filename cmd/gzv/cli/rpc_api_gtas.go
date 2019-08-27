@@ -99,16 +99,17 @@ func (api *RpcGtasImpl) Tx(txRawjson string) (*Result, error) {
 	// Check the address for the specified tx types
 	switch txRaw.TxType {
 	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
-		types.TransactionTypeMinerAbort, types.TransactionTypeStakeReduce, types.TransactionTypeApplyGuardMiner,
-		types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool, types.TransactionTypeChangeFundGuardMode:
+		types.TransactionTypeStakeReduce,
+		types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool:
 		if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
 			return failResult("Wrong target address format")
 		}
 	}
+	if !common.ValidateAddress(txRaw.Source) {
+		return failResult("Wrong source address")
+	}
 
 	trans := txRawToTransaction(txRaw)
-
-	trans.Hash = trans.GenHash()
 
 	if err := sendTransaction(trans); err != nil {
 		return failResult(err.Error())
@@ -199,31 +200,19 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*Result, erro
 		msg := fmt.Sprintf("this miner is nil,addr is %s", addr)
 		return failResult(msg)
 	}
-	if !miner.IsMinerPool() {
-		msg := fmt.Sprintf("this addr is not miner pool,identity is %d", miner.Identity)
-		return failResult(msg)
-	}
 	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
-	fullStake := core.MinerManagerImpl.GetFullMinerPoolStake(height)
+	var fullStake uint64 = 0
+	if miner.IsMinerPool(){
+		fullStake = core.MinerManagerImpl.GetFullMinerPoolStake(height)
+	}
 	dt := &MinerPoolDetail{
 		CurrentStake: miner.Stake,
 		FullStake:    fullStake,
 		Tickets:      tickets,
+		Identity:     uint64(miner.Identity),
+		ValidTickets: core.MinerManagerImpl.GetValidTicketsByHeight(height),
 	}
 	return successResult(dt)
-}
-
-func (api *RpcGtasImpl) TicketsInfo(addr string) (*Result, error) {
-	addr = strings.TrimSpace(addr)
-	if !common.ValidateAddress(strings.TrimSpace(addr)) {
-		return failResult("Wrong account address format")
-	}
-	db, err := core.BlockChainImpl.LatestAccountDB()
-	if err != nil || db == nil {
-		return failResult("data is nil")
-	}
-	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
-	return successResult(tickets)
 }
 
 func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
@@ -265,7 +254,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*Result, error) {
 				UpdateHeight:  d.UpdateHeight,
 				MType:         mTypeString(d.MType),
 				Status:        statusString(d.Status),
-				DisMissHeight: d.DisMissHeight,
+				ExpiredHeight: d.DisMissHeight,
 			}
 			details = append(details, dt)
 		}
@@ -298,7 +287,7 @@ func (api *RpcGtasImpl) TransDetail(h string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(h)) {
 		return failResult("Wrong hash format")
 	}
-	tx := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(h))
+	tx := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(h))
 
 	if tx != nil {
 		trans := convertTransaction(tx)
@@ -324,7 +313,7 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*Result, error) {
 	hash := common.HexToHash(h)
 	rc := core.BlockChainImpl.GetTransactionPool().GetReceipt(hash)
 	if rc != nil {
-		tx := core.BlockChainImpl.GetTransactionByHash(false, true, hash)
+		tx := core.BlockChainImpl.GetTransactionByHash(false, hash)
 		return successResult(convertExecutedTransaction(&types.ExecutedTransaction{
 			Receipt:     rc,
 			Transaction: tx,

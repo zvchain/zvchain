@@ -448,6 +448,9 @@ func guardNodeExpired(db types.AccountDB, address common.Address, height uint64,
 	// fund guard node is not in this pool,only full stake node in this pool
 	if !isFundGuardNode {
 		removeFullStakeGuardNodeFromPool(db, address)
+		log.CoreLogger.Infof("full stake expired,addr is %s,height = %v",address.String(),height)
+	}else{
+		log.CoreLogger.Infof("fund stake expired,addr is %s,height = %v",address.String(),height)
 	}
 	vf, err := getVoteInfo(db, address)
 	if err != nil {
@@ -493,6 +496,7 @@ func removeFromPool(db types.AccountDB, minerType types.MinerType, address commo
 		key = getPoolKey(common.PrefixPoolVerifier, address)
 
 	}
+	log.CoreLogger.Infof("remove from pool,addr is %s,type is %d",address.String(),minerType)
 	db.RemoveData(common.MinerPoolAddr, key)
 }
 

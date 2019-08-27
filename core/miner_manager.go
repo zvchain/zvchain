@@ -61,21 +61,19 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 }
 
 // GuardNodesCheck check guard nodes is expired
-func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, height uint64) {
+func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.BlockHeader) {
 	snapshot := accountDB.Snapshot()
-	err := mm.fullStakeGuardNodesCheck(accountDB, height)
+	err := mm.fullStakeGuardNodesCheck(accountDB, bh.Height)
 	if err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		log.CoreLogger.Errorf("check full guard node error,error is %s", err.Error())
 	}
 
 	snapshot = accountDB.Snapshot()
-	err = mm.fundGuardNodesCheck(accountDB, height)
+	err = mm.fundGuardNodesCheck(accountDB, bh.Height)
 	if err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		log.CoreLogger.Errorf("check fund guard node error,error is %s", err.Error())
-	} else {
-		log.CoreLogger.Infof("scan all fund guard nodes success")
 	}
 }
 
@@ -98,8 +96,10 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 	if height%checkInterval != 0 {
 		return nil
 	}
+	log.CoreLogger.Infof("begin scan 6+5 mode")
 	hasScanned := hasScanedSixAddFiveFundGuards(accountDB)
 	if hasScanned {
+		log.CoreLogger.Infof("begin scan 6+5 mode,find has scanned")
 		return nil
 	}
 	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
@@ -123,6 +123,7 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 		}
 	}
 	markScanedSixAddFiveFundGuards(accountDB)
+	log.CoreLogger.Infof("scan 6+5 over")
 	return nil
 }
 
@@ -133,8 +134,10 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 	if height%checkInterval != 0 {
 		return nil
 	}
+	log.CoreLogger.Infof("begin scan 6+6 mode")
 	hasScanned := hasScanedSixAddSixFundGuards(accountDB)
 	if hasScanned {
+		log.CoreLogger.Infof("begin scan 6+6 mode,has scanned")
 		return nil
 	}
 	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
@@ -158,6 +161,7 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 		}
 	}
 	markScanedSixAddSixFundGuards(accountDB)
+	log.CoreLogger.Infof("scan 6+6 mode over")
 	return nil
 }
 
@@ -168,7 +172,7 @@ func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint
 	if height%checkInterval != 0 {
 		return nil
 	}
-
+	log.CoreLogger.Infof("begin process full stake guard nodes")
 	fullStakeAddress := mm.GetAllFullStakeGuardNodes(db)
 	if fullStakeAddress == nil || len(fullStakeAddress) == 0 {
 		return nil
@@ -186,6 +190,11 @@ func (mm *MinerManager) fullStakeGuardNodesCheck(db types.AccountDB, height uint
 
 func (mm *MinerManager) GetTickets(db types.AccountDB, address common.Address) uint64 {
 	return getTickets(db, address)
+}
+
+
+func (mm *MinerManager) GetValidTicketsByHeight(height uint64) uint64 {
+	return getValidTicketsByHeight(height)
 }
 
 func (mm *MinerManager) checkFullStakeGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) error {
@@ -555,13 +564,14 @@ func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.Accoun
 		panic(fmt.Errorf("encode payload error:%v", err))
 	}
 	addr := common.BytesToAddress(miner.ID)
-	tx := &types.Transaction{
+	raw := &types.RawTransaction{
 		Source: &addr,
 		Value:  types.NewBigInt(miner.Stake),
 		Target: &addr,
 		Type:   types.TransactionTypeStakeAdd,
 		Data:   data,
 	}
+	tx := types.NewTransaction(raw, raw.GenHash())
 	err = mm.ValidateStakeAdd(tx)
 	if err != nil {
 		panic(fmt.Errorf("add genesis miner validate error:%v", err))

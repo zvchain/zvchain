@@ -81,7 +81,7 @@ type FullBlockChain struct {
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
 
-	topBlocks *lru.Cache
+	topRawBlocks *lru.Cache
 
 	rwLock sync.RWMutex // Read-write lock
 
@@ -92,8 +92,8 @@ type FullBlockChain struct {
 
 	executor *TVMExecutor
 
-	futureBlocks   *lru.Cache
-	verifiedBlocks *lru.Cache
+	futureRawBlocks *lru.Cache
+	verifiedBlocks  *lru.Cache
 
 	isAdjusting bool // isAdjusting which means there may be a fork
 
@@ -139,9 +139,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		consensusHelper: helper,
 		ticker:          ticker.NewGlobalTicker("chain"),
 		ts:              time2.TSInstance,
-		futureBlocks:    common.MustNewLRUCache(10),
+		futureRawBlocks: common.MustNewLRUCache(10),
 		verifiedBlocks:  common.MustNewLRUCache(10),
-		topBlocks:       common.MustNewLRUCache(20),
+		topRawBlocks:    common.MustNewLRUCache(20),
 		Account:         minerAccount,
 	}
 
@@ -206,9 +206,11 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	GroupManagerImpl = group.NewManager(chain)
 
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
-	chain.executor = NewTVMExecutor(chain)
-	chain.executor.addPostProcessor(GroupManagerImpl.RegularCheck)
-	chain.executor.addPostProcessor(chain.cpChecker.updateVotes)
+	executor := NewTVMExecutor(chain)
+	executor.addPostProcessor(GroupManagerImpl.RegularCheck)
+	executor.addPostProcessor(chain.cpChecker.updateVotes)
+	executor.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
+	chain.executor = executor
 
 	if nil != chain.latestBlock {
 		if !chain.versionValidate() {

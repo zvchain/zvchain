@@ -126,13 +126,13 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 		i = "guard node"
 	}
 	mg := &MortGage{
-		Stake:              uint64(common.RA2TAS(miner.Stake)),
-		ApplyHeight:        miner.ApplyHeight,
-		Type:               t,
-		Status:             status,
-		StatusUpdateHeight: miner.StatusUpdateHeight,
-		Identity:           i,
-		IdentityUpdateHeight:miner.IdentityUpdateHeight,
+		Stake:                uint64(common.RA2TAS(miner.Stake)),
+		ApplyHeight:          miner.ApplyHeight,
+		Type:                 t,
+		Status:               status,
+		StatusUpdateHeight:   miner.StatusUpdateHeight,
+		Identity:             i,
+		IdentityUpdateHeight: miner.IdentityUpdateHeight,
 	}
 	return mg
 }
@@ -142,13 +142,15 @@ type StakeDetail struct {
 	UpdateHeight  uint64 `json:"update_height"`
 	MType         string `json:"m_type"`
 	Status        string `json:"stake_status"`
-	DisMissHeight uint64 `json:"dismiss_height"`
+	ExpiredHeight uint64 `json:"expired_height"`
 }
 
 type MinerPoolDetail struct {
 	CurrentStake uint64 `json:"current_stake"`
 	FullStake    uint64 `json:"full_stake"`
 	Tickets      uint64 `json:tickets`
+	Identity     uint64 `json:identity`
+	ValidTickets uint64 `json:valid_tickets`
 }
 
 type MinerStakeDetails struct {

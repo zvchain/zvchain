@@ -142,7 +142,6 @@ func sendTransaction(trans *types.Transaction) error {
 	if trans.Sign == nil {
 		return fmt.Errorf("transaction sign is empty")
 	}
-
 	if ok, err := core.BlockChainImpl.GetTransactionPool().AddTransaction(trans); err != nil || !ok {
 		log.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
 		return err
