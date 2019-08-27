@@ -16,6 +16,7 @@
 package core
 
 import (
+	"bytes"
 	"container/heap"
 	"fmt"
 	"sync"
@@ -84,7 +85,7 @@ type pendingContainer struct {
 }
 
 // push the transaction into the pending list. tx which returns false will push to the queue
-func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added bool, evicted *types.Transaction) {
+func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added bool, evicted *types.Transaction, conflicted *types.Transaction) {
 	var doInsertOrReplace = func() {
 		newTxNode := newOrderByNonceTx(tx)
 		existSource := s.waitingMap[*tx.Source].Get(newTxNode)[0]
@@ -98,8 +99,10 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added
 				}
 				s.waitingMap[*tx.Source].Insert(newTxNode)
 				evicted = existSource.(*orderByNonceTx).item
+				conflicted = tx
 			} else {
 				evicted = tx
+				conflicted = existSource.(*orderByNonceTx).item
 			}
 		} else {
 			s.size++
@@ -145,6 +148,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added
 		if lowPriceTx != nil {
 			s.remove(lowPriceTx)
 			evicted = lowPriceTx
+			conflicted = tx
 			Logger.Debugf("remove tx as pool is full: hash=%v, current pool size=%v", lowPriceTx.Hash.Hex(), s.size)
 		}
 	}
@@ -301,19 +305,43 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 		return
 	}
 
-	success, evicted := c.pending.push(tx, stateNonce)
+	success, evicted, conflicted := c.pending.push(tx, stateNonce)
 	if !success {
-		if len(c.queue) > c.queueLimit {
-			err = fmt.Errorf("tx_pool's queue is full. current queue size: %d", len(c.queue))
+		evicted, conflicted, err = c.addToQueue(tx)
+		if err != nil {
 			return
 		}
-		c.queue[tx.Hash] = tx
 	}
 	c.txsMap[tx.Hash] = tx
 	if evicted != nil {
 		Logger.Debugf("Tx %v replaced by %v as higher gas price when push()", evicted.Hash, tx.Hash)
+		if evicted.Hash == tx.Hash {
+			err = fmt.Errorf("existing a transaction with same nonce: %v", conflicted.Hash.Hex())
+		}
 		delete(c.txsMap, evicted.Hash)
 	}
+	return
+}
+
+func (c *simpleContainer) addToQueue(tx *types.Transaction) (evicted *types.Transaction, conflicted *types.Transaction, err error) {
+	if len(c.queue) > c.queueLimit {
+		err = fmt.Errorf("tx_pool's queue is full. current queue size: %d", len(c.queue))
+		return
+	}
+	for _, old := range c.queue {
+		if old.Nonce == tx.Nonce && bytes.Equal(old.Source.Bytes(), tx.Source.Bytes()) {
+			if old.GasPrice.Cmp(tx.GasPrice.Value()) >= 0 {
+				evicted = tx
+				conflicted = old
+				return
+			} else {
+				evicted = old
+				conflicted = tx
+				delete(c.queue, evicted.Hash)
+			}
+		}
+	}
+	c.queue[tx.Hash] = tx
 	return
 }
 
@@ -347,7 +375,7 @@ func (c *simpleContainer) promoteQueueToPending() {
 			delete(c.queue, hash)
 			continue
 		}
-		success, evicted := c.pending.push(tx, stateNonce)
+		success, evicted, _ := c.pending.push(tx, stateNonce)
 		if evicted != nil {
 			Logger.Debugf("Tx %v replaced by %v as higher gas price when promoteQueueToPending", evicted.Hash, tx.Hash)
 			delete(c.txsMap, evicted.Hash)
