@@ -26,17 +26,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-//// Result is rpc request successfully returns the variable parameter
-//type Result struct {
-//	Message string      `json:"message"`
-//	Code    int         `json:"code"`
-//	Data    interface{} `json:"data"`
-//}
-
-//func (r *Result) IsSuccess() bool {
-//	return r.Code == 0
-//}
-
 // RawMessage is a raw encoded JSON value.
 // It implements Marshaler and Unmarshaler and can
 // be used to delay JSON decoding or precompute a JSON encoding.

@@ -277,10 +277,11 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 }
 
 func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 	tx := &txRawData{
 		Target:   aci.Address,
@@ -293,23 +294,24 @@ func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64)
 }
 
 func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 	target = strings.TrimSpace(target)
 	if target == "" {
-		output(fmt.Errorf("please input target address"))
-		return nil
+		res.Error = opErrorRes(fmt.Errorf("please input target address"))
+		return res
 	}
 	if !common.ValidateAddress(target) {
-		output(fmt.Errorf("wrong address format"))
-		return nil
+		res.Error = opErrorRes(fmt.Errorf("wrong address format"))
+		return res
 	}
 	if aci.Address == target {
-		output(fmt.Errorf("you could not vote to myself"))
-		return nil
+		res.Error = opErrorRes(fmt.Errorf("you could not vote to myself"))
+		return res
 	}
 	tx := &txRawData{
 		Target:   target,
@@ -321,10 +323,11 @@ func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) 
 }
 
 func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
-		output(err)
-		return nil
+		res.Error = opErrorRes(err)
+		return res
 	}
 	tx := &txRawData{
 		Target:   aci.Address,
