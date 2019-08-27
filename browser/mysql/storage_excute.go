@@ -77,6 +77,22 @@ func (storage *Storage) GetAccountByPage(page uint64) []*models.Account {
 	return accounts
 }
 
+func (storage *Storage) GetAccountByRoletype(maxid uint64, roleType uint64) []*models.Account {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	accounts := make([]*models.Account, LIMIT, LIMIT)
+	if maxid > 0 {
+		storage.db.Limit(LIMIT).Where("role_type = ? and id < ?", roleType, maxid).Order("id desc").Find(&accounts)
+	} else {
+		storage.db.Limit(LIMIT).Where("role_type = ? ", roleType).Order("id desc").Find(&accounts)
+
+	}
+	return accounts
+}
+
 func (storage *Storage) AddBlockRewardMysqlTransaction(accounts []*models.Account) bool {
 	if storage.db == nil {
 		return false

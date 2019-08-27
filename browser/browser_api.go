@@ -60,15 +60,7 @@ func (tm *DBMmanagement) loop() {
 		}
 	}
 }
-func checkPoolStakefrom(tran *types.Transaction) bool {
-	if (tran.Type == types.TransactionTypeStakeAdd || tran.Type == types.TransactionTypeStakeReduce) &&
-		tran.Source != tran.Target && *tran.Source != types.MiningPoolAddr {
-		return true
 
-	}
-	return false
-
-}
 func (tm *DBMmanagement) fetchAccounts() {
 	if tm.isFetchingBlocks {
 		return
@@ -92,21 +84,19 @@ func (tm *DBMmanagement) fetchAccounts() {
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
 					}
-					if checkPoolStakefrom(tx) {
-						if _, exists := stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()]; exists {
-							if tx.Type == types.TransactionTypeStakeAdd {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
-							}
-							if tx.Type == types.TransactionTypeStakeReduce {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
-							}
-						} else {
-							if tx.Type == types.TransactionTypeStakeAdd {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
-							}
-							if tx.Type == types.TransactionTypeStakeReduce {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
-							}
+					if _, exists := stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()]; exists {
+						if tx.Type == types.TransactionTypeStakeAdd {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
+						}
+						if tx.Type == types.TransactionTypeStakeReduce {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
+						}
+					} else {
+						if tx.Type == types.TransactionTypeStakeAdd {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
+						}
+						if tx.Type == types.TransactionTypeStakeReduce {
+							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
 						}
 					}
 
@@ -297,7 +287,10 @@ func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[
 	}
 	poolstakefrom := make([]*models.PoolStake, 0, 0)
 	for address, fromList := range stakelist {
+		//detail := tm.storage.GetAccountById(address)
+
 		for from, stake := range fromList {
+
 			poolstake := &models.PoolStake{
 				Address: address,
 				Stake:   stake,

@@ -1,6 +1,7 @@
 package crontab
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
@@ -14,14 +15,15 @@ import (
 const checkInterval = time.Second * 10
 
 type Crontab struct {
-	storage          *mysql.Storage
-	blockHeight      uint64
-	page             uint64
-	accountPrimaryId uint64
-	isFetchingReward bool
-	isFetchingStake  bool
-	rpcExplore       *Explore
-	transfer         *Transfer
+	storage             *mysql.Storage
+	blockHeight         uint64
+	page                uint64
+	accountPrimaryId    uint64
+	isFetchingReward    bool
+	isFetchingStake     bool
+	isFetchingPoolvotes bool
+	rpcExplore          *Explore
+	transfer            *Transfer
 }
 
 func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Crontab {
@@ -52,6 +54,46 @@ func (crontab *Crontab) loop() {
 
 		}
 	}
+}
+
+func (crontab *Crontab) fetchPoolVotes() {
+	accounts := crontab.storage.GetAccountByRoletype(0, types.MinerGuard)
+	//todo 守护节点失效
+	for _, account := range accounts {
+		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"role_type": types.MinerNormal})
+	}
+	accountspool := crontab.storage.GetAccountByRoletype(0, types.MinerPool)
+	if accountspool != nil && len(accountspool) > 0 {
+		var db types.AccountDB
+		var err error
+		if err != nil || db == nil {
+			return
+		}
+		db, err = core.BlockChainImpl.LatestAccountDB()
+
+		for _, pool := range accountspool {
+			//pool to be normal miner
+			proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(pool.Address), types.MinerTypeProposal)
+			if uint64(proposalInfo.Type) != pool.RoleType {
+				crontab.storage.UpdateAccountByColumn(pool, map[string]interface{}{"role_type": types.InValidMinerPool})
+			}
+			tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(pool.Address))
+
+			if pool.ExtraData != "" {
+				var extra = &models.PoolExtraData{}
+				if err := json.Unmarshal([]byte(pool.ExtraData), extra); err != nil {
+					fmt.Println("Unmarshal json", err.Error())
+					continue
+				}
+				if extra.Vote != tickets {
+					extra.Vote = tickets
+					crontab.storage.UpdateAccountByColumn(pool, map[string]interface{}{"extra_data": json.Marshal(extra)})
+				}
+			}
+		}
+	}
+	//vote
+
 }
 func (crontab *Crontab) fetchBlockStakeAll() {
 	if crontab.isFetchingStake {

@@ -47,6 +47,9 @@ type Account struct {
 
 }
 
+type PoolExtraData struct {
+	Vote uint64 `json:"vote"`
+}
 type Sys struct {
 	gorm.Model
 	Variable string `json:"variable"`
