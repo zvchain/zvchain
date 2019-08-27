@@ -154,7 +154,7 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	}
 
 	abi := ABI{}
-	abiJSON := fmt.Sprintf(`{"FuncName": "%s", "Args": %s}`, funcName, params)
+	abiJSON := fmt.Sprintf(`{"func_name": "%s", "args": %s}`, funcName, params)
 	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
 	if abiJSONError != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
@@ -282,23 +282,6 @@ func (tvm *TVM) CreateContractInstance(msg Msg) (*ExecuteResult, error) {
 	result, err := tvm.ExecuteScriptVMSucceedResults(tvm.Code)
 	return result, err
 }
-
-//func (tvm *TVM) generateScript(res ABI) string {
-//	var buf bytes.Buffer
-//	buf.WriteString(fmt.Sprintf("tas_%s.", tvm.ContractName))
-//	buf.WriteString(res.FuncName)
-//	buf.WriteString("(")
-//	for _, value := range res.Args {
-//		tvm.jsonValueToBuf(&buf, value)
-//		buf.WriteString(", ")
-//	}
-//	if len(res.Args) > 0 {
-//		buf.Truncate(buf.Len() - 2)
-//	}
-//	buf.WriteString(")")
-//	bufStr := buf.String()
-//	return bufStr
-//}
 
 func (tvm *TVM) executeABIKindEval(res ABI) *ExecuteResult {
 	args, _ := json.Marshal(res.Args)
@@ -430,8 +413,8 @@ func (tvm *TVM) removeContext() {
 
 // ABI ABI stores the calling msg when execute contract
 type ABI struct {
-	FuncName string
-	Args     []interface{}
+	FuncName string        `json:"func_name"`
+	Args     []interface{} `json:"args"`
 }
 
 // ABIVerify stores the contract function name and args types,

@@ -69,6 +69,8 @@ func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
 	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
 		if result.ErrorCode == types.TVMGasNotEnoughError {
 			return types.NewTransactionError(types.TVMGasNotEnoughError, "does not have enough gas to run!")
+		} else if result.ErrorCode == types.TVMCheckABIError {
+			return types.NewTransactionError(types.TVMCheckABIError, result.Content)
 		} else {
 			return types.NewTransactionError(types.TVMExecutedError, result.Content)
 		}
