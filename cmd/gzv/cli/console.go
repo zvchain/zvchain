@@ -862,7 +862,7 @@ func Usage() {
 }
 
 func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error {
-	aop, err := initAccountManager(keystore, false)
+	aop, err := initAccountManager(keystore, false,"")
 	if err != nil {
 		return err
 	}

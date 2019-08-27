@@ -38,7 +38,6 @@ const (
 	statusLocked   int8 = 0
 	statusUnLocked      = 1
 )
-const DefaultPassword = "123"
 
 type AccountManager struct {
 	store    *tasdb.LDBDatabase
@@ -111,7 +110,7 @@ func newAccountOp(ks string) (*AccountManager, error) {
 	}, nil
 }
 
-func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
+func initAccountManager(keystore string, readyOnly bool,password string) (accountOp, error) {
 	// Specify internal account creation when you deploy in bulk (just create it once)
 	if readyOnly && !dirExists(keystore) {
 		aop, err := newAccountOp(keystore)
@@ -119,7 +118,7 @@ func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
 			return nil, err
 		}
 
-		_, res := aop.NewAccount(DefaultPassword, true)
+		_, res := aop.NewAccount(password, true)
 		if res != nil {
 			fmt.Println(res.Error())
 			return nil, res
