@@ -56,6 +56,15 @@ func output(msg ...interface{}) {
 	fmt.Println(msg...)
 }
 
+func outputJSONErr(result *ErrorResult) {
+	bs, err := json.MarshalIndent(result, "", "\t")
+	if err != nil {
+		output(err.Error())
+	} else {
+		output(string(bs))
+	}
+}
+
 func genNewAccountCmd() *newAccountCmd {
 	c := &newAccountCmd{
 		baseCmd: *genBaseCmd("newaccount", "create account"),
@@ -68,7 +77,7 @@ func genNewAccountCmd() *newAccountCmd {
 func (c *newAccountCmd) parse(args []string) bool {
 	err := c.fs.Parse(args)
 	if err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	pass := strings.TrimSpace(c.password)
@@ -100,7 +109,7 @@ func genUnlockCmd() *unlockCmd {
 
 func (c *unlockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -110,7 +119,7 @@ func (c *unlockCmd) parse(args []string) bool {
 	}
 
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -131,7 +140,7 @@ func genBalanceCmd() *balanceCmd {
 
 func (c *balanceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -140,7 +149,7 @@ func (c *balanceCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -161,7 +170,7 @@ func genNonceCmd() *nonceCmd {
 
 func (c *nonceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -170,7 +179,7 @@ func (c *nonceCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -187,13 +196,13 @@ func genMinerInfoCmd() *minerInfoCmd {
 		baseCmd: *genBaseCmd("minerinfo", "get the info of the miner"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the miner address")
-	c.fs.StringVar(&c.detail, "detail", "", "show the details of the stake from the given address, no details shows if empty, all details shows if set all")
+	c.fs.StringVar(&c.detail, "detail", "", "show the details of the value from the given address, no details shows if empty, all details shows if set all")
 	return c
 }
 
 func (c *minerInfoCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -202,11 +211,11 @@ func (c *minerInfoCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	if c.detail != "" && c.detail != "all" && !common.ValidateAddress(c.detail) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -229,7 +238,7 @@ func genConnectCmd() *connectCmd {
 
 func (c *connectCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.host) == "" {
@@ -260,7 +269,7 @@ func genTxCmd() *txCmd {
 
 func (c *txCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.hash) == "" {
@@ -269,7 +278,7 @@ func (c *txCmd) parse(args []string) bool {
 		return false
 	}
 	if !validateHash(c.hash) {
-		output("Wrong hash format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong hash format")))
 		return false
 	}
 	return true
@@ -290,7 +299,7 @@ func genReceiptCmd() *receiptCmd {
 
 func (c *receiptCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if strings.TrimSpace(c.hash) == "" {
@@ -299,7 +308,7 @@ func (c *receiptCmd) parse(args []string) bool {
 		return false
 	}
 	if !validateHash(c.hash) {
-		output("Wrong hash format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong hash format")))
 		return false
 	}
 	return true
@@ -322,12 +331,12 @@ func genBlockCmd() *blockCmd {
 
 func (c *blockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if len(c.hash) > 0 {
 		if !validateHash(c.hash) {
-			output("Wrong hash format")
+			outputJSONErr(opErrorRes(fmt.Errorf("wrong hash format")))
 			return false
 		}
 	}
@@ -351,7 +360,7 @@ func genGasBaseCmd(n string, h string) *gasBaseCmd {
 func (c *gasBaseCmd) parseGasPrice() bool {
 	gp, err := common.ParseCoin(c.gasPriceStr)
 	if err != nil {
-		output(fmt.Sprintf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, c.gasPriceStr))
+		outputJSONErr(opErrorRes(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, c.gasPriceStr)))
 		return false
 	}
 	c.gasPrice = gp
@@ -407,11 +416,11 @@ func (c *sendTxCmd) toTxRaw() *txRawData {
 
 func (c *sendTxCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if !validateTxType(c.txType) {
-		output("Not supported transaction type")
+		outputJSONErr(opErrorRes(fmt.Errorf("not supported transaction type")))
 		return false
 	}
 	if c.txType == types.TransactionTypeTransfer || c.txType == types.TransactionTypeContractCall {
@@ -421,7 +430,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 			return false
 		} else {
 			if !common.ValidateAddress(strings.TrimSpace(c.to)) {
-				output("Wrong address format")
+				outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 				return false
 			}
 		}
@@ -432,7 +441,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 	}
 
 	if _, err := parseRaFromString(c.value); err != nil {
-		output(err)
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 
@@ -451,7 +460,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			output("read the "+c.contractPath+"file failed ", err)
+			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -459,7 +468,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		jsonBytes, errMarsh := json.Marshal(contract)
 		if errMarsh != nil {
-			output("Marshal contract failed: ", errMarsh)
+			outputJSONErr(opErrorRes(fmt.Errorf("marshal contract failed: ", errMarsh)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -474,7 +483,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			output("read the "+c.contractPath+"file failed ", err)
+			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -526,34 +535,34 @@ func parseRaFromString(number string) (uint64, error) {
 
 type stakeAddCmd struct {
 	gasBaseCmd
-	stake  uint64
+	value  uint64
 	mtype  int
 	target string
 }
 
 func genStakeAddCmd() *stakeAddCmd {
 	c := &stakeAddCmd{
-		gasBaseCmd: *genGasBaseCmd("stakeadd", "add stake for the target miner"),
+		gasBaseCmd: *genGasBaseCmd("stakeadd", "add value for the target miner"),
 	}
 	c.initBase()
-	c.fs.Uint64Var(&c.stake, "stake", 500, "freeze stake of ZVC, default 500ZVC")
+	c.fs.Uint64Var(&c.value, "value", 500, "freeze value of ZVC, default 500ZVC")
 	c.fs.IntVar(&c.mtype, "type", 0, "apply miner type: 0=verify node, 1=proposal node, default 0")
-	c.fs.StringVar(&c.target, "target", "", "stake add target address, default the operator if not specified")
+	c.fs.StringVar(&c.target, "target", "", "value add target address, default the operator if not specified")
 	return c
 }
 
 func (c *stakeAddCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	if len(strings.TrimSpace(c.target)) > 0 {
 		if !common.ValidateAddress(c.target) {
-			output("Wrong address format")
+			outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 			return false
 		}
 	}
@@ -578,11 +587,11 @@ func genMinerAbortCmd() *minerAbortCmd {
 
 func (c *minerAbortCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	return c.parseGasPrice()
@@ -596,7 +605,7 @@ type stakeRefundCmd struct {
 
 func genStakeRefundCmd() *stakeRefundCmd {
 	c := &stakeRefundCmd{
-		gasBaseCmd: *genGasBaseCmd("stakerefund", "apply to refund the miner freeze stake"),
+		gasBaseCmd: *genGasBaseCmd("stakerefund", "apply to refund the miner freeze value"),
 	}
 	c.initBase()
 	c.fs.IntVar(&c.mtype, "type", 0, "refund miner type: 0=verify node, 1=proposal node, default 0")
@@ -606,15 +615,15 @@ func genStakeRefundCmd() *stakeRefundCmd {
 
 func (c *stakeRefundCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.target != "" && !common.ValidateAddress(c.target) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	return c.parseGasPrice()
@@ -629,7 +638,7 @@ type stakeReduceCmd struct {
 
 func genStakeReduceCmd() *stakeReduceCmd {
 	c := &stakeReduceCmd{
-		gasBaseCmd: *genGasBaseCmd("stakereduce", "reduce stake of the given address"),
+		gasBaseCmd: *genGasBaseCmd("stakereduce", "reduce value of the given address"),
 	}
 	c.initBase()
 	c.fs.IntVar(&c.mtype, "type", 0, "receiver's type: 0=verify node, 1=proposal node, default 0")
@@ -640,15 +649,15 @@ func genStakeReduceCmd() *stakeReduceCmd {
 
 func (c *stakeReduceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.target != "" && !common.ValidateAddress(c.target) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	if !validateMinerType(c.mtype) {
-		output("Unsupported miner type")
+		outputJSONErr(opErrorRes(fmt.Errorf("unsupported miner type")))
 		return false
 	}
 	return c.parseGasPrice()
@@ -663,13 +672,13 @@ func genViewContractCmd() *viewContractCmd {
 	c := &viewContractCmd{
 		baseCmd: *genBaseCmd("viewcontract", "view contract data"),
 	}
-	c.fs.StringVar(&c.addr, "target", "", "address of the contract")
+	c.fs.StringVar(&c.addr, "addr", "", "address of the contract")
 	return c
 }
 
 func (c *viewContractCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.addr == "" {
@@ -677,7 +686,7 @@ func (c *viewContractCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -703,7 +712,7 @@ func genImportKeyCmd() *importKeyCmd {
 func (c *importKeyCmd) parse(args []string) bool {
 	err := c.fs.Parse(args)
 	if err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	key := strings.TrimSpace(c.key)
@@ -712,7 +721,7 @@ func (c *importKeyCmd) parse(args []string) bool {
 		return false
 	}
 	if !validateKey(key) {
-		output("Private key is invalid")
+		outputJSONErr(opErrorRes(fmt.Errorf("private key is invalid")))
 		return false
 	}
 	pass := strings.TrimSpace(c.password)
@@ -742,7 +751,7 @@ func genExportKeyCmd() *exportKeyCmd {
 
 func (c *exportKeyCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.addr == "" {
@@ -750,7 +759,7 @@ func (c *exportKeyCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -771,7 +780,7 @@ func genGroupCheckCmd() *groupCheckCmd {
 
 func (c *groupCheckCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		output(err.Error())
+		outputJSONErr(opErrorRes(err))
 		return false
 	}
 	if c.addr == "" {
@@ -779,7 +788,7 @@ func (c *groupCheckCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -1082,7 +1091,7 @@ func loop(acm accountOp, chainOp chainOp) {
 			cmd := genStakeAddCmd()
 			if cmd.parse(args) {
 				handleCmdForChain(func() *RPCResObjCmd {
-					return chainOp.StakeAdd(cmd.target, cmd.mtype, cmd.stake, cmd.gaslimit, cmd.gasPrice)
+					return chainOp.StakeAdd(cmd.target, cmd.mtype, cmd.value, cmd.gaslimit, cmd.gasPrice)
 				})
 			}
 		case cmdMinerAbort.name:
