@@ -12,7 +12,7 @@ message Message{
 }
 
 
-message Transaction{
+message RawTransaction{
 
     optional bytes Data  = 1 ;
 
@@ -20,15 +20,13 @@ message Transaction{
 
     required uint64 Nonce = 3;
 
-//    optional bytes Source  = 4 ;
+    optional bytes Source  = 4 ;
 
-    optional bytes Target  = 4 ;
+    optional bytes Target  = 5 ;
 
-    required bytes GasLimit = 5;
+    required bytes GasLimit = 6;
 
-    required bytes GasPrice = 6;
-
-    required bytes Hash  = 7 ;
+    required bytes GasPrice = 7;
 
     optional bytes ExtraData  = 8 ;
 
@@ -48,15 +46,9 @@ message TransactionRequestMessage{
 //    required bytes BlockPv = 4;
 }
 
-message TrieNodes{
+message RawTransactionSlice{
 
-    repeated TrieNode TrieNodes = 1;
-}
-
-
-message TransactionSlice{
-
-    repeated Transaction transactions = 1;
+    repeated RawTransaction transactions = 1;
 }
 
 message SyncRequest {
@@ -110,7 +102,7 @@ message BlockHeader{
 message Block{
     required BlockHeader Header = 1;
 
-    repeated Transaction transactions = 2;
+    repeated RawTransaction transactions = 2;
 
 }
 
@@ -123,44 +115,6 @@ message BlockSlice{
 message Hashes{
 
     repeated bytes hashes = 1;
-}
-
-
-message TotalQnInfo{
-
-    required uint64 TotalQn = 1;
-
-    required uint64 Height = 2;
-}
-
-message StateInfoReq{
-
-    required uint64 Height = 1;
-
-    optional TransactionSlice Transactions = 2;
-
-    repeated  bytes Addresses = 3;
-
-    required bytes BlockHash = 4;
-}
-
-message  StateInfo  {
-    required uint64 Height = 1;
-
-    repeated TrieNode TrieNodes = 2;
-
-    required bytes BlockHash = 3;
-
-    required bytes ProBlockStateRoot = 4;
-
-}
-
-message TrieNode{
-
-    required bytes Key  = 1;
-
-    required bytes Data  = 2;
-
 }
 
 
@@ -245,7 +199,7 @@ message ReqProposalBlockMessage {
 
 message ResponseProposalBlockMessage {
     required bytes Hash = 1;
-    repeated Transaction Transactions = 2;
+    repeated RawTransaction Transactions = 2;
 }
 
 message ChainSliceReq {

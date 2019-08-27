@@ -132,7 +132,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		p.blockContexts.attachVctx(bh, vctx)
 		vctx.markSignedBlock(bh)
 
-		stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", bh.Hash.Hex(), sKey.GetHexString(), p.GetMinerID(), cvm.SI.DataSign.GetHexString(), gSeed)
+		//stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", bh.Hash.Hex(), sKey.GetHexString(), p.GetMinerID(), cvm.SI.DataSign.GetHexString(), gSeed)
 
 		// trigger the cached messages from other members that come ahead of the proposal message
 		p.castVerifyCh <- bh

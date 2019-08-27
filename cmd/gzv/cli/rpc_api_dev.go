@@ -104,7 +104,7 @@ func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
 		return failResult("Wrong hash format")
 	}
-	transaction := core.BlockChainImpl.GetTransactionByHash(false, true, common.HexToHash(hash))
+	transaction := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(hash))
 	if transaction == nil {
 		return failResult("transaction not exists")
 	}
@@ -328,7 +328,8 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 
 	minerReward[castor] = genMinerBalance(block.Castor, bh)
 
-	for _, tx := range b.Transactions {
+	for _, raw := range b.Transactions {
+		tx := types.NewTransaction(raw, raw.GenHash())
 		if tx.IsReward() {
 			btx := *convertRewardTransaction(tx)
 			receipt := chain.GetTransactionPool().GetReceipt(tx.Hash)
@@ -441,7 +442,7 @@ func (api *RpcDevImpl) BlockReceipts(h string) (*Result, error) {
 	evictedReceipts := make([]*types.Receipt, 0)
 	receipts := make([]*types.Receipt, len(b.Transactions))
 	for i, tx := range b.Transactions {
-		wrapper := chain.GetTransactionPool().GetReceipt(tx.Hash)
+		wrapper := chain.GetTransactionPool().GetReceipt(tx.GenHash())
 		if wrapper != nil {
 			receipts[i] = wrapper
 		}
@@ -479,7 +480,7 @@ func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
 		trans := make([]Transaction, 0)
 
 		for _, tx := range b.Transactions {
-			trans = append(trans, *convertTransaction(tx))
+			trans = append(trans, *convertTransaction(types.NewTransaction(tx, tx.GenHash())))
 		}
 
 		bd := &BlockDetail{

@@ -597,10 +597,13 @@ func (fp *forkProcessor) allBlocksReceived() {
 		}
 	}
 	// Accept peer fork, and add the chain slice to local
-	fp.chain.batchAddBlockOnChain(fp.syncCtx.target, "fork", blocks, func(b *types.Block, ret types.AddBlockResult) bool {
+	err := fp.chain.batchAddBlockOnChain(fp.syncCtx.target, true, blocks, func(b *types.Block, ret types.AddBlockResult) bool {
 		fp.logger.Debugf("sync fork block from %v, hash=%v,height=%v,addResult=%v", fp.syncCtx.target, b.Header.Hash, b.Header.Height, ret)
 		return ret == types.AddBlockSucc || ret == types.BlockExisted
 	})
+	if err != nil {
+		fp.logger.Warnf("add blocks from %v error:%v, block range %v-%v", fp.syncCtx.target, err, blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
+	}
 }
 
 func unmarshalFindAncestorPieceReqInfo(b []byte) (*findAncestorPieceReq, error) {
