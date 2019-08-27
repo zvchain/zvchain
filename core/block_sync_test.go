@@ -403,7 +403,7 @@ func BlockToErrorPb(b *types.Block) *tas_middleware_test.Block {
 }
 
 func BlockHeaderToErrorPb(h *types.BlockHeader) *tas_middleware_test.BlockHeader {
-	ts := h.CurTime.Unix()
+	ts := h.CurTime.UnixMilli()
 	str := "............."
 	header := tas_middleware_test.BlockHeader{
 		Hash:        h.Hash.Bytes(),

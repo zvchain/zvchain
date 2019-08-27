@@ -96,7 +96,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Elapsed = -2
 		bh.Height = 10
 		bh.Hash = bh.GenHash()
-	case "p.ts.Since(bh.CurTime)<-1":
+	case "p.ts.SinceSeconds(bh.CurTime)<-1":
 		bh.CurTime = time.TimeToTimeStamp(now) + 3
 		bh.Hash = bh.GenHash()
 	case "block-exists":
@@ -415,12 +415,12 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			expected: fmt.Sprintf("elapsed error %v", -2),
 		},
 		{
-			name: "p.ts.Since(bh.CurTime)<-1",
+			name: "p.ts.SinceSeconds(bh.CurTime)<-1",
 			args: args{
 				msg: &model.ConsensusCastMessage{
-					BH: GenTestBH("p.ts.Since(bh.CurTime)<-1"),
+					BH: GenTestBH("p.ts.SinceSeconds(bh.CurTime)<-1"),
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(GenTestBHHash("p.ts.Since(bh.CurTime)<-1"), pt.ids[1], pt.msk[1]),
+						SI: model.GenSignData(GenTestBHHash("p.ts.SinceSeconds(bh.CurTime)<-1"), pt.ids[1], pt.msk[1]),
 					},
 				},
 			},
@@ -742,10 +742,10 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 			expected: "elapsed error",
 		},
 		{
-			name: "p.ts.Since(bh.CurTime)<-1",
+			name: "p.ts.SinceSeconds(bh.CurTime)<-1",
 			args: args{
 				msg: &model.ConsensusVerifyMessage{
-					BlockHash: GenTestBHHash("p.ts.Since(bh.CurTime)<-1"),
+					BlockHash: GenTestBHHash("p.ts.SinceSeconds(bh.CurTime)<-1"),
 					BaseSignedMessage: model.BaseSignedMessage{
 						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
 					},
@@ -895,7 +895,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 		ts: p.ts,
 	})
 
-	testBH7 := GenTestBH("p.ts.Since(bh.CurTime)<-1")
+	testBH7 := GenTestBH("p.ts.SinceSeconds(bh.CurTime)<-1")
 	p.blockContexts.attachVctx(&testBH7, &VerifyContext{
 		slots: map[common.Hash]*SlotContext{testBH7.Hash: {BH: &testBH7, gSignGenerator: model.NewGroupSignGenerator(2)}},
 		group: &verifyGroup{

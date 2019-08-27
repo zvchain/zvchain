@@ -269,7 +269,7 @@ func (bh *BlockHeader) GenHash() common.Hash {
 }
 
 func (bh *BlockHeader) PreTime() time.TimeStamp {
-	return bh.CurTime.Add(int64(-bh.Elapsed))
+	return bh.CurTime.AddMilliSeconds(int64(-bh.Elapsed))
 }
 
 func (bh *BlockHeader) HasTransactions() bool {

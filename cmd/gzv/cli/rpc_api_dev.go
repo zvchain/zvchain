@@ -163,7 +163,7 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 	blockDetail["signature"] = hex.EncodeToString(bh.Signature)
 	blockDetail["txs"] = len(b.Transactions)
 	blockDetail["elapsed"] = bh.Elapsed
-	blockDetail["tps"] = math.Round(float64(len(b.Transactions)) / float64(bh.Elapsed))
+	blockDetail["tps"] = math.Round(float64(len(b.Transactions)) / float64(bh.Elapsed*1e3))
 
 	blockDetail["tx_pool_count"] = len(core.BlockChainImpl.GetTransactionPool().GetReceived())
 	blockDetail["tx_pool_total"] = core.BlockChainImpl.GetTransactionPool().TxNum()

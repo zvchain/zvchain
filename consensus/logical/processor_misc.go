@@ -140,7 +140,7 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 	return true, nil
 }
 
-// GetBlockMinElapse return the min elapsed second for blocks
+// GetBlockMinElapse return the min elapsed milliseconds for blocks
 func (p *Processor) GetBlockMinElapse() int32 {
-	return 3
+	return 3*1e3								// equals to 3 seconds
 }

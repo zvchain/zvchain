@@ -118,11 +118,11 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
 
-	block.Header.Elapsed = int32(block.Header.CurTime.Since(latestBlock.CurTime))
+	block.Header.Elapsed = int32(block.Header.CurTime.SinceMilliSeconds(latestBlock.CurTime))
 
 	minElapse := chain.consensusHelper.GetBlockMinElapse()
 	if block.Header.Elapsed < minElapse {
-		block.Header.CurTime = latestBlock.CurTime.Add(int64(minElapse))
+		block.Header.CurTime = latestBlock.CurTime.AddMilliSeconds(int64(minElapse))
 		block.Header.Elapsed = minElapse
 	}
 

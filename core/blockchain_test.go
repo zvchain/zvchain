@@ -132,10 +132,10 @@ func TestBlockChain_AddBlock(t *testing.T) {
 
 	fmt.Printf("block.Header.CurTime = %v \n", block.Header.CurTime)
 	time.Sleep(time.Second * 2)
-	delta := zvtime.TSInstance.Since(block.Header.CurTime)
+	delta := zvtime.TSInstance.SinceSeconds(block.Header.CurTime)
 
 	if delta > 3 || delta < 1 {
-		t.Fatalf("zvtime.TSInstance.Since test failed, delta should be 2 but got %v", delta)
+		t.Fatalf("zvtime.TSInstance.SinceSeconds test failed, delta should be 2 but got %v", delta)
 	}
 
 	if nil == block {
@@ -543,6 +543,10 @@ func NewConsensusHelper4Test(id groupsig.ID) types.ConsensusHelper {
 
 type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
+}
+
+func (helper *ConsensusHelperImpl4Test) GetBlockMinElapse() int32 {
+	return 1
 }
 
 func (helper *ConsensusHelperImpl4Test) GenerateGenesisInfo() *types.GenesisInfo {

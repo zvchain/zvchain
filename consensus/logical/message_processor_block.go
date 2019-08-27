@@ -51,7 +51,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		err = fmt.Errorf("cast verify expire, gseed=%v, preTime %v, expire %v", gSeed, preBH.CurTime, expireTime)
 		return
 	} else if bh.Height > 1 { // if the message comes early before the time it should begin, then deny it
-		beginTime := expireTime.Add(-int64(model.Param.MaxGroupCastTime + 1))
+		beginTime := expireTime.AddSeconds(-int64(model.Param.MaxGroupCastTime + 1))
 		if !p.ts.NowAfter(beginTime) {
 			err = fmt.Errorf("cast begin time illegal, expectBegin at %v, expire at %v", beginTime, expireTime)
 			return
@@ -206,7 +206,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		return
 	}
 
-	if p.ts.Since(bh.CurTime) < -blockSecondsBuffer {
+	if p.ts.SinceSeconds(bh.CurTime) < -blockSecondsBuffer {
 		err = fmt.Errorf("block too early: now %v, curtime %v", p.ts.Now(), bh.CurTime)
 		return
 	}
