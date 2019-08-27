@@ -26,17 +26,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-//// Result is rpc request successfully returns the variable parameter
-//type Result struct {
-//	Message string      `json:"message"`
-//	Code    int         `json:"code"`
-//	Data    interface{} `json:"data"`
-//}
-
-//func (r *Result) IsSuccess() bool {
-//	return r.Code == 0
-//}
-
 // RawMessage is a raw encoded JSON value.
 // It implements Marshaler and Unmarshaler and can
 // be used to delay JSON decoding or precompute a JSON encoding.
@@ -113,7 +102,7 @@ type GroupStat struct {
 }
 
 type ProposerStat struct {
-	Stake      uint64  `json:"value"`
+	Stake      uint64  `json:"stake"`
 	StakeRatio float64 `json:"stake_ratio"`
 	PCount     int32   `json:"p_count"`
 }
@@ -124,7 +113,7 @@ type CastStat struct {
 }
 
 type MortGage struct {
-	Stake              uint64 `json:"value"`
+	Stake              uint64 `json:"stake"`
 	ApplyHeight        uint64 `json:"apply_height"`
 	Type               string `json:"type"`
 	Status             string `json:"miner_status"`
