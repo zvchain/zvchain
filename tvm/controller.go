@@ -24,20 +24,10 @@ import (
 
 var bridgeInited = false
 
-// ControllerTransactionInterface ControllerTransactionInterface is the interface that match Controller
-type ControllerTransactionInterface interface {
-	GetGasLimit() uint64
-	GetValue() uint64
-	GetSource() *common.Address
-	GetTarget() *common.Address
-	GetData() []byte
-	GetHash() common.Hash
-}
-
 // Controller VM Controller
 type Controller struct {
 	BlockHeader *types.BlockHeader
-	Transaction ControllerTransactionInterface
+	Transaction types.TxMessage
 	AccountDB   types.AccountDB
 	Reader      types.ChainReader
 	VM          *TVM
@@ -55,7 +45,7 @@ type MinerManager interface {
 func NewController(accountDB types.AccountDB,
 	chainReader types.ChainReader,
 	header *types.BlockHeader,
-	transaction ControllerTransactionInterface,
+	transaction types.TxMessage,
 	gasUsed uint64,
 	manager MinerManager) *Controller {
 	if controller == nil {
@@ -89,7 +79,7 @@ func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
 
 // Deploy Deploy a contract instance
 func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log, *types.TransactionError) {
-	con.VM = NewTVM(con.Transaction.GetSource(), contract)
+	con.VM = NewTVM(con.Transaction.Operator(), contract)
 	defer func() {
 		con.VM.DelTVM()
 		con.GasLeft = uint64(con.VM.Gas())
@@ -114,7 +104,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		con.VM.DelTVM()
 		con.GasLeft = uint64(con.VM.Gas())
 	}()
-	msg := Msg{Data: con.Transaction.GetData(), Value: con.Transaction.GetValue()}
+	msg := Msg{Data: con.Transaction.Payload(), Value: con.Transaction.GetValue()}
 	executeResult, err := con.VM.CreateContractInstance(msg)
 	if err != nil {
 		return nil, nil, types.NewTransactionError(types.TVMExecutedError, err.Error())
