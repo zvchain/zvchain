@@ -75,7 +75,6 @@ func (tm *DBMmanagement) fetchAccounts() {
 			AddressCacheList := make(map[string]uint64)
 			for _, tx := range block.Transactions {
 				if tx.Source != nil {
-					fmt.Println("》》》》》》》》》》》》》》》》》》》》》》》》》发现交易", tx.Source)
 					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
 					} else {
@@ -116,6 +115,8 @@ func (tm *DBMmanagement) fetchAccounts() {
 		}
 		tm.storage.AddBlockHeightSystemconfig(sys)
 		tm.blockHeight = block.Header.Height + 1
+
+		tm.isFetchingBlocks = false
 		go tm.fetchAccounts()
 	}
 	tm.isFetchingBlocks = false
