@@ -223,9 +223,12 @@ func (sc *SlotContext) hasSignedRewardTx() bool {
 
 // GetAggregatedSign returns the aggregated signature of proposer and verifier-verifyGroup
 func (sc *SlotContext) GetAggregatedSign() *groupsig.Signature {
-	gSign := sc.gSignGenerator.GetGroupSign()
-	if sc.pSign.IsValid() && gSign.IsValid() {
-		signArray := [2]groupsig.Signature{sc.pSign, gSign}
+	return sc.aggregateSign(sc.gSignGenerator.GetGroupSign())
+}
+
+func (sc *SlotContext) aggregateSign(sign groupsig.Signature) *groupsig.Signature {
+	if sc.pSign.IsValid() && sign.IsValid() {
+		signArray := [2]groupsig.Signature{sc.pSign, sign}
 		aggSign := groupsig.AggregateSigs(signArray[:])
 		return &aggSign
 	}

@@ -154,7 +154,7 @@ func NewProcessorTest() *ProcessorTest {
 		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	pt.verifyGroup = &verifyGroup{
-		header:   &GroupHanderTest{},
+		header:   &groupHeader{},
 		memIndex: memIndex,
 		members:  mems,
 	}
@@ -255,7 +255,7 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 			args: args{
 				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[4], pt.msk[4]),
+						SI: model.GenSignData(common.HexToHash("0xb65ca7360f80d0acb4e2a91f2cb901d37f3332b419f885bca78cdefac6258d94"), pt.ids[4], pt.msk[4]),
 					},
 				},
 			},

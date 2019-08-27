@@ -30,20 +30,20 @@ type Log struct {
 	// address of the contract that generated the event
 	Address common.Address `json:"address" gencodec:"required"`
 	// list of topics provided by the contract.
-	Topics []common.Hash `json:"topics" gencodec:"required"`
+	Topic common.Hash `json:"topic" gencodec:"required"`
 	// supplied by the contract, usually ABI-encoded
 	Data []byte `json:"data" gencodec:"required"`
 
 	// Derived fields. These fields are filled in by the node
 	// but not secured by consensus.
 	// block in which the transaction was included
-	BlockNumber uint64 `json:"blockNumber"`
+	BlockNumber uint64 `json:"block_number"`
 	// hash of the transaction
-	TxHash common.Hash `json:"transactionHash" gencodec:"required"`
+	TxHash common.Hash `json:"transaction_hash" gencodec:"required"`
 	// index of the transaction in the block
-	TxIndex uint `json:"transactionIndex" gencodec:"required"`
+	TxIndex uint `json:"transaction_index" gencodec:"required"`
 	// index of the log in the receipt
-	Index uint `json:"logIndex" gencodec:"required"`
+	Index uint `json:"log_index" gencodec:"required"`
 
 	// The Removed field is true if this log was reverted due to a chain reorganisation.
 	// You must pay attention to this field if you receive logs through a filter query.
@@ -51,5 +51,5 @@ type Log struct {
 }
 
 func (l *Log) String() string {
-	return fmt.Sprintf(`log: %x %x %x %x %d %d`, l.Address, l.Topics, l.Data, l.TxHash, l.TxIndex, l.Index)
+	return fmt.Sprintf(`log: %x %x %x %x %d %d`, l.Address, l.Topic, l.Data, l.TxHash, l.TxIndex, l.Index)
 }
