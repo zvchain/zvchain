@@ -91,7 +91,7 @@ func (api *RpcGtasImpl) Version() string {
 func failErrResult(err string) *ErrorResult {
 	return &ErrorResult{
 		Message: err,
-		Code:    1,
+		Code:    -1,
 	}
 }
 

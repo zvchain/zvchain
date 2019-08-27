@@ -113,7 +113,7 @@ type GroupStat struct {
 }
 
 type ProposerStat struct {
-	Stake      uint64  `json:"stake"`
+	Stake      uint64  `json:"value"`
 	StakeRatio float64 `json:"stake_ratio"`
 	PCount     int32   `json:"p_count"`
 }
@@ -124,7 +124,7 @@ type CastStat struct {
 }
 
 type MortGage struct {
-	Stake              uint64 `json:"stake"`
+	Stake              uint64 `json:"value"`
 	ApplyHeight        uint64 `json:"apply_height"`
 	Type               string `json:"type"`
 	Status             string `json:"miner_status"`
