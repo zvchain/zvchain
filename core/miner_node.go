@@ -111,10 +111,18 @@ func (v *VerifyMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Mine
 }
 
 func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
-	if op.addSource != op.addTarget && op.addSource != types.MiningPoolAddr {
-		return fmt.Errorf("only admin can stake to normal")
+	if op.addSource == op.addTarget || op.addSource == types.MiningPoolAddr{
+		return nil
 	}
-	return nil
+	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
+	if err !=nil{
+		return err
+	}
+	if sourceMiner != nil && sourceMiner.IsMinerPool(){
+		return nil
+	}
+
+	return fmt.Errorf("stake add to others only can be stake add by admin or miner pool")
 }
 
 func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error {

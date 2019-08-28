@@ -206,7 +206,7 @@ func TestInvalidMinerPoolAction(t *testing.T) {
 	defer clear()
 	genePoolMiner(t)
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	miner, err := getMiner(accountDB, minerPool, ctx.mType)
 	if err != nil {
 		t.Fatalf("error is %v", err)
@@ -383,12 +383,19 @@ func TestVoteOther(t *testing.T) {
 
 }
 
+
+func createBlockHeaderByHeight(height uint64)*types.BlockHeader{
+	return &types.BlockHeader{
+		Height:height,
+	}
+}
+
 func TestInvalid(t *testing.T) {
 	setup()
 	defer clear()
 	genePoolMiner(t)
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	miner, err := getMiner(accountDB, minerPool, ctx.mType)
 	if err != nil {
 		t.Fatalf("error is %v", err)
@@ -452,13 +459,13 @@ func TestNotFullGuardNode(t *testing.T) {
 		t.Fatalf("except miner is guard,but got %v", miner.Type)
 	}
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB,createBlockHeaderByHeight( adjustWeightPeriod+1000))
 	detail := getStakeDetail()
 	if detail.MarkNotFullHeight != adjustWeightPeriod+1000 {
 		t.Fatalf("except height = %v,but got %v", adjustWeightPeriod+1000, detail.MarkNotFullHeight)
 	}
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+stakeBuffer+2000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+stakeBuffer+2000))
 
 	detail = getStakeDetail()
 
@@ -483,7 +490,7 @@ func TestScan(t *testing.T) {
 	ctx.source = &types.ExtractGuardNodes[0]
 	testChangeFundMode(t, 0, true)
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod/2+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod/2+1000))
 	fd, _ := getFundGuardNode(accountDB, types.ExtractGuardNodes[0])
 	if !fd.isNormal() {
 		t.Fatalf("except normal,but got %v", fd.Type)
@@ -499,7 +506,7 @@ func TestScan(t *testing.T) {
 	if !miner.IsNormal() {
 		t.Fatalf("except miner is normal,but got %v", miner.Type)
 	}
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	scanned = hasScanedSixAddSixFundGuards(accountDB)
 	if !scanned {
 		t.Fatalf("except true,but got false")
@@ -523,7 +530,7 @@ func TestScan(t *testing.T) {
 	}
 
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 
 	isFullGuard := isInFullStakeGuardNode(accountDB, *ctx.source)
 	if isFullGuard {
