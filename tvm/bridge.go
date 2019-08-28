@@ -85,7 +85,7 @@ func SetData(key *C.char, kenLen C.int, value *C.char, valueLen C.int) {
 func BlockHash(height C.ulonglong) *C.char {
 	block := controller.Reader.QueryBlockHeaderByHeight(uint64(height))
 	if block == nil {
-		return C.CString("0x0000000000000000000000000000000000000000000000000000000000000000")
+		return nil
 	}
 	return C.CString(block.Hash.Hex())
 }
@@ -113,9 +113,6 @@ func ContractCall(addressC *C.char, funName *C.char, jsonParms *C.char, cResult 
 	ccResult.error_code = C.int(goResult.ErrorCode)
 	if goResult.Content != "" {
 		ccResult.content = C.CString(goResult.Content)
-	}
-	if goResult.Abi != "" {
-		ccResult.abi = C.CString(goResult.Abi)
 	}
 }
 

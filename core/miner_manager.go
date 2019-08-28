@@ -192,7 +192,6 @@ func (mm *MinerManager) GetTickets(db types.AccountDB, address common.Address) u
 	return getTickets(db, address)
 }
 
-
 func (mm *MinerManager) GetValidTicketsByHeight(height uint64) uint64 {
 	return getValidTicketsByHeight(height)
 }

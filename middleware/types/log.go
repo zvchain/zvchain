@@ -37,13 +37,13 @@ type Log struct {
 	// Derived fields. These fields are filled in by the node
 	// but not secured by consensus.
 	// block in which the transaction was included
-	BlockNumber uint64 `json:"blockNumber"`
+	BlockNumber uint64 `json:"block_number"`
 	// hash of the transaction
-	TxHash common.Hash `json:"transactionHash" gencodec:"required"`
+	TxHash common.Hash `json:"transaction_hash" gencodec:"required"`
 	// index of the transaction in the block
-	TxIndex uint `json:"transactionIndex" gencodec:"required"`
+	TxIndex uint `json:"transaction_index" gencodec:"required"`
 	// index of the log in the receipt
-	Index uint `json:"logIndex" gencodec:"required"`
+	Index uint `json:"log_index" gencodec:"required"`
 
 	// The Removed field is true if this log was reverted due to a chain reorganisation.
 	// You must pay attention to this field if you receive logs through a filter query.

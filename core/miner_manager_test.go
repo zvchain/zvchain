@@ -37,6 +37,14 @@ func (msg *mOperMsg) GetExtraData() []byte {
 	return nil
 }
 
+func (msg mOperMsg) GetGasLimit() uint64 {
+	return 0
+}
+
+func (tx mOperMsg) GetValue() uint64 {
+	return 0
+}
+
 func (msg *mOperMsg) GetHash() common.Hash {
 	return common.Hash{}
 }
@@ -59,6 +67,14 @@ func (msg *mOperMsg) Amount() *big.Int {
 
 func (msg *mOperMsg) Payload() []byte {
 	return msg.data
+}
+
+func (msg *mOperMsg) GetNonce() uint64 {
+	return 0
+}
+
+func (msg mOperMsg) GetGasLimitOriginal() *big.Int {
+	return nil
 }
 
 func genMOperMsg(source, target *common.Address, typ int8, value uint64, data []byte) *mOperMsg {

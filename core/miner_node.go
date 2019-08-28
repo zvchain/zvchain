@@ -123,7 +123,7 @@ func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detai
 	if err := setDetail(db, address, detailKey, detail); err != nil {
 		return err
 	}
-	log.CoreLogger.Infof("normal guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v",address.String(),height,detail.DisMissHeight)
+	log.CoreLogger.Infof("normal guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.String(), height, detail.DisMissHeight)
 	return nil
 }
 
@@ -144,10 +144,10 @@ func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detail
 			return err
 		}
 		addFullStakeGuardPool(db, address)
-		log.CoreLogger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v",address.String(),height,detail.DisMissHeight)
+		log.CoreLogger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.String(), height, detail.DisMissHeight)
 	} else {
 		detail.DisMissHeight = detail.DisMissHeight + adjustWeightPeriod/2
-		log.CoreLogger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v",address.String(),height,detail.DisMissHeight)
+		log.CoreLogger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.String(), height, detail.DisMissHeight)
 	}
 	if err := setDetail(db, address, detailKey, detail); err != nil {
 		return err
@@ -173,7 +173,7 @@ func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *t
 		if miner == nil {
 			return fmt.Errorf("find miner pool miner is nil,addr is %s", op.target.String())
 		}
-		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets", op.target.String(), op.height,totalTickets)
+		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.String(), op.height,totalTickets)
 		miner.UpdateIdentity(types.InValidMinerPool, op.height)
 		remove := false
 		// Remove from pool if active
@@ -206,7 +206,7 @@ func (b *BaseMiner) processMinerAbort(op *minerAbortOp, miner *types.Miner) erro
 	remove := false
 	// Remove from pool if active
 	if miner.IsActive() {
-		log.CoreLogger.Infof("minerabort success,remove from pool,addr =%s,height=%v，left=%v",op.addr,op.height,miner.Stake)
+		log.CoreLogger.Infof("minerabort success,remove from pool,addr =%s,height=%v，left=%v", op.addr, op.height, miner.Stake)
 		removeFromPool(op.accountDB, op.minerType, op.addr, miner.Stake)
 		if types.IsProposalRole(op.minerType) {
 			remove = true
@@ -221,7 +221,7 @@ func (b *BaseMiner) processMinerAbort(op *minerAbortOp, miner *types.Miner) erro
 		// Informs MinerManager the removal address
 		MinerManagerImpl.proposalRemoveCh <- op.addr
 	}
-	log.CoreLogger.Infof("minerabort success,addr =%s,height=%v,left=%v",op.addr,op.height,miner.Stake)
+	log.CoreLogger.Infof("minerabort success,addr =%s,height=%v,left=%v", op.addr, op.height, miner.Stake)
 	return nil
 }
 
@@ -288,7 +288,7 @@ func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) er
 	// Sub the corresponding total stake of the proposals
 	if miner.IsActive() && types.IsProposalRole(op.minerType) {
 		if !checkLowerBound(miner) {
-			log.CoreLogger.Infof("stakereduce success,source=%s,to=%s,height=%v,value=%v,left=%v,lower min bound,remove from pool",op.cancelSource,op.cancelTarget,op.height,op.value,miner.Stake)
+			log.CoreLogger.Infof("stakereduce success,source=%s,to=%s,height=%v,value=%v,left=%v,lower min bound,remove from pool", op.cancelSource, op.cancelTarget, op.height, op.value, miner.Stake)
 			removeFromPool(op.accountDB, op.minerType, op.cancelTarget, originStake)
 			miner.UpdateStatus(types.MinerStatusPrepare, op.height)
 			remove = true
@@ -357,7 +357,7 @@ func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) er
 		// Informs MinerManager the removal address
 		MinerManagerImpl.proposalRemoveCh <- op.cancelTarget
 	}
-	log.CoreLogger.Infof("stakereduce success,source=%s,to=%s,height=%v,value=%v,left=%v",op.cancelSource,op.cancelTarget,op.height,op.value,miner.Stake)
+	log.CoreLogger.Infof("stakereduce success,source=%s,to=%s,height=%v,value=%v,left=%v", op.cancelSource, op.cancelTarget, op.height, op.value, miner.Stake)
 	return nil
 }
 
@@ -508,8 +508,8 @@ func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMi
 		return fmt.Errorf("only fund guard can do this operator ,addr is %s,type is %d", op.source.String(), fn.Type)
 	}
 	err = updateFundGuardMode(op.accountDB, fn, op.source, op.mode, op.height)
-	if err ==nil{
-		log.CoreLogger.Infof("change fund guard mode success,current mode is %v",op.mode)
+	if err == nil {
+		log.CoreLogger.Infof("change fund guard mode success,current mode is %v", op.mode)
 	}
 	return err
 }
@@ -535,7 +535,7 @@ func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, ch
 	}
 	if op.addTarget == op.addSource {
 		setPks(targetMiner, op.minerPks)
-		log.CoreLogger.Infof("stakeadd set pks success,from=%s,to=%s,type=%d,height=%d,value=%v",op.addSource,op.addTarget,op.minerType,op.height,op.value)
+		log.CoreLogger.Infof("stakeadd set pks success,from=%s,to=%s,type=%d,height=%d,value=%v", op.addSource, op.addTarget, op.minerType, op.height, op.value)
 	}
 	if !checkUpperBound(targetMiner, op.height) {
 		return fmt.Errorf("stake more than upper bound:%v", targetMiner.Stake)
@@ -549,7 +549,7 @@ func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, ch
 		targetMiner.UpdateStatus(types.MinerStatusActive, op.height)
 		// Add to pool so that the miner can start working
 		addToPool(op.accountDB, op.minerType, op.addTarget, targetMiner.Stake)
-		log.CoreLogger.Infof("stakeadd success,from=%s,to=%s,type=%d,height=%d,value=%v,add to pool",op.addSource,op.addTarget,op.minerType,op.height,op.value)
+		log.CoreLogger.Infof("stakeadd success,from=%s,to=%s,type=%d,height=%d,value=%v,add to pool", op.addSource, op.addTarget, op.minerType, op.height, op.value)
 		if types.IsProposalRole(op.minerType) {
 			add = true
 		}
@@ -580,7 +580,7 @@ func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, ch
 		return err
 	}
 
-	log.CoreLogger.Infof("stakeadd success,from=%s,to=%s,type=%d,height=%d,value=%v",op.addSource,op.addTarget,op.minerType,op.height,op.value)
+	log.CoreLogger.Infof("stakeadd success,from=%s,to=%s,type=%d,height=%d,value=%v", op.addSource, op.addTarget, op.minerType, op.height, op.value)
 
 	if add && MinerManagerImpl != nil {
 		// Inform added proposer address to minerManager
