@@ -77,7 +77,6 @@ func (tm *DBMmanagement) fetchAccounts() {
 			AddressCacheList := make(map[string]uint64)
 			PoolList := make(map[string]uint64)
 			stakelist := make(map[string]map[string]int64)
-			voteLIst := make(map[string]interface{})
 
 			for _, tx := range block.Transactions {
 				if tx.Type == types.TransactionTypeVoteMinerPool {
@@ -130,31 +129,38 @@ func (tm *DBMmanagement) fetchAccounts() {
 				if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
 					accounts.Address = address
 					accounts.TotalTransaction = totalTx
-					if PoolList[address] != 0 {
-						//todo
-						voteLIst["vote"] = PoolList[address]
-						//accounts.ExtraData = fmt.Sprintf("http://%s:%d", "addr", PoolList[address])
-					}
 					accounts.Balance = tm.fetchbalance(address)
-					if tm.storage.AddObjects(accounts) {
+					if !tm.storage.AddObjects(accounts) {
 						return
 					}
 					//存在账号
 				} else {
 					accounts.Address = address
-					accounts.TotalTransaction = totalTx
-					accounts.ID = targetAddrInfo[0].ID
-					accounts.Balance = tm.fetchbalance(address)
-					if PoolList[address] != 0 {
-						//todo
-					}
-					if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx), "balance": accounts.Balance}) {
+					//accounts.TotalTransaction = totalTx
+					//accounts.ID = targetAddrInfo[0].ID
+					//accounts.Balance = tm.fetchbalance(address)
+					if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx), "balance": tm.fetchbalance(address)}) {
 						return
 					}
 
 				}
 			}
-
+			for address, _ := range PoolList {
+				targetAddrInfo := tm.storage.GetAccountById(address)
+				if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
+					accounts.Address = address
+					accounts.ExtraData = tm.fetchTickets(address)
+					if !tm.storage.AddObjects(accounts) {
+						return
+					}
+				} else {
+					accounts.Address = address
+					accounts.ExtraData = tm.fetchTickets(address)
+					if !tm.storage.UpdateObject(accounts) {
+						return
+					}
+				}
+			}
 		}
 
 		//块高存储持久化
@@ -169,6 +175,19 @@ func (tm *DBMmanagement) fetchAccounts() {
 		go tm.fetchAccounts()
 	}
 	tm.isFetchingBlocks = false
+}
+
+func (tm *DBMmanagement) fetchTickets(address string) string {
+	voteLIst := make(map[string]interface{})
+	db, err := core.BlockChainImpl.LatestAccountDB()
+	if err != nil {
+		return ""
+	}
+	voteCount := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(address))
+	voteLIst["vote"] = voteCount
+	data := tm.storage.MapToJson(voteLIst)
+
+	return data
 }
 
 func (tm *DBMmanagement) fetchbalance(addr string) float64 {
