@@ -20,6 +20,7 @@ import (
 	"fmt"
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/crypto/chacha20poly1305"
+	"strings"
 )
 
 /*
@@ -91,4 +92,34 @@ func DecryptWithKey(Key []byte, Data []byte) (result []byte, err error) {
 
 	return cipher.Open(result[:0], nonce, dataWithoutNonce, nil)
 
+}
+
+
+func IsWeakPassword(password string)bool{
+	password = strings.TrimSpace(password)
+	if password == ""{
+		return true
+	}
+	if len(password) < MinPasswordLength{
+		return true
+	}
+	AToZ := 0
+	aToz := 0
+	number:=0
+	specialCharacter:=0
+	for _,c := range password{
+		if c >= 'A' && c <= 'Z' {
+			AToZ = 1
+		}else if c >= 'a' && c <= 'z' {
+			aToz = 1
+		}else if c >= '0' && c <= '9' {
+			number = 1
+		}else{
+			specialCharacter = 1
+		}
+	}
+	if AToZ + aToz+number+specialCharacter<3{
+		return true
+	}
+	return false
 }
