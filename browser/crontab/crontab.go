@@ -46,14 +46,14 @@ func (crontab *Crontab) loop() {
 	defer check.Stop()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchBlockRewards()
-	go crontab.fetchBlockStakeAll()
+	//go crontab.fetchBlockStakeAll()
 
 	for {
 		select {
 		case <-check.C:
 			go crontab.fetchPoolVotes()
 			go crontab.fetchBlockRewards()
-			go crontab.fetchBlockStakeAll()
+			//go crontab.fetchBlockStakeAll()
 
 		}
 	}
@@ -128,7 +128,7 @@ func (crontab *Crontab) fetchBlockStakeAll() {
 	accounts := crontab.storage.GetAccountByPage(crontab.page)
 	if accounts != nil {
 		for _, account := range accounts {
-			crontab.updateAccountStake(account, 0)
+			crontab.UpdateAccountStake(account, 0)
 		}
 		crontab.page += 1
 		go crontab.fetchBlockStakeAll()
@@ -138,7 +138,7 @@ func (crontab *Crontab) fetchBlockStakeAll() {
 
 }
 
-func (crontab *Crontab) updateAccountStake(account *models.Account, height uint64) {
+func (crontab *Crontab) UpdateAccountStake(account *models.Account, height uint64) {
 	if account == nil {
 		return
 
@@ -155,15 +155,6 @@ func (crontab *Crontab) updateAccountStake(account *models.Account, height uint6
 			"role_type":      minerinfo[0].Identity,
 		})
 	}
-}
-
-func (crontab *Crontab) fetchBlockStakeByAdress(address string, height uint64) {
-	//根据账户地址更新质押信息，前提是存在交易类型为质押时
-	account := &models.Account{
-		Address: address,
-	}
-	crontab.updateAccountStake(account, height)
-
 }
 
 func (crontab *Crontab) fetchBlockRewards() {
