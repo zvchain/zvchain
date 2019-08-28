@@ -36,14 +36,13 @@ type Storage struct {
 	accounts     []*models.Account
 }
 
-func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *Storage {
+func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Storage {
 
 	storage := &Storage{
 		dbAddr:     dbAddr,
 		dbPort:     dbPort,
 		dbUser:     dbUser,
 		dbPassword: dbPassword,
-		rpcAddrStr: fmt.Sprintf("http://%s:%d", rpcAddr, rpcPort),
 	}
 	storage.Init(reset)
 	return storage
@@ -83,10 +82,6 @@ func (storage *Storage) Init(reset bool) {
 
 func (storage *Storage) GetDB() *gorm.DB {
 	return storage.db
-}
-
-func (storage *Storage) GetRpc() string {
-	return storage.rpcAddrStr
 }
 
 /**

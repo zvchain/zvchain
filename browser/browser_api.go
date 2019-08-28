@@ -34,9 +34,9 @@ type DBMmanagement struct {
 	isFetchingBlocks bool
 }
 
-func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *DBMmanagement {
+func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *DBMmanagement {
 	tablMmanagement := &DBMmanagement{}
-	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
+	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
 
 	tablMmanagement.blockHeight, _ = tablMmanagement.storage.TopBlockHeight()
 	tablMmanagement.groupHeight = tablMmanagement.storage.TopGroupHeight()
@@ -98,6 +98,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 					}
 					//stake list
 					if _, exists := stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()]; exists {
+					if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
 						if tx.Type == types.TransactionTypeStakeAdd {
 							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
 						}
@@ -105,6 +106,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
 						}
 					} else {
+						stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
 						if tx.Type == types.TransactionTypeStakeAdd {
 							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
 						}
@@ -117,6 +119,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 					continue
 				}
 			}
+			generateStakefromByTransaction(tm, stakelist)
 			//begain
 			accounts := &models.Account{}
 			for address, totalTx := range AddressCacheList {
@@ -150,7 +153,6 @@ func (tm *DBMmanagement) fetchAccounts() {
 				}
 			}
 			//生成质押来源信息
-			generateStakefromByTransaction(tm, stakelist)
 
 		}
 
@@ -319,10 +321,10 @@ func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[
 	}
 	poolstakefrom := make([]*models.PoolStake, 0, 0)
 	for address, fromList := range stakelist {
-		//detail := tm.storage.GetAccountById(address)
-
+		/*detail := tm.storage.GetAccountById(address)
+		if detail != nil && len(detail) >0{
+		}*/
 		for from, stake := range fromList {
-
 			poolstake := &models.PoolStake{
 				Address: address,
 				Stake:   stake,

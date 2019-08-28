@@ -18,6 +18,7 @@ type Crontab struct {
 	storage             *mysql.Storage
 	blockHeight         uint64
 	page                uint64
+	maxid               uint
 	accountPrimaryId    uint64
 	isFetchingReward    bool
 	isFetchingStake     bool
@@ -56,13 +57,18 @@ func (crontab *Crontab) loop() {
 	}
 }
 
+//uopdate invalid guard and pool
 func (crontab *Crontab) fetchPoolVotes() {
-	accounts := crontab.storage.GetAccountByRoletype(0, types.MinerGuard)
+	if crontab.isFetchingPoolvotes {
+		return
+	}
+	crontab.isFetchingPoolvotes = true
 	//todo 守护节点失效
+	accounts := crontab.storage.GetAccountByRoletype(0, types.MinerGuard)
 	for _, account := range accounts {
 		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"role_type": types.MinerNormal})
 	}
-	accountspool := crontab.storage.GetAccountByRoletype(0, types.MinerPool)
+	accountspool := crontab.storage.GetAccountByRoletype(crontab.maxid, types.MinerPool)
 	if accountspool != nil && len(accountspool) > 0 {
 		var db types.AccountDB
 		var err error
@@ -70,28 +76,43 @@ func (crontab *Crontab) fetchPoolVotes() {
 			return
 		}
 		db, err = core.BlockChainImpl.LatestAccountDB()
-
-		for _, pool := range accountspool {
+		total := len(accountspool) - 1
+		for num, pool := range accountspool {
+			if num == total {
+				crontab.maxid = pool.ID
+			}
 			//pool to be normal miner
 			proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(pool.Address), types.MinerTypeProposal)
+			attrs := make(map[string]interface{})
 			if uint64(proposalInfo.Type) != pool.RoleType {
-				crontab.storage.UpdateAccountByColumn(pool, map[string]interface{}{"role_type": types.InValidMinerPool})
+				attrs["role_type"] = types.InValidMinerPool
 			}
 			tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(pool.Address))
-
+			var extra = &models.PoolExtraData{}
 			if pool.ExtraData != "" {
-				var extra = &models.PoolExtraData{}
 				if err := json.Unmarshal([]byte(pool.ExtraData), extra); err != nil {
 					fmt.Println("Unmarshal json", err.Error())
+					if attrs != nil {
+						crontab.storage.UpdateAccountByColumn(pool, attrs)
+					}
 					continue
 				}
+				//different vote need update
 				if extra.Vote != tickets {
 					extra.Vote = tickets
-					crontab.storage.UpdateAccountByColumn(pool, map[string]interface{}{"extra_data": json.Marshal(extra)})
+					result, _ := json.Marshal(extra)
+					attrs["extra_data"] = string(result)
 				}
+			} else if tickets > 0 {
+				extra.Vote = tickets
+				result, _ := json.Marshal(extra)
+				attrs["extra_data"] = string(result)
 			}
+			crontab.storage.UpdateAccountByColumn(pool, attrs)
 		}
+		go crontab.fetchPoolVotes()
 	}
+	crontab.isFetchingPoolvotes = false
 	//vote
 
 }
@@ -105,7 +126,7 @@ func (crontab *Crontab) fetchBlockStakeAll() {
 	accounts := crontab.storage.GetAccountByPage(crontab.page)
 	if accounts != nil {
 		for _, account := range accounts {
-			crontab.updateAccountStake(account)
+			crontab.updateAccountStake(account, 0)
 		}
 		crontab.page += 1
 		go crontab.fetchBlockStakeAll()
@@ -115,12 +136,12 @@ func (crontab *Crontab) fetchBlockStakeAll() {
 
 }
 
-func (crontab *Crontab) updateAccountStake(account *models.Account) {
+func (crontab *Crontab) updateAccountStake(account *models.Account, height uint64) {
 	if account == nil {
 		return
 
 	}
-	minerinfo, stakefrom := crontab.GetMinerInfo(account.Address)
+	minerinfo, stakefrom := crontab.GetMinerInfo(account.Address, height)
 	if len(minerinfo) > 0 {
 		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{
 			"proposal_stake": minerinfo[0].Stake,
@@ -134,12 +155,12 @@ func (crontab *Crontab) updateAccountStake(account *models.Account) {
 	}
 }
 
-func (crontab *Crontab) fetchBlockStakeByAdress(address string) {
+func (crontab *Crontab) fetchBlockStakeByAdress(address string, height uint64) {
 	//根据账户地址更新质押信息，前提是存在交易类型为质押时
 	account := &models.Account{
 		Address: address,
 	}
-	crontab.updateAccountStake(account)
+	crontab.updateAccountStake(account, height)
 
 }
 
@@ -163,14 +184,20 @@ func (crontab *Crontab) fetchBlockRewards() {
 
 }
 
-func (crontab *Crontab) GetMinerInfo(addr string) ([]*MortGage, string) {
+func (crontab *Crontab) GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return nil, ""
 	}
 
 	morts := make([]*MortGage, 0, 0)
 	address := common.StringToAddress(addr)
-	proposalInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	var proposalInfo *types.Miner
+	if height == 0 {
+		proposalInfo = core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	} else {
+		proposalInfo = core.MinerManagerImpl.GetMiner(address, types.MinerTypeProposal, height)
+
+	}
 	var stakefrom = ""
 	if proposalInfo != nil {
 		mort := NewMortGageFromMiner(proposalInfo)

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
@@ -28,6 +29,15 @@ func (storage *Storage) UpdateBatchAccount(accounts []*models.Account) bool {
 		}
 	}
 	return true
+}
+
+func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
+	var data string
+	if mapdata != nil {
+		result, _ := json.Marshal(mapdata)
+		data = string(result)
+	}
+	return data
 }
 
 func (storage *Storage) AddBatchAccount(accounts []*models.Account) bool {
@@ -73,11 +83,11 @@ func (storage *Storage) GetAccountByPage(page uint64) []*models.Account {
 		return nil
 	}
 	accounts := make([]*models.Account, LIMIT, LIMIT)
-	storage.db.Offset((page) * LIMIT).Limit(LIMIT).Find(&accounts)
+	storage.db.Offset(page * LIMIT).Limit(LIMIT).Find(&accounts)
 	return accounts
 }
 
-func (storage *Storage) GetAccountByRoletype(maxid uint64, roleType uint64) []*models.Account {
+func (storage *Storage) GetAccountByRoletype(maxid uint, roleType uint64) []*models.Account {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
