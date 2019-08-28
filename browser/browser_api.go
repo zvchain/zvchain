@@ -24,6 +24,15 @@ const (
 
 //var AddressCacheList map[string]uint64
 
+type MortGage struct {
+	Stake                uint64             `json:"stake"`
+	ApplyHeight          uint64             `json:"apply_height"`
+	Type                 string             `json:"type"`
+	Status               types.MinerStatus  `json:"miner_status"`
+	StatusUpdateHeight   uint64             `json:"status_update_height"`
+	Identity             types.NodeIdentity `json:"identity"`
+	IdentityUpdateHeight uint64             `json:"identity_update_height"`
+}
 type DBMmanagement struct {
 	sync.Mutex
 	blockHeight        uint64
@@ -44,7 +53,7 @@ func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword strin
 	tablMmanagement.groupHeight = tablMmanagement.storage.TopGroupHeight()
 	tablMmanagement.prepareGroupHeight = tablMmanagement.storage.TopPrepareGroupHeight()
 	tablMmanagement.dismissGropHeight = tablMmanagement.storage.TopDismissGroupHeight()
-
+	tablMmanagement.blockHeight = 0
 	go tablMmanagement.loop()
 	return tablMmanagement
 }
@@ -143,7 +152,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 
 				}
 				//update stake
-				tm.crontab.UpdateAccountStake(accounts, 0)
+				tm.UpdateAccountStake(accounts, 0)
 
 			}
 			for address, _ := range PoolList {
@@ -351,9 +360,125 @@ func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[
 				Stake:   stake,
 				From:    from,
 			}
-			poolstakefrom = append(poolstakefrom, poolstake)
+			if from != "" {
+				poolstakefrom = append(poolstakefrom, poolstake)
+			}
+
 		}
 	}
 	tm.storage.AddOrUpPoolStakeFrom(poolstakefrom)
 
+}
+
+func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
+	if !common.ValidateAddress(strings.TrimSpace(addr)) {
+		return nil, ""
+	}
+
+	morts := make([]*MortGage, 0, 0)
+	address := common.StringToAddress(addr)
+	var proposalInfo *types.Miner
+	if height == 0 {
+		proposalInfo = core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	} else {
+		proposalInfo = core.MinerManagerImpl.GetMiner(address, types.MinerTypeProposal, height)
+
+	}
+	var stakefrom = ""
+	if proposalInfo != nil {
+		mort := NewMortGageFromMiner(proposalInfo)
+		morts = append(morts, mort)
+		//get stakeinfo by miners themselves
+		details := core.MinerManagerImpl.GetStakeDetails(address, address)
+		var selfStakecount uint64 = 0
+		for _, detail := range details {
+			if detail.MType == types.MinerTypeProposal {
+				selfStakecount += detail.Value
+			}
+		}
+		morts = append(morts, &MortGage{
+			Stake:       mort.Stake - selfStakecount,
+			ApplyHeight: 0,
+			Type:        "proposal node",
+			Status:      types.MinerStatusActive,
+		})
+		if selfStakecount > 0 {
+			stakefrom = addr
+		}
+		// check if contain other stake ,
+		//todo pool identify
+		if selfStakecount < mort.Stake {
+			stakefrom = stakefrom + "," + GetStakeFrom(address)
+		}
+	}
+	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
+	if verifierInfo != nil {
+		morts = append(morts, NewMortGageFromMiner(verifierInfo))
+	}
+	return morts, stakefrom
+}
+func GetStakeFrom(address common.Address) string {
+	allStakeDetails := core.MinerManagerImpl.GetAllStakeDetails(address)
+	var stakeFrom = ""
+	index := 0
+	for from, _ := range allStakeDetails {
+		if from != address.String() {
+			index += 1
+			if index > 1 {
+				break
+			}
+			stakeFrom = stakeFrom + from + ","
+		}
+	}
+	return strings.Trim(stakeFrom, ",")
+}
+
+func NewMortGageFromMiner(miner *types.Miner) *MortGage {
+	t := "proposal node"
+	if miner.IsVerifyRole() {
+		t = "verify node"
+	}
+	status := types.MinerStatusPrepare
+	if miner.IsActive() {
+		status = types.MinerStatusActive
+	} else if miner.IsFrozen() {
+		status = types.MinerStatusFrozen
+	}
+
+	i := types.MinerNormal
+	if miner.IsMinerPool() {
+		i = types.MinerPool
+	} else if miner.IsInvalidMinerPool() {
+		i = types.InValidMinerPool
+	} else if miner.IsGuard() {
+		i = types.MinerGuard
+	}
+	mg := &MortGage{
+		Stake:                uint64(common.RA2TAS(miner.Stake)),
+		ApplyHeight:          miner.ApplyHeight,
+		Type:                 t,
+		Status:               status,
+		StatusUpdateHeight:   miner.StatusUpdateHeight,
+		Identity:             i,
+		IdentityUpdateHeight: miner.IdentityUpdateHeight,
+	}
+	return mg
+}
+func (tm *DBMmanagement) UpdateAccountStake(account *models.Account, height uint64) {
+	if account == nil {
+		return
+
+	}
+	minerinfo, stakefrom := GetMinerInfo(account.Address, height)
+	if len(minerinfo) > 0 {
+		tm.storage.UpdateAccountByColumn(account, map[string]interface{}{
+			"proposal_stake": minerinfo[0].Stake,
+			"other_stake":    minerinfo[1].Stake,
+			"verify_stake":   minerinfo[2].Stake,
+			"total_stake":    minerinfo[0].Stake + minerinfo[2].Stake,
+			"stake_from":     stakefrom,
+			"status":         minerinfo[0].Status,
+			"role_type":      minerinfo[0].Identity,
+		})
+	}
 }
