@@ -103,7 +103,7 @@ func (api *RpcDevImpl) GetTransaction(hash string) (map[string]interface{}, erro
 	}
 	transaction := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(hash))
 	if transaction == nil {
-		return nil, fmt.Errorf("transaction not exists")
+		return nil, nil
 	}
 	detail := make(map[string]interface{})
 	detail["hash"] = hash
