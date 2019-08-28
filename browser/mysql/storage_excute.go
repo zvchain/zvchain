@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
@@ -28,6 +29,15 @@ func (storage *Storage) UpdateBatchAccount(accounts []*models.Account) bool {
 		}
 	}
 	return true
+}
+
+func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
+	var data string
+	if mapdata != nil {
+		result, _ := json.Marshal(mapdata)
+		data = string(result)
+	}
+	return data
 }
 
 func (storage *Storage) AddBatchAccount(accounts []*models.Account) bool {
