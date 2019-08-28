@@ -60,12 +60,12 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params),
             success: function (rdata) {
-                if (rdata.result.message != "success") {
-                    alert(rdata.result.message);
+                if (rdata.result == null) {
+                    alert("block doesn't exist");
                     return
                 }
                 $("#block_detail_result").show();
-                d = rdata.result.data;
+                d = rdata.result;
                 $("#block_detail_height").text(d.height);
                 $("#block_castor").text(d.castor);
                 $("#block_hash").text(d.hash);
@@ -148,13 +148,13 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params),
             success: function (rdata) {
-                if (rdata.result.message != "success") {
-                    alert(rdata.result.message);
+                if (rdata.result == null) {
+                    alert("tx doesn't exist");
                     return
                 }
 
                 $("#tx_detail_set").show();
-                d = rdata.result.data;
+                d = rdata.result;
 
                 $("#tx_hash").text(d.hash);
                 $("#tx_source").text(d.source);
@@ -170,7 +170,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
         });
 
         let params2 = {
-            "method": "Gtas_txReceipt",
+            "method": "Gzv_txReceipt",
             "params": [h],
             "jsonrpc": "2.0",
             "id": "1"
@@ -183,13 +183,13 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params2),
             success: function (rdata) {
-                if (rdata.result.message != "success") {
-                    // alert(rdata.result.message)
+                if (rdata.result == null) {
+                    alert("tx doesn't exist");
                     return
                 }
                 $("#tx_receipt_set").show();
-                d = rdata.result.data.Receipt;
-                t = rdata.result.data.Transaction;
+                d = rdata.result.Receipt;
+                t = rdata.result.Transaction;
 
                 $("#tx_data").text(t.Data);
 
@@ -197,21 +197,24 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
                 $("#tx_logs").text(d.logs);
                 $("#tx_contractAddress").text(d.contractAddress);
                 var t_type = '';
-                switch (t.Type) {
-                    case 1:
+                switch (t.type) {
+                    case 0:
                         t_type = "转账";
                         break;
-                    case 2:
+                    case 1:
                         t_type = "合约创建";
                         break;
+                    case 2:
+                        t_type = "合约调用";
+                        break;
                     case 3:
-                        t_type = "分红交易";
+                        t_type = "矿工申请/增加质押";
                         break;
                     case 4:
-                        t_type = "矿工申请";
+                        t_type = "矿工取消";
                         break;
                     case 5:
-                        t_type = "矿工取消";
+                        t_type = "减少质押";
                         break;
                     case 6:
                         t_type = "取回质押";
@@ -220,10 +223,10 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
                 $("#tx_type").text(t_type);
                 var t_status = '';
                 switch (d.status) {
-                    case 1:
+                    case 0:
                         t_status = "成功";
                         break;
-                    case 0:
+                    default:
                         t_status = "失败";
                         break;
                 }
