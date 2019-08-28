@@ -34,9 +34,9 @@ type DBMmanagement struct {
 	isFetchingBlocks bool
 }
 
-func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, rpcAddr string, rpcPort int, reset bool) *DBMmanagement {
+func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *DBMmanagement {
 	tablMmanagement := &DBMmanagement{}
-	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, rpcAddr, rpcPort, reset)
+	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
 
 	tablMmanagement.blockHeight, _ = tablMmanagement.storage.TopBlockHeight()
 	tablMmanagement.groupHeight = tablMmanagement.storage.TopGroupHeight()
@@ -94,7 +94,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
 					}
-					if _, exists := stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()]; exists {
+					if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
 						if tx.Type == types.TransactionTypeStakeAdd {
 							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
 						}
@@ -102,6 +102,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
 						}
 					} else {
+						stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
 						if tx.Type == types.TransactionTypeStakeAdd {
 							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
 						}
@@ -114,6 +115,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 					continue
 				}
 			}
+			generateStakefromByTransaction(tm, stakelist)
 			//begain
 			accounts := &models.Account{}
 			for address, totalTx := range AddressCacheList {
@@ -146,7 +148,6 @@ func (tm *DBMmanagement) fetchAccounts() {
 				}
 			}
 			//生成质押来源信息
-			generateStakefromByTransaction(tm, stakelist)
 
 		}
 
@@ -166,7 +167,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 
 func (tm *DBMmanagement) fetchbalance(addr string) float64 {
 	beginTime := time.Now()
-	client, err := rpc.Dial(tm.storage.GetRpc()) //Dial(storage.rpcAddrStr)
+	client, err := rpc.Dial("") //Dial(storage.rpcAddrStr)
 	if err != nil {
 		return 0
 	}
@@ -332,12 +333,8 @@ func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[
 	for address, fromList := range stakelist {
 		/*detail := tm.storage.GetAccountById(address)
 		if detail != nil && len(detail) >0{
-
-
 		}*/
-
 		for from, stake := range fromList {
-
 			poolstake := &models.PoolStake{
 				Address: address,
 				Stake:   stake,

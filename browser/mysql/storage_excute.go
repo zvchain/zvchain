@@ -73,11 +73,11 @@ func (storage *Storage) GetAccountByPage(page uint64) []*models.Account {
 		return nil
 	}
 	accounts := make([]*models.Account, LIMIT, LIMIT)
-	storage.db.Offset((page) * LIMIT).Limit(LIMIT).Find(&accounts)
+	storage.db.Offset(page * LIMIT).Limit(LIMIT).Find(&accounts)
 	return accounts
 }
 
-func (storage *Storage) GetAccountByRoletype(maxid uint64, roleType uint64) []*models.Account {
+func (storage *Storage) GetAccountByRoletype(maxid uint, roleType uint64) []*models.Account {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
