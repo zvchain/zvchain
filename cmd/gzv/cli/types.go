@@ -155,11 +155,11 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 }
 
 type StakeDetail struct {
-	Value         uint64 `json:"value"`
-	UpdateHeight  uint64 `json:"update_height"`
-	MType         string `json:"m_type"`
-	Status        string `json:"stake_status"`
-	ExpiredHeight uint64 `json:"expired_height"`
+	Value           uint64 `json:"value"`
+	UpdateHeight    uint64 `json:"update_height"`
+	MType           string `json:"m_type"`
+	Status          string `json:"stake_status"`
+	CanReduceHeight uint64 `json:"can_reduce_height"`
 }
 
 type MinerPoolDetail struct {

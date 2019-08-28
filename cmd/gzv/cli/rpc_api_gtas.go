@@ -240,11 +240,11 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*MinerStakeDetail
 		details := make([]*StakeDetail, 0)
 		for _, d := range dts {
 			dt := &StakeDetail{
-				Value:         uint64(common.RA2TAS(d.Value)),
-				UpdateHeight:  d.UpdateHeight,
-				MType:         mTypeString(d.MType),
-				Status:        statusString(d.Status),
-				ExpiredHeight: d.DisMissHeight,
+				Value:           uint64(common.RA2TAS(d.Value)),
+				UpdateHeight:    d.UpdateHeight,
+				MType:           mTypeString(d.MType),
+				Status:          statusString(d.Status),
+				CanReduceHeight: d.DisMissHeight,
 			}
 			details = append(details, dt)
 		}
