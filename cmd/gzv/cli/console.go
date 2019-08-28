@@ -85,8 +85,8 @@ func (c *newAccountCmd) parse(args []string) bool {
 		output("Please input password")
 		return false
 	}
-	if len(pass) > 50 || len(pass) < 3 {
-		output("password length should between 3-50")
+	if len(pass) > common.MaxPasswordLength || len(pass) < common.MinPasswordLength {
+		fmt.Printf("password length should between %d-%d \n",common.MinPasswordLength,common.MaxPasswordLength )
 		return false
 	}
 	return true
@@ -729,8 +729,8 @@ func (c *importKeyCmd) parse(args []string) bool {
 		output("Please input password")
 		return false
 	}
-	if len(pass) > 50 || len(pass) < 3 {
-		output("password length should between 3-50")
+	if len(pass) > common.MaxPasswordLength || len(pass) < common.MinPasswordLength {
+		fmt.Printf("password length should between %d-%d \n",common.MinPasswordLength,common.MaxPasswordLength )
 		return false
 	}
 	return true
