@@ -44,16 +44,16 @@ func (crontab *Crontab) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
+	go crontab.fetchPoolVotes()
 	go crontab.fetchBlockRewards()
 	go crontab.fetchBlockStakeAll()
-	go crontab.fetchPoolVotes()
 
 	for {
 		select {
 		case <-check.C:
+			go crontab.fetchPoolVotes()
 			go crontab.fetchBlockRewards()
 			go crontab.fetchBlockStakeAll()
-			go crontab.fetchPoolVotes()
 
 		}
 	}

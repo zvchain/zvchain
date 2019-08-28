@@ -176,6 +176,9 @@ func (storage *Storage) AddOrUpPoolStakeFrom(stakefrom []*models.PoolStake) bool
 func getstakefrom(tx *gorm.DB, address string, from string) *models.PoolStake {
 	stake := &models.PoolStake{}
 	tx.Limit(1).Where("address = ? and from = ?", address, from).Find(stake)
+	if stake.Address == "" {
+		return nil
+	}
 	return stake
 
 }
