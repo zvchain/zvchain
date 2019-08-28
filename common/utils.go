@@ -100,4 +100,5 @@ func CheckWeakPassword(password string)bool{
 	if password == ""{
 		return true
 	}
+	return false
 }
