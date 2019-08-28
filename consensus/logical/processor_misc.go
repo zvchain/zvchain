@@ -169,9 +169,9 @@ func (p *Processor) GetBlockMinElapse(height uint64) int32 {
 	if v, ok := p.cachedMinElapseByEpoch.Get(lastBlock.Hash); ok {
 		return v.(int32)
 	}
-	realCount := p.MainChain.CountBlocksInRange(startEpoch.Start(), endEpoch.Start())
-	firstBlock := p.MainChain.QueryBlockHeaderCeil(startEpoch.Start())
 
+	firstBlock := p.MainChain.QueryBlockHeaderCeil(startEpoch.Start())
+	realCount :=  lastBlock.Height - firstBlock.Height
 
 	spends := uint64(lastBlock.CurTime.SinceMilliSeconds(firstBlock.CurTime))
 	if spends > realCount*uint64(normalMinElapse) {
