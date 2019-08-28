@@ -29,7 +29,7 @@ type Crontab struct {
 func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Crontab {
 
 	server := &Crontab{}
-	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
+	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, "", 0, reset)
 	server.blockHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtophight)
 	if server.blockHeight > 0 {
 		server.blockHeight += 1

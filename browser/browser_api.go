@@ -5,7 +5,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
-	"github.com/zvchain/zvchain/cmd/gzv/rpc"
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"strings"
@@ -77,9 +77,10 @@ func (tm *DBMmanagement) fetchAccounts() {
 			AddressCacheList := make(map[string]uint64)
 			PoolList := make(map[string]uint64)
 			stakelist := make(map[string]map[string]int64)
+			voteLIst := make(map[string]interface{})
 
 			for _, tx := range block.Transactions {
-				if tx.Type == 6 {
+				if tx.Type == types.TransactionTypeVoteMinerPool {
 					if tx.Target != nil {
 						if _, exists := PoolList[tx.Target.AddrPrefixString()]; exists {
 							PoolList[tx.Target.AddrPrefixString()] += 1
@@ -89,11 +90,13 @@ func (tm *DBMmanagement) fetchAccounts() {
 					}
 				}
 				if tx.Source != nil {
+					//account list
 					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
 					}
+					//stake list
 					if _, exists := stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()]; exists {
 						if tx.Type == types.TransactionTypeStakeAdd {
 							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
@@ -124,6 +127,8 @@ func (tm *DBMmanagement) fetchAccounts() {
 					accounts.TotalTransaction = totalTx
 					if PoolList[address] != 0 {
 						//todo
+						voteLIst["vote"] = PoolList[address]
+						//accounts.ExtraData = fmt.Sprintf("http://%s:%d", "addr", PoolList[address])
 					}
 					accounts.Balance = tm.fetchbalance(address)
 					if tm.storage.AddObjects(accounts) {
@@ -138,8 +143,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 					if PoolList[address] != 0 {
 						//todo
 					}
-					if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx)}) ||
-						tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"balance": accounts.Balance}) {
+					if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx), "balance": accounts.Balance}) {
 						return
 					}
 
@@ -165,25 +169,10 @@ func (tm *DBMmanagement) fetchAccounts() {
 }
 
 func (tm *DBMmanagement) fetchbalance(addr string) float64 {
-	beginTime := time.Now()
-	client, err := rpc.Dial(tm.storage.GetRpc()) //Dial(storage.rpcAddrStr)
-	if err != nil {
-		return 0
-	}
-	defer client.Close()
-	var result map[string]interface{}
-	//call remote procedure with args
-	err = client.Call(&result, "Gzv_balance", addr)
-	if err != nil {
-		fmt.Println("[fetcher]  Gzv_balance error :", err)
-		return 0
-	}
-	if result["data"] == nil {
-		return 0
-	}
-	fmt.Println("[Gzv_balance]  result :", result, "delay:", time.Since(beginTime))
+	b := core.BlockChainImpl.GetBalance(common.StringToAddress(addr))
+	balance := common.RA2TAS(b.Uint64())
 
-	return result["data"].(float64)
+	return balance
 }
 
 func (tm *DBMmanagement) fetchGroup() {
