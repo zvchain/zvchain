@@ -28,7 +28,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-func genTx(source string, target string) *types.Transaction {
+func genTx(source string, target string) *types.RawTransaction {
 	var sourceAddr, targetAddr *common.Address
 
 	sourcebyte := common.StringToAddress(source)
@@ -51,7 +51,7 @@ func genTx(source string, target string) *types.Transaction {
 		GasLimit:  types.NewBigInt(10000000),
 		Type:      1,
 	}
-	return types.NewTransaction(tx, tx.GenHash())
+	return tx
 }
 
 func genBlockHeader() *types.BlockHeader {
@@ -71,12 +71,10 @@ func genBlockHeader() *types.BlockHeader {
 
 func genBlock(txNum int) *types.Block {
 	bh := genBlockHeader()
-	txs := make([]*types.Transaction, 0)
-	txHashs := make([]common.Hash, 0)
+	txs := make([]*types.RawTransaction, 0)
 	for i := 0; i < txNum; i++ {
 		tx := genTx("0x123", "0x234")
 		txs = append(txs, tx)
-		txHashs = append(txHashs, tx.Hash)
 	}
 	return &types.Block{
 		Header:       bh,
@@ -119,15 +117,11 @@ func TestDecodeBlockTransactionWithTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	txs, err := decodeBlockTransactions(bs)
+	_, err = decodeBlockTransactions(bs)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, tx := range txs {
-		if tx.GenHash() != b.Transactions[i].Hash {
-			t.Fatal("tx hash error")
-		}
-	}
+
 }
 
 func TestDecodeTransactionByHash(t *testing.T) {
@@ -139,7 +133,7 @@ func TestDecodeTransactionByHash(t *testing.T) {
 
 	for i, tx := range b.Transactions {
 		if i == r {
-			testHash = tx.Hash
+			testHash = tx.GenHash()
 			testIndex = i
 			t.Log("test hash", i, testHash.Hex())
 		}
@@ -173,7 +167,7 @@ func TestMarshalSign(t *testing.T) {
 
 func TestMarshalTx(t *testing.T) {
 	tx := genTx("0x123", "0x2343")
-	bs, err := marshalTx(tx.RawTransaction)
+	bs, err := marshalTx(tx)
 	t.Logf("%+v, %v", tx, tx.Source)
 	if err != nil {
 		t.Fatal(err)
