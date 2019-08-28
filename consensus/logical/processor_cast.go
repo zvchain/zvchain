@@ -31,10 +31,12 @@ import (
 )
 
 const (
-	blockSecondsBuffer       int64 = 2         //Max acceptable seconds if block's curTime early than now() when validating the block
-	blockPreSendMilliSeconds int64 = 1 * 1e3   //Milliseconds of a proposer can dispatch the block header before the block's curTime
-	normalMinElapse          int32 = 3 * 1e3   //Min elapse milliseconds in normal model
-	chasingMinElapse         int32 = 2.5 * 1e3 //Min elapse milliseconds in chasing model
+	blockSecondsBuffer       int64 = 2       //Max acceptable seconds if block's curTime early than now() when validating the block
+	blockPreSendMilliSeconds int64 = 1 * 1e3 //Milliseconds of a proposer can dispatch the block header before the block's curTime
+
+	chasingSeekEpochs int   = 10        //ChasingSeekEpochs defined the number of epochs to look back to calculator the average block time
+	normalMinElapse   int32 = 3 * 1e3   //Min elapse milliseconds in normal model
+	chasingMinElapse  int32 = 2.5 * 1e3 //Min elapse milliseconds in chasing model
 )
 
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup

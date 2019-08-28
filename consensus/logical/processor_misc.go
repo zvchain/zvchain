@@ -158,9 +158,9 @@ func (p *Processor) GetBlockMinElapse(height uint64) int32 {
 	var result int32
 
 	currentEpoch := types.EpochAt(height)
-	startEpoch := currentEpoch.Add(-3)
+	startEpoch := currentEpoch.Add(-chasingSeekEpochs)
 	endEpoch := currentEpoch.Add(-1)
-	if startEpoch.End() == 0 { // not enter chasing mode in first n epochs
+	if startEpoch.End() == 0 { // not enter chasing mode in first {chasingSeekEpochs} epochs
 		stdLogger.Debugf("epoch not enough. current epoch: %d, min elapse: %d", currentEpoch, normalMinElapse)
 		return normalMinElapse
 	}
