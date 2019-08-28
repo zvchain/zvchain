@@ -16,6 +16,7 @@
 package types
 
 import (
+	"github.com/zvchain/zvchain/common"
 	"math/big"
 )
 
@@ -57,4 +58,6 @@ type ConsensusHelper interface {
 
 	// VerifyBlockHeaders checks if the group is legal and the group signature is correct
 	VerifyBlockHeaders(pre, bh *BlockHeader) (ok bool, err error)
+
+	GroupSkipCountsBetween(preBH, bh *BlockHeader) map[common.Hash]uint16
 }

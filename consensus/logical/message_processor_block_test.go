@@ -406,6 +406,10 @@ type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
 }
 
+func (helper *ConsensusHelperImpl4Test) GroupSkipCountsBetween(preBH, bh *types.BlockHeader) map[common.Hash]int {
+	return nil
+}
+
 func (helper *ConsensusHelperImpl4Test) GenerateGenesisInfo() *types.GenesisInfo {
 	n := 5 //member number
 	info := &types.GenesisInfo{}

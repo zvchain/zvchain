@@ -17,6 +17,7 @@
 package mediator
 
 import (
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/common/ed25519"
 	"math"
 	"math/big"
@@ -90,4 +91,8 @@ func (helper *ConsensusHelperImpl) EstimatePreHeight(bh *types.BlockHeader) uint
 
 func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
 	return Proc.VerifyBlockHeaders(pre, bh)
+}
+
+func (helper *ConsensusHelperImpl) GroupSkipCountsBetween(preBH, bh *types.BlockHeader) map[common.Hash]uint16 {
+	return Proc.GroupSkipCountsBetween(preBH, bh)
 }

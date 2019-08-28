@@ -570,3 +570,34 @@ func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (map[string]interface{}, error
 	ret["drops"] = drops
 	return ret, nil
 }
+
+func (api *RpcDevImpl) JumpBlockInfo(begin, end uint64) (map[string][2]int, error) {
+	pre := core.BlockChainImpl.QueryBlockHeaderFloor(begin)
+	if end == 0 {
+		end = core.BlockChainImpl.Height()
+	}
+	ret := make(map[string][2]int)
+	for h := pre.Height + 1; h < end; h++ {
+		bh := core.BlockChainImpl.QueryBlockHeaderByHeight(h)
+		if bh == nil {
+			g := mediator.Proc.CalcVerifyGroup(pre, h)
+			if v, ok := ret[g.Hex()]; ok {
+				v[1]++
+				ret[g.Hex()] = v
+			} else {
+				v = [2]int{0, 1}
+				ret[g.Hex()] = v
+			}
+		} else {
+			if v, ok := ret[bh.Group.Hex()]; ok {
+				v[0]++
+				ret[bh.Group.Hex()] = v
+			} else {
+				v = [2]int{1, 0}
+				ret[bh.Group.Hex()] = v
+			}
+			pre = bh
+		}
+	}
+	return ret, nil
+}

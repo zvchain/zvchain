@@ -150,3 +150,7 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 
 	return true, nil
 }
+
+func (p *Processor) GroupSkipCountsBetween(preBH, bh *types.BlockHeader) map[common.Hash]uint16 {
+	return selector.groupSkipCountsBetween(preBH, bh)
+}

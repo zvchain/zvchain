@@ -34,7 +34,7 @@ func (p *Processor) triggerCastCheck() {
 	p.Ticker.StartAndTriggerRoutine(p.getCastCheckRoutineName())
 }
 
-func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
+func (p *Processor) CalcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
 	var hash = calcRandomHash(preBH, height)
 
 	groupIS := p.groupReader.getActivatedGroupsByHeight(height)
@@ -57,7 +57,7 @@ func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) com
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {
-	nextGroup := p.calcVerifyGroup(bh, height)
+	nextGroup := p.CalcVerifyGroup(bh, height)
 	group := p.groupReader.getGroupBySeed(nextGroup)
 	g := &net.GroupBrief{
 		GSeed:  nextGroup,

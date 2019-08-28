@@ -183,7 +183,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 	}
 
 	gSeed := bh.Group
-	vGroupSeed := p.calcVerifyGroup(preHeader, bh.Height)
+	vGroupSeed := p.CalcVerifyGroup(preHeader, bh.Height)
 	// Check if the gSeed of the block equal to the calculated one
 	if gSeed != vGroupSeed {
 		err = fmt.Errorf("calc verify group not equal, expect %v infact %v", vGroupSeed, gSeed)

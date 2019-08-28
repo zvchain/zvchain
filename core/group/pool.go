@@ -68,6 +68,24 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 	return nil
 }
 
+func (p *pool) updateSkipCount(db types.AccountDB, seed common.Hash, cnt uint16) {
+	if cnt == 0 {
+		if p.getSkipCount(db, seed) > 0 {
+			db.RemoveData(common.HashToAddress(seed), skipCounterKey)
+		}
+	} else {
+		db.SetData(common.HashToAddress(seed), skipCounterKey, common.UInt16ToByte(cnt))
+	}
+}
+
+func (p *pool) getSkipCount(db types.AccountDB, seed common.Hash) uint16 {
+	bs := db.GetData(common.HashToAddress(seed), skipCounterKey)
+	if len(bs) == 0 {
+		return 0
+	}
+	return common.ByteToUInt16(bs)
+}
+
 // invalidate the groups create at the given epoch when blocks rollback
 func (p *pool) invalidateEpochGroupCache(ep types.Epoch) {
 	p.cachedByEpoch.Remove(ep.End())
