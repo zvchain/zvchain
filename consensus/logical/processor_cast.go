@@ -36,7 +36,7 @@ const (
 
 	chasingSeekEpochs int   = 10        //ChasingSeekEpochs defined the number of epochs to look back to calculator the average block time
 	normalMinElapse   int32 = 3 * 1e3   //Min elapse milliseconds in normal model
-	chasingMinElapse  int32 = 2.5 * 1e3 //Min elapse milliseconds in chasing model
+	chasingMinElapse  int32 = 2.8 * 1e3 //Min elapse milliseconds in chasing model
 )
 
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup
