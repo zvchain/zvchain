@@ -74,6 +74,10 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 func (api *Explore) GetPreHightRewardByHeight(height uint64) []*ExploreBlockReward {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHeight(height)
+	if b == nil {
+		return nil
+
+	}
 	exploreBlockReward := make([]*ExploreBlockReward, 0, 0)
 	if b.Transactions != nil {
 		for _, tx := range b.Transactions {
