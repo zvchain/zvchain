@@ -62,12 +62,14 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			logger.Errorf(string(s))
 		}
 		if err != nil && logger != nil {
-			logger.Error(err)
-
+<
 			//log.ELKLogger.WithFields(logrus.Fields{
 			//	"code": code,
 			//	"now":time.TSInstance.NowTime().Local(),
 			//}).Debug("error: ", err.Error())
+
+			logger.Errorf("handle message code %v from %v err: %v", code, sourceID, err)
+
 		}
 	}()
 
@@ -156,6 +158,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 
 		err = c.processor.OnMessageResponseProposalBlock(m)
 
+		logger.Debugf("recv proposal block %v response from %v", m.Hash, sourceID)
 	}
 
 	return nil

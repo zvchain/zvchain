@@ -32,10 +32,10 @@ package common
 //const GtasVersion = "0.9.10" // add comments
 //const GtasVersion = "0.9.11" // fix group member check
 
-const GtasVersion = "0.9.14"
+const GtasVersion = "0.9.15"
 
 const ConsensusVersion = 1
 
-const ChainDataVersion = 12
+const ChainDataVersion = 14
 
 const ProtocolVersion = 1

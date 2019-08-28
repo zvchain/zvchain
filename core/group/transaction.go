@@ -123,14 +123,14 @@ func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*t
 		return nil, err
 	}
 
-	tx := &types.Transaction{}
-	tx.Data = data
-	tx.Type = txType
-	tx.GasPrice = p.baseGasPrice
-	tx.GasLimit = p.baseGasLimit
-	tx.Nonce = db.GetNonce(source) + 1
-	tx.Hash = tx.GenHash()
-
+	raw := &types.RawTransaction{}
+	raw.Data = data
+	raw.Type = txType
+	raw.GasPrice = p.baseGasPrice
+	raw.GasLimit = p.baseGasLimit
+	raw.Source = &source
+	raw.Nonce = db.GetNonce(source) + 1
+	tx := types.NewTransaction(raw, raw.GenHash())
 	sk := common.HexToSecKey(p.chain.MinerSk())
 	if sk == nil {
 		return nil, fmt.Errorf("fail to get miner's sk")
@@ -139,7 +139,7 @@ func (p *PacketSender) toTx(source common.Address, data []byte, txType int8) (*t
 	if err != nil {
 		return nil, err
 	}
-	tx.Sign = sign.Bytes()
+	raw.Sign = sign.Bytes()
 	return tx, nil
 }
 

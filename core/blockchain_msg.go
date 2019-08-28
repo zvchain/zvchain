@@ -28,7 +28,7 @@ func (chain *FullBlockChain) initMessageHandler() {
 	notify.BUS.Subscribe(notify.NewBlock, chain.newBlockHandler)
 }
 
-func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
+func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	source := m.Source()

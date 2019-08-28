@@ -325,9 +325,9 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 		}
 	}
 	chain := BlockChainImpl
-	lent := chain.topBlocks.Len()
+	lent := chain.topRawBlocks.Len()
 	fmt.Printf("len = %d \n", lent)
-	if 20 != chain.topBlocks.Len() {
+	if 20 != chain.topRawBlocks.Len() {
 		t.Fatalf("error for size:20")
 	}
 
@@ -337,7 +337,7 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 			t.Fatalf("fail to get lowest block from ldb,%d", i)
 		}
 
-		lowest, ok := chain.topBlocks.Get(lowestLDB.Hash)
+		lowest, ok := chain.topRawBlocks.Get(lowestLDB.Hash)
 		if !ok || nil == lowest {
 			t.Fatalf("fail to get lowest block from cache,%d", i)
 		}
@@ -434,14 +434,14 @@ func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.T
 
 	targetbyte := common.BytesToAddress(genHash(target))
 
-	tx := &types.Transaction{
+	raw := &types.RawTransaction{
 		GasPrice: types.NewBigInt(price),
 		GasLimit: types.NewBigInt(5000),
 		Target:   &targetbyte,
 		Nonce:    nonce,
 		Value:    types.NewBigInt(value),
 	}
-	tx.Hash = tx.GenHash()
+	tx := types.NewTransaction(raw, raw.GenHash())
 	sk := common.HexToSecKey(privateKey)
 	sign, _ := sk.Sign(tx.Hash.Bytes())
 
