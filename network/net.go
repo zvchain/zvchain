@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common"
 	"hash/fnv"
 	"net"
 	"sync/atomic"
@@ -737,7 +738,7 @@ func (nc *NetCore) handleNeighbors(req *MsgNeighbors, p *Peer) error {
 
 func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 	if expired(req.Expiration) {
-		Logger.Infof("message expired!")
+		Logger.Infof("message expired!messageId:%X, BizMessageID:%v,", req.MessageID, common.ToHex(req.BizMessageID[:]))
 		return errExpired
 	}
 	srcNodeID := NodeID{}
@@ -745,7 +746,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 
 	Logger.Infof("data from:%v, len:%v, DataType:%v, messageId:%X, BizMessageID:%v, "+
 		"RelayCount:%v, unhandledDataMsg:%v, code:%v,messageInfo:%v",
-		srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, req.BizMessageID,
+		srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, common.ToHex(req.BizMessageID[:]),
 		req.RelayCount, nc.unhandledDataMsg, req.MessageCode, req.MessageInfo)
 
 	statistics.AddCount("net.handleData", uint32(req.DataType), uint64(len(req.Data)))
