@@ -31,8 +31,10 @@ import (
 )
 
 const (
-	blockSecondsBuffer  = 2 //Max acceptable seconds if block's curTime early than now() when validating the block
-	blockPreSendMilliSeconds = 1*1e3 //Milliseconds of a proposer can dispatch the block header before the block's curTime
+	blockSecondsBuffer       int64 = 2         //Max acceptable seconds if block's curTime early than now() when validating the block
+	blockPreSendMilliSeconds int64 = 1 * 1e3   //Milliseconds of a proposer can dispatch the block header before the block's curTime
+	normalMinElapse          int32 = 3 * 1e3   //Min elapse milliseconds in normal model
+	chasingMinElapse         int32 = 2.5 * 1e3 //Min elapse milliseconds in chasing model
 )
 
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup
@@ -216,7 +218,7 @@ func (p *Processor) blockProposal() {
 	}
 	height := worker.castHeight
 
-	if p.ts.Since(worker.baseBH.CurTime) < 0 {
+	if !p.ts.NowAfter(worker.baseBH.CurTime) {
 		blog.error("not the time!now=%v, pre=%v, height=%v", p.ts.Now(), worker.baseBH.CurTime, height)
 		return
 	}

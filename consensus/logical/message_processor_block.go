@@ -56,7 +56,14 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			err = fmt.Errorf("cast begin time illegal, expectBegin at %v, expire at %v", beginTime, expireTime)
 			return
 		}
-
+		if bh.CurTime.SinceMilliSeconds(preBH.CurTime) != int64(bh.Elapsed) {
+			err = fmt.Errorf("cast elapsed time illegal, elapsed is %v, crutime is %v, preCurTime is %v", bh.Elapsed, bh.CurTime, preBH.CurTime)
+			return
+		}
+		if bh.Elapsed < p.GetBlockMinElapse(bh.Height) {
+			err = fmt.Errorf("elapsed error %v", bh.Elapsed)
+			return
+		}
 	}
 	if _, same := p.blockContexts.isHeightCasted(bh.Height, bh.PreHash); same {
 		err = fmt.Errorf("the block of this height has been cast %v", bh.Height)
@@ -201,10 +208,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		return
 	}
 
-	if bh.Elapsed < p.GetBlockMinElapse() {
-		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
-		return
-	}
+
 
 	if p.ts.SinceSeconds(bh.CurTime) < -blockSecondsBuffer {
 		err = fmt.Errorf("block too early: now %v, curtime %v", p.ts.Now(), bh.CurTime)

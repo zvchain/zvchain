@@ -406,7 +406,7 @@ type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
 }
 
-func (helper *ConsensusHelperImpl4Test) GetBlockMinElapse() int32 {
+func (helper *ConsensusHelperImpl4Test) GetBlockMinElapse(height uint64) int32 {
 	return 1
 }
 

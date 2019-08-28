@@ -17,6 +17,7 @@ package logical
 
 import (
 	"fmt"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -152,6 +153,34 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 }
 
 // GetBlockMinElapse return the min elapsed milliseconds for blocks
-func (p *Processor) GetBlockMinElapse() int32 {
-	return 3*1e3								// equals to 3 seconds
+func (p *Processor) GetBlockMinElapse(height uint64) int32 {
+
+	var result int32
+
+	currentEpoch := types.EpochAt(height)
+	startEpoch := currentEpoch.Add(-3)
+	endEpoch := currentEpoch.Add(-1)
+	if startEpoch.End() == 0 { // not enter chasing mode in first n epochs
+		stdLogger.Debugf("epoch not enough. current epoch: %d, min elapse: %d", currentEpoch, normalMinElapse)
+		return normalMinElapse
+	}
+
+	lastBlock := p.MainChain.QueryBlockHeaderCeil(endEpoch.Start())
+	if v, ok := p.cachedMinElapseByEpoch.Get(lastBlock.Hash); ok {
+		return v.(int32)
+	}
+	realCount := p.MainChain.CountBlocksInRange(startEpoch.Start(), endEpoch.Start())
+	firstBlock := p.MainChain.QueryBlockHeaderCeil(startEpoch.Start())
+
+
+	spends := uint64(lastBlock.CurTime.SinceMilliSeconds(firstBlock.CurTime))
+	if spends > realCount*uint64(normalMinElapse) {
+		result = chasingMinElapse
+	} else {
+		result = normalMinElapse
+	}
+	p.cachedMinElapseByEpoch.Add(lastBlock.Hash, result)
+	stdLogger.Debugf("current epoch: %d, min elapse: %d. first block height: %d, last block height: %d, spends: %d, real block count %d",
+		currentEpoch, result, firstBlock.Height, lastBlock.Height, spends, realCount)
+	return result
 }

@@ -59,5 +59,5 @@ type ConsensusHelper interface {
 	VerifyBlockHeaders(pre, bh *BlockHeader) (ok bool, err error)
 
 	// return the min elapsed second for blocks
-	GetBlockMinElapse() int32
+	GetBlockMinElapse(height uint64) int32
 }

@@ -93,6 +93,6 @@ func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader
 }
 
 // GetBlockMinElapse return the min elapsed second for blocks
-func (helper *ConsensusHelperImpl) GetBlockMinElapse() int32 {
-	return Proc.GetBlockMinElapse()
+func (helper *ConsensusHelperImpl) GetBlockMinElapse(height uint64) int32 {
+	return Proc.GetBlockMinElapse(height)
 }

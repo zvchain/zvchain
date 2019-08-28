@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/zvchain/zvchain/monitor"
@@ -117,10 +118,11 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.StateTree = common.BytesToHash(stateRoot.Bytes())
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
-
 	block.Header.Elapsed = int32(block.Header.CurTime.SinceMilliSeconds(latestBlock.CurTime))
-
-	minElapse := chain.consensusHelper.GetBlockMinElapse()
+	if block.Header.Elapsed < 0 {
+		block.Header.Elapsed = math.MaxInt32 //overflow, may happen in first block
+	}
+	minElapse := chain.consensusHelper.GetBlockMinElapse(block.Header.Height)
 	if block.Header.Elapsed < minElapse {
 		block.Header.CurTime = latestBlock.CurTime.AddMilliSeconds(int64(minElapse))
 		block.Header.Elapsed = minElapse
@@ -249,7 +251,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	}
 	bh := block.Header
 
-	minElapse := chain.consensusHelper.GetBlockMinElapse()
+	minElapse := chain.consensusHelper.GetBlockMinElapse(bh.Height)
 	if bh.Elapsed < minElapse {
 		Logger.Debugf("Validate block elapsed error!")
 		err = fmt.Errorf("elapsed error %v", bh.Elapsed)

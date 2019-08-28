@@ -218,7 +218,7 @@ type BlockHeader struct {
 	Hash        common.Hash    // The hash of this block
 	Height      uint64         // The height of this block
 	PreHash     common.Hash    // The hash of previous block
-	Elapsed     int32          // The length of time from the last block
+	Elapsed     int32          // The length of milliseconds from the last block
 	ProveValue  []byte         // Vrf prove
 	TotalQN     uint64         // QN of the entire chain
 	CurTime     time.TimeStamp // Current block time
