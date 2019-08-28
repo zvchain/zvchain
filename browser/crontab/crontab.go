@@ -46,12 +46,14 @@ func (crontab *Crontab) loop() {
 	defer check.Stop()
 	go crontab.fetchBlockRewards()
 	go crontab.fetchBlockStakeAll()
+	go crontab.fetchPoolVotes()
 
 	for {
 		select {
 		case <-check.C:
 			go crontab.fetchBlockRewards()
 			go crontab.fetchBlockStakeAll()
+			go crontab.fetchPoolVotes()
 
 		}
 	}
@@ -68,16 +70,16 @@ func (crontab *Crontab) fetchPoolVotes() {
 	for _, account := range accounts {
 		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"role_type": types.MinerNormal})
 	}
-	accountspool := crontab.storage.GetAccountByRoletype(crontab.maxid, types.MinerPool)
-	if accountspool != nil && len(accountspool) > 0 {
+	accountsPool := crontab.storage.GetAccountByRoletype(crontab.maxid, types.MinerPool)
+	if accountsPool != nil && len(accountsPool) > 0 {
 		var db types.AccountDB
 		var err error
 		if err != nil || db == nil {
 			return
 		}
 		db, err = core.BlockChainImpl.LatestAccountDB()
-		total := len(accountspool) - 1
-		for num, pool := range accountspool {
+		total := len(accountsPool) - 1
+		for num, pool := range accountsPool {
 			if num == total {
 				crontab.maxid = pool.ID
 			}

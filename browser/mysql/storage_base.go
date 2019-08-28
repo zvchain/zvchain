@@ -67,6 +67,9 @@ func (storage *Storage) Init(reset bool) {
 	storage.db = db
 	if reset {
 		db.DropTable(&models.Account{})
+		db.DropTable(&models.Sys{})
+		db.DropTable(&models.PoolStake{})
+
 	}
 	if !db.HasTable(&models.Account{}) {
 		db.CreateTable(&models.Account{})
