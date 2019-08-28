@@ -119,6 +119,13 @@ func stateValidate(tx *types.Transaction) (balance *big.Int, err error) {
 	if gasLimitFee.Cmp(balance) > 0 {
 		return nil, fmt.Errorf("balance not enough for paying gas, %v", src)
 	}
+	if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall {
+		totalCost := new(types.BigInt).Add(gasLimitFee, tx.Value.Value())
+		if totalCost.Cmp(balance) > 0 {
+			return nil, fmt.Errorf("balance not enough for paying gas and value, %v", src)
+		}
+	}
+
 	// Check gas price related to height
 	if !validGasPrice(tx.GasPrice.Value(), BlockChainImpl.Height()) {
 		return nil, fmt.Errorf("gas price below the lower bound")

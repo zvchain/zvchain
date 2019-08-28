@@ -170,8 +170,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ := proto.Marshal(&message)
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err := blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got err,but got nil")
 	}
 
 	//error protobuf format
@@ -191,8 +191,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ = proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	//tx sign error
@@ -202,8 +202,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ = proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	//correct block hash
@@ -213,8 +213,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ = proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	//rock back attack
@@ -229,8 +229,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	if BlockChainImpl.latestBlock.Hash == middleBlockHash {
 		t.Fatalf("hash error")
 	}
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 }
 

@@ -45,29 +45,29 @@ func (api *RpcDevImpl) Version() string {
 	return "1"
 }
 
-func (api *RpcDevImpl) ProposalTotalStake(height uint64) (*Result, error) {
+func (api *RpcDevImpl) ProposalTotalStake(height uint64) (uint64, error) {
 	if core.MinerManagerImpl == nil {
-		return failResult("status error")
+		return 0, fmt.Errorf("status error")
 
 	} else {
 		totalStake := core.MinerManagerImpl.GetProposalTotalStake(height)
-		return successResult(totalStake)
+		return totalStake, nil
 	}
 }
 
 // ConnectedNodes query the information of the connected node
-func (api *RpcDevImpl) ConnectedNodes() (*Result, error) {
+func (api *RpcDevImpl) ConnectedNodes() ([]ConnInfo, error) {
 
 	nodes := network.GetNetInstance().ConnInfo()
 	conns := make([]ConnInfo, 0)
 	for _, n := range nodes {
 		conns = append(conns, ConnInfo{ID: n.ID, IP: n.IP, TCPPort: n.Port})
 	}
-	return successResult(conns)
+	return conns, nil
 }
 
 // TransPool query buffer transaction information
-func (api *RpcDevImpl) TransPool() (*Result, error) {
+func (api *RpcDevImpl) TransPool() ([]Transactions, error) {
 	transactions := core.BlockChainImpl.GetTransactionPool().GetReceived()
 	transList := make([]Transactions, 0, len(transactions))
 	for _, v := range transactions {
@@ -79,34 +79,31 @@ func (api *RpcDevImpl) TransPool() (*Result, error) {
 		})
 	}
 
-	return successResult(transList)
+	return transList, nil
 }
 
-func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (*Result, error) {
+func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (float64, error) {
 	if !common.ValidateAddress(strings.TrimSpace(account)) {
-		return failResult("Wrong account address format")
+		return 0, fmt.Errorf("wrong account address format")
 	}
 	db, err := core.BlockChainImpl.AccountDBAt(height)
 	if err != nil {
-		return failResult("this height is invalid")
+		return 0, fmt.Errorf("this height is invalid")
 	}
 	b := db.GetBalance(common.StringToAddress(account))
 
 	balance := common.RA2TAS(b.Uint64())
-	return &Result{
-		Message: fmt.Sprintf("The balance of account: %s is %v ZVC", account, balance),
-		Data:    balance,
-	}, nil
+	return balance, nil
 }
 
 // get transaction by hash
-func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
+func (api *RpcDevImpl) GetTransaction(hash string) (map[string]interface{}, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
-		return failResult("Wrong hash format")
+		return nil, fmt.Errorf("wrong hash format")
 	}
 	transaction := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(hash))
 	if transaction == nil {
-		return failResult("transaction not exists")
+		return nil, nil
 	}
 	detail := make(map[string]interface{})
 	detail["hash"] = hash
@@ -118,12 +115,12 @@ func (api *RpcDevImpl) GetTransaction(hash string) (*Result, error) {
 	}
 	detail["value"] = transaction.Value
 
-	return successResult(detail)
+	return detail, nil
 }
 
-func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
+func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) ([]*Block, error) {
 	if from > to {
-		return failResult("param error")
+		return nil, fmt.Errorf("param error")
 	}
 	blocks := make([]*Block, 0)
 	var preBH *types.BlockHeader
@@ -143,10 +140,10 @@ func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) (*Result, error) {
 			blocks = append(blocks, block)
 		}
 	}
-	return successResult(blocks)
+	return blocks, nil
 }
 
-func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
+func (api *RpcDevImpl) GetTopBlock() (map[string]interface{}, error) {
 	bh := core.BlockChainImpl.QueryTopBlock()
 	b := core.BlockChainImpl.QueryBlockByHash(bh.Hash)
 	bh = b.Header
@@ -168,25 +165,25 @@ func (api *RpcDevImpl) GetTopBlock() (*Result, error) {
 	blockDetail["tx_pool_count"] = len(core.BlockChainImpl.GetTransactionPool().GetReceived())
 	blockDetail["tx_pool_total"] = core.BlockChainImpl.GetTransactionPool().TxNum()
 	blockDetail["miner_id"] = mediator.Proc.GetMinerID().GetAddrString()
-	return successResult(blockDetail)
+	return blockDetail, nil
 }
 
-func (api *RpcDevImpl) WorkGroupNum() (*Result, error) {
+func (api *RpcDevImpl) WorkGroupNum() (int, error) {
 	groups := api.gr.ActiveGroupCount()
-	return successResult(groups)
+	return groups, nil
 }
 
-func (api *RpcDevImpl) GetGroupsAfter(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetGroupsAfter(height uint64) ([]*Group, error) {
 	api2 := &RpcExplorerImpl{rpcBaseImpl: api.rpcBaseImpl}
 	return api2.ExplorerGroupsAfter(height)
 }
 
-func (api *RpcDevImpl) GetCurrentWorkGroup() (*Result, error) {
+func (api *RpcDevImpl) GetCurrentWorkGroup() ([]*Group, error) {
 	height := core.BlockChainImpl.Height()
 	return api.GetWorkGroup(height)
 }
 
-func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetWorkGroup(height uint64) ([]*Group, error) {
 	groups := api.gr.GetActivatedGroupsAt(height)
 	ret := make([]*Group, 0)
 	for _, group := range groups {
@@ -196,11 +193,11 @@ func (api *RpcDevImpl) GetWorkGroup(height uint64) (*Result, error) {
 		}
 
 	}
-	return successResult(ret)
+	return ret, nil
 }
 
 // CastStat cast block statistics
-func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
+func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (map[string]map[string]int32, error) {
 	proposerStat := make(map[string]int32)
 	groupStat := make(map[string]int32)
 
@@ -242,10 +239,10 @@ func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (*Result, error) {
 	ret := make(map[string]map[string]int32)
 	ret["proposer"] = pmap
 	ret["group"] = gmap
-	return successResult(ret)
+	return ret, nil
 }
 
-func (api *RpcDevImpl) NodeInfo() (*Result, error) {
+func (api *RpcDevImpl) NodeInfo() (*NodeInfo, error) {
 	ni := &NodeInfo{}
 	p := mediator.Proc
 	ni.ID = p.GetMinerID().GetAddrString()
@@ -282,11 +279,11 @@ func (api *RpcDevImpl) NodeInfo() (*Result, error) {
 		ni.TxPoolNum = int(core.BlockChainImpl.GetTransactionPool().TxNum())
 
 	}
-	return successResult(ni)
+	return ni, nil
 
 }
 
-func (api *RpcDevImpl) Dashboard() (*Result, error) {
+func (api *RpcDevImpl) Dashboard() (*Dashboard, error) {
 	blockHeight := core.BlockChainImpl.Height()
 	groupHeight := api.gr.Height()
 	workNum := api.gr.ActiveGroupCount()
@@ -296,20 +293,20 @@ func (api *RpcDevImpl) Dashboard() (*Result, error) {
 		BlockHeight: blockHeight,
 		GroupHeight: groupHeight,
 		WorkGNum:    workNum,
-		NodeInfo:    nodeResult.Data.(*NodeInfo),
-		Conns:       consResult.Data.([]ConnInfo),
+		NodeInfo:    nodeResult,
+		Conns:       consResult,
 	}
-	return successResult(dash)
+	return dash, nil
 }
 
-func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
+func (api *RpcDevImpl) BlockDetail(h string) (*BlockDetail, error) {
 	if !validateHash(strings.TrimSpace(h)) {
-		return failResult("Wrong param format")
+		return nil, fmt.Errorf("wrong param format")
 	}
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHash(common.HexToHash(h))
 	if b == nil {
-		return successResult(nil)
+		return nil, nil
 	}
 	bh := b.Header
 	block := convertBlockHeader(b)
@@ -426,17 +423,17 @@ func (api *RpcDevImpl) BlockDetail(h string) (*Result, error) {
 		MinerReward:   mbs,
 		PreTotalQN:    preBH.TotalQN,
 	}
-	return successResult(bd)
+	return bd, nil
 }
 
-func (api *RpcDevImpl) BlockReceipts(h string) (*Result, error) {
+func (api *RpcDevImpl) BlockReceipts(h string) (*BlockReceipt, error) {
 	if !validateHash(strings.TrimSpace(h)) {
-		return failResult("Wrong param format")
+		return nil, fmt.Errorf("wrong param format")
 	}
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHash(common.HexToHash(h))
 	if b == nil {
-		return failResult("block not found")
+		return nil, fmt.Errorf("block not found")
 	}
 
 	evictedReceipts := make([]*types.Receipt, 0)
@@ -448,11 +445,11 @@ func (api *RpcDevImpl) BlockReceipts(h string) (*Result, error) {
 		}
 	}
 	br := &BlockReceipt{EvictedReceipts: evictedReceipts, Receipts: receipts}
-	return successResult(br)
+	return br, nil
 }
 
 // MonitorBlocks monitoring platform calls block sync
-func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
+func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) ([]*BlockDetail, error) {
 	chain := core.BlockChainImpl
 	if begin > end {
 		end = begin
@@ -490,18 +487,18 @@ func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) (*Result, error) {
 		pre = b
 		blocks = append(blocks, bd)
 	}
-	return successResult(blocks)
+	return blocks, nil
 }
 
-func (api *RpcDevImpl) MonitorNodeInfo() (*Result, error) {
+func (api *RpcDevImpl) MonitorNodeInfo() (*NodeInfo, error) {
 	bh := core.BlockChainImpl.Height()
 	gh := api.gr.Height()
 
 	ni := &NodeInfo{}
 
-	ret, _ := api.NodeInfo()
-	if ret != nil && ret.IsSuccess() {
-		ni = ret.Data.(*NodeInfo)
+	ret, err := api.NodeInfo()
+	if err != nil {
+		ni = ret
 	}
 	ni.BlockHeight = bh
 	ni.GroupHeight = gh
@@ -513,10 +510,10 @@ func (api *RpcDevImpl) MonitorNodeInfo() (*Result, error) {
 			}
 		}
 	}
-	return successResult(ni)
+	return ni, nil
 }
 
-func (api *RpcDevImpl) MonitorAllMiners() (*Result, error) {
+func (api *RpcDevImpl) MonitorAllMiners() (map[string]interface{}, error) {
 	miners := mediator.Proc.GetAllMinerDOs()
 	totalStake := uint64(0)
 	maxStake := uint64(0)
@@ -533,10 +530,10 @@ func (api *RpcDevImpl) MonitorAllMiners() (*Result, error) {
 	data["miners"] = miners
 	data["maxStake"] = maxStake
 	data["totalStake"] = totalStake
-	return successResult(data)
+	return data, nil
 }
 
-func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
+func (api *RpcDevImpl) GetLivedGroup(height uint64) ([]*Group, error) {
 	groups := api.gr.GetLivedGroupsAt(height)
 	ret := make([]*Group, 0)
 	for _, group := range groups {
@@ -546,15 +543,15 @@ func (api *RpcDevImpl) GetLivedGroup(height uint64) (*Result, error) {
 		}
 
 	}
-	return successResult(ret)
+	return ret, nil
 }
 
-func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
+func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (map[string]interface{}, error) {
 	if e == 0 {
 		e = core.BlockChainImpl.Height()
 	}
 	if b > e {
-		return failResult("begin larger than end")
+		return nil, fmt.Errorf("begin larger than end")
 	}
 	heights := core.BlockChainImpl.ScanBlockHeightsInRange(b, e)
 	drops := make([]uint64, 0)
@@ -571,5 +568,5 @@ func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (*Result, error) {
 	ret["real_heights"] = len(heights)
 	ret["drop_rate"] = dropRate
 	ret["drops"] = drops
-	return successResult(ret)
+	return ret, nil
 }

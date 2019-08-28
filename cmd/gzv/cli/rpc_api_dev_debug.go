@@ -16,13 +16,18 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 )
 
-func (api *RpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
+type rewardTxHash struct {
+	TxHash, BlockHash common.Hash
+}
+
+func (api *RpcDevImpl) DebugGetTxs(limit int) ([]string, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetReceived()
 
 	hashs := make([]string, 0)
@@ -32,15 +37,11 @@ func (api *RpcDevImpl) DebugGetTxs(limit int) (*Result, error) {
 			break
 		}
 	}
-	return successResult(hashs)
+	return hashs, nil
 }
 
-func (api *RpcDevImpl) DebugGetRewardTxs(limit int) (*Result, error) {
+func (api *RpcDevImpl) DebugGetRewardTxs(limit int) ([]*rewardTxHash, error) {
 	txs := core.BlockChainImpl.GetTransactionPool().GetRewardTxs()
-
-	type rewardTxHash struct {
-		TxHash, BlockHash common.Hash
-	}
 
 	hashs := make([]*rewardTxHash, 0)
 	for _, tx := range txs {
@@ -53,18 +54,18 @@ func (api *RpcDevImpl) DebugGetRewardTxs(limit int) (*Result, error) {
 			break
 		}
 	}
-	return successResult(hashs)
+	return hashs, nil
 }
 
-func (api *RpcDevImpl) DebugGetRawTx(hash string) (*Result, error) {
+func (api *RpcDevImpl) DebugGetRawTx(hash string) (*Transaction, error) {
 	if !validateHash(strings.TrimSpace(hash)) {
-		return failResult("Wrong param format")
+		return nil, fmt.Errorf("wrong param format")
 	}
 	tx := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(hash))
 
 	if tx != nil {
 		trans := convertTransaction(tx)
-		return successResult(trans)
+		return trans, nil
 	}
-	return successResult(nil)
+	return nil, nil
 }
