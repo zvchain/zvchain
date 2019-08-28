@@ -85,8 +85,8 @@ func (c *newAccountCmd) parse(args []string) bool {
 		output("Please input password")
 		return false
 	}
-	if len(pass) > 50 || len(pass) < 3 {
-		output("password length should between 3-50")
+	if len(pass) > common.MaxPasswordLength || len(pass) < common.MinPasswordLength {
+		fmt.Printf("password length should between %d-%d \n", common.MinPasswordLength, common.MaxPasswordLength)
 		return false
 	}
 	return true
@@ -209,7 +209,7 @@ func (c *minerPoolInfoCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -836,8 +836,8 @@ func (c *importKeyCmd) parse(args []string) bool {
 		output("Please input password")
 		return false
 	}
-	if len(pass) > 50 || len(pass) < 3 {
-		output("password length should between 3-50")
+	if len(pass) > common.MaxPasswordLength || len(pass) < common.MinPasswordLength {
+		fmt.Printf("password length should between %d-%d \n", common.MinPasswordLength, common.MaxPasswordLength)
 		return false
 	}
 	return true
@@ -977,7 +977,7 @@ func Usage() {
 }
 
 func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error {
-	aop, err := initAccountManager(keystore, false)
+	aop, err := initAccountManager(keystore, false, "")
 	if err != nil {
 		return err
 	}
