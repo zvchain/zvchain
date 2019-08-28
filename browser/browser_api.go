@@ -98,27 +98,29 @@ func (tm *DBMmanagement) fetchAccounts() {
 					}
 					//stake list
 					if _, exists := stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()]; exists {
-					if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
-						if tx.Type == types.TransactionTypeStakeAdd {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
+						if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
+							if tx.Type == types.TransactionTypeStakeAdd {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
+							}
+							if tx.Type == types.TransactionTypeStakeReduce {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
+							}
+						} else {
+							stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
+							if tx.Type == types.TransactionTypeStakeAdd {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
+							}
+							if tx.Type == types.TransactionTypeStakeReduce {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
+							}
 						}
-						if tx.Type == types.TransactionTypeStakeReduce {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
-						}
-					} else {
-						stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
-						if tx.Type == types.TransactionTypeStakeAdd {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
-						}
-						if tx.Type == types.TransactionTypeStakeReduce {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
-						}
-					}
 
-				} else {
-					continue
+					} else {
+						continue
+					}
 				}
 			}
+			//生成质押来源信息
 			generateStakefromByTransaction(tm, stakelist)
 			//begain
 			accounts := &models.Account{}
@@ -152,7 +154,6 @@ func (tm *DBMmanagement) fetchAccounts() {
 
 				}
 			}
-			//生成质押来源信息
 
 		}
 
