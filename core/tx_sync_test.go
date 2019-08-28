@@ -231,7 +231,7 @@ func init4TxSync() {
 	initPeerManager()
 	types.InitMiddleware()
 	initNetwork()
-	initTxSyncer(BlockChainImpl.(*FullBlockChain), BlockChainImpl.GetTransactionPool().(*txPool), NetImpl)
+	initTxSyncer(BlockChainImpl, BlockChainImpl.GetTransactionPool().(*txPool), NetImpl)
 	//network.Init(nil,nil,nil)
 
 	types.DefaultPVFunc = PvFuncTest
@@ -413,14 +413,14 @@ func (b *BigInt) GetBytesWithSign() []byte {
 
 func AddBalance() {
 	blocks := GenBlocks()
-	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 
 	stateDB.AddBalance(common.StringToAddress(adminAddress), new(big.Int).SetUint64(99999999999999999))
 
 	exc := &executePostState{state: stateDB}
 	root := stateDB.IntermediateRoot(true)
 	blocks[0].Header.StateTree = common.BytesToHash(root.Bytes())
-	BlockChainImpl.(*FullBlockChain).commitBlock(blocks[0], exc)
+	BlockChainImpl.commitBlock(blocks[0], exc)
 	lastBlockHash = blocks[0].Header.Hash
 }
 
@@ -724,10 +724,10 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 	data5 = append(data5, 0)
 	datas := [][]byte{data1, data2, data3, data4, data5}
 
-	var txs []*types.Transaction
+	var txs []*types.RawTransaction
 	targetbyte := common.StringToAddress(target)
 	for i := 0; i < 5; i++ {
-		tx := &types.Transaction{
+		tx := &types.RawTransaction{
 			Data:     datas[i],
 			Value:    types.NewBigInt(value),
 			Nonce:    Nonce,

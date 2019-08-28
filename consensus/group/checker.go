@@ -28,8 +28,8 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-const doFreezeReceivedRate = 0.5 //will do freeze directly if piece/mpk received rate bigger than value in this round
-const noFreezeDropRate = 0.5     //will not freeze miner if block drop rate bigger than value in this round
+const doFreezeReceivedRate = 0.5 // will do freeze directly if piece/mpk received rate bigger than value in this round
+const noFreezeDropRate = 0.5     // will not freeze miner if block drop rate bigger than value in this round
 
 type createChecker struct {
 	chain       types.BlockChain

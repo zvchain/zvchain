@@ -131,7 +131,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		p.blockContexts.attachVctx(bh, vctx)
 		vctx.markSignedBlock(bh)
 
-		stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", bh.Hash.Hex(), sKey.GetHexString(), p.GetMinerID(), cvm.SI.DataSign.GetHexString(), gSeed)
+		//stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", bh.Hash.Hex(), sKey.GetHexString(), p.GetMinerID(), cvm.SI.DataSign.GetHexString(), gSeed)
 
 		// trigger the cached messages from other members that come ahead of the proposal message
 		p.castVerifyCh <- bh
@@ -200,7 +200,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		return
 	}
 
-	if bh.Elapsed <= 0 {
+	if bh.Elapsed < 0 {
 		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
 		return
 	}
@@ -260,7 +260,7 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		return
 	}
 	bh := slot.BH
-	gSeed := vctx.group.header.Seed()
+	gSeed := vctx.group.header.seed
 
 	if err = vctx.baseCheck(bh, cvm.SI.GetID()); err != nil {
 		return
@@ -347,6 +347,16 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 		return
 	}
 	traceLog.SetHeight(vctx.castHeight)
+
+	vctxExist := p.blockContexts.getVctxByHeight(vctx.castHeight)
+	if vctxExist == nil || vctxExist.prevBH.Hash != vctx.prevBH.Hash {
+		expectHash := "nil"
+		if vctxExist != nil {
+			expectHash = common.ShortHex(vctxExist.prevBH.Hash.Hex())
+		}
+		err = fmt.Errorf("vctx has changed, height=%v, expect pre=%v, real pre=%v", vctx.castHeight, expectHash, vctx.prevBH.Hash)
+		return
+	}
 
 	// Do the verification work
 	ret, err = p.doVerify(cvm, vctx)

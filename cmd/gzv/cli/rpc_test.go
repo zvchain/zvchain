@@ -26,7 +26,7 @@ import (
 	"github.com/zvchain/zvchain/core"
 )
 
-const code  =`
+const code = `
 
 # import account
 
@@ -173,8 +173,8 @@ func TestMarshalTxRawData(t *testing.T) {
 	tx := &txRawData{
 		Target:   "0x123",
 		Value:    100000000,
-		Gas:      1304,
-		Gasprice: 2324,
+		GasLimit: 1304,
+		GasPrice: 2324,
 	}
 	json, err := json.Marshal(tx)
 	if err != nil {
@@ -194,8 +194,7 @@ func TestUnmarhsalTxRawData(t *testing.T) {
 	}
 }
 
-
-func TestParseABI(t *testing.T)  {
+func TestParseABI(t *testing.T) {
 	abi := parseABI(code)
 	fmt.Println(abi)
 }

@@ -86,7 +86,7 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 	ok := mediator.StartMiner()
 
 	fmt.Println("Syncing block and group info from ZV net.Waiting...")
-	core.InitBlockSyncer(core.BlockChainImpl.(*core.FullBlockChain))
+	core.InitBlockSyncer(core.BlockChainImpl)
 
 	// Auto apply miner role when balance enough
 	var appFun applyFunc
@@ -176,6 +176,7 @@ func (gtas *Gtas) Run() {
 		fmt.Println("Welcome to be a ZV verify miner!")
 	}
 	autoCreateAccount := mineCmd.Flag("createaccount", "if account not exists,create it by password").Bool()
+	reset := mineCmd.Flag("reset", "reset the local top to block of the given hash").Default("").String()
 
 	// In test mode, P2P NAT is closed
 	testMode := mineCmd.Flag("test", "test mode").Bool()
@@ -222,20 +223,21 @@ func (gtas *Gtas) Run() {
 		}
 
 		cfg := &minerConfig{
-			rpcLevel:          rpcLevel(*rpc),
-			rpcAddr:           addrRPC.String(),
-			rpcPort:           *rpcServicePort,
-			super:             *super,
-			testMode:          *testMode,
-			natIP:             *natAddr,
-			natPort:           *natPort,
-			seedIP:            *seedAddr,
-			applyRole:         *apply,
-			keystore:          *keystore,
-			enableMonitor:     *enableMonitor,
-			chainID:           *chainID,
-			password:          *passWd,
+			rpcLevel:      rpcLevel(*rpc),
+			rpcAddr:       addrRPC.String(),
+			rpcPort:       *rpcServicePort,
+			super:         *super,
+			testMode:      *testMode,
+			natIP:         *natAddr,
+			natPort:       *natPort,
+			seedIP:        *seedAddr,
+			applyRole:     *apply,
+			keystore:      *keystore,
+			enableMonitor: *enableMonitor,
+			chainID:       *chainID,
+			password:      *passWd,
 			autoCreateAccount: *autoCreateAccount,
+			resetHash:     *reset,
 		}
 
 		// Start miner
@@ -362,6 +364,14 @@ func (gtas *Gtas) fullInit() error {
 	err = core.InitCore(helper, &gtas.account)
 	if err != nil {
 		return err
+	}
+	if cfg.resetHash != "" {
+		bh := core.BlockChainImpl.QueryBlockHeaderByHash(common.HexToHash(cfg.resetHash))
+		if bh == nil {
+			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
+		}
+		core.BlockChainImpl.ResetTop(bh)
+		output("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex())
 	}
 
 	enableTraceLog := common.GlobalConf.GetBool("gtas", "enable_trace_log", false)

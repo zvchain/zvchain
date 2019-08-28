@@ -58,13 +58,13 @@ func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*ExplorerBlockDe
 	trans := make([]Transaction, 0)
 
 	for _, tx := range b.Transactions {
-		trans = append(trans, *convertTransaction(tx))
+		trans = append(trans, *convertTransaction(types.NewTransaction(tx, tx.GenHash())))
 	}
 
 	evictedReceipts := make([]*types.Receipt, 0)
 
 	receipts := make([]*types.Receipt, len(b.Transactions))
-	for i, tx := range b.Transactions {
+	for i, tx := range trans {
 		wrapper := chain.GetTransactionPool().GetReceipt(tx.Hash)
 		if wrapper != nil {
 			receipts[i] = wrapper
@@ -110,7 +110,7 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*ExploreBlockRew
 		for _, tx := range b.Transactions {
 			if tx.IsReward() {
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
-				receipt := chain.GetTransactionPool().GetReceipt(tx.Hash)
+				receipt := chain.GetTransactionPool().GetReceipt(tx.GenHash())
 				if receipt != nil && block != nil && receipt.Success() {
 					share := rm.CalculateCastRewardShare(bh.Height, 0)
 					packedReward += share.ForRewardTxPacking

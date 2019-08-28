@@ -144,14 +144,14 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
 	body, e := marshalCastRewardTransSignReqMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send CastRewardTransSignReqMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send CastRewardTransSignReqMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.CastRewardSignReq, Body: body}
 
 	gSeed := msg.Reward.Group
 
-	network.Logger.Debugf("send SendCastRewardSignReq to %v", gSeed.Hex())
+	logger.Debugf("send SendCastRewardSignReq to %v", gSeed.Hex())
 
 	ns.send2Self(msg.SI.GetID(), m)
 
@@ -162,19 +162,18 @@ func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSig
 func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMessage) {
 	body, e := marshalCastRewardTransSignMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send CastRewardTransSignMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send CastRewardTransSignMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.CastRewardSignGot, Body: body}
-
-	ns.net.SendWithGroupRelay(msg.Launcher.GetAddrString(), msg.GSeed.Hex(), m)
+	ns.net.Send(msg.Launcher.GetAddrString(), m)
 }
 
 // ReqProposalBlock request block body from the target
 func (ns *NetworkServerImpl) ReqProposalBlock(msg *model.ReqProposalBlock, target string) {
 	body, e := marshalReqProposalBlockMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send marshalReqProposalBlockMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send marshalReqProposalBlockMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.ReqProposalBlock, Body: body}
@@ -187,10 +186,11 @@ func (ns *NetworkServerImpl) ResponseProposalBlock(msg *model.ResponseProposalBl
 
 	body, e := marshalResponseProposalBlockMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send marshalResponseProposalBlockMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send marshalResponseProposalBlockMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.ResponseProposalBlock, Body: body}
 
 	ns.net.Send(target, m)
+	logger.Debugf("send response block %v %v to %v", msg.Hash, len(msg.Transactions), target)
 }
