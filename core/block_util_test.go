@@ -25,8 +25,8 @@ func TestCalTree(t *testing.T) {
 	tx1 := getRandomTxs()
 	tree1 := tx1.calcTxTree()
 
-	if tree1.Hex() != "0x5a312281df4bd8dfbb4d4a94ad0bf44d01bb8cfced1206b90e21b4ca0568cdb1" {
-		t.Errorf("mismatch, expect 0x5a312281df4bd8dfbb4d4a94ad0bf44d01bb8cfced1206b90e21b4ca0568cdb1 but got get %s ", tree1.Hex())
+	if tree1.Hex() != "0x1bf2ea86092b9009f6ddec4a3409b09fff9fe72f34fb4491b9856e2154c6a729" {
+		t.Errorf("mismatch, expect 0x1bf2ea86092b9009f6ddec4a3409b09fff9fe72f34fb4491b9856e2154c6a729 but got get %s ", tree1.Hex())
 	}
 }
 

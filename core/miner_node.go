@@ -175,6 +175,17 @@ func (m *MinerPoolProposalMiner) processApplyGuard(op *applyGuardMinerOp, miner 
 	return fmt.Errorf("miner pool not support apply guard node")
 }
 
+func (b *MinerPoolProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
+	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
+	if err !=nil{
+		return err
+	}
+	if sourceMiner != nil && sourceMiner.IsMinerPool(){
+		return fmt.Errorf("miner pool can not stake add to other miner pool,source is %s,target is %s,height = %v",op.addSource,op.addTarget,op.height)
+	}
+	return nil
+}
+
 func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64) error {
 	isFull := isFullTickets(totalTickets, op.height)
 	if !isFull {
