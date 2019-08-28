@@ -327,9 +327,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 		newTop := chain.queryBlockHeaderByHash(bh.PreHash)
 		old := chain.latestBlock
 		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
-		if old.Height-newTop.Height >= 4 {
-			chain.logLongForkReset([]*types.Block{b}, newTop)
-		}
+
 		if e := chain.resetTop(newTop); e != nil {
 			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash, newTop.Hash, newTop.Height)
 			ret = types.AddBlockFailed
