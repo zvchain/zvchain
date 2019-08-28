@@ -363,13 +363,21 @@ type NetTest struct {
 }
 
 func (s *NetTest) Send(id string, msg network.Message) error {
-
 	txbody := msg.Body
 	txs, err := types.UnMarshalTransactions(txbody)
 	if err != nil {
 		return err
 	}
-	OnReqTxsTest = txs
+	ts := []*types.Transaction{}
+	for _,t :=range txs{
+		tn := &types.Transaction{
+			RawTransaction:t,
+			Hash:t.GenHash(),
+		}
+		ts = append(ts,tn)
+	}
+
+	OnReqTxsTest = ts
 	return nil
 }
 
@@ -524,7 +532,7 @@ func generateEvilTX(price uint64, target string, nonce uint64, value uint64) *Fa
 	return tx
 }
 
-func transactionFakeToPb(t *FakeTransaction) *tas_middleware_pb.Transaction {
+func transactionFakeToPb(t *FakeTransaction) *tas_middleware_pb.RawTransaction {
 	if t == nil {
 		return nil
 	}
@@ -535,14 +543,13 @@ func transactionFakeToPb(t *FakeTransaction) *tas_middleware_pb.Transaction {
 		target = t.Target
 	}
 	tp := int32(t.Type)
-	transaction := tas_middleware_pb.Transaction{
+	transaction := tas_middleware_pb.RawTransaction{
 		Data:      t.Data,
 		Value:     t.Value.GetBytesWithSign(),
 		Nonce:     &t.Nonce,
 		Target:    target,
 		GasLimit:  t.GasLimit.GetBytesWithSign(),
 		GasPrice:  t.GasPrice.GetBytesWithSign(),
-		Hash:      t.Hash.Bytes(),
 		ExtraData: t.ExtraData,
 		Type:      &tp,
 		Sign:      t.Sign,
@@ -550,11 +557,11 @@ func transactionFakeToPb(t *FakeTransaction) *tas_middleware_pb.Transaction {
 	return &transaction
 }
 
-func TransactionsFakeToPb(txs []*FakeTransaction) []*tas_middleware_pb.Transaction {
+func TransactionsFakeToPb(txs []*FakeTransaction) []*tas_middleware_pb.RawTransaction {
 	if txs == nil {
 		return nil
 	}
-	transactions := make([]*tas_middleware_pb.Transaction, 0)
+	transactions := make([]*tas_middleware_pb.RawTransaction, 0)
 	for _, t := range txs {
 		transaction := transactionFakeToPb(t)
 		transactions = append(transactions, transaction)
@@ -565,7 +572,7 @@ func TransactionsFakeToPb(txs []*FakeTransaction) []*tas_middleware_pb.Transacti
 // MarshalTransactions serialize []*Transaction
 func MarshalFakeTransactions(txs []*FakeTransaction) ([]byte, error) {
 	transactions := TransactionsFakeToPb(txs)
-	transactionSlice := tas_middleware_pb.TransactionSlice{Transactions: transactions}
+	transactionSlice := tas_middleware_pb.RawTransactionSlice{Transactions: transactions}
 	return proto.Marshal(&transactionSlice)
 }
 
@@ -598,7 +605,7 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 		}
 	}
 
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Data:     data1,
 		Value:    types.NewBigInt(value),
 		Nonce:    Nonce,
@@ -612,22 +619,24 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 		tx.Target = &targetbyte
 	}
 
-	tx.Hash = tx.GenHash()
+	//tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
-
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func genetateMinerOpTx(value uint64, target string, txType int, gasLimit uint64, gasprice uint64, mType types.MinerType, isEvil bool) *types.Transaction {
 	targetbyte := common.StringToAddress(target)
-	var tx *types.Transaction
+	var tx *types.RawTransaction
 	if isEvil {
-		tx = &types.Transaction{
+		tx = &types.RawTransaction{
 			Data:     []byte{byte('.')},
 			Value:    types.NewBigInt(value),
 			Nonce:    Nonce,
@@ -637,7 +646,7 @@ func genetateMinerOpTx(value uint64, target string, txType int, gasLimit uint64,
 			GasPrice: types.NewBigInt(gasprice),
 		}
 	} else {
-		tx = &types.Transaction{
+		tx = &types.RawTransaction{
 			Data:     []byte{byte(mType)},
 			Value:    types.NewBigInt(value),
 			Nonce:    Nonce,
@@ -647,15 +656,16 @@ func genetateMinerOpTx(value uint64, target string, txType int, gasLimit uint64,
 			GasPrice: types.NewBigInt(gasprice),
 		}
 	}
-
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64, gasprice uint64, mType types.MinerType) *types.Transaction {
@@ -673,7 +683,7 @@ func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64
 	}
 
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Data:     data,
 		Value:    types.NewBigInt(value),
 		Nonce:    Nonce,
@@ -682,15 +692,16 @@ func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64
 		GasLimit: types.NewBigInt(gasLimit),
 		GasPrice: types.NewBigInt(gasprice),
 	}
-
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit uint64, gasprice uint64, mType types.MinerType) []*types.Transaction {
@@ -724,7 +735,7 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 	data5 = append(data5, 0)
 	datas := [][]byte{data1, data2, data3, data4, data5}
 
-	var txs []*types.RawTransaction
+	var txs []*types.Transaction
 	targetbyte := common.StringToAddress(target)
 	for i := 0; i < 5; i++ {
 		tx := &types.RawTransaction{
@@ -736,21 +747,28 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 			GasLimit: types.NewBigInt(gasLimit),
 			GasPrice: types.NewBigInt(gasprice),
 		}
-		tx.Hash = tx.GenHash()
 		sk1 := common.HexToSecKey(adminPrivateKey)
-		sign, _ := sk1.Sign(tx.Hash.Bytes())
+		sign, _ := sk1.Sign(tx.GenHash().Bytes())
 		tx.Sign = sign.Bytes()
 
 		source1 := sk1.GetPubKey().GetAddress()
 		tx.Source = &source1
 
-		txs = append(txs, tx)
+		tn:= &types.Transaction{
+			RawTransaction:tx,
+			Hash:tx.GenHash(),
+		}
+		txs = append(txs, tn)
 	}
 	return txs
 }
 
 func marshallTxs(txs []*types.Transaction, t *testing.T) []byte {
-	body, e := types.MarshalTransactions(txs)
+	ts := []*types.RawTransaction{}
+	for _,tx := range txs{
+		ts = append(ts,tx.RawTransaction)
+	}
+	body, e := types.MarshalTransactions(ts)
 	if e != nil {
 		t.Errorf("Discard MarshalTransactions because of marshal error:%s!", e.Error())
 	}
@@ -769,27 +787,29 @@ func ReadFile(length int) ([]byte, error) {
 func generateNoValueTx(target string, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Nonce:    Nonce,
 		Target:   &targetbyte,
 		Type:     int8(txType),
 		GasLimit: types.NewBigInt(gasLimit),
 		GasPrice: types.NewBigInt(gasprice),
 	}
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		//Nonce:     Nonce,
 		Value:    types.NewBigInt(value),
 		Target:   &targetbyte,
@@ -797,60 +817,66 @@ func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64,
 		GasLimit: types.NewBigInt(gasLimit),
 		GasPrice: types.NewBigInt(gasprice),
 	}
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateNoTypeTx(target string, value uint64, gasLimit uint64, gasprice uint64) *types.Transaction {
 	//tx := &types.Transaction{}
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
 		Target:   &targetbyte,
 		GasLimit: types.NewBigInt(gasLimit),
 		GasPrice: types.NewBigInt(gasprice),
 	}
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateNoGasPriceTx(target string, value uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
 		Target:   &targetbyte,
 		GasLimit: types.NewBigInt(gasLimit),
 		Type:     int8(txType),
 	}
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateNoHashTx(target string, value uint64, gasPrice uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
 		Target:   &targetbyte,
@@ -859,18 +885,21 @@ func generateNoHashTx(target string, value uint64, gasPrice uint64, gasLimit uin
 		Type:     int8(txType),
 	}
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateNoSignTx(target string, value uint64, gasPrice uint64, gasLimit uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
 		Target:   &targetbyte,
@@ -878,44 +907,48 @@ func generateNoSignTx(target string, value uint64, gasPrice uint64, gasLimit uin
 		GasLimit: types.NewBigInt(gasLimit),
 		Type:     int8(txType),
 	}
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateNoGasLimitTx(target string, value uint64, gasPrice uint64, txType int) *types.Transaction {
 	//tx := &types.Transaction{}
 	targetbyte := common.StringToAddress(target)
-	tx := &types.Transaction{
+	tx := &types.RawTransaction{
 		Nonce:    Nonce,
 		Value:    types.NewBigInt(value),
 		Target:   &targetbyte,
 		GasPrice: types.NewBigInt(gasPrice),
 		Type:     int8(txType),
 	}
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateTX(data []byte, value uint64, nonce uint64, target string, txType int, gasLimit uint64, gasprice uint64, extraData []byte) *types.Transaction {
 	if Count == 0 {
 		Nonce = 1
 	}
-	tx := &types.Transaction{}
+	tx := &types.RawTransaction{}
 	targetbyte := common.StringToAddress(target)
 	if nonce != 0 {
 		// a mark
 		if nonce == 999999999 {
-			tx = &types.Transaction{
+			tx = &types.RawTransaction{
 				Data:      data,
 				Value:     types.NewBigInt(value),
 				Nonce:     0,
@@ -926,7 +959,7 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 				ExtraData: extraData,
 			}
 		} else {
-			tx = &types.Transaction{
+			tx = &types.RawTransaction{
 				Data:      data,
 				Value:     types.NewBigInt(value),
 				Nonce:     nonce,
@@ -939,7 +972,7 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 		}
 	} else {
 		if target == "" {
-			tx = &types.Transaction{
+			tx = &types.RawTransaction{
 				Data:      data,
 				Value:     types.NewBigInt(value),
 				Nonce:     Nonce,
@@ -949,7 +982,7 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 				ExtraData: extraData,
 			}
 		} else {
-			tx = &types.Transaction{
+			tx = &types.RawTransaction{
 				Data:      data,
 				Value:     types.NewBigInt(value),
 				Nonce:     Nonce,
@@ -964,16 +997,17 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 		Nonce++
 		Count++
 	}
-
-	tx.Hash = tx.GenHash()
 	sk := common.HexToSecKey(adminPrivateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
+	sign, _ := sk.Sign(tx.GenHash().Bytes())
 	tx.Sign = sign.Bytes()
 
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 
-	return tx
+	return &types.Transaction{
+		RawTransaction:tx,
+		Hash:tx.GenHash(),
+	}
 }
 
 func generateTXs(count int, random bool) []*types.Transaction {
