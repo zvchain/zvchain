@@ -31,8 +31,8 @@ import (
 type TimeStamp int64
 
 
-func Int64MilliSecondsToTimeStamp(sec int64) TimeStamp {
-	return TimeStamp(sec)
+func Int64MilliSecondsToTimeStamp(milliSec int64) TimeStamp {
+	return TimeStamp(milliSec)
 }
 
 func TimeToTimeStamp(t time.Time) TimeStamp {
