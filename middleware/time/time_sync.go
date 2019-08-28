@@ -143,7 +143,6 @@ func (ts *TimeSync) Now() TimeStamp {
 // SinceSeconds returns the time duration seconds from the given timestamp to current moment
 func (ts *TimeSync) SinceSeconds(t TimeStamp) int64 {
 	rs := ts.Now().SinceSeconds(t)
-	fmt.Printf("now: %v, since t: %v, rs: %v \n",ts.Now(), t, rs)
 	return rs
 }
 
