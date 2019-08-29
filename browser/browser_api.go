@@ -78,9 +78,13 @@ func (tm *DBMmanagement) fetchAccounts() {
 	if tm.isFetchingBlocks {
 		return
 	}
+
+	blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
+	if tm.blockHeight > blockheader.Height {
+		return
+	}
 	tm.isFetchingBlocks = true
 	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight)
-
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
 
@@ -163,7 +167,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 				account := &models.Account{}
 				for aa, _ := range set.M {
 					account.Address = aa.(string)
-					tm.UpdateAccountStake(account, 0)
+					tm.UpdateAccountStake(account, blockheader.Height)
 				}
 			}
 			for address, _ := range PoolList {

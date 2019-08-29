@@ -65,25 +65,26 @@ func (crontab *Crontab) fetchPoolVotes() {
 	}
 	crontab.isFetchingPoolvotes = true
 	//todo 守护节点失效
-	accounts := crontab.storage.GetAccountByRoletype(0, types.MinerGuard)
-	for _, account := range accounts {
-		crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"role_type": types.MinerNormal})
-	}
+	//accounts := crontab.storage.GetAccountByRoletype(0, types.MinerGuard)
+	//for _, account := range accounts {
+	//crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"role_type": types.MinerNormal})
+	//}
 	accountsPool := crontab.storage.GetAccountByRoletype(crontab.maxid, types.MinerPool)
 	if accountsPool != nil && len(accountsPool) > 0 {
+		blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
 		var db types.AccountDB
 		var err error
 		if err != nil || db == nil {
 			return
 		}
-		db, err = core.BlockChainImpl.LatestAccountDB()
+		db, err = core.BlockChainImpl.AccountDBAt(blockheader.Height)
 		total := len(accountsPool) - 1
 		for num, pool := range accountsPool {
 			if num == total {
 				crontab.maxid = pool.ID
 			}
 			//pool to be normal miner
-			proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(pool.Address), types.MinerTypeProposal)
+			proposalInfo := core.MinerManagerImpl.GetMiner(common.StringToAddress(pool.Address), types.MinerTypeProposal, blockheader.Height)
 			attrs := make(map[string]interface{})
 			if uint64(proposalInfo.Type) != pool.RoleType {
 				attrs["role_type"] = types.InValidMinerPool
@@ -139,6 +140,14 @@ func (crontab *Crontab) fetchPoolVotes() {
 
 func (crontab *Crontab) fetchBlockRewards() {
 	if crontab.isFetchingReward {
+		return
+	}
+	height, _ := crontab.storage.TopBlockHeight()
+	if crontab.blockHeight > height {
+		return
+	}
+	blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
+	if crontab.blockHeight > blockheader.Height {
 		return
 	}
 	crontab.isFetchingReward = true
