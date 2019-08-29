@@ -85,7 +85,9 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			// Checks if has signed more weight block
 			if vctx.castHeight > 1 && vctx.hasSignedMoreWeightThan(bh) {
 				max := vctx.getSignedMaxWeight()
-				err = fmt.Errorf("have signed a higher qn block %v,This block qn %v", max, bh.TotalQN)
+				bw := types.NewBlockWeight(bh)
+
+				err = fmt.Errorf("have signed a higher qn block %v,This block qn %v", max, bw)
 				return
 			}
 

@@ -329,7 +329,7 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 }
 
 func (bw BlockWeight) String() string {
-	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
+	return fmt.Sprintf("%v-%v-%v", bw.TotalQN, bw.PV.Int64(), bw.Hash)
 }
 
 func IsInExtractGuardNodes(addr common.Address) bool {
