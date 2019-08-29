@@ -20,7 +20,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"math/big"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
