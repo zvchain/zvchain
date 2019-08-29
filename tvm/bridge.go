@@ -97,7 +97,7 @@ func Number() C.ulonglong {
 
 //export Timestamp
 func Timestamp() C.ulonglong {
-	return C.ulonglong(uint64(controller.BlockHeader.CurTime.Unix()))
+	return C.ulonglong(uint64(controller.BlockHeader.CurTime.UnixMilli()))
 }
 
 //export TxGasLimit

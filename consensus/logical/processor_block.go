@@ -140,6 +140,16 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		return
 	}
 
+	minElapse := p.GetBlockMinElapse(bh.Height)
+	if bh.Elapsed < minElapse {
+		err = fmt.Errorf("min elapsed error %v", bh.Elapsed)
+		return
+	}
+	if bh.Height > 1 && bh.CurTime.SinceMilliSeconds(preBH.CurTime) != int64(bh.Elapsed) {
+		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
+		return
+	}
+
 	err = p.isCastLegal(bh, preBH)
 	if err != nil {
 		return

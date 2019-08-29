@@ -406,6 +406,10 @@ type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
 }
 
+func (helper *ConsensusHelperImpl4Test) GetBlockMinElapse(height uint64) int32 {
+	return 1
+}
+
 func (helper *ConsensusHelperImpl4Test) GenerateGenesisInfo() *types.GenesisInfo {
 	n := 5 //member number
 	info := &types.GenesisInfo{}

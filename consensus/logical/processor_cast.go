@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 
@@ -27,6 +28,15 @@ import (
 	"github.com/zvchain/zvchain/consensus/net"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
+)
+
+const (
+	blockSecondsBuffer       int64 = 2       //Max acceptable seconds if block's curTime early than now() when validating the block
+	blockPreSendMilliSeconds int64 = 1 * 1e3 //Milliseconds of a proposer can dispatch the block header before the block's curTime
+
+	chasingSeekEpochs int   = 10        //ChasingSeekEpochs defined the number of epochs to look back to calculator the average block time
+	normalMinElapse   int32 = 3 * 1e3   //Min elapse milliseconds in normal model
+	chasingMinElapse  int32 = 2.8 * 1e3 //Min elapse milliseconds in chasing model
 )
 
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup
@@ -91,7 +101,7 @@ func (p *Processor) tryNotify(vctx *VerifyContext) bool {
 	if sc := vctx.checkNotify(); sc != nil {
 		bh := sc.BH
 		tlog := newHashTraceLog("tryNotify", bh.Hash, p.GetMinerID())
-		tlog.log("try broadcast, height=%v, totalQN=%v, consuming %vs", bh.Height, bh.TotalQN, p.ts.Since(bh.CurTime))
+		tlog.log("try broadcast, height=%v, totalQN=%v, consuming %vs", bh.Height, bh.TotalQN, p.ts.SinceSeconds(bh.CurTime))
 
 		// Add on chain and out-of-verifyGroup broadcasting
 		p.consensusFinalize(vctx, sc)
@@ -125,7 +135,7 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 		return fmt.Errorf("next verifyGroup is nil")
 	}
 	p.NetServer.BroadcastNewBlock(block, gb)
-	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.Since(bh.CurTime))
+	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.SinceSeconds(bh.CurTime))
 
 	// Send info
 	le := &monitor.LogEntry{
@@ -210,7 +220,7 @@ func (p *Processor) blockProposal() {
 	}
 	height := worker.castHeight
 
-	if p.ts.Since(worker.baseBH.CurTime) < 0 {
+	if !p.ts.NowAfter(worker.baseBH.CurTime) {
 		blog.error("not the time!now=%v, pre=%v, height=%v", p.ts.Now(), worker.baseBH.CurTime, height)
 		return
 	}
@@ -286,6 +296,11 @@ func (p *Processor) blockProposal() {
 
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
+		offset := ccm.BH.CurTime.SinceMilliSeconds(p.ts.Now())
+		if offset > blockPreSendMilliSeconds {
+			blog.debug("sleep %d milliseconds before SendCastVerify. now: %v, block.curTime: %v", offset-1, p.ts.Now(), ccm.BH.CurTime)
+			time.Sleep(time.Millisecond * time.Duration(offset-blockPreSendMilliSeconds))
+		}
 		p.NetServer.SendCastVerify(ccm, gb)
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)

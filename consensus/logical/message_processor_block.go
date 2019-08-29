@@ -17,6 +17,7 @@ package logical
 
 import (
 	"fmt"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -50,12 +51,19 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		err = fmt.Errorf("cast verify expire, gseed=%v, preTime %v, expire %v", gSeed, preBH.CurTime, expireTime)
 		return
 	} else if bh.Height > 1 { // if the message comes early before the time it should begin, then deny it
-		beginTime := expireTime.Add(-int64(model.Param.MaxGroupCastTime + 1))
+		beginTime := expireTime.AddSeconds(-int64(model.Param.MaxGroupCastTime + 1))
 		if !p.ts.NowAfter(beginTime) {
 			err = fmt.Errorf("cast begin time illegal, expectBegin at %v, expire at %v", beginTime, expireTime)
 			return
 		}
-
+		if bh.CurTime.SinceMilliSeconds(preBH.CurTime) != int64(bh.Elapsed) {
+			err = fmt.Errorf("cast elapsed time illegal, elapsed is %v, crutime is %v, preCurTime is %v", bh.Elapsed, bh.CurTime, preBH.CurTime)
+			return
+		}
+		if bh.Elapsed < p.GetBlockMinElapse(bh.Height) {
+			err = fmt.Errorf("elapsed error %v", bh.Elapsed)
+			return
+		}
 	}
 	if _, same := p.blockContexts.isHeightCasted(bh.Height, bh.PreHash); same {
 		err = fmt.Errorf("the block of this height has been cast %v", bh.Height)
@@ -200,12 +208,9 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 		return
 	}
 
-	if bh.Elapsed < 0 {
-		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
-		return
-	}
 
-	if p.ts.Since(bh.CurTime) < -1 {
+
+	if p.ts.SinceSeconds(bh.CurTime) < -blockSecondsBuffer {
 		err = fmt.Errorf("block too early: now %v, curtime %v", p.ts.Now(), bh.CurTime)
 		return
 	}

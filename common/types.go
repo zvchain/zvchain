@@ -45,7 +45,6 @@ const (
 
 	AddressLength     = 32 //Length of Address( golang.SHA3，256-bit)
 	HashLength        = 32 //Length of Hash (golang.SHA3, 256-bit)。
-	GroupIDLength     = 32 //Length of Group
 	MinPasswordLength = 6
 	MaxPasswordLength = 50
 	DefaultPassword = "Zvc123"
