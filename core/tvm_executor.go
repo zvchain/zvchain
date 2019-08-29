@@ -18,6 +18,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/zvchain/zvchain/core/group"
@@ -277,6 +278,37 @@ func (ss *contractCaller) ParseTransaction() error {
 	return nil
 }
 
+func (ss *contractCaller) QueryData(state types.AccountDB, address string, key string, count int) map[string]string {
+	hexAddr := common.StringToAddress(address)
+	result := make(map[string]string)
+	if count == 0 {
+		value := state.GetData(hexAddr, []byte(key))
+		if value != nil {
+			result[key] = string(value)
+			fmt.Println("key:", key, "value:", string(value))
+		}
+	} else {
+		iter := state.DataIterator(hexAddr, []byte(key))
+		if iter != nil {
+			for iter.Next() {
+				k := string(iter.Key[:])
+				if !strings.HasPrefix(k, key) {
+					continue
+				}
+				v := string(iter.Value[:])
+				result[k] = v
+				fmt.Println("key:", k, "value:", v)
+				count--
+				if count <= 0 {
+					break
+				}
+			}
+		}
+	}
+	return result
+}
+
+
 func (ss *contractCaller) Transition() *result {
 	ret := newResult()
 	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.msg, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
@@ -300,9 +332,11 @@ func (ss *contractCaller) Transition() *result {
 				}
 			} else {
 				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.AddrPrefixString(), string(ss.msg.Payload()))
+				Logger.Debugf("QueryData: %v", ss.QueryData(ss.accountDB, contract.ContractAddress.AddrPrefixString(), "", 100))
 			}
 		}
 	}
+
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
 	allUsed := new(big.Int).Sub(ss.msg.GetGasLimitOriginal(), gasLeft)
 	ss.gasUsed = allUsed
