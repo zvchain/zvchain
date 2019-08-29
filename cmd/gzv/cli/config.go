@@ -29,6 +29,7 @@ type minerConfig struct {
 	enableMonitor bool
 	chainID       uint16
 	password      string
+	autoCreateAccount bool
 	resetHash     string
 }
 

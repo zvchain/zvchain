@@ -16,6 +16,7 @@
 package tvm
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
@@ -112,7 +113,10 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 		return result, nil, transactionErrorWith(result)
 	}
 	abi := ABI{}
-	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
+
+	decoder := json.NewDecoder(bytes.NewReader([]byte(abiJSON)))
+	decoder.DisallowUnknownFields()
+	abiJSONError := decoder.Decode(&abi)
 	if abiJSONError != nil {
 		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
 	}
