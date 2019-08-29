@@ -32,7 +32,7 @@ func getCastExpireTime(base time.TimeStamp, deltaHeight uint64, castHeight uint6
 	if castHeight == 1 {
 		t = 2
 	}
-	return base.Add(int64(t+deltaHeight) * int64(model.Param.MaxGroupCastTime))
+	return base.AddSeconds(int64(t+deltaHeight) * int64(model.Param.MaxGroupCastTime))
 }
 
 func deltaHeightByTime(bh *types.BlockHeader, preBH *types.BlockHeader) uint64 {
@@ -40,7 +40,7 @@ func deltaHeightByTime(bh *types.BlockHeader, preBH *types.BlockHeader) uint64 {
 		deltaHeightByTime uint64
 	)
 	if bh.Height == 1 {
-		d := time.TSInstance.Since(preBH.CurTime)
+		d := time.TSInstance.SinceSeconds(preBH.CurTime)
 		deltaHeightByTime = uint64(d)/uint64(model.Param.MaxGroupCastTime) + 1
 	} else {
 		deltaHeightByTime = bh.Height - preBH.Height

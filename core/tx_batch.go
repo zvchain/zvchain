@@ -4,6 +4,7 @@ import (
 	"math"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -21,14 +22,17 @@ func newTxBatchAdder(pool types.TransactionPool) *txBatchAdder {
 	}
 }
 
-func (tv *txBatchAdder) batchAdd(txs []*types.Transaction) {
+func (tv *txBatchAdder) batchAdd(txs txSlice) error {
 	if len(txs) == 0 {
-		return
+		return nil
 	}
 	tv.mu.Lock()
 	defer tv.mu.Unlock()
 	wg := sync.WaitGroup{}
 	step := int(math.Ceil(float64(len(txs)) / float64(tv.routineNum)))
+
+	atomicErr := atomic.Value{}
+
 	for begin := 0; begin < len(txs); {
 		end := begin + step
 		if end > len(txs) {
@@ -38,9 +42,24 @@ func (tv *txBatchAdder) batchAdd(txs []*types.Transaction) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tv.pool.AsyncAddTxs(copySlice)
+			for _, tx := range copySlice {
+				if atomicErr.Load() != nil {
+					return
+				}
+				if err := tv.pool.AsyncAddTransaction(tx); err != nil {
+					atomicErr.Store(err)
+					Logger.Warnf("batch add tx error:%v, tx hash %v, source %v", err, tx.Hash, tx.Source)
+					return
+				}
+			}
 		}()
 		begin = end
 	}
 	wg.Wait()
+
+	e := atomicErr.Load()
+	if e != nil {
+		return e.(error)
+	}
+	return nil
 }

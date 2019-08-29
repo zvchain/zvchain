@@ -94,7 +94,7 @@ func (pool *txPool) tryAddTransaction(tx *types.Transaction) (bool, error) {
 	}
 	b, err := pool.tryAdd(tx)
 	if err != nil {
-		Logger.Debugf("tryAdd tx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
+		Logger.Debugf("tryAdd rawTx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
 	}
 	if b {
 		Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
@@ -107,49 +107,25 @@ func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
 	return pool.tryAddTransaction(tx)
 }
 
-// AddTransaction try to add a list of transactions into the tool
-func (pool *txPool) AddTransactions(txs []*types.Transaction) (evilCount int) {
-	if nil == txs || 0 == len(txs) {
-		return
-	}
-
-	for _, tx := range txs {
-		// this error can be ignored
-		_, err := pool.tryAddTransaction(tx)
-		if err != nil {
-			if _, ok := evilErrorMap[err]; ok {
-				evilCount++
-			}
-		}
-	}
-	return evilCount
-}
-
 // AddTransaction try to add a list of transactions into the tool asynchronously
-func (pool *txPool) AsyncAddTxs(txs []*types.Transaction) {
-	if nil == txs || 0 == len(txs) {
-		return
-	}
-	for _, tx := range txs {
-		if tx.Source != nil {
-			continue
+func (pool *txPool) AsyncAddTransaction(tx *types.Transaction) error {
+	if tx.IsReward() {
+		if pool.bonPool.get(tx.Hash) != nil {
+			return nil
 		}
-		if tx.IsReward() {
-			if pool.bonPool.get(tx.Hash) != nil {
-				continue
-			}
-		} else {
-			if pool.received.get(tx.Hash) != nil {
-				continue
-			}
-		}
-		if pool.asyncAdds.Contains(tx.Hash) {
-			continue
-		}
-		if err := pool.RecoverAndValidateTx(tx); err == nil {
-			pool.asyncAdds.Add(tx.Hash, tx)
+	} else {
+		if pool.received.get(tx.Hash) != nil {
+			return nil
 		}
 	}
+	if pool.asyncAdds.Contains(tx.Hash) {
+		return nil
+	}
+	if err := pool.RecoverAndValidateTx(tx); err != nil {
+		return err
+	}
+	pool.asyncAdds.Add(tx.Hash, tx)
+	return nil
 }
 
 // GetTransaction trys to find a transaction from pool by hash and return it
@@ -219,7 +195,7 @@ func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
 }
 
 func (pool *txPool) add(tx *types.Transaction) (err error) {
-	if tx.Type == types.TransactionTypeReward {
+	if tx.IsReward() {
 		pool.bonPool.add(tx)
 	} else {
 		err = pool.received.push(tx)
@@ -301,18 +277,9 @@ func (pool *txPool) RemoveFromPool(txs []common.Hash) {
 
 // BackToPool will put the transactions back to pool
 func (pool *txPool) BackToPool(txs []*types.Transaction) {
-	pool.lock.Lock()
-	defer pool.lock.Unlock()
-	for _, txRaw := range txs {
-		if txRaw.Type != types.TransactionTypeReward && txRaw.Source == nil {
-			err := txRaw.RecoverSource()
-			if err != nil {
-				Logger.Errorf("backtopPool recover source fail:tx=%v", txRaw.Hash.Hex())
-				continue
-			}
-		}
+	for _, tx := range txs {
 		// this error can be ignored
-		_ = pool.add(txRaw)
+		pool.tryAdd(tx)
 	}
 }
 

@@ -27,19 +27,24 @@ import (
 	"github.com/zvchain/zvchain/middleware/ticker"
 )
 
-// TimeStamp in seconds
+// TimeStamp in milliseconds
 type TimeStamp int64
 
-func Int64ToTimeStamp(sec int64) TimeStamp {
-	return TimeStamp(sec)
+
+func Int64MilliSecondsToTimeStamp(milliSec int64) TimeStamp {
+	return TimeStamp(milliSec)
 }
 
 func TimeToTimeStamp(t time.Time) TimeStamp {
-	return TimeStamp(t.Unix())
+	return TimeStamp(t.UnixNano()/int64(time.Millisecond))
+}
+
+func (ts TimeStamp) toInt64() int64 {
+	return int64(ts)
 }
 
 func (ts TimeStamp) Bytes() []byte {
-	return common.Int64ToByte(int64(ts))
+	return common.Int64ToByte(ts.toInt64())
 }
 
 func (ts TimeStamp) UTC() time.Time {
@@ -47,23 +52,35 @@ func (ts TimeStamp) UTC() time.Time {
 }
 
 func (ts TimeStamp) Local() time.Time {
-	return time.Unix(ts.Unix(), 0).Local()
+	return time.Unix(0, ts.toInt64()*int64(time.Millisecond)).Local()
 }
 
 func (ts TimeStamp) Unix() int64 {
-	return int64(ts)
+	return ts.UnixMilli()/1e3
+}
+
+func (ts TimeStamp) UnixMilli() int64 {
+	return ts.toInt64()
 }
 
 func (ts TimeStamp) After(t TimeStamp) bool {
 	return ts > t
 }
 
-func (ts TimeStamp) Since(t TimeStamp) int64 {
+func (ts TimeStamp) SinceSeconds(t TimeStamp) int64 {
+	return int64(ts - t)/1e3
+}
+
+func (ts TimeStamp) SinceMilliSeconds(t TimeStamp) int64 {
 	return int64(ts - t)
 }
 
-func (ts TimeStamp) Add(sec int64) TimeStamp {
-	return ts + Int64ToTimeStamp(sec)
+func (ts TimeStamp) AddSeconds(sec int64) TimeStamp {
+	return ts + TimeStamp(sec*1e3)
+}
+
+func (ts TimeStamp) AddMilliSeconds(milliSec int64) TimeStamp {
+	return ts + TimeStamp(milliSec)
 }
 
 func (ts TimeStamp) String() string {
@@ -84,8 +101,8 @@ type TimeService interface {
 	// Now returns the current timestamp calibrated with ntp server
 	Now() TimeStamp
 
-	// Since returns the time duration from the given timestamp to current moment
-	Since(t TimeStamp) int64
+	// SinceSeconds returns the time duration from the given timestamp to current moment
+	SinceSeconds(t TimeStamp) int64
 
 	// NowAfter checks if current timestamp greater than the given one
 	NowAfter(t TimeStamp) bool
@@ -123,9 +140,10 @@ func (ts *TimeSync) Now() TimeStamp {
 	return TimeToTimeStamp(time.Now().Add(ts.currentOffset).UTC())
 }
 
-// Since returns the time duration from the given timestamp to current moment
-func (ts *TimeSync) Since(t TimeStamp) int64 {
-	return ts.Now().Since(t)
+// SinceSeconds returns the time duration seconds from the given timestamp to current moment
+func (ts *TimeSync) SinceSeconds(t TimeStamp) int64 {
+	rs := ts.Now().SinceSeconds(t)
+	return rs
 }
 
 // NowAfter checks if current timestamp greater than the given one

@@ -33,13 +33,32 @@ type AddBlockResult int8
 // gasLimitMax expresses the max gasLimit of a transaction
 var gasLimitMax = new(BigInt).SetUint64(500000)
 
+var (
+	AdminAddr         = common.StringToAddress("zv28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b") // address of admin who can control foundation contract
+	StakePlatformAddr    = common.StringToAddress("zv01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0") // address of mining pool in pre-distribution
+	CirculatesAddr    = common.StringToAddress("zvebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3") // address of circulates in pre-distribution
+	UserNodeAddress   = common.StringToAddress("zve30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139") // address of official reserved user node address
+	DaemonNodeAddress = common.StringToAddress("zvae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122") // address of official reserved daemon node address
+)
+
+var ExtractGuardNodes = []common.Address{
+	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
+	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
+	common.StringToAddress("zv5795614c130e08a1d02157691c4d6bc4e5e152ee65a9b2752b823bcc7229fd58"),
+	common.StringToAddress("zv86a93455d77213bc39021a222f76702c37b3b168594364df88f201ebbc14fa3d"),
+	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
+	common.StringToAddress("zvdd44904f82a8823806a87ff2600d16dca0955a16816603643a77ac3d8cc8d945"),
+	common.StringToAddress("zve6363c64a54e756f114414fc427125163314872e9655923e6c834114fdae81bf"),
+	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
+} // init gurad miner nodes
+
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
 	AddBlockConsensusFailed   AddBlockResult = -2 // Means the consensus is fail
-	AddBlockSucc              AddBlockResult = 0  // Means success
 	BlockExisted              AddBlockResult = 1  // Means the block already added before
 	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
+	AddBlockSucc              AddBlockResult = 3  // Means success
 )
 
 const (
@@ -61,56 +80,77 @@ func NewTransactionError(code int, msg string) *TransactionError {
 	return &TransactionError{Code: code, Message: msg}
 }
 
+const SystemTransactionOffset = 100
+
 // Supported transaction types
 const (
 	TransactionTypeTransfer       = 0
 	TransactionTypeContractCreate = 1
 	TransactionTypeContractCall   = 2
-	TransactionTypeReward         = 3
 
 	// Miner operation related type
-	TransactionTypeStakeAdd    = 4
-	TransactionTypeMinerAbort  = 5
-	TransactionTypeStakeReduce = 6
-	TransactionTypeStakeRefund = 7
+	TransactionTypeStakeAdd            = 3
+	TransactionTypeMinerAbort          = 4
+	TransactionTypeStakeReduce         = 5
+	TransactionTypeStakeRefund         = 6
+	TransactionTypeApplyGuardMiner     = 7 // apply guard node
+	TransactionTypeVoteMinerPool       = 8 // vote to miner pool
+	TransactionTypeChangeFundGuardMode = 9 // in half of year,can choose 6+5 or 6+6
 
 	// Group operation related type
-	TransactionTypeGroupPiece       = 9  //group member upload his encrypted share piece
-	TransactionTypeGroupMpk         = 10 //group member upload his mpk
-	TransactionTypeGroupOriginPiece = 11 //group member upload origin share piece
+	TransactionTypeGroupPiece       = SystemTransactionOffset + 1 //group member upload his encrypted share piece
+	TransactionTypeGroupMpk         = SystemTransactionOffset + 2 //group member upload his mpk
+	TransactionTypeGroupOriginPiece = SystemTransactionOffset + 3 //group member upload origin share piece
+	TransactionTypeReward           = SystemTransactionOffset + 4
 )
 
-// Transaction denotes one transaction infos
-type Transaction struct {
+// RawTransaction denotes one raw transaction infos used for network transmission and storage system
+type RawTransaction struct {
 	Data   []byte          `msgpack:"dt,omitempty"` // Data of the transaction, cost gas
 	Value  *BigInt         `msgpack:"v"`            // The value the sender suppose to transfer
 	Nonce  uint64          `msgpack:"nc"`           // The nonce indicates the transaction sequence related to sender
 	Target *common.Address `msgpack:"tg,omitempty"` // The receiver address
 	Type   int8            `msgpack:"tp"`           // Transaction type
 
-	GasLimit *BigInt     `msgpack:"gl"`
-	GasPrice *BigInt     `msgpack:"gp"`
-	Hash     common.Hash `msgpack:"h"`
+	GasLimit *BigInt `msgpack:"gl"`
+	GasPrice *BigInt `msgpack:"gp"`
 
 	ExtraData []byte          `msgpack:"ed"`
 	Sign      []byte          `msgpack:"si"`  // The Sign of the sender
 	Source    *common.Address `msgpack:"src"` // Sender address, recovered from sign
 }
 
-func (tx *Transaction) GetNonce() uint64 {
+// Transaction denotes one transaction infos
+type Transaction struct {
+	*RawTransaction
+	Hash common.Hash `msgpack:"-"` // Generated by GenHash and doesn't serialize
+}
+
+func NewTransaction(raw *RawTransaction, hash common.Hash) *Transaction {
+	return &Transaction{
+		RawTransaction: raw,
+		Hash:           hash,
+	}
+}
+
+func (tx *RawTransaction) GetNonce() uint64 {
 	return tx.Nonce
 }
 
-func (tx *Transaction) GetSign() []byte {
+func (tx *RawTransaction) GetExtraData() []byte {
+	return tx.ExtraData
+}
+
+func (tx *RawTransaction) GetSign() []byte {
 	return tx.Sign
 }
 
-func (tx *Transaction) GetType() int8 {
+func (tx *RawTransaction) GetType() int8 {
 	return tx.Type
 }
 
 // GenHash generate unique hash of the transaction. source,sign is out of the hash calculation range
-func (tx *Transaction) GenHash() common.Hash {
+func (tx *RawTransaction) GenHash() common.Hash {
 	if nil == tx {
 		return common.Hash{}
 	}
@@ -123,6 +163,9 @@ func (tx *Transaction) GenHash() common.Hash {
 	if tx.Target != nil {
 		buffer.Write(tx.Target.Bytes())
 	}
+	if tx.Source != nil {
+		buffer.Write(tx.Source.Bytes())
+	}
 	buffer.WriteByte(byte(tx.Type))
 	buffer.Write(tx.GasLimit.GetBytesWithSign())
 	buffer.Write(tx.GasPrice.GetBytesWithSign())
@@ -133,75 +176,37 @@ func (tx *Transaction) GenHash() common.Hash {
 	return common.BytesToHash(common.Sha256(buffer.Bytes()))
 }
 
-func (tx *Transaction) HexSign() string {
+func (tx *RawTransaction) HexSign() string {
 	return common.ToHex(tx.Sign)
 }
 
-// RecoverSource recover source from the sign field.
-// It returns directly if source is not nil or it is a reward transaction.
-func (tx *Transaction) RecoverSource() error {
-	if tx.Source != nil || tx.IsReward() {
-		return nil
-	}
-	sign := common.BytesToSign(tx.Sign)
-	if sign == nil {
-		return fmt.Errorf("BytesToSign fail, sign=%x", tx.Sign)
-	}
-	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
-	if err == nil {
-		src := pk.GetAddress()
-		tx.Source = &src
-	}
-	return err
-}
-
-func (tx *Transaction) Size() int {
+func (tx *RawTransaction) Size() int {
 	return txFixSize + len(tx.Data) + len(tx.ExtraData)
 }
 
-func (tx *Transaction) IsReward() bool {
+func (tx *RawTransaction) IsReward() bool {
 	return tx.Type == TransactionTypeReward
 }
 
-func (tx Transaction) GetData() []byte { return tx.Data }
+func (tx RawTransaction) GetData() []byte { return tx.Data }
 
-func (tx Transaction) GetGasLimit() uint64 {
+func (tx RawTransaction) GetGasLimit() uint64 {
 	return tx.GasLimit.Uint64()
 }
-func (tx Transaction) GetValue() uint64 {
+func (tx RawTransaction) GetValue() uint64 {
+	if tx.Value == nil {
+		return 0
+	}
 	return tx.Value.Uint64()
 }
-
-func (tx Transaction) GetSource() *common.Address { return tx.Source }
-func (tx Transaction) GetTarget() *common.Address { return tx.Target }
-func (tx Transaction) GetHash() common.Hash       { return tx.Hash }
-
-// PriorityTransactions is a transaction array that determines the priority based on gasprice.
-// Gasprice is placed low
-type PriorityTransactions []*Transaction
-
-func (pt PriorityTransactions) Len() int {
-	return len(pt)
-}
-func (pt PriorityTransactions) Swap(i, j int) {
-	pt[i], pt[j] = pt[j], pt[i]
-}
-func (pt PriorityTransactions) Less(i, j int) bool {
-	return pt[i].GasPrice.Cmp(&pt[j].GasPrice.Int) < 0
-}
-func (pt *PriorityTransactions) Push(x interface{}) {
-	item := x.(*Transaction)
-	*pt = append(*pt, item)
+func (tx RawTransaction) GetGasLimitOriginal() *big.Int {
+	return tx.GasLimit.Value()
 }
 
-func (pt *PriorityTransactions) Pop() interface{} {
-	old := *pt
-	n := len(old)
-	item := old[n-1]
+func (tx RawTransaction) GetSource() *common.Address { return tx.Source }
+func (tx RawTransaction) GetTarget() *common.Address { return tx.Target }
 
-	*pt = old[0 : n-1]
-	return item
-}
+func (tx Transaction) GetHash() common.Hash { return tx.Hash }
 
 // Reward is the reward transaction raw data
 type Reward struct {
@@ -219,7 +224,7 @@ type BlockHeader struct {
 	Hash        common.Hash    // The hash of this block
 	Height      uint64         // The height of this block
 	PreHash     common.Hash    // The hash of previous block
-	Elapsed     int32          // The length of time from the last block
+	Elapsed     int32          // The length of milliseconds from the last block
 	ProveValue  []byte         // Vrf prove
 	TotalQN     uint64         // QN of the entire chain
 	CurTime     time.TimeStamp // Current block time
@@ -269,7 +274,7 @@ func (bh *BlockHeader) GenHash() common.Hash {
 }
 
 func (bh *BlockHeader) PreTime() time.TimeStamp {
-	return bh.CurTime.Add(int64(-bh.Elapsed))
+	return bh.CurTime.AddMilliSeconds(int64(-bh.Elapsed))
 }
 
 func (bh *BlockHeader) HasTransactions() bool {
@@ -279,18 +284,7 @@ func (bh *BlockHeader) HasTransactions() bool {
 // Block is the block data structure consists of the header and transactions as body
 type Block struct {
 	Header       *BlockHeader
-	Transactions []*Transaction
-}
-
-func (b *Block) GetTransactionHashs() []common.Hash {
-	if b.Transactions == nil {
-		return []common.Hash{}
-	}
-	hashs := make([]common.Hash, 0)
-	for _, tx := range b.Transactions {
-		hashs = append(hashs, tx.Hash)
-	}
-	return hashs
+	Transactions []*RawTransaction
 }
 
 // BlockWeight denotes the weight of one block
@@ -342,4 +336,13 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 
 func (bw BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
+}
+
+func IsInExtractGuardNodes(addr common.Address) bool {
+	for _, addrStr := range ExtractGuardNodes {
+		if addrStr == addr {
+			return true
+		}
+	}
+	return false
 }

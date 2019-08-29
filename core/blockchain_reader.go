@@ -42,17 +42,15 @@ func (chain *FullBlockChain) TotalQN() uint64 {
 }
 
 // GetTransactionByHash get a transaction by hash
-func (chain *FullBlockChain) GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *types.Transaction {
+func (chain *FullBlockChain) GetTransactionByHash(onlyReward bool, h common.Hash) *types.Transaction {
 	tx := chain.transactionPool.GetTransaction(onlyReward, h)
 	if tx == nil {
 		chain.rwLock.RLock()
 		defer chain.rwLock.RUnlock()
 		rc := chain.transactionPool.GetReceipt(h)
 		if rc != nil {
-			tx = chain.queryBlockTransactionsOptional(int(rc.TxIndex), rc.Height, h)
-			if tx != nil && needSource {
-				tx.RecoverSource()
-			}
+			txRaw := chain.queryBlockTransactionsOptional(int(rc.TxIndex), rc.Height)
+			return types.NewTransaction(txRaw, rc.TxHash)
 		}
 	}
 	return tx
@@ -69,14 +67,14 @@ func (chain *FullBlockChain) IsAdjusting() bool {
 	return chain.isAdjusting
 }
 
-// LatestStateDB returns chain's last account database
-func (chain *FullBlockChain) LatestStateDB()(types.AccountDB, error) {
+// LatestAccountDB returns chain's last account database
+func (chain *FullBlockChain) LatestAccountDB() (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 	lastBlockHeader := chain.QueryTopBlock()
 	preRoot := common.BytesToHash(lastBlockHeader.StateTree.Bytes())
 	state, err := account.NewAccountDB(preRoot, chain.stateCache)
-	return state,err
+	return state, err
 }
 
 // QueryTopBlock returns the latest block header
@@ -222,7 +220,6 @@ func (chain *FullBlockChain) QueryBlockFloor(height uint64) *types.Block {
 	return b
 }
 
-
 // GetBalance return the balance of specified address
 func (chain *FullBlockChain) GetBalance(address common.Address) *big.Int {
 	if nil == chain.latestStateDB {
@@ -250,21 +247,17 @@ func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (types.Account
 	return account.NewAccountDB(header.StateTree, chain.stateCache)
 }
 
-// GetAccountDBByHeight returns account database with specified block height
-func (chain *FullBlockChain) GetAccountDBByHeight(height uint64) (types.AccountDB, error) {
+// AccountDBAt returns account database with specified block height
+func (chain *FullBlockChain) AccountDBAt(height uint64) (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
-	if chain.latestBlock == nil{
-		return  nil, fmt.Errorf("current block is nil")
-	}
-	if height > chain.latestBlock.Height{
-		height = chain.latestBlock.Height
-	}
-	h := height
-	header := chain.queryBlockHeaderByHeightFloor(height)
-	if header == nil {
-		return nil, fmt.Errorf("no data at height %v-%v", h, height)
+	header := chain.latestBlock
+	if height < header.Height {
+		header = chain.queryBlockHeaderByHeightFloor(height)
+		if header == nil {
+			return nil, fmt.Errorf("no data at height %v", height)
+		}
 	}
 	return account.NewAccountDB(header.StateTree, chain.stateCache)
 }
@@ -279,7 +272,23 @@ func (chain *FullBlockChain) BatchGetBlocksAfterHeight(height uint64, limit int)
 // CountBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
 // will be included
 func (chain *FullBlockChain) CountBlocksInRange(startHeight uint64, endHeight uint64) uint64 {
+	return chain.countBlocksInRange(startHeight, endHeight)
+}
+
+func (chain *FullBlockChain) ScanBlockHeightsInRange(startHeight uint64, endHeight uint64) []uint64 {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
-	return chain.countBlocksInRange(startHeight, endHeight)
+	return chain.scanBlockHeightsInRange(startHeight, endHeight)
+}
+
+func (chain *FullBlockChain) CheckPointAt(h uint64) *types.BlockHeader {
+	cp := chain.cpChecker.checkpointAt(h)
+	return chain.QueryBlockHeaderFloor(cp)
+}
+
+// BatchGetBlocksBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.Block {
+	chain.rwLock.RLock()
+	defer chain.rwLock.RUnlock()
+	return chain.batchGetBlocksBetween(begin, end)
 }

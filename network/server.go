@@ -54,19 +54,6 @@ func (s *Server) Send(id string, msg Message) error {
 	return nil
 }
 
-func (s *Server) SendWithGroupRelay(id string, groupID string, msg Message) error {
-	bytes, err := marshalMessage(msg)
-	if err != nil {
-		Logger.Errorf("Marshal message error:%s", err.Error())
-		return err
-	}
-	nID := NewNodeID(id)
-	if nID != nil {
-		s.netCore.sendToNode(*nID, nil, bytes, msg.Code)
-	}
-	return nil
-}
-
 func (s *Server) SpreadAmongGroup(groupID string, msg Message) error {
 	bytes, err := marshalMessage(msg)
 	if err != nil {
@@ -205,10 +192,14 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 			topicID = notify.BlockResponse
 		case NewBlockMsg:
 			topicID = notify.NewBlock
-		case ReqChainPieceBlock:
-			topicID = notify.ChainPieceBlockReq
-		case ChainPieceBlock:
-			topicID = notify.ChainPieceBlock
+		case ForkFindAncestorResponse:
+			topicID = notify.ForkFindAncestorResponse
+		case ForkFindAncestorReq:
+			topicID = notify.ForkFindAncestorReq
+		case ForkChainSliceReq:
+			topicID = notify.ForkChainSliceReq
+		case ForkChainSliceResponse:
+			topicID = notify.ForkChainSliceResponse
 		}
 		if topicID != "" {
 			msg := newNotifyMessage(message, from)

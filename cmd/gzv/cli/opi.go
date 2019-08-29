@@ -30,25 +30,20 @@ var (
 )
 
 type txRawData struct {
+	Source    string `json:"source"`
 	Target    string `json:"target"`
 	Value     uint64 `json:"value"`
-	Gas       uint64 `json:"gas"`
-	Gasprice  uint64 `json:"gasprice"`
-	TxType    int    `json:"tx_type"`
+	GasLimit  uint64 `json:"gas_limit"`
+	GasPrice  uint64 `json:"gas_price"`
+	TxType    int    `json:"type"`
 	Nonce     uint64 `json:"nonce"`
 	Data      []byte `json:"data"`
 	Sign      string `json:"sign"`
 	ExtraData []byte `json:"extra_data"`
 }
 
-func opError(err error) *Result {
-	ret, _ := failResult(err.Error())
-	return ret
-}
-
-func opSuccess(data interface{}) *Result {
-	ret, _ := successResult(data)
-	return ret
+func opErrorRes(err error) *ErrorResult {
+	return failErrResult(err.Error())
 }
 
 type MinerInfo struct {
@@ -67,40 +62,43 @@ func txRawToTransaction(tx *txRawData) *types.Transaction {
 		t := common.StringToAddress(tx.Target)
 		target = &t
 	}
+	src := common.StringToAddress(tx.Source)
 	var sign []byte
 	if tx.Sign != "" {
 		sign = common.HexToSign(tx.Sign).Bytes()
 	}
 
-	return &types.Transaction{
+	raw := &types.RawTransaction{
 		Data:      tx.Data,
 		Value:     types.NewBigInt(tx.Value),
 		Nonce:     tx.Nonce,
 		Target:    target,
 		Type:      int8(tx.TxType),
-		GasLimit:  types.NewBigInt(tx.Gas),
-		GasPrice:  types.NewBigInt(tx.Gasprice),
+		GasLimit:  types.NewBigInt(tx.GasLimit),
+		GasPrice:  types.NewBigInt(tx.GasPrice),
 		Sign:      sign,
 		ExtraData: tx.ExtraData,
+		Source:    &src,
 	}
+	return &types.Transaction{RawTransaction: raw, Hash: raw.GenHash()}
 }
 
 type accountOp interface {
-	NewAccount(password string, miner bool) *Result
+	NewAccount(password string, miner bool) (string, error)
 
-	AccountList() *Result
+	AccountList() ([]string, error)
 
-	Lock(addr string) *Result
+	Lock(addr string) error
 
-	UnLock(addr string, password string, duration uint) *Result
+	UnLock(addr string, password string, duration uint) error
 
-	AccountInfo() *Result
+	AccountInfo() (*Account, error)
 
-	DeleteAccount() *Result
+	DeleteAccount() (string, error)
 
-	NewAccountByImportKey(key string, password string, miner bool) *Result
+	NewAccountByImportKey(key string, password string, miner bool) (string, error)
 
-	ExportKey(addr string) *Result
+	ExportKey(addr string) (string, error)
 
 	Close()
 }
@@ -111,35 +109,45 @@ type chainOp interface {
 	// Endpoint returns current connected ip and port
 	Endpoint() string
 	// SendRaw send transaction to connected node
-	SendRaw(tx *txRawData) *Result
+	SendRaw(tx *txRawData) *RPCResObjCmd
 	// Balance query Balance by address
-	Balance(addr string) *Result
+	Balance(addr string) *RPCResObjCmd
 	// Nonce query Balance by address
-	Nonce(addr string) *Result
+	Nonce(addr string) *RPCResObjCmd
 	// MinerInfo query miner info by address
-	MinerInfo(addr string, detail string) *Result
+	MinerInfo(addr string, detail string) *RPCResObjCmd
 
-	BlockHeight() *Result
+	BlockHeight() *RPCResObjCmd
 
-	GroupHeight() *Result
+	MinerPoolInfo(addr string) *RPCResObjCmd
 
-	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *Result
+	TicketsInfo(addr string) *RPCResObjCmd
 
-	MinerAbort(mtype int, gas, gasprice uint64, force bool) *Result
+	ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd
 
-	StakeRefund(target string, mtype int, gas, gasprice uint64) *Result
+	VoteMinerPool(address string, gas, gasprice uint64) *RPCResObjCmd
 
-	StakeReduce(target string, mtype int, value, gas, gasprice uint64) *Result
+	ChangeFundGuardMode(mode int, gas, gasprice uint64) *RPCResObjCmd
 
-	TxInfo(hash string) *Result
+	GroupHeight() *RPCResObjCmd
 
-	BlockByHash(hash string) *Result
+	StakeAdd(target string, mtype int, value uint64, gas, gasprice uint64) *RPCResObjCmd
 
-	BlockByHeight(h uint64) *Result
+	MinerAbort(mtype int, gas, gasprice uint64, force bool) *RPCResObjCmd
 
-	ViewContract(addr string) *Result
+	StakeRefund(target string, mtype int, gas, gasprice uint64) *RPCResObjCmd
 
-	TxReceipt(hash string) *Result
+	StakeReduce(target string, mtype int, value, gas, gasprice uint64) *RPCResObjCmd
 
-	GroupCheck(addr string) *Result
+	TxInfo(hash string) *RPCResObjCmd
+
+	BlockByHash(hash string) *RPCResObjCmd
+
+	BlockByHeight(h uint64) *RPCResObjCmd
+
+	ViewContract(addr string) *RPCResObjCmd
+
+	TxReceipt(hash string) *RPCResObjCmd
+
+	GroupCheck(addr string) *RPCResObjCmd
 }

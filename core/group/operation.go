@@ -37,7 +37,7 @@ type Operation interface {
 	Operation() error        // Do the operation
 }
 
-func newBaseOperation(db types.AccountDB, tx types.Transaction, height uint64, checker types.GroupCreateChecker) *baseOperation {
+func newBaseOperation(db types.AccountDB, tx types.TxMessage, height uint64, checker types.GroupCreateChecker) *baseOperation {
 	return &baseOperation{
 		accountDB: db,
 		tx:        tx,
@@ -48,16 +48,16 @@ func newBaseOperation(db types.AccountDB, tx types.Transaction, height uint64, c
 
 type baseOperation struct {
 	accountDB types.AccountDB
-	tx        types.Transaction
+	tx        types.TxMessage
 	height    uint64
 	checker   types.GroupCreateChecker
 }
 
 // NewOperation creates the mOperation instance base on msg type
-func (m *Manager) NewOperation(db types.AccountDB, tx types.Transaction, height uint64) Operation {
+func (m *Manager) NewOperation(db types.AccountDB, tx types.TxMessage, height uint64) Operation {
 	baseOp := newBaseOperation(db, tx, height, m.checkerImpl)
 	var operation Operation
-	switch tx.Type {
+	switch tx.OpType() {
 	case types.TransactionTypeGroupPiece:
 		operation = &sendPieceOp{baseOperation: baseOp}
 	case types.TransactionTypeGroupMpk:
@@ -71,20 +71,22 @@ func (m *Manager) NewOperation(db types.AccountDB, tx types.Transaction, height 
 // sendPieceOp is for the group piece upload operation in round one
 type sendPieceOp struct {
 	*baseOperation
-	data types.EncryptedSharePiecePacket
+	data   types.EncryptedSharePiecePacket
+	source common.Address
 }
 
 func (op *sendPieceOp) ParseTransaction() (err error) {
-	if op.tx.Data == nil {
+	if op.tx.Payload() == nil {
 		err = fmt.Errorf("payload length error")
 		return
 	}
 	var data EncryptedSharePiecePacketImpl
-	err = msgpack.Unmarshal(op.tx.Data, &data)
+	err = msgpack.Unmarshal(op.tx.Payload(), &data)
 	if err != nil {
 		return
 	}
 	op.data = &data
+	op.source = *op.tx.Operator()
 	ctx := &CheckerContext{op.height}
 	err = op.checker.CheckEncryptedPiecePacket(&data, ctx)
 	return
@@ -92,10 +94,9 @@ func (op *sendPieceOp) ParseTransaction() (err error) {
 
 func (op *sendPieceOp) Operation() error {
 	seedAddr := common.HashToAddress(op.data.Seed())
-	source := op.tx.Source
-	key := &txDataKey{dataVersion, dataTypePiece, *source}
+	key := &txDataKey{dataVersion, dataTypePiece, op.source}
 	byteKey := keyToByte(key)
-	op.accountDB.SetData(seedAddr, byteKey, op.tx.Data)
+	op.accountDB.SetData(seedAddr, byteKey, op.tx.Payload())
 	return nil
 }
 
@@ -106,12 +107,12 @@ type sendMpkOp struct {
 }
 
 func (op *sendMpkOp) ParseTransaction() (err error) {
-	if op.tx.Data == nil {
+	if op.tx.Payload() == nil {
 		err = fmt.Errorf("payload length error")
 		return
 	}
 	var data MpkPacketImpl
-	err = msgpack.Unmarshal(op.tx.Data, &data)
+	err = msgpack.Unmarshal(op.tx.Payload(), &data)
 	if err != nil {
 		return
 	}
@@ -123,11 +124,11 @@ func (op *sendMpkOp) ParseTransaction() (err error) {
 
 func (op *sendMpkOp) Operation() error {
 	seedAddr := common.HashToAddress(op.data.Seed())
-	source := op.tx.Source
+	source := op.tx.Operator()
 
 	key := &txDataKey{dataVersion, dataTypeMpk, *source}
 	byteKey := keyToByte(key)
-	op.accountDB.SetData(seedAddr, byteKey, op.tx.Data)
+	op.accountDB.SetData(seedAddr, byteKey, op.tx.Payload())
 
 	return nil
 }
@@ -139,12 +140,12 @@ type sendOriginPieceOp struct {
 }
 
 func (op *sendOriginPieceOp) ParseTransaction() (err error) {
-	if op.tx.Data == nil {
+	if op.tx.Payload() == nil {
 		err = fmt.Errorf("payload length error")
 		return
 	}
 	var data OriginSharePiecePacketImpl
-	err = msgpack.Unmarshal(op.tx.Data, &data)
+	err = msgpack.Unmarshal(op.tx.Payload(), &data)
 	if err != nil {
 		return
 	}
@@ -157,11 +158,11 @@ func (op *sendOriginPieceOp) ParseTransaction() (err error) {
 
 func (op *sendOriginPieceOp) Operation() error {
 	seedAddr := common.HashToAddress(op.data.Seed())
-	source := op.tx.Source
+	source := op.tx.Operator()
 
 	key := &txDataKey{dataVersion, dataTypeOriginPiece, *source}
 	byteKey := keyToByte(key)
-	op.accountDB.SetData(seedAddr, byteKey, op.tx.Data)
+	op.accountDB.SetData(seedAddr, byteKey, op.tx.Payload())
 
 	return nil
 }

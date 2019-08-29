@@ -35,9 +35,6 @@ func intrinsicGas(transaction *types.Transaction) *big.Int {
 
 // commonValidate performs the validations on all of transactions
 func commonValidate(tx *types.Transaction) error {
-	if !tx.Hash.IsValid() {
-		return ErrHash
-	}
 	size := 0
 	if tx.Data != nil {
 		size += len(tx.Data)
@@ -48,11 +45,6 @@ func commonValidate(tx *types.Transaction) error {
 	if size > txMaxSize {
 		return fmt.Errorf("tx size(%v) should not larger than %v", size, txMaxSize)
 	}
-
-	if tx.Hash != tx.GenHash() {
-		return ErrHash
-	}
-
 	if tx.Sign == nil {
 		return fmt.Errorf("tx sign nil")
 	}
@@ -107,41 +99,61 @@ func sourceRecover(tx *types.Transaction) error {
 		return err
 	}
 	src := pk.GetAddress()
-	tx.Source = &src
+	if !bytes.Equal(src.Bytes(), tx.Source.Bytes()) {
+		return fmt.Errorf("recovered source not equal to the given one")
+	}
 	return nil
 }
 
 // stateValidate performs state related validation
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
-func stateValidate(tx *types.Transaction) error {
-	accountDB, err := BlockChainImpl.LatestStateDB()
+func stateValidate(tx *types.Transaction) (balance *big.Int, err error) {
+	accountDB, err := BlockChainImpl.LatestAccountDB()
 	if err != nil {
-		return fmt.Errorf("fail get last state db,error = %v", err.Error())
+		return nil, fmt.Errorf("fail get last state db,error = %v", err.Error())
 	}
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
-	balance := accountDB.GetBalance(*tx.Source)
+	balance = accountDB.GetBalance(*tx.Source)
 	src := tx.Source.AddrPrefixString()
 	if gasLimitFee.Cmp(balance) > 0 {
-		return fmt.Errorf("balance not enough for paying gas, %v", src)
+		return nil, fmt.Errorf("balance not enough for paying gas, %v", src)
 	}
+	if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall {
+		totalCost := new(types.BigInt).Add(gasLimitFee, tx.Value.Value())
+		if totalCost.Cmp(balance) > 0 {
+			return nil, fmt.Errorf("balance not enough for paying gas and value, %v", src)
+		}
+	}
+
 	// Check gas price related to height
 	if !validGasPrice(tx.GasPrice.Value(), BlockChainImpl.Height()) {
-		return fmt.Errorf("gas price below the lower bound")
+		return nil, fmt.Errorf("gas price below the lower bound")
 	}
-	return nil
+	return
 }
 
-func transferValidator(tx *types.Transaction) error {
+func transferValidator(tx *types.Transaction, balance *big.Int) error {
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
 	}
-	return valueValidate(tx)
+	err := valueValidate(tx)
+	if err != nil {
+		return err
+	}
+	return balanceValidate(tx, balance)
 }
 
 func minerTypeCheck(mt types.MinerType) error {
 	if !types.IsProposalRole(mt) && !types.IsVerifyRole(mt) {
 		return fmt.Errorf("unknown miner type %v", mt)
+	}
+	return nil
+}
+
+func fundGuardModeCheck(md common.FundModeType) error {
+	if md != common.SIXAddFive && md != common.SIXAddSix {
+		return fmt.Errorf("unknown fund guard mode %v", md)
 	}
 	return nil
 }
@@ -166,9 +178,6 @@ func stakeAddValidator(tx *types.Transaction) error {
 func minerAbortValidator(tx *types.Transaction) error {
 	if len(tx.Data) != 1 {
 		return fmt.Errorf("data length should be 1")
-	}
-	if tx.Target == nil {
-		return fmt.Errorf("target is nil")
 	}
 	if err := minerTypeCheck(types.MinerType(tx.Data[0])); err != nil {
 		return err
@@ -211,6 +220,31 @@ func stakeRefundValidator(tx *types.Transaction) error {
 	return nil
 }
 
+func applyGuardValidator(tx *types.Transaction) error {
+	return nil
+}
+
+func voteMinerPoolValidator(tx *types.Transaction) error {
+	if tx.Target == nil {
+		return fmt.Errorf("target is nil")
+	}
+	return nil
+}
+
+func changeFundGuardModeValidator(tx *types.Transaction) error {
+	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
+		return err
+	}
+	if !types.IsInExtractGuardNodes(*tx.Target) {
+		return fmt.Errorf("operator addr is not in extract guard nodes")
+	}
+	if len(tx.Data) != 1 {
+		return fmt.Errorf("data length should be 1")
+	}
+
+	return nil
+}
+
 func groupValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
@@ -221,24 +255,39 @@ func groupValidator(tx *types.Transaction) error {
 	return nil
 }
 
-func contractCreateValidator(tx *types.Transaction) error {
+func contractCreateValidator(tx *types.Transaction, balance *big.Int) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
 	if tx.Target != nil {
 		return fmt.Errorf("target should be nil")
 	}
-	return valueValidate(tx)
+	err := valueValidate(tx)
+	if err != nil {
+		return err
+	}
+	return balanceValidate(tx, balance)
 }
 
-func contractCallValidator(tx *types.Transaction) error {
+func contractCallValidator(tx *types.Transaction, balance *big.Int) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
 	}
-	return valueValidate(tx)
+	err := valueValidate(tx)
+	if err != nil {
+		return err
+	}
+	return balanceValidate(tx, balance)
+}
+
+func balanceValidate(tx *types.Transaction, balance *big.Int) error {
+	if balance.Cmp(tx.Value.Value()) <= 0 {
+		return fmt.Errorf("balance not enough")
+	}
+	return nil
 }
 
 func rewardValidate(tx *types.Transaction) error {
@@ -275,13 +324,21 @@ func getValidator(tx *types.Transaction) validator {
 			if err = gasValidate(tx); err != nil {
 				return err
 			}
+			if tx.Source == nil {
+				return fmt.Errorf("source is nil")
+			}
+			var balance *big.Int
+			// Validate state
+			if balance, err = stateValidate(tx); err != nil {
+				return err
+			}
 			switch tx.Type {
 			case types.TransactionTypeTransfer:
-				err = transferValidator(tx)
+				err = transferValidator(tx, balance)
 			case types.TransactionTypeContractCreate:
-				err = contractCreateValidator(tx)
+				err = contractCreateValidator(tx, balance)
 			case types.TransactionTypeContractCall:
-				err = contractCallValidator(tx)
+				err = contractCallValidator(tx, balance)
 			case types.TransactionTypeStakeAdd:
 				err = stakeAddValidator(tx)
 			case types.TransactionTypeMinerAbort:
@@ -290,6 +347,12 @@ func getValidator(tx *types.Transaction) validator {
 				err = stakeReduceValidator(tx)
 			case types.TransactionTypeStakeRefund:
 				err = stakeRefundValidator(tx)
+			case types.TransactionTypeApplyGuardMiner:
+				err = applyGuardValidator(tx)
+			case types.TransactionTypeVoteMinerPool:
+				err = voteMinerPoolValidator(tx)
+			case types.TransactionTypeChangeFundGuardMode:
+				err = changeFundGuardModeValidator(tx)
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			default:
@@ -300,17 +363,6 @@ func getValidator(tx *types.Transaction) validator {
 			}
 			// Recover source at last for performance concern
 			if err := sourceRecover(tx); err != nil {
-				return err
-			}
-			//check the abort tx's source and target
-			if tx.Type == types.TransactionTypeMinerAbort {
-				if bytes.Compare(tx.Target.Bytes(), tx.Source.Bytes()) != 0 {
-					return fmt.Errorf("could not abort for other node")
-				}
-			}
-
-			// Validate state
-			if err := stateValidate(tx); err != nil {
 				return err
 			}
 		}

@@ -19,6 +19,7 @@ package logical
 
 import (
 	"bytes"
+	lru "github.com/hashicorp/golang-lru"
 	"io/ioutil"
 	"strings"
 	"sync"
@@ -75,9 +76,11 @@ type Processor struct {
 
 	ts time.TimeService // Network-wide time service, regardless of local time
 
-	livedGroups sync.Map //groups lived
+	groupNetBuilt sync.Map // Store groups that have built group-network
 
 	rewardHandler *RewardHandler
+
+	cachedMinElapseByEpoch *lru.Cache	// Cache the min elapse milliseconds in a epoch. key: common.Hash, value: int32
 }
 
 func (p *Processor) GetRewardManager() types.RewardManager {
@@ -140,10 +143,11 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 
 	p.Ticker = ticker.NewGlobalTicker("consensus")
 
-	provider := &core.GroupManagerImpl
-	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, &mi)
+	provider := core.GroupManagerImpl
+	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
-	p.livedGroups = sync.Map{}
+
+	p.cachedMinElapseByEpoch = common.MustNewLRUCache(10)
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())
@@ -151,7 +155,6 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	}
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, p.onBlockAddSuccess)
-	notify.BUS.Subscribe(notify.GroupAddSucc, p.onGroupAddSuccess)
 
 	return true
 }
@@ -258,23 +261,13 @@ func (p *Processor) initLivedGroup() {
 		}
 	}
 
-	livedGroupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(p.MainChain.Height())
-	for _, seed := range livedGroupSeeds {
-		g := p.groupReader.getGroupBySeed(seed.Seed())
-		stdLogger.Debugf("group seed %v", g.header.Seed())
-		for _, mem := range g.members {
-			stdLogger.Debugf("member %v", mem.id)
-		}
-		if g == nil {
-			continue
-		}
-		if !g.hasMember(p.GetMinerID()) {
-			continue
-		}
-		stdLogger.Debugf("build group net %v", seed.Seed())
-		// Build group net
-		p.NetServer.BuildGroupNet(seed.Seed().Hex(), g.getMembers())
-	}
+	currentHeight := p.MainChain.Height()
+	currEpoch := types.EpochAt(currentHeight)
+
+	// Build group-net of groups activated at current epoch
+	p.buildGroupNetOfActivateEpochAt(currEpoch)
+	// Try to build group-net of groups will be activated at next epoch
+	p.buildGroupNetOfNextEpoch(currentHeight)
 }
 
 // Ready check if the processor engine is initialized and ready for message processing
