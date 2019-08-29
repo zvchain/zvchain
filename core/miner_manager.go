@@ -174,10 +174,6 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 		if !fd.isSixAddSix() {
 			continue
 		}
-		//err = guardNodeExpired(accountDB, fd.Address, height, true)
-		//if err != nil {
-		//	return err
-		//}
 		err = updateFundGuardPoolStatus(accountDB, fd.Address, normalNodeType, height)
 		if err != nil {
 			return nil,err
