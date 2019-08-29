@@ -225,6 +225,12 @@ func TestInsteadStake(t *testing.T) {
 	ctx.target = &minerPool2
 	ctx.stakeAddValue = 100 * common.ZVC
 	testStakeFromOther(t, false)
+
+
+	ctx.source = &minerPool
+	ctx.target = &minerPool
+	ctx.stakeAddValue = 100 * common.ZVC
+	testStakeFromOther(t, true)
 }
 
 func TestInvalidMinerPoolAction(t *testing.T) {
