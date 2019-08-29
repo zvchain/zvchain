@@ -122,7 +122,7 @@ func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.M
 		return nil
 	}
 
-	return fmt.Errorf("stake add to others only can be stake add by admin or miner pool")
+	return fmt.Errorf("stake add to others only can be stake add by fund owner or miner pool")
 }
 
 func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error {
