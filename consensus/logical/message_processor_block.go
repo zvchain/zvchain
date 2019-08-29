@@ -148,7 +148,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		log.ELKLogger.WithFields(logrus.Fields{
 			"blockHash": cvm.BlockHash.Hex(),
 			"height":    bh.Height,
-			"now":       time.TSInstance.NowTime().Local(),
+			"now":       time.TSInstance.Now().Local(),
 			"logId":     "21",
 		}).Debug("SendVerifiedCast")
 
@@ -374,7 +374,7 @@ func (p *Processor) OnMessageVerify(cvm *model.ConsensusVerifyMessage) (err erro
 	//log.ELKLogger.WithFields(logrus.Fields{
 	//	"blockHash": cvm.BlockHash,
 	//	"height": height,
-	//	"now":time.TSInstance.NowTime().Local(),
+	//	"now":time.TSInstance.Now().Local(),
 	//	//"from": cvm.SI.GetID(),
 	//	"logId": "22",
 	//}).Debug("OMV")
@@ -416,7 +416,7 @@ func sendElkOmvLog(blockHash common.Hash, height uint64) {
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": blockHash,
 		"height":    height,
-		"now":       time.TSInstance.NowTime().Local(),
+		"now":       time.TSInstance.Now().Local(),
 		//"from": cvm.SI.GetID(),
 		"logId": "22",
 	}).Debug("OMV")
@@ -460,7 +460,7 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": msg.Hash,
 		"height":    height,
-		"now":       time.TSInstance.NowTime().Local(),
+		"now":       time.TSInstance.Now().Local(),
 		"from":      sourceID,
 		"logId":     "32",
 	}).Debug("OnMessageReqProposalBlock")
@@ -521,7 +521,7 @@ func (p *Processor) OnMessageReqProposalBlock(msg *model.ReqProposalBlock, sourc
 		"blockHash": m.Hash,
 		"height":    pb.block.Header.Height,
 		"sourceID":  sourceID,
-		"now":       time.TSInstance.NowTime().Local(),
+		"now":       time.TSInstance.Now().Local(),
 		"logId":     "41",
 	}).Debug("ResponseProposalBlock")
 	p.NetServer.ResponseProposalBlock(m, sourceID)
@@ -556,7 +556,7 @@ func (p *Processor) OnMessageResponseProposalBlock(msg *model.ResponseProposalBl
 	log.ELKLogger.WithFields(logrus.Fields{
 		"blockHash": msg.Hash,
 		"height":    height,
-		"now":       time.TSInstance.NowTime().Local(),
+		"now":       time.TSInstance.Now().Local(),
 		"logId":     "42",
 	}).Debug("OnMessageResponseProposalBlock")
 

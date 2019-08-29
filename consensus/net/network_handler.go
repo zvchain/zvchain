@@ -76,7 +76,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 		err = fmt.Errorf("processor not ready yet")
 		log.ELKLogger.WithFields(logrus.Fields{
 			"code": code,
-			"now":  time.TSInstance.NowTime().Local(),
+			"now":  time.TSInstance.Now().Local(),
 		}).Debug("error: ", err.Error())
 		return err
 	}
@@ -93,7 +93,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"height":    m.BH.Height,
 			"blockHash": m.BH.Hash.Hex(),
-			"now":       time.TSInstance.NowTime().Local(),
+			"now":       time.TSInstance.Now().Local(),
 			"from":      m.SI.GetID(),
 			"logId":     "12",
 		}).Debugf("OnMessageCast, preHash=%v, result:%v", m.BH.PreHash, err)

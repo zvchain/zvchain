@@ -201,7 +201,7 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"height":    bh.Height,
 			"blockHash": bh.Hash.Hex(),
-			"now":       p.ts.NowTime().Local(),
+			"now":       p.ts.Now().Local(),
 			"logId":     "31",
 		}).Debug("ReqProposalBlock")
 
