@@ -56,8 +56,8 @@ func _callContract(contractAddress string, abiJSON string) {
 func TestTvmCli_Call(t *testing.T) {
 	contractAddress := _deployContract("Token", "erc20.py")
 	abiJson := `{
-	"FuncName": "balance_of",
-		"Args": ["zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
+	"func_name": "balance_of",
+		"args": ["zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`
 	_callContract(contractAddress, abiJson)
 }
@@ -78,7 +78,7 @@ func TestTvmCli_Call_ContractCallContract(t *testing.T) {
 	routerContract := _deployContract("Router", "router.py")
 
 	abiJSON := fmt.Sprintf(`{
- "FuncName": "call_contract",
+ "func_name": "call_contract",
  "Args": ["%s","balance_of","zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
 }`, erc20Contract)
 	_callContract(routerContract, abiJSON)
@@ -89,7 +89,7 @@ func TestTvmCli_Call_ContractCallContract_2(t *testing.T) {
 	routerContract := _deployContract("Router", "router.py")
 
 	abiJSON := fmt.Sprintf(`{
-  "FuncName": "call_contract",
+  "func_name": "call_contract",
   "Args": ["%s","private_set_name","test"]
 }`, receiverContract)
 	_callContract(routerContract, abiJSON)
@@ -100,7 +100,7 @@ func TestTvmCli_Call_ContractCallContract_3(t *testing.T) {
 	routerContract := _deployContract("Router", "router.py")
 
 	abiJSON := fmt.Sprintf(`{
-  "FuncName": "call_contract",
+  "func_name": "call_contract",
   "Args": ["%s","set_name","receiver1"]
 }`, receiverContract)
 	_callContract(routerContract, abiJSON)
@@ -118,7 +118,7 @@ func TestTvmCli_Call_ContractCallContract_Error_4(t *testing.T) {
 	routerContract := _deployContract("Router", "router.py")
 
 	abiJSON := fmt.Sprintf(`{
-  "FuncName": "call_contract2",
+  "func_name": "call_contract2",
   "Args": ["%s",3]
 }`, receiverContract)
 	_callContract(routerContract, abiJSON)
@@ -129,7 +129,7 @@ func TestTvmCli_Call_ContractCallContract_5(t *testing.T) {
 	routerContract := _deployContract("Router", "router.py")
 
 	abiJSON := fmt.Sprintf(`{
-  "FuncName": "call_contract3",
+  "func_name": "call_contract3",
   "Args": ["%s",3]
 }`, receiverContract)
 	_callContract(routerContract, abiJSON)
@@ -153,7 +153,7 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
 
 	abiJson := fmt.Sprintf(`{
- "FuncName": "ckeckbalance",
+ "func_name": "ckeckbalance",
  "Args": ["%s"]
 }`, contract)
 	fmt.Println("checkbalance\t" + contract + "________")
@@ -163,42 +163,42 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	randAddr := fmt.Sprintf("zv"+"%x", string(randHash[:]))
 
 	abiJson2 := fmt.Sprintf(`{
-"FuncName": "transfer",
+"func_name": "transfer",
 "Args": ["%s",10]
 }`, randAddr)
 	fmt.Printf("%s___transfer___to___%s\n", contract, randAddr)
 	tvmCli.Call(contract, abiJson2)
 
 	abiJson3 := fmt.Sprintf(`{
-"FuncName": "ckeckbalance",
+"func_name": "ckeckbalance",
 "Args": ["%s"]
 }`, contract)
 	fmt.Println("checkbalance\t" + contract + "________")
 	tvmCli.Call(contract, abiJson3)
 
 	abiJson4 := fmt.Sprintf(`{
-"FuncName": "ckeckbalance",
+"func_name": "ckeckbalance",
 "Args": ["%s"]
 }`, randAddr)
 	fmt.Println("checkbalance\t" + randAddr + "________")
 	tvmCli.Call(contract, abiJson4)
 
 	abiJson5 := fmt.Sprintf(`{
-"FuncName": "transfer",
+"func_name": "transfer",
 "Args": ["%s",10]
 }`, randAddr)
 	fmt.Printf("%s___transfer___to___%s\n", contract, randAddr)
 	tvmCli.Call(contract, abiJson5)
 
 	abiJson6 := fmt.Sprintf(`{
-"FuncName": "ckeckbalance",
+"func_name": "ckeckbalance",
 "Args": ["%s"]
 }`, contract)
 	fmt.Println("checkbalance\t" + contract + "________")
 	tvmCli.Call(contract, abiJson6)
 
 	abiJson7 := fmt.Sprintf(`{
-"FuncName": "ckeckbalance",
+"func_name": "ckeckbalance",
 "Args": ["%s"]
 }`, randAddr)
 	fmt.Println("checkbalance\t" + randAddr + "________")
@@ -218,25 +218,25 @@ func TestTvmCli_Set_Data_Error(t *testing.T) {
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
 
 	abiJson := fmt.Sprintf(`{
- "FuncName": "setdata",
+ "func_name": "setdata",
  "Args": ["%s","abcde"]
 }`, key)
 	tvmCli.Call(contract, abiJson)
 
 	abiJson2 := fmt.Sprintf(`{
- "FuncName": "getdata",
+ "func_name": "getdata",
  "Args": ["%s"]
 }`, key)
 	tvmCli.Call(contract, abiJson2)
 
 	abiJson3 := fmt.Sprintf(`{
-"FuncName": "removedata",
+"func_name": "removedata",
 "Args": ["%s"]
 }`, key)
 	tvmCli.Call(contract, abiJson3)
 
 	abiJson4 := fmt.Sprintf(`{
-"FuncName": "getdata",
+"func_name": "getdata",
 "Args": ["%s"]
 }`, key)
 	tvmCli.Call(contract, abiJson4)
@@ -249,7 +249,7 @@ func TestTvmCli_ExecTime(t *testing.T) {
 	contractAddress := _deployContract("Max", "exectime.py")
 
 	abiJSON := `{
-	"FuncName": "exec1",
+	"func_name": "exec1",
 		"Args": [100000]
 }`
 	start := time.Now()
@@ -257,7 +257,7 @@ func TestTvmCli_ExecTime(t *testing.T) {
 	t.Log(time.Since(start).Seconds())
 
 	abiJSON = `{
-	"FuncName": "exec2",
+	"func_name": "exec2",
 		"Args": [100000]
 }`
 	start = time.Now()
@@ -265,7 +265,7 @@ func TestTvmCli_ExecTime(t *testing.T) {
 	t.Log(time.Since(start).Seconds())
 
 	abiJSON = `{
-	"FuncName": "exec3",
+	"func_name": "exec3",
 		"Args": [100000]
 }`
 	start = time.Now()
@@ -276,7 +276,7 @@ func TestTvmCli_ExecTime(t *testing.T) {
 func TestTvmCli_TestABI_Error(t *testing.T) {
 	contractAddress := _deployContract("TestABI", "testabi.py")
 	abiJSON := `{
-	"FuncName": "exec1",
+	"func_name": "exec1",
 		"Args": [100000]
 }`
 	_callContract(contractAddress, abiJSON)
@@ -285,13 +285,13 @@ func TestTvmCli_TestABI_Error(t *testing.T) {
 func TestTvmCli_TestABI2(t *testing.T) {
 	contractAddress := _deployContract("TestABI", "testabi2.py")
 	abiJSON := `{
-	"FuncName": "testint",
+	"func_name": "testint",
 		"Args": [1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000]
 }`
 	_callContract(contractAddress, abiJSON)
 
 	abiJSON = `{
-	"FuncName": "teststr",
+	"func_name": "teststr",
 		"Args": ["1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"]
 }`
 	_callContract(contractAddress, abiJSON)
@@ -311,7 +311,7 @@ func TestTvmCli_TestABI2(t *testing.T) {
 func TestTvmCli_TestBigInt(t *testing.T) {
 	contractAddress := _deployContract("TestBigInt", "testbigint.py")
 	abiJSON := `{
-	"FuncName": "save",
+	"func_name": "save",
 		"Args": []
 }`
 	_callContract(contractAddress, abiJSON)
@@ -322,7 +322,7 @@ func TestTvmCli_TestBigInt(t *testing.T) {
 	tvmCli.DeleteTvmCli()
 
 	abiJSON = `{
-	"FuncName": "add",
+	"func_name": "add",
 		"Args": []
 }`
 	_callContract(contractAddress, abiJSON)
