@@ -74,6 +74,7 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.Blo
 				if err != nil {
 					accountDB.RevertToSnapshot(snapshot)
 					log.CoreLogger.Errorf("check full guard node error,error is %s", err.Error())
+					break
 				}
 			}
 		}
@@ -89,6 +90,7 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.Blo
 			if err !=  nil{
 				accountDB.RevertToSnapshot(snapshot)
 				log.CoreLogger.Errorf("check fund guard node error,error is %s", err.Error())
+				break
 			}
 		}
 	}
