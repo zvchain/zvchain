@@ -332,7 +332,7 @@ func (ss *contractCaller) Transition() *result {
 				}
 			} else {
 				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.AddrPrefixString(), string(ss.msg.Payload()))
-				Logger.Debugf("QueryData: %v", ss.QueryData(ss.accountDB, contract.ContractAddress.AddrPrefixString(), "", 100))
+				Logger.Debugf("QueryData: %v, gas: %v", ss.QueryData(ss.accountDB, contract.ContractAddress.AddrPrefixString(), "", 100), controller.GetGasLeft())
 			}
 		}
 	}
