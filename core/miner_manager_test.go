@@ -215,7 +215,7 @@ func TestInsteadStake(t *testing.T) {
 	ctx.stakeAddValue = 100 * common.ZVC
 	testStakeFromOther(t, true)
 
-	ctx.source = &types.MiningPoolAddr
+	ctx.source = &types.StakePlatformAddr
 	ctx.target = &normal1
 	ctx.stakeAddValue = 100 * common.ZVC
 	testStakeFromOther(t, true)

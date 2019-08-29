@@ -111,7 +111,7 @@ func (v *VerifyMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Mine
 }
 
 func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
-	if op.addSource == op.addTarget || op.addSource == types.MiningPoolAddr{
+	if op.addSource == op.addTarget || op.addSource == types.StakePlatformAddr{
 		return nil
 	}
 	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
@@ -181,7 +181,7 @@ func (b *MinerPoolProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *type
 		return err
 	}
 	if sourceMiner != nil && sourceMiner.IsMinerPool(){
-		return fmt.Errorf("miner pool can not stake add to other miner pool,source is %s,target is %s,height = %v",op.addSource,op.addTarget,op.height)
+		return fmt.Errorf("miner pool can not stake add to other miner pool,source is %s,target is %s,height = %v",op.addSource.String(),op.addTarget.String(),op.height)
 	}
 	return nil
 }
