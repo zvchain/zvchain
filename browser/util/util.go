@@ -15,6 +15,13 @@
 
 package util
 
+type Set struct {
+	// struct为结构体类型的变量
+	M map[interface{}]struct{}
+}
+
+var Exists = struct{}{}
+
 func DataToString(data interface{}) string {
 	const MaxStringLength = 65535
 	if str, ok := data.(string); ok {
@@ -25,5 +32,21 @@ func DataToString(data interface{}) string {
 	} else {
 		return ""
 	}
-
+}
+func New(items ...interface{}) *Set {
+	// 获取Set的地址
+	s := &Set{}
+	// 声明map类型的数据结构
+	s.M = make(map[interface{}]struct{})
+	s.Add(items...)
+	return s
+}
+func (s *Set) Add(items ...interface{}) error {
+	if s.M == nil {
+		s.M = make(map[interface{}]struct{})
+	}
+	for _, item := range items {
+		s.M[item] = Exists
+	}
+	return nil
 }

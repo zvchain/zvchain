@@ -6,6 +6,7 @@ import (
 	"github.com/zvchain/zvchain/browser/crontab"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
+	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -88,7 +89,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 			AddressCacheList := make(map[string]uint64)
 			PoolList := make(map[string]uint64)
 			stakelist := make(map[string]map[string]int64)
-
+			set := &util.Set{}
 			for _, tx := range block.Transactions {
 				if tx.Type == types.TransactionTypeVoteMinerPool {
 					if tx.Target != nil {
@@ -105,6 +106,10 @@ func (tm *DBMmanagement) fetchAccounts() {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
+					}
+					//check update stake
+					if checkStakeTransaction(tx.Type) {
+						set.Add(tx.Source.AddrPrefixString())
 					}
 					//stake list
 					if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
@@ -152,8 +157,14 @@ func (tm *DBMmanagement) fetchAccounts() {
 
 				}
 				//update stake
-				tm.UpdateAccountStake(accounts, 0)
 
+			}
+			if set.M != nil {
+				account := &models.Account{}
+				for aa, _ := range set.M {
+					account.Address = aa.(string)
+					tm.UpdateAccountStake(account, 0)
+				}
 			}
 			for address, _ := range PoolList {
 				targetAddrInfo := tm.storage.GetAccountById(address)
@@ -185,6 +196,13 @@ func (tm *DBMmanagement) fetchAccounts() {
 		go tm.fetchAccounts()
 	}
 	tm.isFetchingBlocks = false
+}
+
+func checkStakeTransaction(trtype int8) bool {
+	if trtype == types.TransactionTypeStakeReduce || trtype == types.TransactionTypeStakeAdd {
+		return true
+	}
+	return false
 }
 
 func (tm *DBMmanagement) fetchTickets(address string) string {
