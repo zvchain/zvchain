@@ -400,12 +400,12 @@ func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 	morts := make([]*MortGage, 0, 0)
 	address := common.StringToAddress(addr)
 	var proposalInfo *types.Miner
-	if height == 0 {
-		proposalInfo = core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
-	} else {
-		proposalInfo = core.MinerManagerImpl.GetMiner(address, types.MinerTypeProposal, height)
+	//if height == 0 {
+	proposalInfo = core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	//} else {
+	//	proposalInfo = core.MinerManagerImpl.GetMiner(address, types.MinerTypeProposal, height)
 
-	}
+	//}
 	var stakefrom = ""
 	if proposalInfo != nil {
 		mort := NewMortGageFromMiner(proposalInfo)
@@ -419,7 +419,7 @@ func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 			}
 		}
 		morts = append(morts, &MortGage{
-			Stake:       mort.Stake - selfStakecount,
+			Stake:       mort.Stake - uint64(common.RA2TAS(selfStakecount)),
 			ApplyHeight: 0,
 			Type:        "proposal node",
 			Status:      types.MinerStatusActive,
