@@ -37,7 +37,7 @@ func TestEpochAt(t *testing.T) {
 		t.Errorf("epoch at error:%v", h)
 	}
 
-	h = EpochLength + 443
+	h = EpochLength + EpochLength-1
 	ep = EpochAt(h)
 	t.Log(ep.Start(), ep.End(), ep)
 	if ep.Start() != EpochLength {
@@ -136,58 +136,59 @@ func TestCreateEpochsOfActivatedGroupsAt(t *testing.T) {
 		t.Errorf("error")
 	}
 
-	s, e = CreateEpochsOfActivatedGroupsAt(8000)
+	s, e = CreateEpochsOfActivatedGroupsAt(EpochLength)
 	t.Logf("start %v-%v, end %v-%v", s.Start(), s.End(), e.Start(), e.End())
 	if s.Start() != 0 || e.Start() != 0 {
 		t.Errorf("error")
 	}
-	s, e = CreateEpochsOfActivatedGroupsAt(16000)
+	s, e = CreateEpochsOfActivatedGroupsAt(EpochLength*2)
 	t.Logf("start %v-%v, end %v-%v", s.Start(), s.End(), e.Start(), e.End())
-	if s.Start() != 0 || e.Start() != 8000 {
+	if s.Start() != 0 || e.Start() != EpochLength {
 		t.Errorf("error")
 	}
-	s, e = CreateEpochsOfActivatedGroupsAt(24000)
+	s, e = CreateEpochsOfActivatedGroupsAt(EpochLength*3)
 	t.Logf("start %v-%v, end %v-%v", s.Start(), s.End(), e.Start(), e.End())
-	if s.Start() != 0 || e.Start() != 16000 {
+	if s.Start() != 0 || e.Start() != EpochLength*2 {
 		t.Errorf("error")
 	}
-	s, e = CreateEpochsOfActivatedGroupsAt(32000)
+	s, e = CreateEpochsOfActivatedGroupsAt(EpochLength*(GroupLiveEpochs+4))
 	t.Logf("start %v-%v, end %v-%v", s.Start(), s.End(), e.Start(), e.End())
-	if s.Start() != 8000 || e.Start() != 24000 {
+	if s.Start() != EpochLength*3 || e.Start() != EpochLength*(GroupLiveEpochs+3) {
 		t.Errorf("error")
 	}
 }
 
 func TestActivateEpochOfGroupsCreatedAt(t *testing.T) {
 	ep := ActivateEpochOfGroupsCreatedAt(0)
-	if ep.Start() != 16000 {
+	if ep.Start() != 640 {
 		t.Errorf("error")
 	}
 	ep = ActivateEpochOfGroupsCreatedAt(234)
-	if ep.Start() != 16000 {
+	if ep.Start() != 640 {
 		t.Errorf("error")
 	}
 	ep = ActivateEpochOfGroupsCreatedAt(8000)
-	if ep.Start() != 24000 {
+	if ep.Start() != 8640 {
 		t.Errorf("error")
 	}
 	ep = ActivateEpochOfGroupsCreatedAt(17000)
-	if ep.Start() != 32000 {
+	if ep.Start() != 17600 {
 		t.Errorf("error")
 	}
 }
 
 func TestDismissEpochOfGroupsCreatedAt(t *testing.T) {
 	ep := DismissEpochOfGroupsCreatedAt(0)
-	if ep.Start() != 32000 {
+	t.Logf("start %v", ep.Start())
+	if ep.Start() != 16640 {
 		t.Errorf("dismiss error")
 	}
-	ep = DismissEpochOfGroupsCreatedAt(8000)
-	if ep.Start() != 8000+EpochLength*4 {
+	ep = DismissEpochOfGroupsCreatedAt(320)
+	if ep.Start() != 320+EpochLength*(GroupLiveEpochs+2) {
 		t.Errorf("dismiss error")
 	}
-	ep = DismissEpochOfGroupsCreatedAt(40000)
-	if ep.Start() != 40000+EpochLength*4 {
+	ep = DismissEpochOfGroupsCreatedAt(16000)
+	if ep.Start() != 16000+EpochLength*(GroupLiveEpochs+2) {
 		t.Errorf("dismiss error")
 	}
 }

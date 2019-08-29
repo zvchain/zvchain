@@ -607,7 +607,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		switch tt.name {
 		case "ok":
 			if err != nil {
-				t.Error(tt.name)
+				t.Error(tt.name, err)
 			}
 		case "block not exist",
 			"group not exist 1",

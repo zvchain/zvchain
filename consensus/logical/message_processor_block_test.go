@@ -2,6 +2,7 @@ package logical
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -11,9 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	time2 "time"
-
-	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
@@ -61,7 +59,7 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 
 	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
 	//processorTest.blockContexts.attachVctx(core.BlockChainImpl.QueryTopBlock(), pt.verifyContext)
-	txs := make([]*types.Transaction, 0)
+	txs := make([]*types.RawTransaction, 0)
 
 	type args struct {
 		msg *model.ResponseProposalBlock
@@ -579,15 +577,15 @@ func (c *chain4Test) QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
 		return nil
 	}
 	if hash == common.HexToHash("0x02") {
-		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 5, Height: 1, Random: common.FromHex("0x03")}
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 5*1e3, Height: 1, Random: common.FromHex("0x03")}
 	}
 	if hash == common.HexToHash("0x03") {
-		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 8, Height: 2, Random: common.FromHex("0x03")}
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 8*1e3, Height: 2, Random: common.FromHex("0x03")}
 	}
 	if hash == common.HexToHash(goodPreHash) {
-		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 8, Height: 2, Random: common.FromHex("0x03")}
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 8*1e3, Height: 2, Random: common.FromHex("0x03")}
 	}
-	return &types.BlockHeader{CurTime: time.TimeToTimeStamp(time2.Now()) - 2, Random: common.FromHex("0x03")}
+	return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 2*1e3, Random: common.FromHex("0x03")}
 }
 
 type networkServer4Test struct {

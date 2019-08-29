@@ -94,14 +94,12 @@ func TestEncryptDecrypt(t *testing.T) {
 	message := []byte("Hello, world.")
 	ct, err := Encrypt(rand.Reader, &pk1, message)
 	if err != nil {
-		fmt.Println(err.Error())
-		t.FailNow()
+		t.Fatal(err)
 	}
 
 	pt, err := sk1.Decrypt(rand.Reader, ct)
 	if err != nil {
-		fmt.Println(err.Error())
-		t.FailNow()
+		t.Fatal(err)
 	}
 
 	fmt.Println(message)
@@ -109,14 +107,12 @@ func TestEncryptDecrypt(t *testing.T) {
 	fmt.Println(pt)
 
 	if !bytes.Equal(pt, message) {
-		fmt.Println("ecies: plaintext doesn't match message")
-		t.FailNow()
+		t.Fatal("ecies: plaintext doesn't match message")
 	}
 
 	_, err = sk2.Decrypt(rand.Reader, ct)
 	if err == nil {
-		fmt.Println("ecies: encryption should not have succeeded")
-		t.FailNow()
+		t.Fatal("ecies: encryption should not have succeeded")
 	}
 	fmt.Printf("end TestEncryptDecrypt.\n")
 }

@@ -24,8 +24,8 @@ var now = time2.Now()
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 
 	bh := types.BlockHeader{}
-	bh.Elapsed = 1
-	bh.CurTime = time.TimeToTimeStamp(now) - 3
+	bh.CurTime = time.TimeToTimeStamp(now)
+
 	//bh.PreHash = common.HexToHash("0x03")
 	bh.Height = 3
 	proveString := "03db08597ecb8270a371018a1e4a4cd811938a33e2ca0f89e1d5dff038b7d9f99fd8891b000e06ac3abdf22ac962a5628c07d5bb38451dcdcb2ab07ce0fd7e6c77684b97e8adac2c1f7d5986bba22de4bd"
@@ -181,6 +181,8 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Hash = bh.GenHash()
 
 	}
+	bh.Elapsed = int32(bh.CurTime - (time.TimeToTimeStamp(now) - 8*1e3))
+	bh.Hash = bh.GenHash()
 	return bh
 }
 
@@ -402,18 +404,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 		//	},
 		//	expected: "ignore self message",
 		//},
-		{
-			name: "bh.Elapsed<=0",
-			args: args{
-				msg: &model.ConsensusCastMessage{
-					BH: GenTestBH("bh.Elapsed<=0"),
-					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(GenTestBHHash("bh.Elapsed<=0"), pt.ids[1], pt.msk[1]),
-					},
-				},
-			},
-			expected: fmt.Sprintf("elapsed error %v", -2),
-		},
+
 		{
 			name: "p.ts.SinceSeconds(bh.CurTime)<-1",
 			args: args{
@@ -717,18 +708,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 			},
 			expected: "sender doesn't belong the verifyGroup",
 		},
-		{
-			name: "bh.Elapsed<=0",
-			args: args{
-				msg: &model.ConsensusVerifyMessage{
-					BlockHash: GenTestBHHash("bh.Elapsed<=0"),
-					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
-					},
-				},
-			},
-			expected: "elapsed error",
-		},
+
 		{
 			name: "p.ts.SinceSeconds(bh.CurTime)<-1",
 			args: args{

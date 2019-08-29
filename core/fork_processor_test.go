@@ -75,6 +75,7 @@ func (s *msgSender4Test) Send(id string, msg network.Message) error {
 }
 
 func initChain(dataPath string, id string) *FullBlockChain {
+	clear()
 	common.InitConf("test1.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
@@ -149,9 +150,9 @@ func TestBuildChain(t *testing.T) {
 	chain := initChain(chainPath1, id1)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
-	buildChain(4000, chain)
-
-	if chain.Height() != 3999 {
+	buildChain(400, chain)
+	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
+	if chain.Height() != 399 {
 		t.Errorf("chain height error")
 	}
 }

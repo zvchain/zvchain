@@ -83,7 +83,6 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	//`
 
 	nonce := uint64(1)
-	// 交易1
 	tx := genTestTx(500, "100", nonce, 1)
 	var sign = common.BytesToSign(tx.Sign)
 	pk, err := sign.RecoverPubkey(tx.Hash.Bytes())
@@ -111,14 +110,12 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	}
 	//txpool.AddTransaction(genContractTx(1, 20000000, "1", "", 1, 0, []byte(code), nil, 0))
 	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine([]byte("1"), common.Uint64ToByte(0))))
-	//交易2
 	nonce++
 	_, err = txpool.AddTransaction(genTestTx(500, "2", nonce, 1))
 	if err != nil {
 		t.Fatalf("fail to AddTransaction %v", err)
 	}
 
-	//交易3 执行失败的交易
 	nonce++
 	_, err = txpool.AddTransaction(genTestTx(500, "2", nonce, 1))
 	if err != nil {
@@ -127,7 +124,6 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	castor := new([]byte)
 	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
-	// 铸块1
 	block := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, groupid)
 
 	fmt.Printf("block.Header.CurTime = %v \n", block.Header.CurTime)
@@ -142,13 +138,10 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("fail to cast new block")
 	}
 
-	// 上链
-
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block")
 	}
 
-	//最新块是块1
 	blockHeader = BlockChainImpl.QueryTopBlock()
 	if nil == blockHeader || 1 != blockHeader.Height {
 		t.Fatalf("add block1 failed")
@@ -158,13 +151,10 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		//t.Fatalf("fail to transfer 1 from 1  to 2")
 	}
 
-	// 池子中交易的数量为0
-
 	if 0 != len(txpool.GetReceived()) {
 		t.Fatalf("fail to remove transactions after addBlock")
 	}
 
-	//交易3
 	transaction := genTestTx(1111, "1", 4, 10)
 	sign = common.BytesToSign(transaction.Sign)
 	pk, err = sign.RecoverPubkey(transaction.Hash.Bytes())
@@ -182,10 +172,10 @@ func TestBlockChain_AddBlock(t *testing.T) {
 
 	//txpool.AddTransaction(genContractTx(1, 20000000, "1", contractAddr.GetHexString(), 3, 0, []byte(`{"FuncName": "Test", "Args": [10.123, "ten", [1, 2], {"key":"value", "key2":"value2"}]}`), nil, 0))
 	fmt.Println(contractAddr.AddrPrefixString())
-	// 铸块2
+
 	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("123"), 0, *castor, groupid)
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block2) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add empty block")
 	}
 
@@ -193,7 +183,6 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		//t.Fatalf("fail to transfer 10 from 1 to 2")
 	}
 
-	//最新块是块2
 	blockHeader = BlockChainImpl.QueryTopBlock()
 	if nil == blockHeader || 2 != blockHeader.Height || blockHeader.Hash != block2.Header.Hash || block.Header.Hash != block2.Header.PreHash {
 		t.Fatalf("add block2 failed")
@@ -208,13 +197,11 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("fail to QueryBlockByHeight, height: %d ", 2)
 	}
 
-	// 铸块3 空块
 	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("125"), 0, *castor, groupid)
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block3) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block3) {
 		t.Fatalf("fail to add empty block")
 	}
-	//最新块是块3
 	blockHeader = BlockChainImpl.QueryTopBlock()
 	if nil == blockHeader || 3 != blockHeader.Height || blockHeader.Hash != block3.Header.Hash {
 		t.Fatalf("add block3 failed")
@@ -222,10 +209,9 @@ func TestBlockChain_AddBlock(t *testing.T) {
 
 	block4 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("126"), 0, *castor, groupid)
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block4) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block4) {
 		t.Fatalf("fail to add empty block")
 	}
-	//最新块是块3
 	blockHeader = BlockChainImpl.QueryTopBlock()
 	if nil == blockHeader || 4 != blockHeader.Height || blockHeader.Hash != block4.Header.Hash {
 		t.Fatalf("add block3 failed")
@@ -233,10 +219,9 @@ func TestBlockChain_AddBlock(t *testing.T) {
 
 	block5 := BlockChainImpl.CastBlock(5, common.Hex2Bytes("126"), 0, *castor, groupid)
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block5) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block5) {
 		t.Fatalf("fail to add empty block")
 	}
-	//最新块是块5
 	blockHeader = BlockChainImpl.QueryTopBlock()
 	if nil == blockHeader || 5 != blockHeader.Height || blockHeader.Hash != block5.Header.Hash {
 		t.Fatalf("add block3 failed")
@@ -271,19 +256,19 @@ func TestBlockChain_GetBlockMessage(t *testing.T) {
 	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 	block1 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("125"), 0, *castor, groupid)
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block1) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block1) {
 		t.Fatalf("fail to add empty block")
 	}
 
 	block2 := BlockChainImpl.CastBlock(2, common.Hex2Bytes("1256"), 0, *castor, groupid)
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block2) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add empty block")
 	}
 
 	block3 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("1257"), 0, *castor, groupid)
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block3) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block3) {
 		t.Fatalf("fail to add empty block")
 	}
 
@@ -320,7 +305,7 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 	for i = 1; i < 2000; i++ {
 		block := BlockChainImpl.CastBlock(i, common.Hex2Bytes(strconv.FormatInt(int64(i), 10)), 0, *castor, groupid)
 
-		if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+		if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 			t.Fatalf("fail to add empty block")
 		}
 	}
@@ -353,7 +338,6 @@ func TestBlockChain_StateTree(t *testing.T) {
 
 	chain := BlockChainImpl
 
-	// 查询创始块
 	blockHeader := BlockChainImpl.QueryTopBlock()
 	if nil == blockHeader || 0 != blockHeader.Height {
 		t.Fatalf("clear data fail")
@@ -372,56 +356,44 @@ func TestBlockChain_StateTree(t *testing.T) {
 	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
 	block0 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, groupid)
-	// 上链
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block0) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block0) {
 		t.Fatalf("fail to add block0")
 	}
 
-	// 交易1
 	_, _ = txpool.AddTransaction(genTestTx(12345, "1", 1, 1))
 
-	//交易2
 	_, _ = txpool.AddTransaction(genTestTx(123456, "2", 2, 2))
 
-	// 交易3 失败的交易
 	_, _ = txpool.AddTransaction(genTestTx(123457, "1", 2, 3))
 
-	// 铸块1
 	block := BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 0, *castor, groupid)
 	if nil == block {
 		t.Fatalf("fail to cast new block")
 	}
 
-	// 上链
-
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block")
 	}
 
-	// 铸块2
 	block2 := BlockChainImpl.CastBlock(3, common.Hex2Bytes("22"), 0, *castor, groupid)
 	if nil == block2 {
 		t.Fatalf("fail to cast new block")
 	}
 
-	// 上链
 
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block2) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add block")
 	}
 
 	fmt.Printf("state: %d\n", chain.latestBlock.StateTree)
 
-	// 铸块3
 	block3 := BlockChainImpl.CastBlock(4, common.Hex2Bytes("12"), 0, *castor, groupid)
 	if nil == block3 {
 		t.Fatalf("fail to cast new block")
 	}
 
-	// 上链
-
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block3) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block3) {
 		t.Fatalf("fail to add block")
 	}
 
@@ -431,9 +403,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 var privateKey = "0x045c8153e5a849eef465244c0f6f40a43feaaa6855495b62a400cc78f9a6d61c76c09c3aaef393aa54bd2adc5633426e9645dfc36723a75af485c5f5c9f2c94658562fcdfb24e943cf257e25b9575216c6647c4e75e264507d2d57b3c8bc00b361"
 
 func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.Transaction {
-
 	targetbyte := common.BytesToAddress(genHash(target))
-
 	raw := &types.RawTransaction{
 		GasPrice: types.NewBigInt(price),
 		GasLimit: types.NewBigInt(5000),
@@ -441,15 +411,13 @@ func genTestTx(price uint64, target string, nonce uint64, value uint64) *types.T
 		Nonce:    nonce,
 		Value:    types.NewBigInt(value),
 	}
-	tx := types.NewTransaction(raw, raw.GenHash())
+
 	sk := common.HexToSecKey(privateKey)
-	sign, _ := sk.Sign(tx.Hash.Bytes())
-
-	tx.Sign = sign.Bytes()
-
 	source := sk.GetPubKey().GetAddress()
-	tx.Source = &source
-
+	raw.Source = &source
+	tx := types.NewTransaction(raw, raw.GenHash())
+	sign, _ := sk.Sign(tx.Hash.Bytes())
+	tx.Sign = sign.Bytes()
 	return tx
 }
 
@@ -515,6 +483,9 @@ func initContext4Test() error {
 	BlockChainImpl = nil
 
 	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}), getAccount())
+	executor := NewTVMExecutor(BlockChainImpl)
+	BlockChainImpl.executor = executor
+
 	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
 	clearTicker()
 	return err
@@ -570,7 +541,7 @@ func (helper *ConsensusHelperImpl4Test) VRFProve2Value(prove []byte) *big.Int {
 
 func (helper *ConsensusHelperImpl4Test) CheckProveRoot(bh *types.BlockHeader) (bool, error) {
 	//return Proc.checkProveRoot(bh)
-	return true, nil //上链时不再校验，只在共识时校验（update：2019-04-23）
+	return true, nil
 }
 
 func (helper *ConsensusHelperImpl4Test) VerifyNewBlock(bh *types.BlockHeader, preBH *types.BlockHeader) (bool, error) {
