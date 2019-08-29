@@ -5,11 +5,13 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math"
 	"math/big"
 	"math/rand"
 	"strconv"
+	"time"
 )
 
 var (
@@ -82,7 +84,7 @@ func NewRandomFullBlockHeader(height uint64) *types.BlockHeader {
 		Elapsed:     int32(rand.Intn(10000)),
 		ProveValue:  big.NewInt(int64(rand.Intn(10000))).Bytes(),
 		TotalQN:     uint64(rand.Intn(10000)),
-		CurTime:     -111111,
+		CurTime:     time2.TimeToTimeStamp(time.Now()),
 		Castor:      big.NewInt(int64(rand.Intn(10000))).Bytes(),
 		Group:       common.BigToHash(big.NewInt(int64(rand.Intn(10000)))),
 		Signature:   big.NewInt(int64(rand.Intn(10000))).Bytes(),

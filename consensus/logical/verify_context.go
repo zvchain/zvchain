@@ -124,7 +124,7 @@ func (vc *VerifyContext) castExpire() bool {
 
 // castRewardSignExpire means whether the reward transaction signature expires
 func (vc *VerifyContext) castRewardSignExpire() bool {
-	return vc.ts.NowAfter(vc.expireTime.Add(int64(30 * model.Param.MaxGroupCastTime)))
+	return vc.ts.NowAfter(vc.expireTime.AddSeconds(int64(30 * model.Param.MaxGroupCastTime)))
 }
 
 func (vc *VerifyContext) findSlot(hash common.Hash) *SlotContext {
@@ -167,10 +167,10 @@ func (vc *VerifyContext) baseCheck(bh *types.BlockHeader, sender groupsig.ID) (e
 		return
 	}
 	// Check time window
-	if vc.ts.Since(bh.CurTime) < -1 {
+	if vc.ts.SinceSeconds(bh.CurTime) < -1 {
 		return fmt.Errorf("block too early: now %v, curtime %v", vc.ts.Now(), bh.CurTime)
 	}
-	begin := vc.expireTime.Add(-int64(model.Param.MaxGroupCastTime + 1))
+	begin := vc.expireTime.AddSeconds(-int64(model.Param.MaxGroupCastTime + 1))
 	if bh.Height > 1 && !vc.ts.NowAfter(begin) {
 		return fmt.Errorf("block too early: begin %v, now %v", begin, vc.ts.Now())
 	}
@@ -304,7 +304,7 @@ func (vc *VerifyContext) checkNotify() *SlotContext {
 	if vc.isNotified() || vc.castSuccess() {
 		return nil
 	}
-	if vc.ts.Since(vc.createTime) < int64(model.Param.MaxWaitBlockTime) {
+	if vc.ts.SinceSeconds(vc.createTime) < int64(model.Param.MaxWaitBlockTime) {
 		return nil
 	}
 	var (

@@ -57,4 +57,7 @@ type ConsensusHelper interface {
 
 	// VerifyBlockHeaders checks if the group is legal and the group signature is correct
 	VerifyBlockHeaders(pre, bh *BlockHeader) (ok bool, err error)
+
+	// return the min elapsed second for blocks
+	GetBlockMinElapse(height uint64) int32
 }

@@ -19,6 +19,7 @@ package logical
 
 import (
 	"bytes"
+	lru "github.com/hashicorp/golang-lru"
 	"io/ioutil"
 	"strings"
 	"sync"
@@ -78,6 +79,8 @@ type Processor struct {
 	groupNetBuilt sync.Map // Store groups that have built group-network
 
 	rewardHandler *RewardHandler
+
+	cachedMinElapseByEpoch *lru.Cache	// Cache the min elapse milliseconds in a epoch. key: common.Hash, value: int32
 }
 
 func (p *Processor) GetRewardManager() types.RewardManager {
@@ -143,6 +146,8 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	provider := core.GroupManagerImpl
 	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
+
+	p.cachedMinElapseByEpoch = common.MustNewLRUCache(10)
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())

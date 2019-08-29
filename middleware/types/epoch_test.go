@@ -23,10 +23,10 @@ func TestEpochAt(t *testing.T) {
 	if ep.Start() != 0 {
 		t.Errorf("epoch at error:%v", h)
 	}
-
+	t.Log(ep.Start(), ep.End(), ep)
 	h = 100
 	ep = EpochAt(h)
-	t.Log(ep.Start(), ep.End())
+	t.Log(ep.Start(), ep.End(), ep)
 	if ep.Start() != 0 {
 		t.Errorf("epoch at error:%v", h)
 	}
@@ -39,7 +39,7 @@ func TestEpochAt(t *testing.T) {
 
 	h = EpochLength + 443
 	ep = EpochAt(h)
-	t.Log(ep.Start(), ep.End())
+	t.Log(ep.Start(), ep.End(), ep)
 	if ep.Start() != EpochLength {
 		t.Errorf("epoch at error:%v", h)
 	}

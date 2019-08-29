@@ -91,3 +91,8 @@ func (helper *ConsensusHelperImpl) EstimatePreHeight(bh *types.BlockHeader) uint
 func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
 	return Proc.VerifyBlockHeaders(pre, bh)
 }
+
+// GetBlockMinElapse return the min elapsed second for blocks
+func (helper *ConsensusHelperImpl) GetBlockMinElapse(height uint64) int32 {
+	return Proc.GetBlockMinElapse(height)
+}

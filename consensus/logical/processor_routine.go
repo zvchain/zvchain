@@ -65,7 +65,7 @@ func (p *Processor) checkSelfCastRoutine() bool {
 		castHeight  uint64
 		deltaHeight uint64
 	)
-	d := p.ts.Since(top.CurTime)
+	d := p.ts.SinceSeconds(top.CurTime)
 	if d < 0 {
 		return false
 	}

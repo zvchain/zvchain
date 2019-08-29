@@ -103,7 +103,7 @@ func (api *RpcDevImpl) GetTransaction(hash string) (map[string]interface{}, erro
 	}
 	transaction := core.BlockChainImpl.GetTransactionByHash(false, common.HexToHash(hash))
 	if transaction == nil {
-		return nil, fmt.Errorf("transaction not exists")
+		return nil, nil
 	}
 	detail := make(map[string]interface{})
 	detail["hash"] = hash
@@ -118,13 +118,21 @@ func (api *RpcDevImpl) GetTransaction(hash string) (map[string]interface{}, erro
 	return detail, nil
 }
 
-func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) ([]*Block, error) {
-	if from > to {
-		return nil, fmt.Errorf("param error")
+func (api *RpcDevImpl) GetBlocks(from uint64, len uint64) ([]*Block, error) {
+	maxHeight := core.BlockChainImpl.QueryTopBlock().Height
+	if len > 10{
+		len = 10
+	}
+	if from > maxHeight{
+		from =  maxHeight
+	}
+	end := from + len
+	if end > maxHeight{
+		end = maxHeight
 	}
 	blocks := make([]*Block, 0)
 	var preBH *types.BlockHeader
-	for h := from; h <= to; h++ {
+	for h := from; h <= end; h++ {
 		b := core.BlockChainImpl.QueryBlockByHeight(h)
 		if b != nil {
 			block := convertBlockHeader(b)
@@ -160,7 +168,7 @@ func (api *RpcDevImpl) GetTopBlock() (map[string]interface{}, error) {
 	blockDetail["signature"] = hex.EncodeToString(bh.Signature)
 	blockDetail["txs"] = len(b.Transactions)
 	blockDetail["elapsed"] = bh.Elapsed
-	blockDetail["tps"] = math.Round(float64(len(b.Transactions)) / float64(bh.Elapsed))
+	blockDetail["tps"] = math.Round(float64(len(b.Transactions)) / float64(bh.Elapsed*1e3))
 
 	blockDetail["tx_pool_count"] = len(core.BlockChainImpl.GetTransactionPool().GetReceived())
 	blockDetail["tx_pool_total"] = core.BlockChainImpl.GetTransactionPool().TxNum()
@@ -197,16 +205,24 @@ func (api *RpcDevImpl) GetWorkGroup(height uint64) ([]*Group, error) {
 }
 
 // CastStat cast block statistics
-func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (map[string]map[string]int32, error) {
+	func (api *RpcDevImpl) CastStat(begin uint64, len uint64) (map[string]map[string]int32, error) {
 	proposerStat := make(map[string]int32)
 	groupStat := make(map[string]int32)
-
 	chain := core.BlockChainImpl
-	if end == 0 {
-		end = chain.QueryTopBlock().Height
+	maxHeight := chain.QueryTopBlock().Height
+	if len > 100{
+		len = 100
+	}
+	if begin > maxHeight{
+		begin =  maxHeight
+	}
+	end := begin + len
+
+	if end > maxHeight{
+		end = maxHeight
 	}
 
-	for h := begin; h < end; h++ {
+	for h := begin; h <= end; h++ {
 		b := chain.QueryBlockByHeight(h)
 		if b == nil {
 			continue

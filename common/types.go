@@ -43,9 +43,11 @@ const (
 	SecKeyLength = 97 //length of private key，65 bytes pub, 32 bytes D。
 	SignLength   = 65 //length of signature，32 bytes r & 32 bytes s & 1 byte recid.
 
-	AddressLength = 32 //Length of Address( golang.SHA3，256-bit)
-	HashLength    = 32 //Length of Hash (golang.SHA3, 256-bit)。
-	GroupIDLength = 32 //Length of Group
+	AddressLength     = 32 //Length of Address( golang.SHA3，256-bit)
+	HashLength        = 32 //Length of Hash (golang.SHA3, 256-bit)。
+	MinPasswordLength = 6
+	MaxPasswordLength = 50
+	DefaultPassword = "Zvc123"
 )
 
 // Special account address
