@@ -166,12 +166,22 @@ func (p *Processor) GetBlockMinElapse(height uint64) int32 {
 	}
 
 	lastBlock := p.MainChain.QueryBlockHeaderCeil(endEpoch.Start())
+	if lastBlock == nil || lastBlock.Height > endEpoch.End() {
+		stdLogger.Debugf("last block not in end epoch, consider as chasing. current epoch: %d, min elapse: %d", currentEpoch, normalMinElapse)
+		return chasingMinElapse
+	}
+
 	if v, ok := p.cachedMinElapseByEpoch.Get(lastBlock.Hash); ok {
 		return v.(int32)
 	}
 
 	firstBlock := p.MainChain.QueryBlockHeaderCeil(startEpoch.Start())
-	realCount :=  lastBlock.Height - firstBlock.Height
+	if firstBlock == nil || firstBlock.Height > startEpoch.End() {
+		stdLogger.Debugf("first block not in start epoch, consider as chasing. current epoch: %d, min elapse: %d", currentEpoch, normalMinElapse)
+		return chasingMinElapse
+	}
+
+	realCount := lastBlock.Height - firstBlock.Height
 
 	spends := uint64(lastBlock.CurTime.SinceMilliSeconds(firstBlock.CurTime))
 	if spends > realCount*uint64(normalMinElapse) {
