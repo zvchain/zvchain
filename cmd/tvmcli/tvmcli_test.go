@@ -54,12 +54,16 @@ func _callContract(contractAddress string, abiJSON string) {
 }
 
 func TestTvmCli_Call(t *testing.T) {
-	contractAddress := _deployContract("Token", "erc20.py")
+	contractAddress := _deployContract("A", "contract_run.py")
 	abiJson := `{
-	"FuncName": "balance_of",
-		"Args": ["zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
+	"func_name": "check4",
+		"Args": []
 }`
 	_callContract(contractAddress, abiJson)
+	tvmCli := NewTvmCli()
+	result := tvmCli.QueryData(contractAddress, "", 100)
+	fmt.Println(result)
+	tvmCli.DeleteTvmCli()
 }
 
 func TestTvmCli_QueryData(t *testing.T) {
