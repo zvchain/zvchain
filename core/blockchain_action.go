@@ -118,8 +118,13 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.StateTree = common.BytesToHash(stateRoot.Bytes())
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
-	block.Header.Elapsed = int32(block.Header.CurTime.SinceMilliSeconds(latestBlock.CurTime))
-	if block.Header.Height == 1 && block.Header.Elapsed < 0 {
+	elapsed := block.Header.CurTime.SinceMilliSeconds(latestBlock.CurTime)
+	if elapsed < 0 {
+		Logger.Errorf("cur time is before pre time:height=%v, curtime=%v, pretime=%v", height, block.Header.CurTime, latestBlock.CurTime)
+		return nil
+	}
+	block.Header.Elapsed = int32(elapsed)
+	if block.Header.Elapsed < 0 {
 		block.Header.Elapsed = math.MaxInt32 //overflow, may happen in first block
 	}
 	minElapse := chain.consensusHelper.GetBlockMinElapse(block.Header.Height)
@@ -250,13 +255,6 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 		return types.AddBlockFailed, fmt.Errorf("nil block")
 	}
 	bh := block.Header
-
-	minElapse := chain.consensusHelper.GetBlockMinElapse(bh.Height)
-	if bh.Elapsed < minElapse {
-		Logger.Debugf("Validate block elapsed error!")
-		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
-		return types.AddBlockFailed, err
-	}
 
 	if bh.Hash != bh.GenHash() {
 		Logger.Debugf("Validate block hash error!")
