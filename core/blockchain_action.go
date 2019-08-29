@@ -124,7 +124,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 		return nil
 	}
 	block.Header.Elapsed = int32(elapsed)
-	if block.Header.Height == 1 && block.Header.Elapsed < 0 {
+	if block.Header.Height == 1 && int64(block.Header.Elapsed) != elapsed{
 		block.Header.Elapsed = math.MaxInt32 //overflow, may happen in first block
 	}
 	minElapse := chain.consensusHelper.GetBlockMinElapse(block.Header.Height)
