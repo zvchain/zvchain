@@ -40,11 +40,11 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error {
 	}
 
 	log.ELKLogger.WithFields(logrus.Fields{
-		"height": block.Header.Height,
+		"height":    block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
-		"now": chain.ts.NowTime().Local(),
-		"from": source,
-		"logId": "52",
+		"now":       chain.ts.Now().Local(),
+		"from":      source,
+		"logId":     "52",
 	}).Debug("OnNewBlock")
 
 	Logger.Debugf("Rcv new block from %s,hash:%v,height:%d,totalQn:%d,tx len:%d", source, block.Header.Hash.Hex(), block.Header.Height, block.Header.TotalQN, len(block.Transactions))
