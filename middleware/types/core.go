@@ -157,7 +157,7 @@ func (tx *RawTransaction) GenHash() common.Hash {
 		src = tx.Source.Bytes()
 	}
 	if tx.Target != nil {
-		src = tx.Target.Bytes()
+		target = tx.Target.Bytes()
 	}
 	txH := &txHashing{
 		src:      src,
