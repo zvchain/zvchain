@@ -162,7 +162,7 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	txH := &txHashing{
 		src:      src,
 		target:   target,
-		value:    tx.Value.Value().Bytes(),
+		value:    tx.Value.Bytes(),
 		gasLimit: tx.GasLimit.Bytes(),
 		gasPrice: tx.GasPrice.Bytes(),
 		nonce:    new(big.Int).SetUint64(tx.Nonce).Bytes(),
