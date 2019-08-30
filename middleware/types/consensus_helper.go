@@ -60,4 +60,7 @@ type ConsensusHelper interface {
 	VerifyBlockHeaders(pre, bh *BlockHeader) (ok bool, err error)
 
 	GroupSkipCountsBetween(preBH *BlockHeader, h uint64) map[common.Hash]uint16
+
+	// return the min elapsed second for blocks
+	GetBlockMinElapse(height uint64) int32
 }

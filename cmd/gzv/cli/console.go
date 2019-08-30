@@ -77,7 +77,7 @@ func genNewAccountCmd() *newAccountCmd {
 func (c *newAccountCmd) parse(args []string) bool {
 	err := c.fs.Parse(args)
 	if err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	pass := strings.TrimSpace(c.password)
@@ -85,8 +85,8 @@ func (c *newAccountCmd) parse(args []string) bool {
 		output("Please input password")
 		return false
 	}
-	if len(pass) > 50 || len(pass) < 3 {
-		output("password length should between 3-50")
+	if len(pass) > common.MaxPasswordLength || len(pass) < common.MinPasswordLength {
+		fmt.Printf("password length should between %d-%d \n", common.MinPasswordLength, common.MaxPasswordLength)
 		return false
 	}
 	return true
@@ -109,7 +109,7 @@ func genUnlockCmd() *unlockCmd {
 
 func (c *unlockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -140,7 +140,7 @@ func genBalanceCmd() *balanceCmd {
 
 func (c *balanceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -170,7 +170,7 @@ func genNonceCmd() *nonceCmd {
 
 func (c *nonceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -209,7 +209,7 @@ func (c *minerPoolInfoCmd) parse(args []string) bool {
 		return false
 	}
 	if !common.ValidateAddress(c.addr) {
-		output("Wrong address format")
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
 		return false
 	}
 	return true
@@ -283,7 +283,7 @@ func genMinerInfoCmd() *minerInfoCmd {
 
 func (c *minerInfoCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.addr) == "" {
@@ -319,7 +319,7 @@ func genConnectCmd() *connectCmd {
 
 func (c *connectCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.host) == "" {
@@ -350,7 +350,7 @@ func genTxCmd() *txCmd {
 
 func (c *txCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.hash) == "" {
@@ -380,7 +380,7 @@ func genReceiptCmd() *receiptCmd {
 
 func (c *receiptCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if strings.TrimSpace(c.hash) == "" {
@@ -412,7 +412,7 @@ func genBlockCmd() *blockCmd {
 
 func (c *blockCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if len(c.hash) > 0 {
@@ -497,7 +497,7 @@ func (c *sendTxCmd) toTxRaw() *txRawData {
 
 func (c *sendTxCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if !validateTxType(c.txType) {
@@ -634,7 +634,7 @@ func genStakeAddCmd() *stakeAddCmd {
 
 func (c *stakeAddCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if !validateMinerType(c.mtype) {
@@ -668,7 +668,7 @@ func genMinerAbortCmd() *minerAbortCmd {
 
 func (c *minerAbortCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if !validateMinerType(c.mtype) {
@@ -722,7 +722,7 @@ func genStakeRefundCmd() *stakeRefundCmd {
 
 func (c *stakeRefundCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if c.target != "" && !common.ValidateAddress(c.target) {
@@ -756,7 +756,7 @@ func genStakeReduceCmd() *stakeReduceCmd {
 
 func (c *stakeReduceCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if c.target != "" && !common.ValidateAddress(c.target) {
@@ -785,7 +785,7 @@ func genViewContractCmd() *viewContractCmd {
 
 func (c *viewContractCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if c.addr == "" {
@@ -819,7 +819,7 @@ func genImportKeyCmd() *importKeyCmd {
 func (c *importKeyCmd) parse(args []string) bool {
 	err := c.fs.Parse(args)
 	if err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	key := strings.TrimSpace(c.key)
@@ -836,8 +836,8 @@ func (c *importKeyCmd) parse(args []string) bool {
 		output("Please input password")
 		return false
 	}
-	if len(pass) > 50 || len(pass) < 3 {
-		output("password length should between 3-50")
+	if len(pass) > common.MaxPasswordLength || len(pass) < common.MinPasswordLength {
+		fmt.Printf("password length should between %d-%d \n", common.MinPasswordLength, common.MaxPasswordLength)
 		return false
 	}
 	return true
@@ -858,7 +858,7 @@ func genExportKeyCmd() *exportKeyCmd {
 
 func (c *exportKeyCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if c.addr == "" {
@@ -887,7 +887,7 @@ func genGroupCheckCmd() *groupCheckCmd {
 
 func (c *groupCheckCmd) parse(args []string) bool {
 	if err := c.fs.Parse(args); err != nil {
-		outputJSONErr(opErrorRes(err))
+		output(err.Error())
 		return false
 	}
 	if c.addr == "" {
@@ -977,7 +977,7 @@ func Usage() {
 }
 
 func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error {
-	aop, err := initAccountManager(keystore, false)
+	aop, err := initAccountManager(keystore, false, "")
 	if err != nil {
 		return err
 	}

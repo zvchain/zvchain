@@ -35,7 +35,7 @@ type txRawData struct {
 	Value     uint64 `json:"value"`
 	GasLimit  uint64 `json:"gas_limit"`
 	GasPrice  uint64 `json:"gas_price"`
-	TxType    int    `json:"tx_type"`
+	TxType    int    `json:"type"`
 	Nonce     uint64 `json:"nonce"`
 	Data      []byte `json:"data"`
 	Sign      string `json:"sign"`

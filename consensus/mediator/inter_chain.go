@@ -96,3 +96,8 @@ func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader
 func (helper *ConsensusHelperImpl) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
 	return Proc.GroupSkipCountsBetween(preBH, h)
 }
+
+// GetBlockMinElapse return the min elapsed second for blocks
+func (helper *ConsensusHelperImpl) GetBlockMinElapse(height uint64) int32 {
+	return Proc.GetBlockMinElapse(height)
+}

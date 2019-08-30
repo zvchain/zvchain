@@ -168,13 +168,14 @@ func (gtas *Gtas) Run() {
 	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
-	passWd := mineCmd.Flag("password", "login password").Default("123").String()
+	passWd := mineCmd.Flag("password", "login password").Default(common.DefaultPassword).String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
 		fmt.Println("Welcome to be a ZV propose miner!")
 	} else if *apply == "light" {
 		fmt.Println("Welcome to be a ZV verify miner!")
 	}
+	autoCreateAccount := mineCmd.Flag("createaccount", "if account not exists,create it by password").Bool()
 	reset := mineCmd.Flag("reset", "reset the local top to block of the given hash").Default("").String()
 
 	// In test mode, P2P NAT is closed
@@ -222,20 +223,21 @@ func (gtas *Gtas) Run() {
 		}
 
 		cfg := &minerConfig{
-			rpcLevel:      rpcLevel(*rpc),
-			rpcAddr:       addrRPC.String(),
-			rpcPort:       *rpcServicePort,
-			super:         *super,
-			testMode:      *testMode,
-			natIP:         *natAddr,
-			natPort:       *natPort,
-			seedIP:        *seedAddr,
-			applyRole:     *apply,
-			keystore:      *keystore,
-			enableMonitor: *enableMonitor,
-			chainID:       *chainID,
-			password:      *passWd,
-			resetHash:     *reset,
+			rpcLevel:          rpcLevel(*rpc),
+			rpcAddr:           addrRPC.String(),
+			rpcPort:           *rpcServicePort,
+			super:             *super,
+			testMode:          *testMode,
+			natIP:             *natAddr,
+			natPort:           *natPort,
+			seedIP:            *seedAddr,
+			applyRole:         *apply,
+			keystore:          *keystore,
+			enableMonitor:     *enableMonitor,
+			chainID:           *chainID,
+			password:          *passWd,
+			autoCreateAccount: *autoCreateAccount,
+			resetHash:         *reset,
 		}
 
 		// Start miner
@@ -264,8 +266,8 @@ func (gtas *Gtas) simpleInit(configPath string) {
 	common.InitConf(configPath)
 }
 
-func (gtas *Gtas) checkAddress(keystore, address, password string) error {
-	aop, err := initAccountManager(keystore, true)
+func (gtas *Gtas) checkAddress(keystore, address, password string, autoCreateAccount bool) error {
+	aop, err := initAccountManager(keystore, autoCreateAccount, password)
 	if err != nil {
 		return err
 	}
@@ -275,7 +277,7 @@ func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 	if address != "" {
 		aci, err := acm.checkMinerAccount(address, password)
 		if err != nil {
-			return fmt.Errorf("cannot get miner, err:%v", err.Error())
+			return fmt.Errorf("init miner error, err is %v", err.Error())
 		}
 		if aci.Miner == nil {
 			return fmt.Errorf("the address is not a miner account: %v", address)
@@ -301,7 +303,7 @@ func (gtas *Gtas) fullInit() error {
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
 
-	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password)
+	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
 	if err != nil {
 		return err
 	}

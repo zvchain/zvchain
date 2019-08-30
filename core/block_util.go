@@ -94,7 +94,7 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	stateDB.SetNonce(types.AdminAddr, 2)
 
 	// mining pool and circulates
-	stateDB.SetBalance(types.MiningPoolAddr, big.NewInt(0).SetUint64(miningPoolToken))
+	stateDB.SetBalance(types.StakePlatformAddr, big.NewInt(0).SetUint64(miningPoolToken))
 	stateDB.SetBalance(types.CirculatesAddr, big.NewInt(0).SetUint64(circulatesToken))
 
 	// genesis balance: just for stakes two roles with minimum required value

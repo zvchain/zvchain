@@ -157,8 +157,8 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             data: JSON.stringify(params),
             success: function (rdata) {
                 if (rdata.result !== undefined){
-                    $("#balance_message").text(rdata.result.message);
-                    $("#query_balance_"+count).text(rdata.result.data)
+                    $("#balance_message").text(rdata.result);
+                    $("#query_balance_"+count).text(rdata.result)
                 }
                 if (rdata.error !== undefined){
                     $("#balance_error").text(rdata.error.message);
@@ -243,8 +243,8 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
                 if (rdata.result != undefined && rdata.result != null) {
                     last_sync_block = to
                 }
-                if (rdata.result !== undefined && rdata.result.message == "success"){
-                    retarr = rdata.result.data;
+                if (rdata.result !== undefined){
+                    retarr = rdata.result;
                     for(i = 0; i < retarr.length;i++) {
                         blocks.push(retarr[i]);
                         if (blocks.length > 100) {
@@ -277,8 +277,8 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             data: JSON.stringify(params),
             async: false,
             success: function (rdata) {
-                if (rdata.result !== undefined && rdata.result != null && rdata.result.message == 'success'){
-                    retArr = rdata.result.data;
+                if (rdata.result !== undefined && rdata.result != null){
+                    retArr = rdata.result;
                     for(i = 0; i < retArr.length; i++) {
                         if (!groupIds.has(retArr[i]["id"])) {
                             groups.push(retArr[i]);
@@ -327,8 +327,8 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params),
             success: function (rdata) {
-                if (rdata.result !== undefined && rdata.result != null && rdata.result.message == 'success'){
-                    retArr = rdata.result.data;
+                if (rdata.result !== undefined && rdata.result != null){
+                    retArr = rdata.result;
                     work_group_table.reload({
                             data: retArr
                         }
@@ -362,10 +362,10 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params),
             success: function (rdata) {
-                if (rdata.result.message == "success") {
+                if (rdata.result !== undefined && rdata.result != null){
                     $(this).text("已申请"+text)
                 } else {
-                    alert(rdata.result.message)
+                    alert(rdata.result)
                 }
             },
             error: function (err) {
@@ -404,7 +404,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params),
             success: function (rdata) {
-                $("#submit_result").text(rdata.result.message)
+                $("#submit_result").text(rdata.result)
             },
             error: function (err) {
                 console.log(err)
@@ -438,7 +438,7 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params),
             success: function (rdata) {
-                d = rdata.result.data;
+                d = rdata.result;
                 //块高
                 $("#block_height").text(d.block_height);
 
@@ -551,8 +551,8 @@ layui.use(['form', 'jquery', 'element', 'layer', 'table'], function(){
             },
             data: JSON.stringify(params),
             success: function (rdata) {
-                if (rdata.result !== undefined && rdata.result != null && rdata.result.message == 'success') {
-                    renderRewardInfo(rdata.result.data)
+                if (rdata.result !== undefined && rdata.result != null) {
+                    renderRewardInfo(rdata.result)
                 }
             },
             error: function (err) {
