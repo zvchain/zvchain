@@ -48,13 +48,15 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	nodesIndex := make([]int, 0)
 	nodes := make([]NodeID, 0)
 
-	connectNodes := make([]NodeID, 0)
+	connectedIndex := make([]int, 0)
+	connectedNodes := make([]NodeID, 0)
 
 	if totalSize == 0 {
 		return nodes
 	}
 	maxSize := groupColumnSendCount(totalSize)
 
+	// select one connected node
 	for i := 0; i < totalSize; i++ {
 		ID := NewNodeID(members[i])
 		if ID == nil || *ID == netCore.ID {
@@ -65,13 +67,20 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 		if p != nil && p.sessionID > 0 {
 			continue
 		}
-		connectNodes = append(connectNodes, *ID)
+
+		connectedIndex = append(connectedIndex, i)
+		connectedNodes = append(connectedNodes, *ID)
 	}
 
-	if len(connectNodes) >= maxSize {
-		return connectNodes[0:maxSize]
+	randomConnectedIndex := int(-1)
+	if len(connectedNodes) > 0 {
+		index := rand.Intn(len(connectedNodes))
+		randomConnectedIndex = connectedIndex[index]
+		nodesIndex = append(nodesIndex, randomConnectedIndex)
+		nodes = append(nodes, connectedNodes[index])
 	}
 
+	//select one node in first column
 	rowSize := groupRowSize(totalSize)
 
 	rowCount := int(math.Ceil(float64(totalSize) / float64(rowSize)))
@@ -79,10 +88,12 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	columnIndex := rand.Intn(rowCount)
 	nIndex := columnIndex * rowSize
 	nID := NewNodeID(members[nIndex])
-	if nID != nil {
+	if nID != nil && randomConnectedIndex != nIndex {
 		nodesIndex = append(nodesIndex, nIndex)
 		nodes = append(nodes, *nID)
 	}
+
+	//select another nodes
 
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < totalSize; i++ {
@@ -107,11 +118,10 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 				nodes = append(nodes, *nID)
 			}
 		}
-		if len(nodesIndex) >= maxSize-len(connectNodes) {
+		if len(nodesIndex) >= maxSize {
 			break
 		}
 	}
-	nodes = append(nodes, connectNodes...)
 	return nodes
 }
 
