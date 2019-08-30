@@ -466,6 +466,7 @@ func clear() {
 func clearTicker() {
 	if MinerManagerImpl != nil && MinerManagerImpl.ticker != nil {
 		MinerManagerImpl.ticker.RemoveRoutine("build_virtual_net")
+		MinerManagerImpl.ticker.RemoveRoutine(buildVirtualNetRoutineName)
 	}
 	if TxSyncer != nil && TxSyncer.ticker != nil {
 		TxSyncer.ticker.RemoveRoutine(txNotifyRoutine)

@@ -75,7 +75,6 @@ func (s *msgSender4Test) Send(id string, msg network.Message) error {
 }
 
 func initChain(dataPath string, id string) *FullBlockChain {
-	clear()
 	common.InitConf("test1.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
@@ -106,7 +105,7 @@ func initChain(dataPath string, id string) *FullBlockChain {
 
 	chain.cpChecker.init()
 	chains[id] = chain
-
+	clearTicker()
 	return chain
 }
 
@@ -346,6 +345,7 @@ func TestForkProcess_OnChainSliceReq_GoodMessage(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
+	defer clear()
 	chain := initChain(chainPath1, id1)
 	_ = initChain(chainPath2, id2)
 
@@ -369,6 +369,7 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
+	defer clear()
 	chain := initChain(chainPath1, id1)
 	_ = initChain(chainPath2, id2)
 
@@ -385,6 +386,7 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
+	defer clear()
 	chain := initChain(chainPath1, id1)
 	_ = initChain(chainPath2, id2)
 
@@ -425,6 +427,7 @@ func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceResponse_BadMessage(t *testing.T) {
+	defer clear()
 	chain := initChain(chainPath1, id1)
 	_ = initChain(chainPath2, id2)
 
