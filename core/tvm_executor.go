@@ -478,7 +478,11 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager().(*rewardManager)
 	totalGasUsed := uint64(0)
+	isCall  := false
 	for _, tx := range txs {
+		if tx.Type == 2{
+			isCall = true
+		}
 		if pack && time.Since(beginTime).Seconds() > float64(ProposerPackageTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", tx.Hash.Hex())
 			break
@@ -490,6 +494,11 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		}
 
 		snapshot := accountDB.Snapshot()
+
+		if isCall{
+			state = accountDB.IntermediateRoot(true)
+			Logger.Infof("=============call1 hash = %s \n",state.Hex())
+		}
 		// Apply transaction
 		ret, err := applyStateTransition(accountDB, tx, bh)
 		if err != nil {
@@ -500,6 +509,11 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		}
 		if ret.err != nil {
 			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, ret.err)
+		}
+
+		if isCall{
+			state = accountDB.IntermediateRoot(true)
+			Logger.Infof("=============call2 hash = %s \n",state.Hex())
 		}
 
 		// Accumulate gas fee
@@ -552,13 +566,30 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		accountDB.AddBalance(types.UserNodeAddress, big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
+	if isCall{
+		state = accountDB.IntermediateRoot(true)
+		Logger.Infof("=============call3 hash = %s \n",state.Hex())
+	}
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
+
+	if isCall{
+		state = accountDB.IntermediateRoot(true)
+		Logger.Infof("=============call4 hash = %s \n",state.Hex())
+	}
 
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)
 	}
 
+	if isCall{
+		state = accountDB.IntermediateRoot(true)
+		Logger.Infof("=============call5 hash = %s \n",state.Hex())
+	}
+
 	state = accountDB.IntermediateRoot(true)
+	if isCall{
+		Logger.Infof("=============call6 hash = %s \n",state.Hex())
+	}
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }
