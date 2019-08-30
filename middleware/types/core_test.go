@@ -18,6 +18,7 @@ package types
 import (
 	"fmt"
 	"github.com/vmihailenco/msgpack"
+	"math/big"
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
@@ -104,4 +105,42 @@ func TestMsgpackMarshalRawTransaction(t *testing.T) {
 	if tx.GenHash() != tx2.GenHash() {
 		t.Fatalf("gen hash diff:tx1=%+v, tx2=%+v", tx, tx2)
 	}
+}
+
+func TestBigEndianBigBytes(t *testing.T) {
+	i := uint64(1345699999)
+	b := new(big.Int).SetUint64(i)
+	t.Log(b.Bytes())
+
+	t.Log(common.Uint64ToByte(i))
+}
+
+func TestGenHash(t *testing.T) {
+	b1 := NewBigInt(1).SetBytesWithSign([]byte{2, 10})
+	b2 := NewBigInt(1).SetBytesWithSign([]byte{2, 2, 10})
+
+	src := common.BytesToAddress([]byte("0x123"))
+	target := common.BytesToAddress([]byte("0x234"))
+	tx1 := &RawTransaction{
+		Source:   &src,
+		Target:   &target,
+		Value:    NewBigInt(100),
+		GasLimit: b1,
+		GasPrice: b2,
+		Nonce:    10,
+	}
+	t.Logf("txhash %v, gaslimit %v, gasprice %v", tx1.GenHash().Hex(), tx1.GasLimit, tx1.GasPrice)
+
+	b1.SetBytesWithSign([]byte{2, 10, 2})
+	b2.SetBytesWithSign([]byte{2, 10})
+
+	tx2 := &RawTransaction{
+		Source:   &src,
+		Target:   &target,
+		Value:    NewBigInt(100),
+		GasLimit: b1,
+		GasPrice: b2,
+		Nonce:    10,
+	}
+	t.Logf("txhash %v, gaslimit %v, gasprice %v", tx2.GenHash().Hex(), tx2.GasLimit, tx2.GasPrice)
 }
