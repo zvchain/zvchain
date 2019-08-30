@@ -140,7 +140,6 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 			validGroupMembers = append(validGroupMembers, mid)
 		}
 	}
-	msgID := []byte(blockMsg.Hash())
 
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height":    block.Header.Height,
@@ -150,6 +149,7 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	}).Debug("BroadcastNewBlock, heavy miners:", len(heavyMinerMembers), ", group members:", len(validGroupMembers))
 
 	msgID := []byte(blockMsg.Hash())
+
 	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, msgID)
 
 	// Broadcast to the next group of light nodes
