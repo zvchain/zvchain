@@ -17,7 +17,6 @@ package group
 
 import (
 	"fmt"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 
@@ -35,7 +34,7 @@ type Manager struct {
 	packetSenderImpl types.GroupPacketSender
 	punishment       minerPunishment
 	poolImpl         *pool
-	groupsByEpoch    *lru.Cache
+	skipCounter      groupSkipCounter
 }
 
 func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
@@ -50,7 +49,7 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 	m.checkerImpl = checker
 }
 
-func NewManager(chain chainReader) *Manager {
+func NewManager(chain chainReader, counter groupSkipCounter) *Manager {
 	logger = log.GroupLogger
 	gPool := newPool(chain)
 	store := NewStore(chain)
@@ -61,7 +60,7 @@ func NewManager(chain chainReader) *Manager {
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
 		poolImpl:         gPool,
-		groupsByEpoch:    common.MustNewLRUCache(10),
+		skipCounter:      counter,
 		//punishment:  reader,
 	}
 	return managerImpl
@@ -274,4 +273,31 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 // markGroupFail mark group member should upload origin piece
 func markGroupFail(db types.AccountDB, seed types.SeedI) {
 	db.SetData(common.HashToAddress(seed.Seed()), originPieceReqKey, []byte{1})
+}
+
+func (m *Manager) UpdateGroupSkipCounts(db types.AccountDB, bh *types.BlockHeader) {
+	// remove skip counts for the current verify-group
+	m.poolImpl.updateSkipCount(db, bh.Group, 0)
+	pre := m.chain.QueryBlockHeaderByHash(bh.PreHash)
+	if pre != nil {
+		counts := m.skipCounter.GroupSkipCountsBetween(pre, bh.Height)
+		for gSeed, cnt := range counts {
+			m.poolImpl.updateSkipCount(db, gSeed, cnt)
+		}
+	}
+}
+
+func (m *Manager) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[common.Hash]uint16, error) {
+	db, err := m.chain.AccountDBAt(h)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[common.Hash]uint16)
+	for _, g := range groups {
+		cnt := m.poolImpl.getSkipCount(db, g.Header().Seed())
+		if cnt > 0 {
+			ret[g.Header().Seed()] = cnt
+		}
+	}
+	return ret, nil
 }

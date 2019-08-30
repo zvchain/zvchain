@@ -203,13 +203,14 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.latestBlock = chain.loadCurrentBlock()
 
-	GroupManagerImpl = group.NewManager(chain)
+	GroupManagerImpl = group.NewManager(chain, helper)
 
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
 	executor := NewTVMExecutor(chain)
 	executor.addPostProcessor(GroupManagerImpl.RegularCheck)
 	executor.addPostProcessor(chain.cpChecker.updateVotes)
 	executor.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
+	executor.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.executor = executor
 
 	if nil != chain.latestBlock {
