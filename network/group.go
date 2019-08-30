@@ -64,7 +64,7 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 		}
 
 		p := netCore.peerManager.peerByID(*ID)
-		if p != nil && p.isAvailable() {
+		if p == nil || !p.isAvailable() {
 			continue
 		}
 

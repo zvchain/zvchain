@@ -3,7 +3,6 @@ package network
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"testing"
 
@@ -59,7 +58,7 @@ func TestDecodePacketNil(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err == nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -88,7 +87,7 @@ func TestDecodePacket2BuffersEq8(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -116,7 +115,7 @@ func TestDecodePacket2BuffersLess8(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v,remain size:%v\n", msgType, packetSize, p.getDataSize())
+	t.Logf("type :%v,size %v,remain size:%v\n", msgType, packetSize, p.getDataSize())
 	if err != errPacketTooSmall {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -146,7 +145,7 @@ func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -174,7 +173,7 @@ func TestDecodePacketSmall(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != errPacketTooSmall {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -202,7 +201,7 @@ func TestDecodePacket16M(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -230,7 +229,7 @@ func TestDecodePacketOver16M(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err == nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -258,7 +257,7 @@ func TestDecodePacketOverflow(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != errBadPacket {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -286,7 +285,7 @@ func TestDecodePacketBigBuffer(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v,p.getDataSize():%v\n", msgType, packetSize, p.getDataSize())
+	t.Logf("type :%v,size %v,p.getDataSize():%v\n", msgType, packetSize, p.getDataSize())
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
