@@ -150,8 +150,11 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	}
 
 	var (
-		src    []byte
-		target []byte
+		src      []byte
+		target   []byte
+		value    []byte
+		gasLimit []byte
+		gasPrice []byte
 	)
 	if tx.Source != nil {
 		src = tx.Source.Bytes()
@@ -159,12 +162,21 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	if tx.Target != nil {
 		target = tx.Target.Bytes()
 	}
+	if tx.Value != nil {
+		value = tx.Value.Bytes()
+	}
+	if tx.GasLimit != nil {
+		gasLimit = tx.GasLimit.Bytes()
+	}
+	if tx.GasPrice != nil {
+		gasPrice = tx.GasPrice.Bytes()
+	}
 	txH := &txHashing{
 		src:      src,
 		target:   target,
-		value:    tx.Value.Bytes(),
-		gasLimit: tx.GasLimit.Bytes(),
-		gasPrice: tx.GasPrice.Bytes(),
+		value:    value,
+		gasLimit: gasLimit,
+		gasPrice: gasPrice,
 		nonce:    new(big.Int).SetUint64(tx.Nonce).Bytes(),
 		typ:      byte(tx.Type),
 		data:     tx.Data,
