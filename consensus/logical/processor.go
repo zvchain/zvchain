@@ -39,7 +39,10 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-var ProcTestMode bool
+type verifyGroupSelector interface {
+	doSelect(preBH *types.BlockHeader, height uint64) common.Hash
+	groupSkipCountsBetween(preBH *types.BlockHeader, height uint64) skipCounts
+}
 
 // Processor is the consensus engine implementation struct that implements all the consensus logic
 // and contextual information needed in the consensus process
@@ -78,6 +81,8 @@ type Processor struct {
 	groupNetBuilt sync.Map // Store groups that have built group-network
 
 	rewardHandler *RewardHandler
+
+	selector verifyGroupSelector
 }
 
 func (p *Processor) GetRewardManager() types.RewardManager {
@@ -143,6 +148,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	provider := core.GroupManagerImpl
 	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
+	p.selector = newGroupSelector(p.groupReader)
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())

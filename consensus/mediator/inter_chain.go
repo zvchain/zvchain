@@ -93,6 +93,6 @@ func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader
 	return Proc.VerifyBlockHeaders(pre, bh)
 }
 
-func (helper *ConsensusHelperImpl) GroupSkipCountsBetween(preBH, bh *types.BlockHeader) map[common.Hash]uint16 {
-	return Proc.GroupSkipCountsBetween(preBH, bh)
+func (helper *ConsensusHelperImpl) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
+	return Proc.GroupSkipCountsBetween(preBH, h)
 }

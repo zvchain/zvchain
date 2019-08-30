@@ -545,7 +545,7 @@ type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
 }
 
-func (helper *ConsensusHelperImpl4Test) GroupSkipCountsBetween(preBH, bh *types.BlockHeader) map[common.Hash]int {
+func (helper *ConsensusHelperImpl4Test) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
 	return nil
 }
 

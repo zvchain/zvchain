@@ -61,7 +61,7 @@ func TestProcessor_OnMessageResponseProposalBlock(t *testing.T) {
 
 	processorTest.blockContexts.attachVctx(pt.blockHeader, pt.verifyContext)
 	//processorTest.blockContexts.attachVctx(core.BlockChainImpl.QueryTopBlock(), pt.verifyContext)
-	txs := make([]*types.Transaction, 0)
+	txs := make([]*types.RawTransaction, 0)
 
 	type args struct {
 		msg *model.ResponseProposalBlock
@@ -406,7 +406,7 @@ type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
 }
 
-func (helper *ConsensusHelperImpl4Test) GroupSkipCountsBetween(preBH, bh *types.BlockHeader) map[common.Hash]int {
+func (helper *ConsensusHelperImpl4Test) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
 	return nil
 }
 

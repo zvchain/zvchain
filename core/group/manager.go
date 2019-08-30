@@ -17,7 +17,6 @@ package group
 
 import (
 	"fmt"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 
@@ -35,7 +34,6 @@ type Manager struct {
 	packetSenderImpl types.GroupPacketSender
 	punishment       minerPunishment
 	poolImpl         *pool
-	groupsByEpoch    *lru.Cache
 	skipCounter      groupSkipCounter
 }
 
@@ -62,7 +60,6 @@ func NewManager(chain chainReader, counter groupSkipCounter) *Manager {
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
 		poolImpl:         gPool,
-		groupsByEpoch:    common.MustNewLRUCache(10),
 		skipCounter:      counter,
 		//punishment:  reader,
 	}
@@ -283,7 +280,7 @@ func (m *Manager) UpdateGroupSkipCounts(db types.AccountDB, bh *types.BlockHeade
 	m.poolImpl.updateSkipCount(db, bh.Group, 0)
 	pre := m.chain.QueryBlockHeaderByHash(bh.PreHash)
 	if pre != nil {
-		counts := m.skipCounter.GroupSkipCountsBetween(pre, bh)
+		counts := m.skipCounter.GroupSkipCountsBetween(pre, bh.Height)
 		for gSeed, cnt := range counts {
 			m.poolImpl.updateSkipCount(db, gSeed, cnt)
 		}
@@ -298,7 +295,9 @@ func (m *Manager) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[com
 	ret := make(map[common.Hash]uint16)
 	for _, g := range groups {
 		cnt := m.poolImpl.getSkipCount(db, g.Header().Seed())
-		ret[g.Header().Seed()] = cnt
+		if cnt > 0 {
+			ret[g.Header().Seed()] = cnt
+		}
 	}
 	return ret, nil
 }

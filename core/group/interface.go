@@ -227,5 +227,5 @@ func newGroup(i types.GroupI, top *group) *group {
 }
 
 type groupSkipCounter interface {
-	GroupSkipCountsBetween(preBH, bh *types.BlockHeader) map[common.Hash]uint16
+	GroupSkipCountsBetween(preBH *types.BlockHeader, height uint64) map[common.Hash]uint16
 }

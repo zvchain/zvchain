@@ -26,7 +26,7 @@ type pool struct {
 	chain         chainReader
 	genesis       *group     // genesis group
 	cachedBySeed  *lru.Cache // cache for groups. kv: types.SeedI -> types.GroupI
-	cachedByEpoch *lru.Cache
+	cachedByEpoch *lru.Cache // cached for groups in one epoch: epoch.end() -> []*group
 }
 
 func newPool(chain chainReader) *pool {
