@@ -197,12 +197,7 @@ func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bo
 		// Cast block reward transaction using verifyGroup signature
 		if sc.rewardTrans.Sign == nil {
 			signBytes := sc.rewardGSignGen.GetGroupSign().Serialize()
-			tmpBytes := make([]byte, common.SignLength)
-			// Group signature length = 33, common signature length = 65.
-			// VerifyRewardTransaction() will recover common sig to groupsig
-			copy(tmpBytes[0:len(signBytes)], signBytes)
-			sign := common.BytesToSign(tmpBytes)
-			sc.rewardTrans.Sign = sign.Bytes()
+			sc.rewardTrans.Sign = signBytes
 		}
 	}
 	return

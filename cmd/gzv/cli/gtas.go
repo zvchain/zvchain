@@ -67,20 +67,17 @@ type Gtas struct {
 }
 
 // miner start miner node
-func (gtas *Gtas) miner(cfg *minerConfig) {
+func (gtas *Gtas) miner(cfg *minerConfig) error {
 	gtas.config = cfg
 	gtas.runtimeInit()
 	err := gtas.fullInit()
 	if err != nil {
-		fmt.Println(err.Error())
-		log.DefaultLogger.Error(err.Error())
-		return
+		return err
 	}
 	if cfg.rpcEnable() {
 		err = gtas.startRPC()
 		if err != nil {
-			log.DefaultLogger.Errorf(err.Error())
-			return
+			return err
 		}
 	}
 	ok := mediator.StartMiner()
@@ -104,8 +101,9 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 
 	gtas.inited = true
 	if !ok {
-		return
+		return fmt.Errorf("start miner fail")
 	}
+	return nil
 }
 
 func (gtas *Gtas) runtimeInit() {
@@ -241,7 +239,12 @@ func (gtas *Gtas) Run() {
 		}
 
 		// Start miner
-		gtas.miner(cfg)
+		err := gtas.miner(cfg)
+		if err != nil {
+			output("initialize fai l:", err)
+			log.DefaultLogger.Errorf("initialize fail:%v", err)
+			os.Exit(-1)
+		}
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {

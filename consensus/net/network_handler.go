@@ -61,7 +61,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			logger.Errorf(string(s))
 		}
 		if err != nil && logger != nil {
-			logger.Errorf("handle message code %v from %v err: %v", code, sourceID, err)
+			//logger.Errorf("handle message code %v from %v err: %v", code, sourceID, err)
 		}
 	}()
 
