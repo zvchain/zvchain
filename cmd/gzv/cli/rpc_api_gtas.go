@@ -185,20 +185,22 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDet
 		return nil, fmt.Errorf("data is nil")
 	}
 	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
-	if miner == nil {
-		msg := fmt.Sprintf("this miner is nil,addr is %s", addr)
-		return nil, fmt.Errorf(msg)
+	var currentStake uint64 =  0
+	var fullStake uint64 = 0
+	identity :=  types.MinerNormal
+	if miner != nil{
+		currentStake = miner.Stake
+		identity = miner.Identity
+		if miner.IsMinerPool() {
+			fullStake = core.MinerManagerImpl.GetFullMinerPoolStake(height)
+		}
 	}
 	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
-	var fullStake uint64 = 0
-	if miner.IsMinerPool() {
-		fullStake = core.MinerManagerImpl.GetFullMinerPoolStake(height)
-	}
 	dt := &MinerPoolDetail{
-		CurrentStake: miner.Stake,
+		CurrentStake: currentStake,
 		FullStake:    fullStake,
 		Tickets:      tickets,
-		Identity:     uint64(miner.Identity),
+		Identity:     uint64(identity),
 		ValidTickets: core.MinerManagerImpl.GetValidTicketsByHeight(height),
 	}
 	return dt, nil

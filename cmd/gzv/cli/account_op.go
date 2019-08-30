@@ -111,29 +111,21 @@ func newAccountOp(ks string) (*AccountManager, error) {
 }
 
 func initAccountManager(keystore string, needAutoCreateAccount bool,password string) (accountOp, error) {
-	if !dirExists(keystore){
-		if !needAutoCreateAccount{
-			return nil,fmt.Errorf("the keystore directory %s not exists",keystore)
-		}
-		// Specify internal account creation when you deploy in bulk (just create it once)
-		aop, err := newAccountOp(keystore)
-		if err != nil {
-			return nil, err
-		}
-		if common.IsWeakPassword(password){
-			output("the password is too weak. suggestions for modification")
-		}
+	aop, err := newAccountOp(keystore)
+	if err != nil {
+		return nil, err
+	}
+	if needAutoCreateAccount{
 		address, res := aop.NewAccount(password, true)
 		if res != nil {
 			fmt.Println(res.Error())
 			return nil, res
 		}
+		if common.IsWeakPassword(password){
+			output("the password is too weak. suggestions for modification")
+		}
 		fmt.Printf("create account success,your address is %s \n",address)
 		return aop, nil
-	}
-	aop, err := newAccountOp(keystore)
-	if err != nil {
-		return nil, err
 	}
 	return aop, nil
 }
@@ -166,7 +158,7 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 func (am *AccountManager) loadAccount(addr string, password string) (*Account, error) {
 	v, err := am.store.Get([]byte(addr))
 	if err != nil {
-		return nil, fmt.Errorf("your address %s not found in you keystore directory",addr)
+		return nil, fmt.Errorf("your address %s not found in your keystore directory",addr)
 	}
 
 	salt := common.Sha256([]byte(password))
