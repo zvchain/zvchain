@@ -93,9 +93,13 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 
 	// Add the reward transaction to pool if the signature is accepted and the verifyGroup signature is recovered
 	if accept && recover && slot.statusTransform(slRewardSignReq, slRewardSent) {
-		_, err2 := rh.processor.AddTransaction(slot.rewardTrans)
+		_, err = rh.processor.AddTransaction(slot.rewardTrans)
+		if err != nil {
+			stdLogger.Errorf("add rewardTrans to txPool fail, txHash=%v, err=%v", slot.rewardTrans.Hash, err)
+			return nil
+		}
 		send = true
-		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v, ret=%v", slot.rewardTrans.Hash, err2)
+		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v", slot.rewardTrans.Hash)
 		return nil
 	} else {
 		if slot.rewardGSignGen != nil {
@@ -349,7 +353,7 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return
 	}
-	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash, reward.TargetIds, bh.Height)
+	blog.debug("generate reward for block %v, height=%v, txHash=%v, targetIds=%v,tx=%+v", bh.Hash, bh.Height, reward.TxHash, reward.TargetIds, tx.RawTransaction)
 
 	tLog := newHashTraceLog("REWARD_REQ", bh.Hash, rh.processor.GetMinerID())
 	tLog.log("txHash=%v, targetIds=%v", reward.TxHash, strings.Join(idHexs, ","))
