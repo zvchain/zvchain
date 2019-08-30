@@ -73,6 +73,10 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 		p = newPeer(toid, 0)
 		p.connectTimeout = 0
 		p.connecting = false
+		if toaddr != nil {
+			p.IP = toaddr.IP
+			p.Port = toaddr.Port
+		}
 		if !pm.addPeer(netID, p) {
 			return
 		}
@@ -109,6 +113,8 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 	p := pm.peerByNetID(id)
 	if p == nil {
 		p = newPeer(NodeID{}, session)
+		p.IP = net.ParseIP(ip)
+		p.Port = int(port)
 		p.connectTimeout = uint64(time.Now().Add(connectTimeout).Unix())
 		if !pm.addPeer(id, p) {
 			P2PShutdown(session)
@@ -228,8 +234,8 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 		Logger.Infof("addPeer failed, peer size over %v ", pm.maxPeerSize)
 		return false
 	}
-	if !pm.peerIPSet.Add(peer.IP.String()) {
-		Logger.Infof("addPeer failed, peer in same IP exceed limit size !Max size:%v", pm.peerIPSet.Limit)
+	if peer.IP != nil && !pm.peerIPSet.Add(peer.IP.String()) {
+		Logger.Infof("addPeer failed, peer in same IP exceed limit size !Max size:%v, ip:%v", pm.peerIPSet.Limit, peer.IP.String())
 		return false
 	}
 	pm.peers[netID] = peer
