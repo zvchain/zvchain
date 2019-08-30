@@ -177,6 +177,10 @@ func (db *accountDB4CPTest) SetData(a common.Address, k []byte, v []byte) {
 	db.datas[string(k)] = v
 }
 
+func (db *accountDB4CPTest) SetDataForContract(a common.Address, k []byte, v []byte) {
+	db.datas[string(k)] = v
+}
+
 func (db *accountDB4CPTest) RemoveData(common.Address, []byte) {
 	panic("implement me")
 }

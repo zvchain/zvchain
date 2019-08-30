@@ -45,6 +45,7 @@ type AccountDB interface {
 
 	GetData(common.Address, []byte) []byte
 	SetData(common.Address, []byte, []byte)
+	SetDataForContract(common.Address, []byte, []byte)
 	RemoveData(common.Address, []byte)
 	DataIterator(common.Address, []byte) *trie.Iterator
 	//DataNext(iterator uintptr) []byte

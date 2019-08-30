@@ -273,6 +273,16 @@ func (adb *AccountDB) SetData(addr common.Address, key []byte, value []byte) {
 	}
 }
 
+func (adb *AccountDB)SetDataForContract(addr common.Address, key []byte, value []byte){
+	stateObject := adb.getOrNewAccountObject(addr)
+	if stateObject != nil {
+		stateObject.SetData(adb.db, key, value)
+	}
+	fmt.Printf("key = %s,value=%s",key,value)
+	log.CoreLogger.Infof("key = %s,value=%s",key,value)
+}
+
+
 func (adb *AccountDB) Transfer(sender, recipient common.Address, amount *big.Int) {
 	// Escape if amount is zero
 	if amount.Sign() <= 0 {

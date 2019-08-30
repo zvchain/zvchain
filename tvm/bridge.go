@@ -78,7 +78,7 @@ func SetData(key *C.char, kenLen C.int, value *C.char, valueLen C.int) {
 	address := *controller.VM.ContractAddress
 	k := C.GoBytes(unsafe.Pointer(key), kenLen)
 	v := C.GoBytes(unsafe.Pointer(value), valueLen)
-	controller.AccountDB.SetData(address, k, v)
+	controller.AccountDB.SetDataForContract(address, k, v)
 }
 
 //export BlockHash
