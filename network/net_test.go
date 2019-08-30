@@ -5,7 +5,7 @@ import (
 )
 
 func TestDecodeMessage(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 
@@ -28,7 +28,7 @@ func TestDecodeMessage(t *testing.T) {
 }
 
 func Test_HandleMessagePanic(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -46,7 +46,7 @@ func Test_HandleMessagePanic(t *testing.T) {
 }
 
 func TestDecodeMessage2(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -70,7 +70,7 @@ func TestDecodeMessage2(t *testing.T) {
 }
 
 func TestHandleMessageUnknownMessage(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)

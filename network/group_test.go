@@ -5,7 +5,7 @@ import (
 )
 
 func TestGroupGenConnectNodesZero(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 
@@ -19,7 +19,7 @@ func TestGroupGenConnectNodesZero(t *testing.T) {
 }
 
 func TestGroup(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 

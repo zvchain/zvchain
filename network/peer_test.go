@@ -10,7 +10,7 @@ import (
 )
 
 func TestPeerAuth(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 
@@ -49,7 +49,7 @@ func InitTestNetwork() bool {
 }
 
 func TestDecodePacketNil(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -72,7 +72,7 @@ func TestDecodePacketNil(t *testing.T) {
 }
 
 func TestDecodePacket2BuffersEq8(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -101,7 +101,7 @@ func TestDecodePacket2BuffersEq8(t *testing.T) {
 }
 
 func TestDecodePacket2BuffersLess8(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -130,7 +130,7 @@ func TestDecodePacket2BuffersLess8(t *testing.T) {
 }
 
 func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -160,7 +160,7 @@ func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
 }
 
 func TestDecodePacketSmall(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -188,7 +188,7 @@ func TestDecodePacketSmall(t *testing.T) {
 }
 
 func TestDecodePacket16M(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -216,7 +216,7 @@ func TestDecodePacket16M(t *testing.T) {
 }
 
 func TestDecodePacketOver16M(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -244,7 +244,7 @@ func TestDecodePacketOver16M(t *testing.T) {
 }
 
 func TestDecodePacketOverflow(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -272,7 +272,7 @@ func TestDecodePacketOverflow(t *testing.T) {
 }
 
 func TestDecodePacketBigBuffer(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
