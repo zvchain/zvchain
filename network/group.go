@@ -48,13 +48,15 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	nodesIndex := make([]int, 0)
 	nodes := make([]NodeID, 0)
 
-	connectNodes := make([]NodeID, 0)
+	connectedIndex := make([]int, 0)
+	connectedNodes := make([]NodeID, 0)
 
 	if totalSize == 0 {
 		return nodes
 	}
 	maxSize := groupColumnSendCount(totalSize)
 
+	// select one connected node
 	for i := 0; i < totalSize; i++ {
 		ID := NewNodeID(members[i])
 		if ID == nil || *ID == netCore.ID {
@@ -62,16 +64,23 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 		}
 
 		p := netCore.peerManager.peerByID(*ID)
-		if p != nil && p.isAvailable() {
+		if p == nil || !p.isAvailable() {
 			continue
 		}
-		connectNodes = append(connectNodes, *ID)
+
+		connectedIndex = append(connectedIndex, i)
+		connectedNodes = append(connectedNodes, *ID)
 	}
 
-	if len(connectNodes) >= maxSize {
-		return connectNodes[0:maxSize]
+	randomConnectedIndex := int(-1)
+	if len(connectedNodes) > 0 {
+		index := rand.Intn(len(connectedNodes))
+		randomConnectedIndex = connectedIndex[index]
+		nodesIndex = append(nodesIndex, randomConnectedIndex)
+		nodes = append(nodes, connectedNodes[index])
 	}
 
+	//select one node in first column
 	rowSize := groupRowSize(totalSize)
 
 	rowCount := int(math.Ceil(float64(totalSize) / float64(rowSize)))
@@ -79,10 +88,12 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 	columnIndex := rand.Intn(rowCount)
 	nIndex := columnIndex * rowSize
 	nID := NewNodeID(members[nIndex])
-	if nID != nil {
+	if nID != nil && randomConnectedIndex != nIndex {
 		nodesIndex = append(nodesIndex, nIndex)
 		nodes = append(nodes, *nID)
 	}
+
+	//select another nodes
 
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < totalSize; i++ {
@@ -107,11 +118,10 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 				nodes = append(nodes, *nID)
 			}
 		}
-		if len(nodesIndex) >= maxSize-len(connectNodes) {
+		if len(nodesIndex) >= maxSize {
 			break
 		}
 	}
-	nodes = append(nodes, connectNodes...)
 	return nodes
 }
 
@@ -278,9 +288,15 @@ func (g *Group) doRefresh() {
 			continue
 		}
 
-		go netCore.ping(ID, nil)
+		node := netCore.kad.find(ID)
+		if node != nil && node.IP != nil && node.Port > 0 {
+			Logger.Debugf("[group] group doRefresh node found in KAD ID：%v ip: %v  port:%v", ID.GetHexString(), node.IP, node.Port)
+			go netCore.ping(node.ID, &nnet.UDPAddr{IP: node.IP, Port: int(node.Port)})
+		} else {
+			go netCore.ping(ID, nil)
 
-		Logger.Debugf("[group] group doRefresh  ping node ID：%v ", ID.GetHexString())
+			Logger.Debugf("[group] group doRefresh node can not find in KAD ,resolve ....  ID：%v ", ID.GetHexString())
+		}
 	}
 }
 
@@ -308,8 +324,14 @@ func sendNodes(nodes []NodeID, packet *bytes.Buffer, code uint32) {
 		if p != nil {
 			netCore.peerManager.write(ID, &nnet.UDPAddr{IP: p.IP, Port: int(p.Port)}, packet, code)
 		} else {
-			Logger.Debugf("[group] SendGroup node not connected : ID：%v", ID.GetHexString())
-			netCore.peerManager.write(ID, nil, packet, code)
+			node := netCore.kad.find(ID)
+			if node != nil && node.IP != nil && node.Port > 0 {
+				Logger.Debugf("[group] SendGroup node not connected ,but in KAD : ID：%v ip: %v  port:%v", ID.GetHexString(), node.IP, node.Port)
+				netCore.peerManager.write(node.ID, &nnet.UDPAddr{IP: node.IP, Port: int(node.Port)}, packet, code)
+			} else {
+				Logger.Debugf("[group] SendGroup node not connected and not in KAD : ID：%v", ID.GetHexString())
+				netCore.peerManager.write(ID, nil, packet, code)
+			}
 		}
 	}
 	netCore.bufferPool.freeBuffer(packet)

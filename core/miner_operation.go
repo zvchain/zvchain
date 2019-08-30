@@ -78,9 +78,6 @@ type applyGuardMinerOp struct {
 }
 
 func (op *applyGuardMinerOp) ParseTransaction() error {
-	if op.msg.OpTarget() == nil {
-		return fmt.Errorf("target is nil")
-	}
 	op.targetAddr = *op.msg.Operator()
 	return nil
 }
@@ -146,9 +143,6 @@ type changeFundGuardMode struct {
 }
 
 func (op *changeFundGuardMode) ParseTransaction() error {
-	if op.msg.OpTarget() == nil {
-		return fmt.Errorf("target can not be nil")
-	}
 	if len(op.msg.Payload()) != 1 {
 		return fmt.Errorf("data length should be 1")
 	}
@@ -156,7 +150,6 @@ func (op *changeFundGuardMode) ParseTransaction() error {
 		return err
 	}
 	op.source = *op.msg.Operator()
-
 	op.mode = common.FundModeType(op.msg.Payload()[0])
 	return nil
 }

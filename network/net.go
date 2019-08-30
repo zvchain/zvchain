@@ -470,12 +470,12 @@ func (nc *NetCore) groupBroadcastWithMembers(ID string, data []byte, code uint32
 
 // OnConnected callback when a peer is connected
 func (nc *NetCore) onConnected(ID uint64, session uint32, p2pType uint32) {
-	nc.peerManager.newConnection(ID, session, p2pType, false)
+	nc.peerManager.newConnection(ID, session, p2pType, false, "", 0)
 }
 
 // OnAccepted callback when Accepted a  peer
-func (nc *NetCore) onAccepted(ID uint64, session uint32, p2pType uint32) {
-	nc.peerManager.newConnection(ID, session, p2pType, true)
+func (nc *NetCore) onAccepted(ID uint64, session uint32, p2pType uint32, ip string, port uint16) {
+	nc.peerManager.newConnection(ID, session, p2pType, true, ip, port)
 }
 
 // OnDisconnected callback when peer is disconnected
@@ -509,8 +509,8 @@ func (nc *NetCore) recvData(netID uint64, session uint32, data []byte) {
 
 	p := nc.peerManager.peerByNetID(netID)
 	if p == nil {
-		p = newPeer(NodeID{}, session)
-		nc.peerManager.addPeer(netID, p)
+		Logger.Errorf("recv data, but peer not in peer manager ! net id:%v session:%v", netID, session)
+		return
 	}
 
 	p.addRecvData(data)

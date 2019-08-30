@@ -180,7 +180,7 @@ func (b *MinerPoolProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *type
 	if err !=nil{
 		return err
 	}
-	if sourceMiner != nil && sourceMiner.IsMinerPool(){
+	if sourceMiner != nil && sourceMiner.IsMinerPool() && op.addSource != op.addTarget{
 		return fmt.Errorf("miner pool can not stake add to other miner pool,source is %s,target is %s,height = %v",op.addSource.String(),op.addTarget.String(),op.height)
 	}
 	return nil

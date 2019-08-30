@@ -119,10 +119,6 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
 	elapsed := block.Header.CurTime.SinceMilliSeconds(latestBlock.CurTime)
-	if elapsed < 0 {
-		Logger.Errorf("cur time is before pre time:height=%v, curtime=%v, pretime=%v", height, block.Header.CurTime, latestBlock.CurTime)
-		return nil
-	}
 	block.Header.Elapsed = int32(elapsed)
 	if block.Header.Height == 1 && int64(block.Header.Elapsed) != elapsed {
 		block.Header.Elapsed = math.MaxInt32 //overflow, may happen in first block
