@@ -29,10 +29,12 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 )
 
-const teamFoundationToken = 750000000 * common.ZVC     // amount of tokens that belong to team
-const businessFoundationToken = 250000000 * common.ZVC // amount of tokens that belongs to business
-const miningPoolToken = 425000000 * common.ZVC         // amount of tokens that belongs to mining pool
-const circulatesToken = 75000000 * common.ZVC          // amount of tokens that belongs to circulates
+const (
+	teamFoundationToken     = 750000000 * common.ZVC // amount of tokens that belong to team
+	businessFoundationToken = 250000000 * common.ZVC // amount of tokens that belongs to business
+	stakePlatformToken      = 400000000 * common.ZVC // amount of tokens that belongs to mining pool
+	circulatesToken         = 100000000 * common.ZVC // amount of tokens that belongs to circulates
+)
 
 type txSlice []*types.Transaction
 
@@ -94,7 +96,7 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	stateDB.SetNonce(types.AdminAddr, 2)
 
 	// mining pool and circulates
-	stateDB.SetBalance(types.StakePlatformAddr, big.NewInt(0).SetUint64(miningPoolToken))
+	stateDB.SetBalance(types.StakePlatformAddr, big.NewInt(0).SetUint64(stakePlatformToken))
 	stateDB.SetBalance(types.CirculatesAddr, big.NewInt(0).SetUint64(circulatesToken))
 
 	// genesis balance: just for stakes two roles with minimum required value

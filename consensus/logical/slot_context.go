@@ -176,6 +176,7 @@ func (sc *SlotContext) statusTransform(from int32, to int32) bool {
 func (sc *SlotContext) setRewardTrans(tx *types.Transaction) bool {
 	if !sc.hasSignedRewardTx() && sc.statusTransform(slSuccess, slRewardSignReq) {
 		sc.rewardTrans = tx
+		sc.rewardGSignGen = model.NewGroupSignGenerator(sc.gSignGenerator.Threshold())
 		return true
 	}
 	return false
@@ -183,14 +184,14 @@ func (sc *SlotContext) setRewardTrans(tx *types.Transaction) bool {
 
 // AcceptRewardPiece try to accept the signature piece of the reward transaction consensus
 func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bool) {
-	if sc.rewardTrans != nil && sc.rewardTrans.Hash != sd.DataHash {
-		return
-	}
 	if sc.rewardTrans == nil {
 		return
 	}
+	if sc.rewardTrans.Hash != sd.DataHash {
+		return
+	}
 	if sc.rewardGSignGen == nil {
-		sc.rewardGSignGen = model.NewGroupSignGenerator(sc.gSignGenerator.Threshold())
+		return
 	}
 	accept, recover = sc.rewardGSignGen.AddWitness(sd.GetID(), sd.DataSign)
 	if accept && recover {

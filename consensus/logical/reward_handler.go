@@ -349,7 +349,7 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return
 	}
-	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash, reward.TargetIds, bh.Height)
+	blog.debug("generate reward for block %v, height=%v, txHash=%v, targetIds=%v,tx=%+v", bh.Hash, bh.Height, reward.TxHash, reward.TargetIds, tx.RawTransaction)
 
 	tLog := newHashTraceLog("REWARD_REQ", bh.Hash, rh.processor.GetMinerID())
 	tLog.log("txHash=%v, targetIds=%v", reward.TxHash, strings.Join(idHexs, ","))

@@ -116,8 +116,8 @@ type RawTransaction struct {
 	GasPrice *BigInt `msgpack:"gp"`
 
 	ExtraData []byte          `msgpack:"ed"`
-	Sign      []byte          `msgpack:"si"`  // The Sign of the sender
-	Source    *common.Address `msgpack:"src"` // Sender address, recovered from sign
+	Sign      []byte          `msgpack:"si"`            // The Sign of the sender
+	Source    *common.Address `msgpack:"src,omitempty"` // Sender address, recovered from sign
 }
 
 // Transaction denotes one transaction infos
@@ -154,26 +154,30 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	if nil == tx {
 		return common.Hash{}
 	}
-	buffer := bytes.Buffer{}
-	if tx.Data != nil {
-		buffer.Write(tx.Data)
-	}
-	buffer.Write(tx.Value.GetBytesWithSign())
-	buffer.Write(common.Uint64ToByte(tx.Nonce))
-	if tx.Target != nil {
-		buffer.Write(tx.Target.Bytes())
-	}
+
+	var (
+		src    []byte
+		target []byte
+	)
 	if tx.Source != nil {
-		buffer.Write(tx.Source.Bytes())
+		src = tx.Source.Bytes()
 	}
-	buffer.WriteByte(byte(tx.Type))
-	buffer.Write(tx.GasLimit.GetBytesWithSign())
-	buffer.Write(tx.GasPrice.GetBytesWithSign())
-	if tx.ExtraData != nil {
-		buffer.Write(tx.ExtraData)
+	if tx.Target != nil {
+		target = tx.Target.Bytes()
+	}
+	txH := &txHashing{
+		src:      src,
+		target:   target,
+		value:    tx.Value.Bytes(),
+		gasLimit: tx.GasLimit.Bytes(),
+		gasPrice: tx.GasPrice.Bytes(),
+		nonce:    new(big.Int).SetUint64(tx.Nonce).Bytes(),
+		typ:      byte(tx.Type),
+		data:     tx.Data,
+		extra:    tx.ExtraData,
 	}
 
-	return common.BytesToHash(common.Sha256(buffer.Bytes()))
+	return txH.genHash()
 }
 
 func (tx *RawTransaction) HexSign() string {

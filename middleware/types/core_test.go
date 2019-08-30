@@ -17,6 +17,8 @@ package types
 
 import (
 	"fmt"
+	"github.com/vmihailenco/msgpack"
+	"math/big"
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
@@ -77,6 +79,40 @@ func TestTransactionsMarshalAndUnmarshal(t *testing.T) {
 	if !pk.Verify(hashByte, sign1) {
 	}
 	t.Log(common.Bytes2Hex(tx.Sign))
+}
+
+func TestMsgpackMarshalRawTransaction(t *testing.T) {
+	src := common.BytesToAddress([]byte("4"))
+	tx := RawTransaction{
+		Data:      []byte("123"),
+		Value:     NewBigInt(100),
+		GasLimit:  NewBigInt(200),
+		GasPrice:  NewBigInt(200),
+		ExtraData: []byte("23323"),
+		Source:    &src,
+	}
+	bs, err := msgpack.Marshal(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx2 := RawTransaction{}
+	err = msgpack.Unmarshal(bs, &tx2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tx.GenHash() != tx2.GenHash() {
+		t.Fatalf("gen hash diff:tx1=%+v, tx2=%+v", tx, tx2)
+	}
+}
+
+func TestBigEndianBigBytes(t *testing.T) {
+	i := uint64(1345699999)
+	b := new(big.Int).SetUint64(i)
+	t.Log(b.Bytes())
+
+	t.Log(common.Uint64ToByte(i))
 }
 
 func TestGenHash(t *testing.T) {
