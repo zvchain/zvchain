@@ -17,6 +17,7 @@ import (
 const goodCastor = "0000000100000000000000000000000000000000000000000000000000000000"
 const inActiveCastor = "0000000200000000000000000000000000000000000000000000000000000000"
 const goodPreHash = "0x73462515b5be97b6a4c66dc6acd46a64b442655bd61560525695cadb0c71572d"
+
 const otherGroup = "0x01"
 
 var now = time2.Now()
@@ -24,7 +25,7 @@ var now = time2.Now()
 func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 
 	bh := types.BlockHeader{}
-	bh.CurTime = time.TimeToTimeStamp(now)
+	bh.CurTime = time.TimeToTimeStamp(now) //.AddSeconds(-2)
 
 	//bh.PreHash = common.HexToHash("0x03")
 	bh.Height = 3
@@ -97,14 +98,15 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Height = 10
 		bh.Hash = bh.GenHash()
 	case "p.ts.SinceSeconds(bh.CurTime)<-1":
-		bh.CurTime = time.TimeToTimeStamp(now) + 3
+		bh.CurTime = time.TimeToTimeStamp(now) + 8*1e3
 		bh.Hash = bh.GenHash()
 	case "block-exists":
 		bh = types.BlockHeader{}
+		bh.CurTime = time.TimeToTimeStamp(time2.Unix(1567132985428, 0))
 		bh.Elapsed = 1
 		bh.GasFee = 10
+		bh.Height = 3
 		bh.Hash = bh.GenHash()
-		//bh.Hash = common.HexToHash(existBlockHash)
 	case "pre-block-not-exists":
 		bh.PreHash = common.HexToHash("0x01")
 		bh.Hash = bh.GenHash()
@@ -114,9 +116,10 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Height = 1
 		bh.Hash = bh.GenHash()
 	case "already-sign":
-		bh.CurTime = time.TimeToTimeStamp(now) - 3
+		bh.CurTime = time.TimeToTimeStamp(now)
 		bh.PreHash = common.HexToHash("0x02")
 		bh.Height = 2
+		bh.Elapsed = int32(bh.CurTime - (time.TimeToTimeStamp(now) - 5*1e3))
 		bh.Hash = bh.GenHash()
 	case "cast-illegal":
 		bh.Castor = common.Hex2Bytes(inActiveCastor)
@@ -140,6 +143,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Hash = bh.GenHash()
 	case "receive-before-proposal":
 		bh.PreHash = common.HexToHash("0x03")
+		bh.Nonce = 3 // to make sure hash different
 		bh.Height = 4
 		bh.Castor = common.Hex2Bytes(goodCastor)
 		bh.Hash = bh.GenHash()
@@ -181,8 +185,11 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Hash = bh.GenHash()
 
 	}
-	bh.Elapsed = int32(bh.CurTime - (time.TimeToTimeStamp(now) - 8*1e3))
-	bh.Hash = bh.GenHash()
+	if param != "block-exists" && param != "already-sign" {
+		bh.Elapsed = int32(bh.CurTime - (time.TimeToTimeStamp(now) - 8*1e3))
+		bh.Hash = bh.GenHash()
+	}
+
 	return bh
 }
 
@@ -391,19 +398,6 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 			},
 			expected: fmt.Sprintf("msg genHash %v diff from si.DataHash %v || bh.Hash %v", GenTestBHHash("GasFee"), emptyBHHash, GenTestBHHash("GasFee")),
 		},
-		//{
-		//	name: "Castor=getMinerId",
-		//	args: args{
-		//		msg: &model.ConsensusCastMessage{
-		//			BH: GenTestBH("Castor=getMinerId"),
-		//			ProveHash: common.HexToHash(goodPreHash),
-		//			BaseSignedMessage: model.BaseSignedMessage{
-		//				SI: model.GenSignData(GenTestBHHash("Castor=getMinerId"), pt.ids[1], pt.msk[1]),
-		//			},
-		//		},
-		//	},
-		//	expected: "ignore self message",
-		//},
 
 		{
 			name: "p.ts.SinceSeconds(bh.CurTime)<-1",
@@ -505,7 +499,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 				bh1 := GenTestBH("Hash")
 				bh2 := GenTestBH("Height")
 				bh3 := GenTestBH("PreHash")
-				bh4 := GenTestBH("Elapsed")
+				bh4 := GenTestBH("TotalQN")
 				bh5 := GenTestBH("ProveValue")
 
 				slots := make(map[common.Hash]*SlotContext)
@@ -543,7 +537,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 				bh1 := GenTestBH("Hash")
 				bh2 := GenTestBH("Height")
 				bh3 := GenTestBH("PreHash")
-				bh4 := GenTestBH("Elapsed")
+				bh4 := GenTestBH("TotalQN")
 				bh5 := GenTestBH("ProveValue")
 				bh1.TotalQN = 4
 
@@ -720,18 +714,6 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 				},
 			},
 			expected: "block too early",
-		},
-		{
-			name: "receive-before-proposal",
-			args: args{
-				msg: &model.ConsensusVerifyMessage{
-					BlockHash: GenTestBHHash("receive-before-proposal"),
-					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(emptyBHHash, pt.ids[1], pt.msk[1]),
-					},
-				},
-			},
-			expected: "verify context is nil, cache msg",
 		},
 		{
 			name: "receive-before-proposal",
@@ -973,10 +955,14 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 	}
 	p.blockContexts.attachVctx(&testBH13, vctx13)
 	p.blockContexts.addVctx(vctx13)
+
 	// for cast-illegal
 	p.minerReader = newMinerPoolReader(p, NewMinerPoolTest(pt.mpk, pt.ids, pt.verifyGroup))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			//if tt.expected != "verify context is nil, cache msg"{
+			//	return
+			//}
 			msg := p.OnMessageVerify(tt.args.msg)
 			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
 				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)

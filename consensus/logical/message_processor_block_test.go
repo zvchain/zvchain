@@ -2,7 +2,6 @@ package logical
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/log"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
@@ -242,6 +243,9 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 	processorTest.groupReader.cache.Add(common.HexToHash("0x00"), pt.verifyGroup)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			//if tt.expected != "reqProposa sender zv0000-040500 has already requested the block" {
+			//	return
+			//}
 			p := processorTest
 			msg := p.OnMessageReqProposalBlock(tt.args.msg, tt.args.sourceID)
 			if msg != nil && !strings.Contains(msg.Error(), tt.expected) {
@@ -565,7 +569,7 @@ func (c *chain4Test) AddBlockOnChain(source string, b *types.Block) types.AddBlo
 
 func (c *chain4Test) HasBlock(hash common.Hash) bool {
 
-	if hash == common.HexToHash(existBlockHash) {
+	if hash == common.HexToHash(existBlockHash) || hash == GenTestBH("block-exists").Hash {
 		return true
 	} else {
 		return false

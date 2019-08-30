@@ -2,13 +2,14 @@ package logical
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"gopkg.in/fatih/set.v0"
-	"testing"
 
 	"github.com/zvchain/zvchain/consensus/model"
 )
@@ -34,6 +35,8 @@ func (g *GroupHanderTest) Threshold() uint32 {
 func (g *GroupHanderTest) GroupHeight() uint64 {
 	return uint64(0)
 }
+
+const rewardTxHash = "0xbbb9d6a4258540ef72de5869d2529865aa67894713e77e422e53217ca299f57a"
 
 type ProcessorTest struct {
 	ProcessorInterface
@@ -154,7 +157,7 @@ func NewProcessorTest() *ProcessorTest {
 		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	pt.verifyGroup = &verifyGroup{
-		header:   &groupHeader{},
+		header:   &groupHeader{threshold: uint32(k)},
 		memIndex: memIndex,
 		members:  mems,
 	}
@@ -255,7 +258,7 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 			args: args{
 				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(common.HexToHash("0xb65ca7360f80d0acb4e2a91f2cb901d37f3332b419f885bca78cdefac6258d94"), pt.ids[4], pt.msk[4]),
+						SI: model.GenSignData(common.HexToHash(rewardTxHash), pt.ids[4], pt.msk[4]),
 					},
 				},
 			},
@@ -342,7 +345,7 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		switch tt.name {
 		case "ok":
 			if err != nil {
-				t.Error(tt.name)
+				t.Error(tt.name, err)
 			}
 		case "block not exist",
 			"group not exist",
@@ -396,7 +399,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 					},
 					Reward: types.Reward{
 						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
-						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TxHash:    common.HexToHash("0xc41c7b545d2cff22f6839ecb86c6a12ecec2b1dc11efa01e9c4d3a2feda6c2f8"),
 					},
 					SignedPieces: pt.sigs,
 				},
