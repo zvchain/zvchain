@@ -23,7 +23,8 @@ import (
 	"time"
 )
 
-const MAX_PEER_SIZE = 512
+const DEFAULT_MAX_PEER_SIZE = 512
+const DEFAULT_MAX_PEER_SIZE_PER_IP = 16
 
 // PeerManager is node connection management
 type PeerManager struct {
@@ -32,12 +33,15 @@ type PeerManager struct {
 	natTraversalEnable bool
 	natPort            uint16
 	natIP              string
+	peerIPSet          PeerIPSet
+	maxPeerSize        int
 }
 
 func newPeerManager() *PeerManager {
-
 	pm := &PeerManager{
-		peers: make(map[uint64]*Peer),
+		peers:       make(map[uint64]*Peer),
+		maxPeerSize: DEFAULT_MAX_PEER_SIZE,
+		peerIPSet:   PeerIPSet{Limit: DEFAULT_MAX_PEER_SIZE_PER_IP, members: make(map[string]uint)},
 	}
 	priorityTable = map[uint32]SendPriorityType{
 		BlockInfoNotifyMsg:       SendPriorityHigh,
@@ -100,7 +104,7 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 }
 
 // newConnection handling callbacks for successful connections
-func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, isAccepted bool) {
+func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, isAccepted bool, ip string, port uint16) {
 
 	p := pm.peerByNetID(id)
 	if p == nil {
@@ -111,8 +115,8 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 			return
 		}
 	}
-	p.onConnect(id, session, p2pType, isAccepted)
-	Logger.Infof("new connection, node id:%v  netid :%v session:%v isAccepted:%v ", p.ID.GetHexString(), id, session, isAccepted)
+	p.onConnect(id, session, p2pType, isAccepted, ip, port)
+	Logger.Infof("new connection, node id:%v  netid :%v session:%v isAccepted:%v ip:%v port:%v ", p.ID.GetHexString(), id, session, isAccepted, ip, port)
 }
 
 // onSendWaited  when the send queue is idle
@@ -126,10 +130,15 @@ func (pm *PeerManager) onSendWaited(id uint64, session uint32) {
 // onDisconnected handles callbacks for disconnected connections
 func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32) {
 	p := pm.peerByNetID(id)
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
 	if p != nil {
 
 		Logger.Infof("OnDisconnected id：%v  session:%v ip:%v port:%v ", p.ID.GetHexString(), session, p.IP, p.Port)
 		p.onDisonnect(id, session, p2pCode)
+
+		delete(pm.peers, genNetID(p.ID))
+		pm.peerIPSet.Remove(p.IP.String())
 
 	} else {
 		Logger.Infof("OnDisconnected net id：%v session:%v code:%v", id, session, p2pCode)
@@ -148,6 +157,7 @@ func (pm *PeerManager) disconnect(id NodeID) {
 
 		p.disconnect()
 		delete(pm.peers, netID)
+		pm.peerIPSet.Remove(p.IP.String())
 	}
 }
 
@@ -214,8 +224,12 @@ func (pm *PeerManager) peerByNetID(netID uint64) *Peer {
 func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
-	if len(pm.peers) > MAX_PEER_SIZE {
-		Logger.Infof("addPeer failed, peer size over %v ", MAX_PEER_SIZE)
+	if len(pm.peers) >= pm.maxPeerSize {
+		Logger.Infof("addPeer failed, peer size over %v ", pm.maxPeerSize)
+		return false
+	}
+	if !pm.peerIPSet.Add(peer.IP.String()) {
+		Logger.Infof("addPeer failed, peer in same IP exceed limit size !Max size:%v", pm.peerIPSet.Limit)
 		return false
 	}
 	pm.peers[netID] = peer
@@ -235,4 +249,47 @@ func (pm *PeerManager) ConnInfo() []Conn {
 	}
 	return connInfos
 
+}
+
+//PeerIPSet tracks IP of peers
+type PeerIPSet struct {
+	Limit uint // maximum number of IPs in each subnet
+
+	members map[string]uint
+}
+
+// Add add an IP to the set.
+func (s *PeerIPSet) Add(ip string) bool {
+	n := s.members[ip]
+	if n < s.Limit {
+		s.members[ip] = n + 1
+		return true
+	}
+	return false
+}
+
+// Remove removes an IP from the set.
+func (s *PeerIPSet) Remove(ip string) {
+	if n, ok := s.members[ip]; ok {
+		if n == 1 {
+			delete(s.members, ip)
+		} else {
+			s.members[ip] = n - 1
+		}
+	}
+}
+
+// Contains whether the given IP is contained in the set.
+func (s PeerIPSet) Contains(ip string) bool {
+	_, ok := s.members[ip]
+	return ok
+}
+
+// Len returns the number of tracked IPs.
+func (s PeerIPSet) Len() int {
+	n := uint(0)
+	for _, i := range s.members {
+		n += i
+	}
+	return int(n)
 }
