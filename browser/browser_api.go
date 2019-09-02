@@ -68,13 +68,13 @@ func (tm *DBMmanagement) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
-	//go tm.fetchAccounts()
-	tm.fetchGroup()
+	go tm.fetchAccounts()
+	go tm.fetchGroup()
 	for {
 		select {
 		case <-check.C:
-			//go tm.fetchAccounts()
-			tm.fetchGroup()
+			go tm.fetchAccounts()
+			go tm.fetchGroup()
 		}
 	}
 }
