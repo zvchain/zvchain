@@ -164,6 +164,7 @@ func (gtas *Gtas) Run() {
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
 	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
+	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
 	passWd := mineCmd.Flag("password", "login password").Default(common.DefaultPassword).String()
@@ -236,6 +237,7 @@ func (gtas *Gtas) Run() {
 			password:          *passWd,
 			autoCreateAccount: *autoCreateAccount,
 			resetHash:         *reset,
+			cors:              *cors,
 		}
 
 		// Start miner
@@ -374,7 +376,7 @@ func (gtas *Gtas) fullInit() error {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
 		core.BlockChainImpl.ResetTop(bh)
-		output("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex())
+		output(fmt.Sprintf("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex()))
 	}
 
 	enableTraceLog := common.GlobalConf.GetBool("gtas", "enable_trace_log", false)

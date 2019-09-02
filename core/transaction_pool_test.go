@@ -24,12 +24,12 @@ import (
 )
 
 func TestCreatePool(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("init fail:%v", err)
 	}
 	initBalance()
-	defer clear()
+	defer clearSelf(t)
 	pool := BlockChainImpl.GetTransactionPool()
 
 	fmt.Printf("received: %d transactions\n", len(pool.GetReceived()))
@@ -73,11 +73,11 @@ func TestCreatePool(t *testing.T) {
 }
 
 func TestContainer(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("init fail:%v", err)
 	}
-	defer clear()
+	defer clearSelf(t)
 	initBalance()
 	pool := BlockChainImpl.GetTransactionPool()
 
