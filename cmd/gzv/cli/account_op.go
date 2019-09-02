@@ -110,21 +110,21 @@ func newAccountOp(ks string) (*AccountManager, error) {
 	}, nil
 }
 
-func initAccountManager(keystore string, needAutoCreateAccount bool,password string) (accountOp, error) {
+func initAccountManager(keystore string, needAutoCreateAccount bool, password string) (accountOp, error) {
 	aop, err := newAccountOp(keystore)
 	if err != nil {
 		return nil, err
 	}
-	if needAutoCreateAccount{
+	if needAutoCreateAccount {
 		address, res := aop.NewAccount(password, true)
 		if res != nil {
 			fmt.Println(res.Error())
 			return nil, res
 		}
-		if common.IsWeakPassword(password){
+		if common.IsWeakPassword(password) {
 			output("the password is too weak. suggestions for modification")
 		}
-		fmt.Printf("create account success,your address is %s \n",address)
+		fmt.Printf("create account success,your address is %s \n", address)
 		return aop, nil
 	}
 	return aop, nil
@@ -158,7 +158,7 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 func (am *AccountManager) loadAccount(addr string, password string) (*Account, error) {
 	v, err := am.store.Get([]byte(addr))
 	if err != nil {
-		return nil, fmt.Errorf("your address %s not found in your keystore directory",addr)
+		return nil, fmt.Errorf("your address %s not found in your keystore directory", addr)
 	}
 
 	salt := common.Sha256([]byte(password))
@@ -290,7 +290,7 @@ func (am *AccountManager) NewAccount(password string, miner bool) (string, error
 	if err := am.storeAccount(account.Address, ksr, password); err != nil {
 		return "", err
 	}
-	if common.IsWeakPassword(password){
+	if common.IsWeakPassword(password) {
 		output("the password is too weak. suggestions for modification")
 	}
 	aci := &AccountInfo{
@@ -418,7 +418,7 @@ func (am *AccountManager) NewAccountByImportKey(key string, password string, min
 		return "", err
 	}
 
-	if common.IsWeakPassword(password){
+	if common.IsWeakPassword(password) {
 		output("the password is too weak. suggestions for modification")
 	}
 

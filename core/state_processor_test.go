@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	executor  *TVMExecutor
+	executor  *stateProcessor
 	adb       *account.AccountDB
 	accountdb account.AccountDatabase
 )
@@ -33,7 +33,7 @@ func (cp *cp4Test) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
 }
 
 func initExecutor() {
-	executor = &TVMExecutor{
+	executor = &stateProcessor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
 			rewardManager:   NewRewardManager(),
@@ -61,7 +61,7 @@ func initExecutor() {
 	accountdb = account.NewDatabase(statedb)
 	Logger = log.DefaultLogger
 
-	executor = &TVMExecutor{
+	executor = &stateProcessor{
 		bc: &FullBlockChain{
 			consensusHelper: NewConsensusHelper4Test(groupsig.ID{}),
 			rewardManager:   NewRewardManager(),
@@ -95,7 +95,7 @@ func genRandomTx() *types.Transaction {
 	return types.NewTransaction(tx, tx.GenHash())
 }
 
-func TestTVMExecutor_Execute(t *testing.T) {
+func TestStateProcessor_process(t *testing.T) {
 	initExecutor()
 	defer clearDB()
 	txNum := 10
@@ -107,7 +107,7 @@ func TestTVMExecutor_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stateHash, evts, executed, receptes, _, err := executor.Execute(adb, &types.BlockHeader{}, txs, false, nil)
+	stateHash, evts, executed, receptes, _, err := executor.process(adb, &types.BlockHeader{}, txs, false, nil)
 	if err != nil {
 		t.Fatalf("execute error :%v", err)
 	}
@@ -117,7 +117,7 @@ func TestTVMExecutor_Execute(t *testing.T) {
 	}
 }
 
-func BenchmarkTVMExecutor_Execute(b *testing.B) {
+func BenchmarkStateProcessor_process(b *testing.B) {
 	txNum := 5400
 	var state common.Hash
 	var ts = common.NewTimeStatCtx()
@@ -131,8 +131,8 @@ func BenchmarkTVMExecutor_Execute(b *testing.B) {
 			txs[i] = genRandomTx()
 		}
 		b := time.Now()
-		executor.Execute(adb, &types.BlockHeader{}, txs, false, ts)
-		ts.AddStat("Execute", time.Since(b))
+		executor.process(adb, &types.BlockHeader{}, txs, false, ts)
+		ts.AddStat("process", time.Since(b))
 	}
 	b.Log(ts.Output())
 

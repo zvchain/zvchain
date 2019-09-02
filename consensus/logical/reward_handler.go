@@ -93,13 +93,9 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 
 	// Add the reward transaction to pool if the signature is accepted and the verifyGroup signature is recovered
 	if accept && recover && slot.statusTransform(slRewardSignReq, slRewardSent) {
-		_, err = rh.processor.AddTransaction(slot.rewardTrans)
-		if err != nil {
-			stdLogger.Errorf("add rewardTrans to txPool fail, txHash=%v, err=%v", slot.rewardTrans.Hash, err)
-			return nil
-		}
+		rh.processor.AddTransaction(slot.rewardTrans)
 		send = true
-		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v", slot.rewardTrans.Hash)
+		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v，sign=%v, pk=%v, tx=%+v", slot.rewardTrans.Hash, common.ToHex(slot.rewardTrans.Sign), group.header.gpk.GetHexString(), slot.rewardTrans.RawTransaction)
 		return nil
 	} else {
 		if slot.rewardGSignGen != nil {

@@ -203,10 +203,10 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"cmd/gzv/fronted/c.html": cmdGzvFrontedCHtml,
+	"cmd/gzv/fronted/c.html":        cmdGzvFrontedCHtml,
 	"cmd/gzv/fronted/js/tas-ext.js": cmdGzvFrontedJsTasExtJs,
-	"cmd/gzv/fronted/js/tas.js": cmdGzvFrontedJsTasJs,
-	"cmd/gzv/fronted/summary.html": cmdGzvFrontedSummaryHtml,
+	"cmd/gzv/fronted/js/tas.js":     cmdGzvFrontedJsTasJs,
+	"cmd/gzv/fronted/summary.html":  cmdGzvFrontedSummaryHtml,
 }
 
 // AssetDir returns the file names below a certain
@@ -248,6 +248,7 @@ type bintree struct {
 	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
+
 var _bintree = &bintree{nil, map[string]*bintree{
 	"cmd": &bintree{nil, map[string]*bintree{
 		"gzv": &bintree{nil, map[string]*bintree{
@@ -255,7 +256,7 @@ var _bintree = &bintree{nil, map[string]*bintree{
 				"c.html": &bintree{cmdGzvFrontedCHtml, map[string]*bintree{}},
 				"js": &bintree{nil, map[string]*bintree{
 					"tas-ext.js": &bintree{cmdGzvFrontedJsTasExtJs, map[string]*bintree{}},
-					"tas.js": &bintree{cmdGzvFrontedJsTasJs, map[string]*bintree{}},
+					"tas.js":     &bintree{cmdGzvFrontedJsTasJs, map[string]*bintree{}},
 				}},
 				"summary.html": &bintree{cmdGzvFrontedSummaryHtml, map[string]*bintree{}},
 			}},
@@ -309,4 +310,3 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
-

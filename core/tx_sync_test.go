@@ -369,12 +369,12 @@ func (s *NetTest) Send(id string, msg network.Message) error {
 		return err
 	}
 	ts := []*types.Transaction{}
-	for _,t :=range txs{
+	for _, t := range txs {
 		tn := &types.Transaction{
-			RawTransaction:t,
-			Hash:t.GenHash(),
+			RawTransaction: t,
+			Hash:           t.GenHash(),
 		}
-		ts = append(ts,tn)
+		ts = append(ts, tn)
 	}
 
 	OnReqTxsTest = ts
@@ -627,8 +627,8 @@ func generateGroupTx(value uint64, txType int, gasLimit uint64, gasprice uint64,
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -663,8 +663,8 @@ func genetateMinerOpTx(value uint64, target string, txType int, gasLimit uint64,
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -699,8 +699,8 @@ func generateStakeAddTx(value uint64, target string, txType int, gasLimit uint64
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -754,9 +754,9 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 		source1 := sk1.GetPubKey().GetAddress()
 		tx.Source = &source1
 
-		tn:= &types.Transaction{
-			RawTransaction:tx,
-			Hash:tx.GenHash(),
+		tn := &types.Transaction{
+			RawTransaction: tx,
+			Hash:           tx.GenHash(),
 		}
 		txs = append(txs, tn)
 	}
@@ -765,8 +765,8 @@ func generateFakeStakeAddTxs(value uint64, target string, txType int, gasLimit u
 
 func marshallTxs(txs []*types.Transaction, t *testing.T) []byte {
 	ts := []*types.RawTransaction{}
-	for _,tx := range txs{
-		ts = append(ts,tx.RawTransaction)
+	for _, tx := range txs {
+		ts = append(ts, tx.RawTransaction)
 	}
 	body, e := types.MarshalTransactions(ts)
 	if e != nil {
@@ -801,8 +801,8 @@ func generateNoValueTx(target string, txType int, gasLimit uint64, gasprice uint
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -824,8 +824,8 @@ func generateNoNonceTx(target string, value uint64, txType int, gasLimit uint64,
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -846,8 +846,8 @@ func generateNoTypeTx(target string, value uint64, gasLimit uint64, gasprice uin
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -868,8 +868,8 @@ func generateNoGasPriceTx(target string, value uint64, gasLimit uint64, txType i
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -891,8 +891,8 @@ func generateNoHashTx(target string, value uint64, gasPrice uint64, gasLimit uin
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -912,8 +912,8 @@ func generateNoSignTx(target string, value uint64, gasPrice uint64, gasLimit uin
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -934,8 +934,8 @@ func generateNoGasLimitTx(target string, value uint64, gasPrice uint64, txType i
 	source := sk.GetPubKey().GetAddress()
 	tx.Source = &source
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 
@@ -1005,8 +1005,8 @@ func generateTX(data []byte, value uint64, nonce uint64, target string, txType i
 	tx.Source = &source
 
 	return &types.Transaction{
-		RawTransaction:tx,
-		Hash:tx.GenHash(),
+		RawTransaction: tx,
+		Hash:           tx.GenHash(),
 	}
 }
 

@@ -429,7 +429,7 @@ func genHash(hash string) []byte {
 func initBalance() {
 	blocks := GenCorrectBlocks()
 	stateDB, _ := BlockChainImpl.LatestAccountDB()
-	stateDB1 :=  stateDB.(*account.AccountDB)
+	stateDB1 := stateDB.(*account.AccountDB)
 	//stateDB1, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 	stateDB1.AddBalance(common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"), new(big.Int).SetUint64(100000000000000000))
 	exc := &executePostState{state: stateDB1}
@@ -539,6 +539,10 @@ func NewConsensusHelper4Test(id groupsig.ID) types.ConsensusHelper {
 
 type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
+}
+
+func (helper *ConsensusHelperImpl4Test) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
+	return nil
 }
 
 func (helper *ConsensusHelperImpl4Test) GetBlockMinElapse(height uint64) int32 {

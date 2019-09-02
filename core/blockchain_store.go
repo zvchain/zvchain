@@ -439,14 +439,13 @@ func (chain *FullBlockChain) countBlocksInRange(startHeight uint64, endHeight ui
 		if height > endHeight {
 			break
 		}
-		count ++
+		count++
 		if !iter.Next() {
 			break
 		}
 	}
 	return
 }
-
 
 func (chain *FullBlockChain) queryBlockHeaderByHeight(height uint64) *types.BlockHeader {
 	hash := chain.queryBlockHash(height)

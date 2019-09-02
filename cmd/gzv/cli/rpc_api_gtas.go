@@ -185,10 +185,10 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDet
 		return nil, fmt.Errorf("data is nil")
 	}
 	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
-	var currentStake uint64 =  0
+	var currentStake uint64 = 0
 	var fullStake uint64 = 0
-	identity :=  types.MinerNormal
-	if miner != nil{
+	identity := types.MinerNormal
+	if miner != nil {
 		currentStake = miner.Stake
 		identity = miner.Identity
 		if miner.IsMinerPool() {

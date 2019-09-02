@@ -30,13 +30,12 @@ import (
 // TimeStamp in milliseconds
 type TimeStamp int64
 
-
 func Int64MilliSecondsToTimeStamp(milliSec int64) TimeStamp {
 	return TimeStamp(milliSec)
 }
 
 func TimeToTimeStamp(t time.Time) TimeStamp {
-	return TimeStamp(t.UnixNano()/int64(time.Millisecond))
+	return TimeStamp(t.UnixNano() / int64(time.Millisecond))
 }
 
 func (ts TimeStamp) toInt64() int64 {
@@ -56,7 +55,7 @@ func (ts TimeStamp) Local() time.Time {
 }
 
 func (ts TimeStamp) Unix() int64 {
-	return ts.UnixMilli()/1e3
+	return ts.UnixMilli() / 1e3
 }
 
 func (ts TimeStamp) UnixMilli() int64 {
@@ -68,7 +67,7 @@ func (ts TimeStamp) After(t TimeStamp) bool {
 }
 
 func (ts TimeStamp) SinceSeconds(t TimeStamp) int64 {
-	return int64(ts - t)/1e3
+	return int64(ts-t) / 1e3
 }
 
 func (ts TimeStamp) SinceMilliSeconds(t TimeStamp) int64 {

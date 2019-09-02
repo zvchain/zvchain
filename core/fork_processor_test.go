@@ -86,13 +86,13 @@ func initChain(dataPath string, id string) *FullBlockChain {
 	chain := BlockChainImpl
 
 	Logger = logrus.StandardLogger()
-	// mock the tvm executor
-	tvm := NewTVMExecutor(chain)
+	// mock the tvm stateProc
+	tvm := newStateProcessor(chain)
 	// mock the cp checker
 	chain.cpChecker = newCpChecker(groupReader, chain)
 
 	tvm.addPostProcessor(chain.cpChecker.updateVotes)
-	chain.executor = tvm
+	chain.stateProc = tvm
 
 	// mock fork process
 	fh := &forkProcessor{

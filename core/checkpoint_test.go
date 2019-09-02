@@ -337,13 +337,13 @@ func initChainReader4CPTest(gr activatedGroupReader) *FullBlockChain {
 	chain := BlockChainImpl
 
 	Logger = logrus.StandardLogger()
-	// mock the tvm executor
-	tvm := NewTVMExecutor(chain)
+	// mock the tvm stateProc
+	tvm := newStateProcessor(chain)
 	// mock the cp checker
 	chain.cpChecker = newCpChecker(gr, chain)
 
 	tvm.addPostProcessor(chain.cpChecker.updateVotes)
-	chain.executor = tvm
+	chain.stateProc = tvm
 
 	chain.cpChecker.init()
 	return chain

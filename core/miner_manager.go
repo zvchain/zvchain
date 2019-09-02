@@ -63,13 +63,13 @@ func initMinerManager(ticker *ticker.GlobalTicker) {
 // GuardNodesCheck check guard nodes is expired
 func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.BlockHeader) {
 	snapshot := accountDB.Snapshot()
-	expiredAddresses,err := mm.FullStakeGuardNodesCheck(accountDB, bh.Height)
+	expiredAddresses, err := mm.FullStakeGuardNodesCheck(accountDB, bh.Height)
 	if err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		log.CoreLogger.Errorf("check full guard node error,error is %s", err.Error())
-	}else{
-		if expiredAddresses != nil && len(expiredAddresses) > 0{
-			for _,expiredAddr := range expiredAddresses{
+	} else {
+		if expiredAddresses != nil && len(expiredAddresses) > 0 {
+			for _, expiredAddr := range expiredAddresses {
 				err = mm.processGuardNodeExpired(accountDB, expiredAddr, bh.Height)
 				if err != nil {
 					accountDB.RevertToSnapshot(snapshot)
@@ -80,14 +80,14 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.Blo
 		}
 	}
 	snapshot = accountDB.Snapshot()
-	allExpiredFundAddresses,err := mm.FundGuardExpiredCheck(accountDB, bh.Height)
+	allExpiredFundAddresses, err := mm.FundGuardExpiredCheck(accountDB, bh.Height)
 	if err != nil {
 		accountDB.RevertToSnapshot(snapshot)
 		log.CoreLogger.Errorf("check fund guard node error,error is %s", err.Error())
-	}else{
-		for _,expiredAddr  := range allExpiredFundAddresses{
+	} else {
+		for _, expiredAddr := range allExpiredFundAddresses {
 			err = guardNodeExpired(accountDB, expiredAddr, bh.Height, true)
-			if err !=  nil{
+			if err != nil {
 				accountDB.RevertToSnapshot(snapshot)
 				log.CoreLogger.Errorf("check fund guard node error,error is %s", err.Error())
 				break
@@ -96,41 +96,41 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.Blo
 	}
 }
 
-func (mm *MinerManager) FundGuardExpiredCheck(accountDB types.AccountDB, height uint64) ([]common.Address,error) {
-	allExpiredFundAddresses  := []common.Address{}
-	expiredAddresses,err := mm.fundGuardSixAddFiveNodesCheck(accountDB, height)
+func (mm *MinerManager) FundGuardExpiredCheck(accountDB types.AccountDB, height uint64) ([]common.Address, error) {
+	allExpiredFundAddresses := []common.Address{}
+	expiredAddresses, err := mm.fundGuardSixAddFiveNodesCheck(accountDB, height)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-	if expiredAddresses != nil{
-		allExpiredFundAddresses = append(allExpiredFundAddresses,expiredAddresses...)
+	if expiredAddresses != nil {
+		allExpiredFundAddresses = append(allExpiredFundAddresses, expiredAddresses...)
 	}
-	expiredAddresses,err = mm.fundGuardSixAddSixNodesCheck(accountDB, height)
+	expiredAddresses, err = mm.fundGuardSixAddSixNodesCheck(accountDB, height)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-	if expiredAddresses != nil{
-		allExpiredFundAddresses = append(allExpiredFundAddresses,expiredAddresses...)
+	if expiredAddresses != nil {
+		allExpiredFundAddresses = append(allExpiredFundAddresses, expiredAddresses...)
 	}
-	return allExpiredFundAddresses,nil
+	return allExpiredFundAddresses, nil
 }
 
-func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB, height uint64) ([]common.Address,error) {
+func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB, height uint64) ([]common.Address, error) {
 	if height < adjustWeightPeriod/2 || height > adjustWeightPeriod*2 {
-		return nil,nil
+		return nil, nil
 	}
 	if height%checkInterval != 0 {
-		return nil,nil
+		return nil, nil
 	}
 	log.CoreLogger.Infof("begin scan 6+5 mode")
 	hasScanned := hasScanedSixAddFiveFundGuards(accountDB)
 	if hasScanned {
 		log.CoreLogger.Infof("begin scan 6+5 mode,find has scanned")
-		return nil,nil
+		return nil, nil
 	}
 	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	expiredAddresses := []common.Address{}
 	for _, fd := range fds {
@@ -142,31 +142,31 @@ func (mm *MinerManager) fundGuardSixAddFiveNodesCheck(accountDB types.AccountDB,
 		}
 		err = updateFundGuardPoolStatus(accountDB, fd.Address, normalNodeType, height)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		expiredAddresses = append(expiredAddresses,fd.Address)
+		expiredAddresses = append(expiredAddresses, fd.Address)
 	}
 	markScanedSixAddFiveFundGuards(accountDB)
 	log.CoreLogger.Infof("scan 6+5 over")
-	return expiredAddresses,nil
+	return expiredAddresses, nil
 }
 
-func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, height uint64) ([]common.Address,error) {
+func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, height uint64) ([]common.Address, error) {
 	if height < adjustWeightPeriod || height > adjustWeightPeriod*3 {
-		return nil,nil
+		return nil, nil
 	}
 	if height%checkInterval != 0 {
-		return nil,nil
+		return nil, nil
 	}
 	log.CoreLogger.Infof("begin scan 6+6 mode")
 	hasScanned := hasScanedSixAddSixFundGuards(accountDB)
 	if hasScanned {
 		log.CoreLogger.Infof("begin scan 6+6 mode,has scanned")
-		return nil,nil
+		return nil, nil
 	}
 	fds, err := mm.GetAllFundStakeGuardNodes(accountDB)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	expiredAddresses := []common.Address{}
 	for _, fd := range fds {
@@ -178,40 +178,40 @@ func (mm *MinerManager) fundGuardSixAddSixNodesCheck(accountDB types.AccountDB, 
 		}
 		err = updateFundGuardPoolStatus(accountDB, fd.Address, normalNodeType, height)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		expiredAddresses = append(expiredAddresses,fd.Address)
+		expiredAddresses = append(expiredAddresses, fd.Address)
 	}
 	markScanedSixAddSixFundGuards(accountDB)
 	log.CoreLogger.Infof("scan 6+6 mode over")
-	return expiredAddresses,nil
+	return expiredAddresses, nil
 }
 
-func (mm *MinerManager) FullStakeGuardNodesCheck(db types.AccountDB, height uint64) ([]common.Address,error){
+func (mm *MinerManager) FullStakeGuardNodesCheck(db types.AccountDB, height uint64) ([]common.Address, error) {
 	if height < adjustWeightPeriod/2 {
-		return nil,nil
+		return nil, nil
 	}
 	if height%checkInterval != 0 {
-		return nil,nil
+		return nil, nil
 	}
 	log.CoreLogger.Infof("begin process full stake guard nodes")
 	fullStakeAddress := mm.GetAllFullStakeGuardNodes(db)
 	if fullStakeAddress == nil || len(fullStakeAddress) == 0 {
-		return nil,nil
+		return nil, nil
 	}
 	expiredAddresses := []common.Address{}
 	var err error
 	var isExpired bool
 	for _, addr := range fullStakeAddress {
-		isExpired,err = mm.checkFullStakeGuardNodeExpired(db, addr, height)
+		isExpired, err = mm.checkFullStakeGuardNodeExpired(db, addr, height)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		if isExpired{
-			expiredAddresses = append(expiredAddresses,addr)
+		if isExpired {
+			expiredAddresses = append(expiredAddresses, addr)
 		}
 	}
-	return expiredAddresses,nil
+	return expiredAddresses, nil
 }
 
 func (mm *MinerManager) GetTickets(db types.AccountDB, address common.Address) uint64 {
@@ -222,33 +222,33 @@ func (mm *MinerManager) GetValidTicketsByHeight(height uint64) uint64 {
 	return getValidTicketsByHeight(height)
 }
 
-func (mm *MinerManager) checkFullStakeGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) (bool,error) {
+func (mm *MinerManager) checkFullStakeGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) (bool, error) {
 	detailKey := getDetailKey(address, types.MinerTypeProposal, types.Staked)
 	stakedDetail, err := getDetail(db, address, detailKey)
 	if err != nil {
-		return false,err
+		return false, err
 	}
 	if stakedDetail == nil {
-		return false,fmt.Errorf("check guard nodes,find stake detail is nil,address is %s", address.String())
+		return false, fmt.Errorf("check guard nodes,find stake detail is nil,address is %s", address.String())
 	}
 	if height > (stakedDetail.DisMissHeight + stakeBuffer) {
-		return true,nil
+		return true, nil
 	}
 	if stakedDetail.MarkNotFullHeight > 0 {
 		if height > stakedDetail.MarkNotFullHeight+stakeBuffer {
-			return true,nil
+			return true, nil
 		}
 	} else {
 		if !isFullStake(stakedDetail.Value, height) {
 			stakedDetail.MarkNotFullHeight = height
 			err = setDetail(db, address, detailKey, stakedDetail)
 			if err != nil {
-				return false,err
+				return false, err
 			}
-			return false,nil
+			return false, nil
 		}
 	}
-	return false,nil
+	return false, nil
 }
 
 func (mm *MinerManager) processGuardNodeExpired(db types.AccountDB, address common.Address, height uint64) error {

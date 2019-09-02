@@ -408,6 +408,9 @@ type ConsensusHelperImpl4Test struct {
 	ID groupsig.ID
 }
 
+func (helper *ConsensusHelperImpl4Test) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
+	return nil
+}
 func (helper *ConsensusHelperImpl4Test) GetBlockMinElapse(height uint64) int32 {
 	return 1
 }
