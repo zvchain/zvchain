@@ -142,7 +142,7 @@ var cfg = &minerConfig{
 }
 
 func resetDb(dbPath string) error {
-	core.BlockChainImpl.(*core.FullBlockChain).Close()
+	core.BlockChainImpl.Close()
 	//taslog.Close()
 	fmt.Println("---reset db---")
 	dir, err := ioutil.ReadDir(".")

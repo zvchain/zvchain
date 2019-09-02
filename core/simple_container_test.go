@@ -91,12 +91,12 @@ func execute(t *testing.T, tx types.Transaction) {
 }
 
 func Test_push(t *testing.T) {
-	t1 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882", 1, types.NewBigInt(20000), gasLimit, &addr1)
-	t2 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882", 1, types.NewBigInt(20000), gasLimit, &addr1)
-	t3 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882", 2, types.NewBigInt(20000), gasLimit, &addr1)
+	t1 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d881", 1, types.NewBigInt(20000), gasLimit, &addr1)
+	t2 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d882", 1, types.NewBigInt(19999), gasLimit, &addr1)
+	t3 := genTx4Test("d3b14a7bab3c68e9369d0e433e5be9a514e843593f0f149cb0906e7bc085d883", 2, types.NewBigInt(20000), gasLimit, &addr1)
 
-	err := initContext4Test()
-	defer clearDB()
+	err := initContext4Test(t)
+	defer clearSelf(t)
 	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
@@ -148,8 +148,8 @@ func Test_push(t *testing.T) {
 }
 
 func Test_simpleContainer_forEach(t *testing.T) {
-	err := initContext4Test()
-	defer clearDB()
+	err := initContext4Test(t)
+	defer clearSelf(t)
 	fmt.Println("make sure the intrinsicGas check is disabled in the simple_container.go")
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
@@ -157,8 +157,8 @@ func Test_simpleContainer_forEach(t *testing.T) {
 
 	container = newSimpleContainer(10, 3, BlockChainImpl)
 	tx22 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a", 1, types.NewBigInt(10000), gasLimit, &addr5)
-	tx23 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a", 1, types.NewBigInt(10000), gasLimit, &addr5)
-	tx24 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5a", 2, types.NewBigInt(10000), gasLimit, &addr5)
+	tx23 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5b", 1, types.NewBigInt(9999), gasLimit, &addr5)
+	tx24 := genTx4Test("ba2c2944f27aeaa03ef97b42909b43e0ead02cf08d0c20433dda1a2e8b3c2e5c", 2, types.NewBigInt(10000), gasLimit, &addr5)
 	_ = container.push(tx22)
 	_ = container.push(tx23)
 	_ = container.push(tx24)

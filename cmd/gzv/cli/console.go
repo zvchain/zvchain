@@ -549,7 +549,7 @@ func (c *sendTxCmd) parse(args []string) bool {
 
 		jsonBytes, errMarsh := json.Marshal(contract)
 		if errMarsh != nil {
-			outputJSONErr(opErrorRes(fmt.Errorf("marshal contract failed: ", errMarsh)))
+			outputJSONErr(opErrorRes(fmt.Errorf("marshal contract failed: %s", errMarsh.Error())))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -698,7 +698,7 @@ func (c *changeGuardNodeCmd) parse(args []string) bool {
 		return false
 	}
 	if !validateFundGuardMode(c.mode) {
-		output("Unsupported mode type %d", c.mode)
+		output(fmt.Sprintf("Unsupported mode type %d", c.mode))
 		return false
 	}
 	return c.parseGasPrice()

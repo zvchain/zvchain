@@ -374,7 +374,7 @@ func (gtas *Gtas) fullInit() error {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
 		core.BlockChainImpl.ResetTop(bh)
-		output("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex())
+		output(fmt.Sprintf("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex()))
 	}
 
 	enableTraceLog := common.GlobalConf.GetBool("gtas", "enable_trace_log", false)
