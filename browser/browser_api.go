@@ -13,6 +13,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -44,7 +45,7 @@ type DBMmanagement struct {
 	storage            *mysql.Storage //待迁移
 	crontab            *crontab.Crontab
 
-	isFetchingBlocks        bool
+	isFetchingBlocks        int32
 	isFetchingWorkGroups    bool
 	isFetchingPrepareGroups bool
 	isFetchingDismissGroups bool
@@ -80,16 +81,22 @@ func (tm *DBMmanagement) loop() {
 }
 
 func (tm *DBMmanagement) fetchAccounts() {
-	if tm.isFetchingBlocks {
+	// atomic operate
+	if !atomic.CompareAndSwapInt32(&tm.isFetchingBlocks, 0, 1) {
 		return
 	}
+	tm.excuteAccounts()
+	atomic.CompareAndSwapInt32(&tm.isFetchingBlocks, 1, 0)
+
+}
+
+func (tm *DBMmanagement) excuteAccounts() {
 
 	//blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
 
 	//if tm.blockHeight > blockheader.Height {
 	//	return
 	//}
-	tm.isFetchingBlocks = true
 	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight, 0)
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
@@ -193,7 +200,6 @@ func (tm *DBMmanagement) fetchAccounts() {
 				}
 			}
 		}
-
 		//块高存储持久化
 		sys := &models.Sys{
 			Variable: mysql.Blocktophight,
@@ -201,11 +207,8 @@ func (tm *DBMmanagement) fetchAccounts() {
 		}
 		tm.storage.AddBlockHeightSystemconfig(sys)
 		tm.blockHeight = block.Header.Height + 1
-
-		tm.isFetchingBlocks = false
-		go tm.fetchAccounts()
+		tm.excuteAccounts()
 	}
-	tm.isFetchingBlocks = false
 }
 
 func checkStakeTransaction(trtype int8) bool {
