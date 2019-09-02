@@ -47,8 +47,8 @@ func TestPath(t *testing.T) {
 }
 
 func TestBlockChain_AddBlock(t *testing.T) {
-	err := initContext4Test()
-	defer clear()
+	err := initContext4Test(t)
+	defer clearSelf(t)
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
 	}
@@ -231,11 +231,11 @@ func TestBlockChain_AddBlock(t *testing.T) {
 }
 
 func TestBlockChain_CastingBlock(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
 	}
-	defer clear()
+	defer clearSelf(t)
 	castor := []byte{1, 2}
 	group := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 	block1 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("1"), 1, castor, group)
@@ -247,11 +247,11 @@ func TestBlockChain_CastingBlock(t *testing.T) {
 }
 
 func TestBlockChain_GetBlockMessage(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
 	}
-	defer clear()
+	defer clearSelf(t)
 	castor := new([]byte)
 	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 	block1 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("125"), 0, *castor, groupid)
@@ -292,11 +292,11 @@ func TestBlockChain_GetBlockMessage(t *testing.T) {
 }
 
 func TestBlockChain_GetTopBlocks(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
 	}
-	defer clear()
+	defer clearSelf(t)
 
 	castor := new([]byte)
 	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
@@ -330,11 +330,11 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 }
 
 func TestBlockChain_StateTree(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("failed to initContext4Test")
 	}
-	defer clear()
+	defer clearSelf(t)
 
 	chain := BlockChainImpl
 
@@ -438,8 +438,8 @@ func initBalance() {
 	_, _ = BlockChainImpl.commitBlock(blocks[0], exc)
 }
 
-func clear() {
-	fmt.Println("---clear---")
+func clearAllFolder() {
+	fmt.Println("---clearAllFolder---")
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
 		//taslog.Close()
@@ -451,7 +451,7 @@ func clear() {
 		return
 	}
 	for _, d := range dir {
-		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || strings.HasPrefix(d.Name(), "groupstore") ||
+		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || (strings.HasPrefix(d.Name(), "Test")) ||
 			strings.HasPrefix(d.Name(), "database")) {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
@@ -463,10 +463,32 @@ func clear() {
 
 }
 
+func clearSelf(t *testing.T) {
+	if BlockChainImpl != nil {
+		BlockChainImpl.Close()
+		BlockChainImpl = nil
+	}
+
+	dir, err := ioutil.ReadDir(".")
+	if err != nil {
+		return
+	}
+	for _, d := range dir {
+		if d.IsDir() && d.Name() == t.Name() {
+			fmt.Printf("deleting folder: %s \n", d.Name())
+			err = os.RemoveAll(d.Name())
+			if err != nil {
+				fmt.Println("error while removing /s", d.Name())
+			}
+		}
+	}
+}
+
 func clearTicker() {
 	if MinerManagerImpl != nil && MinerManagerImpl.ticker != nil {
 		MinerManagerImpl.ticker.RemoveRoutine("build_virtual_net")
 		MinerManagerImpl.ticker.RemoveRoutine(buildVirtualNetRoutineName)
+		MinerManagerImpl.ticker.ClearRoutines()
 	}
 	if TxSyncer != nil && TxSyncer.ticker != nil {
 		TxSyncer.ticker.RemoveRoutine(txNotifyRoutine)
@@ -474,8 +496,9 @@ func clearTicker() {
 	}
 }
 
-func initContext4Test() error {
+func initContext4Test(t *testing.T) error {
 	common.InitConf("../tas_config_all.ini")
+	common.GlobalConf.SetString(configSec, "db_blocks", t.Name())
 	network.Logger = log.P2PLogger
 	err := middleware.InitMiddleware()
 	if err != nil {
@@ -484,11 +507,10 @@ func initContext4Test() error {
 	BlockChainImpl = nil
 
 	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}), getAccount())
+	clearTicker()
 	executor := NewTVMExecutor(BlockChainImpl)
 	BlockChainImpl.executor = executor
-
 	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
-	clearTicker()
 	return err
 }
 

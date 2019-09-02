@@ -24,7 +24,7 @@ import (
 
 func TestCheckReceivedHashesInHitRate(t *testing.T) {
 	defer clearDB()
-	init4TxSync()
+	init4TxSync(t)
 
 	peer := newPeerTxsKeys()
 	txs := makeOrderTransactions()
@@ -226,8 +226,8 @@ func initNetwork() {
 	NetImpl = net
 }
 
-func init4TxSync() {
-	initContext4Test()
+func init4TxSync(t *testing.T) {
+	initContext4Test(t)
 	initPeerManager()
 	types.InitMiddleware()
 	initNetwork()
@@ -244,9 +244,9 @@ func init4TxSync() {
 	AddBalance()
 }
 
-func initTxsAndOthers() {
+func initTxsAndOthers(t *testing.T) {
 
-	init4TxSync()
+	init4TxSync(t)
 
 	Txs50 = generateTXs(52, false)
 	Txs10 = generateTXs(10, false)
@@ -434,7 +434,7 @@ func AddBalance() {
 
 func TestMinerAdd(t *testing.T) {
 	defer clearDB()
-	initTxsAndOthers()
+	initTxsAndOthers(t)
 	tx := generateStakeAddTx(1, "111", TransactionTypeStakeAdd, uint64(500000), uint64(1000), types.MinerTypeProposal)
 	marshallTx := marshallTxs([]*types.Transaction{tx}, t)
 	msg := notify.NewDefaultMessage(marshallTx, kindAddr, 0, 0)
@@ -1105,7 +1105,7 @@ func (bpm *peerManager) genPeer(id string, evil bool) *peerMeter {
 
 func TestFakeTxs(t *testing.T) {
 	defer clearDB()
-	initTxsAndOthers()
+	initTxsAndOthers(t)
 
 	txs := make([]*FakeTransaction, 0)
 
@@ -1137,7 +1137,7 @@ func TestFakeTxs(t *testing.T) {
 func TestOnTxResponse(t *testing.T) {
 	defer clearDB()
 
-	initTxsAndOthers()
+	initTxsAndOthers(t)
 
 	bodyTxNilBody := marshallTxs([]*types.Transaction{}, t)
 	body10 := marshallTxs(Txs10, t)
@@ -1440,7 +1440,7 @@ func TestOnTxResponse(t *testing.T) {
 func TestOnTxNotify(t *testing.T) {
 	defer clearDB()
 
-	initTxsAndOthers()
+	initTxsAndOthers(t)
 
 	var Txs10Hashes []common.Hash
 	for _, tx := range Txs10 {
@@ -1650,9 +1650,9 @@ func TestOnTxNotify(t *testing.T) {
 }
 
 func TestOnTxResquest(t *testing.T) {
-	defer clearDB()
+	defer clearSelf(t)
 
-	initTxsAndOthers()
+	initTxsAndOthers(t)
 
 	// put NewTx02 in to txpool
 	NewTx := generateTX([]byte(strconv.Itoa(int(time.Now().UnixNano()))), 1, 0, "121", TransactionTypeTransfer, uint64(500000), uint64(1000), nil)
