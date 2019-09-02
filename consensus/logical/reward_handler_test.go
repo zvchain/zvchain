@@ -36,7 +36,7 @@ func (g *GroupHanderTest) GroupHeight() uint64 {
 	return uint64(0)
 }
 
-const rewardTxHash = "0xbbb9d6a4258540ef72de5869d2529865aa67894713e77e422e53217ca299f57a"
+const rewardTxHash = "0xe7636c4d9af0acb8fd7a73da8f6309dc46dc7a7cbb35394173886f9b25a10439"
 
 type ProcessorTest struct {
 	ProcessorInterface
@@ -399,7 +399,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 					},
 					Reward: types.Reward{
 						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
-						TxHash:    common.HexToHash("0xc41c7b545d2cff22f6839ecb86c6a12ecec2b1dc11efa01e9c4d3a2feda6c2f8"),
+						TxHash:    common.HexToHash("0x094a34804e75feb8e80a028b8c9a3f00bad59e6d3d9398c5e4d94b8b43ee1fa7"),
 					},
 					SignedPieces: pt.sigs,
 				},
