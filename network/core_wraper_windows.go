@@ -22,7 +22,7 @@ void* p2p_api(const char* api)
 extern void OnP2PRecved(uint64_t id, uint32_t session, _GoBytes_ data);
 extern void OnP2PChecked(uint32_t type, _GoString_ private_ip, _GoString_ public_ip);
 extern void OnP2PListened(_GoString_ ip, uint16_t port, uint64_t latency);
-extern void OnP2PAccepted(uint64_t id, uint32_t session, uint32_t type, const char* ip, uint16_t port);
+extern void OnP2PAccepted(uint64_t id, uint32_t session, uint32_t type, _GoString_ ip, uint16_t port);
 extern void OnP2PConnected(uint64_t id, uint32_t session, uint32_t type);
 extern void OnP2PDisconnected(uint64_t id, uint32_t session, uint32_t code);
 extern void OnP2PSendWaited(uint32_t session, uint64_t peer_id);
@@ -30,8 +30,8 @@ extern void *OnP2PLoginSign();
 
 typedef void(*p2p_recved)(uint64_t id, uint32_t session, char* data, uint32_t size);
 typedef void(*p2p_checked)(uint32_t type, const char* private_ip, const char* public_ip);
-typedef void(*p2p_listened)(const char* ip, uint16_t port, uint64_t latency, const char* ip, uint16_t port);
-typedef void(*p2p_accepted)(uint64_t id, uint32_t session, uint32_t type);
+typedef void(*p2p_listened)(const char* ip, uint16_t port, uint64_t latency);
+typedef void(*p2p_accepted)(uint64_t id, uint32_t session, uint32_t type, const char* ip, uint16_t port);
 typedef void(*p2p_connected)(uint64_t id, uint32_t session, uint32_t type);
 typedef void(*p2p_disconnected)(uint64_t id, uint32_t session, uint32_t code);
 typedef void(*p2p_send_waited)(uint32_t session, uint64_t peer_id);
@@ -83,7 +83,7 @@ void on_p2p_listened(const char* ip, uint16_t port, uint64_t latency)
 
 void on_p2p_accepted(uint64_t id, uint32_t session, uint32_t type, const char* ip, uint16_t port)
 {
-  _GoString_ _ip = {ip, strlen(ip)};
+  	_GoString_ _ip = {ip, strlen(ip)};
 
 	OnP2PAccepted(id, session, type, _ip, port);
 }
