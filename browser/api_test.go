@@ -1,7 +1,10 @@
 package browser
 
 import (
-	//"github.com/jinzhu/gorm"
+	"flag"
+	"fmt"
+	"testing"
+
 	_ "github.com/zvchain/zvchain/browser/mysql"
 	//"testing"
 )
@@ -100,4 +103,81 @@ var cfg = &minerConfig{
 //		}
 //	}
 //
+//}
+
+func TestGetGroups(t *testing.T) {
+	var dbAddr, rpcAddr string
+	var dbPort, rpcPort int
+	var dbUser, dbPassword string
+	var help bool
+	var reset bool
+
+	flag.BoolVar(&help, "h", false, "help")
+	flag.BoolVar(&reset, "reset", false, "reset database")
+	flag.StringVar(&dbAddr, "dbaddr", "10.0.0.13", "database address")
+	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
+	flag.IntVar(&dbPort, "dbport", 3306, "database port")
+	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
+	flag.StringVar(&dbUser, "dbuser", "root", "database user")
+	flag.StringVar(&dbPassword, "dbpw", "root123", "database password")
+	flag.Parse()
+
+	if help {
+		flag.Usage()
+	}
+	fmt.Println("browserdbmmanagement flags:", dbAddr, dbPort, dbUser, dbPassword, reset)
+
+	tm := NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
+
+	if !tm.GetGroups() {
+		t.Fatal("获取失败")
+	}
+
+}
+
+//func (tm *DBMmanagement) GetGroups( ) bool {
+//	client, err := rpc.Dial("0.0.0.0:8101")
+//	if err != nil {
+//		fmt.Println("[fetcher] Error in dialing. err:", err)
+//		return false
+//	}
+//	defer client.Close()
+//
+//	var result map[string]interface{}
+//	//call remote procedure with args
+//
+//	groups := make([]*models.Group, 0)
+//	for i:=uint64(0);i<1000;i++ {
+//		fmt.Println("=======================GROUP HIGH",i,tm.groupHeight)
+//		//tm.groupHeight=i
+//		err = client.Call(&result, "Explorer_explorerGroupsAfter", i)
+//		if err != nil {
+//			fmt.Println("[fetcher] GetGroups  client.Call error :", err)
+//			return false
+//		}
+//		fmt.Println("[fetcher] GetGroups  result :", result)
+//		if result["data"] == nil {
+//			return false
+//		}
+//		groupsData := result["data"].([]interface{})
+//		for _, g := range groupsData {
+//			group := dataToGroup(g.(map[string]interface{}))
+//			if group != nil {
+//				groups = append(groups, group)
+//			}
+//		}
+//
+//		if groups != nil {
+//			for i := 0; i < len(groups); i++ {
+//				tm.storage.AddGroup(groups[i])
+//				if groups[i].Height >= tm.groupHeight {
+//					tm.groupHeight = groups[i].Height + 1
+//				}
+//			}
+//		}else {
+//			return false
+//		}
+//
+//	}
+//	return true
 //}

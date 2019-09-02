@@ -33,6 +33,7 @@ type Storage struct {
 	dbPassword   string
 	rpcAddrStr   string
 	topBlockHigh uint64
+	topGroupHigh uint64
 	accounts     []*models.Account
 }
 
@@ -69,6 +70,7 @@ func (storage *Storage) Init(reset bool) {
 		db.DropTable(&models.Account{})
 		db.DropTable(&models.Sys{})
 		db.DropTable(&models.PoolStake{})
+		db.DropTable(&models.Group{})
 
 	}
 	if !db.HasTable(&models.Account{}) {
@@ -79,6 +81,9 @@ func (storage *Storage) Init(reset bool) {
 	}
 	if !db.HasTable(&models.PoolStake{}) {
 		db.CreateTable(&models.PoolStake{})
+	}
+	if !db.HasTable(&models.Group{}) {
+		db.CreateTable(&models.Group{})
 	}
 
 }
