@@ -128,14 +128,16 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 			validGroupMembers = append(validGroupMembers, mid)
 		}
 	}
+	msgID := []byte(blockMsg.Hash())
 
-	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))
+	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, msgID)
 
 	// Broadcast to the next group of light nodes
 	//
 	// Prevent duplicate broadcasts
 	if len(validGroupMembers) > 0 {
-		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, []byte(blockMsg.Hash()))
+		msgID[0] += 1
+		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, msgID)
 	}
 
 }
