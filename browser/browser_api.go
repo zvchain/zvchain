@@ -244,7 +244,6 @@ func (tm *DBMmanagement) fetchGroup() {
 		fmt.Println("[DBMmanagement] storage.db == nil")
 		return
 	}
-	groups := make([]models.Group, 1, 1)
 
 	//Dissmiss
 	handelDismissGroup(tm, db)
