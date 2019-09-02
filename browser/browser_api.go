@@ -68,13 +68,13 @@ func (tm *DBMmanagement) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
-	go tm.fetchAccounts()
-	go tm.fetchGroup()
+	//go tm.fetchAccounts()
+	tm.fetchGroup()
 	for {
 		select {
 		case <-check.C:
-			go tm.fetchAccounts()
-			go tm.fetchGroup()
+			//go tm.fetchAccounts()
+			tm.fetchGroup()
 		}
 	}
 }
@@ -245,16 +245,14 @@ func (tm *DBMmanagement) fetchGroup() {
 		return
 	}
 
-	//Dissmiss
-	handelDismissGroup(tm, db)
-
-	//Work
-	handelWorkGroup(tm, db)
-
 	//Prepare
-	handelPrepareGroup(tm, db)
+	handelPrepareGroup(tm, tm.storage.GetDB())
+	//Work
+	handelWorkGroup(tm, tm.storage.GetDB())
+	//Dissmiss
+	handelDismissGroup(tm, tm.storage.GetDB())
 
-	//tm.blockHeight += 1000
+	tm.blockHeight += 4000
 }
 
 func handelDismissGroup(tm *DBMmanagement, db *gorm.DB) {
@@ -264,34 +262,35 @@ func handelDismissGroup(tm *DBMmanagement, db *gorm.DB) {
 	tm.isFetchingDismissGroups = true
 	groups := make([]models.Group, 1)
 
-	fmt.Println("[DBMmanagement]   SYS DISSMISS height:", tm.dismissGropHeight)
-	fmt.Println("当前BLOCK HEIGHT 是============================》》》", tm.blockHeight)
-	db.Where("dismiss_height <= ? AND height >= ?", tm.blockHeight, tm.dismissGropHeight).Order("height").Find(&groups)
-	fmt.Println("[DBMmanagement]  fetchGroup >>>>>>>>>>:", len(groups), groups)
+	err := db.Where("dismiss_height <= ? AND height > ?", tm.blockHeight, tm.dismissGropHeight).Order("height").Find(&groups).Error
+	if err != nil {
+		fmt.Println("db err:", err)
+		return
+	}
 
 	if groups == nil || len(groups) < 1 {
 		tm.isFetchingDismissGroups = false
 		return
 	}
 	//fmt.Println("[DBMmanagement]  fetchDismissGroup height:", groups[len(groups)-1].Height)
-	go func() {
-		if handelInGroup(tm, groups, dismissGroup) {
-			if len(groups) > 0 {
-				tm.dismissGropHeight = groups[len(groups)-1].Height
-			} else {
-				tm.dismissGropHeight = 0
-			}
-
-			//高度存储持久化
-			hight, ifexist := tm.storage.TopDismissGroupHeight()
-			AddGroupHeightSystemconfig(mysql.DismissGropHeight, tm, db, groups, hight, ifexist)
+	//func() {
+	if handelInGroup(tm, groups, dismissGroup) {
+		if len(groups) > 0 {
+			tm.dismissGropHeight = groups[len(groups)-1].Height
 		} else {
-			tm.isFetchingDismissGroups = false
-			return
+			tm.dismissGropHeight = 0
 		}
+
+		//高度存储持久化
+		hight, ifexist := tm.storage.TopDismissGroupHeight()
+		AddGroupHeightSystemconfig(mysql.DismissGropHeight, tm, db, groups, hight, ifexist)
+	} else {
 		tm.isFetchingDismissGroups = false
-		fmt.Println("《D--SUCCEED--》")
-	}()
+		return
+	}
+	tm.isFetchingDismissGroups = false
+	fmt.Println("《D--SUCCEED--》")
+	//}()
 
 }
 
@@ -302,34 +301,34 @@ func handelWorkGroup(tm *DBMmanagement, db *gorm.DB) {
 	tm.isFetchingWorkGroups = true
 	groups := make([]models.Group, 1)
 
-	fmt.Println("[DBMmanagement]   SYS WorkGroup height:", tm.groupHeight)
-	fmt.Println("当前BLOCK HEIGHT 是============================》》》", tm.blockHeight)
-	db.Where("work_height <= ? AND dismiss_height > ? AND height > ?", tm.blockHeight, tm.blockHeight, tm.groupHeight).Order("height").Find(&groups)
-	fmt.Println("[DBMmanagement]  fetchGroup >>>>>>>>>>:", len(groups), groups)
-
+	err := db.Where("work_height <= ? AND dismiss_height > ? AND height > ?", tm.blockHeight, tm.blockHeight, tm.groupHeight).Order("height").Find(&groups).Error
+	if err != nil {
+		fmt.Println("db err:", err)
+		return
+	}
 	if groups == nil || len(groups) < 1 {
 		tm.isFetchingWorkGroups = false
 		return
 	}
 	//fmt.Println("[DBMmanagement]  fetchGroup height:", groups[len(groups)-1].Height)
-	go func() {
-		if handelInGroup(tm, groups, workGroup) {
-			if len(groups) > 0 {
-				tm.groupHeight = groups[len(groups)-1].Height
-			} else {
-				tm.groupHeight = 0
-			}
-
-			//高度存储持久化
-			hight, ifexist := tm.storage.TopGroupHeight()
-			AddGroupHeightSystemconfig(mysql.GroupTopHeight, tm, db, groups, hight, ifexist)
+	//func() {
+	if handelInGroup(tm, groups, workGroup) {
+		if len(groups) > 0 {
+			tm.groupHeight = groups[len(groups)-1].Height
 		} else {
-			tm.isFetchingWorkGroups = false
-			return
+			tm.groupHeight = 0
 		}
+
+		//高度存储持久化
+		hight, ifexist := tm.storage.TopGroupHeight()
+		AddGroupHeightSystemconfig(mysql.GroupTopHeight, tm, db, groups, hight, ifexist)
+	} else {
 		tm.isFetchingWorkGroups = false
-		fmt.Println("《W--SUCCEED--》")
-	}()
+		return
+	}
+	tm.isFetchingWorkGroups = false
+	fmt.Println("《W--SUCCEED--》")
+	//}()
 }
 
 func handelPrepareGroup(tm *DBMmanagement, db *gorm.DB) {
@@ -339,33 +338,34 @@ func handelPrepareGroup(tm *DBMmanagement, db *gorm.DB) {
 	tm.isFetchingPrepareGroups = true
 	groups := make([]models.Group, 1)
 
-	fmt.Println("[DBMmanagement]  SYS PrepareGroup height:", tm.prepareGroupHeight)
-	fmt.Println("当前BLOCK HEIGHT 是============================》》》", tm.blockHeight)
-	db.Where("work_height > ? AND height > ?", tm.blockHeight, tm.prepareGroupHeight).Order("height").Find(&groups)
-	fmt.Println("[DBMmanagement]  fetchPrepareGroup 取组:", len(groups), groups)
+	err := db.Where("work_height >= ? AND height > ?", tm.blockHeight, tm.prepareGroupHeight).Order("height").Find(&groups).Error
+	if err != nil {
+		fmt.Println("db err:", err)
+		return
+	}
 
 	if groups == nil || len(groups) < 1 {
 		tm.isFetchingPrepareGroups = false
 		return
 	}
 	//fmt.Println("[DBMmanagement]  fetchPrepareGroup height:", groups[len(groups)-1].Height)
-	go func() {
-		if handelInGroup(tm, groups, prepareGroup) {
-			if len(groups) > 0 {
-				tm.prepareGroupHeight = groups[len(groups)-1].Height
-			} else {
-				tm.prepareGroupHeight = 0
-			}
-			//高度存储持久化
-			hight, ifexist := tm.storage.TopPrepareGroupHeight()
-			AddGroupHeightSystemconfig(mysql.PrepareGroupTopHeight, tm, db, groups, hight, ifexist)
+	//func() {
+	if handelInGroup(tm, groups, prepareGroup) {
+		if len(groups) > 0 {
+			tm.prepareGroupHeight = groups[len(groups)-1].Height
 		} else {
-			tm.isFetchingPrepareGroups = false
-			return
+			tm.prepareGroupHeight = 0
 		}
+		//高度存储持久化
+		hight, ifexist := tm.storage.TopPrepareGroupHeight()
+		AddGroupHeightSystemconfig(mysql.PrepareGroupTopHeight, tm, db, groups, hight, ifexist)
+	} else {
 		tm.isFetchingPrepareGroups = false
-		fmt.Println("《P--SUCCEED--》")
-	}()
+		return
+	}
+	tm.isFetchingPrepareGroups = false
+	fmt.Println("《P--SUCCEED--》")
+	//}()
 }
 
 func AddGroupHeightSystemconfig(groupstate string, tm *DBMmanagement, db *gorm.DB, groups []models.Group, hight uint64, ifexist bool) {
@@ -391,32 +391,26 @@ func handelInGroup(tm *DBMmanagement, groups []models.Group, groupState int) boo
 	if len(groups) <= 0 {
 		return false
 	}
-	account := models.Account{}
+
 	for _, group := range groups {
 		addresInfos := strings.Split(group.MembersStr, "\r\n")
 		for _, addr := range addresInfos {
 			if addr == "" {
 				continue
 			}
-			account.Address = addr
-			tm.storage.GetDB().Where("address = ? ", addr).Find(&account)
 
 			switch groupState {
 			case prepareGroup:
-				tm.storage.GetDB().Model(&account).Where("address = ?", addr).Updates(map[string]interface{}{
+				tm.storage.GetDB().Table("accounts").Where("address = ?", addr).Updates(map[string]interface{}{
 					"prepare_group": gorm.Expr("prepare_group + ?", 1),
 				})
-				//account.PrepareGroup += 1
 			case workGroup:
-				//tm.storage.GetDB().Model(&account).UpdateColumn("work_group", gorm.Expr("work_group + ?", 1))
-				tm.storage.GetDB().Model(&account).Where("address = ?", addr).Updates(map[string]interface{}{
+				tm.storage.GetDB().Table("accounts").Where("address = ?", addr).Updates(map[string]interface{}{
 					"work_group":    gorm.Expr("work_group + ?", 1),
 					"prepare_group": gorm.Expr("prepare_group - ?", 1),
 				})
-				//account.WorkGroup += 1
-				//account.PrepareGroup -= 1
 			case dismissGroup:
-				tm.storage.GetDB().Model(&account).Where("address = ?", addr).Updates(map[string]interface{}{
+				tm.storage.GetDB().Table("accounts").Where("address = ?", addr).Updates(map[string]interface{}{
 					"dismiss_group": gorm.Expr("dismiss_group + ?", 1),
 					"work_group":    gorm.Expr("work_group - ?", 1),
 				})
