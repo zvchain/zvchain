@@ -23,7 +23,7 @@ import (
 )
 
 func TestCheckReceivedHashesInHitRate(t *testing.T) {
-	defer clearDB()
+	defer clearSelf(t)
 	init4TxSync(t)
 
 	peer := newPeerTxsKeys()
@@ -433,7 +433,7 @@ func AddBalance() {
 }
 
 func TestMinerAdd(t *testing.T) {
-	defer clearDB()
+	defer clearSelf(t)
 	initTxsAndOthers(t)
 	tx := generateStakeAddTx(1, "111", TransactionTypeStakeAdd, uint64(500000), uint64(1000), types.MinerTypeProposal)
 	marshallTx := marshallTxs([]*types.Transaction{tx}, t)
@@ -1104,7 +1104,7 @@ func (bpm *peerManager) genPeer(id string, evil bool) *peerMeter {
 }
 
 func TestFakeTxs(t *testing.T) {
-	defer clearDB()
+	defer clearSelf(t)
 	initTxsAndOthers(t)
 
 	txs := make([]*FakeTransaction, 0)
@@ -1135,7 +1135,7 @@ func TestFakeTxs(t *testing.T) {
 }
 
 func TestOnTxResponse(t *testing.T) {
-	defer clearDB()
+	defer clearSelf(t)
 
 	initTxsAndOthers(t)
 
@@ -1438,7 +1438,7 @@ func TestOnTxResponse(t *testing.T) {
 }
 
 func TestOnTxNotify(t *testing.T) {
-	defer clearDB()
+	defer clearSelf(t)
 
 	initTxsAndOthers(t)
 
