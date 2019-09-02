@@ -539,9 +539,16 @@ func (c *sendTxCmd) parse(args []string) bool {
 			return false
 		}
 
+		_, err := os.Stat(c.contractPath)
+		if os.IsNotExist(err) {
+			output("please input the correct contractPath")
+			c.fs.PrintDefaults()
+			return false
+		}
+
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
+			outputJSONErr(opErrorRes(fmt.Errorf("read the %s file failed %s ", c.contractPath, err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -562,9 +569,16 @@ func (c *sendTxCmd) parse(args []string) bool {
 			return false
 		}
 
+		_, err := os.Stat(c.contractPath)
+		if os.IsNotExist(err) {
+			output("please input the correct contractPath")
+			c.fs.PrintDefaults()
+			return false
+		}
+
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
+			outputJSONErr(opErrorRes(fmt.Errorf("read the %s file failed %s ", c.contractPath, err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -1348,7 +1362,7 @@ func parseCommandLine(command string) ([]string, error) {
 	}
 
 	if state == "quotes" {
-		return []string{}, fmt.Errorf("Unclosed quote in command line: %s", command)
+		return []string{}, fmt.Errorf("unclosed quote in command line: %s", command)
 	}
 
 	if current != "" {
