@@ -124,7 +124,7 @@ func (ca *RemoteChainOpImpl) Endpoint() string {
 }
 
 // SendRaw send transaction to connected node
-func (ca *RemoteChainOpImpl) SendRaw(tx *txRawData) *RPCResObjCmd {
+func (ca *RemoteChainOpImpl) SendRaw(tx *TxRawData) *RPCResObjCmd {
 	res := new(RPCResObjCmd)
 	aci, err := ca.aop.AccountInfo()
 	if err != nil {
@@ -264,7 +264,7 @@ func (ca *RemoteChainOpImpl) StakeAdd(target string, mType int, stake uint64, ga
 		res.Error = opErrorRes(err)
 		return res
 	}
-	tx := &txRawData{
+	tx := &TxRawData{
 		Target:   target,
 		Value:    st,
 		GasLimit: gas,
@@ -283,7 +283,7 @@ func (ca *RemoteChainOpImpl) ChangeFundGuardMode(mode int, gas, gasprice uint64)
 		res.Error = opErrorRes(err)
 		return res
 	}
-	tx := &txRawData{
+	tx := &TxRawData{
 		GasLimit: gas,
 		GasPrice: gasprice,
 		TxType:   types.TransactionTypeChangeFundGuardMode,
@@ -312,7 +312,7 @@ func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) 
 		res.Error = opErrorRes(fmt.Errorf("you could not vote to myself"))
 		return res
 	}
-	tx := &txRawData{
+	tx := &TxRawData{
 		Target:   target,
 		GasLimit: gas,
 		GasPrice: gasprice,
@@ -328,7 +328,7 @@ func (ca *RemoteChainOpImpl) ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd
 		res.Error = opErrorRes(err)
 		return res
 	}
-	tx := &txRawData{
+	tx := &TxRawData{
 		GasLimit: gas,
 		GasPrice: gasprice,
 		TxType:   types.TransactionTypeApplyGuardMiner,
@@ -371,7 +371,7 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force b
 			}
 		}
 	}
-	tx := &txRawData{
+	tx := &TxRawData{
 		GasLimit: gas,
 		GasPrice: gasprice,
 		TxType:   types.TransactionTypeMinerAbort,
@@ -393,7 +393,7 @@ func (ca *RemoteChainOpImpl) StakeRefund(target string, mType int, gas, gasPrice
 	if target == "" {
 		target = aci.Address
 	}
-	tx := &txRawData{
+	tx := &TxRawData{
 		Target:   target,
 		GasLimit: gas,
 		GasPrice: gasPrice,
@@ -420,7 +420,7 @@ func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, g
 		return res
 	}
 	reduceValue := common.TAS2RA(value)
-	tx := &txRawData{
+	tx := &TxRawData{
 		Target:   target,
 		GasLimit: gas,
 		GasPrice: gasPrice,

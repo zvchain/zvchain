@@ -481,9 +481,9 @@ func genSendTxCmd() *sendTxCmd {
 	return c
 }
 
-func (c *sendTxCmd) toTxRaw() *txRawData {
+func (c *sendTxCmd) toTxRaw() *TxRawData {
 	value, _ := parseRaFromString(c.value)
-	return &txRawData{
+	return &TxRawData{
 		Target:    c.to,
 		Value:     value,
 		TxType:    c.txType,
