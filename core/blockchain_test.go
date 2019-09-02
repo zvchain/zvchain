@@ -508,8 +508,8 @@ func initContext4Test(t *testing.T) error {
 
 	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}), getAccount())
 	clearTicker()
-	executor := NewTVMExecutor(BlockChainImpl)
-	BlockChainImpl.executor = executor
+	sp := newStateProcessor(BlockChainImpl)
+	BlockChainImpl.stateProc = sp
 	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
 	return err
 }

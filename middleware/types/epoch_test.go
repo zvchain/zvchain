@@ -160,19 +160,19 @@ func TestCreateEpochsOfActivatedGroupsAt(t *testing.T) {
 
 func TestActivateEpochOfGroupsCreatedAt(t *testing.T) {
 	ep := ActivateEpochOfGroupsCreatedAt(0)
-	if ep.Start() != 640 {
+	if ep.Start() != 480 {
 		t.Errorf("error")
 	}
 	ep = ActivateEpochOfGroupsCreatedAt(234)
-	if ep.Start() != 640 {
+	if ep.Start() != 480 {
 		t.Errorf("error")
 	}
 	ep = ActivateEpochOfGroupsCreatedAt(8000)
-	if ep.Start() != 8640 {
+	if ep.Start() != 8400 {
 		t.Errorf("error")
 	}
 	ep = ActivateEpochOfGroupsCreatedAt(17000)
-	if ep.Start() != 17600 {
+	if ep.Start() != 17280 {
 		t.Errorf("error")
 	}
 }
