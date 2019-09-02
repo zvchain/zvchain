@@ -590,7 +590,7 @@ func (c *chain4Test) QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
 		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 8*1e3, Height: 2, Random: common.FromHex("0x03")}
 	}
 	if hash == common.HexToHash(goodPreHash) {
-		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 8*1e3, Height: 2, Random: common.FromHex("0x03")}
+		return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 5*1e3, Height: 2, Random: common.FromHex("0x03")}
 	}
 	return &types.BlockHeader{CurTime: time.TimeToTimeStamp(now) - 2*1e3, Random: common.FromHex("0x03")}
 }

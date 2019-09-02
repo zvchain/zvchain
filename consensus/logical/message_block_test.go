@@ -186,7 +186,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 
 	}
 	if param != "block-exists" && param != "already-sign" {
-		bh.Elapsed = int32(bh.CurTime - (time.TimeToTimeStamp(now) - 8*1e3))
+		bh.Elapsed = int32(bh.CurTime - (time.TimeToTimeStamp(now) - 5*1e3))
 		bh.Hash = bh.GenHash()
 	}
 
