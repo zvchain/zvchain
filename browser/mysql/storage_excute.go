@@ -14,6 +14,7 @@ const (
 	PrepareGroupTopHeight = "group.top_prepare_group_height"
 	DismissGropHeight     = "group.top_dismiss_group_height"
 	LIMIT                 = 20
+	CheckpointMaxHeight   = 1000000000
 )
 
 func (storage *Storage) UpdateBatchAccount(accounts []*models.Account) bool {

@@ -83,6 +83,11 @@ func (tm *DBMmanagement) fetchAccounts() {
 	if tm.isFetchingBlocks {
 		return
 	}
+
+	blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
+	if tm.blockHeight > blockheader.Height {
+		return
+	}
 	tm.isFetchingBlocks = true
 	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight)
 
@@ -94,7 +99,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 			AddressCacheList := make(map[string]uint64)
 			PoolList := make(map[string]uint64)
 			stakelist := make(map[string]map[string]int64)
-
+			set := &util.Set{}
 			for _, tx := range block.Transactions {
 				if tx.Type == types.TransactionTypeVoteMinerPool {
 					if tx.Target != nil {
@@ -111,6 +116,10 @@ func (tm *DBMmanagement) fetchAccounts() {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
+					}
+					//check update stake
+					if checkStakeTransaction(tx.Type) {
+						set.Add(tx.Source.AddrPrefixString())
 					}
 					//stake list
 					if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
@@ -158,8 +167,14 @@ func (tm *DBMmanagement) fetchAccounts() {
 
 				}
 				//update stake
-				tm.UpdateAccountStake(accounts, 0)
 
+			}
+			if set.M != nil {
+				account := &models.Account{}
+				for aa, _ := range set.M {
+					account.Address = aa.(string)
+					tm.UpdateAccountStake(account, blockheader.Height)
+				}
 			}
 			for address, _ := range PoolList {
 				targetAddrInfo := tm.storage.GetAccountById(address)
@@ -193,6 +208,13 @@ func (tm *DBMmanagement) fetchAccounts() {
 	tm.isFetchingBlocks = false
 }
 
+func checkStakeTransaction(trtype int8) bool {
+	if trtype == types.TransactionTypeStakeReduce || trtype == types.TransactionTypeStakeAdd {
+		return true
+	}
+	return false
+}
+
 func (tm *DBMmanagement) fetchTickets(address string) string {
 	voteLIst := make(map[string]interface{})
 	db, err := core.BlockChainImpl.LatestAccountDB()
@@ -222,6 +244,7 @@ func (tm *DBMmanagement) fetchGroup() {
 		fmt.Println("[DBMmanagement] storage.db == nil")
 		return
 	}
+	groups := make([]models.Group, 1, 1)
 
 	//Dissmiss
 	handelDismissGroup(tm, db)
@@ -438,12 +461,12 @@ func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 	morts := make([]*MortGage, 0, 0)
 	address := common.StringToAddress(addr)
 	var proposalInfo *types.Miner
-	if height == 0 {
-		proposalInfo = core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
-	} else {
-		proposalInfo = core.MinerManagerImpl.GetMiner(address, types.MinerTypeProposal, height)
+	//if height == 0 {
+	proposalInfo = core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeProposal)
+	//} else {
+	//	proposalInfo = core.MinerManagerImpl.GetMiner(address, types.MinerTypeProposal, height)
 
-	}
+	//}
 	var stakefrom = ""
 	if proposalInfo != nil {
 		mort := NewMortGageFromMiner(proposalInfo)
@@ -457,7 +480,7 @@ func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 			}
 		}
 		morts = append(morts, &MortGage{
-			Stake:       mort.Stake - selfStakecount,
+			Stake:       mort.Stake - uint64(common.RA2TAS(selfStakecount)),
 			ApplyHeight: 0,
 			Type:        "proposal node",
 			Status:      types.MinerStatusActive,
