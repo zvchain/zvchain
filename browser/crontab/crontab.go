@@ -5,23 +5,25 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
+	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"sync/atomic"
 	"time"
 )
 
 const checkInterval = time.Second * 10
 
 type Crontab struct {
-	storage             *mysql.Storage
-	blockHeight         uint64
-	page                uint64
-	maxid               uint
-	accountPrimaryId    uint64
-	isFetchingReward    bool
-	isFetchingStake     bool
-	isFetchingPoolvotes bool
+	storage          *mysql.Storage
+	blockHeight      uint64
+	page             uint64
+	maxid            uint
+	accountPrimaryId uint64
+	isFetchingReward int32
+
+	isFetchingPoolvotes int32
 	rpcExplore          *Explore
 	transfer            *Transfer
 }
@@ -57,18 +59,7 @@ func (crontab *Crontab) loop() {
 		}
 	}
 }
-
-//uopdate invalid guard and pool
-func (crontab *Crontab) fetchPoolVotes() {
-	if crontab.isFetchingPoolvotes {
-		return
-	}
-	crontab.isFetchingPoolvotes = true
-	//todo 守护节点失效
-	//accounts := crontab.storage.GetAccountByRoletype(0, types.MinerGuard)
-	//for _, account := range accounts {
-	//crontab.storage.UpdateAccountByColumn(account, map[string]interface{}{"role_type": types.MinerNormal})
-	//}
+func (crontab *Crontab) excutePoolVotes() {
 	accountsPool := crontab.storage.GetAccountByRoletype(crontab.maxid, types.MinerPool)
 	if accountsPool != nil && len(accountsPool) > 0 {
 		blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
@@ -112,56 +103,70 @@ func (crontab *Crontab) fetchPoolVotes() {
 			}
 			crontab.storage.UpdateAccountByColumn(pool, attrs)
 		}
-		go crontab.fetchPoolVotes()
+		crontab.excutePoolVotes()
 	}
-	crontab.isFetchingPoolvotes = false
-	//vote
+}
+
+//uopdate invalid guard and pool
+func (crontab *Crontab) fetchPoolVotes() {
+
+	if !atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 0, 1) {
+		return
+	}
+	crontab.excutePoolVotes()
+	atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 1, 0)
 
 }
 
-/*func (crontab *Crontab) fetchBlockStakeAll() {
-	if crontab.isFetchingStake {
-		return
-	}
-	crontab.isFetchingStake = true
-
-	//按页数和标记信息更新数据，标记信息更新sys数据
-	accounts := crontab.storage.GetAccountByPage(crontab.page)
-	if accounts != nil {
-		for _, account := range accounts {
-		}
-		crontab.page += 1
-		go crontab.fetchBlockStakeAll()
-	}
-
-	crontab.isFetchingStake = false
-
-}*/
-
 func (crontab *Crontab) fetchBlockRewards() {
-	if crontab.isFetchingReward {
+	if !atomic.CompareAndSwapInt32(&crontab.isFetchingReward, 0, 1) {
 		return
 	}
+	crontab.excuteBlockRewards()
+	atomic.CompareAndSwapInt32(&crontab.isFetchingReward, 1, 0)
+}
+
+func (crontab *Crontab) excuteBlockRewards() {
 	height, _ := crontab.storage.TopBlockHeight()
 	if crontab.blockHeight > height {
 		return
 	}
-	blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
-	if crontab.blockHeight > blockheader.Height {
+	//blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
+	/*if crontab.blockHeight > blockheader.Height {
 		return
-	}
-	crontab.isFetchingReward = true
-	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockHeight)
+	}*/
 	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockHeight)
+	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockHeight, 0)
+
 	if rewards != nil {
+		fmt.Println("[crontab]  fetchBlockRewards ObjectTojson:", util.ObjectTojson(rewards), crontab.blockHeight)
 
 		accounts := crontab.transfer.RewardsToAccounts(rewards)
+
 		if crontab.storage.AddBlockRewardMysqlTransaction(accounts) {
 			crontab.blockHeight += 1
 		}
-		go crontab.fetchBlockRewards()
+		crontab.excuteBlockRewards()
+
+	} else {
+		crontab.blockHeight += 1
+
+		fmt.Println("[crontab]  fetchBlockRewards rewards nil:", crontab.blockHeight, rewards)
 
 	}
-	crontab.isFetchingReward = false
+}
+
+func (crontab *Crontab) Produce(header map[string]uint64, pipe chan map[string]uint64) {
+	for {
+		pipe <- header
+		time.Sleep(time.Second)
+	}
+
+}
+func (crontab *Crontab) Consume(pipe chan map[string]uint64) bool {
+	for {
+		accounts := <-pipe
+		return crontab.storage.AddBlockRewardMysqlTransaction(accounts)
+	}
 
 }

@@ -115,29 +115,29 @@ func (storage *Storage) GetGroupByHigh(height uint64) []*models.Group {
 	return groups
 }
 
-func (storage *Storage) AddBlockRewardMysqlTransaction(accounts []*models.Account) bool {
+func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]uint64) bool {
 	if storage.db == nil {
 		return false
 	}
 	tx := storage.db.Begin()
 
-	updateReward := func(account *models.Account) error {
-		return tx.Model(&account).
-			Where("address = ?", account.Address).
-			Updates(map[string]interface{}{"rewards": gorm.Expr("rewards + ?", account.Rewards)}).Error
+	updateReward := func(addr string, reward uint64) error {
+		return tx.Table("accounts").
+			Where("address = ?", addr).
+			Updates(map[string]interface{}{"rewards": gorm.Expr("rewards + ?", reward)}).Error
 	}
-	for _, account := range accounts {
-		if account.Address == "" {
+	for address, reward := range accounts {
+		if address == "" {
 			continue
 		}
-		if !errors(updateReward(account)) {
+		if !errors(updateReward(address, reward)) {
 			tx.Rollback()
+			fmt.Println("AddBlockRewardMysqlTransaction,", address, ",", reward)
 			return false
 		}
 	}
 	if !increwardBlockheightTosys(tx) {
 		return false
-
 	}
 	tx.Commit()
 	return true

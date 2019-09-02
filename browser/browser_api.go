@@ -84,13 +84,13 @@ func (tm *DBMmanagement) fetchAccounts() {
 		return
 	}
 
-	blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
-	if tm.blockHeight > blockheader.Height {
-		return
-	}
-	tm.isFetchingBlocks = true
-	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight)
+	//blockheader := core.BlockChainImpl.CheckPointAt(mysql.CheckpointMaxHeight)
 
+	//if tm.blockHeight > blockheader.Height {
+	//	return
+	//}
+	tm.isFetchingBlocks = true
+	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight, 0)
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
 
@@ -173,7 +173,7 @@ func (tm *DBMmanagement) fetchAccounts() {
 				account := &models.Account{}
 				for aa, _ := range set.M {
 					account.Address = aa.(string)
-					tm.UpdateAccountStake(account, blockheader.Height)
+					tm.UpdateAccountStake(account, 0)
 				}
 			}
 			for address, _ := range PoolList {
@@ -452,12 +452,12 @@ func generateStakefromByTransaction(tm *DBMmanagement, stakelist map[string]map[
 
 }
 
-func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
+func GetMinerInfo(addr string, height uint64) (map[string]*MortGage, string) {
 	if !common.ValidateAddress(strings.TrimSpace(addr)) {
 		return nil, ""
 	}
 
-	morts := make([]*MortGage, 0, 0)
+	morts := make(map[string]*MortGage)
 	address := common.StringToAddress(addr)
 	var proposalInfo *types.Miner
 	//if height == 0 {
@@ -469,7 +469,8 @@ func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 	var stakefrom = ""
 	if proposalInfo != nil {
 		mort := NewMortGageFromMiner(proposalInfo)
-		morts = append(morts, mort)
+		morts["proposal"] = mort
+		//morts = append(morts, mort)
 		//get stakeinfo by miners themselves
 		details := core.MinerManagerImpl.GetStakeDetails(address, address)
 		var selfStakecount uint64 = 0
@@ -478,12 +479,15 @@ func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 				selfStakecount += detail.Value
 			}
 		}
-		morts = append(morts, &MortGage{
+		fmt.Println("GetMinerInfo", proposalInfo.Stake, ",", selfStakecount, ",", address)
+
+		other := &MortGage{
 			Stake:       mort.Stake - uint64(common.RA2TAS(selfStakecount)),
 			ApplyHeight: 0,
 			Type:        "proposal node",
 			Status:      types.MinerStatusActive,
-		})
+		}
+		morts["other"] = other
 		if selfStakecount > 0 {
 			stakefrom = addr
 		}
@@ -495,7 +499,10 @@ func GetMinerInfo(addr string, height uint64) ([]*MortGage, string) {
 	}
 	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
 	if verifierInfo != nil {
-		morts = append(morts, NewMortGageFromMiner(verifierInfo))
+		morts["verify"] = NewMortGageFromMiner(verifierInfo)
+		if stakefrom == "" {
+			stakefrom = addr
+		}
 	}
 	return morts, stakefrom
 }
@@ -549,22 +556,28 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 func (tm *DBMmanagement) UpdateAccountStake(account *models.Account, height uint64) {
 	if account == nil {
 		return
-
 	}
 	minerinfo, stakefrom := GetMinerInfo(account.Address, height)
 	if len(minerinfo) > 0 {
-		tm.storage.UpdateAccountByColumn(account, map[string]interface{}{
-			"proposal_stake": minerinfo[0].Stake,
-			"other_stake":    minerinfo[1].Stake,
-			"verify_stake":   minerinfo[2].Stake,
-			"total_stake":    minerinfo[0].Stake + minerinfo[2].Stake,
-			"stake_from":     stakefrom,
-			"status":         minerinfo[0].Status,
-			"role_type":      minerinfo[0].Identity,
-		})
+		var verifystake uint64
+		mapcolumn := make(map[string]interface{})
+		if minerinfo["verify"] != nil {
+			verifystake = minerinfo["verify"].Stake
+			mapcolumn["verify_stake"] = verifystake
+		}
+		var prostake uint64
+		if minerinfo["proposal"] != nil {
+			prostake = minerinfo["proposal"].Stake
+			mapcolumn["proposal_stake"] = prostake
+			mapcolumn["other_stake"] = minerinfo["other"].Stake
+			mapcolumn["status"] = minerinfo["proposal"].Status
+			mapcolumn["role_type"] = minerinfo["proposal"].Identity
+		}
+		mapcolumn["total_stake"] = verifystake + prostake
+		mapcolumn["stake_from"] = stakefrom
+		tm.storage.UpdateAccountByColumn(account, mapcolumn)
 	}
 }
-
 func (tm *DBMmanagement) GetGroups() bool {
 	rpcAddr := "0.0.0.0"
 	rpcPort := 8101

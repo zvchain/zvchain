@@ -39,7 +39,7 @@ type Account struct {
 	DismissGroup     uint64  `json:"dismiss_group" gorm:"index"`
 	PrepareGroup     uint64  `json:"prepare_group" gorm:"index"`
 	TotalTransaction uint64  `json:"total_transaction"`
-	Rewards          uint64  `json:"rewards" gorm:"index"`
+	Rewards          uint64  `json:"rewards"`
 	Status           byte    `json:"status" gorm:"index"`
 	StakeFrom        string  `json:"stake_from"`
 	Balance          float64 `json:"balance"`
