@@ -331,6 +331,7 @@ func TestRepeatVote(t *testing.T) {
 	defer clearSelf(t)
 	ctx.source = &normal2
 	ctx.target = &normal2
+	ctx.mType = types.MinerTypeProposal
 	testFullStakeFromSelf(t)
 	var height uint64 = 0
 	testApplyGuardNode(t, true, height)
@@ -518,6 +519,7 @@ func TestScan(t *testing.T) {
 	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.height = 0
 	testChangeFundMode(t, 0, true)
 	accountDB.(*account.AccountDB).Commit(true)
 	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod/2+1000))
