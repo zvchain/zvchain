@@ -16,15 +16,15 @@
 package logical
 
 import (
-	"fmt"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
+	"sync"
 )
 
 const (
-	maxActivatedGroupSkipCounts = 5
+	maxActivatedGroupSkipCounts = 10
 )
 
 type skipCounts map[common.Hash]uint16
@@ -44,6 +44,17 @@ func (sc skipCounts) addCount(seed common.Hash, delta uint16) {
 	}
 }
 
+func (sc skipCounts) merge(sc2 skipCounts) skipCounts {
+	ret := make(skipCounts)
+	for seed, cnt := range sc {
+		ret.addCount(seed, cnt)
+	}
+	for seed, cnt := range sc2 {
+		ret.addCount(seed, cnt)
+	}
+	return ret
+}
+
 type activatedGroupInfoReader interface {
 	getActivatedGroupsByHeight(h uint64) []*verifyGroup
 	getGroupSkipCountsByHeight(h uint64) map[common.Hash]uint16
@@ -52,6 +63,27 @@ type activatedGroupInfoReader interface {
 type skipCounter struct {
 	full      skipCounts            // full skip counts from storage
 	increment map[uint64]skipCounts // increment skip counts grouped by height
+	lock      sync.RWMutex
+}
+
+func (sc *skipCounter) addIncrement(h uint64, cnts skipCounts) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+	if sc.increment == nil {
+		sc.increment = make(map[uint64]skipCounts)
+	}
+	if sc.increment[h] == nil {
+		sc.increment[h] = cnts
+	}
+}
+
+func (sc *skipCounter) getIncrement(h uint64) skipCounts {
+	sc.lock.RLock()
+	defer sc.lock.RUnlock()
+	if sc.increment == nil {
+		return nil
+	}
+	return sc.increment[h]
 }
 
 type groupSelector struct {
@@ -66,85 +98,57 @@ func newGroupSelector(gr activatedGroupInfoReader) *groupSelector {
 	}
 }
 
-func duplicateGroupSeed(g *verifyGroup, skipCount uint16) []common.Hash {
-	// always expands for genesis group
-	if g.header.WorkHeight() == 0 {
-		skipCount = 0
-	}
-	if skipCount >= maxActivatedGroupSkipCounts {
-		return []common.Hash{}
-	} else {
-		dup := maxActivatedGroupSkipCounts - int(skipCount)
-		ret := make([]common.Hash, dup)
-		for i := range ret {
-			ret[i] = g.header.Seed()
-		}
-		return ret
-	}
-}
-
 func (gs *groupSelector) getAllSkipCountsBy(pre *types.BlockHeader, height uint64) skipCounts {
 	var (
 		fullSkipCounts  skipCounts
 		incrementCounts skipCounts
+		sc              *skipCounter
 	)
+	// Should not happen
+	if height < pre.Height {
+		stdLogger.Panicf("height error: %v %v", height, pre.Height)
+		return nil
+	}
 	v, ok := gs.skipCache.Peek(pre.Hash)
 	if ok {
-		ct := v.(*skipCounter)
-		fullSkipCounts = ct.full
-		incrementCounts = ct.increment[height]
-		if incrementCounts == nil {
-			incrementCounts = gs.groupSkipCountsBetween(pre, height)
-			ct.increment[height] = incrementCounts
-		}
+		sc = v.(*skipCounter)
+		fullSkipCounts = sc.full
 	} else {
 		fullSkipCounts = gs.gr.getGroupSkipCountsByHeight(pre.Height)
-		incrementCounts = gs.groupSkipCountsBetween(pre, height)
-		increments := make(map[uint64]skipCounts)
-		increments[height] = incrementCounts
-		ct := &skipCounter{
-			full:      fullSkipCounts,
-			increment: increments,
+		sc = &skipCounter{
+			full: fullSkipCounts,
 		}
-		gs.skipCache.Add(pre.Hash, ct)
+		gs.skipCache.ContainsOrAdd(pre.Hash, sc)
 	}
+	incrementCounts = gs.groupIncrementSkipCountsBetween(sc, fullSkipCounts, pre, height)
 
 	// merge the skip counts
-	ret := make(skipCounts)
-	for seed, cnt := range fullSkipCounts {
-		ret.addCount(seed, cnt)
-	}
-	for seed, cnt := range incrementCounts {
-		ret.addCount(seed, cnt)
-	}
-	return ret
+	return fullSkipCounts.merge(incrementCounts)
 }
 
-func (gs *groupSelector) getWorkGroupSeedsAt(pre *types.BlockHeader, height uint64) []common.Hash {
+func (gs *groupSelector) getWorkGroupSeedsAt(pre *types.BlockHeader, height uint64, sc skipCounts) []common.Hash {
 	groupIS := gs.gr.getActivatedGroupsByHeight(height)
 	// Must not happen
 	if len(groupIS) == 0 {
 		panic("no available groupIS")
 	}
-	skipCounts := gs.getAllSkipCountsBy(pre, height)
 
-	workSeedsWithDuplication := make([]common.Hash, 0)
-	logs := make([]string, 0)
+	workSeeds := make([]common.Hash, 0)
 	for _, g := range groupIS {
 		seed := g.header.Seed()
-		skipCnt := skipCounts.count(seed)
-		dupSeeds := duplicateGroupSeed(g, skipCnt)
-		logs = append(logs, fmt.Sprintf("%v(%v)", seed, len(dupSeeds)))
-		workSeedsWithDuplication = append(workSeedsWithDuplication, dupSeeds...)
+		skipCnt := sc.count(seed)
+		if g.header.WorkHeight() == 0 || skipCnt < maxActivatedGroupSkipCounts {
+			workSeeds = append(workSeeds, seed)
+		}
 	}
-	stdLogger.Debugf("group selector candidates %v, size %v, at %v", logs, len(logs), height)
-	return workSeedsWithDuplication
+	stdLogger.Debugf("group selector candidates %v, size %v, at %v", workSeeds, len(workSeeds), height)
+	return workSeeds
 }
 
-func (gs *groupSelector) doSelect(preBH *types.BlockHeader, height uint64) common.Hash {
+func (gs *groupSelector) selectWithSkipCountInfo(preBH *types.BlockHeader, height uint64, sc skipCounts) common.Hash {
 	var hash = calcRandomHash(preBH, height)
 
-	groupSeeds := gs.getWorkGroupSeedsAt(preBH, height)
+	groupSeeds := gs.getWorkGroupSeedsAt(preBH, height, sc)
 	// Must not happen
 	if len(groupSeeds) == 0 {
 		panic("no available groups")
@@ -159,12 +163,31 @@ func (gs *groupSelector) doSelect(preBH *types.BlockHeader, height uint64) commo
 	return selectedGroup
 }
 
+func (gs *groupSelector) doSelect(preBH *types.BlockHeader, height uint64) common.Hash {
+	skipCountInfo := gs.getAllSkipCountsBy(preBH, height-1)
+	return gs.selectWithSkipCountInfo(preBH, height, skipCountInfo)
+}
+
+func (gs *groupSelector) groupIncrementSkipCountsBetween(sc *skipCounter, fullSc skipCounts, preBH *types.BlockHeader, height uint64) skipCounts {
+	if height == preBH.Height {
+		return skipCounts{}
+	}
+	skipCnts := sc.getIncrement(height)
+	if skipCnts != nil {
+		return skipCnts
+	}
+	// gets increment skip counts before height-1 recursively
+	cnts := gs.groupIncrementSkipCountsBetween(sc, fullSc, preBH, height-1)
+	// calculates the expect work group at the given height with all skip count infos before height-1
+	s := gs.selectWithSkipCountInfo(preBH, height, cnts.merge(fullSc))
+	temp := skipCounts{}
+	temp.addCount(s, 1)
+	ret := cnts.merge(temp)
+	sc.addIncrement(height, ret)
+	return ret
+}
+
 // groupSkipCountsBetween calculates the group skip counts between the given block and the corresponding pre block
 func (gs *groupSelector) groupSkipCountsBetween(preBH *types.BlockHeader, height uint64) skipCounts {
-	skipMap := make(skipCounts)
-	for h := preBH.Height + 1; h < height; h++ {
-		s := gs.doSelect(preBH, h)
-		skipMap.addCount(s, 1)
-	}
-	return skipMap
+	return gs.getAllSkipCountsBy(preBH, height-1)
 }
