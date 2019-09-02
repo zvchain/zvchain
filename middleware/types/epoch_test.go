@@ -179,16 +179,15 @@ func TestActivateEpochOfGroupsCreatedAt(t *testing.T) {
 
 func TestDismissEpochOfGroupsCreatedAt(t *testing.T) {
 	ep := DismissEpochOfGroupsCreatedAt(0)
-	t.Logf("start %v", ep.Start())
-	if ep.Start() != 16640 {
+	if ep.Start() != 12480 {
 		t.Errorf("dismiss error")
 	}
-	ep = DismissEpochOfGroupsCreatedAt(320)
-	if ep.Start() != 320+EpochLength*(GroupLiveEpochs+2) {
+	ep = DismissEpochOfGroupsCreatedAt(240)
+	if ep.Start() != 240+EpochLength*(GroupLiveEpochs+2) {
 		t.Errorf("dismiss error")
 	}
-	ep = DismissEpochOfGroupsCreatedAt(16000)
-	if ep.Start() != 16000+EpochLength*(GroupLiveEpochs+2) {
+	ep = DismissEpochOfGroupsCreatedAt(12000)
+	if ep.Start() != 12000+EpochLength*(GroupLiveEpochs+2) {
 		t.Errorf("dismiss error")
 	}
 }
