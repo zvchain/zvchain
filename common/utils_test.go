@@ -2,56 +2,54 @@ package common
 
 import "testing"
 
-func TestCheckWeakPassword(t *testing.T){
+func TestCheckWeakPassword(t *testing.T) {
 	weak := IsWeakPassword("sss   ...")
-	if !weak{
+	if !weak {
 		t.Fatalf("except weak,but got not")
 	}
 
 	weak = IsWeakPassword("123222")
-	if !weak{
+	if !weak {
 		t.Fatalf("except weak,but got not")
 	}
 
 	weak = IsWeakPassword("abc")
-	if !weak{
+	if !weak {
 		t.Fatalf("except weak,but got not")
 	}
 
-
 	weak = IsWeakPassword("abceer")
-	if !weak{
+	if !weak {
 		t.Fatalf("except weak,but got not")
 	}
 
 	weak = IsWeakPassword("abc112")
-	if !weak{
+	if !weak {
 		t.Fatalf("except weak,but got not")
 	}
 
 	weak = IsWeakPassword("3$#@!!")
-	if !weak{
+	if !weak {
 		t.Fatalf("except weak,but got not")
 	}
 
 	weak = IsWeakPassword("Reeeeed")
-	if !weak{
+	if !weak {
 		t.Fatalf("except weak,but got not")
 	}
 
 	weak = IsWeakPassword("123Tws")
-	if weak{
+	if weak {
 		t.Fatalf("except not weak,but got weak")
 	}
 
-
 	weak = IsWeakPassword("123Tws!!!")
-	if weak{
+	if weak {
 		t.Fatalf("except not weak,but got weak")
 	}
 
 	weak = IsWeakPassword("!!@#33TT")
-	if weak{
+	if weak {
 		t.Fatalf("except not weak,but got weak")
 	}
 }

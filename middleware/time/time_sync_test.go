@@ -78,10 +78,10 @@ func TestTimeStampString(t *testing.T) {
 	t.Logf("ts:%v", TimeToTimeStamp(time.Now()))
 }
 
-func TestLocal(t *testing.T){
+func TestLocal(t *testing.T) {
 	d := time.Date(2017, 7, 7, 9, 0, 0, 0, time.Local)
 	dl := TimeToTimeStamp(d)
-	t.Log(d,dl)
+	t.Log(d, dl)
 	if !dl.Local().Equal(d) {
 		t.Error("Local() test fail")
 	}

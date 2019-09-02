@@ -40,7 +40,10 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-var ProcTestMode bool
+type verifyGroupSelector interface {
+	doSelect(preBH *types.BlockHeader, height uint64) common.Hash
+	groupSkipCountsBetween(preBH *types.BlockHeader, height uint64) skipCounts
+}
 
 // Processor is the consensus engine implementation struct that implements all the consensus logic
 // and contextual information needed in the consensus process
@@ -80,7 +83,10 @@ type Processor struct {
 
 	rewardHandler *RewardHandler
 
-	cachedMinElapseByEpoch *lru.Cache	// Cache the min elapse milliseconds in a epoch. key: common.Hash, value: int32
+	selector verifyGroupSelector
+
+	cachedMinElapseByEpoch *lru.Cache // Cache the min elapse milliseconds in a epoch. key: common.Hash, value: int32
+
 }
 
 func (p *Processor) GetRewardManager() types.RewardManager {
@@ -146,6 +152,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	provider := core.GroupManagerImpl
 	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
+	p.selector = newGroupSelector(p.groupReader)
 
 	p.cachedMinElapseByEpoch = common.MustNewLRUCache(10)
 
@@ -188,7 +195,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 	}
 
 	gSeed := bh.Group
-	vGroupSeed := p.calcVerifyGroup(preHeader, bh.Height)
+	vGroupSeed := p.CalcVerifyGroup(preHeader, bh.Height)
 	// Check if the gSeed of the block equal to the calculated one
 	if gSeed != vGroupSeed {
 		err = fmt.Errorf("calc verify group not equal, expect %v infact %v", vGroupSeed, gSeed)

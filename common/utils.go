@@ -88,31 +88,30 @@ func DecryptWithKey(Key []byte, Data []byte) (result []byte, err error) {
 
 }
 
-
-func IsWeakPassword(password string)bool{
+func IsWeakPassword(password string) bool {
 	password = strings.TrimSpace(password)
-	if password == ""{
+	if password == "" {
 		return true
 	}
-	if len(password) < MinPasswordLength{
+	if len(password) < MinPasswordLength {
 		return true
 	}
 	AToZ := 0
 	aToz := 0
-	number:=0
-	specialCharacter:=0
-	for _,c := range password{
+	number := 0
+	specialCharacter := 0
+	for _, c := range password {
 		if c >= 'A' && c <= 'Z' {
 			AToZ = 1
-		}else if c >= 'a' && c <= 'z' {
+		} else if c >= 'a' && c <= 'z' {
 			aToz = 1
-		}else if c >= '0' && c <= '9' {
+		} else if c >= '0' && c <= '9' {
 			number = 1
-		}else{
+		} else {
 			specialCharacter = 1
 		}
 	}
-	if AToZ + aToz+number+specialCharacter<3{
+	if AToZ+aToz+number+specialCharacter < 3 {
 		return true
 	}
 	return false

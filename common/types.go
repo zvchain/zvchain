@@ -47,7 +47,7 @@ const (
 	HashLength        = 32 //Length of Hash (golang.SHA3, 256-bit)。
 	MinPasswordLength = 6
 	MaxPasswordLength = 50
-	DefaultPassword = "Zvc123"
+	DefaultPassword   = "Zvc123"
 )
 
 // Special account address

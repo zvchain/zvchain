@@ -62,10 +62,10 @@ type MemberI interface {
 type CreateResultCode int
 
 const (
-	CreateResultSuccess  CreateResultCode = iota // Group create success
-	CreateResultMarkEvil                         // Someone cheat, and mark the origin pieces required
-	CreateResultFail                             // Error occurs
-	CreateResultIdle                             // Idle round, won't start group-create routine
+	CreateResultSuccess  CreateResultCode = 1 // Group create success
+	CreateResultMarkEvil CreateResultCode = 2 // Someone cheat, and mark the origin pieces required
+	CreateResultFail     CreateResultCode = 3 // Error occurs
+	CreateResultIdle     CreateResultCode = 4 // Idle round, won't start group-create routine
 )
 
 // GroupI is the group info interface
@@ -105,7 +105,6 @@ type CheckerContext interface {
 
 // GroupCreateChecker provides function to check if the group-create related packets are legal
 type GroupCreateChecker interface {
-
 	// CheckEncryptedPiecePacket checks the encrypted share piece packet
 	CheckEncryptedPiecePacket(packet EncryptedSharePiecePacket, ctx CheckerContext) error
 
@@ -124,7 +123,6 @@ type GroupCreateChecker interface {
 
 // GroupStoreReader provides function to access the data generated during the routine or group info
 type GroupStoreReader interface {
-
 	// GetEncryptedPiecePackets Get the encrypted share packet of the given seed
 	GetEncryptedPiecePackets(seed SeedI) ([]EncryptedSharePiecePacket, error)
 
@@ -149,7 +147,6 @@ type GroupStoreReader interface {
 
 // GroupPacketSender provides functions for sending packets
 type GroupPacketSender interface {
-
 	// SendEncryptedPiecePacket sends the encrypted packet to the pool
 	SendEncryptedPiecePacket(packet EncryptedSharePiecePacket) error
 

@@ -111,14 +111,14 @@ func (v *VerifyMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Mine
 }
 
 func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
-	if op.addSource == op.addTarget || op.addSource == types.StakePlatformAddr{
+	if op.addSource == op.addTarget || op.addSource == types.StakePlatformAddr {
 		return nil
 	}
 	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
-	if err !=nil{
+	if err != nil {
 		return err
 	}
-	if sourceMiner != nil && sourceMiner.IsMinerPool(){
+	if sourceMiner != nil && sourceMiner.IsMinerPool() {
 		return nil
 	}
 
@@ -177,11 +177,11 @@ func (m *MinerPoolProposalMiner) processApplyGuard(op *applyGuardMinerOp, miner 
 
 func (b *MinerPoolProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
 	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
-	if err !=nil{
+	if err != nil {
 		return err
 	}
-	if sourceMiner != nil && sourceMiner.IsMinerPool() && op.addSource != op.addTarget{
-		return fmt.Errorf("miner pool can not stake add to other miner pool,source is %s,target is %s,height = %v",op.addSource.String(),op.addTarget.String(),op.height)
+	if sourceMiner != nil && sourceMiner.IsMinerPool() && op.addSource != op.addTarget {
+		return fmt.Errorf("miner pool can not stake add to other miner pool,source is %s,target is %s,height = %v", op.addSource.String(), op.addTarget.String(), op.height)
 	}
 	return nil
 }
@@ -192,7 +192,7 @@ func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *t
 		if miner == nil {
 			return fmt.Errorf("find miner pool miner is nil,addr is %s", op.target.String())
 		}
-		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.String(), op.height,totalTickets)
+		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.String(), op.height, totalTickets)
 		miner.UpdateIdentity(types.InValidMinerPool, op.height)
 		remove := false
 		// Remove from pool if active

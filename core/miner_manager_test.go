@@ -124,7 +124,7 @@ var (
 	guardNode88 = common.StringToAddress("zv088888")
 
 	minerPool  = common.StringToAddress("zv09999")
-	minerPool2  = common.StringToAddress("zv099998888777")
+	minerPool2 = common.StringToAddress("zv099998888777")
 	ctx        = &mOperContext{
 		source:        &src,
 		target:        &target,
@@ -225,7 +225,6 @@ func TestInsteadStake(t *testing.T) {
 	ctx.target = &minerPool2
 	ctx.stakeAddValue = 100 * common.ZVC
 	testStakeFromOther(t, false)
-
 
 	ctx.source = &minerPool
 	ctx.target = &minerPool
@@ -415,10 +414,9 @@ func TestVoteOther(t *testing.T) {
 
 }
 
-
-func createBlockHeaderByHeight(height uint64)*types.BlockHeader{
+func createBlockHeaderByHeight(height uint64) *types.BlockHeader {
 	return &types.BlockHeader{
-		Height:height,
+		Height: height,
 	}
 }
 
@@ -491,7 +489,7 @@ func TestNotFullGuardNode(t *testing.T) {
 		t.Fatalf("except miner is guard,but got %v", miner.Type)
 	}
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB,createBlockHeaderByHeight( adjustWeightPeriod+1000))
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	detail := getStakeDetail()
 	if detail.MarkNotFullHeight != adjustWeightPeriod+1000 {
 		t.Fatalf("except height = %v,but got %v", adjustWeightPeriod+1000, detail.MarkNotFullHeight)

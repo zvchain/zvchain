@@ -27,6 +27,8 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig/bncurve"
 )
 
+const SignatureLength = 33
+
 type Signature struct {
 	value bncurve.G1
 }
