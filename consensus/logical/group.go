@@ -141,15 +141,11 @@ type skStorage interface {
 type groupInfoReader interface {
 	// GetActivatedGroupSeeds gets activated groups' seed at the given height
 	GetActivatedGroupsAt(height uint64) []types.GroupI
-	// GetLivedGroupsAt gets lived groups
-	GetLivedGroupsAt(height uint64) []types.GroupI
 	// GetGroupBySeed returns the group info of the given seed
 	GetGroupBySeed(seedHash common.Hash) types.GroupI
 	// GetGroupHeaderBySeed returns the group header info of the given seed
 	GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI
 	Height() uint64
-	// GetGroupSkipCountsAt gets group skip counts at the given height
-	GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[common.Hash]uint16, error)
 }
 
 type groupGetter func(seed common.Hash) types.GroupI
@@ -197,28 +193,6 @@ func (gr *groupReader) tryToGetOrConvert(seed common.Hash, getter groupGetter) *
 // getActivatedGroupsByHeight gets all activated groups at the given height
 func (gr *groupReader) getActivatedGroupsByHeight(h uint64) []*verifyGroup {
 	gs := gr.reader.GetActivatedGroupsAt(h)
-	vgs := make([]*verifyGroup, len(gs))
-	for i, gi := range gs {
-		vgs[i] = gr.tryToGetOrConvert(gi.Header().Seed(), func(seed common.Hash) types.GroupI {
-			return gi
-		})
-	}
-	return vgs
-}
-
-// getGroupSkipCountsByHeight gets skip counts of activated group seeds at the given height
-func (gr *groupReader) getGroupSkipCountsByHeight(h uint64) map[common.Hash]uint16 {
-	activeGroups := gr.reader.GetActivatedGroupsAt(h)
-	skipInfos, err := gr.reader.GetGroupSkipCountsAt(h, activeGroups)
-	if err != nil {
-		stdLogger.Panicf("get group skip info fail at %v, err %v", h, err)
-		return nil
-	}
-	return skipInfos
-}
-
-func (gr *groupReader) getLivedGroupsByHeight(h uint64) []*verifyGroup {
-	gs := gr.reader.GetLivedGroupsAt(h)
 	vgs := make([]*verifyGroup, len(gs))
 	for i, gi := range gs {
 		vgs[i] = gr.tryToGetOrConvert(gi.Header().Seed(), func(seed common.Hash) types.GroupI {

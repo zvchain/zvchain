@@ -72,9 +72,11 @@ func (p *pool) updateSkipCount(db types.AccountDB, seed common.Hash, cnt uint16)
 	if cnt == 0 {
 		if p.getSkipCount(db, seed) > 0 {
 			db.RemoveData(common.HashToAddress(seed), skipCounterKey)
+			logger.Debugf("remove skip count %v", seed)
 		}
 	} else {
 		db.SetData(common.HashToAddress(seed), skipCounterKey, common.UInt16ToByte(cnt))
+		logger.Debugf("update skip count %v %v", seed, cnt)
 	}
 }
 

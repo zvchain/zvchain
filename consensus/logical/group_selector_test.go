@@ -33,39 +33,39 @@ func TestSkipCounts(t *testing.T) {
 }
 
 type activatedGroupReader4Test struct {
-	groups []*verifyGroup
+	groups []types.GroupI
 }
 
-func (r *activatedGroupReader4Test) getActivatedGroupsByHeight(h uint64) []*verifyGroup {
-	gs := make([]*verifyGroup, 0)
+func (r *activatedGroupReader4Test) GetActivatedGroupsAt(height uint64) []types.GroupI {
+	gs := make([]types.GroupI, 0)
 	for _, g := range r.groups {
-		if g.header.workHeight <= h && g.header.dismissHeight > h {
+		if g.Header().WorkHeight() <= height && g.Header().DismissHeight() > height {
 			gs = append(gs, g)
 		}
 	}
 	return gs
 }
 
-func (r *activatedGroupReader4Test) getGroupSkipCountsByHeight(h uint64) map[common.Hash]uint16 {
+func (r *activatedGroupReader4Test) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[common.Hash]uint16, error) {
 	skip := make(skipCounts)
 	for i, g := range r.groups {
 		if i < 4 {
-			skip.addCount(g.header.seed, uint16(2*i))
+			skip.addCount(g.Header().Seed(), uint16(2*i))
 		}
 	}
-	return skip
+	return skip, nil
 }
 
 func newActivatedGroupReader4Test() *activatedGroupReader4Test {
 	return &activatedGroupReader4Test{
-		groups: make([]*verifyGroup, 0),
+		groups: make([]types.GroupI, 0),
 	}
 }
 
 func (r *activatedGroupReader4Test) init() {
 	for h := uint64(0); h < 1000; h += 10 {
 		gh := newGroupHeader4Test(h, h+200)
-		g := &verifyGroup{header: gh}
+		g := &group4Test{header: gh}
 		r.groups = append(r.groups, g)
 	}
 }
@@ -85,34 +85,8 @@ func TestGroupSelector_getWorkGroupSeedsAt(t *testing.T) {
 		Random: rnd,
 	}
 	bh.Hash = bh.GenHash()
-	sc := skipCounts{}
-	sc.addCount(common.BytesToHash(common.Uint64ToByte(10)), 10)
-	sc.addCount(common.BytesToHash(common.Uint64ToByte(20)), 14)
-	sc.addCount(common.BytesToHash(common.Uint64ToByte(30)), 4)
-	sc.addCount(common.BytesToHash(common.Uint64ToByte(0)), 14)
-	seeds := gs.getWorkGroupSeedsAt(bh, 102, sc)
+	seeds := gs.getWorkGroupSeedsAt(bh, 102)
 	t.Log(seeds)
-}
-
-func TestGroupSelector_getAllSkipCountsBy(t *testing.T) {
-	gs := buildGroupSelector4Test()
-	rnd := make([]byte, 32)
-	rand.Read(rnd)
-	bh := &types.BlockHeader{
-		Height: 100,
-		Random: rnd,
-	}
-	bh.Hash = bh.GenHash()
-
-	for h := bh.Height + 1; h < 1000; h++ {
-		avil := gs.gr.getActivatedGroupsByHeight(h)
-		sc := gs.getAllSkipCountsBy(bh, h)
-		work := gs.getWorkGroupSeedsAt(bh, h, sc)
-		t.Log(len(avil), len(work), len(sc))
-		if len(avil) < len(work) {
-			t.Errorf("work group num error")
-		}
-	}
 }
 
 func TestGroupSelector_doSelect(t *testing.T) {
