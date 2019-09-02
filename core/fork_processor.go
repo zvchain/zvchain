@@ -65,9 +65,6 @@ func (fctx *forkSyncContext) getLastHash() common.Hash {
 }
 
 func (fctx *forkSyncContext) addChainSlice(slice chainSlice) {
-	if len(slice) == 0 {
-		return
-	}
 	if fctx.receivedChainSlice == nil {
 		fctx.receivedChainSlice = make(chainSlice, 0, len(slice))
 	}
@@ -563,6 +560,10 @@ func (fp *forkProcessor) allBlocksReceived() {
 		return
 	}
 	blocks := fp.syncCtx.receivedChainSlice
+	if len(blocks) == 0 {
+		fp.logger.Errorf("received block slice is empty, hash=%v, height=%v", fp.syncCtx.ancestor.Hash, fp.syncCtx.ancestor.Height)
+		return
+	}
 	ancestorPre := fp.chain.QueryBlockHeaderByHash(blocks[0].Header.PreHash)
 	if ancestorPre == nil {
 		fp.logger.Errorf("ancestor pre is nil:%v %v", blocks[0].Header.Hash, blocks[0].Header.Height)

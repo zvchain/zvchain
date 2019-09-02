@@ -113,9 +113,19 @@ func (gtas *Gtas) startRPC() error {
 	}
 	host, port := gtas.config.rpcAddr, gtas.config.rpcPort
 
+	var cors []string
+	switch gtas.config.cors {
+	case "all":
+		cors = []string{"*"}
+	case "":
+		cors = []string{}
+	default:
+		cors = strings.Split(gtas.config.cors, ",")
+	}
+
 	for plus := 0; plus < 40; plus++ {
 		endpoint := fmt.Sprintf("%s:%d", host, port+uint16(plus))
-		err = startHTTP(endpoint, apis, []string{}, []string{}, []string{})
+		err = startHTTP(endpoint, apis, []string{}, cors, []string{})
 		if err == nil {
 			log.DefaultLogger.Errorf("RPC serving on %v\n", endpoint)
 			return nil

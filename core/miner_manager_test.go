@@ -136,8 +136,8 @@ var (
 	accountDB types.AccountDB
 )
 
-func setup() {
-	err := initContext4Test()
+func setup(t *testing.T) {
+	err := initContext4Test(t)
 	if err != nil {
 		panic("init fail " + err.Error())
 	}
@@ -176,8 +176,8 @@ func setup() {
 }
 
 func TestInit(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 	for _, addr := range types.ExtractGuardNodes {
 		fd, _ := getFundGuardNode(accountDB, addr)
@@ -194,8 +194,8 @@ func TestInit(t *testing.T) {
 }
 
 func TestInsteadStake(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &src
 	ctx.target = &target
 	testStakeFromOther(t, false)
@@ -233,8 +233,8 @@ func TestInsteadStake(t *testing.T) {
 }
 
 func TestInvalidMinerPoolAction(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	genePoolMiner(t)
 	accountDB.(*account.AccountDB).Commit(true)
 	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
@@ -260,8 +260,8 @@ func TestInvalidMinerPoolAction(t *testing.T) {
 }
 
 func TestStakeMax(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &src
 	ctx.target = &src
 	testFullStakeFromSelf(t)
@@ -316,8 +316,8 @@ func TestStakeMax(t *testing.T) {
 }
 
 func TestStakeSelf(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	testStakeSelfProposal(t)
 	testStakeSelfVerify(t)
 	bla := accountDB.GetBalance(src)
@@ -327,10 +327,11 @@ func TestStakeSelf(t *testing.T) {
 }
 
 func TestRepeatVote(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &normal2
 	ctx.target = &normal2
+	ctx.mType = types.MinerTypeProposal
 	testFullStakeFromSelf(t)
 	var height uint64 = 0
 	testApplyGuardNode(t, true, height)
@@ -361,8 +362,8 @@ func TestRepeatVote(t *testing.T) {
 }
 
 func TestVoteOther(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	geneGuardNodes(t)
 	ctx.height = 10000
 	ctx.source = &guardNode1
@@ -421,8 +422,8 @@ func createBlockHeaderByHeight(height uint64) *types.BlockHeader {
 }
 
 func TestInvalid(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	genePoolMiner(t)
 	accountDB.(*account.AccountDB).Commit(true)
 	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
@@ -472,8 +473,8 @@ func TestInvalid(t *testing.T) {
 }
 
 func TestNotFullGuardNode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 
 	ctx.source = &guardNode1
@@ -514,10 +515,11 @@ func TestNotFullGuardNode(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.height = 0
 	testChangeFundMode(t, 0, true)
 	accountDB.(*account.AccountDB).Commit(true)
 	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod/2+1000))
@@ -569,8 +571,8 @@ func TestScan(t *testing.T) {
 }
 
 func TestChangeFundMode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 	ctx.source = &types.ExtractGuardNodes[0]
 	testChangeFundMode(t, 0, true)
@@ -591,8 +593,8 @@ func TestChangeFundMode(t *testing.T) {
 }
 
 func TestFundApplyGuardNode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 	ctx.source = &types.ExtractGuardNodes[0]
 	ctx.target = &types.ExtractGuardNodes[0]
@@ -617,8 +619,8 @@ func TestFundApplyGuardNode(t *testing.T) {
 }
 
 func TestNormalApplyGuardNode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &src
 	ctx.target = &src
 	MinerManagerImpl.genFundGuardNodes(accountDB)
@@ -657,8 +659,8 @@ func TestNormalApplyGuardNode(t *testing.T) {
 }
 
 func TestFailVote(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &guardNode1
 	ctx.target = &guardNode1
 	testFullStakeFromSelf(t)
