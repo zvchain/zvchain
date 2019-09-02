@@ -330,6 +330,7 @@ func initChainReader4CPTest(gr activatedGroupReader) *FullBlockChain {
 	common.InitConf("test1.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", "d_b")
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
+	clearTicker()
 	Logger = logrus.StandardLogger()
 	if err != nil {
 		Logger.Panicf("init chain error:%v", err)
