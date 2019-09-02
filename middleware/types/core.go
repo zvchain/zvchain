@@ -177,6 +177,7 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	if tx.GasPrice != nil {
 		gasPrice = tx.GasPrice.Bytes()
 	}
+
 	txH := &txHashing{
 		src:      src,
 		target:   target,
