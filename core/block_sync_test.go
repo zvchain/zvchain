@@ -25,10 +25,11 @@ var middleBlock *types.Block
 var middleBlockHash common.Hash
 
 func init() {
+	clearAllFolder()
 	log.Init()
 }
-func initContext() {
-	initContext4Test()
+func initContext(t *testing.T) {
+	initContext4Test(t)
 	blockSyncForTest = newBlockSyncer(BlockChainImpl)
 	blockSyncForTest.logger = log.BlockSyncLogger
 
@@ -36,8 +37,8 @@ func initContext() {
 	types.DefaultPVFunc = PvFuncTest
 }
 func TestGetBestCandidate(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 	for i := 0; i < 100; i++ {
 		blockSyncForTest.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
 		peerManagerImpl.getOrAddPeer(strconv.Itoa(i))
@@ -78,8 +79,8 @@ func PvFuncTest(pvBytes []byte) *big.Int {
 }
 
 func TestTopBlockInfoNotifyHandler(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 
 	//add a nil blockheader
 	source := "0x111"
@@ -109,8 +110,8 @@ func TestTopBlockInfoNotifyHandler(t *testing.T) {
 }
 
 func TestBlockReqHandler(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 	insertBlocks()
 	bts, _ := tas_middleware_test.MarshalNilSyncRequest()
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
@@ -160,9 +161,9 @@ func TestBlockReqHandler(t *testing.T) {
 
 func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	//error blocks
-	clearDB()
-	initContext()
-	defer clearDB()
+	clearSelf(t)
+	initContext(t)
+	defer clearSelf(t)
 	insertCorrectHashBlocks()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
@@ -235,8 +236,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 }
 
 func TestNewBlockHandler(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}

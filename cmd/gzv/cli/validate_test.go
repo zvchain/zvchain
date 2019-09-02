@@ -54,7 +54,7 @@ func TestValidateTxType(t *testing.T) {
 	if !validateTxType(1) {
 		t.Errorf("validate error type 1")
 	}
-	if validateTxType(3) {
+	if !validateTxType(3) {
 		t.Errorf("validate error type 3")
 	}
 	if validateTxType(100) {
