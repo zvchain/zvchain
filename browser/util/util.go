@@ -15,6 +15,8 @@
 
 package util
 
+import "encoding/json"
+
 type Set struct {
 	// struct为结构体类型的变量
 	M map[interface{}]struct{}
@@ -49,4 +51,13 @@ func (s *Set) Add(items ...interface{}) error {
 		s.M[item] = Exists
 	}
 	return nil
+}
+
+func ObjectTojson(ob interface{}) string {
+	if ob == nil {
+		return ""
+	}
+	result, _ := json.Marshal(ob)
+	return string(result)
+
 }

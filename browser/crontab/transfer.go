@@ -7,15 +7,25 @@ import (
 type Transfer struct {
 }
 
-func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) []*models.Account {
-	exploreraccount := make([]*models.Account, 0, 0)
+func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) map[string]uint64 {
+	explorerAccount := make([]*models.Account, 0, 0)
+	mapData := make(map[string]uint64)
 	if rewards != nil && len(rewards) > 0 {
 		for _, reward := range rewards {
 			account := transfer.blockRewardTOAccount(reward)
-			exploreraccount = append(exploreraccount, account...)
+
+			explorerAccount = append(explorerAccount, account...)
 		}
 	}
-	return exploreraccount
+	for _, account := range explorerAccount {
+		if _, exists := mapData[account.Address]; exists {
+			mapData[account.Address] += account.Rewards
+		} else {
+			mapData[account.Address] = account.Rewards
+		}
+
+	}
+	return mapData
 
 }
 func (transfer *Transfer) blockRewardTOAccount(reward *ExploreBlockReward) []*models.Account {
