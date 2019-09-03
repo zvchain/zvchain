@@ -152,7 +152,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	provider := core.GroupManagerImpl
 	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
-	p.selector = newGroupSelector(p.groupReader)
+	p.selector = newGroupSelector(provider)
 
 	p.cachedMinElapseByEpoch = common.MustNewLRUCache(10)
 
