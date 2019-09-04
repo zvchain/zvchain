@@ -18,7 +18,6 @@ package time
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/zvchain/zvchain/common"
@@ -87,7 +86,9 @@ func (ts TimeStamp) String() string {
 }
 
 // ntpServer defines the ntp servers used for time synchronization
-var ntpServer = []string{"ntp.aliyun.com", "ntp1.aliyun.com", "ntp2.aliyun.com", "ntp3.aliyun.com", "ntp4.aliyun.com", "ntp4.aliyun.com", "ntp5.aliyun.com", "ntp6.aliyun.com", "ntp7.aliyun.com"}
+var ntpServer = []string{"ntp.aliyun.com", "ntp1.aliyun.com", "ntp2.aliyun.com", "ntp3.aliyun.com", "ntp4.aliyun.com",
+	"ntp4.aliyun.com", "ntp5.aliyun.com", "ntp6.aliyun.com", "ntp7.aliyun.com", "pool.ntp.org", "asia.pool.ntp.org",
+	"europe.pool.ntp.org", "north-america.pool.ntp.org", "oceania.pool.ntp.org", "south-america.pool.ntp.org"}
 
 // TimeSync implements time synchronization from ntp servers
 type TimeSync struct {
@@ -122,16 +123,19 @@ func InitTimeSync() {
 }
 
 func (ts *TimeSync) syncRoutine() bool {
-	r := rand.Intn(len(ntpServer))
-	rsp, err := ntp.QueryWithOptions(ntpServer[r], ntp.QueryOptions{Timeout: 2 * time.Second})
-	if err != nil {
-		fmt.Printf("time sync from %v err: %v\n", ntpServer[r], err)
-		ts.ticker.StartTickerRoutine("time_sync", true)
-		return false
+	for _, server := range ntpServer {
+		rsp, err := ntp.QueryWithOptions(server, ntp.QueryOptions{Timeout: time.Second})
+		if err != nil {
+			continue
+		}
+		ts.currentOffset = rsp.ClockOffset
+		if ts.currentOffset.Seconds() > 1 {
+			fmt.Printf("time offset from %v is %v\n", server, ts.currentOffset.String())
+		}
+		return true
 	}
-	ts.currentOffset = rsp.ClockOffset
-	fmt.Printf("time offset from %v is %v\n", ntpServer[r], ts.currentOffset.String())
-	return true
+	fmt.Println("time sync timeout")
+	return false
 }
 
 // Now returns the current timestamp calibrated with ntp server
