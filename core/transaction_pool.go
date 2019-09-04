@@ -30,7 +30,7 @@ import (
 
 const (
 	maxPendingSize              = 40000
-	maxQueueSize                = 10000
+	maxQueueSize                = 20000
 	rewardTxMaxSize             = 1000
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
