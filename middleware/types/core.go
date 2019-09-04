@@ -54,11 +54,11 @@ var ExtractGuardNodes = []common.Address{
 
 // defines all possible result of the add-block operation
 const (
-	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
-	AddBlockConsensusFailed   AddBlockResult = -2 // Means the consensus is fail
-	BlockExisted              AddBlockResult = 1  // Means the block already added before
-	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
-	AddBlockSucc              AddBlockResult = 3  // Means success
+	AddBlockFailed              AddBlockResult = -1 // Means the operations is fail
+	AddBlockConsensusFailed     AddBlockResult = -2 // Means the consensus is fail
+	AddBlockExisted             AddBlockResult = 1  // Means the block already added before
+	AddBlockLessWeightThanLocal AddBlockResult = 2  // Weight consideration
+	AddBlockSucc                AddBlockResult = 3  // Means success
 )
 
 const (
