@@ -179,7 +179,7 @@ func PbToBlockHeader(h *tas_middleware_pb.BlockHeader) *BlockHeader {
 		PreHash:     byteToHash(h.PreHash),
 		Elapsed:     ensureInt32(h.Elapsed),
 		ProveValue:  h.ProveValue,
-		CurTime:     time2.Int64ToTimeStamp(ensureInt64(h.CurTime)),
+		CurTime:     time2.Int64MilliSecondsToTimeStamp(ensureInt64(h.CurTime)),
 		Castor:      h.Castor,
 		Group:       byteToHash(h.GroupId),
 		Signature:   h.Signature,
@@ -248,7 +248,7 @@ func TransactionsToPb(txs []*RawTransaction) []*tas_middleware_pb.RawTransaction
 }
 
 func BlockHeaderToPb(h *BlockHeader) *tas_middleware_pb.BlockHeader {
-	ts := h.CurTime.Unix()
+	ts := h.CurTime.UnixMilli()
 	header := tas_middleware_pb.BlockHeader{
 		Hash:        h.Hash.Bytes(),
 		Height:      &h.Height,

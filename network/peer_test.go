@@ -3,7 +3,6 @@ package network
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func TestPeerAuth(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 
@@ -50,7 +49,7 @@ func InitTestNetwork() bool {
 }
 
 func TestDecodePacketNil(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -59,7 +58,7 @@ func TestDecodePacketNil(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err == nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -73,7 +72,7 @@ func TestDecodePacketNil(t *testing.T) {
 }
 
 func TestDecodePacket2BuffersEq8(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -88,7 +87,7 @@ func TestDecodePacket2BuffersEq8(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -102,7 +101,7 @@ func TestDecodePacket2BuffersEq8(t *testing.T) {
 }
 
 func TestDecodePacket2BuffersLess8(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -116,7 +115,7 @@ func TestDecodePacket2BuffersLess8(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v,remain size:%v\n", msgType, packetSize, p.getDataSize())
+	t.Logf("type :%v,size %v,remain size:%v\n", msgType, packetSize, p.getDataSize())
 	if err != errPacketTooSmall {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -131,7 +130,7 @@ func TestDecodePacket2BuffersLess8(t *testing.T) {
 }
 
 func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -146,7 +145,7 @@ func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -161,7 +160,7 @@ func TestDecodePacket3Buffers2BuffersLess8(t *testing.T) {
 }
 
 func TestDecodePacketSmall(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -174,7 +173,7 @@ func TestDecodePacketSmall(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != errPacketTooSmall {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -189,7 +188,7 @@ func TestDecodePacketSmall(t *testing.T) {
 }
 
 func TestDecodePacket16M(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -202,7 +201,7 @@ func TestDecodePacket16M(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -217,7 +216,7 @@ func TestDecodePacket16M(t *testing.T) {
 }
 
 func TestDecodePacketOver16M(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -230,7 +229,7 @@ func TestDecodePacketOver16M(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err == nil {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -245,7 +244,7 @@ func TestDecodePacketOver16M(t *testing.T) {
 }
 
 func TestDecodePacketOverflow(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -258,7 +257,7 @@ func TestDecodePacketOverflow(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v\n", msgType, packetSize)
+	t.Logf("type :%v,size %v\n", msgType, packetSize)
 	if err != errBadPacket {
 		t.Fatalf("decode error:%v", err)
 	}
@@ -273,7 +272,7 @@ func TestDecodePacketOverflow(t *testing.T) {
 }
 
 func TestDecodePacketBigBuffer(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -286,7 +285,7 @@ func TestDecodePacketBigBuffer(t *testing.T) {
 
 	msgType, packetSize, _, _, err := p.decodePacket()
 
-	fmt.Printf("type :%v,size %v,p.getDataSize():%v\n", msgType, packetSize, p.getDataSize())
+	t.Logf("type :%v,size %v,p.getDataSize():%v\n", msgType, packetSize, p.getDataSize())
 	if err != nil {
 		t.Fatalf("decode error:%v", err)
 	}

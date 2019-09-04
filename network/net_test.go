@@ -1,12 +1,11 @@
 package network
 
 import (
-	"fmt"
 	"testing"
 )
 
 func TestDecodeMessage(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 
@@ -20,7 +19,7 @@ func TestDecodeMessage(t *testing.T) {
 
 	msgType, packetSize, _, _, err := netCore.decodeMessage(p)
 
-	fmt.Printf("type :%v,size :%v,err:%v", msgType, packetSize, err)
+	t.Logf("type :%v,size :%v,err : %v", msgType, packetSize, err)
 
 	if err == nil {
 		t.Fatalf("decode error:%v", err)
@@ -28,8 +27,8 @@ func TestDecodeMessage(t *testing.T) {
 
 }
 
-func TestHandleMessagePanic(t *testing.T) {
-	if InitTestNetwork() == false {
+func Test_HandleMessagePanic(t *testing.T) {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -42,12 +41,12 @@ func TestHandleMessagePanic(t *testing.T) {
 
 	err := netCore.handleMessage(p)
 
-	fmt.Printf("err:%v", err)
+	t.Logf("err:%v", err)
 
 }
 
 func TestDecodeMessage2(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -63,15 +62,15 @@ func TestDecodeMessage2(t *testing.T) {
 
 	msgType, packetSize, _, _, err := netCore.decodeMessage(p)
 
-	fmt.Printf("type :%v,size :%v,err:%v", msgType, packetSize, err)
+	t.Logf("type :%v,size :%v,err:%v", msgType, packetSize, err)
 
 	if err == nil {
-		t.Fatalf("decode error:%v", err)
+		t.Fatalf("decode error is nil")
 	}
 }
 
 func TestHandleMessageUnknownMessage(t *testing.T) {
-	if InitTestNetwork() == false {
+	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
 	p := newPeer(netCore.ID, 0)
@@ -87,9 +86,9 @@ func TestHandleMessageUnknownMessage(t *testing.T) {
 
 	err := netCore.handleMessage(p)
 
-	fmt.Printf("err:%v \n", err)
+	t.Logf("err:%v \n", err)
 
 	if err == nil {
-		t.Fatalf("decode error:%v", err)
+		t.Fatalf("decode error is nil")
 	}
 }

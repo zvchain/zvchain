@@ -38,7 +38,6 @@ const (
 	statusLocked   int8 = 0
 	statusUnLocked      = 1
 )
-const DefaultPassword = "123"
 
 type AccountManager struct {
 	store    *tasdb.LDBDatabase
@@ -59,7 +58,7 @@ func (ai *AccountInfo) unlocked() bool {
 }
 
 func (ai *AccountInfo) resetExpireTime() {
-	//ai.UnLockExpire = time.Now().Add(time.Duration(120) * time.Second)
+	//ai.UnLockExpire = time.Now().AddSeconds(time.Duration(120) * time.Second)
 }
 
 type KeyStoreRaw struct {
@@ -111,25 +110,22 @@ func newAccountOp(ks string) (*AccountManager, error) {
 	}, nil
 }
 
-func initAccountManager(keystore string, readyOnly bool) (accountOp, error) {
-	// Specify internal account creation when you deploy in bulk (just create it once)
-	if readyOnly && !dirExists(keystore) {
-		aop, err := newAccountOp(keystore)
-		if err != nil {
-			return nil, err
-		}
-
-		_, res := aop.NewAccount(DefaultPassword, true)
+func initAccountManager(keystore string, needAutoCreateAccount bool, password string) (accountOp, error) {
+	aop, err := newAccountOp(keystore)
+	if err != nil {
+		return nil, err
+	}
+	if needAutoCreateAccount {
+		address, res := aop.NewAccount(password, true)
 		if res != nil {
 			fmt.Println(res.Error())
 			return nil, res
 		}
+		if common.IsWeakPassword(password) {
+			output("the password is too weak. suggestions for modification")
+		}
+		fmt.Printf("create account success,your address is %s \n", address)
 		return aop, nil
-	}
-
-	aop, err := newAccountOp(keystore)
-	if err != nil {
-		return nil, err
 	}
 	return aop, nil
 }
@@ -162,7 +158,7 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 func (am *AccountManager) loadAccount(addr string, password string) (*Account, error) {
 	v, err := am.store.Get([]byte(addr))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("your address %s not found in your keystore directory", addr)
 	}
 
 	salt := common.Sha256([]byte(password))
@@ -294,6 +290,9 @@ func (am *AccountManager) NewAccount(password string, miner bool) (string, error
 	if err := am.storeAccount(account.Address, ksr, password); err != nil {
 		return "", err
 	}
+	if common.IsWeakPassword(password) {
+		output("the password is too weak. suggestions for modification")
+	}
 	aci := &AccountInfo{
 		Account: *account,
 	}
@@ -414,9 +413,15 @@ func (am *AccountManager) NewAccountByImportKey(key string, password string, min
 		Key:     kBytes,
 		IsMiner: miner,
 	}
+
 	if err := am.storeAccount(account.Address, ksr, password); err != nil {
 		return "", err
 	}
+
+	if common.IsWeakPassword(password) {
+		output("the password is too weak. suggestions for modification")
+	}
+
 	aci := &AccountInfo{
 		Account: *account,
 	}

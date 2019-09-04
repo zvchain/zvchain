@@ -19,8 +19,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/monitor"
+	"math"
 	"time"
+
+	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -102,11 +104,11 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	packTraceLog.SetEnd()
 	defer packTraceLog.Log("")
 
-	exeTraceLog := monitor.NewPerformTraceLogger("Execute", common.Hash{}, height)
+	exeTraceLog := monitor.NewPerformTraceLogger("process", common.Hash{}, height)
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
 	block.Header.CurTime = chain.ts.Now()
-	stateRoot, evictHashs, txSlice, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
+	stateRoot, evictHashs, txSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, txs, true, nil)
 	exeTraceLog.SetEnd()
 
 	block.Transactions = txSlice.txsToRaw()
@@ -116,10 +118,15 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	block.Header.StateTree = common.BytesToHash(stateRoot.Bytes())
 	block.Header.ReceiptTree = calcReceiptsTree(receipts)
 
-	block.Header.Elapsed = int32(block.Header.CurTime.Since(latestBlock.CurTime))
-	if block.Header.Elapsed < 0 {
-		Logger.Errorf("cur time is before pre time:height=%v, curtime=%v, pretime=%v", height, block.Header.CurTime, latestBlock.CurTime)
-		return nil
+	elapsed := block.Header.CurTime.SinceMilliSeconds(latestBlock.CurTime)
+	block.Header.Elapsed = int32(elapsed)
+	if block.Header.Height == 1 && int64(block.Header.Elapsed) != elapsed {
+		block.Header.Elapsed = math.MaxInt32 //overflow, may happen in first block
+	}
+	minElapse := chain.consensusHelper.GetBlockMinElapse(block.Header.Height)
+	if block.Header.Elapsed < minElapse {
+		block.Header.CurTime = latestBlock.CurTime.AddMilliSeconds(int64(minElapse))
+		block.Header.Elapsed = minElapse
 	}
 
 	block.Header.Hash = block.Header.GenHash()
@@ -361,7 +368,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block, tSlice txSlice
 		}
 	}
 
-	// Execute the transactions. Must be serialized execution
+	// process the transactions. Must be serialized execution
 	executeTxResult, ps := chain.executeTransaction(block, tSlice)
 	if !executeTxResult {
 		err = fmt.Errorf("execute transaction fail")
@@ -439,7 +446,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlic
 		return false, nil
 	}
 
-	stateTree, evictTxs, executedSlice, receipts, gasFee, err := chain.executor.Execute(state, block.Header, slice, false, nil)
+	stateTree, evictTxs, executedSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, slice, false, nil)
 	txTree := executedSlice.calcTxTree()
 	if txTree != block.Header.TxTree {
 		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree, block.Header.TxTree)

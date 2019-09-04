@@ -65,6 +65,9 @@ func (fctx *forkSyncContext) getLastHash() common.Hash {
 }
 
 func (fctx *forkSyncContext) addChainSlice(slice chainSlice) {
+	if len(slice) == 0 {
+		return
+	}
 	if fctx.receivedChainSlice == nil {
 		fctx.receivedChainSlice = make(chainSlice, 0, len(slice))
 	}
@@ -426,6 +429,7 @@ func (fp *forkProcessor) onFindAncestorResponse(msg notify.Message) error {
 			fp.logger.Info(err)
 			return err
 		}
+
 		ctx.ancestor = ancestorBH
 		ctx.addChainSlice(blocks)
 		ctx.lastRequestEndHeight = ctx.receivedChainSlice.lastBlock().Height + 1
@@ -433,6 +437,7 @@ func (fp *forkProcessor) onFindAncestorResponse(msg notify.Message) error {
 		// height can be handled
 		requestEndHeight := fp.chainSliceRequestEndHeight(topHeader, ancestorBH)
 		ctx.requestChainSliceEndHeight = requestEndHeight
+		fp.logger.Debugf("local cp %v-%v, ancestor %v-%v, requesting chain slice to height %v", ctx.localCP.Height, ctx.localCP.Hash, ancestorBH.Height, ancestorBH.Hash, requestEndHeight)
 
 		fp.checkChainSlice()
 
@@ -534,12 +539,12 @@ func (fp *forkProcessor) onChainSliceResponse(msg notify.Message) error {
 	}
 	blocks := resp.Blocks
 	if len(blocks) == 0 {
-		fp.logger.Warnf("get empty blocks from %v", defaultMessage.Source())
-		return nil
+		fp.logger.Warnf("receive empty chain slice response from %v, request height %v", defaultMessage.Source(), ctx.lastRequestEndHeight)
+	} else {
+		fp.logger.Debugf("receive chain slice response from %v, size %v, heights %v-%v", defaultMessage.Source(), len(blocks), blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
 	}
 	peerManagerImpl.heardFromPeer(defaultMessage.Source())
 
-	fp.logger.Debugf("receive chain slice response from %v, size %v, heights %v-%v", defaultMessage.Source(), len(blocks), blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
 	ctx.addChainSlice(blocks)
 
 	fp.checkChainSlice()
@@ -587,6 +592,13 @@ func (fp *forkProcessor) allBlocksReceived() {
 	}
 	// Peer cp
 	peerCP := fp.peerCP.checkPointOf(blocks)
+	ctx := fp.syncCtx
+	if peerCP == nil {
+		fp.logger.Debugf("local cp %v-%v, ancestor %v-%v, peer cp is nil", ctx.localCP.Height, ctx.localCP.Hash, ctx.ancestor.Height, ctx.ancestor.Hash)
+	} else {
+		fp.logger.Debugf("local cp %v-%v, ancestor %v-%v, peer cp %v-%v ", ctx.localCP.Height, ctx.localCP.Hash, ctx.ancestor.Height, ctx.ancestor.Hash, peerCP.Height, peerCP.Hash)
+	}
+
 	// When Peer cp lower than ancestor, compares the weight
 	if peerCP == nil || peerCP.Height <= fp.syncCtx.ancestor.Height {
 		peerLast := blocks[len(blocks)-1].Header

@@ -185,20 +185,22 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDet
 		return nil, fmt.Errorf("data is nil")
 	}
 	miner := core.MinerManagerImpl.GetMiner(common.StringToAddress(addr), types.MinerTypeProposal, height)
-	if miner == nil {
-		msg := fmt.Sprintf("this miner is nil,addr is %s", addr)
-		return nil, fmt.Errorf(msg)
+	var currentStake uint64 = 0
+	var fullStake uint64 = 0
+	identity := types.MinerNormal
+	if miner != nil {
+		currentStake = miner.Stake
+		identity = miner.Identity
+		if miner.IsMinerPool() {
+			fullStake = core.MinerManagerImpl.GetFullMinerPoolStake(height)
+		}
 	}
 	tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(addr))
-	var fullStake uint64 = 0
-	if miner.IsMinerPool() {
-		fullStake = core.MinerManagerImpl.GetFullMinerPoolStake(height)
-	}
 	dt := &MinerPoolDetail{
-		CurrentStake: miner.Stake,
+		CurrentStake: currentStake,
 		FullStake:    fullStake,
 		Tickets:      tickets,
-		Identity:     uint64(miner.Identity),
+		Identity:     uint64(identity),
 		ValidTickets: core.MinerManagerImpl.GetValidTicketsByHeight(height),
 	}
 	return dt, nil
@@ -240,11 +242,11 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*MinerStakeDetail
 		details := make([]*StakeDetail, 0)
 		for _, d := range dts {
 			dt := &StakeDetail{
-				Value:         uint64(common.RA2TAS(d.Value)),
-				UpdateHeight:  d.UpdateHeight,
-				MType:         mTypeString(d.MType),
-				Status:        statusString(d.Status),
-				ExpiredHeight: d.DisMissHeight,
+				Value:           uint64(common.RA2TAS(d.Value)),
+				UpdateHeight:    d.UpdateHeight,
+				MType:           mTypeString(d.MType),
+				Status:          statusString(d.Status),
+				CanReduceHeight: d.DisMissHeight,
 			}
 			details = append(details, dt)
 		}

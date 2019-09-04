@@ -297,13 +297,19 @@ func (p *Peer) isEmpty() bool {
 	return empty
 }
 
-func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted bool) {
+func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted bool, ip string, port uint16) {
 	p.resetData()
 	p.resetAuthContext()
 	p.connecting = false
 	if session > p.sessionID {
 
 		p.sessionID = session
+	}
+	if len(ip) > 0 {
+		p.IP = net.ParseIP(ip)
+	}
+	if port > 0 {
+		p.Port = int(port)
 	}
 	p.connectTime = time.Now()
 

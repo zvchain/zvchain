@@ -350,7 +350,7 @@ func (ca *RemoteChainOpImpl) MinerAbort(mtype int, gas, gasprice uint64, force b
 		res.Error = opErrorRes(fmt.Errorf("the current account is not a miner account"))
 		return res
 	}
-	if !force {
+	if types.IsVerifyRole(types.MinerType(mtype)) && !force {
 		groupCheckRes := ca.GroupCheck(aci.Address)
 		if groupCheckRes.Error != nil {
 			return groupCheckRes

@@ -111,10 +111,18 @@ func (v *VerifyMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Mine
 }
 
 func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
-	if op.addSource != op.addTarget && op.addSource != types.MiningPoolAddr {
-		return fmt.Errorf("only admin can stake to normal")
+	if op.addSource == op.addTarget || op.addSource == types.StakePlatformAddr {
+		return nil
 	}
-	return nil
+	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
+	if err != nil {
+		return err
+	}
+	if sourceMiner != nil && sourceMiner.IsMinerPool() {
+		return nil
+	}
+
+	return fmt.Errorf("stake add to others only can be stake add by fund owner or miner pool")
 }
 
 func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detailKey []byte, detail *stakeDetail, address common.Address, height uint64) error {
@@ -167,13 +175,24 @@ func (m *MinerPoolProposalMiner) processApplyGuard(op *applyGuardMinerOp, miner 
 	return fmt.Errorf("miner pool not support apply guard node")
 }
 
+func (b *MinerPoolProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) error {
+	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
+	if err != nil {
+		return err
+	}
+	if sourceMiner != nil && sourceMiner.IsMinerPool() && op.addSource != op.addTarget {
+		return fmt.Errorf("miner pool can not stake add to other miner pool,source is %s,target is %s,height = %v", op.addSource.String(), op.addTarget.String(), op.height)
+	}
+	return nil
+}
+
 func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *types.Miner, totalTickets uint64) error {
 	isFull := isFullTickets(totalTickets, op.height)
 	if !isFull {
 		if miner == nil {
 			return fmt.Errorf("find miner pool miner is nil,addr is %s", op.target.String())
 		}
-		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.String(), op.height,totalTickets)
+		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.String(), op.height, totalTickets)
 		miner.UpdateIdentity(types.InValidMinerPool, op.height)
 		remove := false
 		// Remove from pool if active
