@@ -17,6 +17,7 @@ package cli
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -633,7 +634,11 @@ func (api *RpcDevImpl) JumpBlockInfo(begin, end uint64) (map[string][2]int, erro
 }
 
 // GetTps
-func (api *RpcDevImpl) GetTps(mins int64) int64 {
+func (api *RpcDevImpl) GetTps(minutes int64) (int64, error) {
+	var max int64 = 60*60*24*10
+	if minutes > max || minutes < 1{
+		return 0, errors.New(fmt.Sprintf("input should between 1 and %d", max))
+	}
 	var total int64 = 0
 	now := time2.TimeToTimeStamp(time.Now())
 	chain := core.BlockChainImpl
@@ -641,13 +646,13 @@ func (api *RpcDevImpl) GetTps(mins int64) int64 {
 	current := chain.QueryBlockByHash(top.Hash)
 	for {
 		total += int64(len(current.Transactions))
-		current = chain.QueryBlockByHash(top.PreHash)
+		current = chain.QueryBlockByHash(current.Header.PreHash)
 		if current == nil {
-			return int64(total / mins * 60)
+			return int64(total / minutes * 60), nil
 		}
 
-		if now.SinceSeconds(current.Header.CurTime) > mins*60 {
-			return int64(total / mins * 60)
+		if now.SinceSeconds(current.Header.CurTime) > minutes*60 {
+			return int64(total / minutes * 60), nil
 		}
 	}
 }
