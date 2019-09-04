@@ -155,7 +155,7 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Block, error) {
 	}
 	b := core.BlockChainImpl.QueryBlockByHash(common.HexToHash(hash))
 	if b == nil {
-		return nil, fmt.Errorf("height not exists")
+		return nil, fmt.Errorf("block not exists")
 	}
 	bh := b.Header
 	preBH := core.BlockChainImpl.QueryBlockHeaderByHash(bh.PreHash)
@@ -166,6 +166,33 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Block, error) {
 		block.Qn = bh.TotalQN
 	}
 	return block, nil
+}
+
+func (api *RpcGtasImpl) GetTxsByBlockHash(hash string) ([]string, error) {
+	if !validateHash(strings.TrimSpace(hash)) {
+		return nil, fmt.Errorf("wrong hash format")
+	}
+	b := core.BlockChainImpl.QueryBlockByHash(common.HexToHash(hash))
+	if b == nil {
+		return nil, fmt.Errorf("block not exists")
+	}
+	txs := make([]string, len(b.Transactions))
+	for index, tx := range b.Transactions {
+		txs[index] = tx.GenHash().Hex()
+	}
+	return txs, nil
+}
+
+func (api *RpcGtasImpl) GetTxsByBlockHeight(height uint64) ([]string, error) {
+	b := core.BlockChainImpl.QueryBlockByHeight(height)
+	if b == nil {
+		return nil, fmt.Errorf("height not exists")
+	}
+	txs := make([]string, len(b.Transactions))
+	for index, tx := range b.Transactions {
+		txs[index] = tx.GenHash().Hex()
+	}
+	return txs, nil
 }
 
 func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDetail, error) {
