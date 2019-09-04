@@ -35,6 +35,19 @@ const (
 	RSGasNotEnoughError
 	RSNoCodeError
 	RSParseFail
+	RSMinerStakeFrozen
+	RSMinerStakeOverLimit
+	RSMinerStakeLessThanReduce
+	RSMinerVerifyLowerStake
+	RSMinerVerifyInGroup
+	RSMinerHasPrepared
+	RSMinerReduceHeightNotEnough
+	RSMinerNotGuard
+	RSVoteNotInRound
+	RSMinerUnSupportOp
+	RSMinerNotFullStake
+	RSMinerMaxApplyGuard
+	RSMinerChangeModeExpired
 )
 
 type Receipt struct {
