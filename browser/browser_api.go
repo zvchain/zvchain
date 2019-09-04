@@ -255,7 +255,6 @@ func (tm *DBMmanagement) fetchGroup() {
 	//Dissmiss
 	handelDismissGroup(tm, tm.storage.GetDB())
 
-	tm.blockHeight += 4000
 }
 
 func handelDismissGroup(tm *DBMmanagement, db *gorm.DB) {
