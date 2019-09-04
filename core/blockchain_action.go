@@ -153,7 +153,7 @@ func (chain *FullBlockChain) verifyTxs(block *types.Block) (txs txSlice, ok bool
 
 	var err error
 	defer func() {
-		Logger.Infof("verifyTxs hash:%v,height:%d,totalQn:%d,preHash:%v,len tx:%d, cost:%v, err=%v", bh.Hash.Hex(), bh.Height, bh.TotalQN, bh.PreHash.Hex(), len(block.Transactions), time.Since(begin).String(), err)
+		Logger.Debugf("verifyTxs hash:%v,height:%d,totalQn:%d,preHash:%v,len tx:%d, cost:%v, err=%v", bh.Hash.Hex(), bh.Height, bh.TotalQN, bh.PreHash.Hex(), len(block.Transactions), time.Since(begin).String(), err)
 		traceLog.Log("err=%v", err)
 	}()
 
