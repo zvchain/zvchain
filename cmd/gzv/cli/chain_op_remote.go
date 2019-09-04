@@ -163,15 +163,9 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *TxRawData) *RPCResObjCmd {
 	tranx.Sign = sign.Bytes()
 	tx.Sign = sign.Hex()
 
-	jsonByte, err := json.Marshal(tx)
-	if err != nil {
-		res.Error = opErrorRes(err)
-		return res
-	}
-
 	ca.aop.(*AccountManager).resetExpireTime(aci.Address)
 	// Signature is required here
-	res = ca.request("tx", string(jsonByte))
+	res = ca.request("tx", tx)
 	return res
 }
 
