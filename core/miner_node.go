@@ -243,7 +243,7 @@ func (b *BaseMiner) checkStakeAbort(op *minerAbortOp, miner *types.Miner) (error
 		return fmt.Errorf("no miner info"),types.RSFail
 	}
 	if miner.IsPrepare() {
-		return fmt.Errorf("already in prepare status"),types.RSMinerHasPrepared
+		return fmt.Errorf("already in prepare status"),types.RSFail
 	}
 	// Frozen miner must wait for 1 hour after frozen
 	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneHourBlocks {
@@ -376,10 +376,10 @@ func checkVote(op *voteMinerPoolOp, vf *voteInfo) (error, types.ReceiptStatus) {
 		return err,types.RSFail
 	}
 	if sourceMiner == nil {
-		return fmt.Errorf("miner info is nil,cannot vote"),types.RSMinerNotGuard
+		return fmt.Errorf("miner info is nil,cannot vote"),types.RSMinerUnSupportOp
 	}
 	if !sourceMiner.IsGuard() {
-		return fmt.Errorf("this miner is not guard node,can not vote"),types.RSMinerNotGuard
+		return fmt.Errorf("this miner is not guard node,can not vote"),types.RSMinerUnSupportOp
 	}
 	var voteHeight uint64 = 0
 	if vf != nil {

@@ -40,9 +40,7 @@ const (
 	RSMinerStakeLessThanReduce
 	RSMinerVerifyLowerStake
 	RSMinerVerifyInGroup
-	RSMinerHasPrepared
 	RSMinerReduceHeightNotEnough
-	RSMinerNotGuard
 	RSVoteNotInRound
 	RSMinerUnSupportOp
 	RSMinerNotFullStake
