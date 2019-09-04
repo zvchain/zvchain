@@ -381,7 +381,6 @@ func TestBlockChain_StateTree(t *testing.T) {
 		t.Fatalf("fail to cast new block")
 	}
 
-
 	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add block")
 	}
@@ -485,11 +484,6 @@ func clearSelf(t *testing.T) {
 }
 
 func clearTicker() {
-	if MinerManagerImpl != nil && MinerManagerImpl.ticker != nil {
-		MinerManagerImpl.ticker.RemoveRoutine("build_virtual_net")
-		MinerManagerImpl.ticker.RemoveRoutine(buildVirtualNetRoutineName)
-		MinerManagerImpl.ticker.ClearRoutines()
-	}
 	if TxSyncer != nil && TxSyncer.ticker != nil {
 		TxSyncer.ticker.RemoveRoutine(txNotifyRoutine)
 		TxSyncer.ticker.RemoveRoutine(txReqRoutine)

@@ -20,7 +20,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -58,6 +57,14 @@ func (ns *NetworkServerImpl) BuildGroupNet(gid string, mems []groupsig.ID) {
 // ReleaseGroupNet releases the group net in local
 func (ns *NetworkServerImpl) ReleaseGroupNet(gid string) {
 	ns.net.DissolveGroupNet(gid)
+}
+
+func (ns *NetworkServerImpl) FullBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
+	panic("implement me")
+}
+
+func (ns *NetworkServerImpl) IncrementBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
+	panic("implement me")
 }
 
 func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
@@ -112,33 +119,15 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	nextVerifyGroupID := group.GSeed.Hex()
 	groupMembers := id2String(group.MemIds)
 
-	// Broadcast to a virtual group of heavy nodes
-	heavyMinerMembers := core.MinerManagerImpl.GetAllProposalAddresses()
-
-	validGroupMembers := make([]string, 0)
-	for _, mid := range groupMembers {
-		find := false
-		for _, hid := range heavyMinerMembers {
-			if hid == mid {
-				find = true
-				break
-			}
-		}
-		if !find {
-			validGroupMembers = append(validGroupMembers, mid)
-		}
-	}
 	msgID := []byte(blockMsg.Hash())
 
-	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, msgID)
+	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, nil, blockMsg, msgID)
 
 	// Broadcast to the next group of light nodes
 	//
 	// Prevent duplicate broadcasts
-	if len(validGroupMembers) > 0 {
-		msgID[0] += 1
-		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, msgID)
-	}
+	msgID[0] += 1
+	ns.net.SpreadToGroup(nextVerifyGroupID, groupMembers, blockMsg, msgID)
 
 }
 
