@@ -193,7 +193,7 @@ func (cp *cpChecker) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
 
 	gIndex := cp.ctx.groupIndex(bh.Group)
 	if gIndex < 0 {
-		Logger.Infof("current groups:%v", cp.ctx.groupIndexes)
+		Logger.Debugf("current groups:%v", cp.ctx.groupIndexes)
 		Logger.Panicf("cannot find group %v at %v, epoch %v-%v", bh.Group, bh.Height, cp.ctx.epoch.Start(), cp.ctx.epoch.End())
 		return
 	}
@@ -206,7 +206,7 @@ func (cp *cpChecker) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
 	votes[gIndex] = uint16(bh.Height-ep.Start()) + 1
 	cp.setGroupVotes(db, votes)
 
-	Logger.Infof("cp group votes updated at %v, votes %v", bh.Height, votes)
+	Logger.Debugf("cp group votes updated at %v, votes %v", bh.Height, votes)
 }
 
 func (cp *cpChecker) checkpointAt(h uint64) uint64 {

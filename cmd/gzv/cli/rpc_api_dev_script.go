@@ -33,7 +33,7 @@ func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice,
 		return "", fmt.Errorf("parse private key fail:%v", privateKey)
 	}
 	src := sk.GetPubKey().GetAddress()
-	txRaw := &txRawData{
+	txRaw := &TxRawData{
 		Source:   src.AddrPrefixString(),
 		Target:   target,
 		Value:    common.TAS2RA(value),

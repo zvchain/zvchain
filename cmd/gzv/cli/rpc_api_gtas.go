@@ -79,11 +79,7 @@ func failErrResult(err string) *ErrorResult {
 }
 
 // Tx is user transaction interface, used for sending transaction to the node
-func (api *RpcGtasImpl) Tx(txRawjson string) (string, error) {
-	var txRaw = new(txRawData)
-	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
-		return "", err
-	}
+func (api *RpcGtasImpl) Tx(txRaw *TxRawData) (string, error) {
 	if !validateTxType(txRaw.TxType) {
 		return "", fmt.Errorf("not supported txType")
 	}

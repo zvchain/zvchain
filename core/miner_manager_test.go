@@ -618,6 +618,18 @@ func TestFundApplyGuardNode(t *testing.T) {
 	}
 }
 
+func TestFundNodeApplyGuardNode(t *testing.T){
+	setup(t)
+	defer clearSelf(t)
+	MinerManagerImpl.genFundGuardNodes(accountDB)
+	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.target = &types.ExtractGuardNodes[0]
+	testFullStakeFromSelf(t)
+	var height uint64 = 0
+	testApplyGuardNode(t, true, height)
+	testApplyGuardNode(t, true, height)
+}
+
 func TestNormalApplyGuardNode(t *testing.T) {
 	setup(t)
 	defer clearSelf(t)

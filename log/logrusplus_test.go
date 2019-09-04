@@ -49,4 +49,15 @@ func Test_Main(t *testing.T) {
 		}
 		time.Sleep(100)//1 * time.Second)
 	}
+	clearLogLevel()
+}
+
+func clearLogLevel()  {
+	StdLogger.SetLevel(logrus.PanicLevel)
+	CoreLogger.SetLevel(logrus.PanicLevel)
+	DefaultLogger.SetLevel(logrus.PanicLevel)
+	ConsensusLogger.SetLevel(logrus.PanicLevel)
+	ConsensusStdLogger.SetLevel(logrus.PanicLevel)
+	GroupLogger.SetLevel(logrus.PanicLevel)
+
 }

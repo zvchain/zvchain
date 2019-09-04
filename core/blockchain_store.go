@@ -51,7 +51,7 @@ func (chain *FullBlockChain) updateLatestBlock(state *account.AccountDB, header 
 	chain.latestStateDB = state
 	chain.latestBlock = header
 
-	Logger.Infof("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
+	Logger.Debugf("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
 	//taslog.Flush()
 }
 

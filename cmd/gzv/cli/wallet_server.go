@@ -59,7 +59,7 @@ func (ws *WalletServer) SignData(source, target, unlockPassword string, value ui
 		res.Error = opErrorRes(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, gaspriceStr))
 		return res
 	}
-	txRaw := &txRawData{
+	txRaw := &TxRawData{
 		Target:   target,
 		Value:    value,
 		GasLimit: gas,
