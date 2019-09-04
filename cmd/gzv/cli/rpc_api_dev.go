@@ -648,11 +648,11 @@ func (api *RpcDevImpl) GetTps(minutes int64) (int64, error) {
 		total += int64(len(current.Transactions))
 		current = chain.QueryBlockByHash(current.Header.PreHash)
 		if current == nil {
-			return int64(total / minutes * 60), nil
+			return int64(total / minutes / 60), nil
 		}
 
 		if now.SinceSeconds(current.Header.CurTime) > minutes*60 {
-			return int64(total / minutes * 60), nil
+			return int64(total / minutes / 60), nil
 		}
 	}
 }
