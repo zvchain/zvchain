@@ -80,6 +80,7 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
+	latestCP      *types.BlockHeader // Latest checkpoint
 
 	topRawBlocks *lru.Cache
 
@@ -201,7 +202,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
-	chain.latestBlock = chain.loadCurrentBlock()
+	latestBH := chain.loadCurrentBlock()
 
 	GroupManagerImpl = group.NewManager(chain, helper)
 
@@ -213,16 +214,16 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
 
-	if nil != chain.latestBlock {
+	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
 			os.Exit(0)
 		}
-		chain.buildCache(10)
-		Logger.Debugf("initBlockChain chain.latestBlock.StateTree  Hash:%s", chain.latestBlock.StateTree.Hex())
-		state, err := account.NewAccountDB(common.BytesToHash(chain.latestBlock.StateTree.Bytes()), chain.stateCache)
+		state, err := account.NewAccountDB(common.BytesToHash(latestBH.StateTree.Bytes()), chain.stateCache)
 		if nil == err {
-			chain.latestStateDB = state
+			chain.updateLatestBlock(state, latestBH)
+			chain.buildCache(10)
+			Logger.Debugf("initBlockChain chain.latestBlock.StateTree  Hash:%s", chain.latestBlock.StateTree.Hex())
 		} else {
 			err = errors.New("initBlockChain NewAccountDB fail::" + err.Error())
 			Logger.Error(err)
