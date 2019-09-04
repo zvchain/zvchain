@@ -69,12 +69,15 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 }
 
 func (p *pool) updateSkipCount(db types.AccountDB, seed common.Hash, cnt uint16) {
+	skip := p.getSkipCount(db, seed)
 	if cnt == 0 {
-		if p.getSkipCount(db, seed) > 0 {
+		if skip > 0 {
 			db.RemoveData(common.HashToAddress(seed), skipCounterKey)
+			logger.Debugf("remove skip count %v", seed)
 		}
 	} else {
-		db.SetData(common.HashToAddress(seed), skipCounterKey, common.UInt16ToByte(cnt))
+		db.SetData(common.HashToAddress(seed), skipCounterKey, common.UInt16ToByte(cnt+skip))
+		logger.Debugf("update skip count %v %v", seed, cnt+skip)
 	}
 }
 

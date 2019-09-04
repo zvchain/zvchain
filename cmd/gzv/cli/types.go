@@ -165,9 +165,9 @@ type StakeDetail struct {
 type MinerPoolDetail struct {
 	CurrentStake uint64 `json:"current_stake"`
 	FullStake    uint64 `json:"full_stake"`
-	Tickets      uint64 `json:tickets`
-	Identity     uint64 `json:identity`
-	ValidTickets uint64 `json:valid_tickets`
+	Tickets      uint64 `json:"tickets"`
+	Identity     uint64 `json:"identity"`
+	ValidTickets uint64 `json:"valid_tickets"`
 }
 
 type MinerStakeDetails struct {
