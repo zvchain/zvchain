@@ -21,12 +21,14 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/pmylund/sortutil"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 )
@@ -628,4 +630,24 @@ func (api *RpcDevImpl) JumpBlockInfo(begin, end uint64) (map[string][2]int, erro
 		}
 	}
 	return ret, nil
+}
+
+// GetTps
+func (api *RpcDevImpl) GetTps(mins int64) int64 {
+	var total int64 = 0
+	now := time2.TimeToTimeStamp(time.Now())
+	chain := core.BlockChainImpl
+	top := chain.QueryTopBlock()
+	current := chain.QueryBlockByHash(top.Hash)
+	for {
+		total += int64(len(current.Transactions))
+		current = chain.QueryBlockByHash(top.PreHash)
+		if current == nil {
+			return int64(total / mins * 60)
+		}
+
+		if now.SinceSeconds(current.Header.CurTime) > mins*60 {
+			return int64(total / mins * 60)
+		}
+	}
 }
