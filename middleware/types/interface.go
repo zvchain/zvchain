@@ -103,6 +103,9 @@ type BlockChain interface {
 	// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
 	// will be included
 	CountBlocksInRange(startHeight uint64, endHeight uint64) uint64
+
+	// returns latest checkpoint of the chain
+	LatestCheckPoint() *BlockHeader
 }
 
 type RewardManager interface {

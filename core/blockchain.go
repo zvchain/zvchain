@@ -25,6 +25,7 @@ import (
 	"github.com/zvchain/zvchain/log"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -80,7 +81,7 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
-	latestCP      *types.BlockHeader // Latest checkpoint
+	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
 
