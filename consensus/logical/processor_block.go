@@ -140,6 +140,16 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		return
 	}
 
+	minElapse := p.GetBlockMinElapse(bh.Height)
+	if bh.Elapsed < minElapse {
+		err = fmt.Errorf("min elapsed error %v", bh.Elapsed)
+		return
+	}
+	if bh.Height > 1 && bh.CurTime.SinceMilliSeconds(preBH.CurTime) != int64(bh.Elapsed) {
+		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
+		return
+	}
+
 	err = p.isCastLegal(bh, preBH)
 	if err != nil {
 		return
@@ -210,7 +220,7 @@ func (p *Processor) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err
 	if bh.PreHash != pre.Hash {
 		return false, fmt.Errorf("prehash not equal to pre")
 	}
-	gSeed := p.calcVerifyGroup(pre, bh.Height)
+	gSeed := p.CalcVerifyGroup(pre, bh.Height)
 	if gSeed != bh.Group {
 		return false, fmt.Errorf("verify group error: expect %v, infact %v", gSeed, bh.Group)
 	}

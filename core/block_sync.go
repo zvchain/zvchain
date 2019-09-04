@@ -110,7 +110,7 @@ func (bs *blockSyncer) isSyncing() bool {
 	bs.lock.RLock()
 	defer bs.lock.RUnlock()
 
-	delta := zvtime.TSInstance.Since(bs.chain.QueryTopBlock().CurTime)
+	delta := zvtime.TSInstance.SinceSeconds(bs.chain.QueryTopBlock().CurTime)
 	// return false if top block's curTime is in the range of recent 50 block's
 	if delta < 3*50 {
 		return false

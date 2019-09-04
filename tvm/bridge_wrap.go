@@ -155,7 +155,9 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 
 	abi := ABI{}
 	abiJSON := fmt.Sprintf(`{"func_name": "%s", "args": %s}`, funcName, params)
-	abiJSONError := json.Unmarshal([]byte(abiJSON), &abi)
+	decoder := json.NewDecoder(bytes.NewReader([]byte(abiJSON)))
+	decoder.DisallowUnknownFields()
+	abiJSONError := decoder.Decode(&abi)
 	if abiJSONError != nil {
 		result.ResultType = C.RETURN_TYPE_EXCEPTION
 		result.ErrorCode = types.TVMCheckABIError

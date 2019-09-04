@@ -118,13 +118,23 @@ func (api *RpcDevImpl) GetTransaction(hash string) (map[string]interface{}, erro
 	return detail, nil
 }
 
-func (api *RpcDevImpl) GetBlocks(from uint64, to uint64) ([]*Block, error) {
-	if from > to {
-		return nil, fmt.Errorf("param error")
+func (api *RpcDevImpl) GetBlocks(from uint64, end uint64) ([]*Block, error) {
+	if end < from {
+		return nil, fmt.Errorf("start must be bigger than the end,begin is %v,end is %v", from, end)
+	}
+	if end-from > 50 {
+		return nil, fmt.Errorf("end can't be 50 more than the start,begin is %v,end is %v", from, end)
+	}
+	maxHeight := core.BlockChainImpl.QueryTopBlock().Height
+	if from > maxHeight {
+		from = maxHeight
+	}
+	if end > maxHeight {
+		end = maxHeight
 	}
 	blocks := make([]*Block, 0)
 	var preBH *types.BlockHeader
-	for h := from; h <= to; h++ {
+	for h := from; h <= end; h++ {
 		b := core.BlockChainImpl.QueryBlockByHeight(h)
 		if b != nil {
 			block := convertBlockHeader(b)
@@ -160,7 +170,7 @@ func (api *RpcDevImpl) GetTopBlock() (map[string]interface{}, error) {
 	blockDetail["signature"] = hex.EncodeToString(bh.Signature)
 	blockDetail["txs"] = len(b.Transactions)
 	blockDetail["elapsed"] = bh.Elapsed
-	blockDetail["tps"] = math.Round(float64(len(b.Transactions)) / float64(bh.Elapsed))
+	blockDetail["tps"] = math.Round(float64(len(b.Transactions)) / float64(bh.Elapsed*1e3))
 
 	blockDetail["tx_pool_count"] = len(core.BlockChainImpl.GetTransactionPool().GetReceived())
 	blockDetail["tx_pool_total"] = core.BlockChainImpl.GetTransactionPool().TxNum()
@@ -198,15 +208,24 @@ func (api *RpcDevImpl) GetWorkGroup(height uint64) ([]*Group, error) {
 
 // CastStat cast block statistics
 func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (map[string]map[string]int32, error) {
+	if end < begin {
+		return nil, fmt.Errorf("start must be bigger than the end,begin is %v,end is %v", begin, end)
+	}
+	if end-begin > 100 {
+		return nil, fmt.Errorf("end can't be 100 more than the start,begin is %v,end is %v", begin, end)
+	}
 	proposerStat := make(map[string]int32)
 	groupStat := make(map[string]int32)
-
 	chain := core.BlockChainImpl
-	if end == 0 {
-		end = chain.QueryTopBlock().Height
+	maxHeight := chain.QueryTopBlock().Height
+	if begin > maxHeight {
+		begin = maxHeight
+	}
+	if end > maxHeight {
+		end = maxHeight
 	}
 
-	for h := begin; h < end; h++ {
+	for h := begin; h <= end; h++ {
 		b := chain.QueryBlockByHeight(h)
 		if b == nil {
 			continue
@@ -233,8 +252,7 @@ func (api *RpcDevImpl) CastStat(begin uint64, end uint64) (map[string]map[string
 		pmap[id.GetAddrString()] = v
 	}
 	for key, v := range groupStat {
-		id := groupsig.DeserializeID([]byte(key))
-		gmap[id.GetAddrString()] = v
+		gmap[key] = v
 	}
 	ret := make(map[string]map[string]int32)
 	ret["proposer"] = pmap
@@ -450,9 +468,19 @@ func (api *RpcDevImpl) BlockReceipts(h string) (*BlockReceipt, error) {
 
 // MonitorBlocks monitoring platform calls block sync
 func (api *RpcDevImpl) MonitorBlocks(begin, end uint64) ([]*BlockDetail, error) {
+	if end < begin {
+		return nil, fmt.Errorf("start must be bigger than the end,begin is %v,end is %v", begin, end)
+	}
+	if end-begin > 50 {
+		return nil, fmt.Errorf("end can't be 50 more than the start,begin is %v,end is %v", begin, end)
+	}
 	chain := core.BlockChainImpl
-	if begin > end {
-		end = begin
+	maxHeight := chain.QueryTopBlock().Height
+	if begin > maxHeight {
+		begin = maxHeight
+	}
+	if end > maxHeight {
+		end = maxHeight
 	}
 	var pre *types.Block
 
@@ -568,5 +596,36 @@ func (api *RpcDevImpl) BlockDropInfo(b, e uint64) (map[string]interface{}, error
 	ret["real_heights"] = len(heights)
 	ret["drop_rate"] = dropRate
 	ret["drops"] = drops
+	return ret, nil
+}
+
+func (api *RpcDevImpl) JumpBlockInfo(begin, end uint64) (map[string][2]int, error) {
+	pre := core.BlockChainImpl.QueryBlockHeaderFloor(begin)
+	if end == 0 {
+		end = core.BlockChainImpl.Height()
+	}
+	ret := make(map[string][2]int)
+	for h := pre.Height + 1; h < end; h++ {
+		bh := core.BlockChainImpl.QueryBlockHeaderByHeight(h)
+		if bh == nil {
+			g := mediator.Proc.CalcVerifyGroup(pre, h)
+			if v, ok := ret[g.Hex()]; ok {
+				v[1]++
+				ret[g.Hex()] = v
+			} else {
+				v = [2]int{0, 1}
+				ret[g.Hex()] = v
+			}
+		} else {
+			if v, ok := ret[bh.Group.Hex()]; ok {
+				v[0]++
+				ret[bh.Group.Hex()] = v
+			} else {
+				v = [2]int{1, 0}
+				ret[bh.Group.Hex()] = v
+			}
+			pre = bh
+		}
+	}
 	return ret, nil
 }

@@ -35,8 +35,8 @@ func OnP2PListened(ip string, port uint16, latency uint64) {
 }
 
 //export OnP2PAccepted
-func OnP2PAccepted(id uint64, session uint32, p2pType uint32) {
-	netCore.onAccepted(id, session, p2pType)
+func OnP2PAccepted(id uint64, session uint32, p2pType uint32, ip string, port uint16) {
+	netCore.onAccepted(id, session, p2pType, ip, port)
 }
 
 //export OnP2PConnected

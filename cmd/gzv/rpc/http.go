@@ -207,8 +207,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer codec.Close()
 
 	w.Header().Set("content-type", contentType)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With,X_Requested_With,Content-Type")
 	srv.ServeSingleRequest(codec, OptionMethodInvocation)
 }
 

@@ -35,7 +35,7 @@ var gasLimitMax = new(BigInt).SetUint64(500000)
 
 var (
 	AdminAddr         = common.StringToAddress("zv28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b") // address of admin who can control foundation contract
-	MiningPoolAddr    = common.StringToAddress("zv01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0") // address of mining pool in pre-distribution
+	StakePlatformAddr = common.StringToAddress("zv01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0") // address of mining pool in pre-distribution
 	CirculatesAddr    = common.StringToAddress("zvebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3") // address of circulates in pre-distribution
 	UserNodeAddress   = common.StringToAddress("zve30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139") // address of official reserved user node address
 	DaemonNodeAddress = common.StringToAddress("zvae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122") // address of official reserved daemon node address
@@ -44,15 +44,21 @@ var (
 var ExtractGuardNodes = []common.Address{
 	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
 	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
+	common.StringToAddress("zv5795614c130e08a1d02157691c4d6bc4e5e152ee65a9b2752b823bcc7229fd58"),
+	common.StringToAddress("zv86a93455d77213bc39021a222f76702c37b3b168594364df88f201ebbc14fa3d"),
+	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
+	common.StringToAddress("zvdd44904f82a8823806a87ff2600d16dca0955a16816603643a77ac3d8cc8d945"),
+	common.StringToAddress("zve6363c64a54e756f114414fc427125163314872e9655923e6c834114fdae81bf"),
+	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
 } // init gurad miner nodes
 
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
 	AddBlockConsensusFailed   AddBlockResult = -2 // Means the consensus is fail
-	AddBlockSucc              AddBlockResult = 0  // Means success
 	BlockExisted              AddBlockResult = 1  // Means the block already added before
 	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
+	AddBlockSucc              AddBlockResult = 3  // Means success
 )
 
 const (
@@ -110,8 +116,8 @@ type RawTransaction struct {
 	GasPrice *BigInt `msgpack:"gp"`
 
 	ExtraData []byte          `msgpack:"ed"`
-	Sign      []byte          `msgpack:"si"`  // The Sign of the sender
-	Source    *common.Address `msgpack:"src"` // Sender address, recovered from sign
+	Sign      []byte          `msgpack:"si"`            // The Sign of the sender
+	Source    *common.Address `msgpack:"src,omitempty"` // Sender address, recovered from sign
 }
 
 // Transaction denotes one transaction infos
@@ -148,26 +154,42 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	if nil == tx {
 		return common.Hash{}
 	}
-	buffer := bytes.Buffer{}
-	if tx.Data != nil {
-		buffer.Write(tx.Data)
-	}
-	buffer.Write(tx.Value.GetBytesWithSign())
-	buffer.Write(common.Uint64ToByte(tx.Nonce))
-	if tx.Target != nil {
-		buffer.Write(tx.Target.Bytes())
-	}
+
+	var (
+		src      []byte
+		target   []byte
+		value    []byte
+		gasLimit []byte
+		gasPrice []byte
+	)
 	if tx.Source != nil {
-		buffer.Write(tx.Source.Bytes())
+		src = tx.Source.Bytes()
 	}
-	buffer.WriteByte(byte(tx.Type))
-	buffer.Write(tx.GasLimit.GetBytesWithSign())
-	buffer.Write(tx.GasPrice.GetBytesWithSign())
-	if tx.ExtraData != nil {
-		buffer.Write(tx.ExtraData)
+	if tx.Target != nil {
+		target = tx.Target.Bytes()
+	}
+	if tx.Value != nil {
+		value = tx.Value.Bytes()
+	}
+	if tx.GasLimit != nil {
+		gasLimit = tx.GasLimit.Bytes()
+	}
+	if tx.GasPrice != nil {
+		gasPrice = tx.GasPrice.Bytes()
+	}
+	txH := &txHashing{
+		src:      src,
+		target:   target,
+		value:    value,
+		gasLimit: gasLimit,
+		gasPrice: gasPrice,
+		nonce:    new(big.Int).SetUint64(tx.Nonce).Bytes(),
+		typ:      byte(tx.Type),
+		data:     tx.Data,
+		extra:    tx.ExtraData,
 	}
 
-	return common.BytesToHash(common.Sha256(buffer.Bytes()))
+	return txH.genHash()
 }
 
 func (tx *RawTransaction) HexSign() string {
@@ -218,7 +240,7 @@ type BlockHeader struct {
 	Hash        common.Hash    // The hash of this block
 	Height      uint64         // The height of this block
 	PreHash     common.Hash    // The hash of previous block
-	Elapsed     int32          // The length of time from the last block
+	Elapsed     int32          // The length of milliseconds from the last block
 	ProveValue  []byte         // Vrf prove
 	TotalQN     uint64         // QN of the entire chain
 	CurTime     time.TimeStamp // Current block time
@@ -268,7 +290,7 @@ func (bh *BlockHeader) GenHash() common.Hash {
 }
 
 func (bh *BlockHeader) PreTime() time.TimeStamp {
-	return bh.CurTime.Add(int64(-bh.Elapsed))
+	return bh.CurTime.AddMilliSeconds(int64(-bh.Elapsed))
 }
 
 func (bh *BlockHeader) HasTransactions() bool {
