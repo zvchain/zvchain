@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"sync"
 	"testing"
+	"time"
 )
 
 var groupReader activatedGroupReader
@@ -152,9 +153,6 @@ func TestBuildChain(t *testing.T) {
 
 	buildChain(400, chain)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
-	if chain.Height() != 399 {
-		t.Errorf("chain height error")
-	}
 }
 
 func TestScanBlocks(t *testing.T) {
@@ -429,7 +427,6 @@ func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
 	}
 }
 
-
 func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
 	defer clearDatas()
 	chain := initChain(chainPath1, id1)
@@ -446,8 +443,7 @@ func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
 	}
 	fp.syncCtx = ctx
 
-	resp := &blockResponseMessage{
-	}
+	resp := &blockResponseMessage{}
 
 	bs, err := marshalBlockMsgResponse(resp)
 	if err != nil {
@@ -522,6 +518,7 @@ func TestForkProcess_TryProcess_LocalCPHigher(t *testing.T) {
 	if afterForkTop1.Hash != top1.Hash {
 		t.Errorf("chain top change after fork process")
 	}
+	time.Sleep(2 * time.Second)
 }
 
 func TestForkProcess_TryProcess_ShortFork_Accepted(t *testing.T) {
@@ -545,6 +542,7 @@ func TestForkProcess_TryProcess_ShortFork_Accepted(t *testing.T) {
 	if afterForkTop1.Hash != top2.Hash {
 		t.Errorf("fork process fail, should accept peer fork")
 	}
+	time.Sleep(2 * time.Second)
 }
 
 func TestForkProcess_TryProcess_ShortFork_MultiRequestChainSlice_Accepted(t *testing.T) {
@@ -568,6 +566,7 @@ func TestForkProcess_TryProcess_ShortFork_MultiRequestChainSlice_Accepted(t *tes
 	if afterForkTop1.Hash != top2.Hash {
 		t.Errorf("fork process fail, should accept peer fork")
 	}
+	time.Sleep(2 * time.Second)
 }
 
 func TestForkProcess_TryProcess_PeerLongFork_Accepted(t *testing.T) {
@@ -591,6 +590,7 @@ func TestForkProcess_TryProcess_PeerLongFork_Accepted(t *testing.T) {
 	if !chain2.HasBlock(afterForkTop1.Hash) {
 		t.Errorf("fork process fail, should accept peer fork")
 	}
+	time.Sleep(2 * time.Second)
 }
 
 func TestForkProcess_TryProcess_UnAcceptable(t *testing.T) {
