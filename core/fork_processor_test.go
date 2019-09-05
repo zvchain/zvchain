@@ -135,6 +135,7 @@ func buildChain(height uint64, chain *FullBlockChain) {
 	for h := chain.Height() + 1; h < height; h += uint64(rand.Int31n(2) + 1) {
 		addRandomBlock(chain, h)
 	}
+	time.Sleep(3 * time.Second)
 }
 
 func forkChain(heightLimit uint64, forkLength uint64, chain *FullBlockChain) {
@@ -179,6 +180,7 @@ func TestScanBlocks(t *testing.T) {
 }
 
 func TestForkChain(t *testing.T) {
+	clearDatas()
 	defer clearDatas()
 	chain := initChain(chainPath2, id2)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
@@ -204,12 +206,14 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 }
 
 func clearDatas() {
+	closeChain()
 	os.RemoveAll(chainPath1)
 	os.RemoveAll(chainPath2)
 	os.RemoveAll("logs")
 }
 
 func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
+	clearDatas()
 	defer clearDatas()
 	chain := initChain(chainPath1, id1)
 	buildChain(1000, chain)

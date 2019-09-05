@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -249,13 +250,19 @@ func TestNewBlockHandler(t *testing.T) {
 	}
 }
 
-func clearDB() {
-	fmt.Println("---clear---")
+func closeChain(){
+	fmt.Println("---close---")
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
 		//taslog.Close()
 		BlockChainImpl = nil
+		notify.BUS = notify.NewBus()
 	}
+}
+
+func clearDB() {
+	fmt.Println("---clear---")
+	closeChain()
 	dir, err := ioutil.ReadDir(".")
 	if err != nil {
 		return
