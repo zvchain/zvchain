@@ -3,11 +3,12 @@ package network
 import (
 	"fmt"
 	"math"
+	"sort"
 	"sync"
 )
 
-const DEFAULT_BUCKET_GROUP_SIZE = 100
-const DEFAULT_BUCKET_GROUP_NAME = "BucketGroup"
+const DefaultBucketGroupSize = 100
+const DefaultBucketGroupName = "BucketGroup"
 
 type Proposer struct {
 	ID    NodeID
@@ -24,6 +25,18 @@ type ProposerBucket struct {
 	mutex sync.RWMutex
 }
 
+func (pb *ProposerBucket) Len() int {
+	return len(pb.proposers)
+}
+
+func (pb *ProposerBucket) Less(i, j int) bool {
+	return pb.proposers[i].ID.GetHexString() < pb.proposers[j].ID.GetHexString()
+}
+
+func (pb *ProposerBucket) Swap(i, j int) {
+	pb.proposers[i], pb.proposers[j] = pb.proposers[j], pb.proposers[i]
+}
+
 func newProposerBucket(groupName string, groupSize int) *ProposerBucket {
 	pm := &ProposerBucket{
 		proposers: make([]*Proposer, 0),
@@ -32,11 +45,11 @@ func newProposerBucket(groupName string, groupSize int) *ProposerBucket {
 		groupName: groupName,
 	}
 	if pm.groupSize == 0 {
-		pm.groupSize = DEFAULT_BUCKET_GROUP_SIZE
+		pm.groupSize = DefaultBucketGroupSize
 	}
 
 	if len(pm.groupName) == 0 {
-		pm.groupName = DEFAULT_BUCKET_GROUP_NAME
+		pm.groupName = DefaultBucketGroupName
 	}
 
 	return pm
@@ -47,9 +60,15 @@ func (pb *ProposerBucket) GroupNameByIndex(index int) string {
 }
 
 func (pb *ProposerBucket) Build(proposers []*Proposer) {
+	Logger.Infof("[proposer bucket] Build size:%v proposers:%v", len(proposers), proposers)
+
 	pb.mutex.Lock()
 	defer pb.mutex.Unlock()
+	sort.Sort(pb)
 
+	for i := 0; i < len(pb.proposers); i++ {
+		Logger.Infof("[proposer bucket] Build members ID: %v stake:%v", pb.proposers[i].ID.GetHexString(), pb.proposers[i].Stake)
+	}
 	groupCountOld := pb.groupCount
 	pb.proposers = proposers
 
@@ -96,6 +115,7 @@ func (pb *ProposerBucket) buildGroup(groupIndex int) {
 
 	netCore.groupManager.buildGroup(groupID, members)
 }
+
 func (pb *ProposerBucket) groupMembersByIndex(groupIndex int) []NodeID {
 
 	members := make([]NodeID, 0)

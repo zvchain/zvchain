@@ -121,7 +121,24 @@ func TestProprosers(t *testing.T) {
 		"zvff86d3a1102475e3a027d0f00347131483ef81b2d5abe8497551c9346ea23d98",
 	}
 
-	t.Run("TestProprosersTop5", func(t *testing.T) {
+	t.Run("TestProposersSort", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < len(nodes); i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := i
+
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+
+		if netCore.proposerManager.fastBucket.proposers[0].Stake != uint64(len(nodes)-1) {
+			t.Fatalf("fastBucket size is not right")
+		}
+	})
+
+	t.Run("TestProposersTop5", func(t *testing.T) {
 		proposers := make([]*Proposer, 0)
 		for i := 0; i < len(nodes); i++ {
 			ID := NewNodeID(nodes[i])
@@ -140,7 +157,7 @@ func TestProprosers(t *testing.T) {
 		}
 	})
 
-	t.Run("TestProprosersTop30", func(t *testing.T) {
+	t.Run("TestProposersTop30", func(t *testing.T) {
 		proposers := make([]*Proposer, 0)
 		for i := 0; i < len(nodes); i++ {
 			ID := NewNodeID(nodes[i])
@@ -154,6 +171,93 @@ func TestProprosers(t *testing.T) {
 
 		if len(netCore.proposerManager.fastBucket.proposers) != int(math.Ceil(float64(len(nodes))*0.3)) {
 			t.Fatalf("fastBucket size is not right")
+		}
+	})
+
+	t.Run("TestProposersTop30", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < len(nodes); i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+
+		if len(netCore.proposerManager.fastBucket.proposers) != int(math.Ceil(float64(len(nodes))*0.3)) {
+			t.Fatalf("fastBucket size is not right")
+		}
+	})
+
+	t.Run("TestProposersAdd", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < 100; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+				if i > 5 {
+					stake = 10
+				}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+		proposers = make([]*Proposer, 0)
+
+		for i := 100; i < 106; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+				if i > 102 {
+					stake = 10
+				}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		netCore.proposerManager.AddProposers(proposers)
+		t.Logf("after added fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		if len(netCore.proposerManager.fastBucket.proposers) != 8 {
+			t.Fatalf("fastBucket size is not right")
+		}
+		if len(netCore.proposerManager.normalBucket.proposers) != 98 {
+			t.Fatalf("normalBucket size is not right")
+		}
+	})
+
+	t.Run("TestProposersAddContained", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < 100; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+				if i > 5 {
+					stake = 10
+				}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+		proposers = make([]*Proposer, 0)
+
+		for i := 90; i < 106; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10
+
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		netCore.proposerManager.AddProposers(proposers)
+		t.Logf("after added fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		if len(netCore.proposerManager.fastBucket.proposers) != 5 {
+			t.Fatalf("fastBucket size is not right")
+		}
+		if len(netCore.proposerManager.normalBucket.proposers) != 100 {
+			t.Fatalf("normalBucket size is not right")
 		}
 	})
 }

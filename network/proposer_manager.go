@@ -6,11 +6,11 @@ import (
 	"sync"
 )
 
-const FAST_GROUP_SIZE = 100
-const MAX_FAST_SIZE = 500
-const FAST_GROUP_NAME = "FastProposerGroup"
-const NORMAL_GROUP_SIZE = 500
-const NORMAL_GROUP_NAME = "NormalProposerGroup"
+const FastGroupSize = 100
+const MaxFastSize = 500
+const FastGroupName = "FastProposerGroup"
+const NormalGroupSize = 500
+const NormalGroupName = "NormalProposerGroup"
 
 type ProposerManager struct {
 	fastBucket   *ProposerBucket
@@ -28,7 +28,7 @@ func (pm *ProposerManager) Len() int {
 }
 
 func (pm *ProposerManager) Less(i, j int) bool {
-	return pm.proposers[i].ID.GetHexString() < pm.proposers[j].ID.GetHexString()
+	return pm.proposers[i].Stake > pm.proposers[j].Stake
 }
 
 func (pm *ProposerManager) Swap(i, j int) {
@@ -38,8 +38,8 @@ func (pm *ProposerManager) Swap(i, j int) {
 func newProposerManager() *ProposerManager {
 	pm := &ProposerManager{
 		proposers:    make([]*Proposer, 0),
-		fastBucket:   newProposerBucket(FAST_GROUP_NAME, FAST_GROUP_SIZE),
-		normalBucket: newProposerBucket(NORMAL_GROUP_NAME, NORMAL_GROUP_SIZE),
+		fastBucket:   newProposerBucket(FastGroupName, FastGroupSize),
+		normalBucket: newProposerBucket(NormalGroupName, NormalGroupSize),
 	}
 
 	return pm
@@ -47,24 +47,28 @@ func newProposerManager() *ProposerManager {
 
 func (pm *ProposerManager) Build(proposers []*Proposer) {
 	Logger.Infof("[proposer manager] Build size:%v proposers:%v", len(proposers), proposers)
-	for i := 0; i < len(proposers); i++ {
-		Logger.Infof("[proposer manager] Build members ID: %v stake:%v", proposers[i].ID.GetHexString(), proposers[i].Stake)
-	}
+
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	pm.proposers = proposers
 	sort.Sort(pm)
 
+	for i := 0; i < len(pm.proposers); i++ {
+		Logger.Infof("[proposer manager] Build members ID: %v stake:%v", pm.proposers[i].ID.GetHexString(), pm.proposers[i].Stake)
+	}
 	totalStake := uint64(0)
 	for i := 0; i < len(pm.proposers); i++ {
 		totalStake += pm.proposers[i].Stake
 	}
 
+	//Up to 30% of nodes put in fast bucket
 	maxFastSize := int(math.Ceil(float64(len(pm.proposers)) * 0.3))
-	if maxFastSize > MAX_FAST_SIZE {
-		maxFastSize = MAX_FAST_SIZE
+	if maxFastSize > MaxFastSize {
+		maxFastSize = MaxFastSize
 	}
 	fastBucketSize := maxFastSize
+
+	//top 80% of total stake
 	fastBucketMaxStake := uint64(float64(totalStake) * 0.8)
 	totalFastStake := uint64(0)
 	for i := 0; i < maxFastSize; i++ {
