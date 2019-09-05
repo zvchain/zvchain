@@ -46,9 +46,9 @@ func newProposerManager() *ProposerManager {
 }
 
 func (pm *ProposerManager) Build(proposers []*Proposer) {
-	Logger.Infof("[ProposerManager] Build size:%v proposers:%v", len(proposers), proposers)
+	Logger.Infof("[proposer manager] Build size:%v proposers:%v", len(proposers), proposers)
 	for i := 0; i < len(proposers); i++ {
-		Logger.Infof("[ProposerManager] Build members ID: %v stake:%v", proposers[i].ID.GetHexString(), proposers[i].Stake)
+		Logger.Infof("[proposer manager] Build members ID: %v stake:%v", proposers[i].ID.GetHexString(), proposers[i].Stake)
 	}
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -64,19 +64,20 @@ func (pm *ProposerManager) Build(proposers []*Proposer) {
 	if maxFastSize > MAX_FAST_SIZE {
 		maxFastSize = MAX_FAST_SIZE
 	}
-	fastBucketThresholdIndex := maxFastSize
+	fastBucketSize := maxFastSize
 	fastBucketMaxStake := uint64(float64(totalStake) * 0.8)
 	totalFastStake := uint64(0)
 	for i := 0; i < maxFastSize; i++ {
 		totalFastStake += pm.proposers[i].Stake
 		if totalFastStake > fastBucketMaxStake {
-			fastBucketThresholdIndex = i
+			fastBucketSize = i + 1
 			pm.fastStakeThreshold = pm.proposers[i].Stake
+			break
 		}
 	}
 
-	fastProposers := pm.proposers[0:fastBucketThresholdIndex]
-	normalProposers := pm.proposers[fastBucketThresholdIndex:]
+	fastProposers := pm.proposers[0:fastBucketSize]
+	normalProposers := pm.proposers[fastBucketSize:]
 
 	pm.fastBucket.Build(fastProposers)
 	pm.normalBucket.Build(normalProposers)
@@ -84,9 +85,9 @@ func (pm *ProposerManager) Build(proposers []*Proposer) {
 }
 
 func (pm *ProposerManager) AddProposers(proposers []*Proposer) {
-	Logger.Infof("[ProposerManager] AddProposers size:%v", len(proposers))
+	Logger.Infof("[proposer manager] AddProposers size:%v", len(proposers))
 	for i := 0; i < len(proposers); i++ {
-		Logger.Infof("[ProposerManager] AddProposers members ID: %v stake:%v", proposers[i].ID.GetHexString(), proposers[i].Stake)
+		Logger.Infof("[proposer manager] AddProposers members ID: %v stake:%v", proposers[i].ID.GetHexString(), proposers[i].Stake)
 	}
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -115,10 +116,10 @@ func (pm *ProposerManager) AddProposers(proposers []*Proposer) {
 
 func (pm *ProposerManager) Broadcast(msg *MsgData, code uint32) {
 	if msg == nil {
-		Logger.Errorf("[ProposerManager] broadcast,msg is nil,code:%v", code)
+		Logger.Errorf("[proposer manager] broadcast,msg is nil,code:%v", code)
 		return
 	}
-	Logger.Infof("[ProposerManager] broadcast, ID:%v code:%v", code)
+	Logger.Infof("[proposer manager] broadcast, code:%v", code)
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 

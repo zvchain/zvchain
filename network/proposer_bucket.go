@@ -130,10 +130,10 @@ func (pb *ProposerBucket) groupMembersHexByIndex(groupIndex int) []string {
 
 func (pb *ProposerBucket) Broadcast(msg *MsgData, code uint32) {
 	if msg == nil {
-		Logger.Errorf("[group bucket] group broadcast,msg is nil,code:%v", code)
+		Logger.Errorf("[proposer bucket] group broadcast,msg is nil,code:%v", code)
 		return
 	}
-	Logger.Infof("[group] group broadcast, ID:%v code:%v", code)
+	Logger.Infof("[proposer bucket] group broadcast, code:%v", code)
 	pb.mutex.Lock()
 	defer pb.mutex.Unlock()
 
