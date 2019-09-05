@@ -29,7 +29,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-const max_sync_count = 10 // max count of tx with same source to sync to neighbour node
+const maxSyncCountPreSource = 10 // max count of tx with same source to sync to neighbour node
 
 type simpleContainer struct {
 	txsMap     map[common.Hash]*types.Transaction
@@ -209,7 +209,7 @@ func (s *pendingContainer) eachForSync(f func(tx *types.Transaction) bool) {
 		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {
 			tx := iter1.Value().(*orderByNonceTx).item
 			count := countMap[*tx.Source]
-			if count >= max_sync_count {
+			if count >= maxSyncCountPreSource {
 				continue
 			}
 			count++
