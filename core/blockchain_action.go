@@ -19,10 +19,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/monitor"
 	"math"
 	"time"
-
-	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -95,7 +94,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 		return nil
 	}
 
-	Logger.Infof("casting block height=%v,preHash=%x", height, preRoot)
+	Logger.Debugf("casting block height=%v,preHash=%v", height, preRoot)
 	//taslog.Flush()
 
 	packTraceLog := monitor.NewPerformTraceLogger("PackForCast", common.Hash{}, height)
@@ -180,6 +179,13 @@ func (chain *FullBlockChain) consensusVerifyBlock(bh *types.BlockHeader) (bool, 
 	if pre == nil {
 		return false, errors.New("has no pre")
 	}
+
+	// Checks if pre block lower than latest checkpoint
+	latestCP := chain.LatestCheckPoint()
+	if pre.Height < latestCP.Height {
+		return false, fmt.Errorf("pre block lower than latest cp: pre %v, cp %v, comming %v-%v", pre.Height, latestCP.Height, bh.Height, bh.Hash)
+	}
+
 	result, err := chain.GetConsensusHelper().VerifyNewBlock(bh, pre)
 	if err != nil {
 		Logger.Errorf("consensusVerifyBlock error:%s", err.Error())
@@ -262,7 +268,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", block.Header.Hash, block.Header.PreHash, block.Header.Height, block.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
 
 	if chain.HasBlock(bh.Hash) {
-		return types.BlockExisted, ErrBlockExist
+		return types.AddBlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, block); !ok {
 		if e == ErrorBlockHash || e == ErrorGroupSign || e == ErrorRandomSign || e == ErrPkNotExists {
@@ -295,7 +301,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	topBlock = chain.getLatestBlock()
 
 	if chain.HasBlock(bh.Hash) {
-		ret = types.BlockExisted
+		ret = types.AddBlockExisted
 		err = ErrBlockExist
 		return
 	}
@@ -322,11 +328,11 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 
 	cmpWeight := chain.compareChainWeight(bh)
 	if cmpWeight > 0 { // the local block's weight is greater, then discard the new one
-		ret = types.BlockTotalQnLessThanLocal
+		ret = types.AddBlockLessWeightThanLocal
 		err = ErrLocalMoreWeight
 		return
 	} else if cmpWeight == 0 {
-		ret = types.BlockExisted
+		ret = types.AddBlockExisted
 		err = ErrBlockExist
 		return
 	} else { // there is a fork
@@ -484,6 +490,11 @@ func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 
 func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	b := message.GetData().(*types.Block)
+	latestCP := chain.CheckPointAt(b.Header.Height)
+	if latestCP != nil {
+		Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
+		chain.latestCP.Store(latestCP)
+	}
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
 		rawBlock := value.(*types.Block)
 		Logger.Debugf("Get rawBlock from future blocks,hash:%s,height:%d", rawBlock.Header.Hash.Hex(), rawBlock.Header.Height)
