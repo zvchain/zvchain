@@ -76,11 +76,9 @@ func (gtas *Gtas) miner(cfg *minerConfig) error {
 	if err != nil {
 		return err
 	}
-	if cfg.rpcEnable() {
-		err = gtas.startRPC()
-		if err != nil {
-			return err
-		}
+	err = gtas.startRPC()
+	if err != nil {
+		return err
 	}
 	ok := mediator.StartMiner()
 
@@ -162,12 +160,12 @@ func (gtas *Gtas) Run() {
 	mineCmd := app.Command("miner", "miner start")
 
 	// Rpc analysis
-	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelNone), 10)).Int()
+	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelMiner), 10)).Int()
 	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
 	rpcServicePort := mineCmd.Flag("port", "rpc service port").Short('p').Default("8101").Uint16()
 
 	// Miner watcher
-	miningMonitoringAddr := mineCmd.Flag("monitorhost", "specify the host of mining monitoring").Default("127.0.0.1").IP()
+	miningMonitoringAddr := mineCmd.Flag("reporthost", "specify the host of mining monitoring").Default("127.0.0.1").IP()
 
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 
@@ -230,24 +228,24 @@ func (gtas *Gtas) Run() {
 		}
 
 		cfg := &minerConfig{
-			rpcLevel:             rpcLevel(*rpc),
-			rpcAddr:              addrRPC.String(),
-			rpcPort:              *rpcServicePort,
-			miningMonitoringAddr: miningMonitoringAddr.String(),
-			super:                *super,
-			testMode:             *testMode,
-			natIP:                *natAddr,
-			natPort:              *natPort,
-			seedIP:               *seedAddr,
-			applyRole:            *apply,
-			keystore:             *keystore,
-			enableMonitor:        *enableMonitor,
-			chainID:              *chainID,
-			password:             *passWd,
-			autoCreateAccount:    *autoCreateAccount,
-			resetHash:            *reset,
-			cors:                 *cors,
-			privateKey:           *privKey,
+			rpcLevel:          rpcLevel(*rpc),
+			rpcAddr:           addrRPC.String(),
+			rpcPort:           *rpcServicePort,
+			reportHost:        miningMonitoringAddr.String(),
+			super:             *super,
+			testMode:          *testMode,
+			natIP:             *natAddr,
+			natPort:           *natPort,
+			seedIP:            *seedAddr,
+			applyRole:         *apply,
+			keystore:          *keystore,
+			enableMonitor:     *enableMonitor,
+			chainID:           *chainID,
+			password:          *passWd,
+			autoCreateAccount: *autoCreateAccount,
+			resetHash:         *reset,
+			cors:              *cors,
+			privateKey:        *privKey,
 		}
 
 		// Start miner

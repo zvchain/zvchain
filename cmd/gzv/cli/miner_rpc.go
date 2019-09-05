@@ -30,8 +30,7 @@ import (
 type rpcLevel int
 
 const (
-	rpcLevelNone     rpcLevel = iota // Won't start rpc service which is the default value if not set
-	rpcLevelMiner                    // Only use for watch miner msgs
+	rpcLevelMiner    rpcLevel = iota // Won't start rpc service which is the default value if not set
 	rpcLevelGtas                     // Only enable the core rpc service functions used by miners or dapp developers
 	rpcLevelExplorer                 // Enable both above and explorer related functions
 	rpcLevelDev                      // Enable all functions including functions for debug or developer use
@@ -49,14 +48,12 @@ func (gtas *Gtas) addInstance(inst rpcApi) {
 
 func (gtas *Gtas) initRpcInstances() error {
 	level := gtas.config.rpcLevel
-	if level < rpcLevelNone || level > rpcLevelDev {
+	if level < rpcLevelMiner || level > rpcLevelDev {
 		return fmt.Errorf("rpc level error:%v", level)
 	}
 	base := &rpcBaseImpl{gr: getGroupReader(), br: core.BlockChainImpl}
 	gtas.rpcInstances = make([]rpcApi, 0)
-	if level >= rpcLevelMiner {
-		gtas.addInstance(&RpcMinerImpl{base})
-	}
+	gtas.addInstance(&RpcMinerImpl{base})
 	if level >= rpcLevelGtas {
 		gtas.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
 	}
@@ -113,7 +110,7 @@ func (gtas *Gtas) startRPC() error {
 	var host string
 	var port uint16
 	if len(gtas.rpcInstances) == 1 && gtas.rpcInstances[0].Namespace() == "Miner" {
-		host, port = gtas.config.miningMonitoringAddr, gtas.config.rpcPort
+		host, port = gtas.config.reportHost, gtas.config.rpcPort
 	} else {
 		host, port = gtas.config.rpcAddr, gtas.config.rpcPort
 	}

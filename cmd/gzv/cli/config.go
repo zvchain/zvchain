@@ -16,26 +16,22 @@
 package cli
 
 type minerConfig struct {
-	rpcLevel             rpcLevel
-	rpcAddr              string
-	rpcPort              uint16
-	miningMonitoringAddr string
-	super                bool
-	testMode             bool
-	natIP                string
-	natPort              uint16
-	seedIP               string
-	applyRole            string
-	keystore             string
-	enableMonitor        bool
-	chainID              uint16
-	password             string
-	autoCreateAccount    bool
-	resetHash            string
-	cors                 string
-	privateKey           string
-}
-
-func (cfg *minerConfig) rpcEnable() bool {
-	return cfg.rpcLevel > rpcLevelNone
+	rpcLevel          rpcLevel
+	rpcAddr           string
+	rpcPort           uint16
+	reportHost        string
+	super             bool
+	testMode          bool
+	natIP             string
+	natPort           uint16
+	seedIP            string
+	applyRole         string
+	keystore          string
+	enableMonitor     bool
+	chainID           uint16
+	password          string
+	autoCreateAccount bool
+	resetHash         string
+	cors              string
+	privateKey        string
 }

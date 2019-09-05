@@ -16,16 +16,16 @@
 <body>
 <div style="margin:3%">
     <div class=" layui-row layui-col-space25">
-        <div class="layui-col-md6">
+        <div class="layui-col-md9">
             <fieldset class="layui-elem-field">
-                <legend>基础信息</legend>
+                <legend>basic infos</legend>
                 <div class="layui-field-box">
                     <div class="layui-row layui-col-space10">
-                        <div class="layui-col-md4">当前时间：</div>
+                        <div class="layui-col-md4">current time：</div>
                         <div class="layui-col-md1" id="cur_time">--</div>
                     </div>
                     <div class="layui-row layui-col-space10">
-                        <div class="layui-col-md4">客户端版本号：</div>
+                        <div class="layui-col-md4">version：</div>
                         <div class="layui-col-md4" id="client_version">--</div>
                     </div>
                     <div class="layui-row layui-col-space10">
@@ -33,15 +33,15 @@
                         <div class="layui-col-md4" id="chain_id">--</div>
                     </div>
                     <div class="layui-row layui-col-space10">
-                        <div class="layui-col-md4">块高:</div>
+                        <div class="layui-col-md4">block height:</div>
                         <div class="layui-col-md4" id="block_height">--</div>
                     </div>
                     <div class="layui-row layui-col-space10">
-                        <div class="layui-col-md4">组高：</div>
+                        <div class="layui-col-md4">group height：</div>
                         <div class="layui-col-md4" id="group_height">--</div>
                     </div>
                     <div class="layui-row layui-col-space10">
-                        <div class="layui-col-md4">地址：</div>
+                        <div class="layui-col-md4">address：</div>
                         <div class="layui-col-md4" id="addr">--</div>
                     </div>
                 </div>
@@ -51,16 +51,16 @@
 
     <div id="morts" style="display:none">
         <div class="layui-row layui-col-space25">
-            <div class="layui-col-md6">
+            <div class="layui-col-md9">
                 <fieldset class="layui-elem-field">
-                    <legend>质押信息</legend>
+                    <legend id="stake_info"></legend>
                     <div class="layui-field-box">
                         <div class="layui-row layui-col-space10">
                             <div class="layui-col-md4">stake：</div>
                             <div class="layui-col-md1" id="stake">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">apply_height：</div>
+                            <div class="layui-col-md4">apply height：</div>
                             <div class="layui-col-md4" id="apply_height">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
@@ -68,11 +68,11 @@
                             <div class="layui-col-md4" id="type">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">miner_status:</div>
+                            <div class="layui-col-md4">miner status:</div>
                             <div class="layui-col-md4" id="miner_status">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">status_update_height：</div>
+                            <div class="layui-col-md4">status update height：</div>
                             <div class="layui-col-md4" id="status_update_height">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
@@ -80,7 +80,7 @@
                             <div class="layui-col-md4" id="identity">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">identity_update_height：</div>
+                            <div class="layui-col-md4">identity update height：</div>
                             <div class="layui-col-md4" id="identity_update_height">--</div>
                         </div>
                     </div>
@@ -89,16 +89,16 @@
         </div>
 
         <div class="layui-row layui-col-space25">
-            <div class="layui-col-md6">
+            <div class="layui-col-md9">
                 <fieldset class="layui-elem-field">
-                    <legend>质押信息</legend>
+                    <legend id="stake_info2"></legend>
                     <div class="layui-field-box">
                         <div class="layui-row layui-col-space10">
                             <div class="layui-col-md4">stake：</div>
                             <div class="layui-col-md1" id="stake2">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">apply_height：</div>
+                            <div class="layui-col-md4">apply height：</div>
                             <div class="layui-col-md4" id="apply_height2">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
@@ -106,11 +106,11 @@
                             <div class="layui-col-md4" id="type2">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">miner_status:</div>
+                            <div class="layui-col-md4">miner status:</div>
                             <div class="layui-col-md4" id="miner_status2">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">status_update_height：</div>
+                            <div class="layui-col-md4">status update height：</div>
                             <div class="layui-col-md4" id="status_update_height2">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
@@ -118,7 +118,7 @@
                             <div class="layui-col-md4" id="identity2">--</div>
                         </div>
                         <div class="layui-row layui-col-space10">
-                            <div class="layui-col-md4">identity_update_height：</div>
+                            <div class="layui-col-md4">identity update height：</div>
                             <div class="layui-col-md4" id="identity_update_height2">--</div>
                         </div>
                     </div>
@@ -192,6 +192,7 @@
 
                 if (d.length == 1) {
                     $(d).each(function (k, v) {
+                        $("#stake_info").text(v.type);
                         $("#stake").text(v.stake);
                         $("#apply_height").text(v.apply_height);
                         $("#type").text(v.type);
@@ -204,6 +205,7 @@
                 if (d.length == 2) {
                     $(d).each(function (k, v) {
                         if (k == 0) {
+                            $("#stake_info").text(v.type);
                             $("#stake").text(v.stake);
                             $("#apply_height").text(v.apply_height);
                             $("#type").text(v.type);
@@ -214,6 +216,7 @@
                         }
 
                         if (k == 1) {
+                            $("#stake_info2").text(v.type);
                             $("#stake2").text(v.stake);
                             $("#apply_height2").text(v.apply_height);
                             $("#type2").text(v.type);
