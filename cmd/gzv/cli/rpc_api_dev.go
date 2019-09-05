@@ -17,7 +17,6 @@ package cli
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -635,14 +634,14 @@ func (api *RpcDevImpl) JumpBlockInfo(begin, end uint64) (map[string][2]int, erro
 }
 
 // GetTps
-func (api *RpcDevImpl) GetTps(minutes int64) (map[string]interface{},  error) {
-	var max int64 = 60*60*24*10
-	if minutes > max || minutes < 1{
+func (api *RpcDevImpl) GetTps(minutes int64) (map[string]interface{}, error) {
+	var max int64 = 60 * 60 * 24 * 10
+	if minutes > max || minutes < 1 {
 		return nil, errors.New(fmt.Sprintf("input should between 1 and %d", max))
 	}
 	var (
-		total int64 = 0
-		bCount int64 = 0
+		total       int64  = 0
+		bCount      int64  = 0
 		startHeight uint64 = 0
 	)
 	now := time2.TimeToTimeStamp(time.Now())
@@ -674,15 +673,16 @@ func (api *RpcDevImpl) GetTps(minutes int64) (map[string]interface{},  error) {
 }
 
 type blockTime struct {
-	Height uint64
+	Height  uint64
 	CurTime time2.TimeStamp
 }
+
 func (api *RpcDevImpl) GetBlocksTime(count int, last uint64) ([]blockTime, error) {
 	if last == 0 {
 		last = core.BlockChainImpl.Height()
 	}
 
-	if count > 10000{
+	if count > 10000 {
 		return nil, errors.New(fmt.Sprintf("count should less than 10000"))
 	}
 	blocks := make([]blockTime, 0)
@@ -702,16 +702,8 @@ func (api *RpcDevImpl) GetBlocksTime(count int, last uint64) ([]blockTime, error
 	return blocks, nil
 }
 
-
-
-// Tx is user transaction interface, used for sending transaction to the node
-func (api *RpcDevImpl) Txs(txRawjson string) (string, error) {
-	//var txRaws = make([]*txRawData,0)
-	var txRaws []txRawData
-	if err := json.Unmarshal([]byte(txRawjson), &txRaws); err != nil {
-		return "", err
-	}
-
+// Txs is user transaction interface, used for sending transaction to the node
+func (api *RpcDevImpl) Txs(txRaws []TxRawData) (string, error) {
 	for _, txRaw := range txRaws {
 		if !validateTxType(txRaw.TxType) {
 			return "", fmt.Errorf("not supported txType")
@@ -737,8 +729,5 @@ func (api *RpcDevImpl) Txs(txRawjson string) (string, error) {
 		}
 	}
 	//
-	//address := common.StringToAddress(txRaws[0].Source)
-	//nonce := core.BlockChainImpl.GetNonce(address) + 1
-	//return nonce, nil
 	return "success", nil
 }
