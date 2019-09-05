@@ -137,12 +137,8 @@ func (gtas *Gtas) Run() {
 	app := kingpin.New("gzv", "A blockchain application.")
 	app.HelpFlag.Short('h')
 	configFile := app.Flag("config", "Config file").Default("zv.ini").String()
-	_ = app.Flag("metrics", "enable metrics").Bool()
-	_ = app.Flag("dashboard", "enable metrics dashboard").Bool()
 	pprofPort := app.Flag("pprof", "enable pprof").Default("23333").Uint()
-	statisticsEnable := app.Flag("statistics", "enable statistics").Bool()
 	keystore := app.Flag("keystore", "the keystore path, default is current path").Default("keystore").Short('k').String()
-	*statisticsEnable = false
 
 	// Console
 	consoleCmd := app.Command("console", "start gzv console")
