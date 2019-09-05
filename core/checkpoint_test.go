@@ -25,6 +25,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 )
 
 type groupHeader4CPTest struct {
@@ -302,6 +303,7 @@ func initBlockReader4CPTest() *blockReader4CPTest {
 }
 
 func TestActiveGroupReader(t *testing.T) {
+	os.RemoveAll("d_b")
 	gr := initGroupReader4CPTest(10)
 	for i := 0; i < 10; i++ {
 		gs := gr.GetActivatedGroupsAt(uint64(i * types.EpochLength))
@@ -316,6 +318,7 @@ func init() {
 }
 
 func TestCheckpoint_init(t *testing.T) {
+	os.RemoveAll("d_b")
 	defer func() {
 		clearDB()
 	}()
@@ -324,6 +327,8 @@ func TestCheckpoint_init(t *testing.T) {
 	for h := uint64(1); h < 1000; h++ {
 		addRandomBlock(br, h)
 	}
+
+	time.Sleep(3*time.Second)
 
 	cp := newCpChecker(gr, br)
 	cp.init()
@@ -378,7 +383,7 @@ func TestCheckpoint_checkAndUpdate(t *testing.T) {
 		Logger.Debugf("cp at %v is %v %v", h, cpBlock.Height, cpBlock.Hash)
 
 	}
-
+	time.Sleep(3*time.Second)
 }
 
 func TestCheckpoint_CheckPointOf(t *testing.T) {
@@ -416,4 +421,5 @@ func TestCheckpoint_CheckPointOf(t *testing.T) {
 			br.cpChecker.checkPointOf(blocks)
 		}
 	}
+	time.Sleep(3*time.Second)
 }
