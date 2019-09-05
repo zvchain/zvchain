@@ -18,13 +18,11 @@ package logical
 import (
 	"fmt"
 
-	"github.com/sirupsen/logrus"
-
 	"time"
 
-	"github.com/zvchain/zvchain/common"
+	"github.com/sirupsen/logrus"
 
-	"math/big"
+	"github.com/zvchain/zvchain/common"
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -48,30 +46,12 @@ func (p *Processor) triggerCastCheck() {
 	p.Ticker.StartAndTriggerRoutine(p.getCastCheckRoutineName())
 }
 
-func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
-	var hash = calcRandomHash(preBH, height)
-
-	groupIS := p.groupReader.getActivatedGroupsByHeight(height)
-	// Must not happen
-	if len(groupIS) == 0 {
-		panic("no available groupIS")
-	}
-	seeds := make([]string, len(groupIS))
-	for _, g := range groupIS {
-		seeds = append(seeds, common.ShortHex(g.header.Seed().Hex()))
-	}
-
-	value := hash.Big()
-	index := value.Mod(value, big.NewInt(int64(len(groupIS))))
-
-	selectedGroup := groupIS[index.Int64()]
-
-	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupIS), height, seeds, selectedGroup.header.Seed())
-	return selectedGroup.header.Seed()
+func (p *Processor) CalcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
+	return p.selector.doSelect(preBH, height)
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {
-	nextGroup := p.calcVerifyGroup(bh, height)
+	nextGroup := p.CalcVerifyGroup(bh, height)
 	group := p.groupReader.getGroupBySeed(nextGroup)
 	g := &net.GroupBrief{
 		GSeed:  nextGroup,

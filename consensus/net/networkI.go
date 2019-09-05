@@ -97,4 +97,8 @@ type NetworkServer interface {
 
 	// ResponseProposalBlock sends block body to the requester
 	ResponseProposalBlock(msg *model.ResponseProposalBlock, target string)
+
+	FullBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64)
+
+	IncrementBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64)
 }

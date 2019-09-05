@@ -104,11 +104,11 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	packTraceLog.SetEnd()
 	defer packTraceLog.Log("")
 
-	exeTraceLog := monitor.NewPerformTraceLogger("Execute", common.Hash{}, height)
+	exeTraceLog := monitor.NewPerformTraceLogger("process", common.Hash{}, height)
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
 	block.Header.CurTime = chain.ts.Now()
-	stateRoot, evictHashs, txSlice, receipts, gasFee, err := chain.executor.Execute(state, block.Header, txs, true, nil)
+	stateRoot, evictHashs, txSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, txs, true, nil)
 	exeTraceLog.SetEnd()
 
 	block.Transactions = txSlice.txsToRaw()
@@ -369,7 +369,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block, tSlice txSlice
 		}
 	}
 
-	// Execute the transactions. Must be serialized execution
+	// process the transactions. Must be serialized execution
 	executeTxResult, ps := chain.executeTransaction(block, tSlice)
 	if !executeTxResult {
 		err = fmt.Errorf("execute transaction fail")
@@ -447,7 +447,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlic
 		return false, nil
 	}
 
-	stateTree, evictTxs, executedSlice, receipts, gasFee, err := chain.executor.Execute(state, block.Header, slice, false, nil)
+	stateTree, evictTxs, executedSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, slice, false, nil)
 	txTree := executedSlice.calcTxTree()
 	if txTree != block.Header.TxTree {
 		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree, block.Header.TxTree)

@@ -37,6 +37,10 @@ type groupReader4Test struct {
 	groups []types.GroupI
 }
 
+func (gr *groupReader4Test) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[common.Hash]uint16, error) {
+	return nil, nil
+}
+
 func newGroupReader4Test(num uint64) *groupReader4Test {
 	gr := &groupReader4Test{
 		groups: make([]types.GroupI, 0),

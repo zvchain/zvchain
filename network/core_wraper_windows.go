@@ -1,3 +1,18 @@
+//   Copyright (C) 2019 ZVChain
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU General Public License for more details.
+//
+//   You should have received a copy of the GNU General Public License
+//   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package network
 
 /*
@@ -22,7 +37,7 @@ void* p2p_api(const char* api)
 extern void OnP2PRecved(uint64_t id, uint32_t session, _GoBytes_ data);
 extern void OnP2PChecked(uint32_t type, _GoString_ private_ip, _GoString_ public_ip);
 extern void OnP2PListened(_GoString_ ip, uint16_t port, uint64_t latency);
-extern void OnP2PAccepted(uint64_t id, uint32_t session, uint32_t type);
+extern void OnP2PAccepted(uint64_t id, uint32_t session, uint32_t type, _GoString_ ip, uint16_t port);
 extern void OnP2PConnected(uint64_t id, uint32_t session, uint32_t type);
 extern void OnP2PDisconnected(uint64_t id, uint32_t session, uint32_t code);
 extern void OnP2PSendWaited(uint32_t session, uint64_t peer_id);
@@ -31,7 +46,7 @@ extern void *OnP2PLoginSign();
 typedef void(*p2p_recved)(uint64_t id, uint32_t session, char* data, uint32_t size);
 typedef void(*p2p_checked)(uint32_t type, const char* private_ip, const char* public_ip);
 typedef void(*p2p_listened)(const char* ip, uint16_t port, uint64_t latency);
-typedef void(*p2p_accepted)(uint64_t id, uint32_t session, uint32_t type);
+typedef void(*p2p_accepted)(uint64_t id, uint32_t session, uint32_t type, const char* ip, uint16_t port);
 typedef void(*p2p_connected)(uint64_t id, uint32_t session, uint32_t type);
 typedef void(*p2p_disconnected)(uint64_t id, uint32_t session, uint32_t code);
 typedef void(*p2p_send_waited)(uint32_t session, uint64_t peer_id);
@@ -81,9 +96,11 @@ void on_p2p_listened(const char* ip, uint16_t port, uint64_t latency)
 	OnP2PListened(_ip, port, latency);
 }
 
-void on_p2p_accepted(uint64_t id, uint32_t session, uint32_t type)
+void on_p2p_accepted(uint64_t id, uint32_t session, uint32_t type, const char* ip, uint16_t port)
 {
-	OnP2PAccepted(id, session, type);
+  	_GoString_ _ip = {ip, strlen(ip)};
+
+	OnP2PAccepted(id, session, type, _ip, port);
 }
 
 void on_p2p_connected(uint64_t id, uint32_t session, uint32_t type)

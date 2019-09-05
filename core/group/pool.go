@@ -26,7 +26,7 @@ type pool struct {
 	chain         chainReader
 	genesis       *group     // genesis group
 	cachedBySeed  *lru.Cache // cache for groups. kv: types.SeedI -> types.GroupI
-	cachedByEpoch *lru.Cache
+	cachedByEpoch *lru.Cache // cached for groups in one epoch: epoch.end() -> []*group
 }
 
 func newPool(chain chainReader) *pool {
@@ -66,6 +66,27 @@ func (p *pool) add(db types.AccountDB, group *group) error {
 	p.saveTopGroup(db, group)
 
 	return nil
+}
+
+func (p *pool) updateSkipCount(db types.AccountDB, seed common.Hash, cnt uint16) {
+	skip := p.getSkipCount(db, seed)
+	if cnt == 0 {
+		if skip > 0 {
+			db.RemoveData(common.HashToAddress(seed), skipCounterKey)
+			logger.Debugf("remove skip count %v", seed)
+		}
+	} else {
+		db.SetData(common.HashToAddress(seed), skipCounterKey, common.UInt16ToByte(cnt+skip))
+		logger.Debugf("update skip count %v %v", seed, cnt+skip)
+	}
+}
+
+func (p *pool) getSkipCount(db types.AccountDB, seed common.Hash) uint16 {
+	bs := db.GetData(common.HashToAddress(seed), skipCounterKey)
+	if len(bs) == 0 {
+		return 0
+	}
+	return common.ByteToUInt16(bs)
 }
 
 // invalidate the groups create at the given epoch when blocks rollback

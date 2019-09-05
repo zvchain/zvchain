@@ -28,13 +28,12 @@ func (p *Processor) chLoop() {
 		select {
 		case bh := <-p.castVerifyCh:
 			go p.verifyCachedMsg(bh.Hash)
-		case bh := <-p.blockAddCh:
+		case b := <-p.blockAddCh:
 			go p.checkSelfCastRoutine()
-			go p.triggerFutureVerifyMsg(bh)
-			go p.rewardHandler.TriggerFutureRewardSign(bh)
-			go p.buildGroupNetOfNextEpoch(bh.Height)
-			p.blockContexts.removeProposed(bh.Hash)
-			p.dissolveGroupNet(bh.Height)
+			go p.triggerFutureVerifyMsg(b.Header)
+			go p.rewardHandler.TriggerFutureRewardSign(b.Header)
+			go p.gNetMgr.updateGroupNetRoutine(b)
+			p.blockContexts.removeProposed(b.Header.Hash)
 		}
 	}
 }
@@ -90,43 +89,6 @@ func (p *Processor) onBlockAddSuccess(message notify.Message) error {
 
 	traceLog.Log("block onchain cost %v", p.ts.Now().Local().Sub(bh.CurTime.Local()).String())
 
-	p.blockAddCh <- bh
+	p.blockAddCh <- block
 	return nil
-}
-
-func (p *Processor) dissolveGroupNet(h uint64) {
-	p.groupNetBuilt.Range(func(key, value interface{}) bool {
-		g := value.(*verifyGroup)
-		// DismissHeight()+100 may be overflow
-		if g.header.DismissHeight() < h && g.header.DismissHeight()+100 < h {
-			stdLogger.Debugf("release group net of %v at %v", g.header.Seed(), h)
-			p.NetServer.ReleaseGroupNet(g.header.Seed().Hex())
-			p.groupNetBuilt.Delete(key)
-		}
-		return true
-	})
-}
-
-// buildGroupNetOfNextEpoch Builds group-network of those groups will be activated at next epoch
-func (p *Processor) buildGroupNetOfNextEpoch(h uint64) {
-	nextEp := types.EpochAt(h).Next()
-	// checks if now is at the last 100 blocks of current epoch
-	if h+100 > nextEp.Start() {
-		p.buildGroupNetOfActivateEpochAt(nextEp)
-	}
-}
-
-// buildGroupNetOfActivateEpochAt Builds group-network of those groups will be activated at given epoch
-func (p *Processor) buildGroupNetOfActivateEpochAt(ep types.Epoch) {
-	gs := p.groupReader.getActivatedGroupsByHeight(ep.Start())
-	for _, g := range gs {
-		if g.hasMember(p.GetMinerID()) {
-			if _, ok := p.groupNetBuilt.Load(g.header.Seed()); ok {
-				continue
-			}
-			stdLogger.Debugf("build group net of %v at epoch %v-%v", g.header.Seed(), ep.Start(), ep.End())
-			p.NetServer.BuildGroupNet(g.header.Seed().Hex(), g.getMembers())
-			p.groupNetBuilt.Store(g.header.Seed(), g)
-		}
-	}
 }

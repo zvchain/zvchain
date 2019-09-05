@@ -433,12 +433,25 @@ func newGroupManager() *GroupManager {
 	return gm
 }
 
+func IsJoinedThisGroup(members []NodeID) bool {
+	for i := 0; i < len(members); i++ {
+		if members[i] == netCore.ID {
+			return true
+		}
+	}
+	return false
+}
+
 //buildGroup create a group, or rebuild the group network if the group already exists
 func (gm *GroupManager) buildGroup(ID string, members []NodeID) *Group {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
-
 	Logger.Infof("[group] build group, ID:%v, count:%v", ID, len(members))
+
+	if !IsJoinedThisGroup(members) {
+		Logger.Infof("[group] build group failed, not joined this group,ID:%v, count:%v", ID, len(members))
+		return nil
+	}
 
 	g, isExist := gm.groups[ID]
 	if !isExist {
@@ -482,6 +495,11 @@ func (gm *GroupManager) onBroadcast(ID string, msg *MsgData) {
 		Logger.Errorf("[group] on group broadcast, msg is nil, ID:%v ", ID)
 		return
 	}
+	if ID == FullNodeVirtualGroupID {
+		netCore.proposerManager.Broadcast(msg, msg.MessageCode)
+		return
+	}
+
 	gm.mutex.RLock()
 	g := gm.groups[ID]
 	if g == nil {
@@ -501,7 +519,14 @@ func (gm *GroupManager) Broadcast(ID string, msg *MsgData, members []string, cod
 		return
 	}
 	Logger.Infof("[group] group broadcast, ID:%v code:%v", ID, code)
+
+	if ID == FullNodeVirtualGroupID {
+		netCore.proposerManager.Broadcast(msg, code)
+		return
+	}
+
 	gm.mutex.RLock()
+
 	g := gm.groups[ID]
 	if g != nil {
 		gm.mutex.RUnlock()

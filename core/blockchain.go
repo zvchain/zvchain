@@ -90,7 +90,7 @@ type FullBlockChain struct {
 
 	init bool // Init means where blockchain can work
 
-	executor *TVMExecutor
+	stateProc *stateProcessor
 
 	futureRawBlocks *lru.Cache
 	verifiedBlocks  *lru.Cache
@@ -203,14 +203,15 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.latestBlock = chain.loadCurrentBlock()
 
-	GroupManagerImpl = group.NewManager(chain)
+	GroupManagerImpl = group.NewManager(chain, helper)
 
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
-	executor := NewTVMExecutor(chain)
-	executor.addPostProcessor(GroupManagerImpl.RegularCheck)
-	executor.addPostProcessor(chain.cpChecker.updateVotes)
-	executor.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
-	chain.executor = executor
+	sp := newStateProcessor(chain)
+	sp.addPostProcessor(GroupManagerImpl.RegularCheck)
+	sp.addPostProcessor(chain.cpChecker.updateVotes)
+	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
+	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
+	chain.stateProc = sp
 
 	if nil != chain.latestBlock {
 		if !chain.versionValidate() {
@@ -234,12 +235,11 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
-	initMinerManager(chain.ticker)
+	initMinerManager()
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
 	chain.cpChecker.init()
 
-	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 	return nil
 }
 

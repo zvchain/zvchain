@@ -35,7 +35,7 @@ var gasLimitMax = new(BigInt).SetUint64(500000)
 
 var (
 	AdminAddr         = common.StringToAddress("zv28f9849c1301a68af438044ea8b4b60496c056601efac0954ddb5ea09417031b") // address of admin who can control foundation contract
-	StakePlatformAddr    = common.StringToAddress("zv01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0") // address of mining pool in pre-distribution
+	StakePlatformAddr = common.StringToAddress("zv01cf40d3a25d0a00bb6876de356e702ae5a2a379c95e77c5fd04f4cc6bb680c0") // address of mining pool in pre-distribution
 	CirculatesAddr    = common.StringToAddress("zvebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3") // address of circulates in pre-distribution
 	UserNodeAddress   = common.StringToAddress("zve30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139") // address of official reserved user node address
 	DaemonNodeAddress = common.StringToAddress("zvae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122") // address of official reserved daemon node address
@@ -116,8 +116,8 @@ type RawTransaction struct {
 	GasPrice *BigInt `msgpack:"gp"`
 
 	ExtraData []byte          `msgpack:"ed"`
-	Sign      []byte          `msgpack:"si"`  // The Sign of the sender
-	Source    *common.Address `msgpack:"src"` // Sender address, recovered from sign
+	Sign      []byte          `msgpack:"si"`            // The Sign of the sender
+	Source    *common.Address `msgpack:"src,omitempty"` // Sender address, recovered from sign
 }
 
 // Transaction denotes one transaction infos
@@ -154,26 +154,43 @@ func (tx *RawTransaction) GenHash() common.Hash {
 	if nil == tx {
 		return common.Hash{}
 	}
-	buffer := bytes.Buffer{}
-	if tx.Data != nil {
-		buffer.Write(tx.Data)
-	}
-	buffer.Write(tx.Value.GetBytesWithSign())
-	buffer.Write(common.Uint64ToByte(tx.Nonce))
-	if tx.Target != nil {
-		buffer.Write(tx.Target.Bytes())
-	}
+
+	var (
+		src      []byte
+		target   []byte
+		value    []byte
+		gasLimit []byte
+		gasPrice []byte
+	)
 	if tx.Source != nil {
-		buffer.Write(tx.Source.Bytes())
+		src = tx.Source.Bytes()
 	}
-	buffer.WriteByte(byte(tx.Type))
-	buffer.Write(tx.GasLimit.GetBytesWithSign())
-	buffer.Write(tx.GasPrice.GetBytesWithSign())
-	if tx.ExtraData != nil {
-		buffer.Write(tx.ExtraData)
+	if tx.Target != nil {
+		target = tx.Target.Bytes()
+	}
+	if tx.Value != nil {
+		value = tx.Value.Bytes()
+	}
+	if tx.GasLimit != nil {
+		gasLimit = tx.GasLimit.Bytes()
+	}
+	if tx.GasPrice != nil {
+		gasPrice = tx.GasPrice.Bytes()
 	}
 
-	return common.BytesToHash(common.Sha256(buffer.Bytes()))
+	txH := &txHashing{
+		src:      src,
+		target:   target,
+		value:    value,
+		gasLimit: gasLimit,
+		gasPrice: gasPrice,
+		nonce:    new(big.Int).SetUint64(tx.Nonce).Bytes(),
+		typ:      byte(tx.Type),
+		data:     tx.Data,
+		extra:    tx.ExtraData,
+	}
+
+	return txH.genHash()
 }
 
 func (tx *RawTransaction) HexSign() string {

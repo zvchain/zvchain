@@ -23,7 +23,6 @@ import (
 	"time"
 )
 
-const DEFAULT_MAX_PEER_SIZE = 512
 const DEFAULT_MAX_PEER_SIZE_PER_IP = 16
 
 // PeerManager is node connection management
@@ -34,14 +33,12 @@ type PeerManager struct {
 	natPort            uint16
 	natIP              string
 	peerIPSet          PeerIPSet
-	maxPeerSize        int
 }
 
 func newPeerManager() *PeerManager {
 	pm := &PeerManager{
-		peers:       make(map[uint64]*Peer),
-		maxPeerSize: DEFAULT_MAX_PEER_SIZE,
-		peerIPSet:   PeerIPSet{Limit: DEFAULT_MAX_PEER_SIZE_PER_IP, members: make(map[string]uint)},
+		peers:     make(map[uint64]*Peer),
+		peerIPSet: PeerIPSet{Limit: DEFAULT_MAX_PEER_SIZE_PER_IP, members: make(map[string]uint)},
 	}
 	priorityTable = map[uint32]SendPriorityType{
 		BlockInfoNotifyMsg:       SendPriorityHigh,
@@ -230,10 +227,7 @@ func (pm *PeerManager) peerByNetID(netID uint64) *Peer {
 func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
-	if len(pm.peers) >= pm.maxPeerSize {
-		Logger.Infof("addPeer failed, peer size over %v ", pm.maxPeerSize)
-		return false
-	}
+
 	if peer.IP != nil && len(peer.IP.String()) > 0 && !pm.peerIPSet.Add(peer.IP.String()) {
 		Logger.Infof("addPeer failed, peer in same IP exceed limit size !Max size:%v, ip:%v", pm.peerIPSet.Limit, peer.IP.String())
 		return false

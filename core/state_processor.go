@@ -368,19 +368,19 @@ func (ss *rewardExecutor) Transition() *result {
 	return ret
 }
 
-type TVMExecutor struct {
+type stateProcessor struct {
 	bc    types.BlockChain
 	procs []statePostProcessor
 }
 
-func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
-	return &TVMExecutor{
+func newStateProcessor(bc types.BlockChain) *stateProcessor {
+	return &stateProcessor{
 		bc:    bc,
 		procs: make([]statePostProcessor, 0),
 	}
 }
 
-func (executor *TVMExecutor) addPostProcessor(proc statePostProcessor) {
+func (executor *stateProcessor) addPostProcessor(proc statePostProcessor) {
 	executor.procs = append(executor.procs, proc)
 }
 
@@ -435,8 +435,8 @@ func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *
 	return ret, nil
 }
 
-// Execute executes all types transactions and returns the receipts
-func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
+// process executes all types transactions and returns the receipts
+func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
 	beginTime := time.Now()
 	receipts := make([]*types.Receipt, 0)
 	transactions := make(txSlice, 0)

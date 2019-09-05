@@ -32,6 +32,7 @@ type chainReader interface {
 	MinerSk() string
 	AddTransactionToPool(tx *types.Transaction) (bool, error)
 	AccountDBAt(height uint64) (types.AccountDB, error)
+	QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
 }
 
 // Round 1 tx data,implement common.EncryptedSharePiecePacket
@@ -223,4 +224,8 @@ func newGroup(i types.GroupI, top *group) *group {
 		members = append(members, mem)
 	}
 	return &group{header, members}
+}
+
+type groupSkipCounter interface {
+	GroupSkipCountsBetween(preBH *types.BlockHeader, height uint64) map[common.Hash]uint16
 }

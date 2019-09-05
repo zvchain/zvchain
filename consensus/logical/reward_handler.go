@@ -2,10 +2,11 @@ package logical
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -58,10 +59,10 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		tLog.logEnd("reward send:%v, ret:%v", send, err)
 		if err != nil {
 			log.ELKLogger.WithFields(logrus.Fields{
-				"height": bh.Height,
+				"height":    bh.Height,
 				"blockHash": bh.Height,
-				"type":"reward",
-				"error": err,
+				"type":      "reward",
+				"error":     err,
 			}).Debug("reward 2 error")
 		}
 	}()
@@ -74,9 +75,9 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 		return err
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
-		"height": bh.Height,
+		"height":    bh.Height,
 		"blockHash": bh.Hash,
-		"type":"reward",
+		"type":      "reward",
 	}).Debug("reward 2 receive")
 
 	fmt.Printf("OMCRS start block height = %d, blockHash = %v \n", bh.Height, bh.Hash)
@@ -109,15 +110,15 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 
 	// Add the reward transaction to pool if the signature is accepted and the verifyGroup signature is recovered
 	if accept && recover && slot.statusTransform(slRewardSignReq, slRewardSent) {
-		_, err2 := rh.processor.AddTransaction(slot.rewardTrans)
+		_, err = rh.processor.AddTransaction(slot.rewardTrans)
 		send = true
-		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v, ret=%v", slot.rewardTrans.Hash, err2)
 		log.ELKLogger.WithFields(logrus.Fields{
-			"height": bh.Height,
+			"height":    bh.Height,
 			"blockHash": bh.Hash,
-			"txHash": slot.rewardTrans.Hash,
-			"type":"reward",
+			"txHash":    slot.rewardTrans.Hash,
+			"type":      "reward",
 		}).Debug("reward 2 AddTx")
+		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v，sign=%v, pk=%v, tx=%+v, err=%v", slot.rewardTrans.Hash, common.ToHex(slot.rewardTrans.Sign), group.header.gpk.GetHexString(), slot.rewardTrans.RawTransaction, err)
 		return nil
 	} else {
 		if slot.rewardGSignGen != nil {
@@ -161,10 +162,10 @@ func (rh *RewardHandler) OnMessageCastRewardSignReq(msg *model.CastRewardTransSi
 		return err
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
-		"height": bh.Height,
+		"height":    bh.Height,
 		"blockHash": bh.Height,
-		"txHash": reward.TxHash,
-		"type":"reward",
+		"txHash":    reward.TxHash,
+		"type":      "reward",
 	}).Debug("reward 1 receive")
 	send, err = rh.signCastRewardReq(msg, bh)
 	return err
@@ -306,10 +307,10 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 	ski := model.NewSecKeyInfo(rh.processor.GetMinerID(), rh.processor.GetGroupSignatureSeckey(gSeed))
 	if signMsg.GenSign(ski, signMsg) {
 		log.ELKLogger.WithFields(logrus.Fields{
-			"height": bh.Height,
+			"height":    bh.Height,
 			"blockHash": bh.Height,
-			"txHash": reward.TxHash,
-			"type":"reward",
+			"txHash":    reward.TxHash,
+			"type":      "reward",
 		}).Debug("reward 2 send")
 
 		rh.processor.SendCastRewardSign(signMsg)
@@ -355,9 +356,9 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		return
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
-		"height": bh.Height,
+		"height":    bh.Height,
 		"blockHash": bh.Height,
-		"type":"reward",
+		"type":      "reward",
 	}).Debug("reward 1 sign")
 
 	// If you sign yourself, you don't have to send it again
@@ -390,7 +391,7 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return
 	}
-	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash, reward.TargetIds, bh.Height)
+	blog.debug("generate reward for block %v, height=%v, txHash=%v, targetIds=%v,tx=%+v", bh.Hash, bh.Height, reward.TxHash, reward.TargetIds, tx.RawTransaction)
 
 	tLog := newHashTraceLog("REWARD_REQ", bh.Hash, rh.processor.GetMinerID())
 	tLog.log("txHash=%v, targetIds=%v", reward.TxHash, strings.Join(idHexs, ","))
@@ -410,9 +411,9 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 
 			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
 			log.ELKLogger.WithFields(logrus.Fields{
-				"height": bh.Height,
+				"height":    bh.Height,
 				"blockHash": bh.Height,
-				"type":"reward",
+				"type":      "reward",
 			}).Debug("reward 1 send")
 		} else {
 			blog.error("genSign fail, id=%v, sk=%v", ski.ID, ski.SK)

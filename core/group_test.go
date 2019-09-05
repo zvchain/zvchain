@@ -25,12 +25,12 @@ import (
 
 // TestGroupCreateTxs tests interface types.GroupPacketSender and types.GroupStoreReader
 func TestGroupCreateTxs(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
-		t.Fatalf("fail to initContext4Test")
+		t.Fatalf("fail to initContext4Test, %v", err)
 	}
 
-	defer clear()
+	defer clearSelf(t)
 	castor := new([]byte)
 
 	var block *types.Block
@@ -54,8 +54,8 @@ func TestGroupCreateTxs(t *testing.T) {
 	}
 
 	block = BlockChainImpl.CastBlock(1, common.Hex2Bytes("11"), 0, *castor, seed)
-	// 上链
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
@@ -80,7 +80,7 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to SendMpkPacket: %v", err)
 	}
 	block = BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 1, *castor, seed)
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
@@ -107,8 +107,8 @@ func TestGroupCreateTxs(t *testing.T) {
 	}
 
 	block = BlockChainImpl.CastBlock(3, common.Hex2Bytes("13"), 2, *castor, seed)
-	// 上链
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
@@ -140,17 +140,5 @@ func TestGroupCreateTxs(t *testing.T) {
 	if !hasOrgPieceSent {
 		t.Fatalf("fail to test HasSentOriginPiecePacket, should returns ture but got false")
 	}
-	//
-	//TODO: test GetGroupInfoBySeed()
-	//groupInfo := store.GetGroupInfoBySeed(dataOp)
-	//if groupInfo == nil {
-	//	t.Fatalf("fail to test GetGroupBySeed, should returns object but got nil" )
-	//}
-	//
-	//TODO: test GetAvailableGroupSeeds()
-	//hasOrgPieceSent := store.GetAvailableGroupSeeds(3)
-	//if !hasOrgPieceSent {
-	//	t.Fatalf("fail to test GetAvailableGroupSeeds, should returns ture but got false" )
-	//}
 
 }

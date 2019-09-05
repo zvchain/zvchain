@@ -141,8 +141,6 @@ type skStorage interface {
 type groupInfoReader interface {
 	// GetActivatedGroupSeeds gets activated groups' seed at the given height
 	GetActivatedGroupsAt(height uint64) []types.GroupI
-	// GetLivedGroupsAt gets lived groups
-	GetLivedGroupsAt(height uint64) []types.GroupI
 	// GetGroupBySeed returns the group info of the given seed
 	GetGroupBySeed(seedHash common.Hash) types.GroupI
 	// GetGroupHeaderBySeed returns the group header info of the given seed
@@ -192,19 +190,9 @@ func (gr *groupReader) tryToGetOrConvert(seed common.Hash, getter groupGetter) *
 	}
 }
 
+// getActivatedGroupsByHeight gets all activated groups at the given height
 func (gr *groupReader) getActivatedGroupsByHeight(h uint64) []*verifyGroup {
 	gs := gr.reader.GetActivatedGroupsAt(h)
-	vgs := make([]*verifyGroup, len(gs))
-	for i, gi := range gs {
-		vgs[i] = gr.tryToGetOrConvert(gi.Header().Seed(), func(seed common.Hash) types.GroupI {
-			return gi
-		})
-	}
-	return vgs
-}
-
-func (gr *groupReader) getLivedGroupsByHeight(h uint64) []*verifyGroup {
-	gs := gr.reader.GetLivedGroupsAt(h)
 	vgs := make([]*verifyGroup, len(gs))
 	for i, gi := range gs {
 		vgs[i] = gr.tryToGetOrConvert(gi.Header().Seed(), func(seed common.Hash) types.GroupI {

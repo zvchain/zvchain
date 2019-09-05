@@ -48,6 +48,19 @@ func id2String(ids []groupsig.ID) []string {
 	return idStrs
 }
 
+func id2NetworkProposers(ids []groupsig.ID, stakes []uint64) []*network.Proposer {
+	groupMembers := id2String(ids)
+
+	networkProposers := make([]*network.Proposer, 0)
+	for i := 0; i < len(groupMembers); i++ {
+		ID := network.NewNodeID(groupMembers[i])
+		if ID != nil {
+			networkProposers = append(networkProposers, &network.Proposer{ID: *ID, Stake: stakes[i]})
+		}
+	}
+	return networkProposers
+}
+
 /*
 Group network management
 */
@@ -61,6 +74,20 @@ func (ns *NetworkServerImpl) BuildGroupNet(gid string, mems []groupsig.ID) {
 // ReleaseGroupNet releases the group net in local
 func (ns *NetworkServerImpl) ReleaseGroupNet(gid string) {
 	ns.net.DissolveGroupNet(gid)
+}
+
+func (ns *NetworkServerImpl) FullBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
+	networkProposers := id2NetworkProposers(proposers, stakes)
+	if len(networkProposers) > 0 {
+		ns.net.BuildProposerGroupNet(networkProposers)
+	}
+}
+
+func (ns *NetworkServerImpl) IncrementBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
+	networkProposers := id2NetworkProposers(proposers, stakes)
+	if len(networkProposers) > 0 {
+		ns.net.AddProposers(networkProposers)
+	}
 }
 
 func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
@@ -150,7 +177,7 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 
 	msgID := []byte(blockMsg.Hash())
 
-	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, msgID)
+	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, nil, blockMsg, msgID)
 
 	// Broadcast to the next group of light nodes
 	//

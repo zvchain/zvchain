@@ -98,4 +98,10 @@ type Network interface {
 
 	//DissolveGroupNet dissolve group network
 	DissolveGroupNet(groupID string)
+
+	//BuildProposerGroupNet build proposer group network
+	BuildProposerGroupNet(proposers []*Proposer)
+
+	//AddProposers add proposers to proposer group network
+	AddProposers(proposers []*Proposer)
 }

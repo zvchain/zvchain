@@ -220,7 +220,7 @@ func (p *Processor) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err
 	if bh.PreHash != pre.Hash {
 		return false, fmt.Errorf("prehash not equal to pre")
 	}
-	gSeed := p.calcVerifyGroup(pre, bh.Height)
+	gSeed := p.CalcVerifyGroup(pre, bh.Height)
 	if gSeed != bh.Group {
 		return false, fmt.Errorf("verify group error: expect %v, infact %v", gSeed, bh.Group)
 	}

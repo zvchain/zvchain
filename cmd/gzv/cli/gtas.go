@@ -67,20 +67,17 @@ type Gtas struct {
 }
 
 // miner start miner node
-func (gtas *Gtas) miner(cfg *minerConfig) {
+func (gtas *Gtas) miner(cfg *minerConfig) error {
 	gtas.config = cfg
 	gtas.runtimeInit()
 	err := gtas.fullInit()
 	if err != nil {
-		fmt.Println(err.Error())
-		log.DefaultLogger.Error(err.Error())
-		return
+		return err
 	}
 	if cfg.rpcEnable() {
 		err = gtas.startRPC()
 		if err != nil {
-			log.DefaultLogger.Errorf(err.Error())
-			return
+			return err
 		}
 	}
 	ok := mediator.StartMiner()
@@ -104,8 +101,9 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 
 	gtas.inited = true
 	if !ok {
-		return
+		return fmt.Errorf("start miner fail")
 	}
+	return nil
 }
 
 func (gtas *Gtas) runtimeInit() {
@@ -166,6 +164,7 @@ func (gtas *Gtas) Run() {
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
 	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
+	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
 	passWd := mineCmd.Flag("password", "login password").Default(common.DefaultPassword).String()
@@ -223,25 +222,31 @@ func (gtas *Gtas) Run() {
 		}
 
 		cfg := &minerConfig{
-			rpcLevel:      rpcLevel(*rpc),
-			rpcAddr:       addrRPC.String(),
-			rpcPort:       *rpcServicePort,
-			super:         *super,
-			testMode:      *testMode,
-			natIP:         *natAddr,
-			natPort:       *natPort,
-			seedIP:        *seedAddr,
-			applyRole:     *apply,
-			keystore:      *keystore,
-			enableMonitor: *enableMonitor,
-			chainID:       *chainID,
-			password:      *passWd,
+			rpcLevel:          rpcLevel(*rpc),
+			rpcAddr:           addrRPC.String(),
+			rpcPort:           *rpcServicePort,
+			super:             *super,
+			testMode:          *testMode,
+			natIP:             *natAddr,
+			natPort:           *natPort,
+			seedIP:            *seedAddr,
+			applyRole:         *apply,
+			keystore:          *keystore,
+			enableMonitor:     *enableMonitor,
+			chainID:           *chainID,
+			password:          *passWd,
 			autoCreateAccount: *autoCreateAccount,
-			resetHash:     *reset,
+			resetHash:         *reset,
+			cors:              *cors,
 		}
 
 		// Start miner
-		gtas.miner(cfg)
+		err := gtas.miner(cfg)
+		if err != nil {
+			output("initialize fai l:", err)
+			log.DefaultLogger.Errorf("initialize fail:%v", err)
+			os.Exit(-1)
+		}
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
@@ -266,7 +271,7 @@ func (gtas *Gtas) simpleInit(configPath string) {
 	common.InitConf(configPath)
 }
 
-func (gtas *Gtas) checkAddress(keystore, address, password string,autoCreateAccount bool) error {
+func (gtas *Gtas) checkAddress(keystore, address, password string, autoCreateAccount bool) error {
 	aop, err := initAccountManager(keystore, autoCreateAccount, password)
 	if err != nil {
 		return err
@@ -303,7 +308,7 @@ func (gtas *Gtas) fullInit() error {
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
 
-	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password,cfg.autoCreateAccount)
+	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
 	if err != nil {
 		return err
 	}
@@ -371,7 +376,7 @@ func (gtas *Gtas) fullInit() error {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
 		core.BlockChainImpl.ResetTop(bh)
-		output("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex())
+		output(fmt.Sprintf("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex()))
 	}
 
 	enableTraceLog := common.GlobalConf.GetBool("gtas", "enable_trace_log", false)
