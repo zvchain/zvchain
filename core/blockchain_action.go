@@ -491,8 +491,10 @@ func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
 func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	b := message.GetData().(*types.Block)
 	latestCP := chain.CheckPointAt(b.Header.Height)
-	Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
-	chain.latestCP.Store(latestCP)
+	if latestCP != nil {
+		Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
+		chain.latestCP.Store(latestCP)
+	}
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
 		rawBlock := value.(*types.Block)
 		Logger.Debugf("Get rawBlock from future blocks,hash:%s,height:%d", rawBlock.Header.Hash.Hex(), rawBlock.Header.Height)
