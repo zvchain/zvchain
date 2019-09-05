@@ -449,10 +449,10 @@ func (b *BaseMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *types.
 
 func (b *BaseMiner) checkApplyGuard(op *applyGuardMinerOp, miner *types.Miner, detailKey []byte, detail *stakeDetail) (error, types.ReceiptStatus) {
 	if miner == nil {
-		return fmt.Errorf("no miner info"),types.RSFail
+		return fmt.Errorf("no miner info"),types.RSMinerNotFullStake
 	}
 	if detail == nil {
-		return fmt.Errorf("target account has no staked detail data"),types.RSFail
+		return fmt.Errorf("target account has no staked detail data"),types.RSMinerNotFullStake
 	}
 	if !isFullStake(detail.Value, op.height) {
 		return fmt.Errorf("not full stake,apply guard faild"),types.RSMinerNotFullStake
