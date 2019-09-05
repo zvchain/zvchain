@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="https://www.layuicdn.com/layui-v2.5.2/css/layui.css">
+    <style type="text/css">
+        .wallet_tr {
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+    </style>
+    <script src="https://www.layuicdn.com/layui-v2.5.4/layui.js" type="application/javascript"></script>
+    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+</head>
+<body>
+<div style="margin:3%">
+    <div class=" layui-row layui-col-space25">
+        <div class="layui-col-md6">
+            <fieldset class="layui-elem-field">
+                <legend>基础信息</legend>
+                <div class="layui-field-box">
+                    <div class="layui-row layui-col-space10">
+                        <div class="layui-col-md4">当前时间：</div>
+                        <div class="layui-col-md1" id="cur_time">--</div>
+                    </div>
+                    <div class="layui-row layui-col-space10">
+                        <div class="layui-col-md4">客户端版本号：</div>
+                        <div class="layui-col-md4" id="client_version">--</div>
+                    </div>
+                    <div class="layui-row layui-col-space10">
+                        <div class="layui-col-md4">chain ID：</div>
+                        <div class="layui-col-md4" id="chain_id">--</div>
+                    </div>
+                    <div class="layui-row layui-col-space10">
+                        <div class="layui-col-md4">块高:</div>
+                        <div class="layui-col-md4" id="block_height">--</div>
+                    </div>
+                    <div class="layui-row layui-col-space10">
+                        <div class="layui-col-md4">组高：</div>
+                        <div class="layui-col-md4" id="group_height">--</div>
+                    </div>
+                    <div class="layui-row layui-col-space10">
+                        <div class="layui-col-md4">地址：</div>
+                        <div class="layui-col-md4" id="addr">--</div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+    </div>
+
+    <div id="morts" style="display:none">
+        <div class="layui-row layui-col-space25">
+            <div class="layui-col-md6">
+                <fieldset class="layui-elem-field">
+                    <legend>质押信息</legend>
+                    <div class="layui-field-box">
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">stake：</div>
+                            <div class="layui-col-md1" id="stake">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">apply_height：</div>
+                            <div class="layui-col-md4" id="apply_height">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">type：</div>
+                            <div class="layui-col-md4" id="type">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">miner_status:</div>
+                            <div class="layui-col-md4" id="miner_status">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">status_update_height：</div>
+                            <div class="layui-col-md4" id="status_update_height">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">identity：</div>
+                            <div class="layui-col-md4" id="identity">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">identity_update_height：</div>
+                            <div class="layui-col-md4" id="identity_update_height">--</div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+
+        <div class="layui-row layui-col-space25">
+            <div class="layui-col-md6">
+                <fieldset class="layui-elem-field">
+                    <legend>质押信息</legend>
+                    <div class="layui-field-box">
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">stake：</div>
+                            <div class="layui-col-md1" id="stake2">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">apply_height：</div>
+                            <div class="layui-col-md4" id="apply_height2">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">type：</div>
+                            <div class="layui-col-md4" id="type2">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">miner_status:</div>
+                            <div class="layui-col-md4" id="miner_status2">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">status_update_height：</div>
+                            <div class="layui-col-md4" id="status_update_height2">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">identity：</div>
+                            <div class="layui-col-md4" id="identity2">--</div>
+                        </div>
+                        <div class="layui-row layui-col-space10">
+                            <div class="layui-col-md4">identity_update_height：</div>
+                            <div class="layui-col-md4" id="identity_update_height2">--</div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+
+<script>
+    var HOST = "/";
+
+    function BasicData() {
+        let params = {
+            "method": "Miner_basicData",
+            "params": [],
+            "jsonrpc": "2.0",
+            "id": "1"
+        };
+        $.ajax({
+            type: 'POST',
+            url: HOST,
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader("Content-Type", "application/json");
+            },
+            data: JSON.stringify(params),
+            success: function (rdata) {
+                if (rdata.result == null) {
+                    alert("block doesn't exist");
+                    return
+                }
+                d = rdata.result;
+                $("#cur_time").text(d.cur_time);
+                $("#client_version").text(d.client_version);
+                $("#chain_id").text(d.chain_id);
+                $("#block_height").text(d.block_height);
+                $("#group_height").text(d.group_height);
+                $("#addr").text(d.addr);
+            },
+            error: function (err) {
+                console.log(err)
+            }
+        });
+    }
+
+    function MortData() {
+        let params = {
+            "method": "Miner_mortData",
+            "params": [],
+            "jsonrpc": "2.0",
+            "id": "1"
+        };
+        $.ajax({
+            type: 'POST',
+            url: HOST,
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader("Content-Type", "application/json");
+            },
+            data: JSON.stringify(params),
+            success: function (rdata) {
+                if (rdata.result == null || rdata.result.length == 0) {
+                    return
+                }
+                d = rdata.result;
+
+                if ($("#morts").css("display") == "none") {
+                    $("#morts").show(100);
+                }
+
+                if (d.length == 1) {
+                    $(d).each(function (k, v) {
+                        $("#stake").text(v.stake);
+                        $("#apply_height").text(v.apply_height);
+                        $("#type").text(v.type);
+                        $("#miner_status").text(v.miner_status);
+                        $("#status_update_height").text(v.status_update_height);
+                        $("#identity").text(v.identity);
+                        $("#identity_update_height").text(v.identity_update_height);
+                    });
+                }
+                if (d.length == 2) {
+                    $(d).each(function (k, v) {
+                        if (k == 0) {
+                            $("#stake").text(v.stake);
+                            $("#apply_height").text(v.apply_height);
+                            $("#type").text(v.type);
+                            $("#miner_status").text(v.miner_status);
+                            $("#status_update_height").text(v.status_update_height);
+                            $("#identity").text(v.identity);
+                            $("#identity_update_height").text(v.identity_update_height);
+                        }
+
+                        if (k == 1) {
+                            $("#stake2").text(v.stake);
+                            $("#apply_height2").text(v.apply_height);
+                            $("#type2").text(v.type);
+                            $("#miner_status2").text(v.miner_status);
+                            $("#status_update_height2").text(v.status_update_height);
+                            $("#identity2").text(v.identity);
+                            $("#identity_update_height2").text(v.identity_update_height);
+                        }
+
+                    });
+                }
+
+            },
+            error: function (err) {
+                console.log(err)
+            }
+        });
+    }
+
+    function updateDashboardUpdate() {
+        ticker = setInterval(function () {
+            BasicData();
+            MortData();
+        }, 2000);
+    }
+
+    updateDashboardUpdate();
+</script>

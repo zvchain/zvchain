@@ -66,6 +66,8 @@ type Gtas struct {
 	rpcInstances []rpcApi
 }
 
+var GlobalGtas *Gtas
+
 // miner start miner node
 func (gtas *Gtas) miner(cfg *minerConfig) error {
 	gtas.config = cfg
@@ -161,9 +163,14 @@ func (gtas *Gtas) Run() {
 
 	// Rpc analysis
 	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelNone), 10)).Int()
-	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
-	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
+	rpcServicePort := mineCmd.Flag("port", "rpc service port").Short('p').Default("8101").Uint16()
+
+	// Miner watcher
+	miningMonitoringAddr := mineCmd.Flag("monitorhost", "specify the host of mining monitoring").Default("127.0.0.1").IP()
+
+	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
+
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
@@ -222,28 +229,29 @@ func (gtas *Gtas) Run() {
 		}
 
 		cfg := &minerConfig{
-			rpcLevel:          rpcLevel(*rpc),
-			rpcAddr:           addrRPC.String(),
-			rpcPort:           *rpcServicePort,
-			super:             *super,
-			testMode:          *testMode,
-			natIP:             *natAddr,
-			natPort:           *natPort,
-			seedIP:            *seedAddr,
-			applyRole:         *apply,
-			keystore:          *keystore,
-			enableMonitor:     *enableMonitor,
-			chainID:           *chainID,
-			password:          *passWd,
-			autoCreateAccount: *autoCreateAccount,
-			resetHash:         *reset,
-			cors:              *cors,
+			rpcLevel:             rpcLevel(*rpc),
+			rpcAddr:              addrRPC.String(),
+			rpcPort:              *rpcServicePort,
+			miningMonitoringAddr: miningMonitoringAddr.String(),
+			super:                *super,
+			testMode:             *testMode,
+			natIP:                *natAddr,
+			natPort:              *natPort,
+			seedIP:               *seedAddr,
+			applyRole:            *apply,
+			keystore:             *keystore,
+			enableMonitor:        *enableMonitor,
+			chainID:              *chainID,
+			password:             *passWd,
+			autoCreateAccount:    *autoCreateAccount,
+			resetHash:            *reset,
+			cors:                 *cors,
 		}
 
 		// Start miner
 		err := gtas.miner(cfg)
 		if err != nil {
-			output("initialize fai l:", err)
+			output("initialize fail:", err)
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
@@ -408,7 +416,8 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 }
 
 func NewGtas() *Gtas {
-	return &Gtas{}
+	GlobalGtas = new(Gtas)
+	return GlobalGtas
 }
 
 func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {

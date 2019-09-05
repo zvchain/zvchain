@@ -16,22 +16,23 @@
 package cli
 
 type minerConfig struct {
-	rpcLevel          rpcLevel
-	rpcAddr           string
-	rpcPort           uint16
-	super             bool
-	testMode          bool
-	natIP             string
-	natPort           uint16
-	seedIP            string
-	applyRole         string
-	keystore          string
-	enableMonitor     bool
-	chainID           uint16
-	password          string
-	autoCreateAccount bool
-	resetHash         string
-	cors              string
+	rpcLevel             rpcLevel
+	rpcAddr              string
+	rpcPort              uint16
+	miningMonitoringAddr string
+	super                bool
+	testMode             bool
+	natIP                string
+	natPort              uint16
+	seedIP               string
+	applyRole            string
+	keystore             string
+	enableMonitor        bool
+	chainID              uint16
+	password             string
+	autoCreateAccount    bool
+	resetHash            string
+	cors                 string
 }
 
 func (cfg *minerConfig) rpcEnable() bool {
