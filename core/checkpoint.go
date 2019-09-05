@@ -251,7 +251,7 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 			}
 		} else {
 			// Not enough groups
-			Logger.Infof("not enough groups at %v-%v, groupsize %v, or not enough blocks %v", ep.Start(), ep.End(), ctx.groupSize(), h)
+			Logger.Debugf("not enough groups at %v-%v, groupsize %v, or not enough blocks %v", ep.Start(), ep.End(), ctx.groupSize(), h)
 		}
 		if ep.Start() == 0 {
 			break
