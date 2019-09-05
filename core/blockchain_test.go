@@ -227,6 +227,8 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("add block3 failed")
 	}
 
+	time.Sleep(1 * time.Second)
+
 	BlockChainImpl.Close()
 }
 
@@ -380,7 +382,6 @@ func TestBlockChain_StateTree(t *testing.T) {
 	if nil == block2 {
 		t.Fatalf("fail to cast new block")
 	}
-
 
 	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block2) {
 		t.Fatalf("fail to add block")
