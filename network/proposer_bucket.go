@@ -99,8 +99,8 @@ func (pb *ProposerBucket) Build(proposers []*Proposer) {
 }
 
 func (pb *ProposerBucket) IsContained(proposer *Proposer) bool {
-	pb.mutex.Lock()
-	defer pb.mutex.Unlock()
+	pb.mutex.RLock()
+	defer pb.mutex.RUnlock()
 	for i := 0; i < len(pb.proposers); i++ {
 		if pb.proposers[i].ID == proposer.ID {
 			return true
@@ -112,7 +112,6 @@ func (pb *ProposerBucket) IsContained(proposer *Proposer) bool {
 func (pb *ProposerBucket) AddProposers(proposers []*Proposer) {
 	pb.mutex.Lock()
 	defer pb.mutex.Unlock()
-	//proposersOld := pb.proposers
 
 	pb.proposers = append(pb.proposers, proposers...)
 
@@ -169,8 +168,8 @@ func (pb *ProposerBucket) Broadcast(msg *MsgData, code uint32) {
 		return
 	}
 	Logger.Infof("[proposer bucket] group broadcast, code:%v", code)
-	pb.mutex.Lock()
-	defer pb.mutex.Unlock()
+	pb.mutex.RLock()
+	defer pb.mutex.RUnlock()
 
 	for i := 0; i < pb.groupCount; i++ {
 		groupID := pb.GroupNameByIndex(i)

@@ -139,8 +139,8 @@ func (pm *ProposerManager) Broadcast(msg *MsgData, code uint32) {
 		return
 	}
 	Logger.Infof("[proposer manager] broadcast, code:%v", code)
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
 
 	pm.fastBucket.Broadcast(msg, code)
 	pm.normalBucket.Broadcast(msg, code)
