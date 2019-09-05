@@ -94,7 +94,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 		return nil
 	}
 
-	Logger.Infof("casting block height=%v,preHash=%x", height, preRoot)
+	Logger.Debugf("casting block height=%v,preHash=%v", height, preRoot)
 	//taslog.Flush()
 
 	packTraceLog := monitor.NewPerformTraceLogger("PackForCast", common.Hash{}, height)
