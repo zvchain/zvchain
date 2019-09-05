@@ -79,13 +79,13 @@ type NetCore struct {
 	unhandledDataMsg int32
 	closing          chan struct{}
 
-	kad            *Kad
-	peerManager    *PeerManager
-	groupManager   *GroupManager
-	messageManager *MessageManager
-	flowMeter      *FlowMeter
-	bufferPool     *BufferPool
-
+	kad             *Kad
+	peerManager     *PeerManager
+	groupManager    *GroupManager
+	messageManager  *MessageManager
+	flowMeter       *FlowMeter
+	bufferPool      *BufferPool
+	proposerManager *ProposerManager
 	chainID         uint16 // Chain ID
 	protocolVersion uint16 // Protocol ID
 }
@@ -174,6 +174,7 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 	nc.peerManager.natPort = cfg.NatPort
 	nc.groupManager = newGroupManager()
 	nc.messageManager = newMessageManager(nc.ID)
+	nc.proposerManager = newProposerManager()
 	nc.flowMeter = newFlowMeter("p2p")
 	nc.bufferPool = newBufferPool()
 	realAddr := cfg.ListenAddr

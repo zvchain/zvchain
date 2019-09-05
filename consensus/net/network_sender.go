@@ -44,6 +44,19 @@ func id2String(ids []groupsig.ID) []string {
 	return idStrs
 }
 
+func id2NetworkProposers(ids []groupsig.ID, stakes []uint64) []*network.Proposer {
+	groupMembers := id2String(ids)
+
+	networkProposers := make([]*network.Proposer, 0)
+	for i := 0; i < len(groupMembers); i++ {
+		ID := network.NewNodeID(groupMembers[i])
+		if ID != nil {
+			networkProposers = append(networkProposers, &network.Proposer{ID: *ID, Stake: stakes[i]})
+		}
+	}
+	return networkProposers
+}
+
 /*
 Group network management
 */
@@ -60,11 +73,17 @@ func (ns *NetworkServerImpl) ReleaseGroupNet(gid string) {
 }
 
 func (ns *NetworkServerImpl) FullBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
-	panic("implement me")
+	networkProposers := id2NetworkProposers(proposers, stakes)
+	if len(networkProposers) > 0 {
+		ns.net.BuildProposerGroupNet(networkProposers)
+	}
 }
 
 func (ns *NetworkServerImpl) IncrementBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
-	panic("implement me")
+	networkProposers := id2NetworkProposers(proposers, stakes)
+	if len(networkProposers) > 0 {
+		ns.net.AddProposers(networkProposers)
+	}
 }
 
 func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
