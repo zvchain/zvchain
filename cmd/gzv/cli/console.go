@@ -95,6 +95,7 @@ func (c *newAccountCmd) parse(args []string) bool {
 type unlockCmd struct {
 	baseCmd
 	addr     string
+	password string
 	duration uint
 }
 
@@ -103,6 +104,7 @@ func genUnlockCmd() *unlockCmd {
 		baseCmd: *genBaseCmd("unlock", "unlock the account"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the account address")
+	c.fs.StringVar(&c.password, "password", "", "the account password")
 	c.fs.UintVar(&c.duration, "duration", 120, "unlock duration, default 120 secs")
 	return c
 }
@@ -1049,6 +1051,15 @@ func handleCmdForAccount(handle func() (interface{}, error)) {
 
 func unlockLoop(cmd *unlockCmd, acm accountOp) {
 	c := 0
+	if cmd.password != "" {
+		resErr := acm.UnLock(cmd.addr, cmd.password, cmd.duration)
+		if resErr == nil {
+			fmt.Printf("unlock will last %v secs:%v\n", cmd.duration, cmd.addr)
+		} else {
+			fmt.Fprintln(os.Stderr, resErr.Error())
+		}
+		return
+	}
 
 	for c < 3 {
 		c++
