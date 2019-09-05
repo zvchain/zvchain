@@ -167,7 +167,8 @@ func (gtas *Gtas) Run() {
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
-	passWd := mineCmd.Flag("password", "login password").Default(common.DefaultPassword).String()
+	privKey := mineCmd.Flag("privatekey", "privatekey used for miner process").Default("").String()
+	passWd := mineCmd.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
 		fmt.Println("Welcome to be a ZV propose miner!")
@@ -238,6 +239,7 @@ func (gtas *Gtas) Run() {
 			autoCreateAccount: *autoCreateAccount,
 			resetHash:         *reset,
 			cors:              *cors,
+			privateKey:        *privKey,
 		}
 
 		// Start miner
@@ -308,9 +310,22 @@ func (gtas *Gtas) fullInit() error {
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
 
-	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
-	if err != nil {
-		return err
+	if cfg.privateKey != "" {
+		kBytes := common.FromHex(cfg.privateKey)
+		sk := new(common.PrivateKey)
+		if !sk.ImportKey(kBytes) {
+			return ErrInternal
+		}
+		acc, err := recoverAccountByPrivateKey(sk, true)
+		if err != nil {
+			return err
+		}
+		gtas.account = *acc
+	} else {
+		err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
+		if err != nil {
+			return err
+		}
 	}
 
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
