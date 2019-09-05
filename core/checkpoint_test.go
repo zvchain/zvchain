@@ -316,6 +316,9 @@ func init() {
 }
 
 func TestCheckpoint_init(t *testing.T) {
+	defer func() {
+		clearDB()
+	}()
 	gr := initGroupReader4CPTest(5)
 	br := initChainReader4CPTest(gr)
 	for h := uint64(1); h < 1000; h++ {
@@ -353,7 +356,7 @@ func initChainReader4CPTest(gr activatedGroupReader) *FullBlockChain {
 func TestCheckpoint_checkAndUpdate(t *testing.T) {
 	os.RemoveAll("d_b")
 	defer func() {
-		os.RemoveAll("d_b")
+		clearDB()
 	}()
 	epochNum := 20
 	gr := initGroupReader4CPTest(epochNum)
@@ -380,7 +383,7 @@ func TestCheckpoint_checkAndUpdate(t *testing.T) {
 
 func TestCheckpoint_CheckPointOf(t *testing.T) {
 	defer func() {
-		os.RemoveAll("d_b")
+		clearDB()
 	}()
 	epochNum := 20
 	gr := initGroupReader4CPTest(epochNum)
