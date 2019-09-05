@@ -560,16 +560,18 @@ func (fp *forkProcessor) allBlocksReceived() {
 		return
 	}
 	blocks := fp.syncCtx.receivedChainSlice
-	if len(blocks) == 0 {
-		fp.logger.Errorf("received block slice is empty, hash=%v, height=%v", fp.syncCtx.ancestor.Hash, fp.syncCtx.ancestor.Height)
+	if len(blocks) <= 1 {
+		fp.logger.Errorf("received block slice len %v, hash=%v, height=%v", len(blocks), fp.syncCtx.ancestor.Hash, fp.syncCtx.ancestor.Height)
 		return
 	}
-	ancestorPre := fp.chain.QueryBlockHeaderByHash(blocks[0].Header.PreHash)
-	if ancestorPre == nil {
-		fp.logger.Errorf("ancestor pre is nil:%v %v", blocks[0].Header.Hash, blocks[0].Header.Height)
+	first := blocks[0].Header
+	if first.Hash != fp.syncCtx.ancestor.Hash {
+		fp.logger.Errorf("first received block is not the ancestor block!")
 		return
 	}
-	pre := ancestorPre
+
+	pre := first
+	blocks = blocks[1:]
 	// Ensure blocks are chained and heights are legal
 	for _, block := range blocks {
 		if pre.Hash != block.Header.PreHash {
@@ -582,7 +584,7 @@ func (fp *forkProcessor) allBlocksReceived() {
 		}
 		pre = block.Header
 	}
-	pre = ancestorPre
+	pre = first
 	// Checks the blocks legality
 	for _, block := range blocks {
 		if ok, err := fp.verifier.VerifyBlockHeaders(pre, block.Header); !ok {
