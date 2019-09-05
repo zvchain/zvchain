@@ -34,6 +34,11 @@ func createMinerDOs(keyFile string) []*model.SelfMinerDO {
 	keys := strings.Split(string(bs), "\n")
 	dos := make([]*model.SelfMinerDO, 0)
 	for _, priKey := range keys {
+		bts := []byte(priKey)
+		if len(bts) > 196 {
+			bts = bts[:196]
+		}
+		priKey = string(bts)
 		privateKey := common.HexToSecKey(priKey)
 		miner, _ := model.NewSelfMinerDO(privateKey)
 		dos = append(dos, &miner)

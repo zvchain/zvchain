@@ -286,6 +286,16 @@ func (chain *FullBlockChain) CheckPointAt(h uint64) *types.BlockHeader {
 	return chain.QueryBlockHeaderFloor(cp)
 }
 
+func (chain *FullBlockChain) LatestCheckPoint() *types.BlockHeader {
+	cp := chain.latestCP.Load()
+	if cp != nil && cp.(*types.BlockHeader).Height < chain.Height() {
+		return cp.(*types.BlockHeader)
+	}
+	cpBH := chain.CheckPointAt(chain.Height())
+	chain.latestCP.Store(cpBH)
+	return cpBH
+}
+
 // BatchGetBlocksBetween query blocks of the height range [start, end)
 func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.Block {
 	chain.rwLock.RLock()

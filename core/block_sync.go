@@ -424,7 +424,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		hasAddBlack := false
 		err := bs.chain.batchAddBlockOnChain(source, false, blocks, func(b *types.Block, ret types.AddBlockResult) bool {
 			bs.logger.Debugf("sync block from %v, hash=%v,height=%v,addResult=%v", source, b.Header.Hash.Hex(), b.Header.Height, ret)
-			if ret == types.AddBlockSucc || ret == types.BlockExisted {
+			if ret == types.AddBlockSucc || ret == types.AddBlockExisted {
 				return true
 			}
 			if ret == types.AddBlockConsensusFailed && !hasAddBlack {

@@ -33,6 +33,7 @@ type minerConfig struct {
 	autoCreateAccount    bool
 	resetHash            string
 	cors                 string
+	privateKey           string
 }
 
 func (cfg *minerConfig) rpcEnable() bool {

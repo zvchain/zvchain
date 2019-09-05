@@ -45,6 +45,13 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		return
 	}
 
+	// Checks if the pre block lower than latest cp
+	latestCP := p.MainChain.LatestCheckPoint()
+	if preBH.Height < latestCP.Height {
+		err = fmt.Errorf("pre block lower than latest cp: pre %v, cp %v, comming %v-%v", preBH.Height, latestCP.Height, bh.Height, bh.Hash)
+		return
+	}
+
 	// check expire time, fail fast if expired
 	expireTime := expireTime(bh, preBH)
 	if p.ts.NowAfter(expireTime) {
@@ -280,6 +287,13 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 
 	if !p.blockOnChain(vctx.prevBH.Hash) {
 		err = fmt.Errorf("pre not on chain:hash=%v", vctx.prevBH.Hash)
+		return
+	}
+
+	// Checks if the pre block lower than latest cp
+	latestCP := p.MainChain.LatestCheckPoint()
+	if vctx.prevBH.Height < latestCP.Height {
+		err = fmt.Errorf("pre block lower than latest cp: pre %v, cp %v, comming %v-%v", vctx.prevBH.Height, latestCP.Height, bh.Height, bh.Hash)
 		return
 	}
 
