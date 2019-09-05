@@ -208,8 +208,8 @@ func Test_eachForSync(t *testing.T) {
 		count++
 		return true
 	})
-	if count != max_sync_count {
-		t.Fatalf("expect %d, but got %d", max_sync_count, count)
+	if count != maxSyncCountPreSource {
+		t.Fatalf("expect %d, but got %d", maxSyncCountPreSource, count)
 	}
 }
 
