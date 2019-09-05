@@ -16,6 +16,7 @@ package core
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
@@ -188,22 +189,29 @@ func Test_simpleContainer_forEach(t *testing.T) {
 
 }
 
-//idealTxs := []*types.Transaction{
-//	tx14, tx3, tx10,
-//}
-//container.eachForPack(func(tx *types.Transaction) bool {
-//	txsFromPending = append(txsFromPending, tx)
-//	return len(txsFromPending) < testTxCountPerBlock
-//})
-//
-//for _,tx := range txsFromPending {
-//	execute(t,*tx)
-//}
-//
-//if !reflect.DeepEqual(idealTxs, txsFromPending) {
-//	t.Error("foreach err，txs doesn't match")
-//}
-//
+func Test_eachForSync(t *testing.T) {
+	err := initContext4Test(t)
+	defer clearSelf(t)
+	if err != nil {
+		t.Fatalf("failed to initContext4Test")
+	}
+
+	container = newSimpleContainer(100, 30, BlockChainImpl)
+	for i := 1; i < 10; i++ {
+		_ = container.push(genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff"+strconv.Itoa(i), uint64(i), types.NewBigInt(20000), gasLimit, &addr1))
+	}
+	for i := 10; i < 20; i++ {
+		_ = container.push(genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7fe"+strconv.Itoa(i), uint64(i), types.NewBigInt(20000), gasLimit, &addr1))
+	}
+	var count = 0
+	container.eachForSync(func(tx *types.Transaction) bool {
+		count++
+		return true
+	})
+	if count != max_sync_count {
+		t.Fatalf("expect %d, but got %d", max_sync_count, count)
+	}
+}
 
 func packBlocks(t *testing.T) []*types.Transaction {
 	result := make([]*types.Transaction, 0, testTxCountPerBlock)

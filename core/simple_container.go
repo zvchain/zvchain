@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"container/heap"
 	"fmt"
+	"sort"
 	"sync"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
@@ -27,6 +28,8 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
+
+const max_sync_count = 10 // max count of tx with same source to sync to neighbour node
 
 type simpleContainer struct {
 	txsMap     map[common.Hash]*types.Transaction
@@ -201,9 +204,17 @@ func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
 
 // will break when f(tx) returns false
 func (s *pendingContainer) eachForSync(f func(tx *types.Transaction) bool) {
+	countMap := make(map[common.Address]int)
 	for _, txSkip := range s.waitingMap {
 		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {
-			if !f(iter1.Value().(*orderByNonceTx).item) {
+			tx := iter1.Value().(*orderByNonceTx).item
+			count := countMap[*tx.Source]
+			if count >= max_sync_count {
+				continue
+			}
+			count++
+			countMap[*tx.Source] = count
+			if !f(tx) {
 				return
 			}
 		}
@@ -361,18 +372,34 @@ func (c *simpleContainer) remove(key common.Hash) {
 	delete(c.queue, tx.Hash)
 }
 
+type nonceTxSlice []*types.Transaction
+
+func (s nonceTxSlice) Len() int           { return len(s) }
+func (s nonceTxSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s nonceTxSlice) Less(i, j int) bool { return s[i].Nonce < s[j].Nonce }
+
+func mapToNonceTxSlice(txMap map[common.Hash]*types.Transaction) *nonceTxSlice {
+	sl := make(nonceTxSlice, 0, len(txMap))
+	for _, v := range txMap {
+		sl = append(sl, v)
+	}
+
+	sort.Sort(sl)
+	return &sl
+}
+
 // promoteQueueToPending tris to move the transactions to the pending list for casting and syncing if possible
 func (c *simpleContainer) promoteQueueToPending() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	nonceCache := make(map[common.Address]uint64)
-	for hash, tx := range c.queue {
-		//to optimize: queue should order by nonce
+	sl := mapToNonceTxSlice(c.queue)
+	for _, tx := range *sl {
 		stateNonce := c.getNonceWithCache(nonceCache, tx)
 		if tx.Nonce <= stateNonce {
 			Logger.Debugf("Tx %v removed from pool as same nonce tx existing in the chain", tx.Hash)
 			delete(c.txsMap, tx.Hash)
-			delete(c.queue, hash)
+			delete(c.queue, tx.Hash)
 			continue
 		}
 		success, evicted, _ := c.pending.push(tx, stateNonce)
@@ -382,7 +409,7 @@ func (c *simpleContainer) promoteQueueToPending() {
 			delete(c.queue, evicted.Hash)
 		}
 		if success {
-			delete(c.queue, hash)
+			delete(c.queue, tx.Hash)
 		}
 	}
 }
