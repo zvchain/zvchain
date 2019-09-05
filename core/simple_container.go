@@ -29,6 +29,8 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
+const maxSyncCountPreSource = 10 // max count of tx with same source to sync to neighbour node
+
 type simpleContainer struct {
 	txsMap     map[common.Hash]*types.Transaction
 	chain      *FullBlockChain
@@ -202,9 +204,17 @@ func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
 
 // will break when f(tx) returns false
 func (s *pendingContainer) eachForSync(f func(tx *types.Transaction) bool) {
+	countMap := make(map[common.Address]int)
 	for _, txSkip := range s.waitingMap {
 		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {
-			if !f(iter1.Value().(*orderByNonceTx).item) {
+			tx := iter1.Value().(*orderByNonceTx).item
+			count := countMap[*tx.Source]
+			if count >= maxSyncCountPreSource {
+				continue
+			}
+			count++
+			countMap[*tx.Source] = count
+			if !f(tx) {
 				return
 			}
 		}
@@ -364,14 +374,14 @@ func (c *simpleContainer) remove(key common.Hash) {
 
 type nonceTxSlice []*types.Transaction
 
-func (s nonceTxSlice) Len() int { return len(s) }
-func (s nonceTxSlice) Swap(i, j int){ s[i], s[j] = s[j], s[i] }
+func (s nonceTxSlice) Len() int           { return len(s) }
+func (s nonceTxSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s nonceTxSlice) Less(i, j int) bool { return s[i].Nonce < s[j].Nonce }
 
 func mapToNonceTxSlice(txMap map[common.Hash]*types.Transaction) *nonceTxSlice {
-	sl := make(nonceTxSlice,0, len(txMap))
+	sl := make(nonceTxSlice, 0, len(txMap))
 	for _, v := range txMap {
-		sl = append(sl,v)
+		sl = append(sl, v)
 	}
 
 	sort.Sort(sl)

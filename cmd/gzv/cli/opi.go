@@ -29,7 +29,7 @@ var (
 	ErrInternal    = fmt.Errorf("internal error")
 )
 
-type txRawData struct {
+type TxRawData struct {
 	Source    string `json:"source"`
 	Target    string `json:"target"`
 	Value     uint64 `json:"value"`
@@ -56,7 +56,7 @@ type MinerInfo struct {
 	AbortHeight uint64
 }
 
-func txRawToTransaction(tx *txRawData) *types.Transaction {
+func txRawToTransaction(tx *TxRawData) *types.Transaction {
 	var target *common.Address
 	if tx.Target != "" {
 		t := common.StringToAddress(tx.Target)
@@ -109,7 +109,7 @@ type chainOp interface {
 	// Endpoint returns current connected ip and port
 	Endpoint() string
 	// SendRaw send transaction to connected node
-	SendRaw(tx *txRawData) *RPCResObjCmd
+	SendRaw(tx *TxRawData) *RPCResObjCmd
 	// Balance query Balance by address
 	Balance(addr string) *RPCResObjCmd
 	// Nonce query Balance by address
