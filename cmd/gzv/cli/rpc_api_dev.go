@@ -703,34 +703,42 @@ func (api *RpcDevImpl) GetBlocksTime(count int, last uint64) ([]blockTime, error
 }
 
 
+
 // Tx is user transaction interface, used for sending transaction to the node
 func (api *RpcDevImpl) Txs(txRawjson string) (string, error) {
-	var txRaw = new(txRawData)
-	if err := json.Unmarshal([]byte(txRawjson), txRaw); err != nil {
+	//var txRaws = make([]*txRawData,0)
+	var txRaws []txRawData
+	if err := json.Unmarshal([]byte(txRawjson), &txRaws); err != nil {
 		return "", err
 	}
-	if !validateTxType(txRaw.TxType) {
-		return "", fmt.Errorf("not supported txType")
-	}
 
-	// Check the address for the specified tx types
-	switch txRaw.TxType {
-	case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
-		types.TransactionTypeStakeReduce,
-		types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool:
-		if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
-			return "", fmt.Errorf("wrong target address format")
+	for _, txRaw := range txRaws {
+		if !validateTxType(txRaw.TxType) {
+			return "", fmt.Errorf("not supported txType")
+		}
+
+		// Check the address for the specified tx types
+		switch txRaw.TxType {
+		case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
+			types.TransactionTypeStakeReduce,
+			types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool:
+			if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
+				return "", fmt.Errorf("wrong target address format")
+			}
+		}
+		if !common.ValidateAddress(txRaw.Source) {
+			return "", fmt.Errorf("wrong source address")
+		}
+
+		trans := txRawToTransaction(&txRaw)
+
+		if err := sendTransaction(trans); err != nil {
+			return "", err
 		}
 	}
-	if !common.ValidateAddress(txRaw.Source) {
-		return "", fmt.Errorf("wrong source address")
-	}
-
-	trans := txRawToTransaction(txRaw)
-
-	if err := sendTransaction(trans); err != nil {
-		return "", err
-	}
-
-	return trans.Hash.Hex(), nil
+	//
+	//address := common.StringToAddress(txRaws[0].Source)
+	//nonce := core.BlockChainImpl.GetNonce(address) + 1
+	//return nonce, nil
+	return "success", nil
 }
