@@ -74,6 +74,7 @@ func (op *voteMinerPoolOp) Transition() *result {
 		ret.setError(err, rs)
 		return ret
 	}
+	ret.setSuccess()
 	return ret
 }
 
@@ -109,6 +110,7 @@ func (op *applyGuardMinerOp) Transition() *result {
 		ret.setError(err,rs)
 		return ret
 	}
+	ret.setSuccess()
 	return ret
 }
 
@@ -147,6 +149,7 @@ func (op *reduceTicketsOp) Transition() *result {
 		ret.setError(err, rs)
 		return ret
 	}
+	ret.setSuccess()
 	return ret
 }
 
@@ -185,6 +188,7 @@ func (op *changeFundGuardMode) Transition() *result {
 		ret.setError(err, rs)
 		return ret
 	}
+	ret.setSuccess()
 	return ret
 }
 
@@ -240,6 +244,7 @@ func (op *stakeAddOp) Transition() *result {
 		ret.setError(err, rs)
 		return ret
 	}
+	ret.setSuccess()
 	return ret
 }
 
@@ -274,6 +279,7 @@ func (op *minerAbortOp) Transition() *result {
 		ret.setError(err,rs)
 		return ret
 	}
+	ret.setSuccess()
 	return ret
 }
 
@@ -311,6 +317,7 @@ func (op *stakeReduceOp) Transition() *result {
 		ret.setError(err, rs)
 		return ret
 	}
+	ret.setSuccess()
 	return ret
 }
 
@@ -353,6 +360,7 @@ func (op *stakeRefundOp) Transition() *result {
 
 	// Restore the balance
 	op.accountDB.AddBalance(op.refundSource, new(big.Int).SetUint64(frozenDetail.Value))
+	ret.setSuccess()
 	return ret
 
 }
@@ -400,7 +408,7 @@ func (op *minerFreezeOp) Transition() *result {
 		ret.setError(err, types.RSFail)
 		return ret
 	}
-
+	ret.setSuccess()
 	return ret
 }
 
@@ -525,6 +533,6 @@ func (op *minerPenaltyOp) Transition() *result {
 			op.accountDB.AddBalance(addr, addEach)
 		}
 	}
-
+	ret.setSuccess()
 	return ret
 }

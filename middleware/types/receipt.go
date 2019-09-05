@@ -27,8 +27,8 @@ import (
 type ReceiptStatus int
 
 const (
-	RSSuccess ReceiptStatus = iota
-	RSFail
+	RSFail ReceiptStatus = iota
+	RSSuccess
 	RSBalanceNotEnough
 	RSAbiError
 	RSTvmError
