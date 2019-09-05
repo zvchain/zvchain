@@ -374,6 +374,10 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
 	miners := make([]*types.Miner, 0)
 	for iter.Next() {
+		// finish the iterator
+		if !bytes.HasPrefix(iter.Key, prefix) {
+			break
+		}
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
 		miner, err := getMiner(accountDB, addr, mType)
 		if err != nil {
@@ -476,25 +480,6 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 		ret[addr.AddrPrefixString()] = ds
 	}
 	return ret
-}
-
-func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
-	mp := make(map[string]struct{})
-	accountDB, error := BlockChainImpl.LatestAccountDB()
-	if error != nil {
-		Logger.Errorf("get accountdb failed,error = %v", error.Error())
-		return mp
-	}
-	prefix := common.PrefixPoolProposal
-	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
-	for iter != nil && iter.Next() {
-		if !bytes.HasPrefix(iter.Key, prefix) {
-			break
-		}
-		addr := common.BytesToAddress(iter.Key[len(prefix):])
-		mp[addr.AddrPrefixString()] = struct{}{}
-	}
-	return mp
 }
 
 func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.AccountDB) {
