@@ -207,7 +207,7 @@ func (gtas *Gtas) Run() {
 		}()
 
 		common.GlobalConf.SetInt(instanceSection, indexKey, *instanceIndex)
-		databaseValue := "d_b" + strconv.Itoa(*instanceIndex)
+		databaseValue := "d_b"
 		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
 		types.InitMiddleware()
 
