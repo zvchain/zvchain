@@ -119,7 +119,7 @@ func stateValidate(tx *types.Transaction) (balance *big.Int, err error) {
 	if gasLimitFee.Cmp(balance) > 0 {
 		return nil, fmt.Errorf("balance not enough for paying gas, %v", src)
 	}
-	if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall {
+	if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall || tx.Type == types.TransactionTypeStakeAdd{
 		totalCost := new(types.BigInt).Add(gasLimitFee, tx.Value.Value())
 		if totalCost.Cmp(balance) > 0 {
 			return nil, fmt.Errorf("balance not enough for paying gas and value, %v", src)

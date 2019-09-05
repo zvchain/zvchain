@@ -243,7 +243,7 @@ func (b *BaseMiner) checkStakeAbort(op *minerAbortOp, miner *types.Miner) (error
 		return fmt.Errorf("no miner info"),types.RSFail
 	}
 	if miner.IsPrepare() {
-		return fmt.Errorf("already in prepare status"),types.RSFail
+		return fmt.Errorf("already in prepare status"),types.RSMinerAbortHasPrepared
 	}
 	// Frozen miner must wait for 1 hour after frozen
 	if miner.IsFrozen() && op.height <= miner.StatusUpdateHeight+oneHourBlocks {
