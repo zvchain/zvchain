@@ -147,6 +147,7 @@ func TestProprosers(t *testing.T) {
 			}
 		}
 		netCore.proposerManager.Build(proposers)
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
 
 		if netCore.proposerManager.fastBucket.proposers[0].Stake != uint64(len(nodes)-1) {
 			t.Fatalf("fastBucket size is not right")
@@ -158,21 +159,22 @@ func TestProprosers(t *testing.T) {
 		for i := 0; i < len(nodes); i++ {
 			ID := NewNodeID(nodes[i])
 			if ID != nil {
-				stake := 10000
-				if i > 5 {
+				stake := 100000
+				if i >= 5 {
 					stake = 10
 				}
 				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
 			}
 		}
 		netCore.proposerManager.Build(proposers)
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
 
 		if len(netCore.proposerManager.fastBucket.proposers) != 5 {
 			t.Fatalf("fastBucket size is not right")
 		}
 	})
 
-	t.Run("TestProposersTop30", func(t *testing.T) {
+	t.Run("TestProposersTop80", func(t *testing.T) {
 		proposers := make([]*Proposer, 0)
 		for i := 0; i < len(nodes); i++ {
 			ID := NewNodeID(nodes[i])
@@ -182,26 +184,10 @@ func TestProprosers(t *testing.T) {
 				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
 			}
 		}
+
 		netCore.proposerManager.Build(proposers)
-
-		if len(netCore.proposerManager.fastBucket.proposers) != int(math.Ceil(float64(len(nodes))*0.3)) {
-			t.Fatalf("fastBucket size is not right")
-		}
-	})
-
-	t.Run("TestProposersTop30", func(t *testing.T) {
-		proposers := make([]*Proposer, 0)
-		for i := 0; i < len(nodes); i++ {
-			ID := NewNodeID(nodes[i])
-			if ID != nil {
-				stake := 10000
-
-				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
-			}
-		}
-		netCore.proposerManager.Build(proposers)
-
-		if len(netCore.proposerManager.fastBucket.proposers) != int(math.Ceil(float64(len(nodes))*0.3)) {
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		if len(netCore.proposerManager.fastBucket.proposers) != int(math.Ceil(float64(len(nodes))*0.8)) {
 			t.Fatalf("fastBucket size is not right")
 		}
 	})
@@ -212,7 +198,7 @@ func TestProprosers(t *testing.T) {
 			ID := NewNodeID(nodes[i])
 			if ID != nil {
 				stake := 10000
-				if i > 5 {
+				if i >= 5 {
 					stake = 10
 				}
 				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
@@ -234,10 +220,10 @@ func TestProprosers(t *testing.T) {
 		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
 		netCore.proposerManager.AddProposers(proposers)
 		t.Logf("after added fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
-		if len(netCore.proposerManager.fastBucket.proposers) != 8 {
+		if len(netCore.proposerManager.fastBucket.proposers) != 5 {
 			t.Fatalf("fastBucket size is not right")
 		}
-		if len(netCore.proposerManager.normalBucket.proposers) != 98 {
+		if len(netCore.proposerManager.normalBucket.proposers) != 100 {
 			t.Fatalf("normalBucket size is not right")
 		}
 	})
@@ -248,7 +234,7 @@ func TestProprosers(t *testing.T) {
 			ID := NewNodeID(nodes[i])
 			if ID != nil {
 				stake := 10000
-				if i > 5 {
+				if i >= 5 {
 					stake = 10
 				}
 				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
