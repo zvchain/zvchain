@@ -48,6 +48,7 @@ const (
 	RSMinerChangeModeExpired
 	RSMinerAbortHasPrepared
 	RSMinerRefundHeightNotEnougn
+	RSMinerNotExists
 )
 
 type Receipt struct {
