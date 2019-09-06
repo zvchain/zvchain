@@ -328,6 +328,14 @@ func initTxsAndOthers(t *testing.T) {
 type NetTest struct {
 }
 
+func (s *NetTest) BuildProposerGroupNet(proposers []*network.Proposer) {
+	panic("implement me")
+}
+
+func (s *NetTest) AddProposers(proposers []*network.Proposer) {
+	panic("implement me")
+}
+
 func (s *NetTest) Send(id string, msg network.Message) error {
 	txbody := msg.Body
 	txs, err := types.UnMarshalTransactions(txbody)
