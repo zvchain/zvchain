@@ -34,7 +34,6 @@ import (
 
 var groupReader activatedGroupReader
 var wg *sync.WaitGroup
-
 func init() {
 	Logger = logrus.StandardLogger()
 	middleware.InitMiddleware()
