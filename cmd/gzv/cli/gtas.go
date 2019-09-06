@@ -161,11 +161,8 @@ func (gtas *Gtas) Run() {
 
 	// Rpc analysis
 	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelMiner), 10)).Int()
-	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
-	rpcServicePort := mineCmd.Flag("port", "rpc service port").Short('p').Default("8101").Uint16()
-
-	// Miner watcher
-	miningMonitoringAddr := mineCmd.Flag("reporthost", "specify the host of mining monitoring").Default("127.0.0.1").IP()
+	serviceHost := mineCmd.Flag("host", "miner report or rpc service host").Short('o').Default("127.0.0.1").IP()
+	servicePort := mineCmd.Flag("port", "miner report or rpc service port").Short('p').Default("8101").Uint16()
 
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 
@@ -229,9 +226,8 @@ func (gtas *Gtas) Run() {
 
 		cfg := &minerConfig{
 			rpcLevel:          rpcLevel(*rpc),
-			rpcAddr:           addrRPC.String(),
-			rpcPort:           *rpcServicePort,
-			reportHost:        miningMonitoringAddr.String(),
+			host:              serviceHost.String(),
+			port:              *servicePort,
 			super:             *super,
 			testMode:          *testMode,
 			natIP:             *natAddr,

@@ -17,9 +17,8 @@ package cli
 
 type minerConfig struct {
 	rpcLevel          rpcLevel
-	rpcAddr           string
-	rpcPort           uint16
-	reportHost        string
+	host              string
+	port              uint16
 	super             bool
 	testMode          bool
 	natIP             string

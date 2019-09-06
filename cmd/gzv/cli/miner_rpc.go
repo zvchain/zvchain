@@ -107,13 +107,7 @@ func (gtas *Gtas) startRPC() error {
 		return err
 	}
 
-	var host string
-	var port uint16
-	if len(gtas.rpcInstances) == 1 && gtas.rpcInstances[0].Namespace() == "Miner" {
-		host, port = gtas.config.reportHost, gtas.config.rpcPort
-	} else {
-		host, port = gtas.config.rpcAddr, gtas.config.rpcPort
-	}
+	host, port := gtas.config.host, gtas.config.port
 	apis := make([]rpc.API, 0)
 	for _, inst := range gtas.rpcInstances {
 		apis = append(apis, rpc.API{Namespace: inst.Namespace(), Version: inst.Version(), Service: inst, Public: true})
