@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/zvchain/zvchain/common"
+	zvTime "github.com/zvchain/zvchain/middleware/time"
 )
 
 type PeerSource int32
@@ -47,7 +48,9 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 		return false, ""
 	}
 
-	if math.Abs(float64(time.Since(time.Unix(int64(pa.CurTime), 0)))) > float64(time.Minute*5) {
+	authTS := zvTime.TimeToTimeStamp(time.Unix(int64(pa.CurTime), 0))
+
+	if math.Abs(float64(zvTime.TSInstance.SinceSeconds(authTS))) > float64(60*5) {
 		return false, ""
 	}
 	buffer := bytes.Buffer{}
@@ -75,8 +78,9 @@ func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
 		return nil
 	}
+
 	buffer := bytes.Buffer{}
-	curTime := uint64(time.Now().UTC().Unix())
+	curTime := uint64(zvTime.TSInstance.Now().UTC().Unix())
 	data := common.Uint64ToByte(curTime)
 	buffer.Write(data)
 	if toID != nil {

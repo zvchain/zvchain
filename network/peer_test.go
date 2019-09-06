@@ -18,6 +18,7 @@ package network
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/zvchain/zvchain/middleware/time"
 	"math"
 	"testing"
 
@@ -28,7 +29,6 @@ func TestPeerAuth(t *testing.T) {
 	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
-
 	toID := NewNodeID(netServerInstance.config.NodeIDHex)
 
 	content := genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, toID)
@@ -41,6 +41,7 @@ func TestPeerAuth(t *testing.T) {
 }
 
 func InitTestNetwork() bool {
+	time.InitTimeSync()
 	SK, _ := common.GenerateKey("")
 	PK := SK.GetPubKey()
 	ID := PK.GetAddress()

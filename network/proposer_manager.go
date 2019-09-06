@@ -76,15 +76,15 @@ func (pm *ProposerManager) Build(proposers []*Proposer) {
 		totalStake += pm.proposers[i].Stake
 	}
 
-	//Up to 30% of nodes put in fast bucket
-	maxFastSize := int(math.Ceil(float64(len(pm.proposers)) * 0.3))
+	//Up to 80% of nodes put in fast bucket
+	maxFastSize := int(math.Ceil(float64(len(pm.proposers)) * 0.8))
 	if maxFastSize > MaxFastSize {
 		maxFastSize = MaxFastSize
 	}
 	fastBucketSize := maxFastSize
 
-	//top 80% of total stake
-	fastBucketMaxStake := uint64(float64(totalStake) * 0.8)
+	//top 90% of total stake
+	fastBucketMaxStake := uint64(float64(totalStake) * 0.9)
 	totalFastStake := uint64(0)
 	for i := 0; i < maxFastSize; i++ {
 		totalFastStake += pm.proposers[i].Stake
@@ -110,24 +110,16 @@ func (pm *ProposerManager) AddProposers(proposers []*Proposer) {
 	}
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
-	fastProposers := make([]*Proposer, 0)
 	normalProposers := make([]*Proposer, 0)
 
 	for i := 0; i < len(proposers); i++ {
 		proposer := proposers[i]
-		if proposer.Stake >= pm.fastStakeThreshold {
-			if !pm.fastBucket.IsContained(proposer) {
-				fastProposers = append(fastProposers, proposer)
-			}
-		} else {
-			if !pm.normalBucket.IsContained(proposer) {
-				normalProposers = append(normalProposers, proposer)
-			}
+
+		if !pm.fastBucket.IsContained(proposer) && !pm.normalBucket.IsContained(proposer) {
+			normalProposers = append(normalProposers, proposer)
 		}
 	}
-	if len(fastProposers) > 0 {
-		pm.fastBucket.AddProposers(fastProposers)
-	}
+
 	if len(normalProposers) > 0 {
 		pm.normalBucket.AddProposers(normalProposers)
 	}
