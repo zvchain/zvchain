@@ -264,10 +264,12 @@ func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.A
 		return
 	}
 	snapshot := accountDB.Snapshot()
-	if ret := operation.Transition(); ret.err != nil {
+	ret := operation.Transition()
+	if ret.err != nil{
 		accountDB.RevertToSnapshot(snapshot)
 		return false, ret.err
 	}
+	ret.setSuccess()
 	return true, nil
 
 }

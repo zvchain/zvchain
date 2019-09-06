@@ -208,7 +208,6 @@ func (ss *txTransfer) Transition() *result {
 			return ret
 		}
 	}
-	ret.setSuccess()
 	return ret
 }
 
@@ -230,7 +229,6 @@ func (ss *groupOperator) Transition() *result {
 		ret.setError(err, types.RSFail)
 		return ret
 	}
-	ret.setSuccess()
 	return ret
 }
 
@@ -265,7 +263,6 @@ func (ss *contractCreator) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				ret.setSuccess()
 				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.msg.GetHash().Hex(), contractAddress.AddrPrefixString())
 			}
 		}
@@ -307,7 +304,6 @@ func (ss *contractCaller) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				ret.setSuccess()
 				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.AddrPrefixString(), string(ss.msg.Payload()))
 			}
 		}
@@ -374,7 +370,6 @@ func (ss *rewardExecutor) Transition() *result {
 
 	// Mark reward tx of the block has been executed
 	BlockChainImpl.GetRewardManager().MarkBlockRewarded(ss.blockHash, ss.msg.GetHash(), ss.accountDB)
-	ret.setSuccess()
 	return ret
 }
 
@@ -400,6 +395,8 @@ func doTransition(accountDB types.AccountDB, ss stateTransition) *result {
 	if ret.err != nil {
 		// Revert any state changes when error occurs
 		accountDB.RevertToSnapshot(snapshot)
+	}else{
+		ret.setSuccess()
 	}
 	return ret
 }
