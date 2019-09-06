@@ -47,14 +47,6 @@ import (
 const (
 	// Section is default section configuration
 	Section = "gtas"
-	// ini configuration file instance section
-	instanceSection = "instance"
-	// The key below the instance section
-	indexKey = "index"
-	// ini configuration file chain section
-	chainSection = "chain"
-	// The key below the chain section
-	databaseKey = "db_blocks"
 )
 
 type Gtas struct {
@@ -209,8 +201,6 @@ func (gtas *Gtas) Run() {
 			runtime.SetMutexProfileFraction(1)
 		}()
 
-		databaseValue := "d_b"
-		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
 		types.InitMiddleware()
 
 		if *natAddr != "" {
