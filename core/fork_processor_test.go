@@ -147,18 +147,15 @@ func forkChain(heightLimit uint64, forkLength uint64, chain *FullBlockChain) {
 }
 
 func TestBuildChain(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
 	buildChain(400, chain)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
+	clearDatas(BlockChainImpl,chainPath1)
 }
 
 func TestScanBlocks(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
 	for h := uint64(3990); h <= chain.Height(); h++ {
 		b := chain.QueryBlockHeaderByHeight(h)
@@ -167,7 +164,7 @@ func TestScanBlocks(t *testing.T) {
 		}
 		t.Log(b.Height, b.Hash, b.Group, b.TotalQN)
 	}
-
+	clearDatas(chain,chainPath1)
 	t.Log("============================================")
 	chain = initChain(chainPath2, id2)
 	for h := uint64(3990); h <= chain.Height(); h++ {
@@ -177,15 +174,16 @@ func TestScanBlocks(t *testing.T) {
 		}
 		t.Log(b.Height, b.Hash, b.Group, b.TotalQN)
 	}
+	clearDatas(chain,chainPath2)
 }
 
 func TestForkChain(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath2, id2)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
 	forkChain(chain.Height(), 3, chain)
+
+	clearDatas(chain,chainPath2)
 }
 
 func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, chain2 *FullBlockChain) {
@@ -205,16 +203,24 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 	return
 }
 
-func clearDatas() {
-	closeChain()
-	os.RemoveAll(chainPath1)
-	os.RemoveAll(chainPath2)
-	os.RemoveAll("logs")
+
+func clearDatas(chain *FullBlockChain,path string) {
+	if chain != nil{
+		chain.Close()
+		BlockChainImpl = nil
+		notify.BUS = notify.NewBus()
+	}
+	err := os.RemoveAll(path)
+	if err != nil{
+		panic(err)
+	}
+	err = os.RemoveAll("logs")
+	if err != nil{
+		panic(err)
+	}
 }
 
 func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
 	buildChain(1000, chain)
 
@@ -240,11 +246,10 @@ func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
 	if err != nil {
 		t.Errorf("process error %v", err)
 	}
+	clearDatas(chain,chainPath1)
 }
 
 func TestForkProcess_OnFindAncestorReq_BadMessage(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
 	buildChain(1000, chain)
 
@@ -257,11 +262,10 @@ func TestForkProcess_OnFindAncestorReq_BadMessage(t *testing.T) {
 	if err == nil {
 		t.Errorf("should be error with random input")
 	}
+	clearDatas(chain,chainPath1)
 }
 
 func TestForkProcess_OnFindAncestorResponse_Found_GoodMessage(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
 
 	ctx := &forkSyncContext{
@@ -289,13 +293,12 @@ func TestForkProcess_OnFindAncestorResponse_Found_GoodMessage(t *testing.T) {
 	if err != nil {
 		t.Errorf("handle error %v", err)
 	}
+	clearDatas(chain,chainPath1)
 }
 
 func TestForkProcess_OnFindAncestorResponse_NotFound_GoodMessage(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
+	chain2 := initChain(chainPath2, id2)
 
 	ctx := &forkSyncContext{
 		target:       id2,
@@ -322,13 +325,13 @@ func TestForkProcess_OnFindAncestorResponse_NotFound_GoodMessage(t *testing.T) {
 	if err != nil {
 		t.Errorf("handle error %v", err)
 	}
+	clearDatas(chain,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_OnChainSliceReq_GoodMessage(t *testing.T) {
-	clearDatas()
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
+	chain2 := initChain(chainPath2, id2)
 
 	fp := chain.forkProcessor
 
@@ -347,12 +350,14 @@ func TestForkProcess_OnChainSliceReq_GoodMessage(t *testing.T) {
 	if err != nil {
 		t.Errorf("handle error %v", err)
 	}
+	clearDatas(chain,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
 	defer clearSelf(t)
 	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
+	chain2 := initChain(chainPath2, id2)
 
 	fp := chain.forkProcessor
 
@@ -371,13 +376,14 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
 	if err != nil {
 		t.Errorf("handle error %v", err)
 	}
+
+	clearDatas(chain,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
+	chain2 := initChain(chainPath2, id2)
 
 	fp := chain.forkProcessor
 
@@ -389,13 +395,14 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
 	if err == nil {
 		t.Errorf("handle error %v", err)
 	}
+	clearDatas(chain,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
 	buildChain(400, chain)
-	_ = initChain(chainPath2, id2)
+	chain2 := initChain(chainPath2, id2)
 
 	fp := chain.forkProcessor
 
@@ -429,12 +436,14 @@ func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
 	if err != nil {
 		t.Errorf("handle error %v", err)
 	}
+
+	clearDatas(chain,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
+	chain2 := initChain(chainPath2, id2)
 
 	fp := chain.forkProcessor
 
@@ -462,12 +471,13 @@ func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
 	if err != nil {
 		t.Errorf("handle error %v", err)
 	}
+	clearDatas(chain,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_OnChainSliceResponse_BadMessage(t *testing.T) {
-	defer clearDatas()
 	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
+	chain2 := initChain(chainPath2, id2)
 
 	fp := chain.forkProcessor
 	ctx := &forkSyncContext{
@@ -487,11 +497,12 @@ func TestForkProcess_OnChainSliceResponse_BadMessage(t *testing.T) {
 	if err == nil {
 		t.Errorf("should be error with bad message")
 	}
+
+	clearDatas(chain,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_TryProcess_LocalMoreWeight(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(4000, 3993, 10)
 
 	fp1 := chain1.forkProcessor
@@ -499,11 +510,12 @@ func TestForkProcess_TryProcess_LocalMoreWeight(t *testing.T) {
 	if ret {
 		t.Errorf("should not process fork")
 	}
+
+	clearDatas(chain1,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_TryProcess_LocalCPHigher(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 3010, 16)
 
 	top1 := chain1.QueryTopBlock()
@@ -523,11 +535,11 @@ func TestForkProcess_TryProcess_LocalCPHigher(t *testing.T) {
 		t.Errorf("chain top change after fork process")
 	}
 	time.Sleep(2 * time.Second)
+	clearDatas(chain1,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_TryProcess_ShortFork_Accepted(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 3010, 4)
 
 	top1 := chain1.QueryTopBlock()
@@ -547,11 +559,12 @@ func TestForkProcess_TryProcess_ShortFork_Accepted(t *testing.T) {
 		t.Errorf("fork process fail, should accept peer fork")
 	}
 	time.Sleep(2 * time.Second)
+	clearDatas(chain1,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_TryProcess_ShortFork_MultiRequestChainSlice_Accepted(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
+
 	chain1, chain2 := build2Chains(3000, 3060, 6)
 
 	top1 := chain1.QueryTopBlock()
@@ -571,11 +584,12 @@ func TestForkProcess_TryProcess_ShortFork_MultiRequestChainSlice_Accepted(t *tes
 		t.Errorf("fork process fail, should accept peer fork")
 	}
 	time.Sleep(2 * time.Second)
+	clearDatas(chain1,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_TryProcess_PeerLongFork_Accepted(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
+
 	chain1, chain2 := build2Chains(3000, 4000, 6)
 
 	top1 := chain1.QueryTopBlock()
@@ -595,11 +609,11 @@ func TestForkProcess_TryProcess_PeerLongFork_Accepted(t *testing.T) {
 		t.Errorf("fork process fail, should accept peer fork")
 	}
 	time.Sleep(2 * time.Second)
+	clearDatas(chain1,chainPath1)
+	clearDatas(chain2,chainPath2)
 }
 
 func TestForkProcess_TryProcess_UnAcceptable(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 4000, 500)
 
 	top1 := chain1.QueryTopBlock()
@@ -618,4 +632,6 @@ func TestForkProcess_TryProcess_UnAcceptable(t *testing.T) {
 	if chain2.HasBlock(afterForkTop1.Hash) {
 		t.Errorf("shouldn't accept fork for cp reason")
 	}
+	clearDatas(chain1,chainPath1)
+	clearDatas(chain2,chainPath2)
 }

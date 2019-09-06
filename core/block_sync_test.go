@@ -250,19 +250,14 @@ func TestNewBlockHandler(t *testing.T) {
 	}
 }
 
-func closeChain(){
-	fmt.Println("---close---")
+func clearDB() {
+	fmt.Println("---clear---")
 	if BlockChainImpl != nil {
 		BlockChainImpl.Close()
 		//taslog.Close()
 		BlockChainImpl = nil
 		notify.BUS = notify.NewBus()
 	}
-}
-
-func clearDB() {
-	fmt.Println("---clear---")
-	closeChain()
 	dir, err := ioutil.ReadDir(".")
 	if err != nil {
 		return
