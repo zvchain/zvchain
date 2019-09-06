@@ -623,6 +623,7 @@ func TestForkProcess_TryProcess_UnAcceptable(t *testing.T) {
 	if !ret {
 		t.Errorf("should process fork")
 	}
+	
 	time.Sleep(1*time.Second)
 	wg.Wait()
 	afterForkTop1 := chain1.QueryTopBlock()
