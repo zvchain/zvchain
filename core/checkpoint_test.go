@@ -396,6 +396,9 @@ func TestCheckpoint_CheckPointOf(t *testing.T) {
 	testNum := 2000
 	for i := 0; i < testNum; i++ {
 		h := uint64(rand.Int63n(int64(br.Height())))
+		if !br.HasHeight(h) {
+			continue
+		}
 		cp := br.CheckPointAt(h)
 		if cp == nil || cp.Height < 2 {
 			continue
@@ -405,6 +408,8 @@ func TestCheckpoint_CheckPointOf(t *testing.T) {
 		cp2 := br.cpChecker.checkPointOf(blocks)
 		if cp2 == nil {
 			t.Errorf("checkpoint error at %v, cp1 %v", h, cp.Height)
+			br.CheckPointAt(h)
+			blocks := br.BatchGetBlocksBetween(cp.Height-2, h+1)
 			br.cpChecker.checkPointOf(blocks)
 			continue
 		}

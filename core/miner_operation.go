@@ -98,7 +98,7 @@ func (op *applyGuardMinerOp) Transition() *result {
 	}
 	if miner == nil {
 		err = fmt.Errorf("apply guard failed,source=%s,height=%v,error=no miner info", op.targetAddr.AddrPrefixString(), op.height)
-		ret.setError(err, types.RSFail)
+		ret.setError(err, types.RSMinerNotExists)
 		return ret
 	}
 	var rs types.ReceiptStatus
@@ -344,7 +344,7 @@ func (op *stakeRefundOp) Transition() *result {
 	}
 	// Check reduce-height
 	if op.height <= frozenDetail.Height+twoDayBlocks {
-		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSFail)
+		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnougn)
 		return ret
 	}
 
@@ -377,7 +377,7 @@ func (op *minerFreezeOp) Transition() *result {
 		return ret
 	}
 	if miner == nil {
-		ret.setError(fmt.Errorf("no miner info"), types.RSFail)
+		ret.setError(fmt.Errorf("no miner info"), types.RSMinerNotExists)
 		return ret
 	}
 	if miner.IsFrozen() {
@@ -425,7 +425,7 @@ func (op *minerPenaltyOp) Transition() *result {
 			return ret
 		}
 		if miner == nil {
-			ret.setError(fmt.Errorf("no miner info"), types.RSFail)
+			ret.setError(fmt.Errorf("no miner info"), types.RSMinerNotExists)
 			return ret
 		}
 		if !miner.IsVerifyRole() {

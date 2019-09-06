@@ -133,7 +133,7 @@ func (api *RpcGzvImpl) GroupHeight() (uint64, error) {
 func (api *RpcGzvImpl) GetBlockByHeight(height uint64) (*Block, error) {
 	b := core.BlockChainImpl.QueryBlockByHeight(height)
 	if b == nil {
-		return nil, fmt.Errorf("height not exists")
+		return nil, nil
 	}
 	bh := b.Header
 	preBH := core.BlockChainImpl.QueryBlockHeaderByHash(bh.PreHash)
@@ -153,7 +153,7 @@ func (api *RpcGzvImpl) GetBlockByHash(hash string) (*Block, error) {
 	}
 	b := core.BlockChainImpl.QueryBlockByHash(common.HexToHash(hash))
 	if b == nil {
-		return nil, fmt.Errorf("block not exists")
+		return nil, nil
 	}
 	bh := b.Header
 	preBH := core.BlockChainImpl.QueryBlockHeaderByHash(bh.PreHash)
@@ -173,7 +173,7 @@ func (api *RpcGzvImpl) GetTxsByBlockHash(hash string) ([]string, error) {
 	}
 	b := core.BlockChainImpl.QueryBlockByHash(common.HexToHash(hash))
 	if b == nil {
-		return nil, fmt.Errorf("block not exists")
+		return nil, nil
 	}
 	txs := make([]string, len(b.Transactions))
 	for index, tx := range b.Transactions {
@@ -358,7 +358,7 @@ func (api *RpcGzvImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 	}
 	address := common.StringToAddress(hash)
 	if !accountDb.Exist(address) {
-		return nil, fmt.Errorf("account not Exist!")
+		return nil, nil
 	}
 	account := &ExplorerAccount{}
 	account.Balance = accountDb.GetBalance(address)
@@ -443,7 +443,7 @@ func (api *RpcGzvImpl) QueryAccountData(addr string, key string, count int) (int
 	if resultData != nil {
 		return resultData, nil
 	} else {
-		return nil, fmt.Errorf("query does not have data")
+		return nil, nil
 	}
 }
 
