@@ -227,7 +227,7 @@ func (b *BaseMiner) processMinerAbort(op *minerAbortOp, miner *types.Miner) (err
 
 func (b *BaseMiner) checkStakeAbort(op *minerAbortOp, miner *types.Miner) (error, types.ReceiptStatus) {
 	if miner == nil {
-		return fmt.Errorf("no miner info"), types.RSFail
+		return fmt.Errorf("no miner info"), types.RSMinerNotExists
 	}
 	if miner.IsPrepare() {
 		return fmt.Errorf("already in prepare status"), types.RSMinerAbortHasPrepared
@@ -266,7 +266,7 @@ func (b *BaseMiner) checkCanReduce(op *stakeReduceOp, minerType types.MinerType,
 
 func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) (error, types.ReceiptStatus) {
 	if miner == nil {
-		return fmt.Errorf("no miner info"), types.RSFail
+		return fmt.Errorf("no miner info"), types.RSMinerNotExists
 	}
 	if miner.Stake < op.value {
 		return fmt.Errorf("miner stake not enough:%v %v", miner.Stake, op.value), types.RSMinerStakeLessThanReduce
@@ -430,7 +430,7 @@ func (b *BaseMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *types.
 
 func (b *BaseMiner) checkApplyGuard(op *applyGuardMinerOp, miner *types.Miner, detailKey []byte, detail *stakeDetail) (error, types.ReceiptStatus) {
 	if miner == nil {
-		return fmt.Errorf("no miner info"), types.RSMinerNotFullStake
+		return fmt.Errorf("no miner info"), types.RSMinerNotExists
 	}
 	if detail == nil {
 		return fmt.Errorf("target account has no staked detail data"), types.RSMinerNotFullStake
@@ -504,7 +504,7 @@ func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMi
 	if err == nil {
 		return err, types.RSFail
 	}
-	Logger.Infof("change fund guard mode success,addr = %s,current mode is %v,height=%v", op.source, op.mode, op.height)
+	Logger.Infof("change fund guard mode success,addr = %v,current mode is %v,height=%v", op.source, op.mode, op.height)
 	return nil, types.RSSuccess
 }
 
