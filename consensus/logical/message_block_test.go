@@ -625,6 +625,7 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 
 		})
 	}
+	processorTest.groupReader.skStore.Close()
 }
 
 func TestProcessor_OnMessageVerify(t *testing.T) {
@@ -969,6 +970,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 			}
 		})
 	}
+	processorTest.groupReader.skStore.Close()
 }
 
 type GroupHeaderTest struct{}
