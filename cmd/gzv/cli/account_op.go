@@ -116,15 +116,15 @@ func initAccountManager(keystore string, needAutoCreateAccount bool, password st
 		if err != nil {
 			return nil, err
 		}
-		address, res := aop.NewAccount(password, true)
-		if res != nil {
-			fmt.Println(res.Error())
+		address, err := aop.NewAccount(password, true)
+		if err != nil {
+			fmt.Println(err.Error())
 			return nil, err
 		}
 		if common.IsWeakPassword(password) {
 			output("the password is too weak. suggestions for modification")
 		}
-		fmt.Printf("create account success,your address is %s \n", address)
+		output(fmt.Sprintf("create account success,your address is %s \n", address))
 		return aop, nil
 	}
 	aop, err := newAccountOp(keystore)
