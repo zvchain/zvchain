@@ -27,8 +27,8 @@ import (
 type ReceiptStatus int
 
 const (
-	RSSuccess ReceiptStatus = iota
-	RSFail
+	RSFail ReceiptStatus = iota
+	RSSuccess
 	RSBalanceNotEnough
 	RSAbiError
 	RSTvmError
@@ -46,6 +46,8 @@ const (
 	RSMinerNotFullStake
 	RSMinerMaxApplyGuard
 	RSMinerChangeModeExpired
+	RSMinerAbortHasPrepared
+	RSMinerRefundHeightNotEnougn
 )
 
 type Receipt struct {
