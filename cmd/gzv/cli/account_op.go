@@ -130,12 +130,11 @@ func initAccountManager(keystore string, needAutoCreateAccount bool, password st
 	return aop, nil
 }
 
-func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) (*Account, error) {
+func recoverAccountByPrivateKey(sk *common.PrivateKey, bMiner bool) (*Account, error) {
 	account := &Account{
-		Sk:       sk.Hex(),
-		Pk:       sk.GetPubKey().Hex(),
-		Address:  sk.GetPubKey().GetAddress().AddrPrefixString(),
-		Password: passwordHash(password),
+		Sk:      sk.Hex(),
+		Pk:      sk.GetPubKey().Hex(),
+		Address: sk.GetPubKey().GetAddress().AddrPrefixString(),
 	}
 
 	if bMiner {
@@ -153,6 +152,15 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 		account.Miner = minerRaw
 	}
 	return account, nil
+}
+
+func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) (*Account, error) {
+	acc, err := recoverAccountByPrivateKey(sk, bMiner)
+	if err != nil {
+		return nil, err
+	}
+	acc.Password = passwordHash(password)
+	return acc, nil
 }
 
 func (am *AccountManager) loadAccount(addr string, password string) (*Account, error) {

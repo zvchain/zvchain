@@ -41,24 +41,13 @@ var (
 	DaemonNodeAddress = common.StringToAddress("zvae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122") // address of official reserved daemon node address
 )
 
-var ExtractGuardNodes = []common.Address{
-	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
-	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
-	common.StringToAddress("zv5795614c130e08a1d02157691c4d6bc4e5e152ee65a9b2752b823bcc7229fd58"),
-	common.StringToAddress("zv86a93455d77213bc39021a222f76702c37b3b168594364df88f201ebbc14fa3d"),
-	common.StringToAddress("zvcf176aca3e4f1f5721d50f536e0e1e06434e188379e27d68656bef4b2ad904c6"),
-	common.StringToAddress("zvdd44904f82a8823806a87ff2600d16dca0955a16816603643a77ac3d8cc8d945"),
-	common.StringToAddress("zve6363c64a54e756f114414fc427125163314872e9655923e6c834114fdae81bf"),
-	common.StringToAddress("zvf06321edb1512b17646aa8a2bea4d898758f85d7b6cd4ec9624363be00db0198"),
-} // init gurad miner nodes
-
 // defines all possible result of the add-block operation
 const (
-	AddBlockFailed            AddBlockResult = -1 // Means the operations is fail
-	AddBlockConsensusFailed   AddBlockResult = -2 // Means the consensus is fail
-	BlockExisted              AddBlockResult = 1  // Means the block already added before
-	BlockTotalQnLessThanLocal AddBlockResult = 2  // Weight consideration
-	AddBlockSucc              AddBlockResult = 3  // Means success
+	AddBlockFailed              AddBlockResult = -1 // Means the operations is fail
+	AddBlockConsensusFailed     AddBlockResult = -2 // Means the consensus is fail
+	AddBlockExisted             AddBlockResult = 1  // Means the block already added before
+	AddBlockLessWeightThanLocal AddBlockResult = 2  // Weight consideration
+	AddBlockSucc                AddBlockResult = 3  // Means success
 )
 
 const (
@@ -353,13 +342,4 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 
 func (bw BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
-}
-
-func IsInExtractGuardNodes(addr common.Address) bool {
-	for _, addrStr := range ExtractGuardNodes {
-		if addrStr == addr {
-			return true
-		}
-	}
-	return false
 }

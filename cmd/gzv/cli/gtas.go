@@ -66,6 +66,8 @@ type Gtas struct {
 	rpcInstances []rpcApi
 }
 
+var GlobalGtas *Gtas
+
 // miner start miner node
 func (gtas *Gtas) miner(cfg *minerConfig) error {
 	gtas.config = cfg
@@ -74,11 +76,9 @@ func (gtas *Gtas) miner(cfg *minerConfig) error {
 	if err != nil {
 		return err
 	}
-	if cfg.rpcEnable() {
-		err = gtas.startRPC()
-		if err != nil {
-			return err
-		}
+	err = gtas.startRPC()
+	if err != nil {
+		return err
 	}
 	ok := mediator.StartMiner()
 
@@ -160,14 +160,17 @@ func (gtas *Gtas) Run() {
 	mineCmd := app.Command("miner", "miner start")
 
 	// Rpc analysis
-	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelNone), 10)).Int()
+	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelMiner), 10)).Int()
+	serviceHost := mineCmd.Flag("host", "miner report or rpc service host").Short('o').Default("127.0.0.1").IP()
+	servicePort := mineCmd.Flag("port", "miner report or rpc service port").Short('p').Default("8101").Uint16()
+
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
-	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
-	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
+
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
-	passWd := mineCmd.Flag("password", "login password").Default(common.DefaultPassword).String()
+	privKey := mineCmd.Flag("privatekey", "privatekey used for miner process").Default("").String()
+	passWd := mineCmd.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
 		fmt.Println("Welcome to be a ZV propose miner!")
@@ -223,8 +226,8 @@ func (gtas *Gtas) Run() {
 
 		cfg := &minerConfig{
 			rpcLevel:          rpcLevel(*rpc),
-			rpcAddr:           addrRPC.String(),
-			rpcPort:           *rpcServicePort,
+			host:              serviceHost.String(),
+			port:              *servicePort,
 			super:             *super,
 			testMode:          *testMode,
 			natIP:             *natAddr,
@@ -238,12 +241,13 @@ func (gtas *Gtas) Run() {
 			autoCreateAccount: *autoCreateAccount,
 			resetHash:         *reset,
 			cors:              *cors,
+			privateKey:        *privKey,
 		}
 
 		// Start miner
 		err := gtas.miner(cfg)
 		if err != nil {
-			output("initialize fai l:", err)
+			output("initialize fail:", err)
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
@@ -308,9 +312,22 @@ func (gtas *Gtas) fullInit() error {
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
 
-	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
-	if err != nil {
-		return err
+	if cfg.privateKey != "" {
+		kBytes := common.FromHex(cfg.privateKey)
+		sk := new(common.PrivateKey)
+		if !sk.ImportKey(kBytes) {
+			return ErrInternal
+		}
+		acc, err := recoverAccountByPrivateKey(sk, true)
+		if err != nil {
+			return err
+		}
+		gtas.account = *acc
+	} else {
+		err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
+		if err != nil {
+			return err
+		}
 	}
 
 	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
@@ -408,7 +425,8 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 }
 
 func NewGtas() *Gtas {
-	return &Gtas{}
+	GlobalGtas = new(Gtas)
+	return GlobalGtas
 }
 
 func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {

@@ -18,6 +18,7 @@ package core
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/monitor"
+	"sync/atomic"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -50,7 +51,7 @@ func (chain *FullBlockChain) updateLatestBlock(state *account.AccountDB, header 
 	chain.latestStateDB = state
 	chain.latestBlock = header
 
-	Logger.Infof("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
+	Logger.Debugf("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
 	//taslog.Flush()
 }
 
@@ -236,7 +237,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	for _, b := range removeBlocks {
 		GroupManagerImpl.OnBlockRemove(b)
 	}
-
+	// invalidate latest cp cache
+	chain.latestCP = atomic.Value{}
 	return nil
 }
 
