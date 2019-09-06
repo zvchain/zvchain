@@ -614,7 +614,6 @@ func TestForkProcess_TryProcess_PeerLongFork_Accepted(t *testing.T) {
 
 func TestForkProcess_TryProcess_UnAcceptable(t *testing.T) {
 	chain1, chain2 := build2Chains(3000, 4000, 500)
-
 	top1 := chain1.QueryTopBlock()
 	top2 := chain2.QueryTopBlock()
 	Logger.Infof("before fork process chain1 top %v %v", top1.Hash, top1.Height)
@@ -624,8 +623,8 @@ func TestForkProcess_TryProcess_UnAcceptable(t *testing.T) {
 	if !ret {
 		t.Errorf("should process fork")
 	}
+	time.Sleep(1*time.Second)
 	wg.Wait()
-
 	afterForkTop1 := chain1.QueryTopBlock()
 	Logger.Infof("after fork process chain1 top %v %v", afterForkTop1.Hash, afterForkTop1.Height)
 	if chain2.HasBlock(afterForkTop1.Hash) {
