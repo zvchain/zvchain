@@ -523,7 +523,7 @@ func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMi
 	if err != nil {
 		return err, types.RSFail
 	}
-	log.CoreLogger.Infof("change fund guard mode success,addr = %s,current mode is %v,height=%v", op.source, op.mode, op.height)
+	log.CoreLogger.Infof("change fund guard mode success,addr = %s,current mode is %v,height is %v", op.source, op.mode, op.height)
 	return nil, types.RSSuccess
 }
 
