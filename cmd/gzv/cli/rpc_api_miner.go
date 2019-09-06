@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// RpcGtasImpl provides rpc service for users to interact with remote nodes
+// RpcGzvImpl provides rpc service for users to interact with remote nodes
 type RpcMinerImpl struct {
 	*rpcBaseImpl
 }
@@ -44,7 +44,7 @@ type BasicInfo struct {
 func (rm *RpcMinerImpl) BasicData() (*BasicInfo, error) {
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 	version := common.GtasVersion
-	chainId := GlobalGtas.config.chainID
+	chainId := globalGzv.config.chainID
 	addr := common.BytesToAddress(mediator.Proc.GetMinerID().Serialize())
 	blockHeight := core.BlockChainImpl.Height()
 	groupHeight := core.GroupManagerImpl.Height()
