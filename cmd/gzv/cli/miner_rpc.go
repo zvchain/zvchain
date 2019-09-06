@@ -16,12 +16,11 @@
 package cli
 
 import (
+	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/log"
 	"net"
-
-	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 
 	"fmt"
 	"strings"
@@ -31,7 +30,7 @@ import (
 type rpcLevel int
 
 const (
-	rpcLevelNone     rpcLevel = iota // Won't start rpc service which is the default value if not set
+	rpcLevelMiner    rpcLevel = iota // Won't start rpc service which is the default value if not set
 	rpcLevelGtas                     // Only enable the core rpc service functions used by miners or dapp developers
 	rpcLevelExplorer                 // Enable both above and explorer related functions
 	rpcLevelDev                      // Enable all functions including functions for debug or developer use
@@ -49,11 +48,12 @@ func (gtas *Gtas) addInstance(inst rpcApi) {
 
 func (gtas *Gtas) initRpcInstances() error {
 	level := gtas.config.rpcLevel
-	if level < rpcLevelNone || level > rpcLevelDev {
+	if level < rpcLevelMiner || level > rpcLevelDev {
 		return fmt.Errorf("rpc level error:%v", level)
 	}
 	base := &rpcBaseImpl{gr: getGroupReader(), br: core.BlockChainImpl}
 	gtas.rpcInstances = make([]rpcApi, 0)
+	gtas.addInstance(&RpcMinerImpl{base})
 	if level >= rpcLevelGtas {
 		gtas.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
 	}
@@ -107,11 +107,11 @@ func (gtas *Gtas) startRPC() error {
 		return err
 	}
 
+	host, port := gtas.config.host, gtas.config.port
 	apis := make([]rpc.API, 0)
 	for _, inst := range gtas.rpcInstances {
 		apis = append(apis, rpc.API{Namespace: inst.Namespace(), Version: inst.Version(), Service: inst, Public: true})
 	}
-	host, port := gtas.config.rpcAddr, gtas.config.rpcPort
 
 	var cors []string
 	switch gtas.config.cors {

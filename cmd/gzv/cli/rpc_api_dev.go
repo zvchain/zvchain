@@ -270,26 +270,7 @@ func (api *RpcDevImpl) NodeInfo() (*NodeInfo, error) {
 		ni.Status = "node not ready"
 	} else {
 		ni.Status = "running"
-		morts := make([]MortGage, 0)
-		t := "--"
-		addr := common.BytesToAddress(p.GetMinerID().Serialize())
-		proposalInfo := core.MinerManagerImpl.GetLatestMiner(addr, types.MinerTypeProposal)
-		if proposalInfo != nil {
-			morts = append(morts, *NewMortGageFromMiner(proposalInfo))
-			if proposalInfo.IsActive() {
-				t = "proposal role"
-			}
-		}
-		verifyInfo := core.MinerManagerImpl.GetLatestMiner(addr, types.MinerTypeVerify)
-		if verifyInfo != nil {
-			morts = append(morts, *NewMortGageFromMiner(verifyInfo))
-			if verifyInfo.IsActive() {
-				t += " verify role"
-			}
-		}
-		ni.NType = t
-		ni.MortGages = morts
-
+		ni.NType, ni.MortGages = getMorts(p)
 		//wg, ag := p.GetJoinedWorkGroupNums()
 		//ni.WGroupNum = wg
 		//ni.AGroupNum = ag
@@ -298,7 +279,6 @@ func (api *RpcDevImpl) NodeInfo() (*NodeInfo, error) {
 
 	}
 	return ni, nil
-
 }
 
 func (api *RpcDevImpl) Dashboard() (*Dashboard, error) {

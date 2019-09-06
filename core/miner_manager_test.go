@@ -618,7 +618,7 @@ func TestFundApplyGuardNode(t *testing.T) {
 	}
 }
 
-func TestFundNodeApplyGuardNode(t *testing.T){
+func TestFundNodeApplyGuardNode(t *testing.T) {
 	setup(t)
 	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
