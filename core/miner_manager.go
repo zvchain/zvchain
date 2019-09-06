@@ -335,6 +335,9 @@ func (mm *MinerManager) GetAllFullStakeGuardNodes(accountDB types.AccountDB) []c
 	iter := accountDB.DataIterator(common.FullStakeGuardNodeAddr, common.KeyGuardNodes)
 	if iter != nil {
 		for iter.Next() {
+			if !bytes.HasPrefix(iter.Key, common.KeyGuardNodes) {
+				break
+			}
 			addr := common.BytesToAddress(iter.Key[len(common.KeyGuardNodes):])
 			addrs = append(addrs, addr)
 		}
@@ -346,6 +349,9 @@ func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]
 	var fds []*fundGuardNodeDetail
 	iter := accountDB.DataIterator(common.FundGuardNodeAddr, common.KeyGuardNodes)
 	for iter.Next() {
+		if !bytes.HasPrefix(iter.Key, common.KeyGuardNodes) {
+			break
+		}
 		addr := common.BytesToAddress(iter.Key[len(common.KeyGuardNodes):])
 		bytes := iter.Value
 		var fn fundGuardNode
