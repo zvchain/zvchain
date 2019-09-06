@@ -5,7 +5,7 @@ ZVChain is a highly available, highly secure and high-efficiency decentralized a
 
 # Build
 
-Executing the script in the project directory named build.sh will generate the executable g program if you are on Linux or MacOS system. Manual-built under windows system is currently not supported and it will be achieved in the near future.
+Executing the script in the project directory named build.sh will generate the executable gzv program if you are on Linux or MacOS system. Manual-built under windows system is currently not supported and it will be achieved in the near future.
 
 ```
   sh build.sh gzv
