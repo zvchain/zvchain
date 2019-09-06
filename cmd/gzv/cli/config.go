@@ -17,8 +17,8 @@ package cli
 
 type minerConfig struct {
 	rpcLevel          rpcLevel
-	rpcAddr           string
-	rpcPort           uint16
+	host              string
+	port              uint16
 	super             bool
 	testMode          bool
 	natIP             string
@@ -33,8 +33,4 @@ type minerConfig struct {
 	resetHash         string
 	cors              string
 	privateKey        string
-}
-
-func (cfg *minerConfig) rpcEnable() bool {
-	return cfg.rpcLevel > rpcLevelNone
 }

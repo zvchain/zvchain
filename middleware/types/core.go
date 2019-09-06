@@ -40,6 +40,7 @@ var (
 	UserNodeAddress   = common.StringToAddress("zve30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139") // address of official reserved user node address
 	DaemonNodeAddress = common.StringToAddress("zvae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122") // address of official reserved daemon node address
 )
+
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed              AddBlockResult = -1 // Means the operations is fail
@@ -342,5 +343,3 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 func (bw BlockWeight) String() string {
 	return fmt.Sprintf("%v-%v", bw.TotalQN, bw.Hash)
 }
-
-
