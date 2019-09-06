@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
 )
@@ -125,7 +124,7 @@ func (n *NormalProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detai
 	if err := setDetail(db, address, detailKey, detail); err != nil {
 		return err, types.RSFail
 	}
-	log.CoreLogger.Infof("normal guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.AddrPrefixString(), height, detail.DisMissHeight)
+	Logger.Infof("normal guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.AddrPrefixString(), height, detail.DisMissHeight)
 	return nil, types.RSSuccess
 }
 
@@ -146,10 +145,10 @@ func (g *GuardProposalMiner) afterBecomeFullGuardNode(db types.AccountDB, detail
 			return err, types.RSFail
 		}
 		addFullStakeGuardPool(db, address)
-		log.CoreLogger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.AddrPrefixString(), height, detail.DisMissHeight)
+		Logger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.AddrPrefixString(), height, detail.DisMissHeight)
 	} else {
 		detail.DisMissHeight = detail.DisMissHeight + adjustWeightPeriod/2
-		log.CoreLogger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.AddrPrefixString(), height, detail.DisMissHeight)
+		Logger.Infof("fund guard upgrade full stake guard node success,addr =%v,height=%v,dismissHeight=%v", address.AddrPrefixString(), height, detail.DisMissHeight)
 	}
 	if err := setDetail(db, address, detailKey, detail); err != nil {
 		return err, types.RSFail
@@ -186,22 +185,17 @@ func (m *MinerPoolProposalMiner) afterTicketReduce(op *reduceTicketsOp, miner *t
 		if miner == nil {
 			return fmt.Errorf("find miner pool miner is nil,addr is %s", op.target.AddrPrefixString()), types.RSFail
 		}
+		Logger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.AddrPrefixString(), op.height, totalTickets)
 		miner.UpdateIdentity(types.InValidMinerPool, op.height)
-		remove := false
 		// Remove from pool if active
 		if miner.IsActive() {
 			removeFromPool(op.accountDB, types.MinerTypeProposal, op.target, miner.Stake)
 			miner.UpdateStatus(types.MinerStatusPrepare, op.height)
-			remove = true
 		}
 		if err := setMiner(op.accountDB, miner); err != nil {
 			return err, types.RSFail
 		}
-		if remove && MinerManagerImpl != nil {
-			// Informs MinerManager the removal address
-			MinerManagerImpl.proposalRemoveCh <- op.target
-		}
-		log.CoreLogger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.AddrPrefixString(), op.height, totalTickets)
+		Logger.Infof("downgrade invalid pool miner node,addr = %s,height = %v,currentTickets=%v", op.target.AddrPrefixString(), op.height, totalTickets)
 	}
 	return nil, types.RSSuccess
 
@@ -216,25 +210,18 @@ func (b *BaseMiner) processMinerAbort(op *minerAbortOp, miner *types.Miner) (err
 	if err != nil {
 		return err, rs
 	}
-	remove := false
 	// Remove from pool if active
 	if miner.IsActive() {
-		log.CoreLogger.Infof("miner abort,remove from pool")
+		Logger.Infof("miner abort,remove from pool")
 		removeFromPool(op.accountDB, op.minerType, op.addr, miner.Stake)
-		if types.IsProposalRole(op.minerType) {
-			remove = true
-		}
 	}
 	// Update the miner status
 	miner.UpdateStatus(types.MinerStatusPrepare, op.height)
 	if err := setMiner(op.accountDB, miner); err != nil {
 		return err, types.RSFail
 	}
-	if remove && MinerManagerImpl != nil {
-		// Informs MinerManager the removal address
-		MinerManagerImpl.proposalRemoveCh <- op.addr
-	}
-	log.CoreLogger.Infof("miner abort success,addr =%s,height=%v,left=%v", op.addr.AddrPrefixString(), op.height, miner.Stake)
+
+	Logger.Infof("minerabort success,addr =%s,height=%v,left=%v", op.addr.AddrPrefixString(), op.height, miner.Stake)
 	return nil, types.RSSuccess
 }
 
@@ -278,7 +265,6 @@ func (b *BaseMiner) checkCanReduce(op *stakeReduceOp, minerType types.MinerType,
 }
 
 func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) (error, types.ReceiptStatus) {
-	remove := false
 	if miner == nil {
 		return fmt.Errorf("no miner info"), types.RSMinerNotExists
 	}
@@ -297,10 +283,9 @@ func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) (e
 	// Sub the corresponding total stake of the proposals
 	if miner.IsActive() && types.IsProposalRole(op.minerType) {
 		if !checkLowerBound(miner) {
-			log.CoreLogger.Infof("stake reduce lower min bound,remove from pool")
+			Logger.Infof("stake reduce lower min bound,remove from pool")
 			removeFromPool(op.accountDB, op.minerType, op.cancelTarget, originStake)
 			miner.UpdateStatus(types.MinerStatusPrepare, op.height)
-			remove = true
 		} else {
 			subProposalTotalStake(op.accountDB, op.value)
 		}
@@ -362,11 +347,7 @@ func (b *BaseMiner) processStakeReduce(op *stakeReduceOp, miner *types.Miner) (e
 	if err := setDetail(op.accountDB, op.cancelTarget, frozenDetailKey, frozenDetail); err != nil {
 		return err, types.RSFail
 	}
-	if remove && MinerManagerImpl != nil {
-		// Informs MinerManager the removal address
-		MinerManagerImpl.proposalRemoveCh <- op.cancelTarget
-	}
-	log.CoreLogger.Infof("stake reduce success,source=%s,to=%s,height=%v,type = %d,value=%v,left=%v", op.cancelSource.AddrPrefixString(), op.cancelTarget.AddrPrefixString(), op.height, op.minerType, op.value, miner.Stake)
+	Logger.Infof("stakereduce success,source=%s,to=%s,height=%v,value=%v,left=%v", op.cancelSource, op.cancelTarget, op.height, op.value, miner.Stake)
 	return nil, types.RSSuccess
 }
 
@@ -440,7 +421,7 @@ func (b *BaseMiner) afterTicketsFull(op *voteMinerPoolOp, targetMiner *types.Min
 
 func (b *BaseMiner) processReduceTicket(op *reduceTicketsOp, targetMiner *types.Miner, afterTicketReduceFunc reduceTicketCallBack) (error, types.ReceiptStatus) {
 	totalTickets := subTicket(op.accountDB, op.target)
-	log.CoreLogger.Infof("reduce ticket success,target is %s,height is %v,tickets = %d", op.target.AddrPrefixString(), op.height, totalTickets)
+	Logger.Infof("reduce ticket success,target is %s,height is %v,tickets = %d", op.target.AddrPrefixString(), op.height, totalTickets)
 	if afterTicketReduceFunc != nil {
 		return afterTicketReduceFunc(op, targetMiner, totalTickets)
 	}
@@ -497,7 +478,7 @@ func (b *BaseMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Miner,
 			return err, types.RSFail
 		}
 	}
-	log.CoreLogger.Infof("apply guard success,address is %s,height is %v", op.targetAddr.AddrPrefixString(), op.height)
+	Logger.Infof("apply guard success,address is %s,height is %v", op.targetAddr.AddrPrefixString(), op.height)
 	return nil, types.RSSuccess
 }
 
@@ -520,10 +501,10 @@ func (b *BaseMiner) processChangeFundGuardMode(op *changeFundGuardMode, targetMi
 		return fmt.Errorf("only fund guard can do this operator"), types.RSMinerUnSupportOp
 	}
 	err = updateFundGuardMode(op.accountDB, fn, op.source, op.mode, op.height)
-	if err != nil {
+	if err == nil {
 		return err, types.RSFail
 	}
-	log.CoreLogger.Infof("change fund guard mode success,addr = %s,current mode is %v,height is %v", op.source, op.mode, op.height)
+	Logger.Infof("change fund guard mode success,addr = %v,current mode is %v,height=%v", op.source, op.mode, op.height)
 	return nil, types.RSSuccess
 }
 
@@ -532,7 +513,6 @@ func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, ch
 	if err != nil {
 		return err, types.RSBalanceNotEnough
 	}
-	add := false
 	// Already exists
 	if targetMiner != nil {
 		if targetMiner.IsFrozen() { // Frozen miner must abort first
@@ -548,7 +528,7 @@ func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, ch
 	}
 	if op.addTarget == op.addSource {
 		setPks(targetMiner, op.minerPks)
-		log.CoreLogger.Infof("stake add set pks,from=%s,to=%s,type=%d,height=%d,value=%v", op.addSource.AddrPrefixString(), op.addTarget.AddrPrefixString(), op.minerType, op.height, op.value)
+		Logger.Infof("stakeadd set pks success,from=%v,to=%v,type=%d,height=%d,value=%v", op.addSource, op.addTarget, op.minerType, op.height, op.value)
 	}
 	if !checkUpperBound(targetMiner, op.height) {
 		return fmt.Errorf("stake more than upper bound:%v", targetMiner.Stake), types.RSMinerStakeOverLimit
@@ -562,10 +542,7 @@ func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, ch
 		targetMiner.UpdateStatus(types.MinerStatusActive, op.height)
 		// Add to pool so that the miner can start working
 		addToPool(op.accountDB, op.minerType, op.addTarget, targetMiner.Stake)
-		log.CoreLogger.Infof("stake add,from=%s,to=%s,type=%d,height=%d,value=%v,add to pool", op.addSource.AddrPrefixString(), op.addTarget.AddrPrefixString(), op.minerType, op.height, op.value)
-		if types.IsProposalRole(op.minerType) {
-			add = true
-		}
+		Logger.Infof("stakeadd success,from=%v,to=%v,type=%d,height=%d,value=%v,add to pool", op.addSource, op.addTarget, op.minerType, op.height, op.value)
 	}
 	// Save miner
 	if err := setMiner(op.accountDB, targetMiner); err != nil {
@@ -593,12 +570,8 @@ func (b *BaseMiner) processStakeAdd(op *stakeAddOp, targetMiner *types.Miner, ch
 		return err, types.RSFail
 	}
 
-	log.CoreLogger.Infof("stake add success,from=%s,to=%s,type=%d,height=%d,value=%v,current=%v", op.addSource.AddrPrefixString(), op.addTarget.AddrPrefixString(), op.minerType, op.height, op.value, targetMiner.Stake)
+	Logger.Infof("stakeadd success,from=%v,to=%v,type=%d,height=%d,value=%v", op.addSource, op.addTarget, op.minerType, op.height, op.value)
 
-	if add && MinerManagerImpl != nil {
-		// Inform added proposer address to minerManager
-		MinerManagerImpl.proposalAddCh <- op.addTarget
-	}
 	return nil, types.RSSuccess
 }
 

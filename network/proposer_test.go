@@ -16,31 +16,15 @@
 package network
 
 import (
+	"math"
 	"testing"
 )
 
-func TestGroupGenConnectNodesZero(t *testing.T) {
+func TestProprosers(t *testing.T) {
+
 	if !InitTestNetwork() {
 		t.Fatalf("init network failed")
 	}
-
-	nodes := make([]NodeID, 0)
-	nodes = append(nodes, NodeID{})
-
-	g := netCore.groupManager.buildGroup("test", nodes)
-	if g != nil {
-		g.genConnectNodes()
-		t.Logf("nodes :%v", len(g.needConnectNodes))
-	}
-
-	t.Log("nil group ")
-}
-
-func TestGroup(t *testing.T) {
-	if !InitTestNetwork() {
-		t.Fatalf("init network failed")
-	}
-
 	nodes := []string{
 		"zv00c318574fd4756e72ab79ab7ddcd1bdd9e2ce3842253a8739f8ca227d0077b1",
 		"zv00c318574fd4756e72ab79ab7ddcd1bdd9e2ce3842253a8739f8ca227d0077b8",
@@ -152,105 +136,129 @@ func TestGroup(t *testing.T) {
 		"zvff86d3a1102475e3a027d0f00347131483ef81b2d5abe8497551c9346ea23d98",
 	}
 
-	t.Run("GenConnectNodes9-0", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:9], 0, 4, 0, 3, 0, 3, 2)
-	})
+	t.Run("TestProposersSort", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < len(nodes); i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := i
 
-	t.Run("GenConnectNodes9-5", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:9], 5, 4, 1, 3, 1, 3, 1)
-	})
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
 
-	t.Run("GenConnectNodes9-8", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:9], 8, 4, 2, 3, 0, 0, 2)
-	})
-
-	t.Run("GenConnectNodes12-0", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:12], 0, 4, 0, 3, 0, 3, 2)
-	})
-
-	t.Run("GenConnectNodes12-5", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:12], 5, 4, 1, 3, 1, 3, 2)
-	})
-
-	t.Run("GenConnectNodes12-11", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:12], 11, 4, 2, 3, 3, 3, 2)
-	})
-
-	t.Run("GenConnectNodes46-2", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:46], 2, 7, 0, 7, 2, 6, 6)
-	})
-
-	t.Run("GenConnectNodes46-7", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:46], 7, 7, 1, 7, 0, 6, 6)
-	})
-
-	t.Run("GenConnectNodes46-45", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:46], 45, 7, 6, 7, 3, 3, 6)
-	})
-
-	t.Run("GenConnectNodes100-5", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:100], 5, 10, 0, 10, 5, 9, 9)
-	})
-
-	t.Run("GenConnectNodes100-66", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:100], 66, 10, 6, 10, 6, 9, 9)
-	})
-
-	t.Run("GenConnectNodes100-99", func(t *testing.T) {
-		GenConnectNodesTest(t, nodes[0:100], 99, 10, 9, 10, 9, 9, 9)
-	})
-
-	t.Run("genGroupRandomEntranceNodes", func(t *testing.T) {
-		entranceNodes := genGroupRandomEntranceNodes(nodes[0:100])
-		t.Logf("entranceNodes count:%v", len(entranceNodes))
-		if len(entranceNodes) != 5 {
-			t.Fatalf("entranceNodes count is not right:%v", len(entranceNodes))
+		if netCore.proposerManager.fastBucket.proposers[0].Stake != uint64(len(nodes)-1) {
+			t.Fatalf("fastBucket size is not right")
 		}
 	})
 
-	t.Run("genGroupRandomEntranceNodes", func(t *testing.T) {
-		entranceNodes := genGroupRandomEntranceNodes(nodes[0:10])
-		t.Logf("entranceNodes count:%v", len(entranceNodes))
-		if len(entranceNodes) != 2 {
-			t.Fatalf("entranceNodes count is not right:%v", len(entranceNodes))
+	t.Run("TestProposersTop5", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < len(nodes); i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 100000
+				if i >= 5 {
+					stake = 10
+				}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+
+		if len(netCore.proposerManager.fastBucket.proposers) != 5 {
+			t.Fatalf("fastBucket size is not right")
 		}
 	})
 
-	t.Run("genGroupRandomEntranceNodes", func(t *testing.T) {
-		entranceNodes := genGroupRandomEntranceNodes(nodes[0:25])
-		t.Logf("entranceNodes count:%v", len(entranceNodes))
-		if len(entranceNodes) != 3 {
-			t.Fatalf("entranceNodes count is not right:%v", len(entranceNodes))
+	t.Run("TestProposersTop80", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < len(nodes); i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+
+		netCore.proposerManager.Build(proposers)
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		if len(netCore.proposerManager.fastBucket.proposers) != int(math.Ceil(float64(len(nodes))*0.8)) {
+			t.Fatalf("fastBucket size is not right")
 		}
 	})
-}
 
-func GenConnectNodesTest(t *testing.T, nodes []string, curIndex int, rowSize int, rowIndex int, rowCount int, columnIndex int, rowNodesCount int, columnNodesCount int) {
+	t.Run("TestProposersAdd", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < 100; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+				if i >= 5 {
+					stake = 10
+				}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+		proposers = make([]*Proposer, 0)
 
-	netCore.ID = *NewNodeID(nodes[curIndex])
-	g := netServerInstance.AddGroup("test", nodes)
+		for i := 100; i < 106; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+				if i > 102 {
+					stake = 10
+				}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		netCore.proposerManager.AddProposers(proposers)
+		t.Logf("after added fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		if len(netCore.proposerManager.fastBucket.proposers) != 5 {
+			t.Fatalf("fastBucket size is not right")
+		}
+		if len(netCore.proposerManager.normalBucket.proposers) != 100 {
+			t.Fatalf("normalBucket size is not right")
+		}
+	})
 
-	if g.rowSize != rowSize {
-		t.Fatalf("rowSize is not right")
-	}
+	t.Run("TestProposersAddContained", func(t *testing.T) {
+		proposers := make([]*Proposer, 0)
+		for i := 0; i < 100; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10000
+				if i >= 5 {
+					stake = 10
+				}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		netCore.proposerManager.Build(proposers)
+		proposers = make([]*Proposer, 0)
 
-	if g.rowIndex != rowIndex {
-		t.Fatalf("rowIndex is not right")
-	}
+		for i := 90; i < 106; i++ {
+			ID := NewNodeID(nodes[i])
+			if ID != nil {
+				stake := 10
 
-	if g.columnIndex != columnIndex {
-		t.Fatalf("columnIndex is not right")
-	}
-
-	if g.rowCount != rowCount {
-		t.Fatalf("rowCount is not right")
-	}
-
-	if len(g.rowNodes) != rowNodesCount {
-		t.Fatalf("rowNodesCount is not right")
-	}
-
-	if len(g.columnNodes) != columnNodesCount {
-		t.Fatalf("columnNodesCount is not right")
-	}
+				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
+			}
+		}
+		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		netCore.proposerManager.AddProposers(proposers)
+		t.Logf("after added fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		if len(netCore.proposerManager.fastBucket.proposers) != 5 {
+			t.Fatalf("fastBucket size is not right")
+		}
+		if len(netCore.proposerManager.normalBucket.proposers) != 100 {
+			t.Fatalf("normalBucket size is not right")
+		}
+	})
 }

@@ -74,7 +74,7 @@ func (s *Server) SpreadToGroup(groupID string, groupMembers []string, msg Messag
 		return err
 	}
 
-	Logger.Infof("SpreadToGroup :%s,code:%d,msg size:%d", groupID, msg.Code, len(msg.Body)+4)
+	Logger.Infof("SpreadToGroup :%s,code:%d,groupMembers:%v msg size:%d", groupID, msg.Code, len(groupMembers), len(msg.Body)+4)
 	s.netCore.groupBroadcastWithMembers(groupID, bytes, msg.Code, digest, groupMembers, -1)
 
 	return nil
@@ -132,6 +132,14 @@ func (s *Server) AddGroup(groupID string, members []string) *Group {
 		}
 	}
 	return s.netCore.groupManager.buildGroup(groupID, nodes)
+}
+
+func (s *Server) BuildProposerGroupNet(proposers []*Proposer) {
+	s.netCore.proposerManager.Build(proposers)
+}
+
+func (s *Server) AddProposers(proposers []*Proposer) {
+	s.netCore.proposerManager.AddProposers(proposers)
 }
 
 func (s *Server) RemoveGroup(ID string) {

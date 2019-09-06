@@ -20,12 +20,10 @@ package logical
 import (
 	"bytes"
 	lru "github.com/hashicorp/golang-lru"
-	"io/ioutil"
-	"strings"
-	"sync"
-
 	group2 "github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"io/ioutil"
+	"strings"
 
 	"fmt"
 	"sync/atomic"
@@ -73,13 +71,11 @@ type Processor struct {
 	isCasting int32 // Proposal check status: 0 idle, 1 casting
 
 	castVerifyCh chan *types.BlockHeader
-	blockAddCh   chan *types.BlockHeader
+	blockAddCh   chan *types.Block
 
 	groupReader *groupReader
 
 	ts time.TimeService // Network-wide time service, regardless of local time
-
-	groupNetBuilt sync.Map // Store groups that have built group-network
 
 	rewardHandler *RewardHandler
 
@@ -87,6 +83,7 @@ type Processor struct {
 
 	cachedMinElapseByEpoch *lru.Cache // Cache the min elapse milliseconds in a epoch. key: common.Hash, value: int32
 
+	gNetMgr *groupNetMgr
 }
 
 func (p *Processor) GetRewardManager() types.RewardManager {
@@ -137,7 +134,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.mi = &mi
 
 	p.castVerifyCh = make(chan *types.BlockHeader, 5)
-	p.blockAddCh = make(chan *types.BlockHeader, 5)
+	p.blockAddCh = make(chan *types.Block, 5)
 
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()
@@ -155,6 +152,8 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.selector = newGroupSelector(provider)
 
 	p.cachedMinElapseByEpoch = common.MustNewLRUCache(10)
+
+	p.gNetMgr = newGroupNetMgr(p.NetServer, p.groupReader, core.MinerManagerImpl, mi.ID)
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())
@@ -272,9 +271,11 @@ func (p *Processor) initLivedGroup() {
 	currEpoch := types.EpochAt(currentHeight)
 
 	// Build group-net of groups activated at current epoch
-	p.buildGroupNetOfActivateEpochAt(currEpoch)
+	p.gNetMgr.buildGroupNetOfActivateEpochAt(currEpoch)
 	// Try to build group-net of groups will be activated at next epoch
-	p.buildGroupNetOfNextEpoch(currentHeight)
+	p.gNetMgr.buildGroupNetOfNextEpoch(currentHeight)
+	// Try to build the proposer group net
+	p.gNetMgr.tryFullBuildProposerGroupNetAt(currentHeight)
 }
 
 // Ready check if the processor engine is initialized and ready for message processing

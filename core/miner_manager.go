@@ -18,46 +18,24 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"github.com/zvchain/zvchain/log"
-	"sync"
-
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/middleware/ticker"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/network"
 )
 
 const (
-	heavyMinerNetTriggerInterval = 10
-	buildVirtualNetRoutineName   = "build_virtual_net"
-	checkInterval                = 1000
+	checkInterval = 1000
 )
 
 var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
 type MinerManager struct {
-	existingProposal map[string]struct{} // Existing proposal addresses
-
-	proposalAddCh    chan common.Address // Received when miner active operation happens
-	proposalRemoveCh chan common.Address // Receiver when miner deactive operation such as miner-abort or frozen happens
-
-	ticker *ticker.GlobalTicker
-	lock   sync.RWMutex
 }
 
-func initMinerManager(ticker *ticker.GlobalTicker) {
-	MinerManagerImpl = &MinerManager{
-		existingProposal: make(map[string]struct{}),
-		proposalAddCh:    make(chan common.Address),
-		proposalRemoveCh: make(chan common.Address),
-		ticker:           ticker,
-	}
-
-	MinerManagerImpl.ticker.RegisterPeriodicRoutine(buildVirtualNetRoutineName, MinerManagerImpl.updateProposalAddressRoutine, heavyMinerNetTriggerInterval)
-
-	go MinerManagerImpl.listenProposalUpdate()
+func initMinerManager() {
+	MinerManagerImpl = &MinerManager{}
 }
 
 // GuardNodesCheck check guard nodes is expired
@@ -274,10 +252,6 @@ func (mm *MinerManager) executeOperation(operation mOperation, accountDB types.A
 
 // ClearTicker clear the ticker routine
 func (mm *MinerManager) ClearTicker() {
-	if mm.ticker == nil {
-		return
-	}
-	mm.ticker.ClearRoutines()
 }
 
 // ExecuteOperation execute the miner operation
@@ -406,6 +380,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
 	miners := make([]*types.Miner, 0)
 	for iter.Next() {
+		// finish the iterator
 		if !bytes.HasPrefix(iter.Key, prefix) {
 			break
 		}
@@ -511,80 +486,6 @@ func (mm *MinerManager) GetAllStakeDetails(address common.Address) map[string][]
 		ret[addr.AddrPrefixString()] = ds
 	}
 	return ret
-}
-
-func (mm *MinerManager) loadAllProposalAddress() map[string]struct{} {
-	mp := make(map[string]struct{})
-	accountDB, error := BlockChainImpl.LatestAccountDB()
-	if error != nil {
-		Logger.Errorf("get accountdb failed,error = %v", error.Error())
-		return mp
-	}
-	prefix := common.PrefixPoolProposal
-	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
-	for iter != nil && iter.Next() {
-		if !bytes.HasPrefix(iter.Key, prefix) {
-			break
-		}
-		addr := common.BytesToAddress(iter.Key[len(prefix):])
-		mp[addr.AddrPrefixString()] = struct{}{}
-	}
-	return mp
-}
-
-// GetAllProposalAddresses returns all proposal miner addresses
-func (mm *MinerManager) GetAllProposalAddresses() []string {
-	mm.lock.RLock()
-	defer mm.lock.RUnlock()
-	return mm.getAllProposalAddresses()
-}
-
-func (mm *MinerManager) getAllProposalAddresses() []string {
-	mems := make([]string, 0)
-	for addr := range mm.existingProposal {
-		mems = append(mems, addr)
-	}
-	return mems
-}
-
-func (mm *MinerManager) listenProposalUpdate() {
-	for {
-		select {
-		case addr := <-mm.proposalAddCh:
-			mm.lock.Lock()
-			if _, ok := mm.existingProposal[addr.AddrPrefixString()]; !ok {
-				mm.existingProposal[addr.AddrPrefixString()] = struct{}{}
-				Logger.Debugf("Add proposer %v", addr.AddrPrefixString())
-			}
-			mm.lock.Unlock()
-		case addr := <-mm.proposalRemoveCh:
-			mm.lock.Lock()
-			if _, ok := mm.existingProposal[addr.AddrPrefixString()]; ok {
-				delete(mm.existingProposal, addr.AddrPrefixString())
-				Logger.Debugf("Remove proposer %v", addr.AddrPrefixString())
-			}
-			mm.lock.Unlock()
-		}
-	}
-}
-
-func (mm *MinerManager) buildVirtualNetRoutine() {
-	addrs := mm.getAllProposalAddresses()
-	Logger.Infof("MinerManager HeavyMinerUpdate Size:%d", len(addrs))
-	if network.GetNetInstance() != nil {
-		network.GetNetInstance().BuildGroupNet(network.FullNodeVirtualGroupID, addrs)
-	}
-}
-
-func (mm *MinerManager) updateProposalAddressRoutine() bool {
-	addresses := mm.loadAllProposalAddress()
-
-	mm.lock.Lock()
-	defer mm.lock.Unlock()
-
-	mm.existingProposal = addresses
-	mm.buildVirtualNetRoutine()
-	return true
 }
 
 func (mm *MinerManager) addGenesisMinerStake(miner *types.Miner, db types.AccountDB) {
