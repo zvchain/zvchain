@@ -161,6 +161,7 @@ func (gtas *Gtas) Run() {
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
+	*instanceIndex = 0
 	privKey := mineCmd.Flag("privatekey", "privatekey used for miner process").Default("").String()
 	passWd := mineCmd.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
@@ -206,7 +207,6 @@ func (gtas *Gtas) Run() {
 			runtime.SetMutexProfileFraction(1)
 		}()
 
-		common.GlobalConf.SetInt(instanceSection, indexKey, *instanceIndex)
 		databaseValue := "d_b"
 		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
 		types.InitMiddleware()
