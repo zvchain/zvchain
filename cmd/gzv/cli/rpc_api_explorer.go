@@ -42,7 +42,7 @@ func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*ExplorerAccount, erro
 	if !common.ValidateAddress(strings.TrimSpace(hash)) {
 		return nil, fmt.Errorf("wrong param format")
 	}
-	impl := &RpcGtasImpl{}
+	impl := &RpcGzvImpl{}
 	return impl.ViewAccount(hash)
 }
 

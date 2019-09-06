@@ -42,26 +42,26 @@ type rpcApi interface {
 	Version() string
 }
 
-func (gtas *Gtas) addInstance(inst rpcApi) {
-	gtas.rpcInstances = append(gtas.rpcInstances, inst)
+func (gzv *Gzv) addInstance(inst rpcApi) {
+	gzv.rpcInstances = append(gzv.rpcInstances, inst)
 }
 
-func (gtas *Gtas) initRpcInstances() error {
-	level := gtas.config.rpcLevel
+func (gzv *Gzv) initRpcInstances() error {
+	level := gzv.config.rpcLevel
 	if level < rpcLevelMiner || level > rpcLevelDev {
 		return fmt.Errorf("rpc level error:%v", level)
 	}
 	base := &rpcBaseImpl{gr: getGroupReader(), br: core.BlockChainImpl}
-	gtas.rpcInstances = make([]rpcApi, 0)
-	gtas.addInstance(&RpcMinerImpl{base})
+	gzv.rpcInstances = make([]rpcApi, 0)
+	gzv.addInstance(&RpcMinerImpl{base})
 	if level >= rpcLevelGtas {
-		gtas.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
+		gzv.addInstance(&RpcGzvImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
 	}
 	if level >= rpcLevelExplorer {
-		gtas.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
+		gzv.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
 	}
 	if level >= rpcLevelDev {
-		gtas.addInstance(&RpcDevImpl{rpcBaseImpl: base})
+		gzv.addInstance(&RpcDevImpl{rpcBaseImpl: base})
 	}
 	return nil
 }
@@ -99,28 +99,28 @@ func startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string,
 }
 
 // StartRPC RPC function
-func (gtas *Gtas) startRPC() error {
+func (gzv *Gzv) startRPC() error {
 	var err error
 
 	// init api instance
-	if err = gtas.initRpcInstances(); err != nil {
+	if err = gzv.initRpcInstances(); err != nil {
 		return err
 	}
 
-	host, port := gtas.config.host, gtas.config.port
+	host, port := gzv.config.host, gzv.config.port
 	apis := make([]rpc.API, 0)
-	for _, inst := range gtas.rpcInstances {
+	for _, inst := range gzv.rpcInstances {
 		apis = append(apis, rpc.API{Namespace: inst.Namespace(), Version: inst.Version(), Service: inst, Public: true})
 	}
 
 	var cors []string
-	switch gtas.config.cors {
+	switch gzv.config.cors {
 	case "all":
 		cors = []string{"*"}
 	case "":
 		cors = []string{}
 	default:
-		cors = strings.Split(gtas.config.cors, ",")
+		cors = strings.Split(gzv.config.cors, ",")
 	}
 
 	for plus := 0; plus < 40; plus++ {

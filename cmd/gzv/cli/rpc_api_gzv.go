@@ -57,17 +57,17 @@ type rpcBaseImpl struct {
 	br blockReader
 }
 
-// RpcGtasImpl provides rpc service for users to interact with remote nodes
-type RpcGtasImpl struct {
+// RpcGzvImpl provides rpc service for users to interact with remote nodes
+type RpcGzvImpl struct {
 	*rpcBaseImpl
 	routineChecker groupRoutineChecker
 }
 
-func (api *RpcGtasImpl) Namespace() string {
+func (api *RpcGzvImpl) Namespace() string {
 	return "Gzv"
 }
 
-func (api *RpcGtasImpl) Version() string {
+func (api *RpcGzvImpl) Version() string {
 	return "1"
 }
 
@@ -79,7 +79,7 @@ func failErrResult(err string) *ErrorResult {
 }
 
 // Tx is user transaction interface, used for sending transaction to the node
-func (api *RpcGtasImpl) Tx(txRaw *TxRawData) (string, error) {
+func (api *RpcGzvImpl) Tx(txRaw *TxRawData) (string, error) {
 	if !validateTxType(txRaw.TxType) {
 		return "", fmt.Errorf("not supported txType")
 	}
@@ -107,7 +107,7 @@ func (api *RpcGtasImpl) Tx(txRaw *TxRawData) (string, error) {
 }
 
 // Balance is query balance interface
-func (api *RpcGtasImpl) Balance(account string) (float64, error) {
+func (api *RpcGzvImpl) Balance(account string) (float64, error) {
 	account = strings.TrimSpace(account)
 	if !common.ValidateAddress(account) {
 		return 0, fmt.Errorf("Wrong account address format")
@@ -119,18 +119,18 @@ func (api *RpcGtasImpl) Balance(account string) (float64, error) {
 }
 
 // BlockHeight query block height
-func (api *RpcGtasImpl) BlockHeight() (uint64, error) {
+func (api *RpcGzvImpl) BlockHeight() (uint64, error) {
 	height := core.BlockChainImpl.QueryTopBlock().Height
 	return height, nil
 }
 
 // GroupHeight query group height
-func (api *RpcGtasImpl) GroupHeight() (uint64, error) {
+func (api *RpcGzvImpl) GroupHeight() (uint64, error) {
 	height := core.GroupManagerImpl.Height()
 	return height, nil
 }
 
-func (api *RpcGtasImpl) GetBlockByHeight(height uint64) (*Block, error) {
+func (api *RpcGzvImpl) GetBlockByHeight(height uint64) (*Block, error) {
 	b := core.BlockChainImpl.QueryBlockByHeight(height)
 	if b == nil {
 		return nil, fmt.Errorf("height not exists")
@@ -146,7 +146,7 @@ func (api *RpcGtasImpl) GetBlockByHeight(height uint64) (*Block, error) {
 	return block, nil
 }
 
-func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Block, error) {
+func (api *RpcGzvImpl) GetBlockByHash(hash string) (*Block, error) {
 	hash = strings.TrimSpace(hash)
 	if !validateHash(hash) {
 		return nil, fmt.Errorf("wrong hash format")
@@ -166,7 +166,7 @@ func (api *RpcGtasImpl) GetBlockByHash(hash string) (*Block, error) {
 	return block, nil
 }
 
-func (api *RpcGtasImpl) GetTxsByBlockHash(hash string) ([]string, error) {
+func (api *RpcGzvImpl) GetTxsByBlockHash(hash string) ([]string, error) {
 	hash = strings.TrimSpace(hash)
 	if !validateHash(hash) {
 		return nil, fmt.Errorf("wrong hash format")
@@ -182,7 +182,7 @@ func (api *RpcGtasImpl) GetTxsByBlockHash(hash string) ([]string, error) {
 	return txs, nil
 }
 
-func (api *RpcGtasImpl) GetTxsByBlockHeight(height uint64) ([]string, error) {
+func (api *RpcGzvImpl) GetTxsByBlockHeight(height uint64) ([]string, error) {
 	b := core.BlockChainImpl.QueryBlockByHeight(height)
 	if b == nil {
 		return nil, fmt.Errorf("height not exists")
@@ -194,7 +194,7 @@ func (api *RpcGtasImpl) GetTxsByBlockHeight(height uint64) ([]string, error) {
 	return txs, nil
 }
 
-func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDetail, error) {
+func (api *RpcGzvImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDetail, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(addr) {
 		return nil, fmt.Errorf("Wrong account address format")
@@ -232,7 +232,7 @@ func (api *RpcGtasImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDet
 	return dt, nil
 }
 
-func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*MinerStakeDetails, error) {
+func (api *RpcGzvImpl) MinerInfo(addr string, detail string) (*MinerStakeDetails, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(addr) {
 		return nil, fmt.Errorf("wrong account address format")
@@ -301,7 +301,7 @@ func (api *RpcGtasImpl) MinerInfo(addr string, detail string) (*MinerStakeDetail
 	return minerDetails, nil
 }
 
-func (api *RpcGtasImpl) TransDetail(h string) (*Transaction, error) {
+func (api *RpcGzvImpl) TransDetail(h string) (*Transaction, error) {
 	h = strings.TrimSpace(h)
 	if !validateHash(h) {
 		return nil, fmt.Errorf("wrong hash format")
@@ -315,7 +315,7 @@ func (api *RpcGtasImpl) TransDetail(h string) (*Transaction, error) {
 	return nil, nil
 }
 
-func (api *RpcGtasImpl) Nonce(addr string) (uint64, error) {
+func (api *RpcGzvImpl) Nonce(addr string) (uint64, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(addr) {
 		return 0, fmt.Errorf("wrong account address format")
@@ -326,7 +326,7 @@ func (api *RpcGtasImpl) Nonce(addr string) (uint64, error) {
 	return nonce, nil
 }
 
-func (api *RpcGtasImpl) TxReceipt(h string) (*ExecutedTransaction, error) {
+func (api *RpcGzvImpl) TxReceipt(h string) (*ExecutedTransaction, error) {
 	h = strings.TrimSpace(h)
 	if !validateHash(h) {
 		return nil, fmt.Errorf("wrong hash format")
@@ -344,7 +344,7 @@ func (api *RpcGtasImpl) TxReceipt(h string) (*ExecutedTransaction, error) {
 }
 
 // ViewAccount is used for querying account information
-func (api *RpcGtasImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
+func (api *RpcGzvImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 	hash = strings.TrimSpace(hash)
 	if !common.ValidateAddress(hash) {
 		return nil, fmt.Errorf("wrong address format")
@@ -390,7 +390,7 @@ func (api *RpcGtasImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 	return account, nil
 }
 
-func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (interface{}, error) {
+func (api *RpcGzvImpl) QueryAccountData(addr string, key string, count int) (interface{}, error) {
 	addr = strings.TrimSpace(addr)
 	// input check
 	if !common.ValidateAddress(addr) {
@@ -447,7 +447,7 @@ func (api *RpcGtasImpl) QueryAccountData(addr string, key string, count int) (in
 	}
 }
 
-func (api *RpcGtasImpl) GroupCheck(addr string) (*GroupCheckInfo, error) {
+func (api *RpcGzvImpl) GroupCheck(addr string) (*GroupCheckInfo, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(addr) {
 		return nil, fmt.Errorf("wrong address format:%s", addr)
@@ -489,7 +489,7 @@ func (api *RpcGtasImpl) GroupCheck(addr string) (*GroupCheckInfo, error) {
 	return &GroupCheckInfo{JoinedGroups: jgs, CurrentGroupRoutine: currentInfo}, nil
 }
 
-func (api *RpcGtasImpl) CheckPointAt(h uint64) (*types.BlockHeader, error) {
+func (api *RpcGzvImpl) CheckPointAt(h uint64) (*types.BlockHeader, error) {
 	cp := api.br.CheckPointAt(h)
 	return cp, nil
 }
