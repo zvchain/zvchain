@@ -256,6 +256,7 @@ func TestProcessor_OnMessageReqProposalBlock(t *testing.T) {
 			}
 		})
 	}
+	processorTest.groupReader.skStore.Close()
 }
 
 //---------------below are functions for mock data------
@@ -281,6 +282,7 @@ func initContext4Test() error {
 	processorTest.MainChain = &chain4Test{core.BlockChainImpl}
 	processorTest.NetServer = &networkServer4Test{processorTest.NetServer}
 	clearTicker()
+	processorTest.groupReader.skStore.Close()
 	return err
 }
 
