@@ -8,37 +8,37 @@ import (
 
 func Test_Main(t *testing.T) {
 	Init()
-	p2pLogger := P2PLogger//lrp.Logger("p2p")
-	tvmLogger := TVMLogger//lrp.Logger("vm")
+	p2pLogger := P2PLogger //lrp.Logger("p2p")
+	tvmLogger := TVMLogger //lrp.Logger("vm")
 	stdLogger := logrus.StandardLogger()
-	commonLogger := DefaultLogger//lrp.Logger("common")
+	commonLogger := DefaultLogger //lrp.Logger("common")
 
 	count := 0
 	for {
 		go func() {
 			p2pLogger.WithFields(logrus.Fields{
-				"test": "p2p",
+				"test":  "p2p",
 				"count": count,
 			}).Info("hello world")
 		}()
 
 		go func() {
 			tvmLogger.WithFields(logrus.Fields{
-				"test": "vm",
+				"test":  "vm",
 				"count": count,
 			}).Info("hello world")
 		}()
 
 		go func() {
 			stdLogger.WithFields(logrus.Fields{
-				"test": "std",
+				"test":  "std",
 				"count": count,
 			}).Info("hello world")
 		}()
 
 		go func() {
 			commonLogger.WithFields(logrus.Fields{
-				"test": "common",
+				"test":  "common",
 				"count": count,
 			}).Info("hello world")
 		}()
@@ -47,12 +47,12 @@ func Test_Main(t *testing.T) {
 		if count == 10000 {
 			break
 		}
-		time.Sleep(100)//1 * time.Second)
+		time.Sleep(100) //1 * time.Second)
 	}
 	clearLogLevel()
 }
 
-func clearLogLevel()  {
+func clearLogLevel() {
 	StdLogger.SetLevel(logrus.PanicLevel)
 	CoreLogger.SetLevel(logrus.PanicLevel)
 	DefaultLogger.SetLevel(logrus.PanicLevel)
