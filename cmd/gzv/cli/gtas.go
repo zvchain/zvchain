@@ -47,16 +47,6 @@ import (
 const (
 	// Section is default section configuration
 	Section = "gtas"
-	// ini configuration file instance section
-	instanceSection = "instance"
-	// The key below the instance section
-	indexKey = "index"
-	// ini configuration file chain section
-	chainSection = "chain"
-	// The key below the chain section
-	databaseKey = "database"
-	// ini configuration file statistics section
-	statisticsSection = "statistics"
 )
 
 type Gtas struct {
@@ -139,12 +129,8 @@ func (gtas *Gtas) Run() {
 	app := kingpin.New("gzv", "A blockchain application.")
 	app.HelpFlag.Short('h')
 	configFile := app.Flag("config", "Config file").Default("zv.ini").String()
-	_ = app.Flag("metrics", "enable metrics").Bool()
-	_ = app.Flag("dashboard", "enable metrics dashboard").Bool()
 	pprofPort := app.Flag("pprof", "enable pprof").Default("23333").Uint()
-	statisticsEnable := app.Flag("statistics", "enable statistics").Bool()
 	keystore := app.Flag("keystore", "the keystore path, default is current path").Default("keystore").Short('k').String()
-	*statisticsEnable = false
 
 	// Console
 	consoleCmd := app.Command("console", "start gzv console")
@@ -169,6 +155,7 @@ func (gtas *Gtas) Run() {
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
+	*instanceIndex = 0
 	privKey := mineCmd.Flag("privatekey", "privatekey used for miner process").Default("").String()
 	passWd := mineCmd.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
@@ -214,10 +201,6 @@ func (gtas *Gtas) Run() {
 			runtime.SetMutexProfileFraction(1)
 		}()
 
-		common.GlobalConf.SetInt(instanceSection, indexKey, *instanceIndex)
-		databaseValue := "d" + strconv.Itoa(*instanceIndex)
-		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
-		common.GlobalConf.SetBool(statisticsSection, "enable", *statisticsEnable)
 		types.InitMiddleware()
 
 		if *natAddr != "" {
