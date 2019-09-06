@@ -268,7 +268,7 @@ func clearDB() {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
-				fmt.Printf("error while removing %s,error=%v", d.Name(), err)
+				panic(fmt.Errorf("error while removing %s,error=%v", d.Name(), err))
 			}
 		}
 	}

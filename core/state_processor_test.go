@@ -22,6 +22,7 @@ import (
 var (
 	executor  *stateProcessor
 	adb       *account.AccountDB
+	stateDB     *tasdb.PrefixedDatabase
 	accountdb account.AccountDatabase
 )
 
@@ -54,11 +55,11 @@ func initExecutor() {
 		panic(err)
 	}
 
-	statedb, err := ds.NewPrefixDatabase("state")
+	stateDB, err = ds.NewPrefixDatabase("state")
 	if err != nil {
 		panic(fmt.Sprintf("Init block chain error! Error:%s", err.Error()))
 	}
-	accountdb = account.NewDatabase(statedb)
+	accountdb = account.NewDatabase(stateDB)
 	Logger = log.DefaultLogger
 
 	executor = &stateProcessor{
@@ -71,7 +72,7 @@ func initExecutor() {
 		BlockChainImpl = executor.bc.(*FullBlockChain)
 	}
 
-	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
+	//GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
 
 }
 
@@ -97,7 +98,7 @@ func genRandomTx() *types.Transaction {
 
 func TestStateProcessor_process(t *testing.T) {
 	initExecutor()
-	defer clearDB()
+
 	txNum := 10
 	txs := make([]*types.Transaction, txNum)
 	for i := 0; i < txNum; i++ {
@@ -115,9 +116,12 @@ func TestStateProcessor_process(t *testing.T) {
 	if len(txs) != len(executed)+len(evts) {
 		t.Error("executed tx num error")
 	}
+	stateDB.Close()
+	clearDB()
 }
 
 func BenchmarkStateProcessor_process(b *testing.B) {
+	initExecutor()
 	txNum := 5400
 	var state common.Hash
 	var ts = common.NewTimeStatCtx()
@@ -135,7 +139,8 @@ func BenchmarkStateProcessor_process(b *testing.B) {
 		ts.AddStat("process", time.Since(b))
 	}
 	b.Log(ts.Output())
-
+	stateDB.Close()
+	clearDB()
 }
 
 func writeFile(f *os.File, bs *[]byte) {
