@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"os"
 	"time"
 
@@ -55,7 +54,9 @@ type Gzv struct {
 	account      Account
 	config       *minerConfig
 	rpcInstances []rpcApi
+	InitCha      chan bool
 }
+
 var globalGzv *Gzv
 
 // miner start miner node
@@ -234,7 +235,7 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
-		notify.BUS.Publish(notify.InitChainSucc, &ShowMsg{"init chain success"})
+		gzv.InitCha <- true
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
@@ -408,7 +409,12 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 
 func NewGzv() *Gzv {
 	globalGzv = new(Gzv)
+	globalGzv.InitCha = make(chan bool)
 	return globalGzv
+}
+
+func (gzv *Gzv) CallBack() {
+
 }
 
 func (gzv *Gzv) autoApplyMiner(mType types.MinerType) {
@@ -434,16 +440,4 @@ func (gzv *Gzv) autoApplyMiner(mType types.MinerType) {
 	api := &RpcDevImpl{}
 	ret, err := api.TxUnSafe(gzv.account.Sk, gzv.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 500, nonce, types.TransactionTypeStakeAdd, string(data))
 	log.DefaultLogger.Debug("apply result", ret, err)
-}
-
-
-type ShowMsg struct {
-	msg string
-}
-
-func (m *ShowMsg) GetRaw() []byte {
-	return nil
-}
-func (m *ShowMsg) GetData() interface{} {
-	return m.msg
 }
