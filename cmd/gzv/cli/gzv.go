@@ -413,10 +413,6 @@ func NewGzv() *Gzv {
 	return globalGzv
 }
 
-func (gzv *Gzv) CallBack() {
-
-}
-
 func (gzv *Gzv) autoApplyMiner(mType types.MinerType) {
 	miner := mediator.Proc.GetMinerInfo()
 	if miner.ID.GetAddrString() != gzv.account.Address {
