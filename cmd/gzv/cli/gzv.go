@@ -54,6 +54,7 @@ type Gzv struct {
 	account      Account
 	config       *minerConfig
 	rpcInstances []rpcApi
+	InitCha      chan bool
 }
 
 var globalGzv *Gzv
@@ -234,6 +235,7 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
+		gzv.InitCha <- true
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
@@ -287,10 +289,8 @@ func (gzv *Gzv) checkAddress(keystore, address, password string, autoCreateAccou
 
 func (gzv *Gzv) fullInit() error {
 	var err error
-
 	// Initialization middlewarex
 	middleware.InitMiddleware()
-
 	cfg := gzv.config
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
@@ -409,6 +409,7 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 
 func NewGzv() *Gzv {
 	globalGzv = new(Gzv)
+	globalGzv.InitCha = make(chan bool)
 	return globalGzv
 }
 

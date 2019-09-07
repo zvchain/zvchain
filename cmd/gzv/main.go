@@ -24,5 +24,9 @@ import (
 func main() {
 	debug.SetTraceback("all")
 	gzv := cli.NewGzv()
+	go func(){
+		<-gzv.InitCha
+		
+	}()
 	gzv.Run()
 }
