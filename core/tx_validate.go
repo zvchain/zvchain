@@ -119,7 +119,7 @@ func stateValidate(tx *types.Transaction) (balance *big.Int, err error) {
 	if gasLimitFee.Cmp(balance) > 0 {
 		return nil, fmt.Errorf("balance not enough for paying gas, %v", src)
 	}
-	if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall {
+	if tx.Type == types.TransactionTypeTransfer || tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall || tx.Type == types.TransactionTypeStakeAdd {
 		totalCost := new(types.BigInt).Add(gasLimitFee, tx.Value.Value())
 		if totalCost.Cmp(balance) > 0 {
 			return nil, fmt.Errorf("balance not enough for paying gas and value, %v", src)
@@ -235,7 +235,7 @@ func changeFundGuardModeValidator(tx *types.Transaction) error {
 	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
 		return err
 	}
-	if !types.IsInExtractGuardNodes(*tx.Source) {
+	if !common.IsInExtractGuardNodes(*tx.Source) {
 		return fmt.Errorf("operator addr is not in extract guard nodes")
 	}
 	if len(tx.Data) != 1 {

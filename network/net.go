@@ -26,9 +26,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/zvchain/zvchain/middleware/statistics"
-
 	"github.com/gogo/protobuf/proto"
+	"github.com/zvchain/zvchain/middleware/statistics"
+	zvTime "github.com/zvchain/zvchain/middleware/time"
 )
 
 // Version is p2p proto version
@@ -79,13 +79,13 @@ type NetCore struct {
 	unhandledDataMsg int32
 	closing          chan struct{}
 
-	kad            *Kad
-	peerManager    *PeerManager
-	groupManager   *GroupManager
-	messageManager *MessageManager
-	flowMeter      *FlowMeter
-	bufferPool     *BufferPool
-
+	kad             *Kad
+	peerManager     *PeerManager
+	groupManager    *GroupManager
+	messageManager  *MessageManager
+	flowMeter       *FlowMeter
+	bufferPool      *BufferPool
+	proposerManager *ProposerManager
 	chainID         uint16 // Chain ID
 	protocolVersion uint16 // Protocol ID
 }
@@ -174,6 +174,7 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 	nc.peerManager.natPort = cfg.NatPort
 	nc.groupManager = newGroupManager()
 	nc.messageManager = newMessageManager(nc.ID)
+	nc.proposerManager = newProposerManager()
 	nc.flowMeter = newFlowMeter("p2p")
 	nc.bufferPool = newBufferPool()
 	realAddr := cfg.ListenAddr
@@ -235,7 +236,7 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 		From:       &nc.ourEndPoint,
 		To:         &to,
 		ChainID:    uint32(nc.chainID),
-		Expiration: uint64(time.Now().Add(expiration).Unix()),
+		Expiration: nc.expirationTime(),
 	}
 	if p != nil && !p.isAuthSucceed {
 		if p.authContext == nil {
@@ -274,7 +275,7 @@ func (nc *NetCore) findNode(toID NodeID, toAddr *net.UDPAddr, target NodeID) ([]
 	})
 	nc.sendMessageToNode(toID, toAddr, MessageType_MessageFindnode, &MsgFindNode{
 		Target:     target[:],
-		Expiration: uint64(time.Now().Add(expiration).Unix()),
+		Expiration: nc.expirationTime(),
 	}, P2PMessageCodeBase+uint32(MessageType_MessageFindnode))
 	err := <-errc
 
@@ -516,6 +517,10 @@ func (nc *NetCore) recvData(netID uint64, session uint32, data []byte) {
 	nc.unhandled <- p
 }
 
+func (nc *NetCore) expirationTime() uint64 {
+	return uint64(zvTime.TSInstance.Now().Unix()) + uint64(expiration.Seconds())
+
+}
 func (nc *NetCore) genDataMessage(data []byte,
 	dataType DataType,
 	code uint32,
@@ -537,7 +542,7 @@ func (nc *NetCore) genDataMessage(data []byte,
 		BizMessageID: bizMessageIDBytes,
 		RelayCount:   relayCount,
 		MessageInfo:  encodeMessageInfo(nc.chainID, nc.protocolVersion),
-		Expiration:   uint64(time.Now().Add(expiration).Unix())}
+		Expiration:   nc.expirationTime()}
 	Logger.Debugf("genDataMessage  DataType:%v messageId:%X ,BizMessageID:%v ,RelayCount:%v code:%v",
 		msgData.DataType, msgData.MessageID, msgData.BizMessageID, msgData.RelayCount, code)
 	return msgData
@@ -710,7 +715,7 @@ func (nc *NetCore) handleFindNode(req *MsgFindNode, p *Peer) error {
 	closest := nc.kad.closest(target, bucketSize).entries
 	nc.kad.mutex.Unlock()
 
-	msg := MsgNeighbors{Expiration: uint64(time.Now().Add(expiration).Unix())}
+	msg := MsgNeighbors{Expiration: nc.expirationTime()}
 
 	for _, n := range closest {
 		node := nodeToRPC(n)
@@ -856,5 +861,5 @@ func (nc *NetCore) onHandleDataMessageDone() {
 }
 
 func expired(ts uint64) bool {
-	return time.Unix(int64(ts), 0).Before(time.Now())
+	return zvTime.TSInstance.Now().Unix() > int64(ts)
 }

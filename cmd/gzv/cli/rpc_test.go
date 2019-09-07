@@ -128,8 +128,8 @@ class Token(object):
 
 var cfg = &minerConfig{
 	rpcLevel:      rpcLevelDev,
-	rpcAddr:       "127.0.0.1",
-	rpcPort:       8101,
+	host:          "127.0.0.1",
+	port:          8101,
 	super:         false,
 	testMode:      true,
 	natIP:         "",

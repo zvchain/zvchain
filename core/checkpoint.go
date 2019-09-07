@@ -24,10 +24,10 @@ import (
 )
 
 const (
-	groupThreshold  = 0.67
+	groupThreshold  = 0.7
 	groupNumMin     = 10
 	cpMaxScanEpochs = 10 // max scan epoch when finding the check point
-	cpMinBlocks     = 20 // min blocks that a cp can occurs
+	cpBlockBuffer   = 20 // min blocks that a cp can occurs
 )
 
 var cpAddress = common.BytesToAddress([]byte("cp_votes"))
@@ -71,9 +71,7 @@ func (ctx *cpContext) groupIndex(g common.Hash) int {
 	}
 	return -1
 }
-func (ctx *cpContext) meetsCPConditionAt(h uint64) bool {
-	return ctx.groupsEnough() && h-ctx.epoch.Start()+1 >= cpMinBlocks
-}
+
 func (ctx *cpContext) groupsEnough() bool {
 	return ctx.groupSize() >= groupNumMin
 }
@@ -109,12 +107,21 @@ func (cp *cpChecker) checkPointOf(chainSlice []*types.Block) *types.BlockHeader 
 	if len(chainSlice) == 0 {
 		return nil
 	}
-
 	top := chainSlice[len(chainSlice)-1].Header
-	highestCPHeight := uint64(0)
-	if top.Height >= cpMinBlocks {
-		highestCPHeight = top.Height - cpMinBlocks + 1
+	if top.Height <= cpBlockBuffer {
+		return nil
 	}
+	firstHeight := top.Height - cpBlockBuffer
+	// backtrack cpBlockBuffer blocks to calculate the checkpoint
+	for i := len(chainSlice) - 1; i >= 0; i-- {
+		if chainSlice[i].Header.Height <= firstHeight {
+			chainSlice = chainSlice[:i+1]
+			break
+		}
+	}
+
+	top = chainSlice[len(chainSlice)-1].Header
+
 	ep := types.EpochAt(top.Height)
 	ctx := newCpContext(ep, cp.groupReader.GetActivatedGroupsAt(ep.Start()))
 	votes := make(map[common.Hash]struct{})
@@ -128,14 +135,7 @@ func (cp *cpChecker) checkPointOf(chainSlice []*types.Block) *types.BlockHeader 
 			votes[bh.Group] = struct{}{}
 			// Threshold-group height found
 			if len(votes) >= ctx.threshold {
-				cpHeight := uint64(math.Min(float64(bh.Height), float64(highestCPHeight)))
-				// Find the first block which lower or equal to the founded cp-height
-				for ; visit >= 0; visit-- {
-					if chainSlice[visit].Header.Height <= cpHeight {
-						return chainSlice[visit].Header
-					}
-				}
-				break
+				return bh
 			}
 		} else {
 			ep = types.EpochAt(bh.Height)
@@ -210,14 +210,14 @@ func (cp *cpChecker) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
 }
 
 func (cp *cpChecker) checkpointAt(h uint64) uint64 {
+	if h <= cpBlockBuffer {
+		return 0
+	}
+	h -= cpBlockBuffer
 	if h > cp.querier.Height() {
 		h = cp.querier.Height()
 	} else {
 		h = cp.querier.QueryBlockHeaderFloor(h).Height
-	}
-	highestCPHeight := uint64(0)
-	if h >= cpMinBlocks {
-		highestCPHeight = h - cpMinBlocks + 1
 	}
 
 	for scan := 0; scan < cpMaxScanEpochs; scan++ {
@@ -246,12 +246,12 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 				if len(validVotes) >= ctx.threshold {
 					sort.Ints(validVotes)
 					thresholdHeight := uint64(validVotes[len(validVotes)-ctx.threshold]) + ctx.epoch.Start() - 1
-					return uint64(math.Min(float64(thresholdHeight), float64(highestCPHeight)))
+					return thresholdHeight
 				}
 			}
 		} else {
 			// Not enough groups
-			Logger.Infof("not enough groups at %v-%v, groupsize %v, or not enough blocks %v", ep.Start(), ep.End(), ctx.groupSize(), h)
+			Logger.Debugf("not enough groups at %v-%v, groupsize %v, or not enough blocks %v", ep.Start(), ep.End(), ctx.groupSize(), h)
 		}
 		if ep.Start() == 0 {
 			break

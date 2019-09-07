@@ -165,8 +165,8 @@ func setup(t *testing.T) {
 	db.AddBalance(guardNode88, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(minerPool, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(minerPool2, new(big.Int).SetUint64(ctx.originBalance))
-	db.AddBalance(types.ExtractGuardNodes[0], new(big.Int).SetUint64(ctx.originBalance))
-	db.AddBalance(types.ExtractGuardNodes[1], new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(common.ExtractGuardNodes[0], new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(common.ExtractGuardNodes[1], new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(normal1, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(normal2, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(normal3, new(big.Int).SetUint64(ctx.originBalance))
@@ -179,7 +179,7 @@ func TestInit(t *testing.T) {
 	setup(t)
 	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	for _, addr := range types.ExtractGuardNodes {
+	for _, addr := range common.ExtractGuardNodes {
 		fd, _ := getFundGuardNode(accountDB, addr)
 		if fd == nil {
 			t.Fatalf("except got value,but got nil")
@@ -518,12 +518,12 @@ func TestScan(t *testing.T) {
 	setup(t)
 	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	ctx.height = 0
 	testChangeFundMode(t, 0, true)
 	accountDB.(*account.AccountDB).Commit(true)
 	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod/2+1000))
-	fd, _ := getFundGuardNode(accountDB, types.ExtractGuardNodes[0])
+	fd, _ := getFundGuardNode(accountDB, common.ExtractGuardNodes[0])
 	if !fd.isNormal() {
 		t.Fatalf("except normal,but got %v", fd.Type)
 	}
@@ -543,7 +543,7 @@ func TestScan(t *testing.T) {
 	if !scanned {
 		t.Fatalf("except true,but got false")
 	}
-	for _, addr := range types.ExtractGuardNodes {
+	for _, addr := range common.ExtractGuardNodes {
 		fd, _ := getFundGuardNode(accountDB, addr)
 		if !fd.isNormal() {
 			t.Fatalf("except normal,but got %v", fd.FundModeType)
@@ -574,21 +574,21 @@ func TestChangeFundMode(t *testing.T) {
 	setup(t)
 	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 0, true)
 
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 2, false)
 
 	ctx.source = &guardNode1
 	testChangeFundMode(t, 1, false)
 
 	ctx.height = 100
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 1, true)
 
 	ctx.height = adjustWeightPeriod/2 + 1
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 1, false)
 }
 
@@ -596,8 +596,8 @@ func TestFundApplyGuardNode(t *testing.T) {
 	setup(t)
 	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &types.ExtractGuardNodes[0]
-	ctx.target = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
+	ctx.target = &common.ExtractGuardNodes[0]
 
 	testFullStakeFromSelf(t)
 	var height uint64 = 0
@@ -618,12 +618,12 @@ func TestFundApplyGuardNode(t *testing.T) {
 	}
 }
 
-func TestFundNodeApplyGuardNode(t *testing.T){
+func TestFundNodeApplyGuardNode(t *testing.T) {
 	setup(t)
 	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &types.ExtractGuardNodes[0]
-	ctx.target = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
+	ctx.target = &common.ExtractGuardNodes[0]
 	testFullStakeFromSelf(t)
 	var height uint64 = 0
 	testApplyGuardNode(t, true, height)
