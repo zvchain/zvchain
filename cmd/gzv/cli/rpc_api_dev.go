@@ -731,3 +731,7 @@ func (api *RpcDevImpl) Txs(txRaws []TxRawData) (string, error) {
 	//
 	return "success", nil
 }
+
+func (api *RpcDevImpl) GetPoolSize() (uint64) {
+	return core.BlockChainImpl.GetTransactionPool().TxNum()+100
+}
