@@ -79,13 +79,13 @@ func (pb *ProposerBucket) Build(proposers []*Proposer) {
 
 	pb.mutex.Lock()
 	defer pb.mutex.Unlock()
+	groupCountOld := pb.groupCount
+	pb.proposers = proposers
 	sort.Sort(pb)
 
 	for i := 0; i < len(pb.proposers); i++ {
 		Logger.Infof("[proposer bucket] Build members ID: %v stake:%v", pb.proposers[i].ID.GetHexString(), pb.proposers[i].Stake)
 	}
-	groupCountOld := pb.groupCount
-	pb.proposers = proposers
 
 	pb.groupCount = int(math.Ceil(float64(len(proposers)) / float64(pb.groupSize)))
 	if groupCountOld > pb.groupCount {
