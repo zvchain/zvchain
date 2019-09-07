@@ -18,7 +18,7 @@ package notify
 // defines all of current used event ids
 const (
 	BlockAddSucc     = "block_add_succ"
-	GroupAddSucc     = "group_add_succ"
+	InitChainSucc    = "init_chain_succ"
 	BlockSync        = "block_sync"
 	MessageToConsole = "message_to_console"
 
