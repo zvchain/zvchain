@@ -141,15 +141,15 @@ func TestProprosers(t *testing.T) {
 		for i := 0; i < len(nodes); i++ {
 			ID := NewNodeID(nodes[i])
 			if ID != nil {
-				stake := i
+				stake := len(nodes) - i
 
 				proposers = append(proposers, &Proposer{ID: *ID, Stake: uint64(stake)})
 			}
 		}
 		netCore.proposerManager.Build(proposers)
-		t.Logf("fast size:%v normal size :%v", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
+		t.Logf("fast size:%v normal size :%v ", len(netCore.proposerManager.fastBucket.proposers), len(netCore.proposerManager.normalBucket.proposers))
 
-		if netCore.proposerManager.fastBucket.proposers[0].Stake != uint64(len(nodes)-1) {
+		if netCore.proposerManager.fastBucket.proposers[0].ID.GetHexString() != nodes[0] {
 			t.Fatalf("fastBucket size is not right")
 		}
 	})
