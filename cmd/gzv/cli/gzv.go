@@ -234,6 +234,7 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
+		core.InitializationImpl.Process()
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {

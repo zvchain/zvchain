@@ -17,9 +17,35 @@ package core
 
 import "github.com/zvchain/zvchain/middleware/types"
 
+var InitializationImpl *InitializationProcesser
+type InitialFunc func()
+
+
+func initInitialization(){
+	InitializationImpl = &InitializationProcesser{}
+}
+
+type InitializationProcesser struct {
+	processes[]InitialFunc
+}
+
+func(f*InitializationProcesser)Register(fn InitialFunc){
+	f.processes = append(f.processes,fn)
+}
+
+func(f*InitializationProcesser)Process(){
+	if f.processes != nil && len(f.processes) > 0{
+		for _,p := range f.processes{
+			p()
+		}
+	}
+}
+
+
 // InitCore initialize the peerManagerImpl, BlockChainImpl and GroupChainImpl
 func InitCore(helper types.ConsensusHelper, account types.Account) error {
 	initPeerManager()
+	initInitialization()
 	if nil == BlockChainImpl {
 		err := initBlockChain(helper, account)
 		if err != nil {
