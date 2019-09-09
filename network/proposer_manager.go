@@ -75,7 +75,7 @@ func (pm *ProposerManager) Build(proposers []*Proposer) {
 
 	fastBucketSize := len(pm.proposers)
 
-	if len(pm.proposers) >= 16 {
+	if len(pm.proposers) >= 200 {
 		totalStake := uint64(0)
 		for i := 0; i < len(pm.proposers); i++ {
 			totalStake += pm.proposers[i].Stake
