@@ -19,9 +19,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/monitor"
 	"math"
 	"time"
+
+	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -536,23 +537,24 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 	if addBlocks == nil || len(addBlocks) == 0 {
 		return fmt.Errorf("nothing to add")
 	}
-	firstBH := addBlocks[0]
-	if firstBH.Header.PreHash != localTop.Hash {
+	firstBlock := addBlocks[0]
+	if firstBlock.Header.PreHash != localTop.Hash {
+		lastBlock := addBlocks[len(addBlocks)-1]
 		// cannot reset in the block sync situation, and start the fork process
 		if !canReset {
-			go chain.forkProcessor.tryToProcessFork(source, firstBH)
-			return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
+			go chain.forkProcessor.tryToProcessFork(source, lastBlock)
+			return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height)
 		} else {
-			pre := chain.QueryBlockHeaderByHash(firstBH.Header.PreHash)
+			pre := chain.QueryBlockHeaderByHash(firstBlock.Header.PreHash)
 			if pre != nil {
-				last := addBlocks[len(addBlocks)-1].Header
+				last := lastBlock.Header
 				chain.ResetTop(pre)
 				Logger.Debugf("batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
 			} else {
 				// There will fork, we have to deal with it
-				Logger.Debugf("batchAdd detect fork from %v: local %v %v, peer %v %v", source, localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
-				go chain.forkProcessor.tryToProcessFork(source, firstBH)
-				return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBH.Header.Hash, firstBH.Header.Height)
+				Logger.Debugf("batchAdd detect fork from %v: local %v %v, peer %v %v", source, localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height)
+				go chain.forkProcessor.tryToProcessFork(source, lastBlock)
+				return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height)
 			}
 		}
 	}
