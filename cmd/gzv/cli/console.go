@@ -992,7 +992,7 @@ func Usage() {
 	}
 }
 
-func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error {
+func ConsoleInit(keystore, host string, port int, show bool, rpchost string, rpcport int) error {
 	aop, err := initAccountManager(keystore, false, "")
 	if err != nil {
 		return err
@@ -1003,7 +1003,7 @@ func ConsoleInit(keystore, host string, port int, show bool, rpcport int) error 
 	}
 
 	if rpcport > 0 {
-		ws := NewWalletServer(rpcport, aop)
+		ws := NewWalletServer(rpchost, rpcport, aop)
 		if err := ws.Start(); err != nil {
 			return err
 		}
