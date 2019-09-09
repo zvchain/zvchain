@@ -90,7 +90,7 @@ func (pb *ProposerBucket) Build(proposers []*Proposer) {
 	pb.groupCount = int(math.Ceil(float64(len(proposers)) / float64(pb.groupSize)))
 	if groupCountOld > pb.groupCount {
 		for i := pb.groupCount; i < groupCountOld; i++ {
-			netCore.groupManager.removeGroup(pb.GroupNameByIndex(i))
+			//netCore.groupManager.removeGroup(pb.GroupNameByIndex(i))
 		}
 	}
 	for i := 0; i < pb.groupCount; i++ {
