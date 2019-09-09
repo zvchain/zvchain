@@ -65,11 +65,11 @@
                 },
                 data: JSON.stringify(params),
                 success: function (rdata) {
-                    if (rdata.result !== undefined){
+                    if (rdata.result != null){
                         td = tr.children("td[name='block_height']");
-                        td.text(rdata.result.data);
-                        console.log(rdata.result.data);
-                        block(host, tr, rdata.result.data)
+                        td.text(rdata.result);
+                        console.log(rdata.result);
+                        block(host, tr, rdata.result)
                     }
                 },
                 error: function () {
@@ -93,9 +93,9 @@
                 },
                 data: JSON.stringify(params),
                 success: function (rdata) {
-                    if (rdata.result !== undefined){
+                    if (rdata.result != null){
                         td = tr.children("td[name='group_height']");
-                        td.text(rdata.result.data)
+                        td.text(rdata.result)
                     }
                 },
                 error: function () {
@@ -120,12 +120,12 @@
                 },
                 data: JSON.stringify(params),
                 success: function (rdata) {
-                    if (rdata.result !== undefined){
+                    if (rdata.result != null){
                         stat = statMap.get(host);
                         if (stat == null || stat == undefined) {
                             stat = {total_txs: 0, total_cost: 0}
                         }
-                        d = rdata.result.data;
+                        d = rdata.result;
 
                         pre = new Date(d.pre_time).getTime();
                         cur = new Date(d.cur_time).getTime();

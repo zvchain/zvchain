@@ -61,7 +61,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			logger.Errorf(string(s))
 		}
 		if err != nil && logger != nil {
-			logger.Error(err)
+			//logger.Errorf("handle message code %v from %v err: %v", code, sourceID, err)
 		}
 	}()
 
@@ -117,6 +117,7 @@ func (c *ConsensusHandler) Handle(sourceID string, msg network.Message) error {
 			return e
 		}
 		err = c.processor.OnMessageResponseProposalBlock(m)
+		logger.Debugf("recv proposal block %v response from %v", m.Hash, sourceID)
 	}
 
 	return nil

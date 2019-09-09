@@ -16,6 +16,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/zvchain/zvchain/cmd/gzv/rpc"
@@ -51,48 +52,61 @@ func (ws *WalletServer) Start() error {
 	return err
 }
 
-func (ws *WalletServer) SignData(source, target, unlockPassword string, value uint64, gas uint64, gaspriceStr string, txType int, nonce uint64, data string) *Result {
+func (ws *WalletServer) SignData(source, target, unlockPassword string, value uint64, gas uint64, gaspriceStr string, txType int, nonce uint64, data string) *RPCResObjCmd {
+	res := new(RPCResObjCmd)
 	gp, err := common.ParseCoin(gaspriceStr)
 	if err != nil {
-		return opError(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, gaspriceStr))
+		res.Error = opErrorRes(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, gaspriceStr))
+		return res
 	}
-	txRaw := &txRawData{
+	txRaw := &TxRawData{
 		Target:   target,
 		Value:    value,
-		Gas:      gas,
-		Gasprice: gp,
+		GasLimit: gas,
+		GasPrice: gp,
 		TxType:   txType,
 		Nonce:    nonce,
 		Data:     []byte(data),
 	}
 
-	r := ws.aop.UnLock(source, unlockPassword, 10)
-	if !r.IsSuccess() {
-		return r
+	err = ws.aop.UnLock(source, unlockPassword, 10)
+	if err != nil {
+		res.Error = opErrorRes(err)
+		return res
 	}
-	r = ws.aop.AccountInfo()
-	if !r.IsSuccess() {
-		return r
+	aci, err := ws.aop.AccountInfo()
+	if err != nil {
+		res.Error = opErrorRes(err)
+		return res
 	}
-	aci := r.Data.(*Account)
 
 	privateKey := common.HexToSecKey(aci.Sk)
 	pubkey := common.HexToPubKey(aci.Pk)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
-		return opError(fmt.Errorf("privatekey or pubkey error"))
+		res.Error = opErrorRes(fmt.Errorf("privatekey or pubkey error"))
+		return res
 	}
 	sourceAddr := pubkey.GetAddress()
 	if sourceAddr.AddrPrefixString() != aci.Address {
-		return opError(fmt.Errorf("address error"))
+		res.Error = opErrorRes(fmt.Errorf("address error"))
+		return res
 	}
 
 	tranx := txRawToTransaction(txRaw)
-	tranx.Hash = tranx.GenHash()
 	sign, err := privateKey.Sign(tranx.Hash.Bytes())
 	if err != nil {
-		return opError(err)
+		res.Error = opErrorRes(err)
+		return res
 	}
 	tranx.Sign = sign.Bytes()
 	txRaw.Sign = sign.Hex()
-	return opSuccess(txRaw)
+
+	txMsg := RawMessage{}
+	txMsg, err = json.Marshal(txRaw)
+	if err != nil {
+		res.Error = opErrorRes(err)
+		return res
+	}
+	res.Result = txMsg
+	return res
 }

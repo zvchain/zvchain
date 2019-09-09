@@ -62,9 +62,11 @@ void on_p2p_listened(const char* ip, uint16_t port, uint64_t latency)
 	OnP2PListened(_ip, port, latency);
 }
 
-void on_p2p_accepted(uint64_t id, uint32_t session, uint32_t type)
+void on_p2p_accepted(uint64_t id, uint32_t session, uint32_t type, const char* ip, uint16_t port)
 {
-	OnP2PAccepted(id, session, type);
+  _GoString_ _ip = {ip, strlen(ip)};
+
+	OnP2PAccepted(id, session, type, _ip, port);
 }
 
 void on_p2p_connected(uint64_t id, uint32_t session, uint32_t type)

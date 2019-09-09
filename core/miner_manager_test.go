@@ -37,6 +37,14 @@ func (msg *mOperMsg) GetExtraData() []byte {
 	return nil
 }
 
+func (msg mOperMsg) GetGasLimit() uint64 {
+	return 0
+}
+
+func (tx mOperMsg) GetValue() uint64 {
+	return 0
+}
+
 func (msg *mOperMsg) GetHash() common.Hash {
 	return common.Hash{}
 }
@@ -59,6 +67,14 @@ func (msg *mOperMsg) Amount() *big.Int {
 
 func (msg *mOperMsg) Payload() []byte {
 	return msg.data
+}
+
+func (msg *mOperMsg) GetNonce() uint64 {
+	return 0
+}
+
+func (msg mOperMsg) GetGasLimitOriginal() *big.Int {
+	return nil
 }
 
 func genMOperMsg(source, target *common.Address, typ int8, value uint64, data []byte) *mOperMsg {
@@ -97,7 +113,18 @@ var (
 	guardNode6 = common.StringToAddress("zv06666")
 	guardNode7 = common.StringToAddress("zv07777")
 	guardNode8 = common.StringToAddress("zv08888")
+
+	guardNode11 = common.StringToAddress("zv011111")
+	guardNode22 = common.StringToAddress("zv022222")
+	guardNode33 = common.StringToAddress("zv033333")
+	guardNode44 = common.StringToAddress("zv044444")
+	guardNode55 = common.StringToAddress("zv055555")
+	guardNode66 = common.StringToAddress("zv066666")
+	guardNode77 = common.StringToAddress("zv077777")
+	guardNode88 = common.StringToAddress("zv088888")
+
 	minerPool  = common.StringToAddress("zv09999")
+	minerPool2 = common.StringToAddress("zv099998888777")
 	ctx        = &mOperContext{
 		source:        &src,
 		target:        &target,
@@ -109,8 +136,8 @@ var (
 	accountDB types.AccountDB
 )
 
-func setup() {
-	err := initContext4Test()
+func setup(t *testing.T) {
+	err := initContext4Test(t)
 	if err != nil {
 		panic("init fail " + err.Error())
 	}
@@ -128,9 +155,18 @@ func setup() {
 	db.AddBalance(guardNode6, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(guardNode7, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(guardNode8, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode11, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode22, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode33, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode44, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode55, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode66, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode77, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(guardNode88, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(minerPool, new(big.Int).SetUint64(ctx.originBalance))
-	db.AddBalance(types.ExtractGuardNodes[0], new(big.Int).SetUint64(ctx.originBalance))
-	db.AddBalance(types.ExtractGuardNodes[1], new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(minerPool2, new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(common.ExtractGuardNodes[0], new(big.Int).SetUint64(ctx.originBalance))
+	db.AddBalance(common.ExtractGuardNodes[1], new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(normal1, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(normal2, new(big.Int).SetUint64(ctx.originBalance))
 	db.AddBalance(normal3, new(big.Int).SetUint64(ctx.originBalance))
@@ -140,10 +176,10 @@ func setup() {
 }
 
 func TestInit(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	for _, addr := range types.ExtractGuardNodes {
+	for _, addr := range common.ExtractGuardNodes {
 		fd, _ := getFundGuardNode(accountDB, addr)
 		if fd == nil {
 			t.Fatalf("except got value,but got nil")
@@ -158,8 +194,8 @@ func TestInit(t *testing.T) {
 }
 
 func TestInsteadStake(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &src
 	ctx.target = &target
 	testStakeFromOther(t, false)
@@ -177,20 +213,31 @@ func TestInsteadStake(t *testing.T) {
 	ctx.source = &minerPool
 	ctx.target = &src
 	ctx.stakeAddValue = 100 * common.ZVC
+	testStakeFromOther(t, true)
+
+	ctx.source = &types.StakePlatformAddr
+	ctx.target = &normal1
+	ctx.stakeAddValue = 100 * common.ZVC
+	testStakeFromOther(t, true)
+	genePoolMiner2(t)
+
+	ctx.source = &minerPool
+	ctx.target = &minerPool2
+	ctx.stakeAddValue = 100 * common.ZVC
 	testStakeFromOther(t, false)
 
-	ctx.source = &types.MiningPoolAddr
-	ctx.target = &normal1
+	ctx.source = &minerPool
+	ctx.target = &minerPool
 	ctx.stakeAddValue = 100 * common.ZVC
 	testStakeFromOther(t, true)
 }
 
 func TestInvalidMinerPoolAction(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	genePoolMiner(t)
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	miner, err := getMiner(accountDB, minerPool, ctx.mType)
 	if err != nil {
 		t.Fatalf("error is %v", err)
@@ -213,8 +260,8 @@ func TestInvalidMinerPoolAction(t *testing.T) {
 }
 
 func TestStakeMax(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &src
 	ctx.target = &src
 	testFullStakeFromSelf(t)
@@ -269,8 +316,8 @@ func TestStakeMax(t *testing.T) {
 }
 
 func TestStakeSelf(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	testStakeSelfProposal(t)
 	testStakeSelfVerify(t)
 	bla := accountDB.GetBalance(src)
@@ -280,10 +327,11 @@ func TestStakeSelf(t *testing.T) {
 }
 
 func TestRepeatVote(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &normal2
 	ctx.target = &normal2
+	ctx.mType = types.MinerTypeProposal
 	testFullStakeFromSelf(t)
 	var height uint64 = 0
 	testApplyGuardNode(t, true, height)
@@ -314,8 +362,8 @@ func TestRepeatVote(t *testing.T) {
 }
 
 func TestVoteOther(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	geneGuardNodes(t)
 	ctx.height = 10000
 	ctx.source = &guardNode1
@@ -367,12 +415,18 @@ func TestVoteOther(t *testing.T) {
 
 }
 
+func createBlockHeaderByHeight(height uint64) *types.BlockHeader {
+	return &types.BlockHeader{
+		Height: height,
+	}
+}
+
 func TestInvalid(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	genePoolMiner(t)
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	miner, err := getMiner(accountDB, minerPool, ctx.mType)
 	if err != nil {
 		t.Fatalf("error is %v", err)
@@ -419,8 +473,8 @@ func TestInvalid(t *testing.T) {
 }
 
 func TestNotFullGuardNode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
 
 	ctx.source = &guardNode1
@@ -436,13 +490,13 @@ func TestNotFullGuardNode(t *testing.T) {
 		t.Fatalf("except miner is guard,but got %v", miner.Type)
 	}
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	detail := getStakeDetail()
 	if detail.MarkNotFullHeight != adjustWeightPeriod+1000 {
 		t.Fatalf("except height = %v,but got %v", adjustWeightPeriod+1000, detail.MarkNotFullHeight)
 	}
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+stakeBuffer+2000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+stakeBuffer+2000))
 
 	detail = getStakeDetail()
 
@@ -461,14 +515,15 @@ func TestNotFullGuardNode(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
+	ctx.height = 0
 	testChangeFundMode(t, 0, true)
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod/2+1000)
-	fd, _ := getFundGuardNode(accountDB, types.ExtractGuardNodes[0])
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod/2+1000))
+	fd, _ := getFundGuardNode(accountDB, common.ExtractGuardNodes[0])
 	if !fd.isNormal() {
 		t.Fatalf("except normal,but got %v", fd.Type)
 	}
@@ -483,12 +538,12 @@ func TestScan(t *testing.T) {
 	if !miner.IsNormal() {
 		t.Fatalf("except miner is normal,but got %v", miner.Type)
 	}
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 	scanned = hasScanedSixAddSixFundGuards(accountDB)
 	if !scanned {
 		t.Fatalf("except true,but got false")
 	}
-	for _, addr := range types.ExtractGuardNodes {
+	for _, addr := range common.ExtractGuardNodes {
 		fd, _ := getFundGuardNode(accountDB, addr)
 		if !fd.isNormal() {
 			t.Fatalf("except normal,but got %v", fd.FundModeType)
@@ -507,7 +562,7 @@ func TestScan(t *testing.T) {
 	}
 
 	accountDB.(*account.AccountDB).Commit(true)
-	MinerManagerImpl.GuardNodesCheck(accountDB, adjustWeightPeriod+1000)
+	MinerManagerImpl.GuardNodesCheck(accountDB, createBlockHeaderByHeight(adjustWeightPeriod+1000))
 
 	isFullGuard := isInFullStakeGuardNode(accountDB, *ctx.source)
 	if isFullGuard {
@@ -516,33 +571,33 @@ func TestScan(t *testing.T) {
 }
 
 func TestChangeFundMode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 0, true)
 
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 2, false)
 
 	ctx.source = &guardNode1
 	testChangeFundMode(t, 1, false)
 
 	ctx.height = 100
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 1, true)
 
 	ctx.height = adjustWeightPeriod/2 + 1
-	ctx.source = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
 	testChangeFundMode(t, 1, false)
 }
 
 func TestFundApplyGuardNode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	MinerManagerImpl.genFundGuardNodes(accountDB)
-	ctx.source = &types.ExtractGuardNodes[0]
-	ctx.target = &types.ExtractGuardNodes[0]
+	ctx.source = &common.ExtractGuardNodes[0]
+	ctx.target = &common.ExtractGuardNodes[0]
 
 	testFullStakeFromSelf(t)
 	var height uint64 = 0
@@ -563,9 +618,21 @@ func TestFundApplyGuardNode(t *testing.T) {
 	}
 }
 
+func TestFundNodeApplyGuardNode(t *testing.T) {
+	setup(t)
+	defer clearSelf(t)
+	MinerManagerImpl.genFundGuardNodes(accountDB)
+	ctx.source = &common.ExtractGuardNodes[0]
+	ctx.target = &common.ExtractGuardNodes[0]
+	testFullStakeFromSelf(t)
+	var height uint64 = 0
+	testApplyGuardNode(t, true, height)
+	testApplyGuardNode(t, true, height)
+}
+
 func TestNormalApplyGuardNode(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &src
 	ctx.target = &src
 	MinerManagerImpl.genFundGuardNodes(accountDB)
@@ -604,8 +671,8 @@ func TestNormalApplyGuardNode(t *testing.T) {
 }
 
 func TestFailVote(t *testing.T) {
-	setup()
-	defer clear()
+	setup(t)
+	defer clearSelf(t)
 	ctx.source = &guardNode1
 	ctx.target = &guardNode1
 	testFullStakeFromSelf(t)
@@ -867,6 +934,70 @@ func geneGuardNodes(t *testing.T) {
 	ctx.target = &guardNode8
 	testFullStakeFromSelf(t)
 	testApplyGuardNode(t, true, height)
+}
+
+func genePoolMiner2(t *testing.T) {
+	ctx.source = &guardNode11
+	ctx.target = &guardNode11
+	testFullStakeFromSelf(t)
+	var height uint64 = 0
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	ctx.source = &guardNode22
+	ctx.target = &guardNode22
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	ctx.source = &guardNode33
+	ctx.target = &guardNode33
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	ctx.source = &guardNode44
+	ctx.target = &guardNode44
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	ctx.source = &guardNode55
+	ctx.target = &guardNode55
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	ctx.source = &guardNode66
+	ctx.target = &guardNode66
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	ctx.source = &guardNode77
+	ctx.target = &guardNode77
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	ctx.source = &guardNode88
+	ctx.target = &guardNode88
+	testFullStakeFromSelf(t)
+	testApplyGuardNode(t, true, height)
+	ctx.target = &minerPool2
+	testVote(t, true)
+
+	totalTickets := getTickets(accountDB, minerPool2)
+	if totalTickets != 8 {
+		t.Fatalf("except 8 ,but got %d", totalTickets)
+	}
 }
 
 func genePoolMiner(t *testing.T) {

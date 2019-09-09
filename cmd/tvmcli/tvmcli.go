@@ -17,6 +17,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
@@ -35,20 +36,20 @@ const (
 )
 
 type Transaction struct {
-	tvm.ControllerTransactionInterface
+	types.TxMessage
 }
 
 func (Transaction) GetGasLimit() uint64 { return TransactionGasLimitMax }
 func (Transaction) GetValue() uint64    { return 0 }
-func (Transaction) GetSource() *common.Address {
+func (Transaction) Operator() *common.Address {
 	address := common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
 	return &address
 }
-func (Transaction) GetTarget() *common.Address {
+func (Transaction) OpTarget() *common.Address {
 	address := common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
 	return &address
 }
-func (Transaction) GetData() []byte      { return nil }
+func (Transaction) Payload() []byte      { return nil }
 func (Transaction) GetHash() common.Hash { return common.Hash{} }
 
 type FakeChainReader struct {
@@ -149,16 +150,16 @@ func (t *TvmCli) init() {
 	}
 }
 
-func (t *TvmCli) Deploy(contractName string, contractCode string) string {
+func (t *TvmCli) Deploy(contractName string, contractCode string) (string, error) {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 	transaction := Transaction{}
 	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, transaction, 0, nil)
 
-	nonce := state.GetNonce(*transaction.GetSource())
-	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.GetSource()[:], common.Uint64ToByte(nonce))))
+	nonce := state.GetNonce(*transaction.Operator())
+	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Operator()[:], common.Uint64ToByte(nonce))))
 	fmt.Println("contractAddress: ", contractAddress.AddrPrefixString())
-	state.SetNonce(*transaction.GetSource(), nonce+1)
+	state.SetNonce(*transaction.Operator(), nonce+1)
 
 	contract := tvm.Contract{
 		ContractName: contractName,
@@ -169,13 +170,16 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	jsonBytes, errMarsh := json.Marshal(contract)
 	if errMarsh != nil {
 		fmt.Println(errMarsh)
-		return ""
+		return "", errMarsh
 	}
 	state.CreateAccount(contractAddress)
 	state.SetCode(contractAddress, jsonBytes)
 
 	contract.ContractAddress = &contractAddress
-	controller.Deploy(&contract)
+	result, _, _ := controller.Deploy(&contract)
+	if result.ResultType == 4 /*C.RETURN_TYPE_EXCEPTION*/ {
+		return "", errors.New(result.Content)
+	}
 	fmt.Println("gas: ", TransactionGasLimitMax-controller.VM.Gas())
 
 	hash, error := state.Commit(false)
@@ -185,7 +189,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) string {
 	}
 	t.settings.SetString("root", "StateHash", hash.Hex())
 	fmt.Println(hash.Hex())
-	return contractAddress.AddrPrefixString()
+	return contractAddress.AddrPrefixString(), nil
 }
 
 func (t *TvmCli) Call(contractAddress string, abiJSON string) {
@@ -234,49 +238,19 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 func (t *TvmCli) ExportAbi(contractName string, contractCode string) {
 	contract := tvm.Contract{
 		ContractName: contractName,
-		//Code: contractCode,
+		Code:         contractCode,
 		//ContractAddress: &contractAddress,
 	}
 	vm := tvm.NewTVM(nil, &contract)
 	defer func() {
 		vm.DelTVM()
 	}()
-	str := `
-class Register(object):
-    def __init__(self):
-        self.funcinfo = {}
-        self.abiinfo = []
 
-    def public(self , *dargs):
-        def wrapper(func):
-            paranametuple = func.__para__
-            paraname = list(paranametuple)
-            paraname.remove("self")
-            paratype = []
-            for i in range(len(paraname)):
-                paratype.append(dargs[i])
-            self.funcinfo[func.__name__] = [paraname,paratype]
-            tmp = {}
-            tmp["FuncName"] = func.__name__
-            tmp["Args"] = paratype
-            self.abiinfo.append(tmp)
-            abiexport(str(self.abiinfo))
-
-            def _wrapper(*args , **kargs):
-                return func(*args, **kargs)
-            return _wrapper
-        return wrapper
-
-import builtins
-builtins.register = Register()
-`
-
-	err := vm.ExecuteScriptVMSucceed(str)
-	if err == nil {
-		result := vm.ExecuteScriptKindFile(contractCode)
-		fmt.Println(result.Abi)
-	} else {
+	abi, err := vm.ExportABI()
+	if err != nil {
 		fmt.Println(err)
+	} else {
+		fmt.Println(abi)
 	}
 
 }

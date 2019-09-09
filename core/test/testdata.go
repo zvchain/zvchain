@@ -5,11 +5,13 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math"
 	"math/big"
 	"math/rand"
 	"strconv"
+	"time"
 )
 
 var (
@@ -82,7 +84,7 @@ func NewRandomFullBlockHeader(height uint64) *types.BlockHeader {
 		Elapsed:     int32(rand.Intn(10000)),
 		ProveValue:  big.NewInt(int64(rand.Intn(10000))).Bytes(),
 		TotalQN:     uint64(rand.Intn(10000)),
-		CurTime:     -111111,
+		CurTime:     time2.TimeToTimeStamp(time.Now()),
 		Castor:      big.NewInt(int64(rand.Intn(10000))).Bytes(),
 		Group:       common.BigToHash(big.NewInt(int64(rand.Intn(10000)))),
 		Signature:   big.NewInt(int64(rand.Intn(10000))).Bytes(),
@@ -96,14 +98,14 @@ func NewRandomFullBlockHeader(height uint64) *types.BlockHeader {
 	}
 }
 
-func NewBlock(bh *types.BlockHeader, txs []*types.Transaction) *types.Block {
+func NewBlock(bh *types.BlockHeader, txs []*types.RawTransaction) *types.Block {
 	return &types.Block{
 		Header:       bh,
 		Transactions: txs,
 	}
 }
 
-func NewBlockWithTxs(txs []*types.Transaction) *types.Block {
+func NewBlockWithTxs(txs []*types.RawTransaction) *types.Block {
 	return &types.Block{
 		Transactions: txs,
 	}
@@ -121,8 +123,8 @@ func GenBlocks() []*types.Block {
 func GenOnlyHasTransBlocks() []*types.Block {
 	blocks := []*types.Block{}
 
-	txs := []*types.Transaction{}
-	tx := &types.Transaction{Nonce: 100}
+	txs := []*types.RawTransaction{}
+	tx := &types.RawTransaction{Nonce: 100}
 	txs = append(txs, tx)
 	for i := 0; i < 10; i++ {
 		blocks = append(blocks, NewBlockWithTxs(txs))
@@ -132,7 +134,7 @@ func GenOnlyHasTransBlocks() []*types.Block {
 
 func GenHashCorrectBlocks() []*types.Block {
 	blocks := []*types.Block{}
-	txs := []*types.Transaction{}
+	txs := []*types.RawTransaction{}
 	bhs := GeneCorrectBlockHeaders()
 	nonce := 0
 	for _, data := range bhs {
@@ -141,12 +143,11 @@ func GenHashCorrectBlocks() []*types.Block {
 		for i := 0; i < 20; i++ {
 			sign = append(sign, 0)
 		}
-		tx := &types.Transaction{Type: 0, Value: types.NewBigInt(10), Nonce: uint64(nonce), Target: &target, GasLimit: types.NewBigInt(uint64(10000) + uint64(nonce)), GasPrice: types.NewBigInt(uint64(500) + uint64(nonce)), Sign: sign}
-		tx.Hash = tx.GenHash()
+		raw := &types.RawTransaction{Type: 0, Value: types.NewBigInt(10), Nonce: uint64(nonce), Target: &target, GasLimit: types.NewBigInt(uint64(10000) + uint64(nonce)), GasPrice: types.NewBigInt(uint64(500) + uint64(nonce)), Sign: sign}
 		nonce++
-		txs = append(txs, tx)
+		txs = append(txs, raw)
 		blocks = append(blocks, NewBlock(data, txs))
-		txs = []*types.Transaction{}
+		txs = []*types.RawTransaction{}
 	}
 	return blocks
 }
@@ -160,7 +161,7 @@ func GenBlocksByBlock(bc *types.Block) []*types.Block {
 
 func GenHashCorrectBlocksByFirstHash(firstBlockHash common.Hash, len int) []*types.Block {
 	blocks := []*types.Block{}
-	txs := []*types.Transaction{}
+	txs := []*types.RawTransaction{}
 	bhs := GeneCorrectBlockHeadersByFirstHash(firstBlockHash, len)
 	nonce := 0
 	for _, data := range bhs {
@@ -169,12 +170,11 @@ func GenHashCorrectBlocksByFirstHash(firstBlockHash common.Hash, len int) []*typ
 		for i := 0; i < 20; i++ {
 			sign = append(sign, 0)
 		}
-		tx := &types.Transaction{Type: 0, Value: types.NewBigInt(10), Nonce: uint64(nonce), Target: &target, GasLimit: types.NewBigInt(uint64(10000) + uint64(nonce)), GasPrice: types.NewBigInt(uint64(500) + uint64(nonce)), Sign: sign}
-		tx.Hash = tx.GenHash()
+		tx := &types.RawTransaction{Type: 0, Value: types.NewBigInt(10), Nonce: uint64(nonce), Target: &target, GasLimit: types.NewBigInt(uint64(10000) + uint64(nonce)), GasPrice: types.NewBigInt(uint64(500) + uint64(nonce)), Sign: sign}
 		nonce++
 		txs = append(txs, tx)
 		blocks = append(blocks, NewBlock(data, txs))
-		txs = []*types.Transaction{}
+		txs = []*types.RawTransaction{}
 	}
 	return blocks
 }

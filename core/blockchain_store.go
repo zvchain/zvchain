@@ -18,6 +18,7 @@ package core
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/monitor"
+	"sync/atomic"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -50,7 +51,7 @@ func (chain *FullBlockChain) updateLatestBlock(state *account.AccountDB, header 
 	chain.latestStateDB = state
 	chain.latestBlock = header
 
-	Logger.Infof("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
+	Logger.Debugf("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
 	//taslog.Flush()
 }
 
@@ -138,8 +139,8 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 	// If the block is successfully submitted, the transaction
 	// corresponding to the transaction pool should be deleted
 	removeTxs := make([]common.Hash, 0)
-	if block.Transactions != nil {
-		removeTxs = append(removeTxs, block.GetTransactionHashs()...)
+	if len(ps.txs) > 0 {
+		removeTxs = append(removeTxs, ps.txs.txsHashes()...)
 	}
 	// Remove eviction transactions from the transaction pool
 	if ps.evictedTxs != nil {
@@ -183,7 +184,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 
 	curr := chain.getLatestBlock()
 	recoverTxs := make([]*types.Transaction, 0)
-	delRecepites := make([]common.Hash, 0)
+	delReceipts := make([]common.Hash, 0)
 	removeBlocks := make([]*types.BlockHeader, 0)
 
 	for curr.Hash != block.Hash {
@@ -199,12 +200,11 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		if err = chain.saveBlockTxs(curr.Hash, nil); err != nil {
 			return err
 		}
-		txs := chain.queryBlockTransactionsAll(curr.Hash)
-		if txs != nil {
-			recoverTxs = append(recoverTxs, txs...)
-			for _, tx := range txs {
-				delRecepites = append(delRecepites, tx.Hash)
-			}
+		rawTxs := chain.queryBlockTransactionsAll(curr.Hash)
+		for _, rawTx := range rawTxs {
+			tHash := rawTx.GenHash()
+			recoverTxs = append(recoverTxs, types.NewTransaction(rawTx, tHash))
+			delReceipts = append(delReceipts, tHash)
 		}
 
 		chain.removeTopBlock(curr.Hash)
@@ -216,7 +216,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		curr = chain.queryBlockHeaderByHash(curr.PreHash)
 	}
 	// Delete receipts corresponding to the transactions in the discard block
-	if err = chain.transactionPool.DeleteReceipts(delRecepites); err != nil {
+	if err = chain.transactionPool.DeleteReceipts(delReceipts); err != nil {
 		return err
 	}
 	// Reset the current block
@@ -237,7 +237,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	for _, b := range removeBlocks {
 		GroupManagerImpl.OnBlockRemove(b)
 	}
-
+	// invalidate latest cp cache
+	chain.latestCP = atomic.Value{}
 	return nil
 }
 
@@ -271,7 +272,7 @@ func (chain *FullBlockChain) removeOrphan(block *types.Block) error {
 	if txs != nil {
 		txHashs := make([]common.Hash, len(txs))
 		for i, tx := range txs {
-			txHashs[i] = tx.Hash
+			txHashs[i] = tx.GenHash()
 		}
 		if err = chain.transactionPool.DeleteReceipts(txHashs); err != nil {
 			return err
@@ -364,7 +365,7 @@ func (chain *FullBlockChain) queryBlockBodyBytes(hash common.Hash) []byte {
 	return bs
 }
 
-func (chain *FullBlockChain) queryBlockTransactionsAll(hash common.Hash) []*types.Transaction {
+func (chain *FullBlockChain) queryBlockTransactionsAll(hash common.Hash) []*types.RawTransaction {
 	bs := chain.queryBlockBodyBytes(hash)
 	if bs == nil {
 		return nil
@@ -426,6 +427,28 @@ func (chain *FullBlockChain) scanBlockHeightsInRange(startHeight uint64, endHeig
 	return hs
 }
 
+// countBlocksInRange returns the count of blocks in the given height range. the block with startHeight and endHeight
+// will be included
+func (chain *FullBlockChain) countBlocksInRange(startHeight uint64, endHeight uint64) (count uint64) {
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(startHeight)) {
+		return
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height > endHeight {
+			break
+		}
+		count++
+		if !iter.Next() {
+			break
+		}
+	}
+	return
+}
+
 func (chain *FullBlockChain) queryBlockHeaderByHeight(height uint64) *types.BlockHeader {
 	hash := chain.queryBlockHash(height)
 	if hash != nil {
@@ -467,25 +490,25 @@ func (chain *FullBlockChain) queryBlockHeaderByHash(hash common.Hash) *types.Blo
 }
 
 func (chain *FullBlockChain) addTopBlock(b *types.Block) {
-	chain.topBlocks.Add(b.Header.Hash, b)
+	chain.topRawBlocks.Add(b.Header.Hash, b)
 }
 
 func (chain *FullBlockChain) removeTopBlock(hash common.Hash) {
-	chain.topBlocks.Remove(hash)
+	chain.topRawBlocks.Remove(hash)
 }
 
 func (chain *FullBlockChain) getTopBlockByHash(hash common.Hash) *types.Block {
-	if v, ok := chain.topBlocks.Get(hash); ok {
+	if v, ok := chain.topRawBlocks.Get(hash); ok {
 		return v.(*types.Block)
 	}
 	return nil
 }
 
 func (chain *FullBlockChain) getTopBlockByHeight(height uint64) *types.Block {
-	if chain.topBlocks.Len() == 0 {
+	if chain.topRawBlocks.Len() == 0 {
 		return nil
 	}
-	for _, k := range chain.topBlocks.Keys() {
+	for _, k := range chain.topRawBlocks.Keys() {
 		b := chain.getTopBlockByHash(k.(common.Hash))
 		if b != nil && b.Header.Height == height {
 			return b
@@ -494,8 +517,7 @@ func (chain *FullBlockChain) getTopBlockByHeight(height uint64) *types.Block {
 	return nil
 }
 
-func (chain *FullBlockChain) queryBlockTransactionsOptional(txIdx int, height uint64, txHash common.Hash) *types.Transaction {
-
+func (chain *FullBlockChain) queryBlockTransactionsOptional(txIdx int, height uint64) *types.RawTransaction {
 	bh := chain.queryBlockHeaderByHeight(height)
 	if bh == nil {
 		return nil
@@ -505,11 +527,10 @@ func (chain *FullBlockChain) queryBlockTransactionsOptional(txIdx int, height ui
 		Logger.Errorf("queryBlockTransactionsOptional get txDb err:%v, key:%v", err.Error(), bh.Hash.Hex())
 		return nil
 	}
-	tx, err := decodeTransaction(txIdx, txHash, bs)
+	tx, err := decodeTransaction(txIdx, bs)
 	if tx != nil {
 		return tx
 	}
-	Logger.Errorf("queryBlockTransactionsOptional decode tx error: hash=%v, err=%v", txHash.Hex(), err.Error())
 	return nil
 }
 

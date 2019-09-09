@@ -209,10 +209,6 @@ func (db *accountDB4CPTest) Snapshot() int {
 	panic("implement me")
 }
 
-func (db *accountDB4CPTest) AsAccountDBTS() types.AccountDBTS {
-	panic("implement me")
-}
-
 func (db *accountDB4CPTest) Transfer(common.Address, common.Address, *big.Int) {
 	panic("implement me")
 }
@@ -322,7 +318,7 @@ func init() {
 func TestCheckpoint_init(t *testing.T) {
 	gr := initGroupReader4CPTest(5)
 	br := initChainReader4CPTest(gr)
-	for h := uint64(1); h < 10000; h++ {
+	for h := uint64(1); h < 1000; h++ {
 		addRandomBlock(br, h)
 	}
 
@@ -334,6 +330,7 @@ func initChainReader4CPTest(gr activatedGroupReader) *FullBlockChain {
 	common.InitConf("test1.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", "d_b")
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
+	clearTicker()
 	Logger = logrus.StandardLogger()
 	if err != nil {
 		Logger.Panicf("init chain error:%v", err)
@@ -341,19 +338,20 @@ func initChainReader4CPTest(gr activatedGroupReader) *FullBlockChain {
 	chain := BlockChainImpl
 
 	Logger = logrus.StandardLogger()
-	// mock the tvm executor
-	tvm := NewTVMExecutor(chain)
+	// mock the tvm stateProc
+	tvm := newStateProcessor(chain)
 	// mock the cp checker
 	chain.cpChecker = newCpChecker(gr, chain)
 
 	tvm.addPostProcessor(chain.cpChecker.updateVotes)
-	chain.executor = tvm
+	chain.stateProc = tvm
 
 	chain.cpChecker.init()
 	return chain
 }
 
 func TestCheckpoint_checkAndUpdate(t *testing.T) {
+	os.RemoveAll("d_b")
 	defer func() {
 		os.RemoveAll("d_b")
 	}()
@@ -398,6 +396,9 @@ func TestCheckpoint_CheckPointOf(t *testing.T) {
 	testNum := 2000
 	for i := 0; i < testNum; i++ {
 		h := uint64(rand.Int63n(int64(br.Height())))
+		if !br.HasHeight(h) {
+			continue
+		}
 		cp := br.CheckPointAt(h)
 		if cp == nil || cp.Height < 2 {
 			continue
@@ -407,6 +408,8 @@ func TestCheckpoint_CheckPointOf(t *testing.T) {
 		cp2 := br.cpChecker.checkPointOf(blocks)
 		if cp2 == nil {
 			t.Errorf("checkpoint error at %v, cp1 %v", h, cp.Height)
+			br.CheckPointAt(h)
+			blocks := br.BatchGetBlocksBetween(cp.Height-2, h+1)
 			br.cpChecker.checkPointOf(blocks)
 			continue
 		}

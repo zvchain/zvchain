@@ -96,7 +96,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 		for _, tx := range b.Transactions {
 			switch tx.Type {
 			case types.TransactionTypeReward:
-				_, ids, blockHash, _, err := ms.bchain.GetRewardManager().ParseRewardTransaction(tx)
+				_, ids, blockHash, _, err := ms.bchain.GetRewardManager().ParseRewardTransaction(types.NewTransaction(tx, tx.GenHash()))
 				if err != nil {
 					ms.showMsg("failed to parse reward transaction %s", err)
 					continue
@@ -108,7 +108,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 					}
 				}
 			case types.TransactionTypeStakeAdd:
-				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
+				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.GenHash()) {
 					miner, _ := types.DecodePayload(tx.Data)
 					role := "proposer"
 					if types.IsVerifyRole(miner.MType) {
@@ -117,7 +117,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 					ms.showMsg("congratulations to you on becoming a %v at height %v, start mining", role, b.Header.Height)
 				}
 			case types.TransactionTypeMinerAbort:
-				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
+				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.GenHash()) {
 					role := "proposer"
 					if types.IsVerifyRole(types.MinerType(tx.Data[0])) {
 						role = "verifier"
@@ -125,7 +125,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 					ms.showMsg("abort miner role %v success at height %v, stoping mining", role, b.Header.Height)
 				}
 			case types.TransactionTypeStakeReduce:
-				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.Hash) {
+				if bytes.Equal(tx.Source.Bytes(), ms.id) && ms.txSuccess(tx.GenHash()) {
 					role := "proposer"
 					if types.IsVerifyRole(types.MinerType(tx.Data[0])) {
 						role = "verifier"

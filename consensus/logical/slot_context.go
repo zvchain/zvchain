@@ -176,6 +176,7 @@ func (sc *SlotContext) statusTransform(from int32, to int32) bool {
 func (sc *SlotContext) setRewardTrans(tx *types.Transaction) bool {
 	if !sc.hasSignedRewardTx() && sc.statusTransform(slSuccess, slRewardSignReq) {
 		sc.rewardTrans = tx
+		sc.rewardGSignGen = model.NewGroupSignGenerator(sc.gSignGenerator.Threshold())
 		return true
 	}
 	return false
@@ -183,26 +184,21 @@ func (sc *SlotContext) setRewardTrans(tx *types.Transaction) bool {
 
 // AcceptRewardPiece try to accept the signature piece of the reward transaction consensus
 func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bool) {
-	if sc.rewardTrans != nil && sc.rewardTrans.Hash != sd.DataHash {
-		return
-	}
 	if sc.rewardTrans == nil {
 		return
 	}
+	if sc.rewardTrans.Hash != sd.DataHash {
+		return
+	}
 	if sc.rewardGSignGen == nil {
-		sc.rewardGSignGen = model.NewGroupSignGenerator(sc.gSignGenerator.Threshold())
+		return
 	}
 	accept, recover = sc.rewardGSignGen.AddWitness(sd.GetID(), sd.DataSign)
 	if accept && recover {
 		// Cast block reward transaction using verifyGroup signature
 		if sc.rewardTrans.Sign == nil {
 			signBytes := sc.rewardGSignGen.GetGroupSign().Serialize()
-			tmpBytes := make([]byte, common.SignLength)
-			// Group signature length = 33, common signature length = 65.
-			// VerifyRewardTransaction() will recover common sig to groupsig
-			copy(tmpBytes[0:len(signBytes)], signBytes)
-			sign := common.BytesToSign(tmpBytes)
-			sc.rewardTrans.Sign = sign.Bytes()
+			sc.rewardTrans.Sign = signBytes
 		}
 	}
 	return
@@ -223,9 +219,12 @@ func (sc *SlotContext) hasSignedRewardTx() bool {
 
 // GetAggregatedSign returns the aggregated signature of proposer and verifier-verifyGroup
 func (sc *SlotContext) GetAggregatedSign() *groupsig.Signature {
-	gSign := sc.gSignGenerator.GetGroupSign()
-	if sc.pSign.IsValid() && gSign.IsValid() {
-		signArray := [2]groupsig.Signature{sc.pSign, gSign}
+	return sc.aggregateSign(sc.gSignGenerator.GetGroupSign())
+}
+
+func (sc *SlotContext) aggregateSign(sign groupsig.Signature) *groupsig.Signature {
+	if sc.pSign.IsValid() && sign.IsValid() {
+		signArray := [2]groupsig.Signature{sc.pSign, sign}
 		aggSign := groupsig.AggregateSigs(signArray[:])
 		return &aggSign
 	}

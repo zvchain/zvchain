@@ -426,6 +426,7 @@ func (fp *forkProcessor) onFindAncestorResponse(msg notify.Message) error {
 			fp.logger.Info(err)
 			return err
 		}
+
 		ctx.ancestor = ancestorBH
 		ctx.addChainSlice(blocks)
 		ctx.lastRequestEndHeight = ctx.receivedChainSlice.lastBlock().Height + 1
@@ -433,6 +434,7 @@ func (fp *forkProcessor) onFindAncestorResponse(msg notify.Message) error {
 		// height can be handled
 		requestEndHeight := fp.chainSliceRequestEndHeight(topHeader, ancestorBH)
 		ctx.requestChainSliceEndHeight = requestEndHeight
+		fp.logger.Debugf("local cp %v-%v, ancestor %v-%v, requesting chain slice to height %v", ctx.localCP.Height, ctx.localCP.Hash, ancestorBH.Height, ancestorBH.Hash, requestEndHeight)
 
 		fp.checkChainSlice()
 
@@ -534,12 +536,12 @@ func (fp *forkProcessor) onChainSliceResponse(msg notify.Message) error {
 	}
 	blocks := resp.Blocks
 	if len(blocks) == 0 {
-		fp.logger.Warnf("get empty blocks from %v", defaultMessage.Source())
-		return nil
+		fp.logger.Warnf("receive empty chain slice response from %v, request height %v", defaultMessage.Source(), ctx.lastRequestEndHeight)
+	} else {
+		fp.logger.Debugf("receive chain slice response from %v, size %v, heights %v-%v", defaultMessage.Source(), len(blocks), blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
 	}
 	peerManagerImpl.heardFromPeer(defaultMessage.Source())
 
-	fp.logger.Debugf("receive chain slice response from %v, size %v, heights %v-%v", defaultMessage.Source(), len(blocks), blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
 	ctx.addChainSlice(blocks)
 
 	fp.checkChainSlice()
@@ -558,12 +560,18 @@ func (fp *forkProcessor) allBlocksReceived() {
 		return
 	}
 	blocks := fp.syncCtx.receivedChainSlice
-	ancestorPre := fp.chain.QueryBlockHeaderByHash(blocks[0].Header.PreHash)
-	if ancestorPre == nil {
-		fp.logger.Errorf("ancestor pre is nil:%v %v", blocks[0].Header.Hash, blocks[0].Header.Height)
+	if len(blocks) <= 1 {
+		fp.logger.Errorf("received block slice len %v, hash=%v, height=%v", len(blocks), fp.syncCtx.ancestor.Hash, fp.syncCtx.ancestor.Height)
 		return
 	}
-	pre := ancestorPre
+	first := blocks[0].Header
+	if first.Hash != fp.syncCtx.ancestor.Hash {
+		fp.logger.Errorf("first received block is not the ancestor block!")
+		return
+	}
+
+	pre := first
+	blocks = blocks[1:]
 	// Ensure blocks are chained and heights are legal
 	for _, block := range blocks {
 		if pre.Hash != block.Header.PreHash {
@@ -576,7 +584,7 @@ func (fp *forkProcessor) allBlocksReceived() {
 		}
 		pre = block.Header
 	}
-	pre = ancestorPre
+	pre = first
 	// Checks the blocks legality
 	for _, block := range blocks {
 		if ok, err := fp.verifier.VerifyBlockHeaders(pre, block.Header); !ok {
@@ -587,6 +595,13 @@ func (fp *forkProcessor) allBlocksReceived() {
 	}
 	// Peer cp
 	peerCP := fp.peerCP.checkPointOf(blocks)
+	ctx := fp.syncCtx
+	if peerCP == nil {
+		fp.logger.Debugf("local cp %v-%v, ancestor %v-%v, peer cp is nil", ctx.localCP.Height, ctx.localCP.Hash, ctx.ancestor.Height, ctx.ancestor.Hash)
+	} else {
+		fp.logger.Debugf("local cp %v-%v, ancestor %v-%v, peer cp %v-%v ", ctx.localCP.Height, ctx.localCP.Hash, ctx.ancestor.Height, ctx.ancestor.Hash, peerCP.Height, peerCP.Hash)
+	}
+
 	// When Peer cp lower than ancestor, compares the weight
 	if peerCP == nil || peerCP.Height <= fp.syncCtx.ancestor.Height {
 		peerLast := blocks[len(blocks)-1].Header
@@ -597,10 +612,13 @@ func (fp *forkProcessor) allBlocksReceived() {
 		}
 	}
 	// Accept peer fork, and add the chain slice to local
-	fp.chain.batchAddBlockOnChain(fp.syncCtx.target, "fork", blocks, func(b *types.Block, ret types.AddBlockResult) bool {
+	err := fp.chain.batchAddBlockOnChain(fp.syncCtx.target, true, blocks, func(b *types.Block, ret types.AddBlockResult) bool {
 		fp.logger.Debugf("sync fork block from %v, hash=%v,height=%v,addResult=%v", fp.syncCtx.target, b.Header.Hash, b.Header.Height, ret)
-		return ret == types.AddBlockSucc || ret == types.BlockExisted
+		return ret == types.AddBlockSucc || ret == types.AddBlockExisted
 	})
+	if err != nil {
+		fp.logger.Warnf("add blocks from %v error:%v, block range %v-%v", fp.syncCtx.target, err, blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
+	}
 }
 
 func unmarshalFindAncestorPieceReqInfo(b []byte) (*findAncestorPieceReq, error) {

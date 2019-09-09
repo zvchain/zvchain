@@ -65,7 +65,7 @@ type BlockChain interface {
 	BatchGetBlocksAfterHeight(height uint64, limit int) []*Block
 
 	// GetTransactionByHash get a transaction by hash
-	GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *Transaction
+	GetTransactionByHash(onlyReward bool, h common.Hash) *Transaction
 
 	// GetTransactionPool return the transaction pool waiting for the block
 	GetTransactionPool() TransactionPool
@@ -103,6 +103,9 @@ type BlockChain interface {
 	// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
 	// will be included
 	CountBlocksInRange(startHeight uint64, endHeight uint64) uint64
+
+	// returns latest checkpoint of the chain
+	LatestCheckPoint() *BlockHeader
 }
 
 type RewardManager interface {
@@ -124,14 +127,11 @@ type TransactionPool interface {
 	// PackForCast returns a list of transactions for casting a block
 	PackForCast() []*Transaction
 
-	// AddTransaction add new transaction to the transaction pool
+	// AddTransaction adds new transaction to the transaction pool which will be broadcast
 	AddTransaction(tx *Transaction) (bool, error)
 
-	// AddTransactions add new transactions to the transaction pool
-	AddTransactions(txs []*Transaction) int
-
-	// AsyncAddTxs rcv transactions broadcast from other nodes
-	AsyncAddTxs(txs []*Transaction)
+	// AsyncAddTransaction adds transaction to the transaction pool which won't be broadcast
+	AsyncAddTransaction(tx *Transaction) error
 
 	// GetTransaction trys to find a transaction from pool by hash and return it
 	GetTransaction(reward bool, hash common.Hash) *Transaction

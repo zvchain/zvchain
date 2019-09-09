@@ -179,7 +179,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		assetFile := ""
 		if r.URL.Path == "/" {
-			assetFile = "cmd/gzv/fronted/c.html"
+			assetFile = "cmd/gzv/fronted/rpc_monitor.html"
 		} else {
 			if r.URL.Path[0] == '/' {
 				assetFile = r.URL.Path[1:]
@@ -207,8 +207,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer codec.Close()
 
 	w.Header().Set("content-type", contentType)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With,X_Requested_With,Content-Type")
 	srv.ServeSingleRequest(codec, OptionMethodInvocation)
 }
 

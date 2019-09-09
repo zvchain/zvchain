@@ -20,7 +20,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
@@ -45,6 +44,19 @@ func id2String(ids []groupsig.ID) []string {
 	return idStrs
 }
 
+func id2NetworkProposers(ids []groupsig.ID, stakes []uint64) []*network.Proposer {
+	groupMembers := id2String(ids)
+
+	networkProposers := make([]*network.Proposer, 0)
+	for i := 0; i < len(groupMembers); i++ {
+		ID := network.NewNodeID(groupMembers[i])
+		if ID != nil {
+			networkProposers = append(networkProposers, &network.Proposer{ID: *ID, Stake: stakes[i]})
+		}
+	}
+	return networkProposers
+}
+
 /*
 Group network management
 */
@@ -58,6 +70,20 @@ func (ns *NetworkServerImpl) BuildGroupNet(gid string, mems []groupsig.ID) {
 // ReleaseGroupNet releases the group net in local
 func (ns *NetworkServerImpl) ReleaseGroupNet(gid string) {
 	ns.net.DissolveGroupNet(gid)
+}
+
+func (ns *NetworkServerImpl) FullBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
+	networkProposers := id2NetworkProposers(proposers, stakes)
+	if len(networkProposers) > 0 {
+		ns.net.BuildProposerGroupNet(networkProposers)
+	}
+}
+
+func (ns *NetworkServerImpl) IncrementBuildProposerGroupNet(proposers []groupsig.ID, stakes []uint64) {
+	networkProposers := id2NetworkProposers(proposers, stakes)
+	if len(networkProposers) > 0 {
+		ns.net.AddProposers(networkProposers)
+	}
 }
 
 func (ns *NetworkServerImpl) send2Self(self groupsig.ID, m network.Message) {
@@ -112,31 +138,15 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	nextVerifyGroupID := group.GSeed.Hex()
 	groupMembers := id2String(group.MemIds)
 
-	// Broadcast to a virtual group of heavy nodes
-	heavyMinerMembers := core.MinerManagerImpl.GetAllProposalAddresses()
+	msgID := []byte(blockMsg.Hash())
 
-	validGroupMembers := make([]string, 0)
-	for _, mid := range groupMembers {
-		find := false
-		for _, hid := range heavyMinerMembers {
-			if hid == mid {
-				find = true
-				break
-			}
-		}
-		if !find {
-			validGroupMembers = append(validGroupMembers, mid)
-		}
-	}
-
-	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, heavyMinerMembers, blockMsg, []byte(blockMsg.Hash()))
+	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, nil, blockMsg, msgID)
 
 	// Broadcast to the next group of light nodes
 	//
 	// Prevent duplicate broadcasts
-	if len(validGroupMembers) > 0 {
-		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, []byte(blockMsg.Hash()))
-	}
+	msgID[0] += 1
+	ns.net.SpreadToGroup(nextVerifyGroupID, groupMembers, blockMsg, msgID)
 
 }
 
@@ -144,14 +154,14 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSignReqMessage) {
 	body, e := marshalCastRewardTransSignReqMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send CastRewardTransSignReqMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send CastRewardTransSignReqMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.CastRewardSignReq, Body: body}
 
 	gSeed := msg.Reward.Group
 
-	network.Logger.Debugf("send SendCastRewardSignReq to %v", gSeed.Hex())
+	logger.Debugf("send SendCastRewardSignReq to %v", gSeed.Hex())
 
 	ns.send2Self(msg.SI.GetID(), m)
 
@@ -162,7 +172,7 @@ func (ns *NetworkServerImpl) SendCastRewardSignReq(msg *model.CastRewardTransSig
 func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMessage) {
 	body, e := marshalCastRewardTransSignMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send CastRewardTransSignMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send CastRewardTransSignMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.CastRewardSignGot, Body: body}
@@ -173,7 +183,7 @@ func (ns *NetworkServerImpl) SendCastRewardSign(msg *model.CastRewardTransSignMe
 func (ns *NetworkServerImpl) ReqProposalBlock(msg *model.ReqProposalBlock, target string) {
 	body, e := marshalReqProposalBlockMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send marshalReqProposalBlockMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send marshalReqProposalBlockMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.ReqProposalBlock, Body: body}
@@ -186,10 +196,11 @@ func (ns *NetworkServerImpl) ResponseProposalBlock(msg *model.ResponseProposalBl
 
 	body, e := marshalResponseProposalBlockMessage(msg)
 	if e != nil {
-		network.Logger.Errorf("[peer]Discard send marshalResponseProposalBlockMessage because of marshal error:%s", e.Error())
+		logger.Errorf("[peer]Discard send marshalResponseProposalBlockMessage because of marshal error:%s", e.Error())
 		return
 	}
 	m := network.Message{Code: network.ResponseProposalBlock, Body: body}
 
 	ns.net.Send(target, m)
+	logger.Debugf("send response block %v %v to %v", msg.Hash, len(msg.Transactions), target)
 }

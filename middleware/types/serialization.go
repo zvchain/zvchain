@@ -32,8 +32,8 @@ func InitMiddleware() {
 }
 
 // UnMarshalTransactions deserialize from []byte to *Transaction
-func UnMarshalTransactions(b []byte) ([]*Transaction, error) {
-	ts := new(tas_middleware_pb.TransactionSlice)
+func UnMarshalTransactions(b []byte) ([]*RawTransaction, error) {
+	ts := new(tas_middleware_pb.RawTransactionSlice)
 	error := proto.Unmarshal(b, ts)
 	if error != nil {
 		MiddleWareLogger.Errorf("[handler]Unmarshal transactions error:%s", error.Error())
@@ -69,9 +69,9 @@ func UnMarshalBlockHeader(bytes []byte) (*BlockHeader, error) {
 }
 
 // MarshalTransactions serialize []*Transaction
-func MarshalTransactions(txs []*Transaction) ([]byte, error) {
+func MarshalTransactions(txs []*RawTransaction) ([]byte, error) {
 	transactions := TransactionsToPb(txs)
-	transactionSlice := tas_middleware_pb.TransactionSlice{Transactions: transactions}
+	transactionSlice := tas_middleware_pb.RawTransactionSlice{Transactions: transactions}
 	return proto.Marshal(&transactionSlice)
 }
 
@@ -119,28 +119,36 @@ func byteToHash(b []byte) common.Hash {
 	return common.BytesToHash(b)
 }
 
-func pbToTransaction(t *tas_middleware_pb.Transaction) *Transaction {
+func pbToTransaction(t *tas_middleware_pb.RawTransaction) *RawTransaction {
 	if t == nil {
-		return &Transaction{}
+		return &RawTransaction{}
 	}
 
-	var target *common.Address
+	var (
+		target *common.Address
+		source *common.Address
+	)
 	if t.Target != nil {
 		t := common.BytesToAddress(t.Target)
 		target = &t
 	}
+	if t.Source != nil {
+		t := common.BytesToAddress(t.Source)
+		source = &t
+	}
+
 	value := new(BigInt).SetBytesWithSign(t.Value)
 	gasLimit := new(BigInt).SetBytesWithSign(t.GasLimit)
 	gasPrice := new(BigInt).SetBytesWithSign(t.GasPrice)
 
-	transaction := &Transaction{
+	transaction := &RawTransaction{
+		Source:    source,
 		Data:      t.Data,
 		Value:     value,
 		Nonce:     ensureUint64(t.Nonce),
 		Target:    target,
 		GasLimit:  gasLimit,
 		GasPrice:  gasPrice,
-		Hash:      byteToHash(t.Hash),
 		ExtraData: t.ExtraData,
 		Type:      int8(ensureInt32(t.Type)),
 		Sign:      t.Sign,
@@ -148,8 +156,8 @@ func pbToTransaction(t *tas_middleware_pb.Transaction) *Transaction {
 	return transaction
 }
 
-func PbToTransactions(txs []*tas_middleware_pb.Transaction) []*Transaction {
-	result := make([]*Transaction, 0)
+func PbToTransactions(txs []*tas_middleware_pb.RawTransaction) []*RawTransaction {
+	result := make([]*RawTransaction, 0)
 	if txs == nil {
 		return result
 	}
@@ -171,7 +179,7 @@ func PbToBlockHeader(h *tas_middleware_pb.BlockHeader) *BlockHeader {
 		PreHash:     byteToHash(h.PreHash),
 		Elapsed:     ensureInt32(h.Elapsed),
 		ProveValue:  h.ProveValue,
-		CurTime:     time2.Int64ToTimeStamp(ensureInt64(h.CurTime)),
+		CurTime:     time2.Int64MilliSecondsToTimeStamp(ensureInt64(h.CurTime)),
 		Castor:      h.Castor,
 		Group:       byteToHash(h.GroupId),
 		Signature:   h.Signature,
@@ -193,41 +201,45 @@ func PbToBlock(b *tas_middleware_pb.Block) *Block {
 	}
 	h := PbToBlockHeader(b.Header)
 	txs := PbToTransactions(b.Transactions)
-	block := Block{Header: h, Transactions: txs}
-	return &block
+	block := &Block{Header: h, Transactions: txs}
+	return block
 }
 
-func transactionToPb(t *Transaction) *tas_middleware_pb.Transaction {
+func transactionToPb(t *RawTransaction) *tas_middleware_pb.RawTransaction {
 	if t == nil {
 		return nil
 	}
 	var (
 		target []byte
+		source []byte
 	)
 	if t.Target != nil {
 		target = t.Target.Bytes()
 	}
+	if t.Source != nil {
+		source = t.Source.Bytes()
+	}
 	tp := int32(t.Type)
-	transaction := tas_middleware_pb.Transaction{
+	transaction := tas_middleware_pb.RawTransaction{
 		Data:      t.Data,
 		Value:     t.Value.GetBytesWithSign(),
 		Nonce:     &t.Nonce,
 		Target:    target,
 		GasLimit:  t.GasLimit.GetBytesWithSign(),
 		GasPrice:  t.GasPrice.GetBytesWithSign(),
-		Hash:      t.Hash.Bytes(),
 		ExtraData: t.ExtraData,
 		Type:      &tp,
 		Sign:      t.Sign,
+		Source:    source,
 	}
 	return &transaction
 }
 
-func TransactionsToPb(txs []*Transaction) []*tas_middleware_pb.Transaction {
+func TransactionsToPb(txs []*RawTransaction) []*tas_middleware_pb.RawTransaction {
 	if txs == nil {
 		return nil
 	}
-	transactions := make([]*tas_middleware_pb.Transaction, 0)
+	transactions := make([]*tas_middleware_pb.RawTransaction, 0)
 	for _, t := range txs {
 		transaction := transactionToPb(t)
 		transactions = append(transactions, transaction)
@@ -236,7 +248,7 @@ func TransactionsToPb(txs []*Transaction) []*tas_middleware_pb.Transaction {
 }
 
 func BlockHeaderToPb(h *BlockHeader) *tas_middleware_pb.BlockHeader {
-	ts := h.CurTime.Unix()
+	ts := h.CurTime.UnixMilli()
 	header := tas_middleware_pb.BlockHeader{
 		Hash:        h.Hash.Bytes(),
 		Height:      &h.Height,

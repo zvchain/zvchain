@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
 )
@@ -57,16 +58,20 @@ func (op *voteMinerPoolOp) ParseTransaction() error {
 }
 
 func (op *voteMinerPoolOp) Transition() *result {
+	log.CoreLogger.Infof("vote begin,source=%s,target=%s,height=%v", op.source.AddrPrefixString(), op.targetAddr.AddrPrefixString(), op.height)
 	ret := newResult()
 	targetMiner, err := getMiner(op.accountDB, op.targetAddr, types.MinerTypeProposal)
 	if err != nil {
+		err = fmt.Errorf("vote failed,source=%s,target=%s,height=%v,error=%v", op.source.AddrPrefixString(), op.targetAddr.AddrPrefixString(), op.height, err)
 		ret.setError(err, types.RSFail)
 		return ret
 	}
+	var rs types.ReceiptStatus
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processVote(op, targetMiner, baseOp.afterTicketsFull)
+	err, rs = baseOp.processVote(op, targetMiner, baseOp.afterTicketsFull)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("vote failed,source=%s,target=%s,height=%v,error=%v", op.source.AddrPrefixString(), op.targetAddr.AddrPrefixString(), op.height, err)
+		ret.setError(err, rs)
 		return ret
 	}
 	return ret
@@ -78,28 +83,30 @@ type applyGuardMinerOp struct {
 }
 
 func (op *applyGuardMinerOp) ParseTransaction() error {
-	if op.msg.OpTarget() == nil {
-		return fmt.Errorf("target is nil")
-	}
 	op.targetAddr = *op.msg.Operator()
 	return nil
 }
 
 func (op *applyGuardMinerOp) Transition() *result {
+	log.CoreLogger.Infof("apply guard begin,source=%s,height=%v", op.targetAddr.AddrPrefixString(), op.height)
 	ret := newResult()
 	miner, err := getMiner(op.accountDB, op.targetAddr, types.MinerTypeProposal)
 	if err != nil {
+		log.CoreLogger.Errorf("apply guard failed,source=%s,height=%v,error=%v", op.targetAddr.AddrPrefixString(), op.height, err)
 		ret.setError(err, types.RSFail)
 		return ret
 	}
 	if miner == nil {
-		ret.setError(fmt.Errorf("no miner info"), types.RSFail)
+		err = fmt.Errorf("apply guard failed,source=%s,height=%v,error=no miner info", op.targetAddr.AddrPrefixString(), op.height)
+		ret.setError(err, types.RSMinerNotExists)
 		return ret
 	}
+	var rs types.ReceiptStatus
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, miner)
-	err = baseOp.processApplyGuard(op, miner, baseOp.afterBecomeFullGuardNode)
+	err, rs = baseOp.processApplyGuard(op, miner, baseOp.afterBecomeFullGuardNode)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("apply guard failed,source=%s,height=%v,error=%v", op.targetAddr.AddrPrefixString(), op.height, err)
+		ret.setError(err, rs)
 		return ret
 	}
 	return ret
@@ -124,22 +131,25 @@ func (op *reduceTicketsOp) ParseTransaction() error {
 }
 
 func (op *reduceTicketsOp) Transition() *result {
+	log.CoreLogger.Infof("reduce ticket begin,target=%s,height=%v", op.target.AddrPrefixString(), op.height)
 	ret := newResult()
 	targetMiner, err := getMiner(op.accountDB, op.target, types.MinerTypeProposal)
 	if err != nil {
+		err = fmt.Errorf("reduce ticket failed,target=%s,height=%v,error=%v", op.target.AddrPrefixString(), op.height, err)
 		ret.setError(err, types.RSFail)
 		return ret
 	}
+	var rs types.ReceiptStatus
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processReduceTicket(op, targetMiner, baseOp.afterTicketReduce)
+	err, rs = baseOp.processReduceTicket(op, targetMiner, baseOp.afterTicketReduce)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("reduce ticket failed,target=%s,height=%v,error=%v", op.target.AddrPrefixString(), op.height, err)
+		ret.setError(err, rs)
 		return ret
 	}
 	return ret
 }
 
-// stakeAddOp is for the stake add operation, miner can add stake for himself3 or others
 type changeFundGuardMode struct {
 	*transitionContext
 	source common.Address
@@ -147,9 +157,6 @@ type changeFundGuardMode struct {
 }
 
 func (op *changeFundGuardMode) ParseTransaction() error {
-	if op.msg.OpTarget() == nil {
-		return fmt.Errorf("target can not be nil")
-	}
 	if len(op.msg.Payload()) != 1 {
 		return fmt.Errorf("data length should be 1")
 	}
@@ -157,22 +164,25 @@ func (op *changeFundGuardMode) ParseTransaction() error {
 		return err
 	}
 	op.source = *op.msg.Operator()
-
 	op.mode = common.FundModeType(op.msg.Payload()[0])
 	return nil
 }
 
 func (op *changeFundGuardMode) Transition() *result {
+	log.CoreLogger.Infof("begin change fund mode,source=%s,mode=%d,height=%v", op.source, op.mode, op.height)
 	ret := newResult()
 	targetMiner, err := getMiner(op.accountDB, op.source, types.MinerTypeProposal)
 	if err != nil {
+		err = fmt.Errorf("change fund mode error,source=%s,mode=%d,height=%v,error=%v", op.source, op.mode, op.height, err)
 		ret.setError(err, types.RSFail)
 		return ret
 	}
+	var rs types.ReceiptStatus
 	baseOp := geneBaseIdentityOp(types.MinerTypeProposal, targetMiner)
-	err = baseOp.processChangeFundGuardMode(op, targetMiner)
+	err, rs = baseOp.processChangeFundGuardMode(op, targetMiner)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("change fund mode error,source=%s,mode=%d,height=%v,error=%v", op.source, op.mode, op.height, err)
+		ret.setError(err, rs)
 		return ret
 	}
 	return ret
@@ -208,21 +218,26 @@ func (op *stakeAddOp) ParseTransaction() error {
 }
 
 func (op *stakeAddOp) Transition() *result {
+	log.CoreLogger.Infof("stake add begin,from=%s,to=%s,type=%d,height=%d,value=%v", op.addSource.AddrPrefixString(), op.addTarget.AddrPrefixString(), op.minerType, op.height, op.value)
 	ret := newResult()
 	targetMiner, err := getMiner(op.accountDB, op.addTarget, op.minerType)
 	if err != nil {
+		err = fmt.Errorf("stake add failed,from=%s,to=%s,type=%d,height=%d,value=%v,error=%v", op.addSource.AddrPrefixString(), op.addTarget.AddrPrefixString(), op.minerType, op.height, op.value, err)
 		ret.setError(err, types.RSFail)
 		return ret
 	}
+	var rs types.ReceiptStatus
 	baseOp := geneBaseIdentityOp(op.minerType, targetMiner)
-	err = baseOp.checkStakeAdd(op, targetMiner)
+	err, rs = baseOp.checkStakeAdd(op, targetMiner)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("stake add failed,from=%s,to=%s,type=%d,height=%d,value=%v,error=%v", op.addSource.AddrPrefixString(), op.addTarget.AddrPrefixString(), op.minerType, op.height, op.value, err)
+		ret.setError(err, rs)
 		return ret
 	}
-	err = baseOp.processStakeAdd(op, targetMiner, baseOp.checkUpperBound)
+	err, rs = baseOp.processStakeAdd(op, targetMiner, baseOp.checkUpperBound)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("stake add failed,from=%s,to=%s,type=%d,height=%d,value=%v,error=%v", op.addSource.AddrPrefixString(), op.addTarget.AddrPrefixString(), op.minerType, op.height, op.value, err)
+		ret.setError(err, rs)
 		return ret
 	}
 	return ret
@@ -243,16 +258,20 @@ func (op *minerAbortOp) ParseTransaction() error {
 }
 
 func (op *minerAbortOp) Transition() *result {
+	log.CoreLogger.Infof("miner abort begin,addr=%s,type=%d,height=%d", op.addr.AddrPrefixString(), op.minerType, op.height)
 	ret := newResult()
 	miner, err := getMiner(op.accountDB, op.addr, op.minerType)
 	if err != nil {
+		err = fmt.Errorf("miner abort failed,addr=%s,type=%d,height=%d,error=%v", op.addr.AddrPrefixString(), op.minerType, op.height, err)
 		ret.setError(err, types.RSFail)
 		return ret
 	}
+	var rs types.ReceiptStatus
 	baseOp := geneBaseIdentityOp(op.minerType, miner)
-	err = baseOp.processMinerAbort(op, miner)
+	err, rs = baseOp.processMinerAbort(op, miner)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("miner abort failed,addr=%s,type=%d,height=%d,error=%v", op.addr.AddrPrefixString(), op.minerType, op.height, err)
+		ret.setError(err, rs)
 		return ret
 	}
 	return ret
@@ -276,16 +295,20 @@ func (op *stakeReduceOp) ParseTransaction() error {
 }
 
 func (op *stakeReduceOp) Transition() *result {
+	log.CoreLogger.Infof("stake reduce begin,source=%s,target=%s,height=%v,type = %d,value=%v", op.cancelSource, op.cancelTarget, op.height, op.minerType, op.value)
 	ret := newResult()
 	miner, err := getMiner(op.accountDB, op.cancelTarget, op.minerType)
 	if err != nil {
+		err = fmt.Errorf("stake reduce failed,source=%s,target=%s,height=%v,type=%d,value=%v,error=%v", op.cancelSource, op.cancelTarget, op.height, op.minerType, op.value, err)
 		ret.setError(err, types.RSFail)
 		return ret
 	}
+	var rs types.ReceiptStatus
 	baseOp := geneBaseIdentityOp(op.minerType, miner)
-	err = baseOp.processStakeReduce(op, miner)
+	err, rs = baseOp.processStakeReduce(op, miner)
 	if err != nil {
-		ret.setError(err, types.RSFail)
+		err = fmt.Errorf("stake reduce failed,source=%s,target=%s,height=%v,type=%d,value=%v,error=%v", op.cancelSource, op.cancelTarget, op.height, op.minerType, op.value, err)
+		ret.setError(err, rs)
 		return ret
 	}
 	return ret
@@ -321,7 +344,7 @@ func (op *stakeRefundOp) Transition() *result {
 	}
 	// Check reduce-height
 	if op.height <= frozenDetail.Height+twoDayBlocks {
-		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSFail)
+		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnougn)
 		return ret
 	}
 
@@ -354,7 +377,7 @@ func (op *minerFreezeOp) Transition() *result {
 		return ret
 	}
 	if miner == nil {
-		ret.setError(fmt.Errorf("no miner info"), types.RSFail)
+		ret.setError(fmt.Errorf("no miner info"), types.RSMinerNotExists)
 		return ret
 	}
 	if miner.IsFrozen() {
@@ -402,7 +425,7 @@ func (op *minerPenaltyOp) Transition() *result {
 			return ret
 		}
 		if miner == nil {
-			ret.setError(fmt.Errorf("no miner info"), types.RSFail)
+			ret.setError(fmt.Errorf("no miner info"), types.RSMinerNotExists)
 			return ret
 		}
 		if !miner.IsVerifyRole() {

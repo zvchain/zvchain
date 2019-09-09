@@ -21,8 +21,8 @@ import (
 )
 
 func TestFullBlockChain_QueryBlockFloor(t *testing.T) {
-	initContext4Test()
-	defer clear()
+	initContext4Test(t)
+	defer clearSelf(t)
 	chain := BlockChainImpl
 
 	fmt.Println("=====")

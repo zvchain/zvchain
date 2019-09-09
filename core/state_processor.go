@@ -229,7 +229,6 @@ func (ss *groupOperator) Transition() *result {
 
 type contractCreator struct {
 	*transitionContext
-	tx     *types.Transaction
 	source common.Address
 }
 
@@ -240,13 +239,13 @@ func (ss *contractCreator) ParseTransaction() error {
 
 func (ss *contractCreator) Transition() *result {
 	ret := newResult()
-	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.tx, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
-	contractAddress, txErr := createContract(ss.accountDB, ss.tx)
+	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.msg, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
+	contractAddress, txErr := createContract(ss.accountDB, ss.msg)
 	if txErr != nil {
 		ret.setError(txErr, types.RSFail)
 	} else {
 		contract := tvm.LoadContract(contractAddress)
-		isTransferSuccess := transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.tx.Value.Value())
+		isTransferSuccess := transfer(ss.accountDB, ss.source, *contract.ContractAddress, ss.msg.Amount())
 		if !isTransferSuccess {
 			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.source.AddrPrefixString()), types.RSBalanceNotEnough)
 		} else {
@@ -259,12 +258,12 @@ func (ss *contractCreator) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.tx.Hash.Hex(), contractAddress.AddrPrefixString())
+				Logger.Debugf("Contract create success! Tx hash:%s, contract addr:%s", ss.msg.GetHash().Hex(), contractAddress.AddrPrefixString())
 			}
 		}
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
-	allUsed := new(big.Int).Sub(ss.tx.GasLimit.Value(), gasLeft)
+	allUsed := new(big.Int).Sub(ss.msg.GetGasLimitOriginal(), gasLeft)
 	ss.gasUsed = allUsed
 	ret.contractAddress = contractAddress
 	return ret
@@ -272,7 +271,6 @@ func (ss *contractCreator) Transition() *result {
 
 type contractCaller struct {
 	*transitionContext
-	tx *types.Transaction
 }
 
 func (ss *contractCaller) ParseTransaction() error {
@@ -281,18 +279,16 @@ func (ss *contractCaller) ParseTransaction() error {
 
 func (ss *contractCaller) Transition() *result {
 	ret := newResult()
-	tx := ss.tx
-
-	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, tx, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
-	contract := tvm.LoadContract(*tx.Target)
+	controller := tvm.NewController(ss.accountDB, BlockChainImpl, ss.bh, ss.msg, ss.intrinsicGasUsed.Uint64(), MinerManagerImpl)
+	contract := tvm.LoadContract(*ss.msg.OpTarget())
 	if contract.Code == "" {
-		ret.setError(fmt.Errorf("no code at the given address %v", tx.Target.AddrPrefixString()), types.RSNoCodeError)
+		ret.setError(fmt.Errorf("no code at the given address %v", ss.msg.OpTarget().AddrPrefixString()), types.RSNoCodeError)
 	} else {
-		isTransferSuccess := transfer(ss.accountDB, *tx.Source, *contract.ContractAddress, tx.Value.Value())
+		isTransferSuccess := transfer(ss.accountDB, *ss.msg.Operator(), *contract.ContractAddress, ss.msg.Amount())
 		if !isTransferSuccess {
-			ret.setError(fmt.Errorf("balance not enough ,address is %v", tx.Source.AddrPrefixString()), types.RSBalanceNotEnough)
+			ret.setError(fmt.Errorf("balance not enough ,address is %v", ss.msg.Operator().AddrPrefixString()), types.RSBalanceNotEnough)
 		} else {
-			_, logs, err := controller.ExecuteAbiEval(tx.Source, contract, string(tx.Data))
+			_, logs, err := controller.ExecuteAbiEval(ss.msg.Operator(), contract, string(ss.msg.Payload()))
 			ret.logs = logs
 			if err != nil {
 				if err.Code == types.TVMCheckABIError {
@@ -303,12 +299,12 @@ func (ss *contractCaller) Transition() *result {
 					ret.setError(fmt.Errorf(err.Message), types.RSTvmError)
 				}
 			} else {
-				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.AddrPrefixString(), string(tx.Data))
+				Logger.Debugf("Contract call success! contract addr:%s，abi is %s", contract.ContractAddress.AddrPrefixString(), string(ss.msg.Payload()))
 			}
 		}
 	}
 	gasLeft := new(big.Int).SetUint64(controller.GetGasLeft())
-	allUsed := new(big.Int).Sub(tx.GasLimit.Value(), gasLeft)
+	allUsed := new(big.Int).Sub(ss.msg.GetGasLimitOriginal(), gasLeft)
 	ss.gasUsed = allUsed
 	return ret
 }
@@ -372,19 +368,19 @@ func (ss *rewardExecutor) Transition() *result {
 	return ret
 }
 
-type TVMExecutor struct {
+type stateProcessor struct {
 	bc    types.BlockChain
 	procs []statePostProcessor
 }
 
-func NewTVMExecutor(bc types.BlockChain) *TVMExecutor {
-	return &TVMExecutor{
+func newStateProcessor(bc types.BlockChain) *stateProcessor {
+	return &stateProcessor{
 		bc:    bc,
 		procs: make([]statePostProcessor, 0),
 	}
 }
 
-func (executor *TVMExecutor) addPostProcessor(proc statePostProcessor) {
+func (executor *stateProcessor) addPostProcessor(proc statePostProcessor) {
 	executor.procs = append(executor.procs, proc)
 }
 
@@ -439,11 +435,11 @@ func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *
 	return ret, nil
 }
 
-// Execute executes all types transactions and returns the receipts
-func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed []*types.Transaction, recps []*types.Receipt, gasFee uint64, err error) {
+// process executes all types transactions and returns the receipts
+func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
 	beginTime := time.Now()
 	receipts := make([]*types.Receipt, 0)
-	transactions := make([]*types.Transaction, 0)
+	transactions := make(txSlice, 0)
 	evictedTxs := make([]common.Hash, 0)
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager().(*rewardManager)
@@ -528,8 +524,6 @@ func (executor *TVMExecutor) Execute(accountDB *account.AccountDB, bh *types.Blo
 		proc(accountDB, bh)
 	}
 
-	MinerManagerImpl.GuardNodesCheck(accountDB, bh.Height)
-
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
@@ -547,14 +541,14 @@ func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bo
 	return true
 }
 
-func createContract(accountDB types.AccountDB, transaction *types.Transaction) (common.Address, error) {
-	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Source[:], common.Uint64ToByte(transaction.Nonce))))
+func createContract(accountDB types.AccountDB, transaction types.TxMessage) (common.Address, error) {
+	contractAddr := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Operator()[:], common.Uint64ToByte(transaction.GetNonce()))))
 
 	if accountDB.GetCodeHash(contractAddr) != (common.Hash{}) {
 		return common.Address{}, fmt.Errorf("contract address conflict")
 	}
 	accountDB.CreateAccount(contractAddr)
-	accountDB.SetCode(contractAddr, transaction.Data)
+	accountDB.SetCode(contractAddr, transaction.Payload())
 	accountDB.SetNonce(contractAddr, 1)
 	return contractAddr, nil
 }

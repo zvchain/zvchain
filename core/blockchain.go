@@ -25,6 +25,7 @@ import (
 	"github.com/zvchain/zvchain/log"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -80,8 +81,9 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
+	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
 
-	topBlocks *lru.Cache
+	topRawBlocks *lru.Cache
 
 	rwLock sync.RWMutex // Read-write lock
 
@@ -90,10 +92,10 @@ type FullBlockChain struct {
 
 	init bool // Init means where blockchain can work
 
-	executor *TVMExecutor
+	stateProc *stateProcessor
 
-	futureBlocks   *lru.Cache
-	verifiedBlocks *lru.Cache
+	futureRawBlocks *lru.Cache
+	verifiedBlocks  *lru.Cache
 
 	isAdjusting bool // isAdjusting which means there may be a fork
 
@@ -139,9 +141,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		consensusHelper: helper,
 		ticker:          ticker.NewGlobalTicker("chain"),
 		ts:              time2.TSInstance,
-		futureBlocks:    common.MustNewLRUCache(10),
+		futureRawBlocks: common.MustNewLRUCache(10),
 		verifiedBlocks:  common.MustNewLRUCache(10),
-		topBlocks:       common.MustNewLRUCache(20),
+		topRawBlocks:    common.MustNewLRUCache(20),
 		Account:         minerAccount,
 	}
 
@@ -201,25 +203,28 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
-	chain.latestBlock = chain.loadCurrentBlock()
+	latestBH := chain.loadCurrentBlock()
 
-	GroupManagerImpl = group.NewManager(chain)
+	GroupManagerImpl = group.NewManager(chain, helper)
 
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
-	chain.executor = NewTVMExecutor(chain)
-	chain.executor.addPostProcessor(GroupManagerImpl.RegularCheck)
-	chain.executor.addPostProcessor(chain.cpChecker.updateVotes)
+	sp := newStateProcessor(chain)
+	sp.addPostProcessor(GroupManagerImpl.RegularCheck)
+	sp.addPostProcessor(chain.cpChecker.updateVotes)
+	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
+	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
+	chain.stateProc = sp
 
-	if nil != chain.latestBlock {
+	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
 			os.Exit(0)
 		}
-		chain.buildCache(10)
-		Logger.Debugf("initBlockChain chain.latestBlock.StateTree  Hash:%s", chain.latestBlock.StateTree.Hex())
-		state, err := account.NewAccountDB(common.BytesToHash(chain.latestBlock.StateTree.Bytes()), chain.stateCache)
+		state, err := account.NewAccountDB(common.BytesToHash(latestBH.StateTree.Bytes()), chain.stateCache)
 		if nil == err {
-			chain.latestStateDB = state
+			chain.updateLatestBlock(state, latestBH)
+			chain.buildCache(10)
+			Logger.Debugf("initBlockChain chain.latestBlock.StateTree  Hash:%s", chain.latestBlock.StateTree.Hex())
 		} else {
 			err = errors.New("initBlockChain NewAccountDB fail::" + err.Error())
 			Logger.Error(err)
@@ -232,12 +237,11 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
-	initMinerManager(chain.ticker)
+	initMinerManager()
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
 	chain.cpChecker.init()
 
-	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
 	return nil
 }
 

@@ -17,6 +17,7 @@ package logical
 
 import (
 	"fmt"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -94,7 +95,7 @@ func (p *Processor) GetAllMinerDOs() []*model.MinerDO {
 
 func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err error) {
 	signBytes := tx.Sign
-	if len(signBytes) < common.SignLength {
+	if len(signBytes) < groupsig.SignatureLength {
 		return false, fmt.Errorf("not enough bytes for reward signature, sign =%v", signBytes)
 	}
 
@@ -124,18 +125,76 @@ func (p *Processor) VerifyRewardTransaction(tx *types.Transaction) (ok bool, err
 	if group == nil {
 		return false, common.ErrGroupNil
 	}
+	marks := make([]int, group.memberSize())
 	for _, id := range targetIds {
 		mid := groupsig.DeserializeID(id)
-		if !mid.IsValid() || !group.hasMember(mid) {
+		if !mid.IsValid() {
 			return false, fmt.Errorf("invalid group member,id=%v", mid)
+		}
+		idx := group.getMemberIndex(mid)
+		if idx < 0 {
+			return false, fmt.Errorf("member id not exist:%v", mid)
+		}
+		// duplication check
+		if marks[idx] == 0 {
+			marks[idx] = 1
+		} else {
+			return false, fmt.Errorf("duplicated target id:%v at %v", mid, targetIds)
 		}
 	}
 
 	gpk := group.header.gpk
-	gSign := groupsig.DeserializeSign(signBytes[0:33]) //size of groupsig == 33
+	gSign := groupsig.DeserializeSign(signBytes[0:groupsig.SignatureLength]) //size of groupsig == 33
 	if !groupsig.VerifySig(gpk, tx.Hash.Bytes(), *gSign) {
-		return false, fmt.Errorf("verify reward sign fail, gSign=%v", gSign.GetHexString())
+		return false, fmt.Errorf("verify reward sign fail, blockHash=%v, gSign=%v, txHash=%v, gpk=%v, tx=%+v", blockHash, gSign.GetHexString(), tx.Hash.Hex(), gpk.GetHexString(), tx.RawTransaction)
 	}
 
 	return true, nil
+}
+
+func (p *Processor) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
+	return p.selector.groupSkipCountsBetween(preBH, h)
+}
+
+// GetBlockMinElapse return the min elapsed milliseconds for blocks
+func (p *Processor) GetBlockMinElapse(height uint64) int32 {
+
+	var result int32
+
+	currentEpoch := types.EpochAt(height)
+	startEpoch := currentEpoch.Add(-chasingSeekEpochs)
+	endEpoch := currentEpoch.Add(-1)
+	if startEpoch.End() == 0 { // not enter chasing mode in first {chasingSeekEpochs} epochs
+		stdLogger.Debugf("epoch not enough. current epoch: %d, min elapse: %d", currentEpoch, normalMinElapse)
+		return normalMinElapse
+	}
+
+	lastBlock := p.MainChain.QueryBlockHeaderCeil(endEpoch.Start())
+	if lastBlock == nil || lastBlock.Height > endEpoch.End() {
+		stdLogger.Debugf("last block not in end epoch, consider as chasing. current epoch: %d, min elapse: %d", currentEpoch, normalMinElapse)
+		return chasingMinElapse
+	}
+
+	if v, ok := p.cachedMinElapseByEpoch.Get(lastBlock.Hash); ok {
+		return v.(int32)
+	}
+
+	firstBlock := p.MainChain.QueryBlockHeaderCeil(startEpoch.Start())
+	if firstBlock == nil || firstBlock.Height > startEpoch.End() {
+		stdLogger.Debugf("first block not in start epoch, consider as chasing. current epoch: %d, min elapse: %d", currentEpoch, normalMinElapse)
+		return chasingMinElapse
+	}
+
+	realCount := lastBlock.Height - firstBlock.Height
+
+	spends := uint64(lastBlock.CurTime.SinceMilliSeconds(firstBlock.CurTime))
+	if spends > realCount*uint64(normalMinElapse) {
+		result = chasingMinElapse
+	} else {
+		result = normalMinElapse
+	}
+	p.cachedMinElapseByEpoch.Add(lastBlock.Hash, result)
+	stdLogger.Debugf("current epoch: %d, min elapse: %d. first block height: %d, last block height: %d, spends: %d, real block count %d",
+		currentEpoch, result, firstBlock.Height, lastBlock.Height, spends, realCount)
+	return result
 }

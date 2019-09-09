@@ -46,42 +46,30 @@ import (
 
 const (
 	// Section is default section configuration
-	Section = "gtas"
-	// ini configuration file instance section
-	instanceSection = "instance"
-	// The key below the instance section
-	indexKey = "index"
-	// ini configuration file chain section
-	chainSection = "chain"
-	// The key below the chain section
-	databaseKey = "database"
-	// ini configuration file statistics section
-	statisticsSection = "statistics"
+	Section = "gzv"
 )
 
-type Gtas struct {
+type Gzv struct {
 	inited       bool
 	account      Account
 	config       *minerConfig
 	rpcInstances []rpcApi
+	InitCha      chan bool
 }
 
+var globalGzv *Gzv
+
 // miner start miner node
-func (gtas *Gtas) miner(cfg *minerConfig) {
-	gtas.config = cfg
-	gtas.runtimeInit()
-	err := gtas.fullInit()
+func (gzv *Gzv) miner(cfg *minerConfig) error {
+	gzv.config = cfg
+	gzv.runtimeInit()
+	err := gzv.fullInit()
 	if err != nil {
-		fmt.Println(err.Error())
-		log.DefaultLogger.Error(err.Error())
-		return
+		return err
 	}
-	if cfg.rpcEnable() {
-		err = gtas.startRPC()
-		if err != nil {
-			log.DefaultLogger.Errorf(err.Error())
-			return
-		}
+	err = gzv.startRPC()
+	if err != nil {
+		return err
 	}
 	ok := mediator.StartMiner()
 
@@ -97,25 +85,26 @@ func (gtas *Gtas) miner(cfg *minerConfig) {
 			mtype = types.MinerTypeVerify
 		}
 		appFun = func() {
-			gtas.autoApplyMiner(mtype)
+			gzv.autoApplyMiner(mtype)
 		}
 	}
 	initMsgShower(mediator.Proc.GetMinerID().Serialize(), appFun)
 
-	gtas.inited = true
+	gzv.inited = true
 	if !ok {
-		return
+		return fmt.Errorf("start miner fail")
 	}
+	return nil
 }
 
-func (gtas *Gtas) runtimeInit() {
+func (gzv *Gzv) runtimeInit() {
 	debug.SetGCPercent(100)
 	debug.SetMaxStack(2 * 1000000000)
 	log.DefaultLogger.Info("setting gc 100%, max memory 2g")
 
 }
 
-func (gtas *Gtas) exit(ctrlC <-chan bool, quit chan<- bool) {
+func (gzv *Gzv) exit(ctrlC <-chan bool, quit chan<- bool) {
 	<-ctrlC
 	if core.BlockChainImpl == nil {
 		return
@@ -124,29 +113,25 @@ func (gtas *Gtas) exit(ctrlC <-chan bool, quit chan<- bool) {
 	core.BlockChainImpl.Close()
 	//taslog.Close()
 	mediator.StopMiner()
-	if gtas.inited {
+	if gzv.inited {
 		quit <- true
 	} else {
 		os.Exit(0)
 	}
 }
 
-func (gtas *Gtas) Run() {
+func (gzv *Gzv) Run() {
 	var err error
 
 	// Control+c interrupt signal
 	ctrlC := signals()
 	quitChan := make(chan bool)
-	go gtas.exit(ctrlC, quitChan)
+	go gzv.exit(ctrlC, quitChan)
 	app := kingpin.New("gzv", "A blockchain application.")
 	app.HelpFlag.Short('h')
 	configFile := app.Flag("config", "Config file").Default("zv.ini").String()
-	_ = app.Flag("metrics", "enable metrics").Bool()
-	_ = app.Flag("dashboard", "enable metrics dashboard").Bool()
 	pprofPort := app.Flag("pprof", "enable pprof").Default("23333").Uint()
-	statisticsEnable := app.Flag("statistics", "enable statistics").Bool()
 	keystore := app.Flag("keystore", "the keystore path, default is current path").Default("keystore").Short('k').String()
-	*statisticsEnable = false
 
 	// Console
 	consoleCmd := app.Command("console", "start gzv console")
@@ -162,19 +147,25 @@ func (gtas *Gtas) Run() {
 	mineCmd := app.Command("miner", "miner start")
 
 	// Rpc analysis
-	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelNone), 10)).Int()
+	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelMiner), 10)).Int()
+	serviceHost := mineCmd.Flag("host", "miner report or rpc service host").Short('o').Default("127.0.0.1").IP()
+	servicePort := mineCmd.Flag("port", "miner report or rpc service port").Short('p').Default("8101").Uint16()
+
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
-	addrRPC := mineCmd.Flag("rpcaddr", "rpc service host").Short('r').Default("0.0.0.0").IP()
-	rpcServicePort := mineCmd.Flag("rpcport", "rpc service port").Short('p').Default("8101").Uint16()
+
+	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
-	passWd := mineCmd.Flag("password", "login password").Default("123").String()
+	*instanceIndex = 0
+	privKey := mineCmd.Flag("privatekey", "privatekey used for miner process").Default("").String()
+	passWd := mineCmd.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
 		fmt.Println("Welcome to be a ZV propose miner!")
 	} else if *apply == "light" {
 		fmt.Println("Welcome to be a ZV verify miner!")
 	}
+	autoCreateAccount := mineCmd.Flag("createaccount", "if account not exists,create it by password").Bool()
 	reset := mineCmd.Flag("reset", "reset the local top to block of the given hash").Default("").String()
 
 	// In test mode, P2P NAT is closed
@@ -191,7 +182,7 @@ func (gtas *Gtas) Run() {
 		kingpin.Fatalf("%s, try --help", err)
 	}
 
-	gtas.simpleInit(*configFile)
+	gzv.simpleInit(*configFile)
 
 	switch command {
 	case versionCmd.FullCommand():
@@ -211,10 +202,6 @@ func (gtas *Gtas) Run() {
 			runtime.SetMutexProfileFraction(1)
 		}()
 
-		common.GlobalConf.SetInt(instanceSection, indexKey, *instanceIndex)
-		databaseValue := "d" + strconv.Itoa(*instanceIndex)
-		common.GlobalConf.SetString(chainSection, databaseKey, databaseValue)
-		common.GlobalConf.SetBool(statisticsSection, "enable", *statisticsEnable)
 		types.InitMiddleware()
 
 		if *natAddr != "" {
@@ -222,24 +209,33 @@ func (gtas *Gtas) Run() {
 		}
 
 		cfg := &minerConfig{
-			rpcLevel:      rpcLevel(*rpc),
-			rpcAddr:       addrRPC.String(),
-			rpcPort:       *rpcServicePort,
-			super:         *super,
-			testMode:      *testMode,
-			natIP:         *natAddr,
-			natPort:       *natPort,
-			seedIP:        *seedAddr,
-			applyRole:     *apply,
-			keystore:      *keystore,
-			enableMonitor: *enableMonitor,
-			chainID:       *chainID,
-			password:      *passWd,
-			resetHash:     *reset,
+			rpcLevel:          rpcLevel(*rpc),
+			host:              serviceHost.String(),
+			port:              *servicePort,
+			super:             *super,
+			testMode:          *testMode,
+			natIP:             *natAddr,
+			natPort:           *natPort,
+			seedIP:            *seedAddr,
+			applyRole:         *apply,
+			keystore:          *keystore,
+			enableMonitor:     *enableMonitor,
+			chainID:           *chainID,
+			password:          *passWd,
+			autoCreateAccount: *autoCreateAccount,
+			resetHash:         *reset,
+			cors:              *cors,
+			privateKey:        *privKey,
 		}
 
 		// Start miner
-		gtas.miner(cfg)
+		err := gzv.miner(cfg)
+		if err != nil {
+			output("initialize fail:", err)
+			log.DefaultLogger.Errorf("initialize fail:%v", err)
+			os.Exit(-1)
+		}
+		gzv.InitCha <- true
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {
@@ -260,12 +256,12 @@ func ClearBlock() error {
 	return core.BlockChainImpl.Clear()
 }
 
-func (gtas *Gtas) simpleInit(configPath string) {
+func (gzv *Gzv) simpleInit(configPath string) {
 	common.InitConf(configPath)
 }
 
-func (gtas *Gtas) checkAddress(keystore, address, password string) error {
-	aop, err := initAccountManager(keystore, true)
+func (gzv *Gzv) checkAddress(keystore, address, password string, autoCreateAccount bool) error {
+	aop, err := initAccountManager(keystore, autoCreateAccount, password)
 	if err != nil {
 		return err
 	}
@@ -275,39 +271,50 @@ func (gtas *Gtas) checkAddress(keystore, address, password string) error {
 	if address != "" {
 		aci, err := acm.checkMinerAccount(address, password)
 		if err != nil {
-			return fmt.Errorf("cannot get miner, err:%v", err.Error())
+			return fmt.Errorf("init miner error, err is %v", err.Error())
 		}
 		if aci.Miner == nil {
 			return fmt.Errorf("the address is not a miner account: %v", address)
 		}
-		gtas.account = aci.Account
+		gzv.account = aci.Account
 		return nil
 	}
 	acc := acm.getFirstMinerAccount(password)
 	if acc != nil {
-		gtas.account = *acc
+		gzv.account = *acc
 		return nil
 	}
 	return fmt.Errorf("please provide a miner account and correct password! ")
 }
 
-func (gtas *Gtas) fullInit() error {
+func (gzv *Gzv) fullInit() error {
 	var err error
-
 	// Initialization middlewarex
 	middleware.InitMiddleware()
-
-	cfg := gtas.config
+	cfg := gzv.config
 
 	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
 
-	err = gtas.checkAddress(cfg.keystore, addressConfig, cfg.password)
-	if err != nil {
-		return err
+	if cfg.privateKey != "" {
+		kBytes := common.FromHex(cfg.privateKey)
+		sk := new(common.PrivateKey)
+		if !sk.ImportKey(kBytes) {
+			return ErrInternal
+		}
+		acc, err := recoverAccountByPrivateKey(sk, true)
+		if err != nil {
+			return err
+		}
+		gzv.account = *acc
+	} else {
+		err = gzv.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
+		if err != nil {
+			return err
+		}
 	}
 
-	common.GlobalConf.SetString(Section, "miner", gtas.account.Address)
-	fmt.Println("Your Miner Address:", gtas.account.Address)
+	common.GlobalConf.SetString(Section, "miner", gzv.account.Address)
+	fmt.Println("Your Miner Address:", gzv.account.Address)
 
 	//set the time for proposer package
 	timeForPackage := common.GlobalConf.GetInt(Section, "time_for_package", 2000)
@@ -326,7 +333,7 @@ func (gtas *Gtas) fullInit() error {
 	//set the ignoreVmCall option for proposer package. the option shouldn't be set true only if you know what you are doing.
 	core.IgnoreVmCall = common.GlobalConf.GetBool(Section, "ignore_vm_call", false)
 
-	sk := common.HexToSecKey(gtas.account.Sk)
+	sk := common.HexToSecKey(gzv.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
 	if err != nil {
 		return err
@@ -349,8 +356,8 @@ func (gtas *Gtas) fullInit() error {
 		ChainID:         cfg.chainID,
 		ProtocolVersion: common.ProtocolVersion,
 		SeedIDs:         genesisMembers,
-		PK:              gtas.account.Pk,
-		SK:              gtas.account.Sk,
+		PK:              gzv.account.Pk,
+		SK:              gzv.account.Sk,
 	}
 
 	err = network.Init(&common.GlobalConf, chandler.MessageHandler, netCfg)
@@ -359,7 +366,7 @@ func (gtas *Gtas) fullInit() error {
 		return err
 	}
 
-	err = core.InitCore(helper, &gtas.account)
+	err = core.InitCore(helper, &gzv.account)
 	if err != nil {
 		return err
 	}
@@ -369,10 +376,10 @@ func (gtas *Gtas) fullInit() error {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
 		core.BlockChainImpl.ResetTop(bh)
-		output("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex())
+		output(fmt.Sprintf("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex()))
 	}
 
-	enableTraceLog := common.GlobalConf.GetBool("gtas", "enable_trace_log", false)
+	enableTraceLog := common.GlobalConf.GetBool(Section, "enable_trace_log", false)
 	if enableTraceLog {
 		monitor.InitPerformTraceLogger()
 	}
@@ -383,7 +390,7 @@ func (gtas *Gtas) fullInit() error {
 	if !ok {
 		return errors.New("consensus module error")
 	}
-	if cfg.enableMonitor || common.GlobalConf.GetBool("gtas", "enable_monitor", false) {
+	if cfg.enableMonitor || common.GlobalConf.GetBool(Section, "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
 	return nil
@@ -400,15 +407,17 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 	}
 }
 
-func NewGtas() *Gtas {
-	return &Gtas{}
+func NewGzv() *Gzv {
+	globalGzv = new(Gzv)
+	globalGzv.InitCha = make(chan bool)
+	return globalGzv
 }
 
-func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {
+func (gzv *Gzv) autoApplyMiner(mType types.MinerType) {
 	miner := mediator.Proc.GetMinerInfo()
-	if miner.ID.GetAddrString() != gtas.account.Address {
+	if miner.ID.GetAddrString() != gzv.account.Address {
 		// exit if miner's id not match the the account
-		panic(fmt.Errorf("id error %v %v", miner.ID.GetAddrString(), gtas.account.Address))
+		panic(fmt.Errorf("id error %v %v", miner.ID.GetAddrString(), gzv.account.Address))
 	}
 
 	pks := &types.MinerPks{
@@ -425,6 +434,6 @@ func (gtas *Gtas) autoApplyMiner(mType types.MinerType) {
 
 	nonce := core.BlockChainImpl.GetNonce(miner.ID.ToAddress()) + 1
 	api := &RpcDevImpl{}
-	ret, err := api.TxUnSafe(gtas.account.Sk, gtas.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 500, nonce, types.TransactionTypeStakeAdd, string(data))
+	ret, err := api.TxUnSafe(gzv.account.Sk, gzv.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 500, nonce, types.TransactionTypeStakeAdd, string(data))
 	log.DefaultLogger.Debug("apply result", ret, err)
 }

@@ -17,6 +17,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/consensus/logical"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/tvm"
 	"strings"
@@ -142,7 +143,6 @@ func sendTransaction(trans *types.Transaction) error {
 	if trans.Sign == nil {
 		return fmt.Errorf("transaction sign is empty")
 	}
-
 	if ok, err := core.BlockChainImpl.GetTransactionPool().AddTransaction(trans); err != nil || !ok {
 		log.DefaultLogger.Errorf("AddTransaction not ok or error:%s", err.Error())
 		return err
@@ -209,4 +209,25 @@ func parseABI(code string) []tvm.ABIVerify {
 		}
 	}
 	return ABIs
+}
+
+func getMorts(p logical.Processor) (string, []MortGage) {
+	morts := make([]MortGage, 0)
+	t := "--"
+	addr := common.BytesToAddress(p.GetMinerID().Serialize())
+	proposalInfo := core.MinerManagerImpl.GetLatestMiner(addr, types.MinerTypeProposal)
+	if proposalInfo != nil {
+		morts = append(morts, *NewMortGageFromMiner(proposalInfo))
+		if proposalInfo.IsActive() {
+			t = "proposal role"
+		}
+	}
+	verifyInfo := core.MinerManagerImpl.GetLatestMiner(addr, types.MinerTypeVerify)
+	if verifyInfo != nil {
+		morts = append(morts, *NewMortGageFromMiner(verifyInfo))
+		if verifyInfo.IsActive() {
+			t += " verify role"
+		}
+	}
+	return t, morts
 }
