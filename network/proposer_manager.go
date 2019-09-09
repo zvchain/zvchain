@@ -66,40 +66,45 @@ func (pm *ProposerManager) Build(proposers []*Proposer) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	pm.proposers = proposers
+
 	sort.Sort(pm)
 
 	for i := 0; i < len(pm.proposers); i++ {
 		Logger.Infof("[proposer manager] Build members ID: %v stake:%v", pm.proposers[i].ID.GetHexString(), pm.proposers[i].Stake)
 	}
-	totalStake := uint64(0)
-	for i := 0; i < len(pm.proposers); i++ {
-		totalStake += pm.proposers[i].Stake
-	}
 
-	//Up to 80% of nodes put in fast bucket
-	maxFastSize := int(math.Ceil(float64(len(pm.proposers)) * 0.8))
-	if maxFastSize > MaxFastSize {
-		maxFastSize = MaxFastSize
-	}
-	fastBucketSize := maxFastSize
+	fastBucketSize := len(pm.proposers)
 
-	//top 90% of total stake
-	fastBucketMaxStake := uint64(float64(totalStake) * 0.9)
-	totalFastStake := uint64(0)
-	for i := 0; i < maxFastSize; i++ {
-		totalFastStake += pm.proposers[i].Stake
-		if totalFastStake > fastBucketMaxStake {
-			fastBucketSize = i + 1
-			pm.fastStakeThreshold = pm.proposers[i].Stake
-			break
+	if len(pm.proposers) >= 200 {
+		totalStake := uint64(0)
+		for i := 0; i < len(pm.proposers); i++ {
+			totalStake += pm.proposers[i].Stake
+		}
+		//Up to 80% of nodes put in fast bucket
+		maxFastSize := int(math.Ceil(float64(len(pm.proposers)) * 0.8))
+		if maxFastSize > MaxFastSize {
+			maxFastSize = MaxFastSize
+		}
+
+		//top 90% of total stake
+		fastBucketMaxStake := uint64(float64(totalStake) * 0.9)
+		totalFastStake := uint64(0)
+		for i := 0; i < maxFastSize; i++ {
+			totalFastStake += pm.proposers[i].Stake
+			if totalFastStake > fastBucketMaxStake {
+				fastBucketSize = i + 1
+				pm.fastStakeThreshold = pm.proposers[i].Stake
+				break
+			}
 		}
 	}
 
 	fastProposers := pm.proposers[0:fastBucketSize]
-	normalProposers := pm.proposers[fastBucketSize:]
-
 	pm.fastBucket.Build(fastProposers)
-	pm.normalBucket.Build(normalProposers)
+	if fastBucketSize < len(pm.proposers) {
+		normalProposers := pm.proposers[fastBucketSize:]
+		pm.normalBucket.Build(normalProposers)
+	}
 
 }
 
@@ -110,18 +115,22 @@ func (pm *ProposerManager) AddProposers(proposers []*Proposer) {
 	}
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
-	normalProposers := make([]*Proposer, 0)
+	addProposers := make([]*Proposer, 0)
 
+	curBucket := pm.normalBucket
+	if len(pm.normalBucket.proposers) == 0 {
+		curBucket = pm.fastBucket
+	}
 	for i := 0; i < len(proposers); i++ {
 		proposer := proposers[i]
 
-		if !pm.fastBucket.IsContained(proposer) && !pm.normalBucket.IsContained(proposer) {
-			normalProposers = append(normalProposers, proposer)
+		if !curBucket.IsContained(proposer) {
+			addProposers = append(addProposers, proposer)
 		}
 	}
 
-	if len(normalProposers) > 0 {
-		pm.normalBucket.AddProposers(normalProposers)
+	if len(addProposers) > 0 {
+		curBucket.AddProposers(addProposers)
 	}
 }
 

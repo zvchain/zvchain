@@ -90,7 +90,7 @@ func (pb *ProposerBucket) Build(proposers []*Proposer) {
 	pb.groupCount = int(math.Ceil(float64(len(proposers)) / float64(pb.groupSize)))
 	if groupCountOld > pb.groupCount {
 		for i := pb.groupCount; i < groupCountOld; i++ {
-			//netCore.groupManager.removeGroup(pb.GroupNameByIndex(i))
+			netCore.groupManager.removeGroup(pb.GroupNameByIndex(i))
 		}
 	}
 	for i := 0; i < pb.groupCount; i++ {
@@ -170,7 +170,9 @@ func (pb *ProposerBucket) Broadcast(msg *MsgData, code uint32) {
 	Logger.Infof("[proposer bucket] group broadcast, code:%v", code)
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
-
+	if len(pb.proposers) == 0 {
+		return
+	}
 	for i := 0; i < pb.groupCount; i++ {
 		groupID := pb.GroupNameByIndex(i)
 		members := pb.groupMembersHexByIndex(i)
