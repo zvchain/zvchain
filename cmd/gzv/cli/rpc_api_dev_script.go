@@ -52,7 +52,7 @@ func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice,
 	trans.Sign = sign.Bytes()
 
 	if err := sendTransaction(trans); err != nil {
-		return "", nil
+		return "", err
 	}
 	return trans.Hash.Hex(), nil
 }
