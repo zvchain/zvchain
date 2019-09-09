@@ -543,7 +543,7 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 		// cannot reset in the block sync situation, and start the fork process
 		if !canReset {
 			go chain.forkProcessor.tryToProcessFork(source, lastBlock)
-			return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height)
+			return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v, peer last %v %v", localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height, lastBlock.Header.Hash, lastBlock.Header.Height)
 		} else {
 			pre := chain.QueryBlockHeaderByHash(firstBlock.Header.PreHash)
 			if pre != nil {
@@ -554,7 +554,7 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 				// There will fork, we have to deal with it
 				Logger.Debugf("batchAdd detect fork from %v: local %v %v, peer %v %v", source, localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height)
 				go chain.forkProcessor.tryToProcessFork(source, lastBlock)
-				return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v", localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height)
+				return fmt.Errorf("batchAdd fork found, local top %v %v, peer first %v %v, peer last %v %v", localTop.Hash, localTop.Height, firstBlock.Header.Hash, firstBlock.Header.Height, lastBlock.Header.Hash, lastBlock.Header.Height)
 			}
 		}
 	}
