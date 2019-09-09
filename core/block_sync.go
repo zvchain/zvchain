@@ -224,6 +224,9 @@ func (bs *blockSyncer) getCandidateById(candidateID string) (string, *types.Cand
 		return bs.getCandidate()
 	} else {
 		bh := bs.getCandidateByCandidateID(candidateID)
+		if bh == nil{
+			return "", bh
+		}
 		return candidateID, bh
 	}
 }
