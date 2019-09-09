@@ -197,13 +197,23 @@ func (bs *blockSyncer) checkEvilAndDelete(candidateID string) bool {
 func (bs *blockSyncer) checkBlockHeaderAndAddBlack(candidateID string, bh *types.BlockHeader) bool {
 	_, err := BlockChainImpl.GetConsensusHelper().VerifyBlockSign(bh)
 	if err != nil && (err != ErrGroupNotExists && err != ErrPkNil) {
-		bs.addBlack(candidateID)
+		bs.addBlackWithOutLock(candidateID)
 		return false
 	}
 	return true
 }
 
-func (bs *blockSyncer) addBlack(candidateID string) {
+func (bs *blockSyncer) addBlackWithOutLock(candidateID string) {
+	bs.addBlackProcess(candidateID)
+}
+
+func (bs *blockSyncer) addBlackWithLock(candidateID string) {
+	bs.lock.RLock()
+	defer bs.lock.RUnlock()
+	bs.addBlackProcess(candidateID)
+}
+
+func (bs *blockSyncer) addBlackProcess(candidateID string) {
 	delete(bs.candidatePool, candidateID)
 	peerManagerImpl.addEvilCount(candidateID)
 	bs.logger.Debugf("getBestCandidate verify blockHeader error!we will add it to evil,peer is %v", candidateID)
@@ -214,9 +224,6 @@ func (bs *blockSyncer) getCandidateById(candidateID string) (string, *types.Cand
 		return bs.getCandidate()
 	} else {
 		bh := bs.getCandidateByCandidateID(candidateID)
-		if bh == nil {
-			return "", bs.getCandidateByCandidateID(candidateID)
-		}
 		return candidateID, bh
 	}
 }
@@ -449,7 +456,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 			}
 			if ret == types.AddBlockConsensusFailed && !hasAddBlack {
 				hasAddBlack = true
-				bs.addBlack(m.Source())
+				bs.addBlackWithLock(m.Source())
 			}
 			allSuccess = false
 			return false
