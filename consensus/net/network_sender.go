@@ -21,7 +21,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
-	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/log"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/time"
@@ -151,29 +150,12 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	nextVerifyGroupID := group.GSeed.Hex()
 	groupMembers := id2String(group.MemIds)
 
-	// Broadcast to a virtual group of heavy nodes
-	heavyMinerMembers := core.MinerManagerImpl.GetAllProposalAddresses()
-
-	validGroupMembers := make([]string, 0)
-	for _, mid := range groupMembers {
-		find := false
-		for _, hid := range heavyMinerMembers {
-			if hid == mid {
-				find = true
-				break
-			}
-		}
-		if !find {
-			validGroupMembers = append(validGroupMembers, mid)
-		}
-	}
-
 	log.ELKLogger.WithFields(logrus.Fields{
 		"height":    block.Header.Height,
 		"blockHash": block.Header.Hash.Hex(),
 		"now":       time.TSInstance.Now().Local(),
 		"logId":     "51",
-	}).Debug("BroadcastNewBlock, heavy miners:", len(heavyMinerMembers), ", group members:", len(validGroupMembers))
+	}).Debug("BroadcastNewBlock, group members:", len(groupMembers))
 
 	msgID := []byte(blockMsg.Hash())
 
@@ -182,11 +164,8 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	// Broadcast to the next group of light nodes
 	//
 	// Prevent duplicate broadcasts
-	if len(validGroupMembers) > 0 {
-		msgID[0]++
-		ns.net.SpreadToGroup(nextVerifyGroupID, validGroupMembers, blockMsg, msgID)
-	}
-
+	msgID[0] += 1
+	ns.net.SpreadToGroup(nextVerifyGroupID, groupMembers, blockMsg, msgID)
 }
 
 // SendCastRewardSignReq sends reward transaction sign request to other members of the group
