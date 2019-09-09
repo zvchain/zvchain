@@ -16,7 +16,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/zvchain/zvchain/cmd/gzv/rpc"
@@ -24,12 +23,14 @@ import (
 )
 
 type WalletServer struct {
+	Host string
 	Port int
 	aop  accountOp
 }
 
-func NewWalletServer(port int, aop accountOp) *WalletServer {
+func NewWalletServer(host string, port int, aop accountOp) *WalletServer {
 	ws := &WalletServer{
+		Host: host,
 		Port: port,
 		aop:  aop,
 	}
@@ -41,9 +42,9 @@ func (ws *WalletServer) Start() error {
 		return fmt.Errorf("please input the rpcport")
 	}
 	apis := []rpc.API{
-		{Namespace: "GZVWallet", Version: "1", Service: ws, Public: true},
+		{Namespace: "GzvWallet", Version: "1", Service: ws, Public: true},
 	}
-	host := fmt.Sprintf("127.0.0.1:%d", ws.Port)
+	host := fmt.Sprintf("%s:%d", ws.Host, ws.Port)
 	err := startHTTP(host, apis, []string{}, []string{}, []string{})
 	if err == nil {
 		fmt.Printf("Wallet RPC serving on http://%s\n", host)
@@ -52,61 +53,55 @@ func (ws *WalletServer) Start() error {
 	return err
 }
 
-func (ws *WalletServer) SignData(source, target, unlockPassword string, value uint64, gas uint64, gaspriceStr string, txType int, nonce uint64, data string) *RPCResObjCmd {
-	res := new(RPCResObjCmd)
-	gp, err := common.ParseCoin(gaspriceStr)
+func (ws *WalletServer) SignTransaction(txRaw *TxRawData, unlockPassword string) (string, error) {
+	err := ws.aop.UnLock(txRaw.Source, unlockPassword, 10)
 	if err != nil {
-		res.Error = opErrorRes(fmt.Errorf("%v:%v, correct example: 100RA,100kRA,1mRA,1ZVC", err, gaspriceStr))
-		return res
-	}
-	txRaw := &TxRawData{
-		Target:   target,
-		Value:    value,
-		GasLimit: gas,
-		GasPrice: gp,
-		TxType:   txType,
-		Nonce:    nonce,
-		Data:     []byte(data),
-	}
-
-	err = ws.aop.UnLock(source, unlockPassword, 10)
-	if err != nil {
-		res.Error = opErrorRes(err)
-		return res
+		return "", err
 	}
 	aci, err := ws.aop.AccountInfo()
 	if err != nil {
-		res.Error = opErrorRes(err)
-		return res
+		return "", err
 	}
 
 	privateKey := common.HexToSecKey(aci.Sk)
 	pubkey := common.HexToPubKey(aci.Pk)
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
-		res.Error = opErrorRes(fmt.Errorf("privatekey or pubkey error"))
-		return res
+		return "", fmt.Errorf("privatekey or pubkey error")
 	}
 	sourceAddr := pubkey.GetAddress()
 	if sourceAddr.AddrPrefixString() != aci.Address {
-		res.Error = opErrorRes(fmt.Errorf("address error"))
-		return res
+		return "", fmt.Errorf("address error")
 	}
 
 	tranx := txRawToTransaction(txRaw)
 	sign, err := privateKey.Sign(tranx.Hash.Bytes())
 	if err != nil {
-		res.Error = opErrorRes(err)
-		return res
+		return "", err
 	}
-	tranx.Sign = sign.Bytes()
-	txRaw.Sign = sign.Hex()
+	return sign.Hex(), nil
+}
 
-	txMsg := RawMessage{}
-	txMsg, err = json.Marshal(txRaw)
+func (ws *WalletServer) SignData(signer string, data []byte, unlockPassword string) (string, error) {
+	err := ws.aop.UnLock(signer, unlockPassword, 10)
 	if err != nil {
-		res.Error = opErrorRes(err)
-		return res
+		return "", err
 	}
-	res.Result = txMsg
-	return res
+	aci, err := ws.aop.AccountInfo()
+	if err != nil {
+		return "", err
+	}
+
+	privateKey := common.HexToSecKey(aci.Sk)
+
+	sign, err := privateKey.Sign(data)
+	if err != nil {
+		return "", err
+	}
+	return sign.Hex(), nil
+}
+
+func (ws *WalletServer) GenHash(txRaw *TxRawData) (string, error) {
+	tranx := txRawToTransaction(txRaw)
+	return tranx.Hash.Hex(), nil
+
 }
