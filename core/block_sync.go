@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
+	"math"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -110,17 +111,32 @@ func (bs *blockSyncer) isSyncing() bool {
 	bs.lock.RLock()
 	defer bs.lock.RUnlock()
 
+	const (
+		blockBuffer = 50
+		threshold   = 0.51
+	)
+
 	delta := zvtime.TSInstance.SinceSeconds(bs.chain.QueryTopBlock().CurTime)
 	// return false if top block's curTime is in the range of recent 50 block's
-	if delta < 3*50 {
+	if delta < 3*blockBuffer {
 		return false
 	}
 	localHeight := bs.chain.Height()
-	_, candTop := bs.getCandidateById("")
-	if candTop == nil {
+	for id, _ := range bs.candidatePool {
+		bs.checkEvilAndDelete(id)
+	}
+	// Only when more than half of the neighbor nodes exceed 50 local heights are considered to be in syncing
+	t := int(math.Ceil(float64(len(bs.candidatePool))) * threshold)
+	if t == 0 {
 		return false
 	}
-	return candTop.BH.Height > localHeight+50
+	higherCnt := 0
+	for _, top := range bs.candidatePool {
+		if top.BH.Height > localHeight+blockBuffer {
+			higherCnt++
+		}
+	}
+	return higherCnt >= t
 }
 
 // get blockheader by candidateID,if this candidateID is evil,then remove it from candidatePool
@@ -380,7 +396,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 
 	bs.lock.RLock()
 	// Maybe sync timeout and discard the response
-	_, ok := bs.syncingPeers[source]
+	reqHeight, ok := bs.syncingPeers[source]
 	bs.lock.RUnlock()
 
 	if !ok {
@@ -407,6 +423,10 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		bs.logger.Debugf("Rcv block response nil from:%s", source)
 	} else {
 		bs.logger.Debugf("blockResponseMsgHandler rcv from %s! [%v-%v]", source, blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
+		if blocks[0].Header.Height < reqHeight {
+			bs.logger.Errorf("recv block lower than reqHeight: %v %v", blocks[0].Header.Height, reqHeight)
+			return nil
+		}
 		peerTop := bs.getPeerTopBlock(source)
 		localTop := newTopBlockInfo(bs.chain.QueryTopBlock())
 
