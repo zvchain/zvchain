@@ -101,7 +101,9 @@ func TestGroupSelector_doSelect(t *testing.T) {
 
 	for h := bh.Height + 1; h < 1000; h++ {
 		selected := gs.doSelect(bh, h)
-		t.Log(selected)
+		if selected == common.EmptyHash {
+
+		}
 	}
 }
 
@@ -125,7 +127,7 @@ func TestGroupSelector_groupSkipCountsBetween(t *testing.T) {
 	}
 	bh.Hash = bh.GenHash()
 
-	for h := bh.Height + 1; h < 1000; h++ {
+	for h := bh.Height + 1; h < 300; h++ {
 		ret1 := gs.groupSkipCountsBetween(bh, h)
 		ret2 := groupSkipCountsBetween2(gs, bh, h)
 		for gseed, cnt := range ret1 {
