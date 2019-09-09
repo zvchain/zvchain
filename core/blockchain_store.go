@@ -17,6 +17,8 @@ package core
 
 import (
 	"fmt"
+	"sync/atomic"
+
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/monitor"
@@ -52,7 +54,7 @@ func (chain *FullBlockChain) updateLatestBlock(state *account.AccountDB, header 
 	chain.latestStateDB = state
 	chain.latestBlock = header
 
-	Logger.Infof("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
+	Logger.Debugf("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
 	//taslog.Flush()
 }
 
@@ -252,6 +254,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		}).Debug(oldTop.Height-block.Height, rollbackNum)
 	}
 
+	// invalidate latest cp cache
+	chain.latestCP = atomic.Value{}
 	return nil
 }
 

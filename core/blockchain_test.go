@@ -227,6 +227,8 @@ func TestBlockChain_AddBlock(t *testing.T) {
 		t.Fatalf("add block3 failed")
 	}
 
+	time.Sleep(1 * time.Second)
+
 	BlockChainImpl.Close()
 }
 
@@ -288,7 +290,7 @@ func TestBlockChain_GetBlockMessage(t *testing.T) {
 	fmt.Printf("1: %d\n", b1.Header.Nonce)
 	fmt.Printf("2: %d\n", b2.Header.Nonce)
 	fmt.Printf("3: %d\n", b3.Header.Nonce)
-
+	time.Sleep(time.Second)
 }
 
 func TestBlockChain_GetTopBlocks(t *testing.T) {
@@ -327,6 +329,7 @@ func TestBlockChain_GetTopBlocks(t *testing.T) {
 			t.Fatalf("fail to get lowest block from cache,%d", i)
 		}
 	}
+	time.Sleep(time.Second)
 }
 
 func TestBlockChain_StateTree(t *testing.T) {
@@ -397,6 +400,7 @@ func TestBlockChain_StateTree(t *testing.T) {
 	}
 
 	fmt.Printf("state: %d\n", chain.getLatestBlock().StateTree)
+	time.Sleep(time.Second)
 }
 
 var privateKey = "0x045c8153e5a849eef465244c0f6f40a43feaaa6855495b62a400cc78f9a6d61c76c09c3aaef393aa54bd2adc5633426e9645dfc36723a75af485c5f5c9f2c94658562fcdfb24e943cf257e25b9575216c6647c4e75e264507d2d57b3c8bc00b361"

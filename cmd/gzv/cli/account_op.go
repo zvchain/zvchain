@@ -111,31 +111,34 @@ func newAccountOp(ks string) (*AccountManager, error) {
 }
 
 func initAccountManager(keystore string, needAutoCreateAccount bool, password string) (accountOp, error) {
-	aop, err := newAccountOp(keystore)
-	if err != nil {
-		return nil, err
-	}
-	if needAutoCreateAccount {
-		address, res := aop.NewAccount(password, true)
-		if res != nil {
-			fmt.Println(res.Error())
-			return nil, res
+	if needAutoCreateAccount && !dirExists(keystore) {
+		aop, err := newAccountOp(keystore)
+		if err != nil {
+			return nil, err
+		}
+		address, err := aop.NewAccount(password, true)
+		if err != nil {
+			fmt.Println(err.Error())
+			return nil, err
 		}
 		if common.IsWeakPassword(password) {
 			output("the password is too weak. suggestions for modification")
 		}
-		fmt.Printf("create account success,your address is %s \n", address)
+		output(fmt.Sprintf("create account success,your address is %s \n", address))
 		return aop, nil
+	}
+	aop, err := newAccountOp(keystore)
+	if err != nil {
+		return nil, err
 	}
 	return aop, nil
 }
 
-func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) (*Account, error) {
+func recoverAccountByPrivateKey(sk *common.PrivateKey, bMiner bool) (*Account, error) {
 	account := &Account{
-		Sk:       sk.Hex(),
-		Pk:       sk.GetPubKey().Hex(),
-		Address:  sk.GetPubKey().GetAddress().AddrPrefixString(),
-		Password: passwordHash(password),
+		Sk:      sk.Hex(),
+		Pk:      sk.GetPubKey().Hex(),
+		Address: sk.GetPubKey().GetAddress().AddrPrefixString(),
 	}
 
 	if bMiner {
@@ -153,6 +156,15 @@ func (am *AccountManager) constructAccount(password string, sk *common.PrivateKe
 		account.Miner = minerRaw
 	}
 	return account, nil
+}
+
+func (am *AccountManager) constructAccount(password string, sk *common.PrivateKey, bMiner bool) (*Account, error) {
+	acc, err := recoverAccountByPrivateKey(sk, bMiner)
+	if err != nil {
+		return nil, err
+	}
+	acc.Password = passwordHash(password)
+	return acc, nil
 }
 
 func (am *AccountManager) loadAccount(addr string, password string) (*Account, error) {

@@ -449,7 +449,7 @@ func (gm *GroupManager) buildGroup(ID string, members []NodeID) *Group {
 	Logger.Infof("[group] build group, ID:%v, count:%v", ID, len(members))
 
 	if !IsJoinedThisGroup(members) {
-		Logger.Infof("[group] build group failed, not joined this group,ID:%v, count:%v", ID, len(members))
+		Logger.Infof("[group] build group wrong, not joined this group,ID:%v, count:%v", ID, len(members))
 		return nil
 	}
 

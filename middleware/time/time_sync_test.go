@@ -34,7 +34,7 @@ func TestNTPQuery(t *testing.T) {
 	tt, _ := ntp.Time("time.asia.apple.com")
 	t.Log(tt, time.Now())
 
-	rsp, err := ntp.Query("cn.pool.ntp.org")
+	rsp, err := ntp.Query("asia.pool.ntp.org")
 	if err != nil {
 		t.Fatal(err)
 	}

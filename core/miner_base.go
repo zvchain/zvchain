@@ -476,7 +476,9 @@ func subProposalTotalStake(db types.AccountDB, subStake uint64) {
 	if totalStake < subStake {
 		panic("total stake less than sub stake")
 	}
-	db.SetData(common.MinerPoolAddr, common.KeyPoolProposalTotalStake, common.Uint64ToByte(totalStake-subStake))
+	newTotalStake := totalStake - subStake
+	db.SetData(common.MinerPoolAddr, common.KeyPoolProposalTotalStake, common.Uint64ToByte(newTotalStake))
+	log.CoreLogger.Infof("total stake changed,reduce total stake,total stake is %v", newTotalStake)
 }
 
 func removeFromPool(db types.AccountDB, minerType types.MinerType, address common.Address, stake uint64) {
@@ -491,7 +493,9 @@ func removeFromPool(db types.AccountDB, minerType types.MinerType, address commo
 		if totalStake < stake {
 			panic(fmt.Errorf("totalStake less than stake: %v %v", totalStake, stake))
 		}
-		db.SetData(common.MinerPoolAddr, common.KeyPoolProposalTotalStake, common.Uint64ToByte(totalStake-stake))
+		newTotalStake := totalStake - stake
+		db.SetData(common.MinerPoolAddr, common.KeyPoolProposalTotalStake, common.Uint64ToByte(newTotalStake))
+		log.CoreLogger.Infof("total stake changed,remove from pool,total stake is %v", newTotalStake)
 	} else if types.IsVerifyRole(minerType) {
 		key = getPoolKey(common.PrefixPoolVerifier, address)
 
@@ -506,7 +510,9 @@ func addProposalTotalStake(db types.AccountDB, addStake uint64) {
 	if addStake+totalStake < totalStake {
 		panic(fmt.Errorf("total stake overflow:%v %v", addStake, totalStake))
 	}
-	db.SetData(common.MinerPoolAddr, common.KeyPoolProposalTotalStake, common.Uint64ToByte(addStake+totalStake))
+	newTotalStake := addStake + totalStake
+	db.SetData(common.MinerPoolAddr, common.KeyPoolProposalTotalStake, common.Uint64ToByte(newTotalStake))
+	log.CoreLogger.Infof("total stake changed,add stake,current total stake is %v", newTotalStake)
 }
 
 func removeDetail(db types.AccountDB, address common.Address, detailKey []byte) {
@@ -561,12 +567,12 @@ func getTickets(db types.AccountDB, address common.Address) uint64 {
 	return getTotalTickets(db, key)
 }
 
-func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
+func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool, types.ReceiptStatus) {
 	var err error
 	if vf == nil {
 		vf, err = initVoteInfo(op.accountDB, op.source)
 		if err != nil {
-			return err, false
+			return err, false, types.RSFail
 		}
 	}
 
@@ -574,7 +580,7 @@ func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 	// set vote false
 	err = voteMinerPool(op.accountDB, vf, op.source, op.targetAddr, op.height)
 	if err != nil {
-		return err, false
+		return err, false, types.RSFail
 	}
 	var totalTickets uint64 = 0
 	var empty = common.Address{}
@@ -587,7 +593,7 @@ func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 			mop := newReduceTicketsOp(op.accountDB, oldTarget, op.height)
 			ret := mop.Transition()
 			if ret.err != nil {
-				return ret.err, false
+				return ret.err, false, ret.transitionStatus
 			}
 		}
 		// add tickets count
@@ -595,7 +601,7 @@ func processVote(op *voteMinerPoolOp, vf *voteInfo) (error, bool) {
 	}
 	log.CoreLogger.Infof("vote success,source = %s,target =%s,current tickets = %d,height = %v", op.source, op.targetAddr, totalTickets, op.height)
 	isFull := isFullTickets(totalTickets, op.height)
-	return nil, isFull
+	return nil, isFull, types.RSSuccess
 }
 
 func isFullTickets(totalTickets uint64, height uint64) bool {

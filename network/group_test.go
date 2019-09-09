@@ -25,12 +25,15 @@ func TestGroupGenConnectNodesZero(t *testing.T) {
 	}
 
 	nodes := make([]NodeID, 0)
+	nodes = append(nodes, NodeID{})
 
 	g := netCore.groupManager.buildGroup("test", nodes)
-	g.genConnectNodes()
+	if g != nil {
+		g.genConnectNodes()
+		t.Logf("nodes :%v", len(g.needConnectNodes))
+	}
 
-	t.Logf("nodes :%v", len(g.needConnectNodes))
-
+	t.Log("nil group ")
 }
 
 func TestGroup(t *testing.T) {

@@ -95,6 +95,7 @@ func (c *newAccountCmd) parse(args []string) bool {
 type unlockCmd struct {
 	baseCmd
 	addr     string
+	password string
 	duration uint
 }
 
@@ -103,6 +104,7 @@ func genUnlockCmd() *unlockCmd {
 		baseCmd: *genBaseCmd("unlock", "unlock the account"),
 	}
 	c.fs.StringVar(&c.addr, "addr", "", "the account address")
+	c.fs.StringVar(&c.password, "password", "", "the account password")
 	c.fs.UintVar(&c.duration, "duration", 120, "unlock duration, default 120 secs")
 	return c
 }
@@ -481,9 +483,9 @@ func genSendTxCmd() *sendTxCmd {
 	return c
 }
 
-func (c *sendTxCmd) toTxRaw() *txRawData {
+func (c *sendTxCmd) toTxRaw() *TxRawData {
 	value, _ := parseRaFromString(c.value)
-	return &txRawData{
+	return &TxRawData{
 		Target:    c.to,
 		Value:     value,
 		TxType:    c.txType,
@@ -539,9 +541,16 @@ func (c *sendTxCmd) parse(args []string) bool {
 			return false
 		}
 
+		_, err := os.Stat(c.contractPath)
+		if os.IsNotExist(err) {
+			output("please input the correct contractPath")
+			c.fs.PrintDefaults()
+			return false
+		}
+
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
+			outputJSONErr(opErrorRes(fmt.Errorf("read the %s file failed %s ", c.contractPath, err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -562,9 +571,16 @@ func (c *sendTxCmd) parse(args []string) bool {
 			return false
 		}
 
+		_, err := os.Stat(c.contractPath)
+		if os.IsNotExist(err) {
+			output("please input the correct contractPath")
+			c.fs.PrintDefaults()
+			return false
+		}
+
 		f, err := ioutil.ReadFile(c.contractPath) // Read file
 		if err != nil {
-			outputJSONErr(opErrorRes(fmt.Errorf("read the "+c.contractPath+"file failed ", err)))
+			outputJSONErr(opErrorRes(fmt.Errorf("read the %s file failed %s ", c.contractPath, err)))
 			c.fs.PrintDefaults()
 			return false
 		}
@@ -1035,6 +1051,15 @@ func handleCmdForAccount(handle func() (interface{}, error)) {
 
 func unlockLoop(cmd *unlockCmd, acm accountOp) {
 	c := 0
+	if cmd.password != "" {
+		resErr := acm.UnLock(cmd.addr, cmd.password, cmd.duration)
+		if resErr == nil {
+			fmt.Printf("unlock will last %v secs:%v\n", cmd.duration, cmd.addr)
+		} else {
+			fmt.Fprintln(os.Stderr, resErr.Error())
+		}
+		return
+	}
 
 	for c < 3 {
 		c++
@@ -1348,7 +1373,7 @@ func parseCommandLine(command string) ([]string, error) {
 	}
 
 	if state == "quotes" {
-		return []string{}, fmt.Errorf("Unclosed quote in command line: %s", command)
+		return []string{}, fmt.Errorf("unclosed quote in command line: %s", command)
 	}
 
 	if current != "" {

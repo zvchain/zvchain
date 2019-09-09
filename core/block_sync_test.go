@@ -26,7 +26,6 @@ var middleBlockHash common.Hash
 
 func init() {
 	clearAllFolder()
-	log.Init()
 }
 func initContext(t *testing.T) {
 	initContext4Test(t)

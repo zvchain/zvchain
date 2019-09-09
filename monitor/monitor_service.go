@@ -91,11 +91,11 @@ func InitLogService(nodeID string) {
 		enable:   true,
 		resStat:  initNodeResStat(),
 	}
-	rHost := common.GlobalConf.GetString("gtas", "log_db_host", "")
-	rPort := common.GlobalConf.GetInt("gtas", "log_db_port", 0)
-	rDB := common.GlobalConf.GetString("gtas", "log_db_db", "")
-	rUser := common.GlobalConf.GetString("gtas", "log_db_user", "")
-	rPass := common.GlobalConf.GetString("gtas", "log_db_password", "")
+	rHost := common.GlobalConf.GetString("gzv", "log_db_host", "")
+	rPort := common.GlobalConf.GetInt("gzv", "log_db_port", 0)
+	rDB := common.GlobalConf.GetString("gzv", "log_db_db", "")
+	rUser := common.GlobalConf.GetString("gzv", "log_db_user", "")
+	rPass := common.GlobalConf.GetString("gzv", "log_db_password", "")
 	Instance.cfg = &gorose.DbConfigSingle{
 		Driver:          "mysql",                                                                                         // Drive: mysql/sqlite/oracle/mssql/postgres
 		EnableQueryLog:  false,                                                                                           // Whether to open SQL log
