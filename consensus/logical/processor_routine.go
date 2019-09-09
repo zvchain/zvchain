@@ -51,6 +51,11 @@ func (p *Processor) checkSelfCastRoutine() bool {
 	}
 
 	blog := newBizLog("checkSelfCastRoutine")
+	if p.MainChain.IsSyncing() {
+		blog.warn("isSyncing, return...")
+		p.triggerCastCheck()
+		return false
+	}
 
 	if p.MainChain.IsAdjusting() {
 		blog.warn("isAdjusting, return...")

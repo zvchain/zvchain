@@ -63,7 +63,7 @@ func newActivatedGroupReader4Test() *activatedGroupReader4Test {
 }
 
 func (r *activatedGroupReader4Test) init() {
-	for h := uint64(0); h < 1000; h += 10 {
+	for h := uint64(0); h < 10000; h += 10 {
 		gh := newGroupHeader4Test(h, h+200)
 		g := &group4Test{header: gh}
 		r.groups = append(r.groups, g)
@@ -102,5 +102,65 @@ func TestGroupSelector_doSelect(t *testing.T) {
 	for h := bh.Height + 1; h < 1000; h++ {
 		selected := gs.doSelect(bh, h)
 		t.Log(selected)
+	}
+}
+
+func groupSkipCountsBetween2(gs *groupSelector, preBH *types.BlockHeader, height uint64) skipCounts {
+	sc := make(skipCounts)
+	h := preBH.Height + 1
+	for ; h < height; h++ {
+		expectedSeed := gs.doSelect(preBH, h)
+		sc.addCount(expectedSeed, 1)
+	}
+	return sc
+}
+
+func TestGroupSelector_groupSkipCountsBetween(t *testing.T) {
+	gs := buildGroupSelector4Test()
+	rnd := make([]byte, 32)
+	rand.Read(rnd)
+	bh := &types.BlockHeader{
+		Height: 200,
+		Random: rnd,
+	}
+	bh.Hash = bh.GenHash()
+
+	for h := bh.Height + 1; h < 1000; h++ {
+		ret1 := gs.groupSkipCountsBetween(bh, h)
+		ret2 := groupSkipCountsBetween2(gs, bh, h)
+		for gseed, cnt := range ret1 {
+			if cnt != ret2.count(gseed) {
+				t.Errorf("calc error at %v", h)
+			}
+		}
+	}
+}
+
+func Benchmark_groupSkipCountsBetween2(b *testing.B) {
+	gs := buildGroupSelector4Test()
+	rnd := make([]byte, 32)
+	rand.Read(rnd)
+	bh := &types.BlockHeader{
+		Height: 100,
+		Random: rnd,
+	}
+	bh.Hash = bh.GenHash()
+	for i := 0; i < b.N; i++ {
+		groupSkipCountsBetween2(gs, bh, 5000)
+	}
+}
+
+func BenchmarkGroupSelector_groupSkipCountsBetween(b *testing.B) {
+	gs := buildGroupSelector4Test()
+	rnd := make([]byte, 32)
+	rand.Read(rnd)
+	bh := &types.BlockHeader{
+		Height: 100,
+		Random: rnd,
+	}
+	bh.Hash = bh.GenHash()
+	for i := 0; i < b.N; i++ {
+		gs.groupSkipCountsBetween(bh, 10000)
+
 	}
 }
