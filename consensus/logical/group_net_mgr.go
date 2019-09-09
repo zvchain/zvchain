@@ -125,6 +125,9 @@ func (nm *groupNetMgr) incrementBuildProposerGroupNet(b *types.Block) {
 			// Only care about the proposer role
 			if mpks.MType == types.MinerTypeProposal {
 				miner := nm.mr.GetMiner(*tx.Source, types.MinerTypeProposal, b.Header.Height)
+				if miner == nil {
+					continue
+				}
 				if miner.IsActive() {
 					id := groupsig.DeserializeID(tx.Source.Bytes())
 					ids = append(ids, id)
