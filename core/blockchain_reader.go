@@ -302,3 +302,7 @@ func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.B
 	defer chain.rwLock.RUnlock()
 	return chain.batchGetBlocksBetween(begin, end)
 }
+
+func (chain *FullBlockChain) IsSyncing() bool {
+	return blockSync.isSyncing()
+}

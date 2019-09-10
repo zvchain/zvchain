@@ -106,6 +106,8 @@ type BlockChain interface {
 
 	// returns latest checkpoint of the chain
 	LatestCheckPoint() *BlockHeader
+
+	IsSyncing() bool
 }
 
 type RewardManager interface {

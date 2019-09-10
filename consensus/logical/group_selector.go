@@ -18,6 +18,7 @@ package logical
 import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
 )
@@ -95,14 +96,17 @@ func (gs *groupSelector) getWorkGroupSeedsAt(pre *types.BlockHeader, height uint
 
 func (gs *groupSelector) doSelect(preBH *types.BlockHeader, height uint64) common.Hash {
 	var hash = calcRandomHash(preBH, height)
+	return gs.doSelectWithRandom(hash, preBH, height)
+}
 
+func (gs *groupSelector) doSelectWithRandom(rand common.Hash, preBH *types.BlockHeader, height uint64) common.Hash {
 	groupSeeds := gs.getWorkGroupSeedsAt(preBH, height)
 	// Must not happen
 	if len(groupSeeds) == 0 {
 		panic("no available groups")
 	}
 
-	value := hash.Big()
+	value := rand.Big()
 	index := value.Mod(value, big.NewInt(int64(len(groupSeeds))))
 
 	selectedGroup := groupSeeds[index.Int64()]
@@ -114,9 +118,12 @@ func (gs *groupSelector) doSelect(preBH *types.BlockHeader, height uint64) commo
 // groupSkipCountsBetween calculates the group skip counts between the given block and the corresponding pre block
 func (gs *groupSelector) groupSkipCountsBetween(preBH *types.BlockHeader, height uint64) skipCounts {
 	sc := make(skipCounts)
-	for h := preBH.Height + 1; h < height; h++ {
-		expectedSeed := gs.doSelect(preBH, h)
+	h := preBH.Height + 1
+	rand := calcRandomHash(preBH, h)
+	for ; h < height; h++ {
+		expectedSeed := gs.doSelectWithRandom(rand, preBH, h)
 		sc.addCount(expectedSeed, 1)
+		rand = base.Data2CommonHash(rand.Bytes())
 	}
 	return sc
 }

@@ -422,8 +422,8 @@ type ABI struct {
 // ABIVerify stores the contract function name and args types,
 // in order to facilitate the abi verify
 type ABIVerify struct {
-	FuncName string
-	Args     []string
+	FuncName string   `json:"func_name"`
+	Args     []string `json:"args"`
 }
 
 func (tvm *TVM) jsonValueToBuf(buf *bytes.Buffer, value interface{}) {

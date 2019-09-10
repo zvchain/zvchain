@@ -488,7 +488,7 @@ func TestForkProcess_OnChainSliceResponse_BadMessage(t *testing.T) {
 func TestForkProcess_TryProcess_LocalMoreWeight(t *testing.T) {
 	defer clearDatas()
 	clearDatas()
-	chain1, chain2 := build2Chains(4000, 3993, 10)
+	chain1, chain2 := build2Chains(2000, 1990, 15)
 
 	fp1 := chain1.forkProcessor
 	ret := fp1.tryToProcessFork(id2, &types.Block{Header: chain2.QueryTopBlock()})
