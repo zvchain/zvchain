@@ -434,6 +434,6 @@ func (gzv *Gzv) autoApplyMiner(mType types.MinerType) {
 
 	nonce := core.BlockChainImpl.GetNonce(miner.ID.ToAddress()) + 1
 	api := &RpcDevImpl{}
-	ret, err := api.TxUnSafe(gzv.account.Sk, gzv.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 500, nonce, types.TransactionTypeStakeAdd, string(data))
+	ret, err := api.TxUnSafe(gzv.account.Sk, gzv.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 500, nonce, types.TransactionTypeStakeAdd, data)
 	log.DefaultLogger.Debug("apply result", ret, err)
 }
