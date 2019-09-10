@@ -19,6 +19,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"math"
 	"time"
 
@@ -169,6 +172,16 @@ func (chain *FullBlockChain) verifyTxs(block *types.Block) (txs txSlice, ok bool
 // 		3, need adjust the blockchain, there will be a fork
 func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) types.AddBlockResult {
 	ret, _ := chain.addBlockOnChain(source, b)
+	if ret == types.AddBlockSucc {
+		log.ELKLogger.WithFields(logrus.Fields{
+			"blockHash":  b.Header.Hash.Hex(),
+			"caster":     common.BytesToAddress(b.Header.Castor).AddrPrefixString(),
+			"height":     b.Header.Height,
+			"logType":    "doAddOnChain",
+			"now":        time2.TSInstance.Now().Local(),
+			"workingDir": log.WorkingDirName,
+		}).Debug("doAddOnChain success")
+	}
 	return ret
 }
 
