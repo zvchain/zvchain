@@ -33,7 +33,7 @@ func newPool(chain chainReader) *pool {
 	return &pool{
 		chain:         chain,
 		cachedBySeed:  common.MustNewLRUCache(120),
-		cachedByEpoch: common.MustNewLRUCache(10),
+		cachedByEpoch: common.MustNewLRUCache(types.GroupLiveEpochs * 2),
 	}
 }
 
