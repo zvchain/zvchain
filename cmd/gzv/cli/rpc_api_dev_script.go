@@ -22,12 +22,12 @@ import (
 )
 
 func (api *RpcDevImpl) ScriptTransferTx(privateKey string, from string, to string, amount uint64, nonce uint64, txType int, gasPrice uint64) (string, error) {
-	return api.TxUnSafe(privateKey, to, amount, gasPrice, gasPrice, nonce, txType, "")
+	return api.TxUnSafe(privateKey, to, amount, gasPrice, gasPrice, nonce, txType, []byte(""))
 }
 
 // TxUnSafe sends a transaction by submitting the privateKey.
 // It is not safe for users, used for testing purpose
-func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data string) (string, error) {
+func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice, nonce uint64, txType int, data []byte) (string, error) {
 	sk := common.HexToSecKey(privateKey)
 	if sk == nil {
 		return "", fmt.Errorf("parse private key fail:%v", privateKey)
@@ -41,7 +41,7 @@ func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice,
 		GasPrice: gasprice,
 		Nonce:    nonce,
 		TxType:   txType,
-		Data:     []byte(data),
+		Data:     data,
 	}
 
 	trans := txRawToTransaction(txRaw)
@@ -52,7 +52,7 @@ func (api *RpcDevImpl) TxUnSafe(privateKey, target string, value, gas, gasprice,
 	trans.Sign = sign.Bytes()
 
 	if err := sendTransaction(trans); err != nil {
-		return "", nil
+		return "", err
 	}
 	return trans.Hash.Hex(), nil
 }
