@@ -98,7 +98,7 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Height = 10
 		bh.Hash = bh.GenHash()
 	case "p.ts.SinceSeconds(bh.CurTime)<-1":
-		bh.CurTime = time.TimeToTimeStamp(now) + 8*1e3
+		bh.CurTime = time.TimeToTimeStamp(now) + 100*1e3
 		bh.Hash = bh.GenHash()
 	case "block-exists":
 		bh = types.BlockHeader{}

@@ -17,10 +17,11 @@
 package mediator
 
 import (
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/common/ed25519"
 	"math"
 	"math/big"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/common/ed25519"
 
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/group"
@@ -86,7 +87,7 @@ func (helper *ConsensusHelperImpl) EstimatePreHeight(bh *types.BlockHeader) uint
 	if height == 1 {
 		return 0
 	}
-	return height - uint64(math.Ceil(float64(bh.Elapsed)/float64(model.Param.MaxGroupCastTime)))
+	return height - uint64(math.Ceil(float64(bh.Elapsed)/float64(model.Param.MaxGroupCastTime*1e3)))
 }
 
 func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {

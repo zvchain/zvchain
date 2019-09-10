@@ -93,12 +93,15 @@ func TestEncryptDecrypt(t *testing.T) {
 
 	message := []byte("Hello, world.")
 	ct, err := Encrypt(rand.Reader, &pk1, message)
+	t.Log("encrypt", ct, err)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	pt, err := sk1.Decrypt(rand.Reader, ct)
+	t.Log("decrypt", pt, err)
 	if err != nil {
+		t.Logf("pk1 %v, msg %v, encrypted %v", pk1.Hex(), ToHex(message), ToHex(ct))
 		t.Fatal(err)
 	}
 
