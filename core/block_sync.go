@@ -188,17 +188,18 @@ func (bs *blockSyncer) checkBlockHeaderAndAddBlack(candidateID string, bh *types
 }
 
 func (bs *blockSyncer) addBlackWithOutLock(candidateID string) {
+	delete(bs.candidatePool, candidateID)
 	bs.addBlackProcess(candidateID)
 }
 
 func (bs *blockSyncer) addBlackWithLock(candidateID string) {
 	bs.lock.RLock()
-	defer bs.lock.RUnlock()
+	delete(bs.candidatePool, candidateID)
+	bs.lock.RUnlock()
 	bs.addBlackProcess(candidateID)
 }
 
 func (bs *blockSyncer) addBlackProcess(candidateID string) {
-	delete(bs.candidatePool, candidateID)
 	peerManagerImpl.addEvilCount(candidateID)
 	bs.logger.Debugf("getBestCandidate verify blockHeader error!we will add it to evil,peer is %v", candidateID)
 }
