@@ -32,7 +32,7 @@ func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
-	key := common.Sha256(m.Body())
+	key := string(common.Sha256(m.Body()))
 	exist, _ := chain.newBlockMessages.ContainsOrAdd(key, 1)
 	if exist {
 		Logger.Debugf("Rcv new duplicate block from %s, key:%v", source, key)
