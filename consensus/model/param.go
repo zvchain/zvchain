@@ -31,10 +31,10 @@ const (
 	MaxSlotSize = 5
 
 	// GroupMaxMembers means the maximum number of members in a group
-	GroupMaxMembers int = 8
+	GroupMaxMembers int = 4
 
 	// GroupMinMembers means the minimum number of members in a group
-	GroupMinMembers int = 5
+	GroupMinMembers int = 3
 )
 
 // ConsensusParam defines all the params of the consensus engine
