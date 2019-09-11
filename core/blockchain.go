@@ -18,15 +18,16 @@ package core
 import (
 	"errors"
 	"fmt"
+	"os"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/log"
-	"os"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
@@ -94,8 +95,9 @@ type FullBlockChain struct {
 
 	stateProc *stateProcessor
 
-	futureRawBlocks *lru.Cache
-	verifiedBlocks  *lru.Cache
+	futureRawBlocks  *lru.Cache
+	verifiedBlocks   *lru.Cache
+	newBlockMessages *lru.Cache
 
 	isAdjusting bool // isAdjusting which means there may be a fork
 
@@ -134,17 +136,18 @@ func getBlockChainConfig() *BlockChainConfig {
 func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) error {
 	Logger = log.CoreLogger
 	chain := &FullBlockChain{
-		config:          getBlockChainConfig(),
-		latestBlock:     nil,
-		init:            true,
-		isAdjusting:     false,
-		consensusHelper: helper,
-		ticker:          ticker.NewGlobalTicker("chain"),
-		ts:              time2.TSInstance,
-		futureRawBlocks: common.MustNewLRUCache(10),
-		verifiedBlocks:  common.MustNewLRUCache(10),
-		topRawBlocks:    common.MustNewLRUCache(20),
-		Account:         minerAccount,
+		config:           getBlockChainConfig(),
+		latestBlock:      nil,
+		init:             true,
+		isAdjusting:      false,
+		consensusHelper:  helper,
+		ticker:           ticker.NewGlobalTicker("chain"),
+		ts:               time2.TSInstance,
+		futureRawBlocks:  common.MustNewLRUCache(10),
+		verifiedBlocks:   common.MustNewLRUCache(10),
+		topRawBlocks:     common.MustNewLRUCache(20),
+		newBlockMessages: common.MustNewLRUCache(10),
+		Account:          minerAccount,
 	}
 
 	types.DefaultPVFunc = helper.VRFProve2Value
