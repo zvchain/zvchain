@@ -171,9 +171,6 @@ func (fp *forkProcessor) processFork(targetNode string, bh *types.BlockHeader) (
 	if targetNode == "" {
 		return
 	}
-	if fp.chain.HasBlock(bh.Hash) {
-		return
-	}
 
 	fp.lock.Lock()
 	defer fp.lock.Unlock()
