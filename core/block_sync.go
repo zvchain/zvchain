@@ -254,7 +254,7 @@ func (bs *blockSyncer) detectLowFork() (string, *types.BlockHeader) {
 		}
 		if localTop.Height > top.BH.Height+types.EpochLength {
 			// Try to discard the illegal candidates
-			if bs.checkBlockHeaderAndAddBlack(id, top.BH) {
+			if !bs.chain.HasBlock(top.BH.Hash) && bs.checkBlockHeaderAndAddBlack(id, top.BH) {
 				return id, top.BH
 			}
 		}
