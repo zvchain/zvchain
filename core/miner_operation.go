@@ -344,7 +344,7 @@ func (op *stakeRefundOp) Transition() *result {
 	}
 	// Check reduce-height
 	if op.height <= frozenDetail.Height+twoDayBlocks {
-		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnougn)
+		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnough)
 		return ret
 	}
 

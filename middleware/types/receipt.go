@@ -47,7 +47,7 @@ const (
 	RSMinerMaxApplyGuard
 	RSMinerChangeModeExpired
 	RSMinerAbortHasPrepared
-	RSMinerRefundHeightNotEnougn
+	RSMinerRefundHeightNotEnough
 	RSMinerNotExists
 )
 
