@@ -174,12 +174,11 @@ func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) type
 	ret, _ := chain.addBlockOnChain(source, b)
 	if ret == types.AddBlockSucc {
 		log.ELKLogger.WithFields(logrus.Fields{
-			"blockHash":  b.Header.Hash.Hex(),
-			"caster":     common.BytesToAddress(b.Header.Castor).AddrPrefixString(),
-			"height":     b.Header.Height,
-			"logType":    "doAddOnChain",
-			"now":        time2.TSInstance.Now().Local(),
-			"workingDir": log.WorkingDirName,
+			"blockHash": b.Header.Hash.Hex(),
+			"caster":    common.BytesToAddress(b.Header.Castor).AddrPrefixString(),
+			"height":    b.Header.Height,
+			"logType":   "doAddOnChain",
+			"now":       time2.TSInstance.Now().Local(),
 		}).Debug("doAddOnChain success")
 	}
 	return ret
