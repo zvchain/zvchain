@@ -50,7 +50,7 @@
     </div>
 
     <div id="morts" style="display:none">
-        <div class="layui-row layui-col-space25">
+        <div class="layui-row layui-col-space25" style="display:none" id="mort1">
             <div class="layui-col-md9">
                 <fieldset class="layui-elem-field">
                     <legend id="stake_info"></legend>
@@ -88,7 +88,7 @@
             </div>
         </div>
 
-        <div class="layui-row layui-col-space25">
+        <div class="layui-row layui-col-space25" style="display:none" id="mort2">
             <div class="layui-col-md9">
                 <fieldset class="layui-elem-field">
                     <legend id="stake_info2"></legend>
@@ -190,7 +190,17 @@
                     $("#morts").show(100);
                 }
 
-                if (d.length == 1) {
+                function getJsonLength(d) {
+                    var jsonLength = 0;
+                    for (var i in d) {
+                        jsonLength++;
+                    }
+                    return jsonLength;
+                }
+
+                var len = getJsonLength(d);
+
+                if (len == 1) {
                     $(d).each(function (k, v) {
                         $("#stake_info").text(v.type);
                         $("#stake").text(v.stake);
@@ -201,8 +211,11 @@
                         $("#identity").text(v.identity);
                         $("#identity_update_height").text(v.identity_update_height);
                     });
+                    if ($("#mort1").css("display") == "none") {
+                        $("#mort1").show(100);
+                    }
                 }
-                if (d.length == 2) {
+                if (len == 2) {
                     $(d).each(function (k, v) {
                         if (k == 0) {
                             $("#stake_info").text(v.type);
@@ -227,6 +240,12 @@
                         }
 
                     });
+                    if ($("#mort1").css("display") == "none") {
+                        $("#mort1").show(100);
+                    }
+                    if ($("#mort2").css("display") == "none") {
+                        $("#mort2").show(100);
+                    }
                 }
 
             },
