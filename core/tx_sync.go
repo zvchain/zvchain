@@ -267,13 +267,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) error {
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
-	accepts := make([]common.Hash, 0)
-	for _, k := range hashs {
-		if exist, _ := ts.pool.IsTransactionExisted(k); !exist {
-			accepts = append(accepts, k)
-		}
-	}
-	candidateKeys.addTxHashes(accepts)
+	candidateKeys.addTxHashes(hashs)
 	ts.logger.Debugf("Rcv txs notify from %v, size %v, accept %v, totalOfSource %v", nm.Source(), len(hashs), len(accepts), candidateKeys.txHashes.Len())
 	return nil
 }
