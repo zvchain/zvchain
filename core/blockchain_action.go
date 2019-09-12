@@ -370,7 +370,7 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block, tSlice txSlice
 	}
 	// Check if all txs exist in the pool to ensure the basic validation is done
 	for _, tx := range tSlice {
-		if exist, _ := chain.GetTransactionPool().IsTransactionExisted(tx.Hash, false); !exist {
+		if exist, _ := chain.GetTransactionPool().IsTransactionExisted(tx.Hash); !exist {
 			return false, fmt.Errorf("tx is not in the pool %v", tx.Hash)
 		}
 	}
