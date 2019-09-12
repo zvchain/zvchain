@@ -228,22 +228,6 @@ func (pool *txPool) IsTransactionExisted(hash common.Hash) (exists bool, where i
 	return false, -1
 }
 
-func (pool *txPool) IsTransactionExistedInMem(hash common.Hash) (exists bool, where int) {
-	if pool.bonPool.contains(hash) {
-		return true, 1
-	}
-
-	if pool.received.contains(hash) {
-		return true, 1
-	}
-
-	if pool.asyncAdds.Contains(hash) {
-		return true, 2
-	}
-
-	return false, -1
-}
-
 func (pool *txPool) packTx() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
 	accuSize := 0
