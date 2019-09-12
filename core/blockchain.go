@@ -143,10 +143,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		consensusHelper:  helper,
 		ticker:           ticker.NewGlobalTicker("chain"),
 		ts:               time2.TSInstance,
-		futureRawBlocks:  common.MustNewLRUCache(10),
+		futureRawBlocks:  common.MustNewLRUCache(100),
 		verifiedBlocks:   common.MustNewLRUCache(10),
 		topRawBlocks:     common.MustNewLRUCache(20),
-		newBlockMessages: common.MustNewLRUCache(10),
+		newBlockMessages: common.MustNewLRUCache(100),
 		Account:          minerAccount,
 	}
 
