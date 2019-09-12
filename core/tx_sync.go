@@ -269,7 +269,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) error {
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
 	accepts := make([]common.Hash, 0)
 	for _, k := range hashs {
-		if exist, _ := ts.pool.IsTransactionExistedInMem(k); !exist {
+		if exist, _ := ts.pool.IsTransactionExisted(k); !exist {
 			accepts = append(accepts, k)
 		}
 	}
