@@ -181,7 +181,7 @@ func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
 	pool.lock.Lock()
 	defer pool.lock.Unlock()
 
-	if exist, where := pool.IsTransactionExisted(tx.Hash); exist {
+	if exist, where := pool.IsTransactionExisted(tx.Hash, false); exist {
 		return false, fmt.Errorf("tx exist in %v", where)
 	}
 
@@ -209,7 +209,7 @@ func (pool *txPool) remove(txHash common.Hash) {
 	pool.asyncAdds.Remove(txHash)
 }
 
-func (pool *txPool) IsTransactionExisted(hash common.Hash) (exists bool, where int) {
+func (pool *txPool) IsTransactionExisted(hash common.Hash, menOnly bool) (exists bool, where int) {
 	if pool.bonPool.contains(hash) {
 		return true, 1
 	}
@@ -222,27 +222,13 @@ func (pool *txPool) IsTransactionExisted(hash common.Hash) (exists bool, where i
 		return true, 2
 	}
 
-	if pool.hasReceipt(hash) {
+
+	if !menOnly && pool.hasReceipt(hash) {
 		return true, 3
 	}
 	return false, -1
 }
 
-func (pool *txPool) IsTransactionExistedInMem(hash common.Hash) (exists bool, where int) {
-	if pool.bonPool.contains(hash) {
-		return true, 1
-	}
-
-	if pool.received.contains(hash) {
-		return true, 1
-	}
-
-	if pool.asyncAdds.Contains(hash) {
-		return true, 2
-	}
-
-	return false, -1
-}
 
 func (pool *txPool) packTx() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)

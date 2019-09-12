@@ -167,7 +167,7 @@ type TransactionPool interface {
 	DeleteReceipts(txs []common.Hash) error
 
 	//check transaction hash exist in local
-	IsTransactionExisted(hash common.Hash) (exists bool, where int)
+	IsTransactionExisted(hash common.Hash, memOnly bool) (exists bool, where int)
 }
 
 // GroupInfoI is a group management interface
