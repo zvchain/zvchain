@@ -268,7 +268,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) error {
 	}
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
 	candidateKeys.addTxHashes(hashs)
-	ts.logger.Debugf("Rcv txs notify from %v, size %v, accept %v, totalOfSource %v", nm.Source(), len(hashs), len(accepts), candidateKeys.txHashes.Len())
+	ts.logger.Debugf("Rcv txs notify from %v, size %v, totalOfSource %v", nm.Source(), len(hashs),  candidateKeys.txHashes.Len())
 	return nil
 }
 
