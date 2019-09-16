@@ -31,7 +31,7 @@ import (
 const (
 	maxPendingSize              = 40000
 	maxQueueSize                = 10000
-	rewardTxMaxSize             = 1000
+	rewardTxMaxSize             = 500
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
 
@@ -88,6 +88,15 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 }
 
 func (pool *txPool) tryAddTransaction(tx *types.Transaction) (bool, error) {
+	if tx.IsReward() {
+		if pool.isRewardExists(tx) {
+			return false, fmt.Errorf("reward tx is exists: block=%v", parseRewardBlockHash(tx).Hex())
+		}
+	} else {
+		if exists, where := pool.IsTransactionExisted(tx.Hash); exists {
+			return false, fmt.Errorf("tx exists in %v, hash=%v", where, tx.Hash.Hex())
+		}
+	}
 	if err := pool.RecoverAndValidateTx(tx); err != nil {
 		Logger.Debugf("tryAddTransaction err %v, hash %v, sign %v", err.Error(), tx.Hash.Hex(), tx.HexSign())
 		return false, err
@@ -97,9 +106,32 @@ func (pool *txPool) tryAddTransaction(tx *types.Transaction) (bool, error) {
 		Logger.Debugf("tryAdd rawTx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
 	}
 	if b {
-		Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
+		if tx.IsReward() {
+			Logger.Debugf("transaction added to pool: hash=%v, block=%v", tx.Hash.Hex(), parseRewardBlockHash(tx).Hex())
+		} else {
+			Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
+		}
 	}
 	return b, err
+}
+
+func (pool *txPool) isRewardExists(tx *types.Transaction) bool {
+	hash := tx.Hash
+	if pool.bonPool.contains(hash) {
+		return true
+	}
+	if pool.asyncAdds.Contains(hash) {
+		return true
+	}
+
+	if pool.hasReceipt(hash) {
+		return true
+	}
+	// Checks if the reward of corresponding block is exists
+	if pool.bonPool.hasReward(parseRewardBlockHash(tx).Bytes()) {
+		return true
+	}
+	return false
 }
 
 // AddTransaction try to add a transaction into the tool
@@ -231,7 +263,8 @@ func (pool *txPool) IsTransactionExisted(hash common.Hash) (exists bool, where i
 func (pool *txPool) packTx() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
 	accuSize := 0
-	pool.bonPool.forEach(func(tx *types.Transaction) bool {
+	pool.bonPool.forEachByBlock(func(bhash common.Hash, txs []*types.Transaction) bool {
+		tx := txs[0]
 		accuSize += tx.Size()
 		if accuSize <= txAccumulateSizeMaxPerBlock {
 			txs = append(txs, tx)
@@ -286,8 +319,8 @@ func (pool *txPool) BackToPool(txs []*types.Transaction) {
 // GetRewardTxs returns all the reward transactions in the pool
 func (pool *txPool) GetRewardTxs() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
-	pool.bonPool.forEach(func(tx *types.Transaction) bool {
-		txs = append(txs, tx)
+	pool.bonPool.forEachByBlock(func(bhash common.Hash, tx []*types.Transaction) bool {
+		txs = append(txs, tx...)
 		return true
 	})
 	return txs
@@ -295,13 +328,12 @@ func (pool *txPool) GetRewardTxs() []*types.Transaction {
 
 // ClearRewardTxs
 func (pool *txPool) ClearRewardTxs() {
-	pool.bonPool.forEach(func(tx *types.Transaction) bool {
-		bhash := common.BytesToHash(tx.Data)
+	pool.bonPool.forEachByBlock(func(bhash common.Hash, txs []*types.Transaction) bool {
 		// The reward transaction of the block already exists on the chain, or the block is not
 		// on the chain, and the corresponding reward transaction needs to be deleted.
 		reason := ""
 		remove := false
-		if pool.bonPool.hasReward(tx.Data) {
+		if pool.bonPool.hasReward(bhash.Bytes()) {
 			remove = true
 			reason = "tx exist"
 		} else if !pool.chain.HasBlock(bhash) {

@@ -182,7 +182,8 @@ func (ts *txSyncer) notifyTxs() bool {
 	ts.clearJob()
 
 	txs := make([]*types.Transaction, 0)
-	ts.pool.bonPool.forEach(func(tx *types.Transaction) bool {
+	ts.pool.bonPool.forEachByBlock(func(bhash common.Hash, txs []*types.Transaction) bool {
+		tx := txs[0]
 		if ts.checkTxCanBroadcast(tx.Hash) {
 			txs = append(txs, tx)
 			return len(txs) < txMaxNotifyPerTime
@@ -268,7 +269,7 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) error {
 	}
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
 	candidateKeys.addTxHashes(hashs)
-	ts.logger.Debugf("Rcv txs notify from %v, size %v, totalOfSource %v", nm.Source(), len(hashs),  candidateKeys.txHashes.Len())
+	ts.logger.Debugf("Rcv txs notify from %v, size %v, totalOfSource %v", nm.Source(), len(hashs), candidateKeys.txHashes.Len())
 	return nil
 }
 
