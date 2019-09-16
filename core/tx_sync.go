@@ -182,8 +182,8 @@ func (ts *txSyncer) notifyTxs() bool {
 	ts.clearJob()
 
 	txs := make([]*types.Transaction, 0)
-	ts.pool.bonPool.forEachByBlock(func(bhash common.Hash, txs []*types.Transaction) bool {
-		tx := txs[0]
+	ts.pool.bonPool.forEachByBlock(func(bhash common.Hash, rewardTxs []*types.Transaction) bool {
+		tx := rewardTxs[0]
 		if ts.checkTxCanBroadcast(tx.Hash) {
 			txs = append(txs, tx)
 			return len(txs) < txMaxNotifyPerTime

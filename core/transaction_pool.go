@@ -269,8 +269,8 @@ func (pool *txPool) IsTransactionExisted(hash common.Hash) (exists bool, where i
 func (pool *txPool) packTx() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
 	accuSize := 0
-	pool.bonPool.forEachByBlock(func(bhash common.Hash, txs []*types.Transaction) bool {
-		tx := txs[0]
+	pool.bonPool.forEachByBlock(func(bhash common.Hash, rewardTxs []*types.Transaction) bool {
+		tx := rewardTxs[0]
 		accuSize += tx.Size()
 		if accuSize <= txAccumulateSizeMaxPerBlock {
 			txs = append(txs, tx)
