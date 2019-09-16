@@ -201,6 +201,7 @@ func (gzv *Gzv) Run() {
 			http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
 			runtime.SetBlockProfileRate(1)
 			runtime.SetMutexProfileFraction(1)
+			runtime.MemProfileRate = 1024
 		}()
 
 		types.InitMiddleware()
