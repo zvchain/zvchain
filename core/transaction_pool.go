@@ -87,32 +87,38 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 	return pool
 }
 
-func (pool *txPool) tryAddTransaction(tx *types.Transaction) (bool, error) {
+func (pool *txPool) tryAddTransaction(tx *types.Transaction) (ok bool, err error) {
+	defer func() {
+		if ok {
+			if tx.IsReward() {
+				Logger.Debugf("transaction added to pool: hash=%v, block=%v", tx.Hash.Hex(), parseRewardBlockHash(tx).Hex())
+			} else {
+				Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
+			}
+		}
+		if err != nil {
+			Logger.Debugf("tryAdd tx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
+		}
+	}()
+
 	if tx.IsReward() {
 		if pool.isRewardExists(tx) {
-			return false, fmt.Errorf("reward tx is exists: block=%v", parseRewardBlockHash(tx).Hex())
+			err = fmt.Errorf("reward tx is exists: block=%v", parseRewardBlockHash(tx).Hex())
+			return
 		}
 	} else {
 		if exists, where := pool.IsTransactionExisted(tx.Hash); exists {
-			return false, fmt.Errorf("tx exists in %v, hash=%v", where, tx.Hash.Hex())
+			err = fmt.Errorf("tx exists in %v, hash=%v", where, tx.Hash.Hex())
+			return
 		}
 	}
-	if err := pool.RecoverAndValidateTx(tx); err != nil {
+	if err = pool.RecoverAndValidateTx(tx); err != nil {
 		Logger.Debugf("tryAddTransaction err %v, hash %v, sign %v", err.Error(), tx.Hash.Hex(), tx.HexSign())
-		return false, err
+		return
 	}
-	b, err := pool.tryAdd(tx)
-	if err != nil {
-		Logger.Debugf("tryAdd rawTx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
-	}
-	if b {
-		if tx.IsReward() {
-			Logger.Debugf("transaction added to pool: hash=%v, block=%v", tx.Hash.Hex(), parseRewardBlockHash(tx).Hex())
-		} else {
-			Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
-		}
-	}
-	return b, err
+	ok, err = pool.tryAdd(tx)
+
+	return
 }
 
 func (pool *txPool) isRewardExists(tx *types.Transaction) bool {
