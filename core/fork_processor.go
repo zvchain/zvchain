@@ -159,12 +159,16 @@ func (fp *forkProcessor) getLocalPieceInfo(topHash common.Hash) []common.Hash {
 }
 
 func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) (ret bool) {
-	if targetNode == "" {
-		return
-	}
 	bh := b.Header
 	if fp.chain.HasBlock(bh.PreHash) {
 		fp.chain.AddBlockOnChain(targetNode, b)
+		return
+	}
+	return fp.processFork(targetNode, bh)
+}
+
+func (fp *forkProcessor) processFork(targetNode string, bh *types.BlockHeader) (ret bool) {
+	if targetNode == "" {
 		return
 	}
 
@@ -180,11 +184,19 @@ func (fp *forkProcessor) tryToProcessFork(targetNode string, b *types.Block) (re
 
 	localTop := fp.chain.QueryTopBlock()
 	targetTop := fp.targetTop(targetNode, bh)
-	// local more weight, won't process
-	if !targetTop.MoreWeight(types.NewBlockWeight(localTop)) {
+
+	// For short forks(local is not more than one epoch higher than the peer), if the local is more weight than the peer, the fork will not be processed
+	if localTop.Height <= targetTop.Height+types.EpochLength && !targetTop.MoreWeight(types.NewBlockWeight(localTop)) {
 		fp.logger.Debugf("local top more weight, won't process fork:local %v %v, target %v %v", localTop.Hash, localTop.Height, targetTop.Hash, targetTop.Height)
 		return
 	}
+
+	// Either when Local is more than one epoch higher than peer or less weight than peer causes the fork processing.
+	// Consider the former situation：
+	// Since we can only verify and process the forks within 2 epochs, when two forks are generated (assuming long fork A and short fork B),
+	// the weight of the entire chain is A>B, but In terms of the weights within 2 epochs after the common ancestor is B>A,
+	// thus A and B each considers that their weight is greater than other and refuses to merge.
+	// In order to solve this problem, we designed that when A is more than 1 epoch higher than B, A also triggers the fork process with B.
 	ret = true
 	ctx = fp.updateContext(targetNode, targetTop)
 
