@@ -290,6 +290,18 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		return
 	}
 
+	// Check the min elapsed
+	if bh.Height > 1 {
+		if bh.CurTime.SinceMilliSeconds(vctx.prevBH.CurTime) != int64(bh.Elapsed) {
+			err = fmt.Errorf("cast elapsed time illegal, elapsed is %v, crutime is %v, preCurTime is %v", bh.Elapsed, bh.CurTime, vctx.prevBH.CurTime)
+			return
+		}
+		if bh.Elapsed < p.GetBlockMinElapse(bh.Height) {
+			err = fmt.Errorf("elapsed error %v", bh.Elapsed)
+			return
+		}
+	}
+
 	// Checks if the pre block lower than latest cp
 	latestCP := p.MainChain.LatestCheckPoint()
 	if vctx.prevBH.Height < latestCP.Height {
