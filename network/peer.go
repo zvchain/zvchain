@@ -174,6 +174,15 @@ func (p *Peer) addGroup(gID string) {
 	}
 }
 
+func (p *Peer) AuthContext() *PeerAuthContext {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.authContext == nil {
+		p.authContext = genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &p.ID)
+	}
+	return p.authContext
+}
+
 func (p *Peer) removeGroup(gID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
