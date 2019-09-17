@@ -196,11 +196,11 @@ func Test_eachForSync(t *testing.T) {
 		t.Fatalf("failed to initContext4Test")
 	}
 
-	container = newSimpleContainer(100, 30, BlockChainImpl)
-	for i := 1; i < 10; i++ {
+	container = newSimpleContainer(200, 80, BlockChainImpl)
+	for i := 1; i < 50; i++ {
 		_ = container.push(genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff"+strconv.Itoa(i), uint64(i), types.NewBigInt(20000), gasLimit, &addr1))
 	}
-	for i := 10; i < 20; i++ {
+	for i := 50; i < 70; i++ {
 		_ = container.push(genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7fe"+strconv.Itoa(i), uint64(i), types.NewBigInt(20000), gasLimit, &addr1))
 	}
 	var count = 0
