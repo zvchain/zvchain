@@ -17,6 +17,9 @@ package logical
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
@@ -151,6 +154,11 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		// trigger the cached messages from other members that come ahead of the proposal message
 		p.castVerifyCh <- bh
 		ok = true
+		log.ELKLogger.WithFields(logrus.Fields{
+			"verifyHeight": bh.Height,
+			"now":          time.TSInstance.Now().Local(),
+			"logType":      "verifyLog",
+		}).Debug("verify")
 	} else {
 		err = fmt.Errorf("gen sign fail")
 	}

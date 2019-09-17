@@ -225,7 +225,7 @@ func (bs *blockSyncer) getCandidateById(candidateID string) (string, *types.Cand
 		return bs.getCandidate()
 	} else {
 		bh := bs.getCandidateByCandidateID(candidateID)
-		if bh == nil{
+		if bh == nil {
 			return "", bh
 		}
 		return candidateID, bh
@@ -241,7 +241,35 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	}
 	return nil
 }
+
+func (bs *blockSyncer) detectLowFork() (string, *types.BlockHeader) {
+	bs.lock.RLock()
+	defer bs.lock.RUnlock()
+	localTop := bs.chain.QueryTopBlock()
+
+	// Find a node in the candidate pool that is more than one epoch heights lower than the local
+	for id, top := range bs.candidatePool {
+		if peerManagerImpl.isEvil(id) {
+			continue
+		}
+		if localTop.Height > top.BH.Height+types.EpochLength {
+			// Try to discard the illegal candidates
+			if !bs.chain.HasBlock(top.BH.Hash) && bs.checkBlockHeaderAndAddBlack(id, top.BH) {
+				return id, top.BH
+			}
+		}
+	}
+	return "", nil
+}
+
 func (bs *blockSyncer) trySyncRoutine() bool {
+	// Detect low fork(more than one epoch blocks lower than local)
+	peer, peerTop := bs.detectLowFork()
+	if peerTop != nil {
+		local := bs.chain.QueryTopBlock()
+		bs.logger.Infof("detect low fork with %v, peerTop %v-%v,local %v-%v", peer, peerTop.Height, peerTop.Hash, local.Height, local.Hash)
+		go bs.chain.forkProcessor.processFork(peer, peerTop)
+	}
 	return bs.syncFrom("")
 }
 
