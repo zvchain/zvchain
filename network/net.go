@@ -239,12 +239,14 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 		Expiration: nc.expirationTime(),
 	}
 	if p != nil && !p.isAuthSucceed {
-		if p.authContext == nil {
-			p.authContext = genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &p.ID)
+		authContext := p.AuthContext()
+		if authContext == nil {
+			Logger.Infof("[send ping] authContext is nil, ID : %v", toID.GetHexString())
+			return
 		}
-		req.PK = p.authContext.PK
-		req.CurTime = p.authContext.CurTime
-		req.Sign = p.authContext.Sign
+		req.PK = authContext.PK
+		req.CurTime = authContext.CurTime
+		req.Sign = authContext.Sign
 	}
 	Logger.Infof("[send ping] ID : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.IP, nc.ourEndPoint.Port)
 
