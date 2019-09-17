@@ -117,7 +117,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 
 					//if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce{
 					var target string
-					if tx.Target.AddrPrefixString() != "" {
+					if tx.Target != nil {
 						target = tx.Target.AddrPrefixString()
 						if _, exists := AddressCacheList[target]; exists {
 							AddressCacheList[target] += 0
