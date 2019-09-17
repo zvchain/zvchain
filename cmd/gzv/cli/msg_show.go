@@ -97,7 +97,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 			"minedHeight": b.Header.Height,
 			"now":         time.TSInstance.Now().Local(),
 			"logType":     "proposalLog",
-		}).Debug("mined block height")
+		}).Info("mined block height")
 		ms.showMsg("congratulations, you mined block height %v success!", b.Header.Height)
 	}
 	if b.Transactions != nil && len(b.Transactions) > 0 {
@@ -115,7 +115,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 							"verifiedHeight": b.Header.Height,
 							"now":            time.TSInstance.Now().Local(),
 							"logType":        "verifyLog",
-						}).Debug("verifyLog")
+						}).Info("verifyLog")
 						ms.showMsg("congratulations, you verified block hash %v success, reward %v ZVC", blockHash.Hex(), common.RA2TAS(tx.Value.Uint64()))
 						break
 					}

@@ -179,7 +179,7 @@ func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) type
 			"height":    b.Header.Height,
 			"logType":   "doAddOnChain",
 			"now":       time2.TSInstance.Now().Local(),
-		}).Debug("doAddOnChain success")
+		}).Info("doAddOnChain success")
 	}
 	return ret
 }
@@ -514,6 +514,11 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		chain.addBlockOnChain("", rawBlock)
 		chain.futureRawBlocks.Remove(b.Header.Hash)
 	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"txNum":   chain.transactionPool.TxNum(),
+		"now":     time2.TSInstance.Now().Local(),
+		"logType": "txPoolLog",
+	}).Info("transaction pool log")
 	return nil
 }
 

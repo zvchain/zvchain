@@ -220,7 +220,7 @@ func (p *Processor) blockProposal() {
 		"proposalHeight": height,
 		"now":            time2.TSInstance.Now().Local(),
 		"logType":        "proposalLog",
-	}).Debug("proposal")
+	}).Info("proposal")
 	//if height > 1 && p.proveChecker.proveExists(pi) {
 	//	blog.warn("vrf prove exist, not proposal")
 	//	return

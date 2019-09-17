@@ -158,7 +158,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			"verifyHeight": bh.Height,
 			"now":          time.TSInstance.Now().Local(),
 			"logType":      "verifyLog",
-		}).Debug("verify")
+		}).Info("verify")
 	} else {
 		err = fmt.Errorf("gen sign fail")
 	}
