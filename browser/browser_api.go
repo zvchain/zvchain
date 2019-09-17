@@ -130,7 +130,9 @@ func (tm *DBMmanagement) excuteAccounts() {
 
 					//check update stake
 					if checkStakeTransaction(tx.Type) {
-						set.Add(tx.Source.AddrPrefixString())
+						if tx.Target != nil {
+							set.Add(tx.Target.AddrPrefixString())
+						}
 					}
 					//stake list
 
