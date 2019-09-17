@@ -42,9 +42,9 @@ type DBMmanagement struct {
 	fetcher                 *common2.Fetcher
 }
 
-func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *DBMmanagement {
+func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *DBMmanagement {
 	tablMmanagement := &DBMmanagement{}
-	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
+	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 
 	tablMmanagement.blockHeight, _ = tablMmanagement.storage.TopBlockHeight()
 	tablMmanagement.groupHeight, _ = tablMmanagement.storage.TopGroupHeight()
@@ -107,32 +107,50 @@ func (tm *DBMmanagement) excuteAccounts() {
 						}
 					}
 				}
-				if tx.Source != nil && tx.Target != nil {
+				if tx.Source != nil {
 					//account list
 					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
 						AddressCacheList[tx.Source.AddrPrefixString()] += 1
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
 					}
+
+					//if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce{
+					var target string
+					if tx.Target.AddrPrefixString() != "" {
+						target = tx.Target.AddrPrefixString()
+						if _, exists := AddressCacheList[target]; exists {
+							AddressCacheList[target] += 0
+						} else {
+							AddressCacheList[target] = 0
+						}
+					}
+
+					//}
+
 					//check update stake
 					if checkStakeTransaction(tx.Type) {
 						set.Add(tx.Source.AddrPrefixString())
 					}
 					//stake list
-					if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
-						if tx.Type == types.TransactionTypeStakeAdd {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
-						}
-						if tx.Type == types.TransactionTypeStakeReduce {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
-						}
-					} else {
-						stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
-						if tx.Type == types.TransactionTypeStakeAdd {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
-						}
-						if tx.Type == types.TransactionTypeStakeReduce {
-							stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
+
+					if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce {
+
+						if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
+							if tx.Type == types.TransactionTypeStakeAdd {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
+							}
+							if tx.Type == types.TransactionTypeStakeReduce {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
+							}
+						} else {
+							stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
+							if tx.Type == types.TransactionTypeStakeAdd {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
+							}
+							if tx.Type == types.TransactionTypeStakeReduce {
+								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
+							}
 						}
 					}
 

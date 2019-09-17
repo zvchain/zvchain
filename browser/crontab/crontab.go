@@ -54,7 +54,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 		initdata:       make(chan *models.ForkNotify, 1000),
 		initRewarddata: make(chan *models.ForkNotify, 1000),
 	}
-	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset)
+	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	//server.consumeReward(3, 2)
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
@@ -233,6 +233,7 @@ func (crontab *Crontab) excutePoolVotes() {
 				attrs["role_type"] = types.InValidMinerPool
 			}
 			tickets := core.MinerManagerImpl.GetTickets(db, common.StringToAddress(pool.Address))
+			fmt.Println("pool tickets", tickets)
 			var extra = &models.PoolExtraData{}
 			if pool.ExtraData != "" {
 				if err := json.Unmarshal([]byte(pool.ExtraData), extra); err != nil {
