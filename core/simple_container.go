@@ -29,7 +29,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-const maxSyncCountPreSource = 10 // max count of tx with same source to sync to neighbour node
+const maxSyncCountPreSource = 50 // max count of tx with same source to sync to neighbour node
 
 type simpleContainer struct {
 	txsMap     map[common.Hash]*types.Transaction
