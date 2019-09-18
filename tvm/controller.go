@@ -118,6 +118,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 
 	decoder := json.NewDecoder(bytes.NewReader([]byte(abiJSON)))
 	decoder.DisallowUnknownFields()
+	decoder.UseNumber()
 	abiJSONError := decoder.Decode(&abi)
 	if abiJSONError != nil {
 		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
