@@ -354,7 +354,7 @@ func TestTvmCli_TestABI2(t *testing.T) {
 
 	tvmCli := NewTvmCli()
 	result := tvmCli.QueryData(contractAddress, "count", 0)
-	if len(result) > 0 {
+	if len(result) <= 0 {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(contractAddress, "string", 0)
