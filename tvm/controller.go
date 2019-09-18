@@ -17,10 +17,14 @@ package tvm
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"math/big"
+	"strconv"
 )
 
 var bridgeInited = false
@@ -135,4 +139,75 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 // GetGasLeft get gas left
 func (con *Controller) GetGasLeft() uint64 {
 	return con.GasLeft
+}
+
+func BytesToBigInt(bs []byte) *big.Int {
+	res := &big.Int{}
+	isNeg := false
+	var data []byte
+	if len(bs) < 1 {
+		return nil
+	}
+	if bs[0] & 0x80 != 0 {
+		isNeg = true
+		tmp := big.NewInt(0)
+		tmp.SetBytes(bs)
+		tmp.Sub(tmp, big.NewInt(1))
+		data = tmp.Bytes()
+		for i:=0; i<len(data);i++ {
+			data[i] = ^data[i]
+		}
+	} else {
+		data = bs
+	}
+	res.SetBytes(data)
+	if isNeg {
+		res = res.Neg(res)
+	}
+	return res
+}
+
+func VmDataConvert(value []byte) string {
+	//const char DICT_FORMAT_C = 'd';
+	//const char STR_FORMAT_C = 's';
+	//const char INT_FORMAT_C = 'i';
+	//const char SMALLINT_FORMAT_C = 'm';
+	//const char LIST_FORMAT_C = 'l';
+	//const char BOOL_FORMAT_C = 'b';
+	//const char NONE_FORMAT_C = 'n';
+	//const char BYTE_FORMAT_C = 'y';
+
+	if bytes.Compare(value[:1], []byte("m")) == 0{
+		bytesBuffer := bytes.NewBuffer(value[1:])
+		var x int64
+		err := binary.Read(bytesBuffer, binary.LittleEndian, &x)
+		if err != nil {
+			return ""
+		}
+		return strconv.FormatInt(x,10)
+	} else if bytes.Compare(value[:1], []byte("i")) == 0{
+		r := BytesToBigInt(value[1:])
+		if r == nil {
+			return ""
+		}
+		return r.String()
+	} else if bytes.Compare(value[:1], []byte("d")) == 0{
+		return "dict"
+	} else if bytes.Compare(value[:1], []byte("s")) == 0{
+		return string(value[1:])
+	} else if bytes.Compare(value[:1], []byte("l")) == 0{
+		return "list"
+	} else if bytes.Compare(value[:1], []byte("b")) == 0{
+		if bytes.Compare(value[1:], []byte("0")) == 0 {
+			return "False"
+		} else {
+			return "True"
+		}
+	} else if bytes.Compare(value[:1], []byte("n")) == 0{
+		return "None"
+	} else if bytes.Compare(value[:1], []byte("y")) == 0{
+		return base64.StdEncoding.EncodeToString(value[1:])
+	} else {
+		return ""
+	}
 }

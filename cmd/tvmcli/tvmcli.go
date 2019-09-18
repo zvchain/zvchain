@@ -252,7 +252,6 @@ func (t *TvmCli) ExportAbi(contractName string, contractCode string) {
 	} else {
 		fmt.Println(abi)
 	}
-
 }
 
 func (t *TvmCli) QueryData(address string, key string, count int) map[string]string {
@@ -264,8 +263,8 @@ func (t *TvmCli) QueryData(address string, key string, count int) map[string]str
 	if count == 0 {
 		value := state.GetData(hexAddr, []byte(key))
 		if value != nil {
-			result[key] = string(value)
-			fmt.Println("key:", key, "value:", string(value))
+			result[key] = tvm.VmDataConvert(value)
+			fmt.Println("key:", key, "value:", result[key])
 		}
 	} else {
 		iter := state.DataIterator(hexAddr, []byte(key))
@@ -275,7 +274,7 @@ func (t *TvmCli) QueryData(address string, key string, count int) map[string]str
 				if !strings.HasPrefix(k, key) {
 					continue
 				}
-				v := string(iter.Value[:])
+				v := tvm.VmDataConvert(iter.Value[:])
 				result[k] = v
 				fmt.Println("key:", k, "value:", v)
 				count--
