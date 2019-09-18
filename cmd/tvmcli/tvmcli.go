@@ -254,12 +254,12 @@ func (t *TvmCli) ExportAbi(contractName string, contractCode string) {
 	}
 }
 
-func (t *TvmCli) QueryData(address string, key string, count int) map[string]string {
+func (t *TvmCli) QueryData(address string, key string, count int) map[string]interface{} {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 
 	hexAddr := common.StringToAddress(address)
-	result := make(map[string]string)
+	result := make(map[string]interface{})
 	if count == 0 {
 		value := state.GetData(hexAddr, []byte(key))
 		if value != nil {

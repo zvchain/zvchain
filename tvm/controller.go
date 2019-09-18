@@ -17,14 +17,12 @@ package tvm
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"math/big"
-	"strconv"
 )
 
 var bridgeInited = false
@@ -167,7 +165,7 @@ func BytesToBigInt(bs []byte) *big.Int {
 	return res
 }
 
-func VmDataConvert(value []byte) string {
+func VmDataConvert(value []byte) interface{} {
 	//const char DICT_FORMAT_C = 'd';
 	//const char STR_FORMAT_C = 's';
 	//const char INT_FORMAT_C = 'i';
@@ -182,32 +180,32 @@ func VmDataConvert(value []byte) string {
 		var x int64
 		err := binary.Read(bytesBuffer, binary.LittleEndian, &x)
 		if err != nil {
-			return ""
+			return nil
 		}
-		return strconv.FormatInt(x,10)
+		return x
 	} else if bytes.Compare(value[:1], []byte("i")) == 0{
 		r := BytesToBigInt(value[1:])
 		if r == nil {
-			return ""
+			return nil
 		}
-		return r.String()
+		return r
 	} else if bytes.Compare(value[:1], []byte("d")) == 0{
-		return "dict"
+		return map[string]interface{}{}
 	} else if bytes.Compare(value[:1], []byte("s")) == 0{
 		return string(value[1:])
 	} else if bytes.Compare(value[:1], []byte("l")) == 0{
-		return "list"
+		return []interface{}{}
 	} else if bytes.Compare(value[:1], []byte("b")) == 0{
 		if bytes.Compare(value[1:], []byte("0")) == 0 {
-			return "False"
+			return true
 		} else {
-			return "True"
+			return false
 		}
 	} else if bytes.Compare(value[:1], []byte("n")) == 0{
-		return "None"
+		return nil
 	} else if bytes.Compare(value[:1], []byte("y")) == 0{
-		return base64.StdEncoding.EncodeToString(value[1:])
+		return value[1:]
 	} else {
-		return ""
+		return nil
 	}
 }

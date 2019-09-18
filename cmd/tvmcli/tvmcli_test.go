@@ -18,6 +18,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/account"
@@ -68,39 +69,48 @@ func TestTvmCli_QueryData(t *testing.T) {
 
 	tvmCli := NewTvmCli()
 	result := tvmCli.QueryData(erc20Contract, "int", 0)
-	if result["int"] != "2147483647" {
+	value, _ := json.Marshal(result["int"])
+	if string(value) != "2147483647" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "int2", 0)
-	if result["int2"] != "-2147483647" {
+	value, _ = json.Marshal(result["int2"])
+	if string(value) != "-2147483647" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bigint", 0)
-	if result["bigint"] != "100000000000000000000000000000001"{
+	value, _ = json.Marshal(result["bigint"])
+	if string(value) != "100000000000000000000000000000001"{
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bigint2", 0)
-	if result["bigint2"] != "-100000000000000000000000000000001"{
+	value, _ = json.Marshal(result["bigint2"])
+	if string(value) != "-100000000000000000000000000000001"{
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "str", 0)
-	if result["str"] != ""{
+	value, _ = json.Marshal(result["str"])
+	if string(value) != "\"\""{
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bool", 0)
-	if result["bool"] != "False"{
+	value, _ = json.Marshal(result["bool"])
+	if string(value) != "true"{
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "none", 0)
-	if result["none"] != "None"{
+	value, _ = json.Marshal(result["none"])
+	if string(value) != "null" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "zdict", 0)
-	if result["zdict"] != "dict"{
+	value, _ = json.Marshal(result["zdict"])
+	if string(value) != "{}"{
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bytes", 0)
-	if result["bytes"] != base64.StdEncoding.EncodeToString([]byte("hello world")){
+	value, _ = json.Marshal(result["bytes"])
+	if string(value) != fmt.Sprintf("\"%v\"", base64.StdEncoding.EncodeToString([]byte("hello world"))) {
 		t.FailNow()
 	}
 
