@@ -17,6 +17,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/account"
@@ -63,13 +64,46 @@ func TestTvmCli_Call(t *testing.T) {
 }
 
 func TestTvmCli_QueryData(t *testing.T) {
-	erc20Contract := _deployContract("Token", "erc20.py")
+	erc20Contract := _deployContract("Token", "test_storage.py")
 
 	tvmCli := NewTvmCli()
-	result := tvmCli.QueryData(erc20Contract, "name", 0)
-	if result["name"] != "sZVC Token" {
+	result := tvmCli.QueryData(erc20Contract, "int", 0)
+	if result["int"] != "2147483647" {
 		t.FailNow()
 	}
+	result = tvmCli.QueryData(erc20Contract, "int2", 0)
+	if result["int2"] != "-2147483647" {
+		t.FailNow()
+	}
+	result = tvmCli.QueryData(erc20Contract, "bigint", 0)
+	if result["bigint"] != "100000000000000000000000000000001"{
+		t.FailNow()
+	}
+	result = tvmCli.QueryData(erc20Contract, "bigint2", 0)
+	if result["bigint2"] != "-100000000000000000000000000000001"{
+		t.FailNow()
+	}
+	result = tvmCli.QueryData(erc20Contract, "str", 0)
+	if result["str"] != ""{
+		t.FailNow()
+	}
+	result = tvmCli.QueryData(erc20Contract, "bool", 0)
+	if result["bool"] != "False"{
+		t.FailNow()
+	}
+	result = tvmCli.QueryData(erc20Contract, "none", 0)
+	if result["none"] != "None"{
+		t.FailNow()
+	}
+	result = tvmCli.QueryData(erc20Contract, "zdict", 0)
+	if result["zdict"] != "dict"{
+		t.FailNow()
+	}
+	result = tvmCli.QueryData(erc20Contract, "bytes", 0)
+	if result["bytes"] != base64.StdEncoding.EncodeToString([]byte("hello world")){
+		t.FailNow()
+	}
+
 	tvmCli.DeleteTvmCli()
 }
 

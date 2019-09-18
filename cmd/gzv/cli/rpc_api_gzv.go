@@ -382,7 +382,7 @@ func (api *RpcGzvImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 		iter := accountDb.DataIterator(common.StringToAddress(hash), []byte{})
 		for iter.Next() {
 			k := string(iter.Key[:])
-			v := string(iter.Value[:])
+			v := tvm.VmDataConvert(iter.Value[:])
 			account.StateData[k] = v
 
 		}
@@ -415,21 +415,21 @@ func (api *RpcGzvImpl) QueryAccountData(addr string, key string, count int) (int
 	if count == 0 {
 		value := state.GetData(address, []byte(key))
 		if value != nil {
-			tmp := make(map[string]interface{})
-			tmp["value"] = string(value)
+			tmp := make(map[string]string)
+			tmp["value"] = tvm.VmDataConvert(value)
 			resultData = tmp
 		}
 	} else {
 		iter := state.DataIterator(address, []byte(key))
 		if iter != nil {
-			tmp := make([]map[string]interface{}, 0)
+			tmp := make([]map[string]string, 0)
 			for iter.Next() {
 				k := string(iter.Key[:])
 				if !strings.HasPrefix(k, key) {
 					continue
 				}
-				v := string(iter.Value[:])
-				item := make(map[string]interface{}, 0)
+				v := tvm.VmDataConvert(iter.Value[:])
+				item := make(map[string]string, 0)
 				item["key"] = k
 				item["value"] = v
 				tmp = append(tmp, item)
