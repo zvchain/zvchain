@@ -184,6 +184,7 @@ func (nc *NetCore) InitNetCore(cfg NetCoreConfig) (*NetCore, error) {
 	Logger.Infof("protocol version : %v ", nc.protocolVersion)
 	Logger.Infof("P2PConfig: %v ", nc.netID)
 	Logger.Infof("local addr: %v %v", realAddr.IP.String(), uint16(realAddr.Port))
+	Logger.Infof("nat addr: %v %v", cfg.NatIP, cfg.NatPort)
 	nc.ourEndPoint = MakeEndPoint(realAddr, int32(realAddr.Port))
 	P2PConfig(nc.netID)
 

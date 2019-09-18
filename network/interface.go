@@ -104,4 +104,7 @@ type Network interface {
 
 	//AddProposers add proposers to proposer group network
 	AddProposers(proposers []*Proposer)
+
+	//NotifyTransactions Send transactions to neighbor and proposers
+	NotifyTransactions(msg Message) error
 }

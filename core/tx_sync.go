@@ -226,7 +226,7 @@ func (ts *txSyncer) sendTxHashs(txs []*types.Transaction) {
 		message := network.Message{Code: network.TxSyncNotify, Body: bodyBuf.Bytes()}
 		netInstance := network.GetNetInstance()
 		if netInstance != nil {
-			go network.GetNetInstance().TransmitToNeighbor(message)
+			go network.GetNetInstance().NotifyTransactions(message)
 		}
 	}
 }

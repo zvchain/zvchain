@@ -17,8 +17,10 @@ package network
 
 import (
 	"math"
+	"math/rand"
 	"sort"
 	"sync"
+	"time"
 )
 
 const FastGroupSize = 100
@@ -136,4 +138,68 @@ func (pm *ProposerManager) Broadcast(msg *MsgData, code uint32) {
 
 	pm.fastBucket.Broadcast(msg, code)
 	pm.normalBucket.Broadcast(msg, code)
+}
+
+func (pm *ProposerManager) SendToUnconnectedProposers(data []byte, code uint32, minConnectedCount int) {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+	proposers := pm.fastBucket.proposers
+	totalSize := len(proposers)
+
+	unconnectedNodes := make([]NodeID, 0)
+
+	connectedCount := 0
+
+	//find unconnected nodes
+	for i := 0; i < totalSize; i++ {
+		ID := proposers[i].ID
+
+		p := netCore.peerManager.peerByID(ID)
+		if p != nil && p.isAvailable() {
+			connectedCount++
+			// connected nodes is enough , return
+			if connectedCount >= minConnectedCount {
+				return
+			}
+			continue
+		}
+
+		unconnectedNodes = append(unconnectedNodes, ID)
+	}
+
+	needSendCount := minConnectedCount - connectedCount
+	sendNodes := make([]NodeID, 0)
+
+	if len(unconnectedNodes) <= needSendCount {
+		sendNodes = append(sendNodes, unconnectedNodes...)
+	} else {
+		// random select nodes
+		rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+		loopLimit := len(unconnectedNodes) * 2
+		for len(sendNodes) < needSendCount && loopLimit > 0 {
+			loopLimit--
+			index := rand.Intn(len(unconnectedNodes))
+			ID := unconnectedNodes[index]
+
+			for n := 0; n < len(sendNodes); n++ {
+				if ID == sendNodes[n] {
+					continue
+				}
+			}
+			sendNodes = append(sendNodes, ID)
+		}
+	}
+	packet, _, err := netCore.encodeDataPacket(data, DataType_DataNormal, code, "", nil, -1)
+	if err != nil {
+		Logger.Debugf("BroadcastTransactions encodeDataPacket error ")
+		return
+	}
+
+	if len(sendNodes) > 0 {
+		Logger.Infof("SendToUnconnectedProposers send count:%v", len(sendNodes))
+		for i := 0; i < len(sendNodes); i++ {
+			netCore.peerManager.write(sendNodes[i], nil, packet, code)
+		}
+	}
+
 }

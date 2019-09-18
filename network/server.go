@@ -103,6 +103,17 @@ func (s *Server) Broadcast(msg Message) error {
 	return nil
 }
 
+func (s *Server) NotifyTransactions(msg Message) error {
+	bytes, err := marshalMessage(msg)
+	if err != nil {
+		Logger.Errorf("Marshal message error:%s", err.Error())
+		return err
+	}
+	s.netCore.broadcast(bytes, msg.Code, false, nil, -1)
+	s.netCore.proposerManager.SendToUnconnectedProposers(bytes, msg.Code, 5)
+	return nil
+}
+
 func (s *Server) ConnInfo() []Conn {
 	return s.netCore.peerManager.ConnInfo()
 }
