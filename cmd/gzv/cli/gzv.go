@@ -136,8 +136,7 @@ func (gzv *Gzv) Run() {
 	// Console
 	consoleCmd := app.Command("console", "start gzv console")
 	showRequest := consoleCmd.Flag("show", "show the request json").Short('v').Bool()
-	remoteHost := consoleCmd.Flag("host", "the node host address to connect").Short('i').String()
-	remotePort := consoleCmd.Flag("port", "the node host port to connect").Short('p').Default("8101").Int()
+	remoteUrl := consoleCmd.Flag("url", "the node url to connect").Short('u').String()
 	rpcPort := consoleCmd.Flag("rpcport", "gzv console will listen at the port for wallet service").Default("0").Int()
 	rpcHost := consoleCmd.Flag("rpchost", "gzv console will listen at the host for wallet service").Default("127.0.0.1").String()
 
@@ -190,7 +189,7 @@ func (gzv *Gzv) Run() {
 		fmt.Println("gzv Version:", common.GtasVersion)
 		os.Exit(0)
 	case consoleCmd.FullCommand():
-		err := ConsoleInit(*keystore, *remoteHost, *remotePort, *showRequest, *rpcHost, *rpcPort)
+		err := ConsoleInit(*keystore, *remoteUrl, *showRequest, *rpcHost, *rpcPort)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
