@@ -34,7 +34,7 @@ type Storage struct {
 	rpcAddrStr            string
 	topBlockHigh          uint64
 	topGroupHigh          uint64
-	accounts              []*models.Account
+	accounts              []*models.AccountList
 	topbrowserBlockHeight uint64
 }
 
