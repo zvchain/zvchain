@@ -218,8 +218,9 @@ func (p *Processor) blockProposal() {
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
 		"proposalHeight": height,
-		"now":            time2.TSInstance.Now().Local(),
+		"now":            time2.TSInstance.Now().UTC(),
 		"logType":        "proposalLog",
+		"version":        common.GtasVersion,
 	}).Info("proposal")
 	//if height > 1 && p.proveChecker.proveExists(pi) {
 	//	blog.warn("vrf prove exist, not proposal")
