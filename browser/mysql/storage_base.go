@@ -75,13 +75,13 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	}
 
 	if resetcrontab {
-		db.DropTable(&models.Account{})
+		db.DropTable(&models.AccountList{})
 		db.DropTable(&models.Sys{})
 		db.DropTable(&models.PoolStake{})
 		db.DropTable(&models.Group{})
 	}
-	if !db.HasTable(&models.Account{}) {
-		db.CreateTable(&models.Account{})
+	if !db.HasTable(&models.AccountList{}) {
+		db.CreateTable(&models.AccountList{})
 	}
 	if !db.HasTable(&models.Sys{}) {
 		db.CreateTable(&models.Sys{})

@@ -8,7 +8,7 @@ type Transfer struct {
 }
 
 func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) map[string]uint64 {
-	explorerAccount := make([]*models.Account, 0, 0)
+	explorerAccount := make([]*models.AccountList, 0, 0)
 	mapData := make(map[string]uint64)
 	if rewards != nil && len(rewards) > 0 {
 		for _, reward := range rewards {
@@ -28,9 +28,9 @@ func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) map[s
 	return mapData
 
 }
-func (transfer *Transfer) blockRewardTOAccount(reward *ExploreBlockReward) []*models.Account {
-	accounts := make([]*models.Account, 0, 0)
-	account := &models.Account{
+func (transfer *Transfer) blockRewardTOAccount(reward *ExploreBlockReward) []*models.AccountList {
+	accounts := make([]*models.AccountList, 0, 0)
+	account := &models.AccountList{
 		Address: reward.ProposalID,
 		Rewards: reward.ProposalReward + reward.ProposalGasFeeReward,
 	}
@@ -38,7 +38,7 @@ func (transfer *Transfer) blockRewardTOAccount(reward *ExploreBlockReward) []*mo
 	accounts = append(accounts, account)
 	targets := reward.VerifierReward.TargetIDs
 	for i := 0; i < len(targets); i++ {
-		account := &models.Account{
+		account := &models.AccountList{
 			Address: targets[i].GetAddrString(),
 			Rewards: reward.VerifierReward.Value,
 		}

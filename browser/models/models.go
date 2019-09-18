@@ -28,7 +28,7 @@ type PoolStake struct {
 	From    string `json:"from" gorm:"index"`
 }
 
-type Account struct {
+type AccountList struct {
 	gorm.Model
 	Address          string  `json:"address" gorm:"unique_index"`
 	RoleType         uint64  `json:"role_type" gorm:"index;default:10"` // user default role_type value
@@ -43,6 +43,7 @@ type Account struct {
 	TotalTransaction uint64  `json:"total_transaction"`
 	Rewards          uint64  `json:"rewards"`
 	Status           byte    `json:"status" gorm:"index"`
+	VerifyStatus     byte    `json:"verify_status" gorm:"index"`
 	StakeFrom        string  `json:"stake_from"`
 	Balance          float64 `json:"balance"`
 	ExtraData        string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
