@@ -415,16 +415,16 @@ func handelInGroup(tm *DBMmanagement, groups []models.Group, groupState int) boo
 
 			switch groupState {
 			case prepareGroup:
-				tm.storage.GetDB().Table("accounts").Where("address = ?", addr).Updates(map[string]interface{}{
+				tm.storage.GetDB().Table(mysql.ACCOUNTDBNAME).Where("address = ?", addr).Updates(map[string]interface{}{
 					"prepare_group": gorm.Expr("prepare_group + ?", 1),
 				})
 			case workGroup:
-				tm.storage.GetDB().Table("accounts").Where("address = ?", addr).Updates(map[string]interface{}{
+				tm.storage.GetDB().Table(mysql.ACCOUNTDBNAME).Where("address = ?", addr).Updates(map[string]interface{}{
 					"work_group":    gorm.Expr("work_group + ?", 1),
 					"prepare_group": gorm.Expr("prepare_group - ?", 1),
 				})
 			case dismissGroup:
-				tm.storage.GetDB().Table("accounts").Where("address = ?", addr).Updates(map[string]interface{}{
+				tm.storage.GetDB().Table(mysql.ACCOUNTDBNAME).Where("address = ?", addr).Updates(map[string]interface{}{
 					"dismiss_group": gorm.Expr("dismiss_group + ?", 1),
 					"work_group":    gorm.Expr("work_group - ?", 1),
 				})

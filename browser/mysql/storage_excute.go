@@ -16,6 +16,7 @@ const (
 	DismissGropHeight     = "group.top_dismiss_group_height"
 	LIMIT                 = 20
 	CheckpointMaxHeight   = 1000000000
+	ACCOUNTDBNAME         = "account_lists"
 )
 
 func (storage *Storage) UpdateBatchAccount(accounts []*models.AccountList) bool {
@@ -123,7 +124,7 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]uint6
 	tx := storage.db.Begin()
 
 	updateReward := func(addr string, reward uint64) error {
-		return tx.Table("accounts").
+		return tx.Table(ACCOUNTDBNAME).
 			Where("address = ?", addr).
 			Updates(map[string]interface{}{"rewards": gorm.Expr("rewards + ?", reward)}).Error
 	}
