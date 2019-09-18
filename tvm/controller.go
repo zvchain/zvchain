@@ -175,7 +175,11 @@ func VmDataConvert(value []byte) interface{} {
 	//const char NONE_FORMAT_C = 'n';
 	//const char BYTE_FORMAT_C = 'y';
 
-	if bytes.Compare(value[:1], []byte("m")) == 0{
+	if value == nil || len(value) == 0 {
+		return nil
+	}
+
+	if value[0] == 'm' {
 		bytesBuffer := bytes.NewBuffer(value[1:])
 		var x int64
 		err := binary.Read(bytesBuffer, binary.LittleEndian, &x)
@@ -183,27 +187,27 @@ func VmDataConvert(value []byte) interface{} {
 			return nil
 		}
 		return x
-	} else if bytes.Compare(value[:1], []byte("i")) == 0{
+	} else if value[0] == 'i' {
 		r := BytesToBigInt(value[1:])
 		if r == nil {
 			return nil
 		}
 		return r
-	} else if bytes.Compare(value[:1], []byte("d")) == 0{
+	} else if value[0] == 'd' {
 		return map[string]interface{}{}
-	} else if bytes.Compare(value[:1], []byte("s")) == 0{
+	} else if value[0] == 's' {
 		return string(value[1:])
-	} else if bytes.Compare(value[:1], []byte("l")) == 0{
+	} else if value[0] == 'l' {
 		return []interface{}{}
-	} else if bytes.Compare(value[:1], []byte("b")) == 0{
-		if bytes.Compare(value[1:], []byte("0")) == 0 {
+	} else if value[0] == 'b' {
+		if value[0] != '0'{
 			return true
 		} else {
 			return false
 		}
-	} else if bytes.Compare(value[:1], []byte("n")) == 0{
+	} else if value[0] == 'n'{
 		return nil
-	} else if bytes.Compare(value[:1], []byte("y")) == 0{
+	} else if value[0] == 'y' {
 		return value[1:]
 	} else {
 		return nil
