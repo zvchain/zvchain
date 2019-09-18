@@ -303,7 +303,7 @@ func (ca *RemoteChainOpImpl) VoteMinerPool(target string, gas, gasprice uint64) 
 		return res
 	}
 	if aci.Address == target {
-		res.Error = opErrorRes(fmt.Errorf("you could not vote to myself"))
+		res.Error = opErrorRes(fmt.Errorf("you could not vote to yourself"))
 		return res
 	}
 	tx := &TxRawData{
