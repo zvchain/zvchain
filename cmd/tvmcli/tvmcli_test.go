@@ -180,6 +180,17 @@ func TestTvmCli_Call_ContractCallContract_5(t *testing.T) {
 	_callContract(routerContract, abiJSON)
 }
 
+func TestTvmCli_Call_ContractCallContract_Test_Bigint(t *testing.T) {
+	receiverContract := _deployContract("Receiver", "receiver.py")
+	routerContract := _deployContract("Router", "router.py")
+
+	abiJSON := fmt.Sprintf(`{
+  "func_name": "call_contract_test_bigint",
+  "Args": ["%s"]
+}`, receiverContract)
+	_callContract(routerContract, abiJSON)
+}
+
 func getState(cli *TvmCli) *account.AccountDB {
 	stateHash := cli.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), cli.database)
