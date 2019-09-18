@@ -156,8 +156,9 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		ok = true
 		log.ELKLogger.WithFields(logrus.Fields{
 			"verifyHeight": bh.Height,
-			"now":          time.TSInstance.Now().Local(),
+			"now":          time.TSInstance.Now().UTC(),
 			"logType":      "verifyLog",
+			"version":      common.GtasVersion,
 		}).Info("verify")
 	} else {
 		err = fmt.Errorf("gen sign fail")
