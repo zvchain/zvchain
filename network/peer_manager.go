@@ -212,7 +212,7 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCou
 	defer pm.mutex.RUnlock()
 	Logger.Infof("broadcast random total peer size:%v, code:%v, max count:%v", len(pm.peers), code, maxCount)
 
-	var availablePeers []*Peer
+	availablePeers := make([]*Peer, 0)
 
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
@@ -239,7 +239,7 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCou
 				sendNodes[index] = true
 			}
 		}
-		for index, _ := range sendNodes {
+		for index := range sendNodes {
 			p := availablePeers[index]
 			p.write(packet, code)
 		}
