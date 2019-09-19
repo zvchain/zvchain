@@ -17,6 +17,8 @@ package network
 
 import (
 	"bytes"
+	"math"
+	"math/rand"
 	"net"
 	"strconv"
 	"sync"
@@ -171,10 +173,8 @@ func (pm *PeerManager) onChecked(p2pType uint32, privateIP string, publicIP stri
 func (pm *PeerManager) checkPeers() {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
-	for nid, p := range pm.peers {
+	for _, p := range pm.peers {
 		if !p.isAuthSucceed {
-			Logger.Infof("[PeerManager] [checkPeers] peer id:%v netid:%v ip:%v port:%v session:%v bytes recv:%v ,bytes send:%v  data size%v disconnect count:%v send wait count:%v ping count:%d isAuthSucceed:%v",
-				p.ID.GetHexString(), nid, p.IP, p.Port, p.sessionID, p.bytesReceived, p.bytesSend, p.getDataSize(), p.disconnectCount, p.sendWaitCount, p.pingCount, p.isAuthSucceed)
 
 			if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid() {
 				go netServerInstance.netCore.ping(p.ID, nil)
@@ -202,6 +202,38 @@ func (pm *PeerManager) broadcast(packet *bytes.Buffer, code uint32) {
 
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
+			p.write(packet, code)
+		}
+	}
+}
+
+func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCount int) {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+	Logger.Infof("broadcast random total peer size:%v, code:%v, max count:%v", len(pm.peers), code, maxCount)
+
+	availablePeers := make([]*Peer, 0)
+
+	for _, p := range pm.peers {
+		if p.sessionID > 0 && p.IsCompatible() {
+			availablePeers = append(availablePeers, p)
+		}
+	}
+	peerSize := len(availablePeers)
+	if maxCount == 0 {
+		maxCount = int(math.Sqrt(float64(peerSize)))
+	}
+
+	if len(availablePeers) <= maxCount {
+		for _, p := range availablePeers {
+			p.write(packet, code)
+		}
+	} else {
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		randomNodes := r.Perm(peerSize)
+
+		for i := 0; i < maxCount; i++ {
+			p := availablePeers[randomNodes[i]]
 			p.write(packet, code)
 		}
 	}

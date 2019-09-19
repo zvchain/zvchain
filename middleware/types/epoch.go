@@ -26,7 +26,7 @@ type Epoch interface {
 
 const (
 	EpochLength           = 240 // blocks per epoch
-	GroupLiveEpochs       = 50  // epochs one group can live
+	GroupLiveEpochs       = 25  // epochs one group can live
 	GroupActivateEpochGap = 1   // The epoch gap after the group created can start working
 )
 
