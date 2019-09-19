@@ -95,9 +95,9 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 
 	//select another nodes
 
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < totalSize; i++ {
-		peerIndex := rand.Intn(totalSize)
+		peerIndex := r.Intn(totalSize)
 		columnIndex := peerIndex % rowSize
 		rowIndex := int(math.Floor(float64(peerIndex) / float64(rowSize)))
 
@@ -367,9 +367,9 @@ func (g *Group) Broadcast(msg *MsgData) {
 	if g.columnIndex != 0 { //if 0 position is not sent, keep it sent.
 		groupMsgMap[0] = true
 	}
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for len(groupMsgMap) < groupSendCount {
-		column := rand.Intn(g.rowSize)
+		column := r.Intn(g.rowSize)
 		if !groupMsgMap[column] && column != g.columnIndex {
 			groupMsgMap[column] = true
 		}

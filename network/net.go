@@ -449,6 +449,18 @@ func (nc *NetCore) broadcast(data []byte, code uint32, broadcast bool, msgDigest
 
 }
 
+func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int) {
+	dataType := DataType_DataGlobalRandom
+
+	packet, _, err := nc.encodeDataPacket(data, dataType, code, "", nil, relayCount)
+	if err != nil {
+		return
+	}
+	nc.peerManager.broadcastRandom(packet, code, maxCount)
+	nc.bufferPool.freeBuffer(packet)
+	return
+}
+
 func (nc *NetCore) groupBroadcast(ID string, data []byte, code uint32, broadcast bool, relayCount int32) {
 	dataType := DataType_DataNormal
 	if broadcast {
