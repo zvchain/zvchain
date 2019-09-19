@@ -414,8 +414,13 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 }
 
 func GetCandidates() candidates {
+	candidates := make(candidates, 0)
+
 	if GroupRoutine != nil {
-		return GroupRoutine.ctx.cands
+		for _, v := range GroupRoutine.ctx.cands {
+			candidates = append(candidates, v)
+		}
+		return candidates
 	}
 	return nil
 }
