@@ -30,7 +30,7 @@ import (
 
 const (
 	alpha              = 3  // Concurrency limit
-	bucketSize         = 35 // Kad barrel size
+	bucketSize         = 16 // Kad barrel size
 	maxReplacements    = 10 // Kad prepares bucket member sizes
 	maxSetupCheckCount = 12
 

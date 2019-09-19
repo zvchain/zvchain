@@ -153,11 +153,6 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 		removeTxs = append(removeTxs, ps.evictedTxs...)
 	}
 	chain.transactionPool.RemoveFromPool(removeTxs)
-	log.ELKLogger.WithFields(logrus.Fields{
-		"txNum":   chain.transactionPool.TxNum(),
-		"now":     time.TSInstance.Now().Local(),
-		"logType": "txPoolLog",
-	}).Debug("transaction pool log")
 	ok = true
 	return
 }
@@ -242,9 +237,10 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.transactionPool.BackToPool(recoverTxs)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"removedHeight": len(removeBlocks),
-		"now":           time.TSInstance.Now().Local(),
+		"now":           time.TSInstance.Now().UTC(),
 		"logType":       "resetTop",
-	}).Debug("resetTop")
+		"version":       common.GtasVersion,
+	}).Info("resetTop")
 	for _, b := range removeBlocks {
 		GroupManagerImpl.OnBlockRemove(b)
 	}

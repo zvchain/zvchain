@@ -154,11 +154,14 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		// trigger the cached messages from other members that come ahead of the proposal message
 		p.castVerifyCh <- bh
 		ok = true
+		castor := common.BytesToAddress(bh.Castor).AddrPrefixString()
 		log.ELKLogger.WithFields(logrus.Fields{
 			"verifyHeight": bh.Height,
-			"now":          time.TSInstance.Now().Local(),
+			"now":          time.TSInstance.Now().UTC(),
 			"logType":      "verifyLog",
-		}).Debug("verify")
+			"version":      common.GtasVersion,
+			"castor":       castor,
+		}).Info("verify")
 	} else {
 		err = fmt.Errorf("gen sign fail")
 	}
@@ -298,6 +301,18 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		return
 	}
 
+	// Check the min elapsed
+	if bh.Height > 1 {
+		if bh.CurTime.SinceMilliSeconds(vctx.prevBH.CurTime) != int64(bh.Elapsed) {
+			err = fmt.Errorf("verify cast elapsed time illegal, elapsed is %v, crutime is %v, preCurTime is %v", bh.Elapsed, bh.CurTime, vctx.prevBH.CurTime)
+			return
+		}
+		if bh.Elapsed < p.GetBlockMinElapse(bh.Height) {
+			err = fmt.Errorf("verify elapsed error %v", bh.Elapsed)
+			return
+		}
+	}
+
 	// Checks if the pre block lower than latest cp
 	latestCP := p.MainChain.LatestCheckPoint()
 	if vctx.prevBH.Height < latestCP.Height {
@@ -338,6 +353,14 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 	if ret == pieceThreshold {
 		p.reserveBlock(vctx, slot)
 		vctx.increaseAggrNum()
+		castor := common.BytesToAddress(bh.Castor).AddrPrefixString()
+		log.ELKLogger.WithFields(logrus.Fields{
+			"verifyHeight": bh.Height,
+			"now":          time.TSInstance.Now().UTC(),
+			"logType":      "verifyfromverifyLog",
+			"version":      common.GtasVersion,
+			"castor":       castor,
+		}).Info("verifyfromverify")
 	}
 	return
 }

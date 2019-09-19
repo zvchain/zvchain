@@ -900,7 +900,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 1, pt.ids[1].GetAddrString(): 1},
 		},
 		ts:         p.ts,
-		prevBH:     &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501")},
+		prevBH:     &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), CurTime: time.TimeToTimeStamp(now) - 5000},
 		expireTime: time.TimeToTimeStamp(time2.Now().Add(time2.Second * 2)),
 		castHeight: 1000,
 	}
@@ -949,7 +949,7 @@ func TestProcessor_OnMessageVerify(t *testing.T) {
 			memIndex: map[string]int{p.GetMinerID().GetAddrString(): 0, pt.ids[1].GetAddrString(): 0},
 		},
 		ts:         p.ts,
-		prevBH:     &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}},
+		prevBH:     &types.BlockHeader{Hash: common.HexToHash("0x151c6bde6409e99bc90aae2eded5cec1b7ee6fd2a9f57edb9255c776b4dfe501"), Random: []byte{1}, CurTime: time.TimeToTimeStamp(now) - 5000},
 		expireTime: time.TimeToTimeStamp(time2.Now().Add(time2.Second * 2)),
 		castHeight: 1002,
 	}

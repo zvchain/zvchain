@@ -194,6 +194,28 @@ func (api *RpcGzvImpl) GetTxsByBlockHeight(height uint64) ([]string, error) {
 	return txs, nil
 }
 
+func (api *RpcGzvImpl) Guardmode(addr string) (string, error) {
+	addr = strings.TrimSpace(addr)
+	if !common.ValidateAddress(addr) {
+		return "", fmt.Errorf("Wrong account address format")
+	}
+
+	fd ,err := core.MinerManagerImpl.GetFundGuard(addr)
+	if err != nil{
+		return "",err
+	}
+	data := ""
+	if fd == nil{
+		data = "not fund gard"
+	} else if fd.FundModeType == common.SIXAddFive{
+		data = "6+5"
+	}else{
+		data = "6+6"
+	}
+	return data,nil
+}
+
+
 func (api *RpcGzvImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDetail, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(addr) {
@@ -382,7 +404,7 @@ func (api *RpcGzvImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 		iter := accountDb.DataIterator(common.StringToAddress(hash), []byte{})
 		for iter.Next() {
 			k := string(iter.Key[:])
-			v := string(iter.Value[:])
+			v := tvm.VmDataConvert(iter.Value[:])
 			account.StateData[k] = v
 
 		}
@@ -416,7 +438,7 @@ func (api *RpcGzvImpl) QueryAccountData(addr string, key string, count int) (int
 		value := state.GetData(address, []byte(key))
 		if value != nil {
 			tmp := make(map[string]interface{})
-			tmp["value"] = string(value)
+			tmp["value"] = tvm.VmDataConvert(value)
 			resultData = tmp
 		}
 	} else {
@@ -428,7 +450,7 @@ func (api *RpcGzvImpl) QueryAccountData(addr string, key string, count int) (int
 				if !strings.HasPrefix(k, key) {
 					continue
 				}
-				v := string(iter.Value[:])
+				v := tvm.VmDataConvert(iter.Value[:])
 				item := make(map[string]interface{}, 0)
 				item["key"] = k
 				item["value"] = v

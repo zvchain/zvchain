@@ -22,3 +22,7 @@ class Router(object):
             return
         event.emit(times)
         Contract(addr).call_contract3(addr, times-1)
+
+    @register.public(str)
+    def call_contract_test_bigint(self, addr):
+        event.emit(Contract(addr).call_contract_test_bigint())

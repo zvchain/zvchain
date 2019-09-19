@@ -92,12 +92,15 @@ func (ms *msgShower) txSuccess(tx common.Hash) bool {
 
 func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 	b := message.GetData().(*types.Block)
+	castor := common.BytesToAddress(b.Header.Castor).AddrPrefixString()
 	if bytes.Equal(b.Header.Castor, ms.id) {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"minedHeight": b.Header.Height,
-			"now":         time.TSInstance.Now().Local(),
+			"now":         time.TSInstance.Now().UTC(),
 			"logType":     "proposalLog",
-		}).Debug("mined block height")
+			"version":     common.GtasVersion,
+			"castor":      castor,
+		}).Info("mined block height")
 		ms.showMsg("congratulations, you mined block height %v success!", b.Header.Height)
 	}
 	if b.Transactions != nil && len(b.Transactions) > 0 {
@@ -113,9 +116,10 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 					if bytes.Equal(id, ms.id) {
 						log.ELKLogger.WithFields(logrus.Fields{
 							"verifiedHeight": b.Header.Height,
-							"now":            time.TSInstance.Now().Local(),
+							"now":            time.TSInstance.Now().UTC(),
 							"logType":        "verifyLog",
-						}).Debug("verifyLog")
+							"version":        common.GtasVersion,
+						}).Info("verifyLog")
 						ms.showMsg("congratulations, you verified block hash %v success, reward %v ZVC", blockHash.Hex(), common.RA2TAS(tx.Value.Uint64()))
 						break
 					}

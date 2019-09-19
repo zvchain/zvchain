@@ -187,6 +187,36 @@ func (c *nonceCmd) parse(args []string) bool {
 	return true
 }
 
+type queryFundGuardCmd struct {
+	baseCmd
+	addr string
+}
+
+func geneQueryFundGuardCmd()*queryFundGuardCmd{
+	c := &queryFundGuardCmd{
+		baseCmd: *genBaseCmd("queryguardmode", "view fund guard mode by address"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "fund guard address")
+	return c
+}
+
+func (c *queryFundGuardCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	c.addr = strings.TrimSpace(c.addr)
+	if c.addr == "" {
+		output("please input the address")
+		return false
+	}
+	if !common.ValidateAddress(c.addr) {
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
+		return false
+	}
+	return true
+}
+
 type minerPoolInfoCmd struct {
 	baseCmd
 	addr string
@@ -306,16 +336,14 @@ func (c *minerInfoCmd) parse(args []string) bool {
 
 type connectCmd struct {
 	baseCmd
-	host string
-	port int
+	url string
 }
 
 func genConnectCmd() *connectCmd {
 	c := &connectCmd{
 		baseCmd: *genBaseCmd("connect", "connect to one ZV node"),
 	}
-	c.fs.StringVar(&c.host, "host", "", "the node ip")
-	c.fs.IntVar(&c.port, "port", 8101, "the node port, default is 8101")
+	c.fs.StringVar(&c.url, "host", "", "the remote host url. add the 'https://' prefix if you want to connect to a ssl node")
 	return c
 }
 
@@ -324,16 +352,12 @@ func (c *connectCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if strings.TrimSpace(c.host) == "" {
-		output("please input the host,available testnet hosts are node1.taschain.cn,node2.taschain.cn,node3.taschain.cn,node4.taschain.cn,node5.taschain.cn")
+	if strings.TrimSpace(c.url) == "" {
+		output("please input the url")
 		c.fs.PrintDefaults()
 		return false
 	}
-	if c.port == 0 {
-		output("please input the port")
-		c.fs.PrintDefaults()
-		return false
-	}
+
 	return true
 }
 
@@ -925,6 +949,7 @@ var cmdUnlock = genUnlockCmd()
 var cmdBalance = genBalanceCmd()
 var cmdNonce = genNonceCmd()
 var cmdMinerPoolInfo = genMinerPoolInfoCmd()
+var cmdFundGuardMode = geneQueryFundGuardCmd()
 var cmdAccountInfo = genBaseCmd("accountinfo", "get the info of the current unlocked account")
 var cmdDelAccount = genBaseCmd("delaccount", "delete the info of the current unlocked account")
 var cmdMinerInfo = genMinerInfoCmd()
@@ -959,6 +984,7 @@ func init() {
 	list = append(list, &cmdBalance.baseCmd)
 	list = append(list, &cmdNonce.baseCmd)
 	list = append(list, &cmdMinerPoolInfo.baseCmd)
+	list = append(list, &cmdFundGuardMode.baseCmd)
 	list = append(list, cmdAccountInfo)
 	list = append(list, cmdDelAccount)
 	list = append(list, &cmdMinerInfo.baseCmd)
@@ -992,12 +1018,12 @@ func Usage() {
 	}
 }
 
-func ConsoleInit(keystore, host string, port int, show bool, rpchost string, rpcport int) error {
+func ConsoleInit(keystore, url string, show bool, rpchost string, rpcport int) error {
 	aop, err := initAccountManager(keystore, false, "")
 	if err != nil {
 		return err
 	}
-	chainop := InitRemoteChainOp(host, port, show, aop)
+	chainop := InitRemoteChainOp(url, show, aop)
 	if chainop.base != "" {
 
 	}
@@ -1102,7 +1128,7 @@ func loop(acm accountOp, chainOp chainOp) {
 
 	for {
 		ep := chainOp.Endpoint()
-		if ep == ":0" {
+		if ep == "" {
 			ep = "not connected"
 		}
 		input, err := line.Prompt(fmt.Sprintf("gzv:%v > ", ep))
@@ -1163,7 +1189,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdConnect.name:
 			cmd := genConnectCmd()
 			if cmd.parse(args) {
-				chainOp.Connect(cmd.host, cmd.port)
+				chainOp.Connect(cmd.url)
 			}
 
 		case cmdBalance.name:
@@ -1193,6 +1219,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerPoolInfo(cmd.addr)
+				})
+			}
+		case cmdFundGuardMode.name:
+			cmd := geneQueryFundGuardCmd()
+			if cmd.parse(args){
+				handleCmdForChain(func() *RPCResObjCmd {
+					return chainOp.QueryFundGuardMode(cmd.addr)
 				})
 			}
 		case cmdApplyGuardMiner.name:

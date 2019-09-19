@@ -16,8 +16,21 @@
 package network
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 )
+
+func TestRandomPerm(t *testing.T) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomNodes := r.Perm(10)
+
+	t.Logf("node:%v", randomNodes)
+	if len(randomNodes) != 10 {
+		t.Fatalf("size is wrony")
+	}
+
+}
 
 func TestDecodeMessage(t *testing.T) {
 	if !InitTestNetwork() {

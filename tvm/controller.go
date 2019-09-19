@@ -17,10 +17,12 @@ package tvm
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"math/big"
 )
 
 var bridgeInited = false
@@ -116,6 +118,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 
 	decoder := json.NewDecoder(bytes.NewReader([]byte(abiJSON)))
 	decoder.DisallowUnknownFields()
+	decoder.UseNumber()
 	abiJSONError := decoder.Decode(&abi)
 	if abiJSONError != nil {
 		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
@@ -135,4 +138,83 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 // GetGasLeft get gas left
 func (con *Controller) GetGasLeft() uint64 {
 	return con.GasLeft
+}
+
+func BytesToBigInt(bs []byte) *big.Int {
+	res := &big.Int{}
+	isNeg := false
+	var data []byte
+	if len(bs) < 1 {
+		return nil
+	}
+	if bs[0] & 0x80 != 0 {
+		isNeg = true
+		tmp := big.NewInt(0)
+		tmp.SetBytes(bs)
+		tmp.Sub(tmp, big.NewInt(1))
+		data = tmp.Bytes()
+		for i:=0; i<len(data);i++ {
+			data[i] = ^data[i]
+		}
+	} else {
+		data = bs
+	}
+	res.SetBytes(data)
+	if isNeg {
+		res = res.Neg(res)
+	}
+	return res
+}
+
+func VmDataConvert(value []byte) interface{} {
+	//const char DICT_FORMAT_C = 'd';
+	//const char STR_FORMAT_C = 's';
+	//const char INT_FORMAT_C = 'i';
+	//const char SMALLINT_FORMAT_C = 'm';
+	//const char LIST_FORMAT_C = 'l';
+	//const char BOOL_FORMAT_C = 'b';
+	//const char NONE_FORMAT_C = 'n';
+	//const char BYTE_FORMAT_C = 'y';
+
+	if value == nil || len(value) == 0 {
+		return nil
+	}
+
+	if value[0] == 'm' {
+		bytesBuffer := bytes.NewBuffer(value[1:])
+		var x int64
+		err := binary.Read(bytesBuffer, binary.LittleEndian, &x)
+		if err != nil {
+			return nil
+		}
+		return x
+	} else if value[0] == 'i' {
+		r := BytesToBigInt(value[1:])
+		if r == nil {
+			return nil
+		}
+		return r
+	} else if value[0] == 'd' {
+		return map[string]interface{}{}
+	} else if value[0] == 's' {
+		return string(value[1:])
+	} else if value[0] == 'l' {
+		return []interface{}{}
+	} else if value[0] == 'b' {
+		if len(value) == 2 {
+			if value[1] != '0'{
+				return true
+			} else {
+				return false
+			}
+		} else {
+			return nil
+		}
+	} else if value[0] == 'n'{
+		return nil
+	} else if value[0] == 'y' {
+		return value[1:]
+	} else {
+		return nil
+	}
 }
