@@ -313,7 +313,7 @@ func genConnectCmd() *connectCmd {
 	c := &connectCmd{
 		baseCmd: *genBaseCmd("connect", "connect to one ZV node"),
 	}
-	c.fs.StringVar(&c.url, "url", "", "the remote url,add the 'https://' prefix if you want to connect to a ssl node")
+	c.fs.StringVar(&c.url, "host", "", "the remote host url. add the 'https://' prefix if you want to connect to a ssl node")
 	return c
 }
 
