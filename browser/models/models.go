@@ -108,11 +108,11 @@ type Reward struct {
 	BlockHeight  uint64    `json:"block_height" gorm:"index"`
 	RewardHeight uint64    `json:"reward_height" gorm:"index"`
 	CurTime      time.Time `json:"cur_time" gorm:"index"`
-	NodeId       string    `json:"node_id" gorm:"index"`
+	NodeId       string    `json:"node_id" gorm:"index:idx_user"`
 	Value        uint64    `json:"value"`
-	Type         uint64    `json:"type"`
+	Type         uint64    `json:"type" gorm:"index:idx_user"`
 	Stake        uint64    `json:"stake"`
-	RoleType     uint64    `json:"role_type"`
+	RoleType     uint64    `json:"role_type" gorm:"index"`
 }
 
 type TempTransaction struct {
