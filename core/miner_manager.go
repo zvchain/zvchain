@@ -344,6 +344,15 @@ func (mm *MinerManager) GetAllFullStakeGuardNodes(accountDB types.AccountDB) []c
 	}
 	return addrs
 }
+func (mm *MinerManager) GetFundGuard(addr string) (*fundGuardNode, error) {
+	db,err := BlockChainImpl.LatestAccountDB()
+	if err != nil{
+		return nil,err
+	}
+
+	return getFundGuardNode(db,common.StringToAddress(addr))
+}
+
 
 func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]*fundGuardNodeDetail, error) {
 	var fds []*fundGuardNodeDetail

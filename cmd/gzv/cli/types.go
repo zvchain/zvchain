@@ -322,6 +322,11 @@ type ExploreBlockReward struct {
 	VerifierGasFeeReward uint64            `json:"verifier_gas_fee_reward"`
 }
 
+type ExploreCandidateList struct {
+	ID    string `json:"id"`
+	Stake uint64 `json:"stake"`
+}
+
 type JoinedGroupInfo struct {
 	Seed          common.Hash `json:"id"`
 	WorkHeight    uint64      `json:"work_height"`

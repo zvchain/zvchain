@@ -178,8 +178,9 @@ func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) type
 			"caster":    common.BytesToAddress(b.Header.Castor).AddrPrefixString(),
 			"height":    b.Header.Height,
 			"logType":   "doAddOnChain",
-			"now":       time2.TSInstance.Now().Local(),
-		}).Debug("doAddOnChain success")
+			"now":       time2.TSInstance.Now().UTC(),
+			"version":   common.GtasVersion,
+		}).Info("doAddOnChain success")
 	}
 	return ret
 }
@@ -514,6 +515,12 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		chain.addBlockOnChain("", rawBlock)
 		chain.futureRawBlocks.Remove(b.Header.Hash)
 	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"txNum":   chain.transactionPool.TxNum(),
+		"now":     time2.TSInstance.Now().UTC(),
+		"logType": "txPoolLog",
+		"version": common.GtasVersion,
+	}).Info("transaction pool log")
 	return nil
 }
 
