@@ -412,3 +412,10 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 
 	return true, nil
 }
+
+func GetCandidates() candidates {
+	if GroupRoutine != nil {
+		return GroupRoutine.ctx.cands
+	}
+	return nil
+}
