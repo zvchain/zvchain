@@ -95,7 +95,7 @@ func TestTvmCli_QueryData(t *testing.T) {
 	}
 	result = tvmCli.QueryData(erc20Contract, "bool", 0)
 	value, _ = json.Marshal(result["bool"])
-	if string(value) != "true"{
+	if string(value) != "false"{
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "none", 0)
