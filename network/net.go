@@ -239,12 +239,14 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 		Expiration: nc.expirationTime(),
 	}
 	if p != nil && !p.isAuthSucceed {
-		if p.authContext == nil {
-			p.authContext = genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &p.ID)
+		authContext := p.AuthContext()
+		if authContext == nil {
+			Logger.Infof("[send ping] authContext is nil, ID : %v", toID.GetHexString())
+			return
 		}
-		req.PK = p.authContext.PK
-		req.CurTime = p.authContext.CurTime
-		req.Sign = p.authContext.Sign
+		req.PK = authContext.PK
+		req.CurTime = authContext.CurTime
+		req.Sign = authContext.Sign
 	}
 	Logger.Infof("[send ping] ID : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.IP, nc.ourEndPoint.Port)
 
@@ -445,6 +447,18 @@ func (nc *NetCore) broadcast(data []byte, code uint32, broadcast bool, msgDigest
 	nc.peerManager.broadcast(packet, code)
 	nc.bufferPool.freeBuffer(packet)
 
+}
+
+func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int) {
+	dataType := DataType_DataGlobalRandom
+
+	packet, _, err := nc.encodeDataPacket(data, dataType, code, "", nil, relayCount)
+	if err != nil {
+		return
+	}
+	nc.peerManager.broadcastRandom(packet, code, maxCount)
+	nc.bufferPool.freeBuffer(packet)
+	return
 }
 
 func (nc *NetCore) groupBroadcast(ID string, data []byte, code uint32, broadcast bool, relayCount int32) {

@@ -216,6 +216,15 @@ func TestGenerateKey(t *testing.T) {
 
 	sk3, _ := GenerateKey(s)
 	t.Logf(sk3.Hex())
+
+	for i := 0; i < 100; i++ {
+		sk, e := GenerateKey("0x0477cc7bad86a3c6e4a37ed7dd29820d2ed7cba4b1acef7e00b2b0824eed90590c1a6d5c8d4c09a9b3efcb867a1e9eed3991c95a6b958cbd3a1544d2153cb4a6e40061a70ab47c4bed82877ebd399e696cc079f87943e4b95b78fb8b62bfe74cf6")
+		if e != nil {
+			t.Error(e)
+		}
+		t.Log(sk.Hex())
+
+	}
 }
 
 func TestSignSeckey(t *testing.T) {
