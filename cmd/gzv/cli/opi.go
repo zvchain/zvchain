@@ -125,6 +125,8 @@ type chainOp interface {
 
 	ApplyGuardMiner(gas, gasprice uint64) *RPCResObjCmd
 
+	QueryFundGuardMode(address string) *RPCResObjCmd
+
 	VoteMinerPool(address string, gas, gasprice uint64) *RPCResObjCmd
 
 	ChangeFundGuardMode(mode int, gas, gasprice uint64) *RPCResObjCmd

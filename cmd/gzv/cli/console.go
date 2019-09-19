@@ -187,6 +187,36 @@ func (c *nonceCmd) parse(args []string) bool {
 	return true
 }
 
+type queryFundGuardCmd struct {
+	baseCmd
+	addr string
+}
+
+func geneQueryFundGuardCmd()*queryFundGuardCmd{
+	c := &queryFundGuardCmd{
+		baseCmd: *genBaseCmd("queryguardmode", "view fund guard mode by address"),
+	}
+	c.fs.StringVar(&c.addr, "addr", "", "fund guard address")
+	return c
+}
+
+func (c *queryFundGuardCmd) parse(args []string) bool {
+	if err := c.fs.Parse(args); err != nil {
+		output(err.Error())
+		return false
+	}
+	c.addr = strings.TrimSpace(c.addr)
+	if c.addr == "" {
+		output("please input the address")
+		return false
+	}
+	if !common.ValidateAddress(c.addr) {
+		outputJSONErr(opErrorRes(fmt.Errorf("wrong address format")))
+		return false
+	}
+	return true
+}
+
 type minerPoolInfoCmd struct {
 	baseCmd
 	addr string
@@ -919,6 +949,7 @@ var cmdUnlock = genUnlockCmd()
 var cmdBalance = genBalanceCmd()
 var cmdNonce = genNonceCmd()
 var cmdMinerPoolInfo = genMinerPoolInfoCmd()
+var cmdFundGuardMode = geneQueryFundGuardCmd()
 var cmdAccountInfo = genBaseCmd("accountinfo", "get the info of the current unlocked account")
 var cmdDelAccount = genBaseCmd("delaccount", "delete the info of the current unlocked account")
 var cmdMinerInfo = genMinerInfoCmd()
@@ -953,6 +984,7 @@ func init() {
 	list = append(list, &cmdBalance.baseCmd)
 	list = append(list, &cmdNonce.baseCmd)
 	list = append(list, &cmdMinerPoolInfo.baseCmd)
+	list = append(list, &cmdFundGuardMode.baseCmd)
 	list = append(list, cmdAccountInfo)
 	list = append(list, cmdDelAccount)
 	list = append(list, &cmdMinerInfo.baseCmd)
@@ -1187,6 +1219,13 @@ func loop(acm accountOp, chainOp chainOp) {
 			if cmd.parse(args) {
 				handleCmdForChain(func() *RPCResObjCmd {
 					return chainOp.MinerPoolInfo(cmd.addr)
+				})
+			}
+		case cmdFundGuardMode.name:
+			cmd := geneQueryFundGuardCmd()
+			if cmd.parse(args){
+				handleCmdForChain(func() *RPCResObjCmd {
+					return chainOp.QueryFundGuardMode(cmd.addr)
 				})
 			}
 		case cmdApplyGuardMiner.name:

@@ -178,6 +178,10 @@ func (ca *RemoteChainOpImpl) Balance(addr string) *RPCResObjCmd {
 	return ca.request("balance", addr)
 }
 
+func (ca *RemoteChainOpImpl)QueryFundGuardMode(addr string) *RPCResObjCmd{
+	return ca.request("guardmode", addr)
+}
+
 // MinerPoolInfo query miner pool info by address
 func (ca *RemoteChainOpImpl) MinerPoolInfo(addr string) *RPCResObjCmd {
 	return ca.request("minerPoolInfo", addr, 0)
