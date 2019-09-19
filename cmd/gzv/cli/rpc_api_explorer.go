@@ -18,6 +18,7 @@ package cli
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -127,4 +128,20 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*ExploreBlockRew
 		ret.VerifierReward = *genReward
 	}
 	return ret, nil
+}
+
+func (api *RpcExplorerImpl) ExplorerGetCandidates() (*[]ExploreCandidateList, error) {
+
+	candidate := ExploreCandidateList{}
+	candidateLists := make([]ExploreCandidateList, 0)
+	candidates := group.GetCandidates()
+	if candidates == nil {
+		return nil, nil
+	}
+	for _, v := range candidates {
+		candidate.ID = v.ID.ToAddress().AddrPrefixString()
+		candidate.Stake = v.Stake
+		candidateLists = append(candidateLists, candidate)
+	}
+	return &candidateLists, nil
 }
