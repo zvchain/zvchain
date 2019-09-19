@@ -229,18 +229,11 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCou
 			p.write(packet, code)
 		}
 	} else {
-		sendNodes := make(map[int]bool)
 		rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-		tryTime := peerSize * 3
-		for len(sendNodes) < maxCount && tryTime > 0 {
-			tryTime--
-			index := rand.Intn(peerSize)
-			if !sendNodes[index] {
-				sendNodes[index] = true
-			}
-		}
-		for index := range sendNodes {
-			p := availablePeers[index]
+		randomNodes := rand.Perm(peerSize)
+
+		for i := 0; i < maxCount; i++ {
+			p := availablePeers[randomNodes[i]]
 			p.write(packet, code)
 		}
 	}
