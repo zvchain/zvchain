@@ -205,7 +205,8 @@ func (tm *DBMmanagement) excuteAccounts() {
 				} else {
 					accounts.Address = address
 					accounts.ExtraData = tm.fetchTickets(address)
-					if !tm.storage.UpdateObject(accounts) {
+
+					if !tm.storage.UpdateObject(*accounts, address) {
 						return
 					}
 				}

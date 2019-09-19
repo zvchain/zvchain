@@ -115,13 +115,15 @@ func (storage *Storage) GetDB() *gorm.DB {
  * common method
  * updateobject into mysqldb
  */
-func (storage *Storage) UpdateObject(object interface{}) bool {
+func (storage *Storage) UpdateObject(object interface{}, addr string) bool {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	storage.db.Model(object).Updates(object)
+
+	storage.db.Model(&models.AccountList{}).Where("address = ?", addr).Updates(object)
+
 	return true
 }
 

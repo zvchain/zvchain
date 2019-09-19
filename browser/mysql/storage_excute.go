@@ -19,21 +19,6 @@ const (
 	ACCOUNTDBNAME         = "account_lists"
 )
 
-func (storage *Storage) UpdateBatchAccount(accounts []*models.AccountList) bool {
-	//fmt.Println("[Storage] add log ")
-	if storage.db == nil {
-		fmt.Println("[Storage] storage.db == nil")
-		return false
-	}
-
-	for i := 0; i < len(accounts); i++ {
-		if accounts[i] != nil {
-			storage.UpdateObject(&accounts[i])
-		}
-	}
-	return true
-}
-
 func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
 	var data string
 	if mapdata != nil {
