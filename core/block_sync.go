@@ -21,6 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"math"
+	"math/rand"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -165,24 +166,42 @@ func (bs *blockSyncer) getCandidate() (string, *types.CandidateBlockHeader) {
 		bs.logger.Debugf("candidatePool length is 0")
 		return "", nil
 	}
-	var maxWeightBlock *types.CandidateBlockHeader
+	var (
+		maxWeightBlock      *types.CandidateBlockHeader
+		maxWeightCandidates []string
+	)
 
-	var currentCandidateId string
 	for id, top := range bs.candidatePool {
-		if maxWeightBlock == nil || top.BW.MoreWeight(maxWeightBlock.BW) {
+		if maxWeightBlock == nil {
 			maxWeightBlock = top
-			currentCandidateId = id
+			maxWeightCandidates = make([]string, 0)
+			maxWeightCandidates = append(maxWeightCandidates, id)
+		} else {
+			cmp := top.BW.Cmp(maxWeightBlock.BW)
+			if cmp == 0 {
+				maxWeightCandidates = append(maxWeightCandidates, id)
+			} else if cmp > 0 {
+				maxWeightBlock = top
+				maxWeightCandidates = make([]string, 0)
+				maxWeightCandidates = append(maxWeightCandidates, id)
+			}
 		}
 	}
 	if maxWeightBlock == nil {
 		return "", nil
 	}
-	ok := bs.checkBlockHeaderAndAddBlack(currentCandidateId, maxWeightBlock.BH)
+
+	// Randomly select one of the equal weight nodes for block synchronization,
+	// in case all nodes select the same node and cause excessive load on the selected node.
+	rnd := rand.Int31n(int32(len(maxWeightCandidates)))
+	selectedCandidate := maxWeightCandidates[rnd]
+
+	ok := bs.checkBlockHeaderAndAddBlack(selectedCandidate, maxWeightBlock.BH)
 	if !ok {
-		bs.logger.Warnf("add black %v for %v %v", currentCandidateId, maxWeightBlock.BH.Height, maxWeightBlock.BH.Hash)
+		bs.logger.Warnf("add black %v for %v %v", selectedCandidate, maxWeightBlock.BH.Height, maxWeightBlock.BH.Hash)
 		return bs.getCandidate()
 	}
-	return currentCandidateId, maxWeightBlock
+	return selectedCandidate, maxWeightBlock
 }
 
 func (bs *blockSyncer) checkEvilAndDelete(candidateID string) bool {
