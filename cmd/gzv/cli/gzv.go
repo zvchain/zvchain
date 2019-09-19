@@ -98,9 +98,9 @@ func (gzv *Gzv) miner(cfg *minerConfig) error {
 }
 
 func (gzv *Gzv) runtimeInit() {
-	debug.SetGCPercent(100)
+	debug.SetGCPercent(50)
 	debug.SetMaxStack(2 * 1000000000)
-	log.DefaultLogger.Info("setting gc 100%, max memory 2g")
+	log.DefaultLogger.Info("setting gc 50%, max memory 2g")
 
 }
 
@@ -136,8 +136,7 @@ func (gzv *Gzv) Run() {
 	// Console
 	consoleCmd := app.Command("console", "start gzv console")
 	showRequest := consoleCmd.Flag("show", "show the request json").Short('v').Bool()
-	remoteHost := consoleCmd.Flag("host", "the node host address to connect").Short('i').String()
-	remotePort := consoleCmd.Flag("port", "the node host port to connect").Short('p').Default("8101").Int()
+	remoteUrl := consoleCmd.Flag("url", "the node url to connect").Short('u').String()
 	rpcPort := consoleCmd.Flag("rpcport", "gzv console will listen at the port for wallet service").Default("0").Int()
 	rpcHost := consoleCmd.Flag("rpchost", "gzv console will listen at the host for wallet service").Default("127.0.0.1").String()
 
@@ -172,8 +171,8 @@ func (gzv *Gzv) Run() {
 	// In test mode, P2P NAT is closed
 	testMode := mineCmd.Flag("test", "test mode").Bool()
 	seedAddr := mineCmd.Flag("seed", "seed address").String()
-	natAddr := mineCmd.Flag("nat", "nat server address").String()
-	natPort := mineCmd.Flag("natport", "nat server port").Default("0").Uint16()
+	natAddr := mineCmd.Flag("nat", "nat server address").Default("natproxy.zvchain.io").String()
+	natPort := mineCmd.Flag("natport", "nat server port").Default("3100").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
 
 	clearCmd := app.Command("clear", "Clear the data of blockchain")
@@ -190,7 +189,7 @@ func (gzv *Gzv) Run() {
 		fmt.Println("gzv Version:", common.GtasVersion)
 		os.Exit(0)
 	case consoleCmd.FullCommand():
-		err := ConsoleInit(*keystore, *remoteHost, *remotePort, *showRequest, *rpcHost, *rpcPort)
+		err := ConsoleInit(*keystore, *remoteUrl, *showRequest, *rpcHost, *rpcPort)
 		if err != nil {
 			fmt.Println(err.Error())
 		}

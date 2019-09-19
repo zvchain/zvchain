@@ -38,23 +38,27 @@ type RemoteChainOpImpl struct {
 }
 
 // InitRemoteChainOp connect node by ip and port
-func InitRemoteChainOp(ip string, port int, show bool, op accountOp) *RemoteChainOpImpl {
+func InitRemoteChainOp(url string, show bool, op accountOp) *RemoteChainOpImpl {
 	ca := &RemoteChainOpImpl{
 		aop:  op,
 		show: show,
 	}
-	ca.Connect(ip, port)
+	ca.Connect(url)
 	return ca
 }
 
 // Connect connect node by ip and port
-func (ca *RemoteChainOpImpl) Connect(ip string, port int) error {
-	if ip == "" {
+func (ca *RemoteChainOpImpl) Connect(url string) error {
+	if url == "" {
 		return nil
 	}
-	ca.host = ip
-	ca.port = port
-	ca.base = fmt.Sprintf("http://%v:%v", ip, port)
+	if url != "" {
+		if !strings.HasPrefix(url, "http") {
+			url = fmt.Sprintf("http://%v", url)
+		}
+		ca.base = url
+	}
+
 	return nil
 }
 
@@ -120,7 +124,7 @@ func (ca *RemoteChainOpImpl) nonce(addr string) (uint64, *ErrorResult) {
 
 // Endpoint returns current connected ip and port
 func (ca *RemoteChainOpImpl) Endpoint() string {
-	return fmt.Sprintf("%v:%v", ca.host, ca.port)
+	return ca.base
 }
 
 // SendRaw send transaction to connected node
@@ -172,6 +176,10 @@ func (ca *RemoteChainOpImpl) SendRaw(tx *TxRawData) *RPCResObjCmd {
 // Balance query Balance by address
 func (ca *RemoteChainOpImpl) Balance(addr string) *RPCResObjCmd {
 	return ca.request("balance", addr)
+}
+
+func (ca *RemoteChainOpImpl)QueryFundGuardMode(addr string) *RPCResObjCmd{
+	return ca.request("guardmode", addr)
 }
 
 // MinerPoolInfo query miner pool info by address
