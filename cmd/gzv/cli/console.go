@@ -306,16 +306,14 @@ func (c *minerInfoCmd) parse(args []string) bool {
 
 type connectCmd struct {
 	baseCmd
-	host string
-	port int
+	url string
 }
 
 func genConnectCmd() *connectCmd {
 	c := &connectCmd{
 		baseCmd: *genBaseCmd("connect", "connect to one ZV node"),
 	}
-	c.fs.StringVar(&c.host, "host", "", "the node ip")
-	c.fs.IntVar(&c.port, "port", 8101, "the node port, default is 8101")
+	c.fs.StringVar(&c.url, "host", "", "the remote host url. add the 'https://' prefix if you want to connect to a ssl node")
 	return c
 }
 
@@ -324,16 +322,12 @@ func (c *connectCmd) parse(args []string) bool {
 		output(err.Error())
 		return false
 	}
-	if strings.TrimSpace(c.host) == "" {
-		output("please input the host,available testnet hosts are node1.taschain.cn,node2.taschain.cn,node3.taschain.cn,node4.taschain.cn,node5.taschain.cn")
+	if strings.TrimSpace(c.url) == "" {
+		output("please input the url")
 		c.fs.PrintDefaults()
 		return false
 	}
-	if c.port == 0 {
-		output("please input the port")
-		c.fs.PrintDefaults()
-		return false
-	}
+
 	return true
 }
 
@@ -992,12 +986,12 @@ func Usage() {
 	}
 }
 
-func ConsoleInit(keystore, host string, port int, show bool, rpchost string, rpcport int) error {
+func ConsoleInit(keystore, url string, show bool, rpchost string, rpcport int) error {
 	aop, err := initAccountManager(keystore, false, "")
 	if err != nil {
 		return err
 	}
-	chainop := InitRemoteChainOp(host, port, show, aop)
+	chainop := InitRemoteChainOp(url, show, aop)
 	if chainop.base != "" {
 
 	}
@@ -1102,7 +1096,7 @@ func loop(acm accountOp, chainOp chainOp) {
 
 	for {
 		ep := chainOp.Endpoint()
-		if ep == ":0" {
+		if ep == "" {
 			ep = "not connected"
 		}
 		input, err := line.Prompt(fmt.Sprintf("gzv:%v > ", ep))
@@ -1163,7 +1157,7 @@ func loop(acm accountOp, chainOp chainOp) {
 		case cmdConnect.name:
 			cmd := genConnectCmd()
 			if cmd.parse(args) {
-				chainOp.Connect(cmd.host, cmd.port)
+				chainOp.Connect(cmd.url)
 			}
 
 		case cmdBalance.name:

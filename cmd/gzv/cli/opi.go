@@ -104,8 +104,8 @@ type accountOp interface {
 }
 
 type chainOp interface {
-	// Connect connect node by ip and port
-	Connect(ip string, port int) error
+	// Connect connect node by url
+	Connect(url string) error
 	// Endpoint returns current connected ip and port
 	Endpoint() string
 	// SendRaw send transaction to connected node
