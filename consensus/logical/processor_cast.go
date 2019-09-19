@@ -216,11 +216,13 @@ func (p *Processor) blockProposal() {
 		blog.warn("vrf prove not ok! %v", err)
 		return
 	}
+	castor := worker.miner.ID.GetAddrString()
 	log.ELKLogger.WithFields(logrus.Fields{
 		"proposalHeight": height,
 		"now":            time2.TSInstance.Now().UTC(),
 		"logType":        "proposalLog",
 		"version":        common.GtasVersion,
+		"castor":         castor,
 	}).Info("proposal")
 	//if height > 1 && p.proveChecker.proveExists(pi) {
 	//	blog.warn("vrf prove exist, not proposal")
