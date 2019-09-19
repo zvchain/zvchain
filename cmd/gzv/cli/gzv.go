@@ -98,9 +98,9 @@ func (gzv *Gzv) miner(cfg *minerConfig) error {
 }
 
 func (gzv *Gzv) runtimeInit() {
-	debug.SetGCPercent(100)
+	debug.SetGCPercent(50)
 	debug.SetMaxStack(2 * 1000000000)
-	log.DefaultLogger.Info("setting gc 100%, max memory 2g")
+	log.DefaultLogger.Info("setting gc 50%, max memory 2g")
 
 }
 
