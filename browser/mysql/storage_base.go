@@ -184,19 +184,17 @@ func (storage *Storage) AddRewards(rewards []*models.Reward) bool {
 		return false
 	}
 	timeBegin := time.Now()
-	tx := storage.db.Begin()
 	for i := 0; i < len(rewards); i++ {
 		//fmt.Println("[Storage] add verification:",verifications[i])
 		if rewards[i] != nil {
-			if !errors(tx.Create(&rewards[i]).Error) {
+			if !errors(storage.db.Create(&rewards[i]).Error) {
 				rewardsql := fmt.Sprintf("DELETE  FROM rewards WHERE  type = %d and block_hash = '%s'  and node_id = '%s'",
 					rewards[i].Type, rewards[i].BlockHash, rewards[i].NodeId)
 				storage.db.Exec(rewardsql)
-				tx.Create(&rewards[i])
+				storage.db.Create(&rewards[i])
 			}
 		}
 	}
-	tx.Commit()
 	fmt.Println("[Storage]  AddRewards cost: ", time.Since(timeBegin), "，len :", len(rewards))
 	return true
 }

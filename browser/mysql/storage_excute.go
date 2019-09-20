@@ -384,21 +384,21 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 		return false
 	}
 	timeBegin := time.Now()
-	tx := storage.db.Begin()
+	//tx := storage.db.Begin()
 	for i := 0; i < len(trans); i++ {
 
 		if trans[i] != nil {
-			if !errors(tx.Create(&trans[i]).Error) {
+			if !errors(storage.db.Create(&trans[i]).Error) {
 				transql := fmt.Sprintf("DELETE  FROM transactions WHERE  hash = '%s'",
 					trans[i].Hash)
 				storage.db.Exec(transql)
-				tx.Create(&trans[i])
+				storage.db.Create(&trans[i])
 			}
 		}
 	}
 	//storage.statistics.TransCountToday += uint64(len(trans))
 	//storage.statistics.TotalTransCount += uint64(len(trans))
-	tx.Commit()
+	//tx.Commit()
 	fmt.Println("[Storage]  AddTransactions cost: ", time.Since(timeBegin))
 
 	return true
@@ -412,17 +412,17 @@ func (storage *Storage) AddReceipts(receipts []*models.Receipt) bool {
 	}
 	timeBegin := time.Now()
 
-	tx := storage.db.Begin()
+	//tx := storage.db.Begin()
 	for i := 0; i < len(receipts); i++ {
-		if !errors(tx.Create(&receipts[i]).Error) {
+		if !errors(storage.db.Create(&receipts[i]).Error) {
 			transql := fmt.Sprintf("DELETE  FROM receipts WHERE  tx_hash = '%s'",
 				receipts[i].TxHash)
 			storage.db.Exec(transql)
-			tx.Create(&receipts[i])
+			storage.db.Create(&receipts[i])
 		}
 
 	}
-	tx.Commit()
+	//tx.Commit()
 	fmt.Println("[Storage]  AddReceipts cost: ", time.Since(timeBegin))
 
 	return true
