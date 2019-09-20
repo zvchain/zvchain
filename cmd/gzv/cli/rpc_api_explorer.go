@@ -126,6 +126,7 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*ExploreBlockRew
 		genReward := convertRewardTransaction(rewardTx)
 		genReward.Success = true
 		ret.VerifierReward = *genReward
+		ret.VerifierGasFeeReward = share.FeeForVerifier
 	}
 	return ret, nil
 }
