@@ -23,6 +23,9 @@ import (
 	"time"
 )
 
+const (
+	REWARDStable = "rewards"
+)
 const PageSize uint64 = 20
 
 type Storage struct {
@@ -168,30 +171,36 @@ func (storage *Storage) AddVerifications(verifications []*models.Verification) b
 		}
 	}
 	tx.Commit()
-	fmt.Println("[Storage]  AddVerifications cost: ", time.Since(timeBegin), "，len :", len(verifications))
+	fmt.Println("[Storage]  AddRewards cost: ", time.Since(timeBegin), "，len :", len(verifications))
 	return true
 }
 
-func (storage *Storage) AddRewards(verifications []*models.Reward) bool {
+func (storage *Storage) AddRewards(rewards []*models.Reward) bool {
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	if len(verifications) < 1 {
+	if len(rewards) < 1 {
 		return false
 	}
 	timeBegin := time.Now()
 	tx := storage.db.Begin()
-	for i := 0; i < len(verifications); i++ {
+	for i := 0; i < len(rewards); i++ {
 		//fmt.Println("[Storage] add verification:",verifications[i])
-		if verifications[i] != nil {
-			tx.Create(&verifications[i])
+		if rewards[i] != nil {
+			if !errors(tx.Create(&rewards[i]).Error) {
+				rewardsql := fmt.Sprintf("DELETE  FROM rewards WHERE  type = %d and block_hash = '%s'  and node_id = '%s'",
+					rewards[i].Type, rewards[i].BlockHash, rewards[i].NodeId)
+				storage.db.Exec(rewardsql)
+				tx.Create(&rewards[i])
+			}
 		}
 	}
 	tx.Commit()
-	fmt.Println("[Storage]  AddVerifications cost: ", time.Since(timeBegin), "，len :", len(verifications))
+	fmt.Println("[Storage]  AddRewards cost: ", time.Since(timeBegin), "，len :", len(rewards))
 	return true
 }
+
 func (storage *Storage) SetLoadVerified(block *models.Block) bool {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {

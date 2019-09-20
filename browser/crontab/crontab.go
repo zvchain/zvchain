@@ -149,7 +149,7 @@ func (crontab *Crontab) fetchVerfication(localHeight uint64) {
 		if block.ProposalReward > 0 {
 			mort := getMinerDetail(block.ProposalID, block.BlockHeight, types.MinerTypeProposal)
 			proposalReward := &models.Reward{
-				Type:         ProposalStakeType,
+				Type:         uint64(types.MinerTypeProposal),
 				BlockHash:    block.BlockHash,
 				BlockHeight:  block.BlockHeight,
 				NodeId:       block.ProposalID,
@@ -180,7 +180,7 @@ func (crontab *Crontab) fetchVerfication(localHeight uint64) {
 				v.NodeId = ids[n].GetAddrString()
 				v.Value = value
 				v.CurTime = block.CurTime
-				v.Type = VerifyStakeType
+				v.Type = uint64(types.MinerTypeVerify)
 				v.RewardHeight = localHeight
 				mort := getMinerDetail(v.NodeId, block.BlockHeight, types.MinerTypeVerify)
 				if mort != nil {

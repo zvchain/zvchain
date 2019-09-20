@@ -206,7 +206,7 @@ func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB) bool {
 
 func errors(error error) bool {
 	if error != nil {
-		fmt.Println("update addblockreward error", error)
+		fmt.Println("update/add error", error)
 		return false
 	}
 	return true
@@ -366,7 +366,13 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 	}
 	//storage.statistics.BlocksCountToday += 1
 	//storage.statistics.TopBlockHeight = storage.topbrowserBlockHeight
-	storage.db.Create(&block)
+
+	if !errors(storage.db.Create(&block).Error) {
+		blocksql := fmt.Sprintf("DELETE  FROM blocks WHERE  hash = '%s'",
+			block.Hash)
+		storage.db.Exec(blocksql)
+		storage.db.Create(&block)
+	}
 	fmt.Println("[Storage]  AddBlock cost: ", time.Since(timeBegin))
 	return true
 }
@@ -380,8 +386,14 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	timeBegin := time.Now()
 	tx := storage.db.Begin()
 	for i := 0; i < len(trans); i++ {
+
 		if trans[i] != nil {
-			tx.Create(&trans[i])
+			if !errors(tx.Create(&trans[i]).Error) {
+				transql := fmt.Sprintf("DELETE  FROM transactions WHERE  hash = '%s'",
+					trans[i].Hash)
+				storage.db.Exec(transql)
+				tx.Create(&trans[i])
+			}
 		}
 	}
 	//storage.statistics.TransCountToday += uint64(len(trans))
@@ -402,9 +414,13 @@ func (storage *Storage) AddReceipts(receipts []*models.Receipt) bool {
 
 	tx := storage.db.Begin()
 	for i := 0; i < len(receipts); i++ {
-		if receipts[i] != nil {
+		if !errors(tx.Create(&receipts[i]).Error) {
+			transql := fmt.Sprintf("DELETE  FROM receipts WHERE  tx_hash = '%s'",
+				receipts[i].TxHash)
+			storage.db.Exec(transql)
 			tx.Create(&receipts[i])
 		}
+
 	}
 	tx.Commit()
 	fmt.Println("[Storage]  AddReceipts cost: ", time.Since(timeBegin))

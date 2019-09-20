@@ -42,10 +42,11 @@ type AccountList struct {
 	PrepareGroup     uint64  `json:"prepare_group" gorm:"index"`
 	TotalTransaction uint64  `json:"total_transaction"`
 	Rewards          uint64  `json:"rewards"`
-	Status           byte    `json:"status" gorm:"index"`
-	VerifyStatus     byte    `json:"verify_status" gorm:"index"`
+	Status           int8    `json:"status" gorm:"index;default:-1"`
+	VerifyStatus     int8    `json:"verify_status" gorm:"index;default:-1"`
 	StakeFrom        string  `json:"stake_from"`
 	Balance          float64 `json:"balance"`
+	TotalBalance     float64 `json:"total_balance"`
 	ExtraData        string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
 
 }
@@ -79,7 +80,7 @@ type Group struct {
 type Block struct {
 	gorm.Model
 	Height          uint64                 `json:"height" gorm:"index"`
-	Hash            string                 `json:"hash" gorm:"index"`
+	Hash            string                 `json:"hash" gorm:"unique_index"`
 	PreHash         string                 `json:"pre_hash"`
 	CurTime         time.Time              `json:"cur_time" gorm:"index"`
 	PreTime         time.Time              `json:"pre_time"`
@@ -104,13 +105,13 @@ type Verification struct {
 
 type Reward struct {
 	gorm.Model
-	BlockHash    string    `json:"block_hash" gorm:"index"`
+	BlockHash    string    `json:"block_hash" gorm:"unique_index:idx_reward"`
 	BlockHeight  uint64    `json:"block_height" gorm:"index"`
 	RewardHeight uint64    `json:"reward_height" gorm:"index"`
 	CurTime      time.Time `json:"cur_time" gorm:"index"`
-	NodeId       string    `json:"node_id" gorm:"index:idx_user"`
+	NodeId       string    `json:"node_id" gorm:"unique_index:idx_reward"`
 	Value        uint64    `json:"value"`
-	Type         uint64    `json:"type" gorm:"index:idx_user"`
+	Type         uint64    `json:"type" gorm:"unique_index:idx_reward"`
 	Stake        uint64    `json:"stake"`
 	RoleType     uint64    `json:"role_type" gorm:"index"`
 }
@@ -145,7 +146,7 @@ type Transaction struct {
 
 	GasLimit  uint64   `json:"gas_limit"`
 	GasPrice  uint64   `json:"gas_price"`
-	Hash      string   `json:"hash" gorm:"index"`
+	Hash      string   `json:"hash" gorm:"unique_index"`
 	Receipt   *Receipt `json:"receipt" gorm:"-"`
 	ExtraData string   `json:"extra_data" gorm:"type:TEXT;size:65000"`
 	Status    uint     `json:"status" gorm:"index"`
@@ -156,7 +157,7 @@ type Receipt struct {
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
 	Logs              []*Log `json:"logs" gorm:"-"`
 
-	TxHash          string `json:"transactionHash" gorm:"index"`
+	TxHash          string `json:"transactionHash" gorm:"unique_index"`
 	ContractAddress string `json:"contractAddress"`
 	BlockHash       string `json:"block_hash" gorm:"index"`
 	BlockHeight     uint64 `json:"block_height" gorm:"index"`
