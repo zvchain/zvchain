@@ -118,6 +118,7 @@ func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract
 
 	decoder := json.NewDecoder(bytes.NewReader([]byte(abiJSON)))
 	decoder.DisallowUnknownFields()
+	decoder.UseNumber()
 	abiJSONError := decoder.Decode(&abi)
 	if abiJSONError != nil {
 		return nil, nil, types.NewTransactionError(types.TVMCheckABIError, abiJSONError.Error())
@@ -200,10 +201,14 @@ func VmDataConvert(value []byte) interface{} {
 	} else if value[0] == 'l' {
 		return []interface{}{}
 	} else if value[0] == 'b' {
-		if value[0] != '0'{
-			return true
+		if len(value) == 2 {
+			if value[1] != '0'{
+				return true
+			} else {
+				return false
+			}
 		} else {
-			return false
+			return nil
 		}
 	} else if value[0] == 'n'{
 		return nil

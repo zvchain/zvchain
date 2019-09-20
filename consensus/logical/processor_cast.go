@@ -17,6 +17,8 @@ package logical
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/consensus/net"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 )
@@ -213,7 +216,14 @@ func (p *Processor) blockProposal() {
 		blog.warn("vrf prove not ok! %v", err)
 		return
 	}
-
+	castor := worker.miner.ID.GetAddrString()
+	log.ELKLogger.WithFields(logrus.Fields{
+		"proposalHeight": height,
+		"now":            time2.TSInstance.Now().UTC(),
+		"logType":        "proposalLog",
+		"version":        common.GtasVersion,
+		"castor":         castor,
+	}).Info("proposal")
 	//if height > 1 && p.proveChecker.proveExists(pi) {
 	//	blog.warn("vrf prove exist, not proposal")
 	//	return

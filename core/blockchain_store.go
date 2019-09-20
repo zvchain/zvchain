@@ -17,6 +17,9 @@ package core
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
 
@@ -150,7 +153,6 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 		removeTxs = append(removeTxs, ps.evictedTxs...)
 	}
 	chain.transactionPool.RemoveFromPool(removeTxs)
-
 	ok = true
 	return
 }
@@ -233,7 +235,12 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.updateLatestBlock(state, block)
 
 	chain.transactionPool.BackToPool(recoverTxs)
-
+	log.ELKLogger.WithFields(logrus.Fields{
+		"removedHeight": len(removeBlocks),
+		"now":           time.TSInstance.Now().UTC(),
+		"logType":       "resetTop",
+		"version":       common.GtasVersion,
+	}).Info("resetTop")
 	for _, b := range removeBlocks {
 		GroupManagerImpl.OnBlockRemove(b)
 	}

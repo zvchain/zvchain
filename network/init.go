@@ -151,10 +151,10 @@ func genRandomSeeds(seeds []string) []string {
 	//always select first
 	nodesSelect[0] = true
 
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	maxSize := int(math.Ceil(float64(totalSize) / 3))
 	for i := 0; i < totalSize; i++ {
-		peerIndex := rand.Intn(totalSize)
+		peerIndex := r.Intn(totalSize)
 		if nodesSelect[peerIndex] {
 			continue
 		}

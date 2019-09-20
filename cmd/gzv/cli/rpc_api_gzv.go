@@ -194,6 +194,28 @@ func (api *RpcGzvImpl) GetTxsByBlockHeight(height uint64) ([]string, error) {
 	return txs, nil
 }
 
+func (api *RpcGzvImpl) Guardmode(addr string) (string, error) {
+	addr = strings.TrimSpace(addr)
+	if !common.ValidateAddress(addr) {
+		return "", fmt.Errorf("Wrong account address format")
+	}
+
+	fd ,err := core.MinerManagerImpl.GetFundGuard(addr)
+	if err != nil{
+		return "",err
+	}
+	data := ""
+	if fd == nil{
+		data = "not fund gard"
+	} else if fd.FundModeType == common.SIXAddFive{
+		data = "6+5"
+	}else{
+		data = "6+6"
+	}
+	return data,nil
+}
+
+
 func (api *RpcGzvImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDetail, error) {
 	addr = strings.TrimSpace(addr)
 	if !common.ValidateAddress(addr) {
