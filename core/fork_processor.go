@@ -597,6 +597,10 @@ func (fp *forkProcessor) allBlocksReceived() {
 		}
 		pre = block.Header
 	}
+	if len(blocks) == 0 {
+		fp.logger.Warnf("no blocks left")
+		return
+	}
 	pre = first
 	// Checks the blocks legality
 	for _, block := range blocks {
