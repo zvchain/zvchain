@@ -241,7 +241,7 @@ func (gzv *Gzv) Run() {
 		log.ELKLogger.WithFields(logrus.Fields{
 			"now":     time2.TSInstance.Now().UTC(),
 			"logType": "versionLog",
-			"version": common.GtasVersion,
+			"version": common.GzvVersion,
 		}).Info("versionLog")
 		gzv.InitCha <- true
 	case clearCmd.FullCommand():
