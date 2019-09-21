@@ -186,7 +186,7 @@ func (gzv *Gzv) Run() {
 
 	switch command {
 	case versionCmd.FullCommand():
-		fmt.Println("gzv Version:", common.GtasVersion)
+		fmt.Println("gzv Version:", common.GzvVersion)
 		os.Exit(0)
 	case consoleCmd.FullCommand():
 		err := ConsoleInit(*keystore, *remoteUrl, *showRequest, *rpcHost, *rpcPort)

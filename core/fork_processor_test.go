@@ -132,7 +132,7 @@ func buildChain(height uint64, chain *FullBlockChain) {
 	if chain.Height() > height {
 		return
 	}
-	for h := chain.Height() + 1; h < height; h += uint64(rand.Int31n(2) + 1) {
+	for h := chain.Height() + 1; h < height; h++ {
 		addRandomBlock(chain, h)
 	}
 }

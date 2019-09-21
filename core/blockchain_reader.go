@@ -304,5 +304,8 @@ func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.B
 }
 
 func (chain *FullBlockChain) IsSyncing() bool {
+	if blockSync == nil{
+		return true
+	}
 	return blockSync.isSyncing()
 }
