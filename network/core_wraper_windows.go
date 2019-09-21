@@ -248,7 +248,20 @@ func P2PShutdown(session uint32) {
 }
 
 func P2PSend(session uint32, data []byte) {
-	C.p2p_send(C.uint(session), unsafe.Pointer(&data[0]), C.uint(len(data)))
+
+	maxSize := 64 * 1024
+	totalLen := len(data)
+
+	curPos := 0
+	for curPos < totalLen {
+		sendSize := totalLen - curPos
+		if sendSize > maxSize {
+			sendSize = maxSize
+		}
+
+		C.p2p_send(C.uint(session), unsafe.Pointer(&data[curPos]), C.uint(sendSize))
+		curPos += sendSize
+	}
 }
 
 func P2PLoginSign() unsafe.Pointer {
