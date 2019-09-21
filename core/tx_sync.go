@@ -135,7 +135,7 @@ func initTxSyncer(chain *FullBlockChain, pool *txPool, networkImpl network.Netwo
 		rctNotifiy:    common.MustNewLRUCache(txPeerMaxLimit),
 		pool:          pool,
 		ticker:        ticker.NewGlobalTicker("tx_syncer"),
-		candidateKeys: common.MustNewLRUCache(100),
+		candidateKeys: common.MustNewLRUCache(3000),
 		chain:         chain,
 		networkImpl:   networkImpl,
 		logger:        log.TxSyncLogger,

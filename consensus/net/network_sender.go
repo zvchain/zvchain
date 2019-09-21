@@ -138,7 +138,8 @@ func (ns *NetworkServerImpl) BroadcastNewBlock(block *types.Block, group *GroupB
 	nextVerifyGroupID := group.GSeed.Hex()
 	groupMembers := id2String(group.MemIds)
 
-	msgID := []byte(blockMsg.Hash())
+	msgID := make([]byte, common.HashLength)
+	copy(msgID, block.Header.Hash.Bytes())
 
 	ns.net.SpreadToGroup(network.FullNodeVirtualGroupID, nil, blockMsg, msgID)
 
