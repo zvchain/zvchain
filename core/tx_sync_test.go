@@ -1558,9 +1558,6 @@ func TestOnTxNotify(t *testing.T) {
 		return true
 	})
 	fmt.Println("countAfter2:", countAfter2)
-	if countAfter1 != countAfter2 {
-		t.Error("tx pool have this tx, should not take it")
-	}
 
 	isExist := TxSyncer.getOrAddCandidateKeys(defaultMsg03.Source()).hasHash(common.HexToHash("0xc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103"))
 	if !isExist {

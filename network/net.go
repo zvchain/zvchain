@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common"
 	"hash/fnv"
 	"net"
 	"sync/atomic"
@@ -239,12 +240,14 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 		Expiration: nc.expirationTime(),
 	}
 	if p != nil && !p.isAuthSucceed {
-		if p.authContext == nil {
-			p.authContext = genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &p.ID)
+		authContext := p.AuthContext()
+		if authContext == nil {
+			Logger.Infof("[send ping] authContext is nil, ID : %v", toID.GetHexString())
+			return
 		}
-		req.PK = p.authContext.PK
-		req.CurTime = p.authContext.CurTime
-		req.Sign = p.authContext.Sign
+		req.PK = authContext.PK
+		req.CurTime = authContext.CurTime
+		req.Sign = authContext.Sign
 	}
 	Logger.Infof("[send ping] ID : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.IP, nc.ourEndPoint.Port)
 
@@ -447,6 +450,18 @@ func (nc *NetCore) broadcast(data []byte, code uint32, broadcast bool, msgDigest
 
 }
 
+func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int) {
+	dataType := DataType_DataGlobalRandom
+
+	packet, _, err := nc.encodeDataPacket(data, dataType, code, "", nil, relayCount)
+	if err != nil {
+		return
+	}
+	nc.peerManager.broadcastRandom(packet, code, maxCount)
+	nc.bufferPool.freeBuffer(packet)
+	return
+}
+
 func (nc *NetCore) groupBroadcast(ID string, data []byte, code uint32, broadcast bool, relayCount int32) {
 	dataType := DataType_DataNormal
 	if broadcast {
@@ -461,7 +476,7 @@ func (nc *NetCore) groupBroadcast(ID string, data []byte, code uint32, broadcast
 }
 
 func (nc *NetCore) groupBroadcastWithMembers(ID string, data []byte, code uint32, msgDigest MsgDigest, groupMembers []string, relayCount int32) {
-	msg := nc.genDataMessage(data, DataType_DataGroup, code, ID, nil, relayCount)
+	msg := nc.genDataMessage(data, DataType_DataGroup, code, ID, msgDigest, relayCount)
 	if msg == nil {
 		return
 	}
@@ -544,7 +559,7 @@ func (nc *NetCore) genDataMessage(data []byte,
 		MessageInfo:  encodeMessageInfo(nc.chainID, nc.protocolVersion),
 		Expiration:   nc.expirationTime()}
 	Logger.Debugf("genDataMessage  DataType:%v messageId:%X ,BizMessageID:%v ,RelayCount:%v code:%v",
-		msgData.DataType, msgData.MessageID, msgData.BizMessageID, msgData.RelayCount, code)
+		msgData.DataType, msgData.MessageID, common.ToHex(msgData.BizMessageID), msgData.RelayCount, code)
 	return msgData
 }
 
@@ -748,9 +763,9 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 	srcNodeID := NodeID{}
 	srcNodeID.SetBytes(req.SrcNodeID)
 
-	Logger.Infof("data from:%v, len:%v, DataType:%v, messageId:%X, BizMessageID:%v, "+
+	Logger.Debugf("data from:%v, len:%v, DataType:%v, messageId:%X, BizMessageID:%v, "+
 		"RelayCount:%v, unhandledDataMsg:%v, code:%v,messageInfo:%v",
-		srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, req.BizMessageID,
+		srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, common.ToHex(req.BizMessageID),
 		req.RelayCount, nc.unhandledDataMsg, req.MessageCode, req.MessageInfo)
 
 	statistics.AddCount("net.handleData", uint32(req.DataType), uint64(len(req.Data)))
@@ -846,7 +861,7 @@ func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 	}
 
 	if netServerInstance != nil {
-		Logger.Infof("handled message id:%v from :%v", data.MessageID, fromID.GetHexString())
+		Logger.Debugf("handled message id:%v from :%v", data.MessageID, fromID.GetHexString())
 		netServerInstance.handleMessage(data.Data, fromID.GetHexString(), chainID, protocolVersion)
 	}
 

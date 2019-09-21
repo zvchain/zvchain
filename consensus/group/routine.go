@@ -100,13 +100,23 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 	provider.RegisterGroupCreateChecker(checker)
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, GroupRoutine.onBlockAddSuccess)
+	notify.BUS.Subscribe(notify.NewTopBlock, GroupRoutine.onNewTopMessage)
 	return GroupRoutine.store
+}
+
+func (routine *createRoutine) onNewTopMessage(message notify.Message) error {
+	bh := message.GetData().(*types.BlockHeader)
+	return routine.onNewTopBlock(bh)
 }
 
 func (routine *createRoutine) onBlockAddSuccess(message notify.Message) error {
 	block := message.GetData().(*types.Block)
 	bh := block.Header
 
+	return routine.onNewTopBlock(bh)
+}
+
+func (routine *createRoutine) onNewTopBlock(bh *types.BlockHeader) error {
 	routine.store.blockAddCh <- bh.Height
 
 	routine.updateContext(bh)
@@ -411,4 +421,16 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 	routine.ctx.sentOriginPiecePacket = packet
 
 	return true, nil
+}
+
+func GetCandidates() candidates {
+	candidates := make(candidates, 0)
+
+	if GroupRoutine != nil {
+		for _, v := range GroupRoutine.ctx.cands {
+			candidates = append(candidates, v)
+		}
+		return candidates
+	}
+	return nil
 }

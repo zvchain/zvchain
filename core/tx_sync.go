@@ -135,7 +135,7 @@ func initTxSyncer(chain *FullBlockChain, pool *txPool, networkImpl network.Netwo
 		rctNotifiy:    common.MustNewLRUCache(txPeerMaxLimit),
 		pool:          pool,
 		ticker:        ticker.NewGlobalTicker("tx_syncer"),
-		candidateKeys: common.MustNewLRUCache(100),
+		candidateKeys: common.MustNewLRUCache(3000),
 		chain:         chain,
 		networkImpl:   networkImpl,
 		logger:        log.TxSyncLogger,
@@ -182,7 +182,8 @@ func (ts *txSyncer) notifyTxs() bool {
 	ts.clearJob()
 
 	txs := make([]*types.Transaction, 0)
-	ts.pool.bonPool.forEach(func(tx *types.Transaction) bool {
+	ts.pool.bonPool.forEachByBlock(func(bhash common.Hash, rewardTxs []*types.Transaction) bool {
+		tx := rewardTxs[0]
 		if ts.checkTxCanBroadcast(tx.Hash) {
 			txs = append(txs, tx)
 			return len(txs) < txMaxNotifyPerTime
@@ -267,14 +268,8 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) error {
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
-	accepts := make([]common.Hash, 0)
-	for _, k := range hashs {
-		if exist, _ := ts.pool.IsTransactionExisted(k); !exist {
-			accepts = append(accepts, k)
-		}
-	}
-	candidateKeys.addTxHashes(accepts)
-	ts.logger.Debugf("Rcv txs notify from %v, size %v, accept %v, totalOfSource %v", nm.Source(), len(hashs), len(accepts), candidateKeys.txHashes.Len())
+	candidateKeys.addTxHashes(hashs)
+	ts.logger.Debugf("Rcv txs notify from %v, size %v, totalOfSource %v", nm.Source(), len(hashs), candidateKeys.txHashes.Len())
 	return nil
 }
 

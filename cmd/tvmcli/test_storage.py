@@ -10,8 +10,12 @@ class Token():
 
         self.int = 2147483647
         print(self.int)
-        self.bigint = 10000000000000000000000000000000
+        self.int2 = -2147483647
+        print(self.int2)
+        self.bigint = 100000000000000000000000000000001
         print(self.bigint)
+        self.bigint2 = -100000000000000000000000000000001
+        print(self.bigint2)
         self.str = 'hello'
         print(self.str)
         self.str = ''

@@ -17,6 +17,7 @@ package network
 
 import (
 	"bytes"
+	"github.com/zvchain/zvchain/common"
 	"math"
 	"math/rand"
 	nnet "net"
@@ -95,9 +96,9 @@ func genGroupRandomEntranceNodes(members []string) []NodeID {
 
 	//select another nodes
 
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < totalSize; i++ {
-		peerIndex := rand.Intn(totalSize)
+		peerIndex := r.Intn(totalSize)
 		columnIndex := peerIndex % rowSize
 		rowIndex := int(math.Floor(float64(peerIndex) / float64(rowSize)))
 
@@ -367,9 +368,9 @@ func (g *Group) Broadcast(msg *MsgData) {
 	if g.columnIndex != 0 { //if 0 position is not sent, keep it sent.
 		groupMsgMap[0] = true
 	}
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for len(groupMsgMap) < groupSendCount {
-		column := rand.Intn(g.rowSize)
+		column := r.Intn(g.rowSize)
 		if !groupMsgMap[column] && column != g.columnIndex {
 			groupMsgMap[column] = true
 		}
@@ -518,7 +519,7 @@ func (gm *GroupManager) Broadcast(ID string, msg *MsgData, members []string, cod
 		Logger.Errorf("[group] group broadcast,msg is nil, ID:%v code:%v", ID, code)
 		return
 	}
-	Logger.Infof("[group] group broadcast, ID:%v code:%v", ID, code)
+	Logger.Infof("[group] group broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
 
 	if ID == FullNodeVirtualGroupID {
 		netCore.proposerManager.Broadcast(msg, code)
@@ -540,7 +541,7 @@ func (gm *GroupManager) Broadcast(ID string, msg *MsgData, members []string, cod
 
 func (gm *GroupManager) BroadcastExternal(ID string, msg *MsgData, members []string, code uint32) {
 
-	Logger.Infof("[group] group external broadcast, ID:%v code:%v", ID, code)
+	Logger.Infof("[group] group external broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
 	if msg == nil {
 		Logger.Errorf("[group] group external broadcast,msg is nil, ID:%v code:%v", ID, code)
 		return

@@ -29,7 +29,7 @@ type rewardPool struct {
 
 func newRewardPool(pm *rewardManager, size int) *rewardPool {
 	return &rewardPool{
-		pool:           common.MustNewLRUCache(size),
+		pool:           common.MustNewLRUCache(size * 10),
 		blockHashIndex: common.MustNewLRUCache(size),
 		bm:             pm,
 	}
@@ -40,7 +40,7 @@ func (bp *rewardPool) add(tx *types.Transaction) bool {
 		return false
 	}
 	bp.pool.Add(tx.Hash, tx)
-	blockHash := bp.bm.parseRewardBlockHash(tx)
+	blockHash := parseRewardBlockHash(tx)
 
 	var txs []*types.Transaction
 	if v, ok := bp.blockHashIndex.Get(blockHash); ok {
@@ -57,7 +57,7 @@ func (bp *rewardPool) remove(txHash common.Hash) {
 	tx, _ := bp.pool.Get(txHash)
 	if tx != nil {
 		bp.pool.Remove(txHash)
-		bhash := bp.bm.parseRewardBlockHash(tx.(*types.Transaction))
+		bhash := parseRewardBlockHash(tx.(*types.Transaction))
 		bp.removeByBlockHash(bhash)
 	}
 }
@@ -94,11 +94,11 @@ func (bp *rewardPool) hasReward(blockHashByte []byte) bool {
 	return bp.bm.blockHasRewardTransaction(blockHashByte)
 }
 
-func (bp *rewardPool) forEach(f func(tx *types.Transaction) bool) {
-	for _, k := range bp.pool.Keys() {
-		v, _ := bp.pool.Peek(k)
+func (bp *rewardPool) forEachByBlock(f func(blockHash common.Hash, txs []*types.Transaction) bool) {
+	for _, k := range bp.blockHashIndex.Keys() {
+		v, _ := bp.blockHashIndex.Peek(k)
 		if v != nil {
-			if !f(v.(*types.Transaction)) {
+			if !f(k.(common.Hash), v.([]*types.Transaction)) {
 				break
 			}
 		}
