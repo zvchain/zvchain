@@ -18,6 +18,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"os"
@@ -40,6 +41,7 @@ import (
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 )
@@ -236,6 +238,11 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"now":     time2.TSInstance.Now().UTC(),
+			"logType": "versionLog",
+			"version": common.GtasVersion,
+		}).Info("versionLog")
 		gzv.InitCha <- true
 	case clearCmd.FullCommand():
 		err := ClearBlock()
