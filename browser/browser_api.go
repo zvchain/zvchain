@@ -477,7 +477,6 @@ func GetMinerInfo(addr string, height uint64) (map[string]*common2.MortGage, str
 	//}
 	var stakefrom = ""
 	if proposalInfo != nil {
-		fmt.Println("[DBMmanagement]  GetMinerInfo proposal:", addr, ",", util.ObjectTojson(proposalInfo))
 		mort := common2.NewMortGageFromMiner(proposalInfo)
 		morts["proposal"] = mort
 		//morts = append(morts, mort)
@@ -508,7 +507,6 @@ func GetMinerInfo(addr string, height uint64) (map[string]*common2.MortGage, str
 	}
 	verifierInfo := core.MinerManagerImpl.GetLatestMiner(address, types.MinerTypeVerify)
 	if verifierInfo != nil {
-		fmt.Println("[DBMmanagement]  GetMinerInfo veri:", addr, ",", util.ObjectTojson(verifierInfo))
 		morts["verify"] = common2.NewMortGageFromMiner(verifierInfo)
 		if stakefrom == "" {
 			stakefrom = addr

@@ -134,7 +134,7 @@ func (crontab *Crontab) fetchGroups() {
 
 }
 
-func (crontab *Crontab) fetchVerfication(localHeight uint64) {
+func (crontab *Crontab) fetchReward(localHeight uint64) {
 
 	blocks := crontab.rpcExplore.GetPreHightRewardByHeight(localHeight)
 
@@ -289,10 +289,11 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 	chain := core.BlockChainImpl
 	blockDetail := chain.QueryBlockCeil(localHeight)
 	if blockDetail != nil {
-		server.fetchVerfication(blockDetail.Header.Height)
 		if maxHeight > pre {
 			server.storage.DeleteForkReward(pre, localHeight)
 		}
+		server.fetchReward(blockDetail.Header.Height)
+
 	}
 	//server.isFetchingBlocks = false
 
@@ -303,6 +304,9 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
 	if blockDetail != nil {
+		if maxHeight > pre {
+			server.storage.DeleteForkblock(pre, localHeight)
+		}
 		if server.storage.AddBlock(&blockDetail.Block) {
 			trans := make([]*models.Transaction, 0, 0)
 			for i := 0; i < len(blockDetail.Trans); i++ {
@@ -320,9 +324,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 			server.storage.AddReceipts(blockDetail.Receipts)
 
 		}
-		if maxHeight > pre {
-			server.storage.DeleteForkblock(pre, localHeight)
-		}
+
 	}
 	//server.isFetchingBlocks = false
 
@@ -387,7 +389,7 @@ func (crontab *Crontab) dataCompensationProcess(notifyHeight uint64, notifyPreHe
 
 		dbMaxHeight := crontab.blockTopHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
-			crontab.storage.DeleteForkblock(dbMaxHeight-1, dbMaxHeight+1)
+			crontab.storage.DeleteForkblock(dbMaxHeight-1, dbMaxHeight)
 			crontab.dataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInited = true
@@ -403,7 +405,7 @@ func (crontab *Crontab) rewardDataCompensationProcess(notifyHeight uint64, notif
 
 		dbMaxHeight := crontab.rewardStorageDataHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
-			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight+1)
+			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight)
 			crontab.rewarddataCompensation(dbMaxHeight, dbMaxHeight)
 		}
 
