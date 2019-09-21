@@ -15,7 +15,7 @@
 
 package common
 
-const GtasVersion = "0.9.20.0921"
+const GtasVersion = "0.9.20.0921b"
 
 const ConsensusVersion = 1
 
