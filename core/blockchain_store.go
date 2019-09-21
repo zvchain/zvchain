@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
 
@@ -24,6 +25,18 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
+
+type newTopMessage struct {
+	bh *types.BlockHeader
+}
+
+func (msg *newTopMessage) GetRaw() []byte {
+	return nil
+}
+
+func (msg *newTopMessage) GetData() interface{} {
+	return msg.bh
+}
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
 	root, err := state.Commit(true)
@@ -239,6 +252,10 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	}
 	// invalidate latest cp cache
 	chain.latestCP = atomic.Value{}
+
+	// Notify reset top message
+	notify.BUS.Publish(notify.NewTopBlock, &newTopMessage{bh: block})
+
 	return nil
 }
 
