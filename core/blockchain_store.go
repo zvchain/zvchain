@@ -252,7 +252,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		"removedHeight": len(removeBlocks),
 		"now":           time.TSInstance.Now().UTC(),
 		"logType":       "resetTop",
-		"version":       common.GtasVersion,
+		"version":       common.GzvVersion,
 	}).Info("resetTop")
 	for _, b := range removeBlocks {
 		GroupManagerImpl.OnBlockRemove(b)
