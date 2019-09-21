@@ -25,7 +25,6 @@ type proveChecker struct {
 	proposalVrfHashs *lru.Cache // Recently proposed vrf prove hash
 }
 
-
 func newProveChecker() *proveChecker {
 	return &proveChecker{
 		proposalVrfHashs: common.MustNewLRUCache(50),

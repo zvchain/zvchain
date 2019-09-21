@@ -35,16 +35,16 @@ var (
 	originPieceReqKey = []byte("originPieceRequired") //the key for marking origin piece required in current Seed
 	groupDataKey      = []byte("group")               //the key for saving group data in levelDb
 	topGroupKey       = []byte("topGroup")            //the key for saving top group data in levelDb
+	skipCounterKey    = []byte("skip_cnt")            // skip counts key
 )
 
 // Store implements GroupStoreReader
 type Store struct {
-	chain    chainReader
-	poolImpl *pool
+	chain chainReader
 }
 
-func NewStore(chain chainReader, p *pool) types.GroupStoreReader {
-	return &Store{chain, p}
+func NewStore(chain chainReader) types.GroupStoreReader {
+	return &Store{chain}
 }
 
 // GetEncryptedPiecePackets returns all uploaded encrypted share piece with given Seed
@@ -52,7 +52,7 @@ func (s *Store) GetEncryptedPiecePackets(seed types.SeedI) ([]types.EncryptedSha
 	seedAdder := common.HashToAddress(seed.Seed())
 	rs := make([]types.EncryptedSharePiecePacket, 0, 100) //max group member number is 100
 	prefix := getKeyPrefix(dataTypePiece)
-	db, err := s.chain.LatestStateDB()
+	db, err := s.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return nil, err
@@ -81,7 +81,7 @@ func (s *Store) HasSentEncryptedPiecePacket(sender []byte, seed types.SeedI) boo
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypePiece, common.BytesToAddress(sender))
 	//return s.db.Exist(seedAdder, key.toByte())
-	db, err := s.chain.LatestStateDB()
+	db, err := s.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return false
@@ -93,7 +93,7 @@ func (s *Store) HasSentEncryptedPiecePacket(sender []byte, seed types.SeedI) boo
 func (s *Store) HasSentMpkPacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeMpk, common.BytesToAddress(sender))
-	db, err := s.chain.LatestStateDB()
+	db, err := s.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return false
@@ -105,7 +105,7 @@ func (s *Store) HasSentMpkPacket(sender []byte, seed types.SeedI) bool {
 func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeMpk)
-	db, err := s.chain.LatestStateDB()
+	db, err := s.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return nil, err
@@ -129,7 +129,7 @@ func (s *Store) GetMpkPackets(seed types.SeedI) ([]types.MpkPacket, error) {
 // IsOriginPieceRequired checks if group members should upload origin piece
 func (s *Store) IsOriginPieceRequired(seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
-	db, err := s.chain.LatestStateDB()
+	db, err := s.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return false
@@ -141,7 +141,7 @@ func (s *Store) IsOriginPieceRequired(seed types.SeedI) bool {
 func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiecePacket, error) {
 	seedAdder := common.HashToAddress(seed.Seed())
 	prefix := getKeyPrefix(dataTypeOriginPiece)
-	db, err := s.chain.LatestStateDB()
+	db, err := s.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return nil, err
@@ -166,85 +166,12 @@ func (s *Store) GetOriginPiecePackets(seed types.SeedI) ([]types.OriginSharePiec
 func (s *Store) HasSentOriginPiecePacket(sender []byte, seed types.SeedI) bool {
 	seedAdder := common.HashToAddress(seed.Seed())
 	key := newTxDataKey(dataTypeOriginPiece, common.BytesToAddress(sender))
-	db, err := s.chain.LatestStateDB()
+	db, err := s.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return false
 	}
 	return db.GetData(seedAdder, key.toByte()) != nil
-}
-
-// GetAvailableGroupSeeds returns all activeList groups at the given Height
-func (s *Store) GetAvailableGroupSeeds(height uint64) []types.SeedI {
-	gls := s.poolImpl.getActives(s.chain, height)
-	if gls != nil {
-		rs := make([]types.SeedI, 0, len(gls))
-		for _, v := range gls {
-			rs = append(rs, v.HeaderD)
-		}
-		return rs
-	}
-	return nil
-}
-
-// GetGroupBySeed returns group with given Seed
-func (s *Store) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	db, err := s.chain.LatestStateDB()
-	if err != nil {
-		logger.Error("failed to get last db")
-		return nil
-	}
-
-	gp := s.poolImpl.get(db, seedHash)
-	if gp == nil {
-		return nil
-	}
-	return gp
-}
-
-// GetGroupBySeed returns group header with given Seed
-func (s *Store) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
-	db, err := s.chain.LatestStateDB()
-	if err != nil {
-		logger.Error("failed to get last db")
-		return nil
-	}
-	g := s.poolImpl.get(db, seedHash)
-	if g == nil {
-		return nil
-	}
-	return g.Header()
-}
-
-// MinerLiveGroupCount returns the count of living groups which contains the given miner address
-func (s *Store) MinerLiveGroupCount(addr common.Address, height uint64) int {
-	groups := s.poolImpl.getLives(s.chain, height)
-	cnt := 0
-	for _, g := range groups {
-		if g.hasMember(addr.Bytes()) {
-			cnt++
-		}
-	}
-	return cnt
-}
-
-// FilterMinerGroupCountLessThan returns function to check if the miners joined live group count less than the
-// maxCount in a given block height
-func (s *Store) IsMinerGroupCountLessThan(maxCount int, height uint64) func(addr common.Address) bool {
-	lived := s.poolImpl.getLives(s.chain,  height)
-	doFilter := func(addr common.Address) bool {
-		count := 0
-		for _, g := range lived {
-			for _, mem := range g.MembersD {
-				if bytes.Equal(addr.Bytes(), mem.Id) {
-					count++
-					break
-				}
-			}
-		}
-		return count < maxCount
-	}
-	return doFilter
 }
 
 type txDataKey struct {

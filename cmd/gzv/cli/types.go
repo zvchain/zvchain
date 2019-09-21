@@ -16,6 +16,7 @@
 package cli
 
 import (
+	"errors"
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
 	"time"
@@ -25,15 +26,26 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-// Result is rpc request successfully returns the variable parameter
-type Result struct {
-	Message string      `json:"message"`
-	Status  int         `json:"status"`
-	Data    interface{} `json:"data"`
+// RawMessage is a raw encoded JSON value.
+// It implements Marshaler and Unmarshaler and can
+// be used to delay JSON decoding or precompute a JSON encoding.
+type RawMessage []byte
+
+// MarshalJSON returns m as the JSON encoding of m.
+func (m RawMessage) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return []byte("null"), nil
+	}
+	return m, nil
 }
 
-func (r *Result) IsSuccess() bool {
-	return r.Status == 0
+// UnmarshalJSON sets *m to a copy of data.
+func (m *RawMessage) UnmarshalJSON(data []byte) error {
+	if m == nil {
+		return errors.New("RawMessage: UnmarshalJSON on nil pointer")
+	}
+	*m = append((*m)[0:0], data...)
+	return nil
 }
 
 // ErrorResult is rpc request error returned variable parameter
@@ -54,8 +66,13 @@ type RPCReqObj struct {
 type RPCResObj struct {
 	Jsonrpc string       `json:"jsonrpc"`
 	ID      uint         `json:"id"`
-	Result  *Result      `json:"result,omitempty"`
+	Result  RawMessage   `json:"result,omitempty"`
 	Error   *ErrorResult `json:"error,omitempty"`
+}
+
+type RPCResObjCmd struct {
+	Result RawMessage   `json:"result,omitempty"`
+	Error  *ErrorResult `json:"error,omitempty"`
 }
 
 // Transactions in the buffer pool transaction list
@@ -96,11 +113,13 @@ type CastStat struct {
 }
 
 type MortGage struct {
-	Stake              uint64 `json:"stake"`
-	ApplyHeight        uint64 `json:"apply_height"`
-	Type               string `json:"type"`
-	Status             string `json:"miner_status"`
-	StatusUpdateHeight uint64 `json:"status_update_height"`
+	Stake                uint64 `json:"stake"`
+	ApplyHeight          uint64 `json:"apply_height"`
+	Type                 string `json:"type"`
+	Status               string `json:"miner_status"`
+	StatusUpdateHeight   uint64 `json:"status_update_height"`
+	Identity             string `json:"identity"`
+	IdentityUpdateHeight uint64 `json:"identity_update_height"`
 }
 
 func NewMortGageFromMiner(miner *types.Miner) *MortGage {
@@ -114,21 +133,41 @@ func NewMortGageFromMiner(miner *types.Miner) *MortGage {
 	} else if miner.IsFrozen() {
 		status = "frozen"
 	}
+
+	i := "normal node"
+	if miner.IsMinerPool() {
+		i = "miner pool node"
+	} else if miner.IsInvalidMinerPool() {
+		i = "invalid miner pool node"
+	} else if miner.IsGuard() {
+		i = "guard node"
+	}
 	mg := &MortGage{
-		Stake:              uint64(common.RA2TAS(miner.Stake)),
-		ApplyHeight:        miner.ApplyHeight,
-		Type:               t,
-		Status:             status,
-		StatusUpdateHeight: miner.StatusUpdateHeight,
+		Stake:                uint64(common.RA2TAS(miner.Stake)),
+		ApplyHeight:          miner.ApplyHeight,
+		Type:                 t,
+		Status:               status,
+		StatusUpdateHeight:   miner.StatusUpdateHeight,
+		Identity:             i,
+		IdentityUpdateHeight: miner.IdentityUpdateHeight,
 	}
 	return mg
 }
 
 type StakeDetail struct {
-	Value        uint64 `json:"value"`
-	UpdateHeight uint64 `json:"update_height"`
-	MType        string `json:"m_type"`
-	Status       string `json:"stake_status"`
+	Value           uint64 `json:"value"`
+	UpdateHeight    uint64 `json:"update_height"`
+	MType           string `json:"m_type"`
+	Status          string `json:"stake_status"`
+	CanReduceHeight uint64 `json:"can_reduce_height"`
+}
+
+type MinerPoolDetail struct {
+	CurrentStake uint64 `json:"current_stake"`
+	FullStake    uint64 `json:"full_stake"`
+	Tickets      uint64 `json:"tickets"`
+	Identity     uint64 `json:"identity"`
+	ValidTickets uint64 `json:"valid_tickets"`
 }
 
 type MinerStakeDetails struct {
@@ -270,7 +309,7 @@ type ExplorerAccount struct {
 	Nonce     uint64                 `json:"nonce"`
 	Type      uint32                 `json:"type"`
 	CodeHash  string                 `json:"code_hash"`
-	ABI  	  []tvm.ABIVerify 		 `json:"abi"`
+	ABI       []tvm.ABIVerify        `json:"abi"`
 	Code      string                 `json:"code"`
 	StateData map[string]interface{} `json:"state_data"`
 }
@@ -281,6 +320,11 @@ type ExploreBlockReward struct {
 	ProposalGasFeeReward uint64            `json:"proposal_gas_fee_reward"`
 	VerifierReward       RewardTransaction `json:"verifier_reward"`
 	VerifierGasFeeReward uint64            `json:"verifier_gas_fee_reward"`
+}
+
+type ExploreCandidateList struct {
+	ID    string `json:"id"`
+	Stake uint64 `json:"stake"`
 }
 
 type JoinedGroupInfo struct {

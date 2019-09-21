@@ -25,19 +25,19 @@ var middleBlock *types.Block
 var middleBlockHash common.Hash
 
 func init() {
-	log.Init()
+	clearAllFolder()
 }
-func initContext() {
-	initContext4Test()
-	blockSyncForTest = newBlockSyncer(BlockChainImpl.(*FullBlockChain))
+func initContext(t *testing.T) {
+	initContext4Test(t)
+	blockSyncForTest = newBlockSyncer(BlockChainImpl)
 	blockSyncForTest.logger = log.BlockSyncLogger
 
 	initPeerManager()
 	types.DefaultPVFunc = PvFuncTest
 }
 func TestGetBestCandidate(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 	for i := 0; i < 100; i++ {
 		blockSyncForTest.addCandidatePool(strconv.Itoa(i), &types.BlockHeader{Hash: common.BigToAddress(big.NewInt(int64(i))).Hash(), TotalQN: uint64(i), ProveValue: genHash(strconv.Itoa(i))})
 		peerManagerImpl.getOrAddPeer(strconv.Itoa(i))
@@ -78,8 +78,8 @@ func PvFuncTest(pvBytes []byte) *big.Int {
 }
 
 func TestTopBlockInfoNotifyHandler(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 
 	//add a nil blockheader
 	source := "0x111"
@@ -109,8 +109,8 @@ func TestTopBlockInfoNotifyHandler(t *testing.T) {
 }
 
 func TestBlockReqHandler(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 	insertBlocks()
 	bts, _ := tas_middleware_test.MarshalNilSyncRequest()
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
@@ -130,21 +130,21 @@ func TestBlockReqHandler(t *testing.T) {
 
 	var ReqHeight uint64 = 10
 	ReqSize := 10
-	blocks := BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks := BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 10 {
 		t.Fatalf("expect 10,bug got %d", len(blocks))
 	}
 
 	ReqHeight = 0
 	ReqSize = 16
-	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks = BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 16 {
 		t.Fatalf("expect 16,bug got %d", len(blocks))
 	}
 
 	ReqHeight = 83
 	ReqSize = 16
-	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks = BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 16 {
 		t.Fatalf("expect 16,bug got %d", len(blocks))
 	}
@@ -152,7 +152,7 @@ func TestBlockReqHandler(t *testing.T) {
 	//max height is 99
 	ReqHeight = 99
 	ReqSize = 16
-	blocks = BlockChainImpl.(*FullBlockChain).BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
+	blocks = BlockChainImpl.BatchGetBlocksAfterHeight(ReqHeight, ReqSize)
 	if len(blocks) != 1 {
 		t.Fatalf("expect 1,bug got %d", len(blocks))
 	}
@@ -160,9 +160,9 @@ func TestBlockReqHandler(t *testing.T) {
 
 func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	//error blocks
-	clearDB()
-	initContext()
-	defer clearDB()
+	clearSelf(t)
+	initContext(t)
+	defer clearSelf(t)
 	insertCorrectHashBlocks()
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
@@ -170,8 +170,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ := proto.Marshal(&message)
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err := blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got err,but got nil")
 	}
 
 	//error protobuf format
@@ -191,8 +191,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ = proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	//tx sign error
@@ -202,8 +202,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ = proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	//correct block hash
@@ -213,8 +213,8 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	bts, _ = proto.Marshal(&message)
 	msg = tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 
 	//rock back attack
@@ -226,24 +226,24 @@ func TestBlockResponseMsgHandler_bug(t *testing.T) {
 	err = blockSyncForTest.blockResponseMsgHandler(msg)
 
 	//this is roll back error!
-	if BlockChainImpl.(*FullBlockChain).latestBlock.Hash == middleBlockHash {
+	if BlockChainImpl.latestBlock.Hash == middleBlockHash {
 		t.Fatalf("hash error")
 	}
-	if err != nil {
-		t.Fatalf("expect err nil,but got error")
+	if err == nil {
+		t.Fatalf("expect got error,but got nil")
 	}
 }
 
 func TestNewBlockHandler(t *testing.T) {
-	initContext()
-	defer clearDB()
+	initContext(t)
+	defer clearSelf(t)
 	blocks := tas_middleware_test.GenBlocks()
 	pbblocks := blocksToPb(blocks)
 	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
 	bts, _ := proto.Marshal(&message)
 	msg := tas_middleware_test.GenDefaultMessageWithBytes(111, bts)
 
-	err := BlockChainImpl.(*FullBlockChain).newBlockHandler(msg)
+	err := BlockChainImpl.newBlockHandler(msg)
 	if err != nil {
 		t.Fatalf("expect got no error,but got error")
 	}
@@ -275,22 +275,22 @@ func clearDB() {
 
 func insertBlocks() {
 	blocks := GenBlocks()
-	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 	exc := &executePostState{state: stateDB}
 	for i := 0; i < len(blocks); i++ {
-		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i], exc)
+		BlockChainImpl.commitBlock(blocks[i], exc)
 		lastBlockHash = blocks[i].Header.Hash
 	}
 }
 
 func insertCorrectHashBlocks() {
 	blocks := GenCorrectBlocks()
-	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.(*FullBlockChain).stateCache)
+	stateDB, _ := account.NewAccountDB(common.Hash{}, BlockChainImpl.stateCache)
 	exc := &executePostState{state: stateDB}
 	for i := 0; i < len(blocks); i++ {
 		root := stateDB.IntermediateRoot(true)
 		blocks[i].Header.StateTree = common.BytesToHash(root.Bytes())
-		BlockChainImpl.(*FullBlockChain).commitBlock(blocks[i], exc)
+		BlockChainImpl.commitBlock(blocks[i], exc)
 		lastBlockHash = blocks[i].Header.Hash
 		if i == 4 {
 			middleBlockHash = blocks[i].Header.Hash
@@ -346,11 +346,11 @@ func BlockToPbOnlyTxs(blocks []*types.Block) []*tas_middleware_pb.Block {
 	return pbblocks
 }
 
-func TransactionsToPb(txs []*types.Transaction) []*tas_middleware_pb.Transaction {
+func TransactionsToPb(txs []*types.RawTransaction) []*tas_middleware_pb.RawTransaction {
 	if txs == nil {
 		return nil
 	}
-	transactions := make([]*tas_middleware_pb.Transaction, 0)
+	transactions := make([]*tas_middleware_pb.RawTransaction, 0)
 	for _, t := range txs {
 		transaction := transactionToPb(t)
 		transactions = append(transactions, transaction)
@@ -358,7 +358,7 @@ func TransactionsToPb(txs []*types.Transaction) []*tas_middleware_pb.Transaction
 	return transactions
 }
 
-func transactionToPb(t *types.Transaction) *tas_middleware_pb.Transaction {
+func transactionToPb(t *types.RawTransaction) *tas_middleware_pb.RawTransaction {
 	if t == nil {
 		return nil
 	}
@@ -369,14 +369,13 @@ func transactionToPb(t *types.Transaction) *tas_middleware_pb.Transaction {
 		target = t.Target.Bytes()
 	}
 	tp := int32(t.Type)
-	transaction := tas_middleware_pb.Transaction{
+	transaction := tas_middleware_pb.RawTransaction{
 		Data:      t.Data,
 		Value:     t.Value.GetBytesWithSign(),
 		Nonce:     &t.Nonce,
 		Target:    target,
 		GasLimit:  t.GasLimit.GetBytesWithSign(),
 		GasPrice:  t.GasPrice.GetBytesWithSign(),
-		Hash:      t.Hash.Bytes(),
 		ExtraData: t.ExtraData,
 		Type:      &tp,
 		Sign:      t.Sign,
@@ -403,7 +402,7 @@ func BlockToErrorPb(b *types.Block) *tas_middleware_test.Block {
 }
 
 func BlockHeaderToErrorPb(h *types.BlockHeader) *tas_middleware_test.BlockHeader {
-	ts := h.CurTime.Unix()
+	ts := h.CurTime.UnixMilli()
 	str := "............."
 	header := tas_middleware_test.BlockHeader{
 		Hash:        h.Hash.Bytes(),

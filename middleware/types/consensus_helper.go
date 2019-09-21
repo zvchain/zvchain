@@ -16,6 +16,7 @@
 package types
 
 import (
+	"github.com/zvchain/zvchain/common"
 	"math/big"
 )
 
@@ -47,11 +48,19 @@ type ConsensusHelper interface {
 	VerifyNewBlock(bh *BlockHeader, preBH *BlockHeader) (bool, error)
 
 	// verify the blockheader: mainly verify the group signature
-	VerifyBlockHeader(bh *BlockHeader) (bool, error)
+	VerifyBlockSign(bh *BlockHeader) (bool, error)
 
 	// verify reward transaction
 	VerifyRewardTransaction(tx *Transaction) (bool, error)
 
 	// estimate pre block's height
 	EstimatePreHeight(bh *BlockHeader) uint64
+
+	// VerifyBlockHeaders checks if the group is legal and the group signature is correct
+	VerifyBlockHeaders(pre, bh *BlockHeader) (ok bool, err error)
+
+	GroupSkipCountsBetween(preBH *BlockHeader, h uint64) map[common.Hash]uint16
+
+	// return the min elapsed second for blocks
+	GetBlockMinElapse(height uint64) int32
 }

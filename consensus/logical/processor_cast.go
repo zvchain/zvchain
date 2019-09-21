@@ -17,8 +17,8 @@ package logical
 
 import (
 	"fmt"
-	"math/big"
 	"sync"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 
@@ -29,35 +29,26 @@ import (
 	"github.com/zvchain/zvchain/monitor"
 )
 
+const (
+	blockSecondsBuffer       int64 = 2       //Max acceptable seconds if block's curTime early than now() when validating the block
+	blockPreSendMilliSeconds int64 = 1 * 1e3 //Milliseconds of a proposer can dispatch the block header before the block's curTime
+
+	chasingSeekEpochs int   = 10        //ChasingSeekEpochs defined the number of epochs to look back to calculator the average block time
+	normalMinElapse   int32 = 3 * 1e3   //Min elapse milliseconds in normal model
+	chasingMinElapse  int32 = 2.8 * 1e3 //Min elapse milliseconds in chasing model
+)
+
 // triggerCastCheck trigger once to check if you are next ingot verifyGroup
 func (p *Processor) triggerCastCheck() {
 	p.Ticker.StartAndTriggerRoutine(p.getCastCheckRoutineName())
 }
 
-func (p *Processor) calcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
-	var hash = calcRandomHash(preBH, height)
-
-	groupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(height)
-	// Must not happen
-	if len(groupSeeds) == 0 {
-		panic("no available groupSeeds")
-	}
-	seeds := make([]string, len(groupSeeds))
-	for _, seed := range groupSeeds {
-		seeds = append(seeds, common.ShortHex(seed.Seed().Hex()))
-	}
-
-	value := hash.Big()
-	index := value.Mod(value, big.NewInt(int64(len(groupSeeds))))
-
-	selectedGroup := groupSeeds[index.Int64()]
-
-	stdLogger.Debugf("verify groups size %v at %v: %v, selected %v", len(groupSeeds), height, seeds, selectedGroup.Seed())
-	return selectedGroup.Seed()
+func (p *Processor) CalcVerifyGroup(preBH *types.BlockHeader, height uint64) common.Hash {
+	return p.selector.doSelect(preBH, height)
 }
 
 func (p *Processor) spreadGroupBrief(bh *types.BlockHeader, height uint64) *net.GroupBrief {
-	nextGroup := p.calcVerifyGroup(bh, height)
+	nextGroup := p.CalcVerifyGroup(bh, height)
 	group := p.groupReader.getGroupBySeed(nextGroup)
 	g := &net.GroupBrief{
 		GSeed:  nextGroup,
@@ -91,7 +82,7 @@ func (p *Processor) tryNotify(vctx *VerifyContext) bool {
 	if sc := vctx.checkNotify(); sc != nil {
 		bh := sc.BH
 		tlog := newHashTraceLog("tryNotify", bh.Hash, p.GetMinerID())
-		tlog.log("try broadcast, height=%v, totalQN=%v, consuming %vs", bh.Height, bh.TotalQN, p.ts.Since(bh.CurTime))
+		tlog.log("try broadcast, height=%v, totalQN=%v, consuming %vs", bh.Height, bh.TotalQN, p.ts.SinceSeconds(bh.CurTime))
 
 		// Add on chain and out-of-verifyGroup broadcasting
 		p.consensusFinalize(vctx, sc)
@@ -125,7 +116,7 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 		return fmt.Errorf("next verifyGroup is nil")
 	}
 	p.NetServer.BroadcastNewBlock(block, gb)
-	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.Since(bh.CurTime))
+	tlog.log("broadcasted height=%v, consuming %vs", bh.Height, p.ts.SinceSeconds(bh.CurTime))
 
 	// Send info
 	le := &monitor.LogEntry{
@@ -161,8 +152,12 @@ func (p *Processor) consensusFinalize(vctx *VerifyContext, slot *SlotContext) {
 		result = "already on chain"
 		return
 	}
+	if !p.blockOnChain(bh.PreHash) {
+		result = fmt.Sprintf("pre not exist: hash=%v", bh.PreHash)
+		return
+	}
 
-	gpk := groupsig.DeserializePubkeyBytes(vctx.group.header.PublicKey())
+	gpk := vctx.group.header.gpk
 
 	// Group signature verification passed
 	if !slot.VerifyGroupSigns(gpk, vctx.prevBH.Random) {
@@ -219,10 +214,10 @@ func (p *Processor) blockProposal() {
 		return
 	}
 
-	if height > 1 && p.proveChecker.proveExists(pi) {
-		blog.warn("vrf prove exist, not proposal")
-		return
-	}
+	//if height > 1 && p.proveChecker.proveExists(pi) {
+	//	blog.warn("vrf prove exist, not proposal")
+	//	return
+	//}
 
 	if worker.timeout() {
 		blog.warn("vrf worker timeout")
@@ -282,6 +277,11 @@ func (p *Processor) blockProposal() {
 
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
+		offset := ccm.BH.CurTime.SinceMilliSeconds(p.ts.Now())
+		if offset > blockPreSendMilliSeconds {
+			blog.debug("sleep %d milliseconds before SendCastVerify. now: %v, block.curTime: %v", offset-1, p.ts.Now(), ccm.BH.CurTime)
+			time.Sleep(time.Millisecond * time.Duration(offset-blockPreSendMilliSeconds))
+		}
 		p.NetServer.SendCastVerify(ccm, gb)
 
 		// ccm.GenRandomSign(skey, worker.baseBH.Random)

@@ -18,14 +18,16 @@ package core
 import (
 	"errors"
 	"fmt"
+	"os"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/log"
-	"os"
-	"sync"
-	"time"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
@@ -49,9 +51,9 @@ var (
 	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
 
-var BlockChainImpl types.BlockChain
+var BlockChainImpl *FullBlockChain
 
-var GroupManagerImpl group.Manager
+var GroupManagerImpl *group.Manager
 
 var Logger *logrus.Logger
 
@@ -80,8 +82,9 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
+	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
 
-	topBlocks *lru.Cache
+	topRawBlocks *lru.Cache
 
 	rwLock sync.RWMutex // Read-write lock
 
@@ -90,10 +93,11 @@ type FullBlockChain struct {
 
 	init bool // Init means where blockchain can work
 
-	executor *TVMExecutor
+	stateProc *stateProcessor
 
-	futureBlocks   *lru.Cache
-	verifiedBlocks *lru.Cache
+	futureRawBlocks  *lru.Cache
+	verifiedBlocks   *lru.Cache
+	newBlockMessages *lru.Cache
 
 	isAdjusting bool // isAdjusting which means there may be a fork
 
@@ -109,11 +113,13 @@ type FullBlockChain struct {
 	ticker *ticker.GlobalTicker // Ticker is a global time ticker
 	ts     time2.TimeService
 	types.Account
+
+	cpChecker *cpChecker
 }
 
 func getBlockChainConfig() *BlockChainConfig {
 	return &BlockChainConfig{
-		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b") + common.GlobalConf.GetString("instance", "index", ""),
+		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
 		block:  "bh",
 
 		blockHeight: "hi",
@@ -130,17 +136,18 @@ func getBlockChainConfig() *BlockChainConfig {
 func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) error {
 	Logger = log.CoreLogger
 	chain := &FullBlockChain{
-		config:          getBlockChainConfig(),
-		latestBlock:     nil,
-		init:            true,
-		isAdjusting:     false,
-		consensusHelper: helper,
-		ticker:          ticker.NewGlobalTicker("chain"),
-		ts:              time2.TSInstance,
-		futureBlocks:    common.MustNewLRUCache(10),
-		verifiedBlocks:  common.MustNewLRUCache(10),
-		topBlocks:       common.MustNewLRUCache(20),
-		Account:         minerAccount,
+		config:           getBlockChainConfig(),
+		latestBlock:      nil,
+		init:             true,
+		isAdjusting:      false,
+		consensusHelper:  helper,
+		ticker:           ticker.NewGlobalTicker("chain"),
+		ts:               time2.TSInstance,
+		futureRawBlocks:  common.MustNewLRUCache(100),
+		verifiedBlocks:   common.MustNewLRUCache(10),
+		topRawBlocks:     common.MustNewLRUCache(20),
+		newBlockMessages: common.MustNewLRUCache(100),
+		Account:          minerAccount,
 	}
 
 	types.DefaultPVFunc = helper.VRFProve2Value
@@ -199,22 +206,28 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
-	chain.executor = NewTVMExecutor(chain)
+	latestBH := chain.loadCurrentBlock()
 
-	chain.latestBlock = chain.loadCurrentBlock()
+	GroupManagerImpl = group.NewManager(chain, helper)
 
-	GroupManagerImpl = group.NewManager(chain)
+	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
+	sp := newStateProcessor(chain)
+	sp.addPostProcessor(GroupManagerImpl.RegularCheck)
+	sp.addPostProcessor(chain.cpChecker.updateVotes)
+	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
+	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
+	chain.stateProc = sp
 
-	if nil != chain.latestBlock {
+	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
 			os.Exit(0)
 		}
-		chain.buildCache(10)
-		Logger.Debugf("initBlockChain chain.latestBlock.StateTree  Hash:%s", chain.latestBlock.StateTree.Hex())
-		state, err := account.NewAccountDB(common.BytesToHash(chain.latestBlock.StateTree.Bytes()), chain.stateCache)
+		state, err := account.NewAccountDB(common.BytesToHash(latestBH.StateTree.Bytes()), chain.stateCache)
 		if nil == err {
-			chain.latestStateDB = state
+			chain.updateLatestBlock(state, latestBH)
+			chain.buildCache(10)
+			Logger.Debugf("initBlockChain chain.latestBlock.StateTree  Hash:%s", chain.latestBlock.StateTree.Hex())
 		} else {
 			err = errors.New("initBlockChain NewAccountDB fail::" + err.Error())
 			Logger.Error(err)
@@ -224,13 +237,14 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		chain.insertGenesisBlock()
 	}
 
-	chain.forkProcessor = initForkProcessor(chain)
+	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
-	initMinerManager(chain.ticker)
-	GroupManagerImpl.InitManager(MinerManagerImpl,chain.consensusHelper.GenerateGenesisInfo())
+	initMinerManager()
+	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
-	MinerManagerImpl.ticker.StartTickerRoutine(buildVirtualNetRoutineName, false)
+	chain.cpChecker.init()
+
 	return nil
 }
 
@@ -280,11 +294,17 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 		miners = append(miners, miner)
 	}
 	MinerManagerImpl.addGenesesMiners(miners, stateDB)
+	MinerManagerImpl.genFundGuardNodes(stateDB)
 
 	// Create the global-use address
-	stateDB.SetNonce(minerPoolAddr, 1)
-	stateDB.SetNonce(rewardStoreAddr, 1)
+	stateDB.SetNonce(common.MinerPoolAddr, 1)
+	stateDB.SetNonce(common.RewardStoreAddr, 1)
 	stateDB.SetNonce(common.GroupTopAddress, 1)
+	stateDB.SetNonce(cpAddress, 1)
+
+	// mark group votes at 0
+	chain.cpChecker.setGroupVotes(stateDB, []uint16{1})
+	chain.cpChecker.setGroupEpoch(stateDB, types.EpochAt(0))
 
 	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
@@ -328,14 +348,14 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
-	if chain.blocks  != nil{
+	if chain.blocks != nil {
 		chain.blocks.Close()
 	}
-	if chain.blockHeight != nil{
+	if chain.blockHeight != nil {
 		chain.blockHeight.Close()
 	}
 
-	if chain.stateDb != nil{
+	if chain.stateDb != nil {
 		chain.stateDb.Close()
 	}
 

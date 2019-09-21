@@ -16,7 +16,9 @@
 package cli
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -37,33 +39,33 @@ func (api *RpcExplorerImpl) Version() string {
 }
 
 // ExplorerAccount is used in the blockchain browser to query account information
-func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*ExplorerAccount, error) {
 	if !common.ValidateAddress(strings.TrimSpace(hash)) {
-		return failResult("Wrong param format")
+		return nil, fmt.Errorf("wrong param format")
 	}
-	impl := &RpcGtasImpl{}
+	impl := &RpcGzvImpl{}
 	return impl.ViewAccount(hash)
 }
 
 // ExplorerBlockDetail is used in the blockchain browser to query block details
-func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*ExplorerBlockDetail, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
-		return failResult("QueryBlock error")
+		return nil, fmt.Errorf("queryBlock error")
 	}
 	block := convertBlockHeader(b)
 
 	trans := make([]Transaction, 0)
 
 	for _, tx := range b.Transactions {
-		trans = append(trans, *convertTransaction(tx))
+		trans = append(trans, *convertTransaction(types.NewTransaction(tx, tx.GenHash())))
 	}
 
 	evictedReceipts := make([]*types.Receipt, 0)
 
 	receipts := make([]*types.Receipt, len(b.Transactions))
-	for i, tx := range b.Transactions {
+	for i, tx := range trans {
 		wrapper := chain.GetTransactionPool().GetReceipt(tx.Hash)
 		if wrapper != nil {
 			receipts[i] = wrapper
@@ -75,12 +77,12 @@ func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*Result, error) 
 		EvictedReceipts: evictedReceipts,
 		Receipts:        receipts,
 	}
-	return successResult(bd)
+	return bd, nil
 }
 
 // ExplorerGroupsAfter is used in the blockchain browser to
 // query groups after the specified height
-func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) ([]*Group, error) {
 	groups := api.gr.GroupsAfter(height)
 
 	ret := make([]*Group, 0)
@@ -88,15 +90,15 @@ func (api *RpcExplorerImpl) ExplorerGroupsAfter(height uint64) (*Result, error) 
 		group := convertGroup(g)
 		ret = append(ret, group)
 	}
-	return successResult(ret)
+	return ret, nil
 }
 
 // ExplorerBlockReward export reward transaction by block height
-func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) {
+func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*ExploreBlockReward, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
 	if b == nil {
-		return failResult("nil block")
+		return nil, fmt.Errorf("nil block")
 	}
 	bh := b.Header
 
@@ -109,7 +111,7 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 		for _, tx := range b.Transactions {
 			if tx.IsReward() {
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
-				receipt := chain.GetTransactionPool().GetReceipt(tx.Hash)
+				receipt := chain.GetTransactionPool().GetReceipt(tx.GenHash())
 				if receipt != nil && block != nil && receipt.Success() {
 					share := rm.CalculateCastRewardShare(bh.Height, 0)
 					packedReward += share.ForRewardTxPacking
@@ -124,6 +126,23 @@ func (api *RpcExplorerImpl) ExplorerBlockReward(height uint64) (*Result, error) 
 		genReward := convertRewardTransaction(rewardTx)
 		genReward.Success = true
 		ret.VerifierReward = *genReward
+		ret.VerifierGasFeeReward = share.FeeForVerifier
 	}
-	return successResult(ret)
+	return ret, nil
+}
+
+func (api *RpcExplorerImpl) ExplorerGetCandidates() (*[]ExploreCandidateList, error) {
+
+	candidate := ExploreCandidateList{}
+	candidateLists := make([]ExploreCandidateList, 0)
+	candidates := group.GetCandidates()
+	if candidates == nil {
+		return nil, nil
+	}
+	for _, v := range candidates {
+		candidate.ID = v.ID.ToAddress().AddrPrefixString()
+		candidate.Stake = v.Stake
+		candidateLists = append(candidateLists, candidate)
+	}
+	return &candidateLists, nil
 }

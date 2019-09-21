@@ -93,9 +93,9 @@ func (rh *RewardHandler) OnMessageCastRewardSign(msg *model.CastRewardTransSignM
 
 	// Add the reward transaction to pool if the signature is accepted and the verifyGroup signature is recovered
 	if accept && recover && slot.statusTransform(slRewardSignReq, slRewardSent) {
-		_, err2 := rh.processor.AddTransaction(slot.rewardTrans)
+		_, err = rh.processor.AddTransaction(slot.rewardTrans)
 		send = true
-		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v, ret=%v", slot.rewardTrans.Hash, err2)
+		err = fmt.Errorf("add rewardTrans to txPool, txHash=%v，sign=%v, pk=%v, tx=%+v, err=%v", slot.rewardTrans.Hash, common.ToHex(slot.rewardTrans.Sign), group.header.gpk.GetHexString(), slot.rewardTrans.RawTransaction, err)
 		return nil
 	} else {
 		if slot.rewardGSignGen != nil {
@@ -151,7 +151,19 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 		err = fmt.Errorf("vctx is nil,%v height=%v", vctx == nil, bh.Height)
 		return
 	}
-
+	group := vctx.group
+	if gSeed != group.header.seed {
+		err = fmt.Errorf("group seed error, expect %v, infact %v", group.header.seed, gSeed)
+		return
+	}
+	if gSeed != reward.Group {
+		err = fmt.Errorf("groupSeed not equal %v %v", bh.Group, reward.Group)
+		return
+	}
+	if !group.hasMember(msg.SI.GetID()) {
+		err = fmt.Errorf("member %v dosen't belong to the group %v", msg.SI.GetID(), gSeed)
+		return
+	}
 	slot := vctx.GetSlotByHash(bh.Hash)
 	if slot == nil {
 		err = fmt.Errorf("slot is nil")
@@ -164,37 +176,48 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 		return
 	}
 
-	if gSeed != reward.Group {
-		err = fmt.Errorf("groupSeed not equal %v %v", bh.Group, reward.Group)
+	rewardShare := rh.processor.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
+	genReward, _, err2 := rh.processor.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
+	if err2 != nil {
+		err = err2
 		return
 	}
+	if genReward.TxHash != reward.TxHash {
+		err = fmt.Errorf("reward txHash diff %v %v", genReward.TxHash, reward.TxHash)
+		return
+	}
+
+	if len(msg.Reward.TargetIds) != len(msg.SignedPieces) {
+		err = fmt.Errorf("targetId len differ from signedpiece len %v %v", len(msg.Reward.TargetIds), len(msg.SignedPieces))
+		return
+	}
+	if len(msg.Reward.TargetIds) > group.memberSize() {
+		err = fmt.Errorf("target id size larger than member size")
+		return
+	}
+	// target ids legacy check
+	marks := make([]int, group.memberSize())
+	for _, idIdx := range msg.Reward.TargetIds {
+		if idIdx < 0 || idIdx >= int32(group.memberSize()) {
+			err = fmt.Errorf("target id error:%v %v", idIdx, msg.Reward.TargetIds)
+			return
+		}
+		if marks[idIdx] == 0 {
+			marks[idIdx] = 1
+		} else {
+			err = fmt.Errorf("duplicate target id found:%v %v", idIdx, msg.Reward.TargetIds)
+			return
+		}
+	}
+
 	if !slot.hasSignedTxHash(reward.TxHash) {
-		rewardShare := rh.processor.GetRewardManager().CalculateCastRewardShare(bh.Height, bh.GasFee)
-		genReward, _, err2 := rh.processor.GetRewardManager().GenerateReward(reward.TargetIds, bh.Hash, bh.Group, rewardShare.TotalForVerifier(), rewardShare.ForRewardTxPacking)
-		if err2 != nil {
-			err = err2
-			return
-		}
-		if genReward.TxHash != reward.TxHash {
-			err = fmt.Errorf("reward txHash diff %v %v", genReward.TxHash, reward.TxHash)
-			return
-		}
-
-		if len(msg.Reward.TargetIds) != len(msg.SignedPieces) {
-			err = fmt.Errorf("targetId len differ from signedpiece len %v %v", len(msg.Reward.TargetIds), len(msg.SignedPieces))
-			return
-		}
-
-		group := vctx.group
-
 		mpk := group.getMemberPubkey(msg.SI.GetID())
 		if !msg.VerifySign(mpk) {
 			err = fmt.Errorf("verify sign fail, gseed=%v, uid=%v", gSeed, msg.SI.GetID())
 			return
 		}
 
-		// Reuse the original generator to avoid duplicate signature verification
-		gSignGenerator := slot.gSignGenerator
+		tempGSignGenerator := model.NewGroupSignGenerator(int(group.header.Threshold()))
 
 		for idx, idIndex := range msg.Reward.TargetIds {
 			mem := group.getMemberAt(int(idIndex))
@@ -205,30 +228,33 @@ func (rh *RewardHandler) signCastRewardReq(msg *model.CastRewardTransSignReqMess
 			}
 			sign := msg.SignedPieces[idx]
 
-			// If there is no local id signature, you need to verify the signature.
-			if sig, ok := gSignGenerator.GetWitness(mem.id); !ok {
-				pk := group.getMemberPubkey(mem.id)
-				if !groupsig.VerifySig(pk, bh.Hash.Bytes(), sign) {
+			// If no signature of the given id in the slot, then verification will be needed.
+			if sig, ok := slot.gSignGenerator.GetWitness(mem.id); !ok {
+				if !groupsig.VerifySig(mem.pk, bh.Hash.Bytes(), sign) {
 					err = fmt.Errorf("verify member sign fail, id=%v", mem.id)
 					return
 				}
-				// Join the generator
-				gSignGenerator.AddWitnessForce(mem.id, sign)
+				// Add sign to the slot gSignGenerator
+				slot.gSignGenerator.AddWitnessForce(mem.id, sign)
+				// Add sign to the temp gSignGenerator
+				tempGSignGenerator.AddWitness(mem.id, sign)
 			} else { // If the signature of the id already exists locally, just judge whether it is the same as the local signature.
 				if !sign.IsEqual(sig) {
 					err = fmt.Errorf("member sign different id=%v", mem.id)
 					return
 				}
+				// Add sign to the temp gSignGenerator
+				tempGSignGenerator.AddWitness(mem.id, sign)
 			}
 		}
 
-		if !gSignGenerator.Recovered() {
+		if !tempGSignGenerator.Recovered() {
 			err = fmt.Errorf("recover verifyGroup sign fail")
 			return
 		}
 
 		bhSign := groupsig.DeserializeSign(bh.Signature)
-		aggSign := slot.GetAggregatedSign()
+		aggSign := slot.aggregateSign(tempGSignGenerator.GetGroupSign())
 		if aggSign == nil {
 			err = fmt.Errorf("obtain the Aggregated signature fail")
 			return
@@ -323,7 +349,7 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		err = fmt.Errorf("failed to generate reward %s", err)
 		return
 	}
-	blog.debug("generate reward txHash=%v, targetIds=%v, height=%v", reward.TxHash, reward.TargetIds, bh.Height)
+	blog.debug("generate reward for block %v, height=%v, txHash=%v, targetIds=%v,tx=%+v", bh.Hash, bh.Height, reward.TxHash, reward.TargetIds, tx.RawTransaction)
 
 	tLog := newHashTraceLog("REWARD_REQ", bh.Hash, rh.processor.GetMinerID())
 	tLog.log("txHash=%v, targetIds=%v", reward.TxHash, strings.Join(idHexs, ","))
@@ -337,9 +363,9 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 		if msg.GenSign(ski, msg) {
 			rh.processor.SendCastRewardSignReq(msg)
 
-			if stdLogger != nil {
-				stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", reward.TxHash.Hex(), ski.SK.GetHexString(), rh.processor.GetMinerID(), msg.SI.DataSign.GetHexString(), group.header.Seed())
-			}
+			//if stdLogger != nil {
+			//	stdLogger.Debugf("signdata: hash=%v, sk=%v, id=%v, sign=%v, seed=%v", reward.TxHash.Hex(), ski.SK.GetHexString(), rh.processor.GetMinerID(), msg.SI.DataSign.GetHexString(), group.header.Seed())
+			//}
 
 			blog.debug("reward req send height=%v, gseed=%v", bh.Height, group.header.Seed())
 		} else {
@@ -350,5 +376,5 @@ func (rh *RewardHandler) reqRewardTransSign(vctx *VerifyContext, bh *types.Block
 }
 
 func (rh *RewardHandler) blockPreview(bh *types.BlockHeader) string {
-	return fmt.Sprintf("hash=%v, height=%v, curTime=%v, preHash=%v, preTime=%v", bh.Hash, bh.Height, bh.CurTime, bh.PreHash, bh.CurTime.Add(-int64(bh.Elapsed)))
+	return fmt.Sprintf("hash=%v, height=%v, curTime=%v, preHash=%v, preTime=%v", bh.Hash, bh.Height, bh.CurTime, bh.PreHash, bh.CurTime.AddMilliSeconds(-int64(bh.Elapsed)))
 }

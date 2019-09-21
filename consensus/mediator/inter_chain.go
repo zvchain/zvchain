@@ -17,9 +17,11 @@
 package mediator
 
 import (
-	"github.com/zvchain/zvchain/common/ed25519"
 	"math"
 	"math/big"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/common/ed25519"
 
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/group"
@@ -45,7 +47,7 @@ func (helper *ConsensusHelperImpl) GenerateGenesisInfo() *types.GenesisInfo {
 
 // VRFProve2Value convert the vrf prove to big int
 func (helper *ConsensusHelperImpl) VRFProve2Value(prove []byte) *big.Int {
-	if len(prove) != ed25519.ProveSize{
+	if len(prove) != ed25519.ProveSize {
 		return big.NewInt(0)
 	}
 	return base.VRFProof2hash(base.VRFProve(prove)).Big()
@@ -69,9 +71,9 @@ func (helper *ConsensusHelperImpl) VerifyNewBlock(bh *types.BlockHeader, preBH *
 	return Proc.VerifyBlock(bh, preBH)
 }
 
-// VerifyBlockHeader verify the blockheader: mainly verify the group signature
-func (helper *ConsensusHelperImpl) VerifyBlockHeader(bh *types.BlockHeader) (bool, error) {
-	return Proc.VerifyBlockHeader(bh)
+// VerifyBlockSign verify the blockheader: mainly verify the group signature
+func (helper *ConsensusHelperImpl) VerifyBlockSign(bh *types.BlockHeader) (bool, error) {
+	return Proc.VerifyBlockSign(bh)
 }
 
 // VerifyRewardTransaction verify reward transaction
@@ -85,5 +87,18 @@ func (helper *ConsensusHelperImpl) EstimatePreHeight(bh *types.BlockHeader) uint
 	if height == 1 {
 		return 0
 	}
-	return height - uint64(math.Ceil(float64(bh.Elapsed)/float64(model.Param.MaxGroupCastTime)))
+	return height - uint64(math.Ceil(float64(bh.Elapsed)/float64(model.Param.MaxGroupCastTime*1e3)))
+}
+
+func (helper *ConsensusHelperImpl) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
+	return Proc.VerifyBlockHeaders(pre, bh)
+}
+
+func (helper *ConsensusHelperImpl) GroupSkipCountsBetween(preBH *types.BlockHeader, h uint64) map[common.Hash]uint16 {
+	return Proc.GroupSkipCountsBetween(preBH, h)
+}
+
+// GetBlockMinElapse return the min elapsed second for blocks
+func (helper *ConsensusHelperImpl) GetBlockMinElapse(height uint64) int32 {
+	return Proc.GetBlockMinElapse(height)
 }

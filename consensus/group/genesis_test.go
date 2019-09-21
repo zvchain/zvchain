@@ -34,6 +34,11 @@ func createMinerDOs(keyFile string) []*model.SelfMinerDO {
 	keys := strings.Split(string(bs), "\n")
 	dos := make([]*model.SelfMinerDO, 0)
 	for _, priKey := range keys {
+		bts := []byte(priKey)
+		if len(bts) > 196 {
+			bts = bts[:196]
+		}
+		priKey = string(bts)
 		privateKey := common.HexToSecKey(priKey)
 		miner, _ := model.NewSelfMinerDO(privateKey)
 		dos = append(dos, &miner)
@@ -76,7 +81,7 @@ func generateSharePiece(miner *model.SelfMinerDO, cands candidates, seed common.
 
 func TestGenerateGenesisGroup(t *testing.T) {
 	keyFile := "key_file_test"
-	seed := common.Hash{}
+	seed := common.BytesToHash([]byte("predefined hash for zvchain's genesis group"))
 	miners := createMinerDOs(keyFile)
 	if len(miners) == 0 {
 		t.Errorf("no miners")

@@ -23,19 +23,18 @@ import (
 
 func TestCalTree(t *testing.T) {
 	tx1 := getRandomTxs()
-	tree1 := calcTxTree(tx1)
-
-	if tree1.Hex() != "0x5a312281df4bd8dfbb4d4a94ad0bf44d01bb8cfced1206b90e21b4ca0568cdb1" {
-		t.Errorf("mismatch, expect 0x5a312281df4bd8dfbb4d4a94ad0bf44d01bb8cfced1206b90e21b4ca0568cdb1 but got get %s ", tree1.Hex())
+	tree1 := tx1.calcTxTree()
+	if tree1.Hex() != "0x07b89743cdd3f5efa9ab10ceadeb6e590f3583a614b558ccce144dacfad49eae" {
+		t.Errorf("mismatch, expect 0x07b89743cdd3f5efa9ab10ceadeb6e590f3583a614b558ccce144dacfad49eae but got %s ", tree1.Hex())
 	}
 }
 
-func getRandomTxs() []*types.Transaction {
-	result := make([]*types.Transaction, 0)
+func getRandomTxs() txSlice {
+	result := make(txSlice, 0)
 	var i uint64
 	for i = 0; i < 100; i++ {
-		tx := types.Transaction{Nonce: i, Value: types.NewBigInt(100 - i)}
-		result = append(result, &tx)
+		tx := types.RawTransaction{Nonce: i, Value: types.NewBigInt(100 - i)}
+		result = append(result, types.NewTransaction(&tx, tx.GenHash()))
 	}
 	return result
 }

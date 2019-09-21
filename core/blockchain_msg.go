@@ -17,6 +17,8 @@ package core
 
 import (
 	"fmt"
+
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 )
@@ -26,10 +28,17 @@ func (chain *FullBlockChain) initMessageHandler() {
 	notify.BUS.Subscribe(notify.NewBlock, chain.newBlockHandler)
 }
 
-func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error{
+func (chain *FullBlockChain) newBlockHandler(msg notify.Message) error {
 	m := notify.AsDefault(msg)
 
 	source := m.Source()
+	key := string(common.Sha256(m.Body()))
+	exist, _ := chain.newBlockMessages.ContainsOrAdd(key, 1)
+	if exist {
+		Logger.Debugf("Rcv new duplicate block from %s, key:%v", source, key)
+		return nil
+	}
+
 	block, e := types.UnMarshalBlock(m.Body())
 	if e != nil {
 		err := fmt.Errorf("UnMarshal block error:%s", e.Error())

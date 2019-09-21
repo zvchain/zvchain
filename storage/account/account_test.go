@@ -226,3 +226,26 @@ func TestGetData(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestRoot(t *testing.T) {
+	s := setUp()
+	addr := common.BytesToAddress([]byte("123"))
+	account, _ := s.state.createObject(addr)
+
+	t.Log("root", account.data.Root)
+
+	account.setData([]byte("1"), []byte("1"))
+	t.Log("root after set", account.data.Root)
+
+	account.updateRoot(s.state.db)
+	t.Log("root after update", account.data.Root)
+
+	account.setData([]byte("1"), nil)
+	account.updateRoot(s.state.db)
+	t.Log("root after update2", account.data.Root)
+
+	account.setBalance(new(big.Int).SetUint64(10))
+	account.updateRoot(s.state.db)
+	t.Log("root after set balance", account.data.Root)
+
+}

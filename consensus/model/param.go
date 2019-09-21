@@ -27,10 +27,6 @@ const (
 	// MaxWaitBlockTime is Waiting for the maximum time before broadcasting the block,it's 2s
 	MaxWaitBlockTime int = 2
 
-	// MaxUnknownBlocks means the memory saves the largest block that cannot be chained
-	// (the middle block is not received)
-	MaxUnknownBlocks = 5
-
 	// MaxSlotSize means number of slots per round
 	MaxSlotSize = 5
 
@@ -38,7 +34,7 @@ const (
 	GroupMaxMembers int = 100
 
 	// GroupMinMembers means the minimum number of members in a group
-	GroupMinMembers int = 10
+	GroupMinMembers int = 80
 )
 
 // ConsensusParam defines all the params of the consensus engine
@@ -59,14 +55,12 @@ var Param ConsensusParam
 
 func InitParam(cc common.SectionConfManager) {
 	Param = ConsensusParam{
-		GroupMemberMax:    cc.GetInt("group_member_max", GroupMaxMembers),
-		GroupMemberMin:    cc.GetInt("group_member_min", GroupMinMembers),
-		MaxWaitBlockTime:  cc.GetInt("max_wait_block_time", MaxWaitBlockTime),
-		MaxGroupCastTime:  cc.GetInt("max_group_cast_time", MaxGroupBlockTime),
+		GroupMemberMax:    GroupMaxMembers,
+		GroupMemberMin:    GroupMinMembers,
+		MaxWaitBlockTime:  MaxWaitBlockTime,
+		MaxGroupCastTime:  MaxGroupBlockTime,
 		MaxQN:             5,
-		MaxFutureBlock:    MaxUnknownBlocks,
 		PotentialProposal: 10,
 		MaxSlotSize:       MaxSlotSize,
-		Epoch:             5,
 	}
 }

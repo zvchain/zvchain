@@ -182,7 +182,8 @@ func (ts *txSyncer) notifyTxs() bool {
 	ts.clearJob()
 
 	txs := make([]*types.Transaction, 0)
-	ts.pool.bonPool.forEach(func(tx *types.Transaction) bool {
+	ts.pool.bonPool.forEachByBlock(func(bhash common.Hash, rewardTxs []*types.Transaction) bool {
+		tx := rewardTxs[0]
 		if ts.checkTxCanBroadcast(tx.Hash) {
 			txs = append(txs, tx)
 			return len(txs) < txMaxNotifyPerTime
@@ -267,14 +268,8 @@ func (ts *txSyncer) onTxNotify(msg notify.Message) error {
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
 	candidateKeys := ts.getOrAddCandidateKeys(nm.Source())
-	accepts := make([]common.Hash, 0)
-	for _, k := range hashs {
-		if exist, _ := ts.pool.IsTransactionExisted(k); !exist {
-			accepts = append(accepts, k)
-		}
-	}
-	candidateKeys.addTxHashes(accepts)
-	ts.logger.Debugf("Rcv txs notify from %v, size %v, accept %v, totalOfSource %v", nm.Source(), len(hashs), len(accepts), candidateKeys.txHashes.Len())
+	candidateKeys.addTxHashes(hashs)
+	ts.logger.Debugf("Rcv txs notify from %v, size %v, totalOfSource %v", nm.Source(), len(hashs), candidateKeys.txHashes.Len())
 	return nil
 }
 
@@ -382,11 +377,11 @@ func (ts *txSyncer) onTxReq(msg notify.Message) error {
 		count++
 		hashs = append(hashs, common.BytesToHash(buf))
 	}
-	txs := make([]*types.Transaction, 0)
+	txs := make([]*types.RawTransaction, 0)
 	for _, txHash := range hashs {
-		tx := BlockChainImpl.GetTransactionByHash(false, false, txHash)
+		tx := BlockChainImpl.GetTransactionByHash(false, txHash)
 		if tx != nil {
-			txs = append(txs, tx)
+			txs = append(txs, tx.RawTransaction)
 		}
 	}
 	body, e := types.MarshalTransactions(txs)
@@ -413,20 +408,30 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) error {
 		ts.syncTxComplete(nm.Source(), false)
 	}()
 
-	txs, e := types.UnMarshalTransactions(nm.Body())
+	rawTxs, e := types.UnMarshalTransactions(nm.Body())
 	if e != nil {
 		err := fmt.Errorf("Unmarshal got transactions error:%s", e.Error())
 		ts.logger.Error(err)
 		return err
 	}
 
-	if len(txs) > txPeerMaxLimit {
-		err := fmt.Errorf("rec tx too much,length is %v ,and from %s", len(txs), nm.Source())
+	if len(rawTxs) > txPeerMaxLimit {
+		err := fmt.Errorf("rec tx too much,length is %v ,and from %s", len(rawTxs), nm.Source())
 		ts.logger.Error(err)
 		return err
 	}
-	ts.logger.Debugf("Rcv txs from %v, size %v", nm.Source(), len(txs))
-	evilCount := ts.pool.AddTransactions(txs)
+	ts.logger.Debugf("Rcv rawTxs from %v, size %v", nm.Source(), len(rawTxs))
+
+	evilCount := 0
+	for _, tx := range rawTxs {
+		// this error can be ignored
+		_, err := ts.pool.AddTransaction(types.NewTransaction(tx, tx.GenHash()))
+		if err != nil {
+			if _, ok := evilErrorMap[err]; ok {
+				evilCount++
+			}
+		}
+	}
 	if evilCount > txValidteErrorLimit {
 		peerManagerImpl.addEvilCount(nm.Source())
 		err := fmt.Errorf("rec tx evil count over limit,count is %d", evilCount)

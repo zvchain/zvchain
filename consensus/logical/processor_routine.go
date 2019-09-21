@@ -51,6 +51,11 @@ func (p *Processor) checkSelfCastRoutine() bool {
 	}
 
 	blog := newBizLog("checkSelfCastRoutine")
+	if p.MainChain.IsSyncing() {
+		blog.warn("isSyncing, return...")
+		p.triggerCastCheck()
+		return false
+	}
 
 	if p.MainChain.IsAdjusting() {
 		blog.warn("isAdjusting, return...")
@@ -65,7 +70,7 @@ func (p *Processor) checkSelfCastRoutine() bool {
 		castHeight  uint64
 		deltaHeight uint64
 	)
-	d := p.ts.Since(top.CurTime)
+	d := p.ts.SinceSeconds(top.CurTime)
 	if d < 0 {
 		return false
 	}

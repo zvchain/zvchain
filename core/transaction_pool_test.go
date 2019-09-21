@@ -24,12 +24,12 @@ import (
 )
 
 func TestCreatePool(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("init fail:%v", err)
 	}
 	initBalance()
-	defer clear()
+	defer clearSelf(t)
 	pool := BlockChainImpl.GetTransactionPool()
 
 	fmt.Printf("received: %d transactions\n", len(pool.GetReceived()))
@@ -40,8 +40,8 @@ func TestCreatePool(t *testing.T) {
 	pk, err := sign.RecoverPubkey(transaction.Hash.Bytes())
 	src := pk.GetAddress()
 
-	accountDB,error := BlockChainImpl.LatestStateDB()
-	if error != nil{
+	accountDB, error := BlockChainImpl.LatestAccountDB()
+	if error != nil {
 		t.Fatalf("fail get account db")
 	}
 	accountDB.AddBalance(src, new(big.Int).SetUint64(111111111222))
@@ -73,11 +73,11 @@ func TestCreatePool(t *testing.T) {
 }
 
 func TestContainer(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
 		t.Fatalf("init fail:%v", err)
 	}
-	defer clear()
+	defer clearSelf(t)
 	initBalance()
 	pool := BlockChainImpl.GetTransactionPool()
 
@@ -93,8 +93,8 @@ func TestContainer(t *testing.T) {
 	}
 	src := pk.GetAddress()
 
-	accountDB,err:=BlockChainImpl.LatestStateDB()
-	if err != nil{
+	accountDB, err := BlockChainImpl.LatestAccountDB()
+	if err != nil {
 		t.Fatalf("get status failed")
 	}
 	accountDB.AddBalance(src, new(big.Int).SetUint64(111111111111111111))

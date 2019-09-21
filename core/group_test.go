@@ -25,12 +25,12 @@ import (
 
 // TestGroupCreateTxs tests interface types.GroupPacketSender and types.GroupStoreReader
 func TestGroupCreateTxs(t *testing.T) {
-	err := initContext4Test()
+	err := initContext4Test(t)
 	if err != nil {
-		t.Fatalf("fail to initContext4Test")
+		t.Fatalf("fail to initContext4Test, %v", err)
 	}
 
-	defer clear()
+	defer clearSelf(t)
 	castor := new([]byte)
 
 	var block *types.Block
@@ -39,7 +39,7 @@ func TestGroupCreateTxs(t *testing.T) {
 	seed := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
 
 	sender := common.StringToAddress(account.Address).Bytes()
-	groupSender := group.NewPacketSender(BlockChainImpl.(*FullBlockChain))
+	groupSender := group.NewPacketSender(BlockChainImpl)
 
 	//Round 1
 	data := &group.EncryptedSharePiecePacketImpl{}
@@ -54,12 +54,12 @@ func TestGroupCreateTxs(t *testing.T) {
 	}
 
 	block = BlockChainImpl.CastBlock(1, common.Hex2Bytes("11"), 0, *castor, seed)
-	// 上链
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store := group.NewStore(BlockChainImpl.(*FullBlockChain), nil)
+	store := group.NewStore(BlockChainImpl)
 	pieces, err := store.GetEncryptedPiecePackets(data)
 	if err != nil {
 		t.Fatalf("fail to GetEncryptedPiecePackets %v", err)
@@ -80,11 +80,11 @@ func TestGroupCreateTxs(t *testing.T) {
 		t.Fatalf("fail to SendMpkPacket: %v", err)
 	}
 	block = BlockChainImpl.CastBlock(2, common.Hex2Bytes("12"), 1, *castor, seed)
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store = group.NewStore(BlockChainImpl.(*FullBlockChain), nil)
+	store = group.NewStore(BlockChainImpl)
 	mpks, err := store.GetMpkPackets(mpkData)
 	if err != nil {
 		t.Fatalf("fail to GetMpkPackets %v", err)
@@ -107,12 +107,12 @@ func TestGroupCreateTxs(t *testing.T) {
 	}
 
 	block = BlockChainImpl.CastBlock(3, common.Hex2Bytes("13"), 2, *castor, seed)
-	// 上链
-	if 0 != BlockChainImpl.AddBlockOnChain(source, block) {
+
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block) {
 		t.Fatalf("fail to add block: %v", err)
 	}
 
-	store = group.NewStore(BlockChainImpl.(*FullBlockChain), nil)
+	store = group.NewStore(BlockChainImpl)
 	ops, err := store.GetOriginPiecePackets(dataOp)
 	if err != nil {
 		t.Fatalf("fail to GetOriginPiecePackets %v", err)
@@ -140,17 +140,5 @@ func TestGroupCreateTxs(t *testing.T) {
 	if !hasOrgPieceSent {
 		t.Fatalf("fail to test HasSentOriginPiecePacket, should returns ture but got false")
 	}
-	//
-	//TODO: test GetGroupInfoBySeed()
-	//groupInfo := store.GetGroupInfoBySeed(dataOp)
-	//if groupInfo == nil {
-	//	t.Fatalf("fail to test GetGroupBySeed, should returns object but got nil" )
-	//}
-	//
-	//TODO: test GetAvailableGroupSeeds()
-	//hasOrgPieceSent := store.GetAvailableGroupSeeds(3)
-	//if !hasOrgPieceSent {
-	//	t.Fatalf("fail to test GetAvailableGroupSeeds, should returns ture but got false" )
-	//}
 
 }

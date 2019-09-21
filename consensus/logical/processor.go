@@ -19,12 +19,11 @@ package logical
 
 import (
 	"bytes"
-	"io/ioutil"
-	"strings"
-	"sync"
-
+	lru "github.com/hashicorp/golang-lru"
 	group2 "github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"io/ioutil"
+	"strings"
 
 	"fmt"
 	"sync/atomic"
@@ -39,7 +38,10 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
-var ProcTestMode bool
+type verifyGroupSelector interface {
+	doSelect(preBH *types.BlockHeader, height uint64) common.Hash
+	groupSkipCountsBetween(preBH *types.BlockHeader, height uint64) skipCounts
+}
 
 // Processor is the consensus engine implementation struct that implements all the consensus logic
 // and contextual information needed in the consensus process
@@ -69,15 +71,19 @@ type Processor struct {
 	isCasting int32 // Proposal check status: 0 idle, 1 casting
 
 	castVerifyCh chan *types.BlockHeader
-	blockAddCh   chan *types.BlockHeader
+	blockAddCh   chan *types.Block
 
 	groupReader *groupReader
 
 	ts time.TimeService // Network-wide time service, regardless of local time
 
-	livedGroups sync.Map //groups lived
-
 	rewardHandler *RewardHandler
+
+	selector verifyGroupSelector
+
+	cachedMinElapseByEpoch *lru.Cache // Cache the min elapse milliseconds in a epoch. key: common.Hash, value: int32
+
+	gNetMgr *groupNetMgr
 }
 
 func (p *Processor) GetRewardManager() types.RewardManager {
@@ -128,7 +134,7 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	p.mi = &mi
 
 	p.castVerifyCh = make(chan *types.BlockHeader, 5)
-	p.blockAddCh = make(chan *types.BlockHeader, 5)
+	p.blockAddCh = make(chan *types.Block, 5)
 
 	p.blockContexts = newCastBlockContexts(p.MainChain)
 	p.NetServer = net.NewNetworkServer()
@@ -140,10 +146,14 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 
 	p.Ticker = ticker.NewGlobalTicker("consensus")
 
-	provider := &core.GroupManagerImpl
-	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, &mi)
+	provider := core.GroupManagerImpl
+	sr := group2.InitRoutine(p.minerReader, p.MainChain, provider, provider, &mi)
 	p.groupReader = newGroupReader(provider, sr)
-	p.livedGroups = sync.Map{}
+	p.selector = newGroupSelector(provider)
+
+	p.cachedMinElapseByEpoch = common.MustNewLRUCache(10)
+
+	p.gNetMgr = newGroupNetMgr(p.NetServer, p.groupReader, core.MinerManagerImpl, mi.ID)
 
 	if stdLogger != nil {
 		stdLogger.Debugf("proc(%v) inited 2.\n", p.getPrefix())
@@ -151,7 +161,6 @@ func (p *Processor) Init(mi model.SelfMinerDO, conf common.ConfManager) bool {
 	}
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, p.onBlockAddSuccess)
-	notify.BUS.Subscribe(notify.GroupAddSucc, p.onGroupAddSuccess)
 
 	return true
 }
@@ -185,7 +194,7 @@ func (p *Processor) isCastLegal(bh *types.BlockHeader, preHeader *types.BlockHea
 	}
 
 	gSeed := bh.Group
-	vGroupSeed := p.calcVerifyGroup(preHeader, bh.Height)
+	vGroupSeed := p.CalcVerifyGroup(preHeader, bh.Height)
 	// Check if the gSeed of the block equal to the calculated one
 	if gSeed != vGroupSeed {
 		err = fmt.Errorf("calc verify group not equal, expect %v infact %v", vGroupSeed, gSeed)
@@ -258,23 +267,15 @@ func (p *Processor) initLivedGroup() {
 		}
 	}
 
-	livedGroupSeeds := p.groupReader.getAvailableGroupSeedsByHeight(p.MainChain.Height())
-	for _, seed := range livedGroupSeeds {
-		g := p.groupReader.getGroupBySeed(seed.Seed())
-		stdLogger.Debugf("group seed %v", g.header.Seed())
-		for _, mem := range g.members {
-			stdLogger.Debugf("member %v", mem.id)
-		}
-		if g == nil {
-			continue
-		}
-		if !g.hasMember(p.GetMinerID()) {
-			continue
-		}
-		stdLogger.Debugf("build group net %v", seed.Seed())
-		// Build group net
-		p.NetServer.BuildGroupNet(seed.Seed().Hex(), g.getMembers())
-	}
+	currentHeight := p.MainChain.Height()
+	currEpoch := types.EpochAt(currentHeight)
+
+	// Build group-net of groups activated at current epoch
+	p.gNetMgr.buildGroupNetOfActivateEpochAt(currEpoch)
+	// Try to build group-net of groups will be activated at next epoch
+	p.gNetMgr.buildGroupNetOfNextEpoch(currentHeight)
+	// Try to build the proposer group net
+	p.gNetMgr.tryFullBuildProposerGroupNetAt(currentHeight)
 }
 
 // Ready check if the processor engine is initialized and ready for message processing

@@ -62,10 +62,10 @@ type MemberI interface {
 type CreateResultCode int
 
 const (
-	CreateResultSuccess  CreateResultCode = iota // Group create success
-	CreateResultMarkEvil                         // Someone cheat, and mark the origin pieces required
-	CreateResultFail                             // Error occurs
-	CreateResultIdle                             // Idle round, won't start group-create routine
+	CreateResultSuccess  CreateResultCode = 1 // Group create success
+	CreateResultMarkEvil CreateResultCode = 2 // Someone cheat, and mark the origin pieces required
+	CreateResultFail     CreateResultCode = 3 // Error occurs
+	CreateResultIdle     CreateResultCode = 4 // Idle round, won't start group-create routine
 )
 
 // GroupI is the group info interface
@@ -105,7 +105,6 @@ type CheckerContext interface {
 
 // GroupCreateChecker provides function to check if the group-create related packets are legal
 type GroupCreateChecker interface {
-
 	// CheckEncryptedPiecePacket checks the encrypted share piece packet
 	CheckEncryptedPiecePacket(packet EncryptedSharePiecePacket, ctx CheckerContext) error
 
@@ -124,7 +123,6 @@ type GroupCreateChecker interface {
 
 // GroupStoreReader provides function to access the data generated during the routine or group info
 type GroupStoreReader interface {
-
 	// GetEncryptedPiecePackets Get the encrypted share packet of the given seed
 	GetEncryptedPiecePackets(seed SeedI) ([]EncryptedSharePiecePacket, error)
 
@@ -145,27 +143,10 @@ type GroupStoreReader interface {
 
 	// HasSentOriginPiecePacket checks if the given sender has sent the packet yet
 	HasSentOriginPiecePacket(sender []byte, seed SeedI) bool
-
-	// GetAvailableGroupSeeds gets available groups' seed at the given height
-	GetAvailableGroupSeeds(height uint64) []SeedI
-
-	// GetGroupBySeed returns the group info of the given seed
-	GetGroupBySeed(seedHash common.Hash) GroupI
-
-	// GetGroupHeaderBySeed returns the group header info of the given seed
-	GetGroupHeaderBySeed(seedHash common.Hash) GroupHeaderI
-
-	// MinerLiveGroupCount returns the lived-group number the given address participates in on the given height
-	MinerLiveGroupCount(addr common.Address, height uint64) int
-
-	// FilterMinerGroupCountLessThan returns function to check if the miners joined live group count less than the
-	// maxCount in a given block height
-	IsMinerGroupCountLessThan(maxCount int, height uint64) func(addr common.Address) bool
 }
 
 // GroupPacketSender provides functions for sending packets
 type GroupPacketSender interface {
-
 	// SendEncryptedPiecePacket sends the encrypted packet to the pool
 	SendEncryptedPiecePacket(packet EncryptedSharePiecePacket) error
 

@@ -23,6 +23,10 @@ import (
 
 func main() {
 	debug.SetTraceback("all")
-	gtas := cli.NewGtas()
-	gtas.Run()
+	gzv := cli.NewGzv()
+	go func(){
+		<-gzv.InitCha
+		
+	}()
+	gzv.Run()
 }

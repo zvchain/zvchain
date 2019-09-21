@@ -40,8 +40,10 @@ const (
 	NewBlockMsg        uint32 = 10004
 
 	//The following two messages are used for block fork processing
-	ReqChainPieceBlock uint32 = 10008
-	ChainPieceBlock    uint32 = 10009
+	ForkFindAncestorResponse uint32 = 10008
+	ForkFindAncestorReq      uint32 = 10009
+	ForkChainSliceReq        uint32 = 10013
+	ForkChainSliceResponse   uint32 = 10014
 
 	//The following three message are used for tx sync
 	TxSyncNotify   uint32 = 10010
@@ -76,10 +78,6 @@ type Network interface {
 	// resolve the kad net to find the node and then send the message
 	Send(id string, msg Message) error
 
-	//Send message to the node which id represents. If self doesn't connect to the node,
-	// send message to the guys which belongs to the same group with the node and they will rely the message to the node
-	SendWithGroupRelay(id string, groupID string, msg Message) error
-
 	//Broadcast the message among the group which self belongs to
 	SpreadAmongGroup(groupID string, msg Message) error
 
@@ -100,4 +98,10 @@ type Network interface {
 
 	//DissolveGroupNet dissolve group network
 	DissolveGroupNet(groupID string)
+
+	//BuildProposerGroupNet build proposer group network
+	BuildProposerGroupNet(proposers []*Proposer)
+
+	//AddProposers add proposers to proposer group network
+	AddProposers(proposers []*Proposer)
 }

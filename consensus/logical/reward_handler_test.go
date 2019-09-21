@@ -2,13 +2,14 @@ package logical
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"gopkg.in/fatih/set.v0"
-	"testing"
 
 	"github.com/zvchain/zvchain/consensus/model"
 )
@@ -34,6 +35,8 @@ func (g *GroupHanderTest) Threshold() uint32 {
 func (g *GroupHanderTest) GroupHeight() uint64 {
 	return uint64(0)
 }
+
+const rewardTxHash = "0xe7636c4d9af0acb8fd7a73da8f6309dc46dc7a7cbb35394173886f9b25a10439"
 
 type ProcessorTest struct {
 	ProcessorInterface
@@ -154,7 +157,7 @@ func NewProcessorTest() *ProcessorTest {
 		memIndex[mems[i].id.GetAddrString()] = i
 	}
 	pt.verifyGroup = &verifyGroup{
-		header:   &GroupHanderTest{},
+		header:   &groupHeader{threshold: uint32(k)},
 		memIndex: memIndex,
 		members:  mems,
 	}
@@ -255,7 +258,7 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 			args: args{
 				msg: &model.CastRewardTransSignMessage{
 					BaseSignedMessage: model.BaseSignedMessage{
-						SI: model.GenSignData(common.HexToHash("0xf412782d9dc9fe7542ea13aa6153df1faea9e710e9b469ca90a88bf5e09efc06"), pt.ids[4], pt.msk[4]),
+						SI: model.GenSignData(common.HexToHash(rewardTxHash), pt.ids[4], pt.msk[4]),
 					},
 				},
 			},
@@ -342,7 +345,7 @@ func _OnMessageCastRewardSign(pt *ProcessorTest, rh *RewardHandler, t *testing.T
 		switch tt.name {
 		case "ok":
 			if err != nil {
-				t.Error(tt.name)
+				t.Error(tt.name, err)
 			}
 		case "block not exist",
 			"group not exist",
@@ -396,7 +399,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 					},
 					Reward: types.Reward{
 						TargetIds: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8},
-						TxHash:    common.HexToHash("0x70676b767052302f7cead4c232bdd1159194023d9ea06c16e2f4a0fda7d7e1b3"),
+						TxHash:    common.HexToHash("0x094a34804e75feb8e80a028b8c9a3f00bad59e6d3d9398c5e4d94b8b43ee1fa7"),
 					},
 					SignedPieces: pt.sigs,
 				},
@@ -607,7 +610,7 @@ func _OnMessageCastRewardSignReq(pt *ProcessorTest, rh *RewardHandler, t *testin
 		switch tt.name {
 		case "ok":
 			if err != nil {
-				t.Error(tt.name)
+				t.Error(tt.name, err)
 			}
 		case "block not exist",
 			"group not exist 1",

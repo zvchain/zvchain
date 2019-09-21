@@ -32,8 +32,9 @@ type Manager struct {
 	checkerImpl      types.GroupCreateChecker
 	storeReaderImpl  types.GroupStoreReader
 	packetSenderImpl types.GroupPacketSender
-	minerReaderImpl  minerReader
+	punishment       minerPunishment
 	poolImpl         *pool
+	skipCounter      groupSkipCounter
 }
 
 func (m *Manager) GetGroupStoreReader() types.GroupStoreReader {
@@ -48,25 +49,26 @@ func (m *Manager) RegisterGroupCreateChecker(checker types.GroupCreateChecker) {
 	m.checkerImpl = checker
 }
 
-func NewManager(chain chainReader) Manager {
+func NewManager(chain chainReader, counter groupSkipCounter) *Manager {
 	logger = log.GroupLogger
-	gPool := newPool()
-	store := NewStore(chain, gPool)
+	gPool := newPool(chain)
+	store := NewStore(chain)
 	packetSender := NewPacketSender(chain)
 
-	managerImpl := Manager{
+	managerImpl := &Manager{
 		chain:            chain,
 		storeReaderImpl:  store,
 		packetSenderImpl: packetSender,
 		poolImpl:         gPool,
-		//minerReaderImpl:  reader,
+		skipCounter:      counter,
+		//punishment:  reader,
 	}
 	return managerImpl
 }
 
-func (m *Manager) InitManager(minerReader minerReader, gen *types.GenesisInfo) {
-	m.minerReaderImpl = minerReader
-	db, err := m.chain.LatestStateDB()
+func (m *Manager) InitManager(punishment minerPunishment, gen *types.GenesisInfo) {
+	m.punishment = punishment
+	db, err := m.chain.LatestAccountDB()
 	if err != nil {
 		panic(fmt.Sprintf("failed to init group manager pool %v", err))
 	}
@@ -91,30 +93,15 @@ func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 	m.tryDoPunish(db, m.checkerImpl, ctx)
 }
 
-// GroupCreatedInCurrentBlock returns the group data if group is created in current block
-func (m *Manager) GroupCreatedInCurrentBlock(block *types.Block) *group {
-	db, err := m.chain.LatestStateDB()
-	if err != nil {
-		logger.Error("failed to get state db in GroupCreatedInCurrentBlock", err)
-	}
-	topGroup := m.poolImpl.getTopGroup(db)
-	if topGroup.HeaderD.BlockHeight == block.Header.Height {
-		logger.Debugf("Notify consensus as group created on %v", topGroup.HeaderD.BlockHeight)
-		logger.Debugf("Member number is  %d", len(topGroup.Members()))
-		// group just created
-		return topGroup
-	}
-	return nil
-}
-
-// ResetTop resets group with top block with parameter bh
-func (m *Manager) ResetToTop(db types.AccountDB, bh *types.BlockHeader) {
-	m.poolImpl.resetToTop(db, bh.Height)
+// OnBlockRemove resets group with top block with parameter bh
+func (m *Manager) OnBlockRemove(bh *types.BlockHeader) {
+	ep := types.EpochAt(bh.Height)
+	m.poolImpl.invalidateEpochGroupCache(ep)
 }
 
 // Height returns count of current group number
 func (m *Manager) Height() uint64 {
-	db, err := m.chain.LatestStateDB()
+	db, err := m.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db")
 		return 0
@@ -123,42 +110,107 @@ func (m *Manager) Height() uint64 {
 }
 
 func (m *Manager) GroupsAfter(height uint64) []types.GroupI {
-	return m.poolImpl.groupsAfter(m.chain, height, common.MaxInt64)
+	return m.poolImpl.groupsAfter(height, common.MaxInt64)
 }
 
 // Height returns count of current group number
 func (m *Manager) ActiveGroupCount() int {
-	return len(m.poolImpl.getActives(m.chain, m.chain.Height()))
+	return len(m.GetActivatedGroupsAt(m.chain.Height()))
 	//return len(m.poolImpl.activeList)
 }
 
-// GetAvailableGroupSeeds gets available groups' Seed at the given Height
-func (m *Manager) GetAvailableGroupSeeds(height uint64) []types.SeedI {
-	return m.storeReaderImpl.GetAvailableGroupSeeds(height)
+func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
+	startEpoch, endEpoch := types.CreateEpochsOfActivatedGroupsAt(height)
+
+	gis := make([]types.GroupI, 0)
+
+	for ep := startEpoch; ep.Start() < endEpoch.Start(); ep = ep.Next() {
+		gs := m.poolImpl.getGroupsByEpoch(ep)
+		for _, g := range gs {
+			gis = append(gis, g)
+			// ensure group activated, should not happen
+			if !g.HeaderD.activatedAt(height) {
+				logger.Panicf("group %v should be activated at %v, activate height %v", g.Header().Seed(), height, g.Header().WorkHeight())
+			}
+		}
+	}
+	// add genesis group
+	gis = append(gis, m.poolImpl.genesis)
+	return gis
 }
 
-// GetGroupBySeed returns the group info of the given Seed
+func (m *Manager) GetLivedGroupsAt(height uint64) []types.GroupI {
+	startEpoch, _ := types.CreateEpochsOfActivatedGroupsAt(height)
+	currentEp := types.EpochAt(height)
+
+	gis := make([]types.GroupI, 0)
+
+	for ep := startEpoch; ep.Start() <= currentEp.Start(); ep = ep.Next() {
+		gs := m.poolImpl.getGroupsByEpoch(ep)
+		for _, g := range gs {
+			gis = append(gis, g)
+			// ensure group lives, should not happen
+			if !g.HeaderD.livedAt(height) {
+				logger.Panicf("group %v should be lived at %v, life height %v-%v", g.Header().Seed(), height, g.Header().WorkHeight(), g.Header().DismissHeight())
+			}
+		}
+	}
+	// add genesis group
+	gis = append(gis, m.poolImpl.genesis)
+	return gis
+}
+
+// GetGroupBySeed returns group with given Seed
 func (m *Manager) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	g := m.storeReaderImpl.GetGroupBySeed(seedHash)
+	db, err := m.chain.LatestAccountDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return nil
+	}
+
+	gp := m.poolImpl.get(db, seedHash)
+	if gp == nil {
+		return nil
+	}
+	return gp
+}
+
+// GetGroupBySeed returns group header with given Seed
+func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
+	db, err := m.chain.LatestAccountDB()
+	if err != nil {
+		logger.Error("failed to get last db")
+		return nil
+	}
+	g := m.poolImpl.get(db, seedHash)
 	if g == nil {
 		return nil
 	}
-	return g
+	return g.Header()
 }
 
-// GetGroupHeaderBySeed returns the group header info of the given Seed
-func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
-	gh := m.storeReaderImpl.GetGroupHeaderBySeed(seedHash)
-	if gh == nil {
-		return nil
+// MinerJoinedLivedGroupCountFilter returns function to check if the miners joined live group count less than the
+// maxCount in a given block height
+func (m *Manager) MinerJoinedLivedGroupCountFilter(maxCount int, height uint64) func(addr common.Address) bool {
+	lived := m.GetLivedGroupsAt(height)
+	doFilter := func(addr common.Address) bool {
+		count := 0
+		for _, gi := range lived {
+			g := gi.(*group)
+			if g.hasMember(addr.Bytes()) {
+				count++
+			}
+		}
+		return count < maxCount
 	}
-	return gh
+	return doFilter
 }
 
 func (m *Manager) GetLivedGroupsByMember(address common.Address, height uint64) []types.GroupI {
-	groups := m.poolImpl.getLives(m.chain, height)
+	groups := m.GetLivedGroupsAt(height)
 	groupIs := make([]types.GroupI, 0)
-	for _, g := range groups {
+	for _, gi := range groups {
+		g := gi.(*group)
 		if g.hasMember(address.Bytes()) {
 			groupIs = append(groupIs, g)
 		}
@@ -176,7 +228,7 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 	//}
 	switch createResult.Code() {
 	case types.CreateResultSuccess:
-		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), ctx.Height(), m.poolImpl.getTopGroup(db)))
+		err := m.saveGroup(db, newGroup(createResult.GroupInfo(), m.poolImpl.getTopGroup(db)))
 		if err != nil {
 			// this case must not happen.
 			logger.Panicf("saveGroup error: %v", err)
@@ -197,7 +249,7 @@ func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateCheck
 	if err != nil {
 		return
 	}
-	_, err = m.minerReaderImpl.MinerPenalty(db, msg, ctx.Height())
+	_, err = m.punishment.MinerPenalty(db, msg, ctx.Height())
 	if err != nil {
 		logger.Errorf("MinerPenalty error: %v", err)
 	}
@@ -211,7 +263,7 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 	logger.Debugf("frozeMiner: %v", frozenMiners)
 	for _, p := range frozenMiners {
 		addr := common.BytesToAddress(p)
-		_, err := m.minerReaderImpl.MinerFrozen(db, addr, ctx.Height())
+		_, err := m.punishment.MinerFrozen(db, addr, ctx.Height())
 		if err != nil {
 			logger.Errorf("MinerFrozen error: %v", err)
 		}
@@ -221,4 +273,31 @@ func (m *Manager) frozeMiner(db types.AccountDB, frozenMiners [][]byte, ctx type
 // markGroupFail mark group member should upload origin piece
 func markGroupFail(db types.AccountDB, seed types.SeedI) {
 	db.SetData(common.HashToAddress(seed.Seed()), originPieceReqKey, []byte{1})
+}
+
+func (m *Manager) UpdateGroupSkipCounts(db types.AccountDB, bh *types.BlockHeader) {
+	// remove skip counts for the current verify-group
+	m.poolImpl.updateSkipCount(db, bh.Group, 0)
+	pre := m.chain.QueryBlockHeaderByHash(bh.PreHash)
+	if pre != nil {
+		counts := m.skipCounter.GroupSkipCountsBetween(pre, bh.Height)
+		for gSeed, cnt := range counts {
+			m.poolImpl.updateSkipCount(db, gSeed, cnt)
+		}
+	}
+}
+
+func (m *Manager) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[common.Hash]uint16, error) {
+	db, err := m.chain.AccountDBAt(h)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[common.Hash]uint16)
+	for _, g := range groups {
+		cnt := m.poolImpl.getSkipCount(db, g.Header().Seed())
+		if cnt > 0 {
+			ret[g.Header().Seed()] = cnt
+		}
+	}
+	return ret, nil
 }

@@ -40,8 +40,8 @@ type BlockChain interface {
 	// TotalQN of chain
 	TotalQN() uint64
 
-	// LatestStateDB returns chain's last account database
-	LatestStateDB() (AccountDB, error)
+	// LatestAccountDB returns chain's last account database
+	LatestAccountDB() (AccountDB, error)
 
 	// QueryBlockByHash query the block by hash
 	QueryBlockByHash(hash common.Hash) *Block
@@ -65,7 +65,7 @@ type BlockChain interface {
 	BatchGetBlocksAfterHeight(height uint64, limit int) []*Block
 
 	// GetTransactionByHash get a transaction by hash
-	GetTransactionByHash(onlyReward, needSource bool, h common.Hash) *Transaction
+	GetTransactionByHash(onlyReward bool, h common.Hash) *Transaction
 
 	// GetTransactionPool return the transaction pool waiting for the block
 	GetTransactionPool() TransactionPool
@@ -88,8 +88,8 @@ type BlockChain interface {
 	// GetAccountDBByHash returns account database with specified block hash
 	GetAccountDBByHash(hash common.Hash) (AccountDB, error)
 
-	// GetAccountDBByHeight returns account database with specified block height
-	GetAccountDBByHeight(height uint64) (AccountDB, error)
+	// AccountDBAt returns account database with specified block height
+	AccountDBAt(height uint64) (AccountDB, error)
 
 	// GetConsensusHelper returns consensus helper reference
 	GetConsensusHelper() ConsensusHelper
@@ -103,12 +103,17 @@ type BlockChain interface {
 	// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
 	// will be included
 	CountBlocksInRange(startHeight uint64, endHeight uint64) uint64
+
+	// returns latest checkpoint of the chain
+	LatestCheckPoint() *BlockHeader
+
+	IsSyncing() bool
 }
 
 type RewardManager interface {
 	GetRewardTransactionByBlockHash(blockHash common.Hash) *Transaction
 	GenerateReward(targetIds []int32, blockHash common.Hash, gSeed common.Hash, totalValue uint64, packFee uint64) (*Reward, *Transaction, error)
-	ParseRewardTransaction(transaction *Transaction) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error)
+	ParseRewardTransaction(msg TxMessage) (gSeed common.Hash, targets [][]byte, blockHash common.Hash, packFee *big.Int, err error)
 	CalculateCastRewardShare(height uint64, gasFee uint64) *CastRewardShare
 	HasRewardedOfBlock(blockHash common.Hash, accountdb AccountDB) bool
 	MarkBlockRewarded(blockHash common.Hash, transactionHash common.Hash, accountdb AccountDB)
@@ -124,14 +129,11 @@ type TransactionPool interface {
 	// PackForCast returns a list of transactions for casting a block
 	PackForCast() []*Transaction
 
-	// AddTransaction add new transaction to the transaction pool
+	// AddTransaction adds new transaction to the transaction pool which will be broadcast
 	AddTransaction(tx *Transaction) (bool, error)
 
-	// AddTransactions add new transactions to the transaction pool
-	AddTransactions(txs []*Transaction) int
-
-	// AsyncAddTxs rcv transactions broadcast from other nodes
-	AsyncAddTxs(txs []*Transaction)
+	// AsyncAddTransaction adds transaction to the transaction pool which won't be broadcast
+	AsyncAddTransaction(tx *Transaction) error
 
 	// GetTransaction trys to find a transaction from pool by hash and return it
 	GetTransaction(reward bool, hash common.Hash) *Transaction

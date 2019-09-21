@@ -140,6 +140,16 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		return
 	}
 
+	minElapse := p.GetBlockMinElapse(bh.Height)
+	if bh.Elapsed < minElapse {
+		err = fmt.Errorf("min elapsed error %v", bh.Elapsed)
+		return
+	}
+	if bh.Height > 1 && bh.CurTime.SinceMilliSeconds(preBH.CurTime) != int64(bh.Elapsed) {
+		err = fmt.Errorf("elapsed error %v", bh.Elapsed)
+		return
+	}
+
 	err = p.isCastLegal(bh, preBH)
 	if err != nil {
 		return
@@ -151,17 +161,12 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 		return
 	}
 
-	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
-	if !gpk.IsValid() {
-		stdLogger.Errorf("Fail to Deserialize pubkey %v", group.PublicKey())
-		err = core.ErrPkNil
-		return
-	}
 	pPubkey := p.getProposerPubKeyInBlock(bh)
 	if pPubkey == nil || !pPubkey.IsValid() {
 		err = core.ErrPkNotExists
 		return
 	}
+	gpk := group.gpk
 	pubArray := [2]groupsig.Pubkey{*pPubkey, gpk}
 	aggSign := groupsig.DeserializeSign(bh.Signature)
 	b := groupsig.VerifyAggregateSig(pubArray[:], bh.Hash.Bytes(), *aggSign)
@@ -179,8 +184,8 @@ func (p *Processor) VerifyBlock(bh *types.BlockHeader, preBH *types.BlockHeader)
 	return
 }
 
-// VerifyBlockHeader mainly check the verifyGroup signature of the block
-func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error) {
+// VerifyBlockSign mainly check the verifyGroup signature of the block
+func (p *Processor) VerifyBlockSign(bh *types.BlockHeader) (ok bool, err error) {
 	if bh.Hash != bh.GenHash() {
 		err = fmt.Errorf("block hash error")
 		return
@@ -192,12 +197,8 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 		return
 	}
 
-	gpk := groupsig.DeserializePubkeyBytes(group.PublicKey())
-	if !gpk.IsValid() {
-		stdLogger.Errorf("Fail to Deserialize pubkey %v", group.PublicKey())
-		err = core.ErrPkNil
-		return
-	}
+	gpk := group.gpk
+
 	ppk := p.getProposerPubKeyInBlock(bh)
 	if ppk == nil || !ppk.IsValid() {
 		err = core.ErrPkNil
@@ -212,4 +213,16 @@ func (p *Processor) VerifyBlockHeader(bh *types.BlockHeader) (ok bool, err error
 	}
 	ok = true
 	return
+}
+
+// VerifyBlockHeaders checks if the group is legal and the group signature is correct
+func (p *Processor) VerifyBlockHeaders(pre, bh *types.BlockHeader) (ok bool, err error) {
+	if bh.PreHash != pre.Hash {
+		return false, fmt.Errorf("prehash not equal to pre")
+	}
+	gSeed := p.CalcVerifyGroup(pre, bh.Height)
+	if gSeed != bh.Group {
+		return false, fmt.Errorf("verify group error: expect %v, infact %v", gSeed, bh.Group)
+	}
+	return p.VerifyBlockSign(bh)
 }

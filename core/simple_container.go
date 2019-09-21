@@ -16,8 +16,10 @@
 package core
 
 import (
+	"bytes"
 	"container/heap"
 	"fmt"
+	"sort"
 	"sync"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
@@ -26,6 +28,8 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
+
+const maxSyncCountPreSource = 50 // max count of tx with same source to sync to neighbour node
 
 type simpleContainer struct {
 	txsMap     map[common.Hash]*types.Transaction
@@ -84,7 +88,7 @@ type pendingContainer struct {
 }
 
 // push the transaction into the pending list. tx which returns false will push to the queue
-func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added bool, evicted *types.Transaction) {
+func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added bool, evicted *types.Transaction, conflicted *types.Transaction) {
 	var doInsertOrReplace = func() {
 		newTxNode := newOrderByNonceTx(tx)
 		existSource := s.waitingMap[*tx.Source].Get(newTxNode)[0]
@@ -98,8 +102,10 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added
 				}
 				s.waitingMap[*tx.Source].Insert(newTxNode)
 				evicted = existSource.(*orderByNonceTx).item
+				conflicted = tx
 			} else {
 				evicted = tx
+				conflicted = existSource.(*orderByNonceTx).item
 			}
 		} else {
 			s.size++
@@ -145,6 +151,7 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added
 		if lowPriceTx != nil {
 			s.remove(lowPriceTx)
 			evicted = lowPriceTx
+			conflicted = tx
 			Logger.Debugf("remove tx as pool is full: hash=%v, current pool size=%v", lowPriceTx.Hash.Hex(), s.size)
 		}
 	}
@@ -197,9 +204,17 @@ func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
 
 // will break when f(tx) returns false
 func (s *pendingContainer) eachForSync(f func(tx *types.Transaction) bool) {
+	countMap := make(map[common.Address]int)
 	for _, txSkip := range s.waitingMap {
 		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {
-			if !f(iter1.Value().(*orderByNonceTx).item) {
+			tx := iter1.Value().(*orderByNonceTx).item
+			count := countMap[*tx.Source]
+			if count >= maxSyncCountPreSource {
+				continue
+			}
+			count++
+			countMap[*tx.Source] = count
+			if !f(tx) {
 				return
 			}
 		}
@@ -296,24 +311,48 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000 {
-		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d ", stateNonce+1, tx.Nonce)
+		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d, source:%s ", stateNonce+1, tx.Nonce, tx.Source.AddrPrefixString())
 		Logger.Warn(err)
 		return
 	}
 
-	success, evicted := c.pending.push(tx, stateNonce)
+	success, evicted, conflicted := c.pending.push(tx, stateNonce)
 	if !success {
-		if len(c.queue) > c.queueLimit {
-			err = fmt.Errorf("tx_pool's queue is full. current queue size: %d",len(c.queue))
+		evicted, conflicted, err = c.addToQueue(tx)
+		if err != nil {
 			return
 		}
-		c.queue[tx.Hash] = tx
 	}
 	c.txsMap[tx.Hash] = tx
 	if evicted != nil {
 		Logger.Debugf("Tx %v replaced by %v as higher gas price when push()", evicted.Hash, tx.Hash)
+		if evicted.Hash == tx.Hash {
+			err = fmt.Errorf("existing a transaction with same nonce: %v", conflicted.Hash.Hex())
+		}
 		delete(c.txsMap, evicted.Hash)
 	}
+	return
+}
+
+func (c *simpleContainer) addToQueue(tx *types.Transaction) (evicted *types.Transaction, conflicted *types.Transaction, err error) {
+	if len(c.queue) > c.queueLimit {
+		err = fmt.Errorf("tx_pool's queue is full. current queue size: %d", len(c.queue))
+		return
+	}
+	for _, old := range c.queue {
+		if old.Nonce == tx.Nonce && bytes.Equal(old.Source.Bytes(), tx.Source.Bytes()) {
+			if old.GasPrice.Cmp(tx.GasPrice.Value()) >= 0 {
+				evicted = tx
+				conflicted = old
+				return
+			} else {
+				evicted = old
+				conflicted = tx
+				delete(c.queue, evicted.Hash)
+			}
+		}
+	}
+	c.queue[tx.Hash] = tx
 	return
 }
 
@@ -333,28 +372,44 @@ func (c *simpleContainer) remove(key common.Hash) {
 	delete(c.queue, tx.Hash)
 }
 
+type nonceTxSlice []*types.Transaction
+
+func (s nonceTxSlice) Len() int           { return len(s) }
+func (s nonceTxSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s nonceTxSlice) Less(i, j int) bool { return s[i].Nonce < s[j].Nonce }
+
+func mapToNonceTxSlice(txMap map[common.Hash]*types.Transaction) *nonceTxSlice {
+	sl := make(nonceTxSlice, 0, len(txMap))
+	for _, v := range txMap {
+		sl = append(sl, v)
+	}
+
+	sort.Sort(sl)
+	return &sl
+}
+
 // promoteQueueToPending tris to move the transactions to the pending list for casting and syncing if possible
 func (c *simpleContainer) promoteQueueToPending() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	nonceCache := make(map[common.Address]uint64)
-	for hash, tx := range c.queue {
-		//to optimize: queue should order by nonce
+	sl := mapToNonceTxSlice(c.queue)
+	for _, tx := range *sl {
 		stateNonce := c.getNonceWithCache(nonceCache, tx)
 		if tx.Nonce <= stateNonce {
 			Logger.Debugf("Tx %v removed from pool as same nonce tx existing in the chain", tx.Hash)
 			delete(c.txsMap, tx.Hash)
-			delete(c.queue, hash)
+			delete(c.queue, tx.Hash)
 			continue
 		}
-		success, evicted := c.pending.push(tx, stateNonce)
+		success, evicted, _ := c.pending.push(tx, stateNonce)
 		if evicted != nil {
 			Logger.Debugf("Tx %v replaced by %v as higher gas price when promoteQueueToPending", evicted.Hash, tx.Hash)
 			delete(c.txsMap, evicted.Hash)
 			delete(c.queue, evicted.Hash)
 		}
 		if success {
-			delete(c.queue, hash)
+			delete(c.queue, tx.Hash)
 		}
 	}
 }

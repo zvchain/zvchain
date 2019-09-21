@@ -31,7 +31,7 @@ import (
 const (
 	maxPendingSize              = 40000
 	maxQueueSize                = 10000
-	rewardTxMaxSize             = 1000
+	rewardTxMaxSize             = 500
 	txCountPerBlock             = 3000
 	txAccumulateSizeMaxPerBlock = 1024 * 1024
 
@@ -87,19 +87,57 @@ func newTransactionPool(chain *FullBlockChain, receiptDb *tasdb.PrefixedDatabase
 	return pool
 }
 
-func (pool *txPool) tryAddTransaction(tx *types.Transaction) (bool, error) {
-	if err := pool.RecoverAndValidateTx(tx); err != nil {
+func (pool *txPool) tryAddTransaction(tx *types.Transaction) (ok bool, err error) {
+	defer func() {
+		if ok {
+			if tx.IsReward() {
+				Logger.Debugf("transaction added to pool: hash=%v, block=%v", tx.Hash.Hex(), parseRewardBlockHash(tx).Hex())
+			} else {
+				Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
+			}
+		}
+		if err != nil {
+			Logger.Debugf("tryAdd tx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
+		}
+	}()
+
+	if tx.IsReward() {
+		if pool.isRewardExists(tx) {
+			err = fmt.Errorf("reward tx is exists: block=%v", parseRewardBlockHash(tx).Hex())
+			return
+		}
+	} else {
+		if exists, where := pool.IsTransactionExisted(tx.Hash); exists {
+			err = fmt.Errorf("tx exists in %v, hash=%v", where, tx.Hash.Hex())
+			return
+		}
+	}
+	if err = pool.RecoverAndValidateTx(tx); err != nil {
 		Logger.Debugf("tryAddTransaction err %v, hash %v, sign %v", err.Error(), tx.Hash.Hex(), tx.HexSign())
-		return false, err
+		return
 	}
-	b, err := pool.tryAdd(tx)
-	if err != nil {
-		Logger.Debugf("tryAdd tx fail: hash=%v, type=%v, err=%v", tx.Hash.Hex(), tx.Type, err)
+	ok, err = pool.tryAdd(tx)
+
+	return
+}
+
+func (pool *txPool) isRewardExists(tx *types.Transaction) bool {
+	hash := tx.Hash
+	if pool.bonPool.contains(hash) {
+		return true
 	}
-	if b {
-		Logger.Debugf("transaction added to pool: hash=%v", tx.Hash.Hex())
+	if pool.asyncAdds.Contains(hash) {
+		return true
 	}
-	return b, err
+
+	if pool.hasReceipt(hash) {
+		return true
+	}
+	// Checks if the reward of corresponding block is exists
+	if pool.bonPool.hasReward(parseRewardBlockHash(tx).Bytes()) {
+		return true
+	}
+	return false
 }
 
 // AddTransaction try to add a transaction into the tool
@@ -107,49 +145,25 @@ func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
 	return pool.tryAddTransaction(tx)
 }
 
-// AddTransaction try to add a list of transactions into the tool
-func (pool *txPool) AddTransactions(txs []*types.Transaction) (evilCount int) {
-	if nil == txs || 0 == len(txs) {
-		return
-	}
-
-	for _, tx := range txs {
-		// this error can be ignored
-		_, err := pool.tryAddTransaction(tx)
-		if err != nil {
-			if _, ok := evilErrorMap[err]; ok {
-				evilCount++
-			}
-		}
-	}
-	return evilCount
-}
-
 // AddTransaction try to add a list of transactions into the tool asynchronously
-func (pool *txPool) AsyncAddTxs(txs []*types.Transaction) {
-	if nil == txs || 0 == len(txs) {
-		return
-	}
-	for _, tx := range txs {
-		if tx.Source != nil {
-			continue
+func (pool *txPool) AsyncAddTransaction(tx *types.Transaction) error {
+	if tx.IsReward() {
+		if pool.bonPool.get(tx.Hash) != nil {
+			return nil
 		}
-		if tx.IsReward() {
-			if pool.bonPool.get(tx.Hash) != nil {
-				continue
-			}
-		} else {
-			if pool.received.get(tx.Hash) != nil {
-				continue
-			}
-		}
-		if pool.asyncAdds.Contains(tx.Hash) {
-			continue
-		}
-		if err := pool.RecoverAndValidateTx(tx); err == nil {
-			pool.asyncAdds.Add(tx.Hash, tx)
+	} else {
+		if pool.received.get(tx.Hash) != nil {
+			return nil
 		}
 	}
+	if pool.asyncAdds.Contains(tx.Hash) {
+		return nil
+	}
+	if err := pool.RecoverAndValidateTx(tx); err != nil {
+		return err
+	}
+	pool.asyncAdds.Add(tx.Hash, tx)
+	return nil
 }
 
 // GetTransaction trys to find a transaction from pool by hash and return it
@@ -219,7 +233,7 @@ func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
 }
 
 func (pool *txPool) add(tx *types.Transaction) (err error) {
-	if tx.Type == types.TransactionTypeReward {
+	if tx.IsReward() {
 		pool.bonPool.add(tx)
 	} else {
 		err = pool.received.push(tx)
@@ -255,7 +269,8 @@ func (pool *txPool) IsTransactionExisted(hash common.Hash) (exists bool, where i
 func (pool *txPool) packTx() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
 	accuSize := 0
-	pool.bonPool.forEach(func(tx *types.Transaction) bool {
+	pool.bonPool.forEachByBlock(func(bhash common.Hash, rewardTxs []*types.Transaction) bool {
+		tx := rewardTxs[0]
 		accuSize += tx.Size()
 		if accuSize <= txAccumulateSizeMaxPerBlock {
 			txs = append(txs, tx)
@@ -301,26 +316,17 @@ func (pool *txPool) RemoveFromPool(txs []common.Hash) {
 
 // BackToPool will put the transactions back to pool
 func (pool *txPool) BackToPool(txs []*types.Transaction) {
-	pool.lock.Lock()
-	defer pool.lock.Unlock()
-	for _, txRaw := range txs {
-		if txRaw.Type != types.TransactionTypeReward && txRaw.Source == nil {
-			err := txRaw.RecoverSource()
-			if err != nil {
-				Logger.Errorf("backtopPool recover source fail:tx=%v", txRaw.Hash.Hex())
-				continue
-			}
-		}
+	for _, tx := range txs {
 		// this error can be ignored
-		_ = pool.add(txRaw)
+		pool.tryAdd(tx)
 	}
 }
 
 // GetRewardTxs returns all the reward transactions in the pool
 func (pool *txPool) GetRewardTxs() []*types.Transaction {
 	txs := make([]*types.Transaction, 0)
-	pool.bonPool.forEach(func(tx *types.Transaction) bool {
-		txs = append(txs, tx)
+	pool.bonPool.forEachByBlock(func(bhash common.Hash, tx []*types.Transaction) bool {
+		txs = append(txs, tx...)
 		return true
 	})
 	return txs
@@ -328,13 +334,12 @@ func (pool *txPool) GetRewardTxs() []*types.Transaction {
 
 // ClearRewardTxs
 func (pool *txPool) ClearRewardTxs() {
-	pool.bonPool.forEach(func(tx *types.Transaction) bool {
-		bhash := common.BytesToHash(tx.Data)
+	pool.bonPool.forEachByBlock(func(bhash common.Hash, txs []*types.Transaction) bool {
 		// The reward transaction of the block already exists on the chain, or the block is not
 		// on the chain, and the corresponding reward transaction needs to be deleted.
 		reason := ""
 		remove := false
-		if pool.bonPool.hasReward(tx.Data) {
+		if pool.bonPool.hasReward(bhash.Bytes()) {
 			remove = true
 			reason = "tx exist"
 		} else if !pool.chain.HasBlock(bhash) {

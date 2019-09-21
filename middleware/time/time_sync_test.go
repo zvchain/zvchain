@@ -34,9 +34,9 @@ func TestNTPQuery(t *testing.T) {
 	tt, _ := ntp.Time("time.asia.apple.com")
 	t.Log(tt, time.Now())
 
-	rsp, err := ntp.Query("cn.pool.ntp.org")
+	rsp, err := ntp.Query("asia.pool.ntp.org")
 	if err != nil {
-		t.Fatal(err)
+		t.Log(err)
 	}
 	t.Log(rsp.Time, rsp.ClockOffset.String(), time.Now(), time.Now().Add(rsp.ClockOffset))
 
@@ -76,4 +76,14 @@ func TestTimeUnixSec(t *testing.T) {
 
 func TestTimeStampString(t *testing.T) {
 	t.Logf("ts:%v", TimeToTimeStamp(time.Now()))
+}
+
+func TestLocal(t *testing.T) {
+	d := time.Date(2017, 7, 7, 9, 0, 0, 0, time.Local)
+	dl := TimeToTimeStamp(d)
+	t.Log(d, dl)
+	if !dl.Local().Equal(d) {
+		t.Error("Local() test fail")
+	}
+
 }

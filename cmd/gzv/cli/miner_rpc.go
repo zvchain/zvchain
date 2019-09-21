@@ -16,11 +16,11 @@
 package cli
 
 import (
+	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 	"github.com/zvchain/zvchain/consensus/group"
+	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/log"
 	"net"
-
-	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 
 	"fmt"
 	"strings"
@@ -30,7 +30,7 @@ import (
 type rpcLevel int
 
 const (
-	rpcLevelNone     rpcLevel = iota // Won't start rpc service which is the default value if not set
+	rpcLevelMiner    rpcLevel = iota // Won't start rpc service which is the default value if not set
 	rpcLevelGtas                     // Only enable the core rpc service functions used by miners or dapp developers
 	rpcLevelExplorer                 // Enable both above and explorer related functions
 	rpcLevelDev                      // Enable all functions including functions for debug or developer use
@@ -42,25 +42,26 @@ type rpcApi interface {
 	Version() string
 }
 
-func (gtas *Gtas) addInstance(inst rpcApi) {
-	gtas.rpcInstances = append(gtas.rpcInstances, inst)
+func (gzv *Gzv) addInstance(inst rpcApi) {
+	gzv.rpcInstances = append(gzv.rpcInstances, inst)
 }
 
-func (gtas *Gtas) initRpcInstances() error {
-	level := gtas.config.rpcLevel
-	if level < rpcLevelNone || level > rpcLevelDev {
+func (gzv *Gzv) initRpcInstances() error {
+	level := gzv.config.rpcLevel
+	if level < rpcLevelMiner || level > rpcLevelDev {
 		return fmt.Errorf("rpc level error:%v", level)
 	}
-	base := &rpcBaseImpl{gr: getGroupReader()}
-	gtas.rpcInstances = make([]rpcApi, 0)
+	base := &rpcBaseImpl{gr: getGroupReader(), br: core.BlockChainImpl}
+	gzv.rpcInstances = make([]rpcApi, 0)
+	gzv.addInstance(&RpcMinerImpl{base})
 	if level >= rpcLevelGtas {
-		gtas.addInstance(&RpcGtasImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
+		gzv.addInstance(&RpcGzvImpl{rpcBaseImpl: base, routineChecker: group.GroupRoutine})
 	}
 	if level >= rpcLevelExplorer {
-		gtas.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
+		gzv.addInstance(&RpcExplorerImpl{rpcBaseImpl: base})
 	}
 	if level >= rpcLevelDev {
-		gtas.addInstance(&RpcDevImpl{rpcBaseImpl: base})
+		gzv.addInstance(&RpcDevImpl{rpcBaseImpl: base})
 	}
 	return nil
 }
@@ -98,23 +99,33 @@ func startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string,
 }
 
 // StartRPC RPC function
-func (gtas *Gtas) startRPC() error {
+func (gzv *Gzv) startRPC() error {
 	var err error
 
 	// init api instance
-	if err = gtas.initRpcInstances(); err != nil {
+	if err = gzv.initRpcInstances(); err != nil {
 		return err
 	}
 
+	host, port := gzv.config.host, gzv.config.port
 	apis := make([]rpc.API, 0)
-	for _, inst := range gtas.rpcInstances {
+	for _, inst := range gzv.rpcInstances {
 		apis = append(apis, rpc.API{Namespace: inst.Namespace(), Version: inst.Version(), Service: inst, Public: true})
 	}
-	host, port := gtas.config.rpcAddr, gtas.config.rpcPort
+
+	var cors []string
+	switch gzv.config.cors {
+	case "all":
+		cors = []string{"*"}
+	case "":
+		cors = []string{}
+	default:
+		cors = strings.Split(gzv.config.cors, ",")
+	}
 
 	for plus := 0; plus < 40; plus++ {
 		endpoint := fmt.Sprintf("%s:%d", host, port+uint16(plus))
-		err = startHTTP(endpoint, apis, []string{}, []string{}, []string{})
+		err = startHTTP(endpoint, apis, []string{}, cors, []string{})
 		if err == nil {
 			log.DefaultLogger.Errorf("RPC serving on %v\n", endpoint)
 			return nil

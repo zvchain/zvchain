@@ -26,7 +26,7 @@ import (
 	"github.com/zvchain/zvchain/core"
 )
 
-const code  =`
+const code = `
 
 # import account
 
@@ -128,8 +128,8 @@ class Token(object):
 
 var cfg = &minerConfig{
 	rpcLevel:      rpcLevelDev,
-	rpcAddr:       "127.0.0.1",
-	rpcPort:       8101,
+	host:          "127.0.0.1",
+	port:          8101,
 	super:         false,
 	testMode:      true,
 	natIP:         "",
@@ -142,7 +142,7 @@ var cfg = &minerConfig{
 }
 
 func resetDb(dbPath string) error {
-	core.BlockChainImpl.(*core.FullBlockChain).Close()
+	core.BlockChainImpl.Close()
 	//taslog.Close()
 	fmt.Println("---reset db---")
 	dir, err := ioutil.ReadDir(".")
@@ -170,11 +170,11 @@ func resetDb(dbPath string) error {
 }
 
 func TestMarshalTxRawData(t *testing.T) {
-	tx := &txRawData{
+	tx := &TxRawData{
 		Target:   "0x123",
 		Value:    100000000,
-		Gas:      1304,
-		Gasprice: 2324,
+		GasLimit: 1304,
+		GasPrice: 2324,
 	}
 	json, err := json.Marshal(tx)
 	if err != nil {
@@ -186,7 +186,7 @@ func TestMarshalTxRawData(t *testing.T) {
 
 func TestUnmarhsalTxRawData(t *testing.T) {
 	s := `{"target":"0x123","value":23,"gas":99,"gasprice":2324,"tx_type":0,"nonce":0,"data":"","sign":"","extra_data":""}`
-	tx := &txRawData{}
+	tx := &TxRawData{}
 
 	err := json.Unmarshal([]byte(s), tx)
 	if err != nil {
@@ -194,8 +194,7 @@ func TestUnmarhsalTxRawData(t *testing.T) {
 	}
 }
 
-
-func TestParseABI(t *testing.T)  {
+func TestParseABI(t *testing.T) {
 	abi := parseABI(code)
 	fmt.Println(abi)
 }

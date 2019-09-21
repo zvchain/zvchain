@@ -20,6 +20,7 @@ class Receiver():
         if times == 0:
             return
         event.emit(times)
+        # error
         Contract(addr).contract_call2(addr, times-1)
 
     @register.public(str, int)
@@ -28,3 +29,7 @@ class Receiver():
             return
         event.emit(times)
         Contract(addr).call_contract3(addr, times-1)
+
+    @register.public()
+    def call_contract_test_bigint(self):
+        return -100000000000000000000000000000001

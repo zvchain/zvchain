@@ -54,19 +54,6 @@ func (s *Server) Send(id string, msg Message) error {
 	return nil
 }
 
-func (s *Server) SendWithGroupRelay(id string, groupID string, msg Message) error {
-	bytes, err := marshalMessage(msg)
-	if err != nil {
-		Logger.Errorf("Marshal message error:%s", err.Error())
-		return err
-	}
-	nID := NewNodeID(id)
-	if nID != nil {
-		s.netCore.sendToNode(*nID, nil, bytes, msg.Code)
-	}
-	return nil
-}
-
 func (s *Server) SpreadAmongGroup(groupID string, msg Message) error {
 	bytes, err := marshalMessage(msg)
 	if err != nil {
@@ -87,7 +74,7 @@ func (s *Server) SpreadToGroup(groupID string, groupMembers []string, msg Messag
 		return err
 	}
 
-	Logger.Infof("SpreadToGroup :%s,code:%d,msg size:%d", groupID, msg.Code, len(msg.Body)+4)
+	Logger.Infof("SpreadToGroup :%s,code:%d,groupMembers:%v msg size:%d", groupID, msg.Code, len(groupMembers), len(msg.Body)+4)
 	s.netCore.groupBroadcastWithMembers(groupID, bytes, msg.Code, digest, groupMembers, -1)
 
 	return nil
@@ -100,7 +87,7 @@ func (s *Server) TransmitToNeighbor(msg Message) error {
 		return err
 	}
 
-	s.netCore.broadcast(bytes, msg.Code, false, nil, -1)
+	s.netCore.broadcastRandom(bytes, msg.Code, -1, 256)
 
 	return nil
 }
@@ -145,6 +132,14 @@ func (s *Server) AddGroup(groupID string, members []string) *Group {
 		}
 	}
 	return s.netCore.groupManager.buildGroup(groupID, nodes)
+}
+
+func (s *Server) BuildProposerGroupNet(proposers []*Proposer) {
+	s.netCore.proposerManager.Build(proposers)
+}
+
+func (s *Server) AddProposers(proposers []*Proposer) {
+	s.netCore.proposerManager.AddProposers(proposers)
 }
 
 func (s *Server) RemoveGroup(ID string) {
@@ -205,10 +200,14 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 			topicID = notify.BlockResponse
 		case NewBlockMsg:
 			topicID = notify.NewBlock
-		case ReqChainPieceBlock:
-			topicID = notify.ChainPieceBlockReq
-		case ChainPieceBlock:
-			topicID = notify.ChainPieceBlock
+		case ForkFindAncestorResponse:
+			topicID = notify.ForkFindAncestorResponse
+		case ForkFindAncestorReq:
+			topicID = notify.ForkFindAncestorReq
+		case ForkChainSliceReq:
+			topicID = notify.ForkChainSliceReq
+		case ForkChainSliceResponse:
+			topicID = notify.ForkChainSliceResponse
 		}
 		if topicID != "" {
 			msg := newNotifyMessage(message, from)
@@ -216,8 +215,8 @@ func (s *Server) handleMessageInner(message *Message, from string) {
 		}
 	}
 
-	if time.Since(begin) > 100*time.Millisecond {
-		Logger.Debugf("handle message cost time:%v,hash:%s,code:%d", time.Since(begin), message.Hash(), code)
+	if time.Since(begin) > 300*time.Millisecond {
+		Logger.Infof("handle message cost time:%v,hash:%s,code:%d", time.Since(begin), message.Hash(), code)
 	}
 }
 

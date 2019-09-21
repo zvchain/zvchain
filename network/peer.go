@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/zvchain/zvchain/common"
+	zvTime "github.com/zvchain/zvchain/middleware/time"
 )
 
 type PeerSource int32
@@ -47,7 +48,9 @@ func (pa *PeerAuthContext) Verify() (bool, string) {
 		return false, ""
 	}
 
-	if math.Abs(float64(time.Since(time.Unix(int64(pa.CurTime), 0)))) > float64(time.Minute*5) {
+	authTS := zvTime.TimeToTimeStamp(time.Unix(int64(pa.CurTime), 0))
+
+	if math.Abs(float64(zvTime.TSInstance.SinceSeconds(authTS))) > float64(60*5) {
 		return false, ""
 	}
 	buffer := bytes.Buffer{}
@@ -75,8 +78,9 @@ func genPeerAuthContext(PK string, SK string, toID *NodeID) *PeerAuthContext {
 	if privateKey.GetPubKey().Hex() != pubkey.Hex() {
 		return nil
 	}
+
 	buffer := bytes.Buffer{}
-	curTime := uint64(time.Now().UTC().Unix())
+	curTime := uint64(zvTime.TSInstance.Now().UTC().Unix())
 	data := common.Uint64ToByte(curTime)
 	buffer.Write(data)
 	if toID != nil {
@@ -168,6 +172,15 @@ func (p *Peer) addGroup(gID string) {
 	if !existed {
 		p.groupIDs[gID] = true
 	}
+}
+
+func (p *Peer) AuthContext() *PeerAuthContext {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.authContext == nil {
+		p.authContext = genPeerAuthContext(netServerInstance.config.PK, netServerInstance.config.SK, &p.ID)
+	}
+	return p.authContext
 }
 
 func (p *Peer) removeGroup(gID string) {
@@ -297,13 +310,19 @@ func (p *Peer) isEmpty() bool {
 	return empty
 }
 
-func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted bool) {
+func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted bool, ip string, port uint16) {
 	p.resetData()
 	p.resetAuthContext()
 	p.connecting = false
 	if session > p.sessionID {
 
 		p.sessionID = session
+	}
+	if len(ip) > 0 {
+		p.IP = net.ParseIP(ip)
+	}
+	if port > 0 {
+		p.Port = int(port)
 	}
 	p.connectTime = time.Now()
 

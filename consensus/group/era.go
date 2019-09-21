@@ -23,10 +23,15 @@ import (
 )
 
 const (
-	steadyStateBackTrackGap = 20                                                                //20                                                                // The gap from the present to the steady state
-	roundWindow             = 80                                                                //80                                                                // The window length of each round
-	eraWindow               = (steadyStateBackTrackGap+roundWindow)*3 + steadyStateBackTrackGap // The window length of group-create GroupRoutine
-	lifeWindow              = 50 * eraWindow                                                    // The life window of a active group
+	maxGroupPerEpoch        = 1  // max group num can be created during one epoch
+	steadyStateBackTrackGap = 15 // The gap from the present to the steady state
+
+	// era window consist of following graph:
+	/* ^seed |---gap1---|---round1:encrypted share piece---|--gap2--|---round2:mpk share---|---gap3---|---round3:origin share piece---|---gap4---|end$ */
+	eraWindow = types.EpochLength / maxGroupPerEpoch // The window length of group-create GroupRoutine
+
+	roundWindow = (eraWindow - 4*steadyStateBackTrackGap) / 3 // The window length of each round
+
 )
 
 type rRange struct {
