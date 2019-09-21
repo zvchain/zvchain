@@ -98,7 +98,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 			"minedHeight": b.Header.Height,
 			"now":         time.TSInstance.Now().UTC(),
 			"logType":     "proposalLog",
-			"version":     common.GtasVersion,
+			"version":     common.GzvVersion,
 			"castor":      castor,
 		}).Info("mined block height")
 		ms.showMsg("congratulations, you mined block height %v success!", b.Header.Height)
@@ -118,7 +118,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 							"verifiedHeight": b.Header.Height,
 							"now":            time.TSInstance.Now().UTC(),
 							"logType":        "verifyLog",
-							"version":        common.GtasVersion,
+							"version":        common.GzvVersion,
 						}).Info("verifyLog")
 						ms.showMsg("congratulations, you verified block hash %v success, reward %v ZVC", blockHash.Hex(), common.RA2TAS(tx.Value.Uint64()))
 						break
