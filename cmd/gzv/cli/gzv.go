@@ -333,6 +333,7 @@ func (gzv *Gzv) fullInit() error {
 
 	//set the ignoreVmCall option for proposer package. the option shouldn't be set true only if you know what you are doing.
 	core.IgnoreVmCall = common.GlobalConf.GetBool(Section, "ignore_vm_call", false)
+	core.IgnoreVmExecute = common.GlobalConf.GetBool(Section, "ignore_vm_execute", true)
 
 	sk := common.HexToSecKey(gzv.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)

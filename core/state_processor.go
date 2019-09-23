@@ -42,6 +42,7 @@ var (
 	ProposerPackageTime = MaxCastBlockTime
 	GasLimitForPackage  = uint64(GasLimitPerBlock)
 	IgnoreVmCall        = false
+	IgnoreVmExecute     = true
 )
 
 var (
@@ -445,6 +446,9 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	rm := executor.bc.GetRewardManager().(*rewardManager)
 	totalGasUsed := uint64(0)
 	for _, tx := range txs {
+		if pack && !IgnoreVmExecute && (tx.Type == types.TransactionTypeContractCreate || tx.Type == types.TransactionTypeContractCall){
+			continue
+		}
 		if pack && time.Since(beginTime).Seconds() > float64(ProposerPackageTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", tx.Hash.Hex())
 			break
