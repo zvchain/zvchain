@@ -39,7 +39,7 @@ type Storage struct {
 	topGroupHigh          uint64
 	accounts              []*models.AccountList
 	topbrowserBlockHeight uint64
-	statisticsLastUpdate  int64
+	statisticsLastUpdate  string
 }
 
 func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *Storage {

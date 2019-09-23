@@ -250,8 +250,13 @@ func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bo
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
 		}
 	}
-	if storage.statisticsLastUpdate > 0 && time.Now().Unix()-storage.statisticsLastUpdate >= 86400 {
-		storage.statisticsLastUpdate = time.Now().Unix()
+	t := time.Now()
+	date := fmt.Sprintf("%d-%d-%d", t.Year(), t.Month(), t.Day())
+	if storage.statisticsLastUpdate == "" {
+		storage.statisticsLastUpdate = date
+	}
+	if date != storage.statisticsLastUpdate {
+		storage.statisticsLastUpdate = date
 		storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
 	}
 	return true
