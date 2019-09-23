@@ -133,6 +133,7 @@ func convertBlockHeader(b *types.Block) *models.Block {
 		GroupID:    bh.Group.Hex(),
 		TotalQN:    bh.TotalQN,
 		TransCount: uint64(len(b.Transactions)),
+		Random:     common.ToHex(bh.Random),
 		//Qn: mediator.Proc.CalcBlockHeaderQN(bh),
 
 	}
@@ -220,4 +221,11 @@ func convertTransaction(tx *types.Transaction) *models.TempTransaction {
 		Value:     common.RA2TAS(value),
 	}
 	return trans
+}
+
+func (tm *Fetcher) Fetchbalance(addr string) float64 {
+	b := core.BlockChainImpl.GetBalance(common.StringToAddress(addr))
+	balance := common.RA2TAS(b.Uint64())
+
+	return balance
 }

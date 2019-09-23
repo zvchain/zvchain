@@ -84,7 +84,8 @@ func (tm *DBMmanagement) fetchAccounts() {
 func (tm *DBMmanagement) excuteAccounts() {
 
 	topHeight := core.BlockChainImpl.Height()
-	if tm.blockHeight > topHeight-100 {
+	checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if (checkpoint.Height > 0 && tm.blockHeight > checkpoint.Height) || (tm.blockHeight > topHeight-100) {
 		return
 	}
 	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight, "CheckPointHeight", topHeight)
@@ -168,7 +169,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 				if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
 					accounts.Address = address
 					accounts.TotalTransaction = totalTx
-					accounts.Balance = tm.fetchbalance(address)
+					accounts.Balance = tm.fetcher.Fetchbalance(address)
 					if !tm.storage.AddObjects(accounts) {
 						return
 					}
@@ -178,7 +179,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 					//accounts.TotalTransaction = totalTx
 					//accounts.ID = targetAddrInfo[0].ID
 					//accounts.Balance = tm.fetchbalance(address)
-					if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx), "balance": tm.fetchbalance(address)}) {
+					if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", totalTx), "balance": tm.fetcher.Fetchbalance(address)}) {
 						return
 					}
 
@@ -242,13 +243,6 @@ func (tm *DBMmanagement) fetchTickets(address string) string {
 	data := tm.storage.MapToJson(voteLIst)
 
 	return data
-}
-
-func (tm *DBMmanagement) fetchbalance(addr string) float64 {
-	b := core.BlockChainImpl.GetBalance(common.StringToAddress(addr))
-	balance := common.RA2TAS(b.Uint64())
-
-	return balance
 }
 
 func (tm *DBMmanagement) fetchGroup() {

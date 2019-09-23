@@ -41,7 +41,7 @@ type AccountList struct {
 	DismissGroup     uint64  `json:"dismiss_group" gorm:"index"`
 	PrepareGroup     uint64  `json:"prepare_group" gorm:"index"`
 	TotalTransaction uint64  `json:"total_transaction"`
-	Rewards          uint64  `json:"rewards"`
+	Rewards          float64 `json:"rewards"`
 	Status           int8    `json:"status" gorm:"index;default:-1"`
 	VerifyStatus     int8    `json:"verify_status" gorm:"index;default:-1"`
 	StakeFrom        string  `json:"stake_from"`
@@ -92,6 +92,7 @@ type Block struct {
 	RewardInfo      map[string]interface{} `json:"reward_info" gorm:"-"`
 	LoadVerifyCount uint32                 `json:"load_verify_count"`
 	LoadVerify      bool                   `json:"load_verify"`
+	Random          string                 `json:"random"`
 }
 
 type Verification struct {
@@ -114,6 +115,7 @@ type Reward struct {
 	Type         uint64    `json:"type" gorm:"unique_index:idx_reward"`
 	Stake        uint64    `json:"stake"`
 	RoleType     uint64    `json:"role_type" gorm:"index"`
+	GasFee       float64   `json:"gas_fee" gorm:"index"`
 }
 
 type TempTransaction struct {
