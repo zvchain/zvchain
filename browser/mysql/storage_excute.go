@@ -245,14 +245,14 @@ func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bo
 		if len(sysdata) < 1 {
 			hight := storage.GetCurBlockCount()
 			sys.Value = hight + 1
-			storage.AddObjects(&sys)
+			storage.AddObjects(sys)
 		} else {
-			storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
+			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
 		}
 	}
-	if time.Now().Unix()-storage.statisticsLastUpdate >= 86400 {
+	if storage.statisticsLastUpdate > 0 && time.Now().Unix()-storage.statisticsLastUpdate >= 86400 {
 		storage.statisticsLastUpdate = time.Now().Unix()
-		storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
+		storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
 	}
 	return true
 }
