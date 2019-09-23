@@ -455,7 +455,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	wg.Wait()
 
 	if e := atErr.Load(); e != nil {
-		Logger.Errorf("get all miner error:%v", err)
+		Logger.Errorf("get all miner error:%v", e)
 		return nil
 	}
 
