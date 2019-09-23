@@ -154,9 +154,14 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.initMessageHandler()
 
+	// get the level db file cache size from config
+	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
+	// get the level db block cache size from config
+	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 128)
+
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        100,
-		BlockCacheCapacity:            16 * opt.MiB,
+		OpenFilesCacheCapacity:        fileCacheSize,
+		BlockCacheCapacity:            blockCacheSize * opt.MiB,
 		WriteBuffer:                   512 * opt.MiB, // Two of these are used internally
 		Filter:                        filter.NewBloomFilter(10),
 		CompactionTableSize:           4 * opt.MiB,
