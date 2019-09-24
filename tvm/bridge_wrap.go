@@ -212,6 +212,7 @@ type TVM struct {
 
 // NewTVM new a TVM instance
 func NewTVM(sender *common.Address, contract *Contract) *TVM {
+	C.tvm_set_gas(100000)
 	C.tvm_start()
 	return NewTVMForRetainContext(sender, contract, make([]*types.Log, 0))
 }

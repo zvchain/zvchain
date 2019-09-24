@@ -11,6 +11,7 @@ import (
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
+	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -27,6 +28,8 @@ type Crontab struct {
 	blockRewardHeight       uint64
 	blockTopHeight          uint64
 	rewardStorageDataHeight uint64
+	curblockcount           uint64
+	curTrancount            uint64
 
 	page              uint64
 	maxid             uint
@@ -55,6 +58,8 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 		initRewarddata: make(chan *models.ForkNotify, 1000),
 	}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
+	server.storage.Deletecurcount(mysql.Blockcurblockhight)
+	server.storage.Deletecurcount(mysql.Blockrewardtophight)
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	//server.consumeReward(3, 2)
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
@@ -134,7 +139,7 @@ func (crontab *Crontab) fetchGroups() {
 
 }
 
-func (crontab *Crontab) fetchVerfication(localHeight uint64) {
+func (crontab *Crontab) fetchReward(localHeight uint64) {
 
 	blocks := crontab.rpcExplore.GetPreHightRewardByHeight(localHeight)
 
@@ -149,7 +154,7 @@ func (crontab *Crontab) fetchVerfication(localHeight uint64) {
 		if block.ProposalReward > 0 {
 			mort := getMinerDetail(block.ProposalID, block.BlockHeight, types.MinerTypeProposal)
 			proposalReward := &models.Reward{
-				Type:         ProposalStakeType,
+				Type:         uint64(types.MinerTypeProposal),
 				BlockHash:    block.BlockHash,
 				BlockHeight:  block.BlockHeight,
 				NodeId:       block.ProposalID,
@@ -157,6 +162,7 @@ func (crontab *Crontab) fetchVerfication(localHeight uint64) {
 				RoleType:     uint64(mort.Identity),
 				CurTime:      block.CurTime,
 				RewardHeight: localHeight,
+				GasFee:       float64(block.ProposalGasFeeReward),
 			}
 			if mort != nil {
 				proposalReward.Stake = mort.Stake
@@ -172,6 +178,8 @@ func (crontab *Crontab) fetchVerfication(localHeight uint64) {
 			}
 			ids := verifierBonus.TargetIDs
 			value := verifierBonus.Value
+			gas := fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids)))
+			rewarMoney, _ := strconv.ParseFloat(gas, 64)
 
 			for n := 0; n < len(ids); n++ {
 				v := models.Reward{}
@@ -180,8 +188,9 @@ func (crontab *Crontab) fetchVerfication(localHeight uint64) {
 				v.NodeId = ids[n].GetAddrString()
 				v.Value = value
 				v.CurTime = block.CurTime
-				v.Type = VerifyStakeType
+				v.Type = uint64(types.MinerTypeVerify)
 				v.RewardHeight = localHeight
+				v.GasFee = rewarMoney
 				mort := getMinerDetail(v.NodeId, block.BlockHeight, types.MinerTypeVerify)
 				if mort != nil {
 					v.Stake = mort.Stake
@@ -262,7 +271,8 @@ func (crontab *Crontab) excutePoolVotes() {
 
 func (crontab *Crontab) excuteBlockRewards() {
 	height, _ := crontab.storage.TopBlockHeight()
-	if crontab.blockRewardHeight > height {
+	checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if (checkpoint.Height > 0 && crontab.blockRewardHeight > checkpoint.Height) || crontab.blockRewardHeight > height {
 		return
 	}
 	topblock := core.BlockChainImpl.QueryTopBlock()
@@ -272,7 +282,13 @@ func (crontab *Crontab) excuteBlockRewards() {
 
 	if rewards != nil {
 		accounts := crontab.transfer.RewardsToAccounts(rewards)
-		if crontab.storage.AddBlockRewardMysqlTransaction(accounts) {
+		mapbalance := make(map[string]float64)
+
+		for k := range accounts {
+			balance := crontab.fetcher.Fetchbalance(k)
+			mapbalance[k] = balance
+		}
+		if crontab.storage.AddBlockRewardMysqlTransaction(accounts, mapbalance) {
 			crontab.blockRewardHeight += 1
 		}
 		crontab.excuteBlockRewards()
@@ -289,10 +305,11 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 	chain := core.BlockChainImpl
 	blockDetail := chain.QueryBlockCeil(localHeight)
 	if blockDetail != nil {
-		server.fetchVerfication(blockDetail.Header.Height)
 		if maxHeight > pre {
 			server.storage.DeleteForkReward(pre, localHeight)
 		}
+		server.fetchReward(blockDetail.Header.Height)
+
 	}
 	//server.isFetchingBlocks = false
 
@@ -303,6 +320,9 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
 	if blockDetail != nil {
+		if maxHeight > pre {
+			server.storage.DeleteForkblock(pre, localHeight)
+		}
 		if server.storage.AddBlock(&blockDetail.Block) {
 			trans := make([]*models.Transaction, 0, 0)
 			for i := 0; i < len(blockDetail.Trans); i++ {
@@ -320,9 +340,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 			server.storage.AddReceipts(blockDetail.Receipts)
 
 		}
-		if maxHeight > pre {
-			server.storage.DeleteForkblock(pre, localHeight)
-		}
+
 	}
 	//server.isFetchingBlocks = false
 
@@ -387,7 +405,7 @@ func (crontab *Crontab) dataCompensationProcess(notifyHeight uint64, notifyPreHe
 
 		dbMaxHeight := crontab.blockTopHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
-			crontab.storage.DeleteForkblock(dbMaxHeight-1, dbMaxHeight+1)
+			crontab.storage.DeleteForkblock(dbMaxHeight-1, dbMaxHeight)
 			crontab.dataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInited = true
@@ -403,8 +421,8 @@ func (crontab *Crontab) rewardDataCompensationProcess(notifyHeight uint64, notif
 
 		dbMaxHeight := crontab.rewardStorageDataHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
-			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight+1)
-			crontab.rewarddataCompensation(dbMaxHeight, dbMaxHeight)
+			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight)
+			crontab.rewarddataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 
 		crontab.isInitedReward = true

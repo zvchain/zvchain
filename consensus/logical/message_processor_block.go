@@ -159,7 +159,7 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 			"verifyHeight": bh.Height,
 			"now":          time.TSInstance.Now().UTC(),
 			"logType":      "verifyLog",
-			"version":      common.GtasVersion,
+			"version":      common.GzvVersion,
 			"castor":       castor,
 		}).Info("verify")
 	} else {
@@ -358,7 +358,7 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 			"verifyHeight": bh.Height,
 			"now":          time.TSInstance.Now().UTC(),
 			"logType":      "verifyfromverifyLog",
-			"version":      common.GtasVersion,
+			"version":      common.GzvVersion,
 			"castor":       castor,
 		}).Info("verifyfromverify")
 	}

@@ -18,6 +18,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"os"
@@ -40,6 +41,7 @@ import (
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 )
@@ -186,7 +188,7 @@ func (gzv *Gzv) Run() {
 
 	switch command {
 	case versionCmd.FullCommand():
-		fmt.Println("gzv Version:", common.GtasVersion)
+		fmt.Println("gzv Version:", common.GzvVersion)
 		os.Exit(0)
 	case consoleCmd.FullCommand():
 		err := ConsoleInit(*keystore, *remoteUrl, *showRequest, *rpcHost, *rpcPort)
@@ -236,6 +238,11 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"now":     time2.TSInstance.Now().UTC(),
+			"logType": "versionLog",
+			"version": common.GzvVersion,
+		}).Info("versionLog")
 		gzv.InitCha <- true
 	case clearCmd.FullCommand():
 		err := ClearBlock()
@@ -332,7 +339,7 @@ func (gzv *Gzv) fullInit() error {
 	}
 
 	//set the ignoreVmCall option for proposer package. the option shouldn't be set true only if you know what you are doing.
-	core.IgnoreVmCall = common.GlobalConf.GetBool(Section, "ignore_vm_call", false)
+	core.IgnoreVmCall = common.GlobalConf.GetBool(Section, "ignore_vm_call", true)
 
 	sk := common.HexToSecKey(gzv.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)

@@ -179,7 +179,7 @@ func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) type
 			"height":    b.Header.Height,
 			"logType":   "doAddOnChain",
 			"now":       time2.TSInstance.Now().UTC(),
-			"version":   common.GtasVersion,
+			"version":   common.GzvVersion,
 		}).Info("doAddOnChain success")
 	}
 	return ret
@@ -519,7 +519,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		"txNum":   chain.transactionPool.TxNum(),
 		"now":     time2.TSInstance.Now().UTC(),
 		"logType": "txPoolLog",
-		"version": common.GtasVersion,
+		"version": common.GzvVersion,
 	}).Info("transaction pool log")
 	return nil
 }

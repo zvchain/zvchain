@@ -102,6 +102,7 @@ func (api *Explore) GetRewardByBlock(b *types.Block) *ExploreBlockReward {
 		genReward := convertRewardTransaction1(rewardTx)
 		genReward.Success = true
 		ret.VerifierReward = genReward
+		ret.VerifierGasFeeReward = share.FeeForVerifier
 	}
 	return ret
 }

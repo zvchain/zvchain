@@ -221,7 +221,7 @@ func (p *Processor) blockProposal() {
 		"proposalHeight": height,
 		"now":            time2.TSInstance.Now().UTC(),
 		"logType":        "proposalLog",
-		"version":        common.GtasVersion,
+		"version":        common.GzvVersion,
 		"castor":         castor,
 	}).Info("proposal")
 	//if height > 1 && p.proveChecker.proveExists(pi) {
