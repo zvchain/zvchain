@@ -17,13 +17,14 @@ package network
 
 import (
 	"bytes"
-	"github.com/zvchain/zvchain/common"
 	"math"
 	"math/rand"
 	nnet "net"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/zvchain/zvchain/common"
 )
 
 const GroupMinRowSize = 4
