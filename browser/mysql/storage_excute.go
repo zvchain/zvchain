@@ -110,8 +110,16 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 	if storage.db == nil {
 		return false
 	}
+	isSuccess := false
 	tx := storage.db.Begin()
 
+	defer func(){
+		if isSuccess{
+			tx.Commit()
+		}else{
+			tx.Rollback()
+		}
+	}()
 	updateReward := func(addr string, reward float64) error {
 		mapData := make(map[string]interface{})
 		mapData["rewards"] = gorm.Expr("rewards + ?", reward)
@@ -128,7 +136,6 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 			continue
 		}
 		if !errors(updateReward(address, reward)) {
-			tx.Rollback()
 			fmt.Println("AddBlockRewardMysqlTransaction,", address, ",", reward)
 			return false
 		}
@@ -136,7 +143,7 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 	if !storage.IncrewardBlockheightTosys(tx, Blockrewardtophight) {
 		return false
 	}
-	tx.Commit()
+	isSuccess = true
 	return true
 }
 
@@ -192,7 +199,7 @@ func getstakefrom(tx *gorm.DB, address string, from string) *models.PoolStake {
 
 }
 func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB, variable string) bool {
-	if variable != "" {
+	if variable == "" {
 		return false
 	}
 
@@ -204,12 +211,10 @@ func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB, variable string) 
 	tx.Limit(1).Where("variable = ?", variable).Find(&sysConfig)
 	if sysConfig != nil && len(sysConfig) > 0 {
 		if !errors(tx.Model(&sysConfig[0]).UpdateColumn("value", gorm.Expr("value + ?", 1)).Error) {
-			tx.Rollback()
 			return false
 		}
 	} else {
 		if !errors(tx.Create(&sys).Error) {
-			tx.Rollback()
 			return false
 		}
 

@@ -61,7 +61,7 @@ func (tm *DBMmanagement) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
-	//tm.fetchGenesisAccounts()
+	tm.fetchGenesisAccounts()
 	go tm.fetchAccounts()
 	go tm.fetchGroup()
 	for {
