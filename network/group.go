@@ -17,7 +17,6 @@ package network
 
 import (
 	"bytes"
-	"github.com/zvchain/zvchain/common"
 	"math"
 	"math/rand"
 	nnet "net"
