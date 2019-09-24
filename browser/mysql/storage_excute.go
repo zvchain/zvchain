@@ -456,7 +456,13 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 	}
 	//storage.statistics.BlocksCountToday += 1
 	//storage.statistics.TopBlockHeight = storage.topbrowserBlockHeight
-
+	var maxIndex uint64 = 0
+	blocks := make([]*models.Block,1)
+	storage.db.Limit(1).Order("cur_index desc").Find(&blocks)
+	if len(blocks) > 0{
+		maxIndex = blocks[0].CurIndex
+	}
+	block.CurIndex = maxIndex + 1
 	if !errors(storage.db.Create(&block).Error) {
 		blocksql := fmt.Sprintf("DELETE  FROM blocks WHERE  hash = '%s'",
 			block.Hash)

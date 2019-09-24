@@ -80,6 +80,7 @@ type Group struct {
 type Block struct {
 	gorm.Model
 	Height          uint64                 `json:"height" gorm:"index"`
+	CurIndex        uint64                 `json:"cur_index" gorm:"index"`
 	Hash            string                 `json:"hash" gorm:"unique_index"`
 	PreHash         string                 `json:"pre_hash"`
 	CurTime         time.Time              `json:"cur_time" gorm:"index"`
