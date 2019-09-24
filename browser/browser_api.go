@@ -9,6 +9,7 @@ import (
 	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/cmd/gzv/rpc"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"strings"
@@ -60,6 +61,7 @@ func (tm *DBMmanagement) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
+	tm.fetchGenesisAccounts()
 	go tm.fetchAccounts()
 	go tm.fetchGroup()
 	for {
@@ -79,6 +81,33 @@ func (tm *DBMmanagement) fetchAccounts() {
 	tm.excuteAccounts()
 	atomic.CompareAndSwapInt32(&tm.isFetchingBlocks, 1, 0)
 
+}
+
+func (tm *DBMmanagement) fetchGenesisAccounts() {
+	consensusImpl := mediator.ConsensusHelperImpl{}
+	genesisInfo := consensusImpl.GenerateGenesisInfo()
+
+	miners := make([]string, 0)
+	for _, member := range genesisInfo.Group.Members() {
+		miner := common.ToAddrHex(member.ID())
+		miners = append(miners, miner)
+	}
+
+	for _, miner := range miners {
+		targetAddrInfo := tm.storage.GetAccountById(miner)
+
+		fmt.Println("targetAddrInfo:", targetAddrInfo)
+		accounts := &models.AccountList{}
+		// if the account doesn't exist
+		if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
+			accounts.Address = miner
+			accounts.Balance = tm.fetchbalance(miner)
+			if !tm.storage.AddObjects(accounts) {
+				return
+			}
+			tm.UpdateAccountStake(accounts, 0)
+		}
+	}
 }
 
 func (tm *DBMmanagement) excuteAccounts() {
