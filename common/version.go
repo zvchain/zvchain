@@ -15,10 +15,10 @@
 
 package common
 
-const GzvVersion = "0.9.20.0921d"
+const GzvVersion = "1.0.0-pre"
 
 const ConsensusVersion = 1
 
-const ChainDataVersion = 17
+const ChainDataVersion = 1
 
 const ProtocolVersion = 1
