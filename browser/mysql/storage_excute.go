@@ -455,10 +455,7 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 	if !errors(storage.db.Create(&block).Error) {
 		blocksql := fmt.Sprintf("DELETE  FROM blocks WHERE  hash = '%s'",
 			block.Hash)
-		data := storage.db.Exec(blocksql)
-		if data != nil {
-			storage.UpdateSysConfigValue(BlockDeleteCount, data.RowsAffected)
-		}
+		storage.db.Exec(blocksql)
 		storage.db.Create(&block)
 	}
 	storage.AddCurCountconfig(block.CurTime, Blockcurblockhight)
