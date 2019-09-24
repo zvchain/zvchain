@@ -159,7 +159,6 @@ func (s *Server) handleMessage(b []byte, from string, chainID uint16, protocolVe
 	}
 	message.ChainID = chainID
 	message.ProtocolVersion = protocolVersion
-	Logger.Debugf("Receive message from %s,code:%d,msg size:%d,hash:%s, chainID:%v,protocolVersion:%v", from, message.Code, len(b), message.Hash(), chainID, protocolVersion)
 	statistics.AddCount("Server.handleMessage", message.Code, uint64(len(b)))
 	s.netCore.flowMeter.recv(int64(message.Code), int64(len(b)))
 
