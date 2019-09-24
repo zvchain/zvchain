@@ -157,7 +157,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
 	// get the level db block cache size from config
-	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 128)
+	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
 
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        fileCacheSize,
@@ -279,7 +279,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	block.Header = &types.BlockHeader{
 		Height:     0,
 		ExtraData:  common.Sha256([]byte("zv")),
-		CurTime:    time2.TimeToTimeStamp(time.Date(2019, 9, 24, 12, 0, 0, 0, time.UTC)),
+		CurTime:    time2.TimeToTimeStamp(time.Date(2019, 9, 24, 0, 0, 0, 0, time.UTC)),
 		ProveValue: []byte{},
 		Elapsed:    0,
 		TotalQN:    0,
