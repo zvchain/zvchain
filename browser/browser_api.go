@@ -101,7 +101,7 @@ func (tm *DBMmanagement) fetchGenesisAccounts() {
 		// if the account doesn't exist
 		if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
 			accounts.Address = miner
-			accounts.Balance = tm.fetchbalance(miner)
+			accounts.Balance = tm.fetcher.Fetchbalance(miner)
 			if !tm.storage.AddObjects(accounts) {
 				return
 			}
