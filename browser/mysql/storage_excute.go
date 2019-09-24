@@ -12,6 +12,7 @@ const (
 	Blockrewardtophight = "block_reward.top_block_height"
 	Blocktophight       = "block.top_block_height"
 	Blockcurblockhight  = "block.cur_block_height"
+	BlockDeleteCount    = "block.delete_count"
 	Blockcurtranhight   = "block.cur_tran_height"
 
 	GroupTopHeight        = "group.top_group_height"
@@ -132,7 +133,7 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 			return false
 		}
 	}
-	if !storage.IncrewardBlockheightTosys(tx) {
+	if !storage.IncrewardBlockheightTosys(tx, Blockrewardtophight) {
 		return false
 	}
 	tx.Commit()
@@ -190,14 +191,17 @@ func getstakefrom(tx *gorm.DB, address string, from string) *models.PoolStake {
 	return stake
 
 }
-func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB) bool {
+func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB, variable string) bool {
+	if variable != "" {
+		return false
+	}
 
 	sys := &models.Sys{
-		Variable: Blockrewardtophight,
+		Variable: variable,
 		SetBy:    "carrie.cxl",
 	}
 	sysConfig := make([]models.Sys, 0, 0)
-	tx.Limit(1).Where("variable = ?", Blockrewardtophight).Find(&sysConfig)
+	tx.Limit(1).Where("variable = ?", variable).Find(&sysConfig)
 	if sysConfig != nil && len(sysConfig) > 0 {
 		if !errors(tx.Model(&sysConfig[0]).UpdateColumn("value", gorm.Expr("value + ?", 1)).Error) {
 			tx.Rollback()
@@ -230,6 +234,29 @@ func (storage *Storage) AddBlockHeightSystemconfig(sys *models.Sys) bool {
 		storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
 	}
 	return true
+}
+
+func (storage *Storage) AddSysConfig(variable string) {
+	sys := &models.Sys{
+		Variable: variable,
+		SetBy:    "xiaoli",
+	}
+	sysdata := make([]models.Sys, 0, 0)
+	storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
+	if len(sysdata) < 1 {
+		sys.Value = 0
+		storage.AddObjects(sys)
+	}
+}
+func (storage *Storage) UpdateSysConfigValue(variable string, value int64) {
+	if value < 1 {
+		return
+	}
+	sys := &models.Sys{
+		Variable: variable,
+		SetBy:    "xiaoli",
+	}
+	storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", value))
 }
 
 func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bool {
@@ -428,7 +455,10 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 	if !errors(storage.db.Create(&block).Error) {
 		blocksql := fmt.Sprintf("DELETE  FROM blocks WHERE  hash = '%s'",
 			block.Hash)
-		storage.db.Exec(blocksql)
+		data := storage.db.Exec(blocksql)
+		if data != nil {
+			storage.UpdateSysConfigValue(BlockDeleteCount, data.RowsAffected)
+		}
 		storage.db.Create(&block)
 	}
 	storage.AddCurCountconfig(block.CurTime, Blockcurblockhight)
