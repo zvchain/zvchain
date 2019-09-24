@@ -475,7 +475,7 @@ func (nc *NetCore) groupBroadcast(ID string, data []byte, code uint32, broadcast
 }
 
 func (nc *NetCore) groupBroadcastWithMembers(ID string, data []byte, code uint32, msgDigest MsgDigest, groupMembers []string, relayCount int32) {
-	msg := nc.genDataMessage(data, DataType_DataGroup, code, ID, nil, relayCount)
+	msg := nc.genDataMessage(data, DataType_DataGroup, code, ID, msgDigest, relayCount)
 	if msg == nil {
 		return
 	}
@@ -557,6 +557,7 @@ func (nc *NetCore) genDataMessage(data []byte,
 		RelayCount:   relayCount,
 		MessageInfo:  encodeMessageInfo(nc.chainID, nc.protocolVersion),
 		Expiration:   nc.expirationTime()}
+
 	return msgData
 }
 
