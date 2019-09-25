@@ -61,7 +61,7 @@ func (tm *DBMmanagement) loop() {
 		check = time.NewTicker(checkInterval)
 	)
 	defer check.Stop()
-	tm.fetchGenesisAccounts()
+	tm.fetchGenesisAndGuardianAccounts()
 	go tm.fetchAccounts()
 	go tm.fetchGroup()
 	for {
@@ -83,17 +83,23 @@ func (tm *DBMmanagement) fetchAccounts() {
 
 }
 
-func (tm *DBMmanagement) fetchGenesisAccounts() {
+func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
 	consensusImpl := mediator.ConsensusHelperImpl{}
 	genesisInfo := consensusImpl.GenerateGenesisInfo()
 
-	miners := make([]string, 0)
+	accounts := make([]string, 0)
+	// genesis group members
 	for _, member := range genesisInfo.Group.Members() {
 		miner := common.ToAddrHex(member.ID())
-		miners = append(miners, miner)
+		accounts = append(accounts, miner)
 	}
 
-	for _, miner := range miners {
+	// guardian accounts
+	for _, guardNode := range common.ExtractGuardNodes {
+		accounts = append(accounts, guardNode.AddrPrefixString())
+	}
+
+	for _, miner := range accounts {
 		targetAddrInfo := tm.storage.GetAccountById(miner)
 
 		fmt.Println("targetAddrInfo:", targetAddrInfo)
