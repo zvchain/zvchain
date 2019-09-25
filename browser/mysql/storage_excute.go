@@ -456,7 +456,13 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 	}
 	//storage.statistics.BlocksCountToday += 1
 	//storage.statistics.TopBlockHeight = storage.topbrowserBlockHeight
-
+	var maxIndex uint64 = 0
+	blocks := make([]*models.Block,1)
+	storage.db.Limit(1).Order("cur_index desc").Find(&blocks)
+	if len(blocks) > 0{
+		maxIndex = blocks[0].CurIndex
+	}
+	block.CurIndex = maxIndex + 1
 	if !errors(storage.db.Create(&block).Error) {
 		blocksql := fmt.Sprintf("DELETE  FROM blocks WHERE  hash = '%s'",
 			block.Hash)
@@ -476,9 +482,17 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	}
 	timeBegin := time.Now()
 	//tx := storage.db.Begin()
+	var maxIndex uint64 = 0
+	txs := make([]*models.Transaction,1)
+	storage.db.Limit(1).Order("cur_index desc").Find(&txs)
+	if len(txs) > 0{
+		maxIndex = txs[0].CurIndex
+	}
 	for i := 0; i < len(trans); i++ {
 
 		if trans[i] != nil {
+			maxIndex ++
+			trans[i].CurIndex = maxIndex
 			if !errors(storage.db.Create(&trans[i]).Error) {
 				transql := fmt.Sprintf("DELETE  FROM transactions WHERE  hash = '%s'",
 					trans[i].Hash)
