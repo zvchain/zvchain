@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/browser"
 	"github.com/zvchain/zvchain/browser/crontab"
+	browserlog "github.com/zvchain/zvchain/browser/log"
 	"runtime/debug"
 
 	"github.com/zvchain/zvchain/cmd/gzv/cli"
@@ -68,6 +69,7 @@ func NewBrowserDBInit() {
 	if help {
 		flag.Usage()
 	}
+	browserlog.InitLog()
 	fmt.Println("browserdbmmanagement flags:", browerdbaddr, dbPort, dbUser, dbPassword, reset)
 	browser.NewDBMmanagement(browerdbaddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 	crontab.NewServer(browerdbaddr, dbPort, dbUser, dbPassword, reset)
