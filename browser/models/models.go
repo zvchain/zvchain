@@ -138,6 +138,7 @@ type TempTransaction struct {
 type Transaction struct {
 	gorm.Model
 	BlockHash   string    `json:"block_hash" gorm:"index"`
+	CurIndex    uint64    `json:"cur_index" gorm:"index"`
 	BlockHeight uint64    `json:"block_height" gorm:"index"`
 	Data        string    `json:"data" gorm:"type:TEXT;size:65000"`
 	Value       float64   `json:"value"`
