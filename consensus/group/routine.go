@@ -424,10 +424,27 @@ func (routine *createRoutine) checkAndSendOriginPiecePacket(bh *types.BlockHeade
 }
 
 func GetCandidates() candidates {
-	candidates := make(candidates, 0)
+	era := GroupRoutine.currEra()
+	if !era.seedExist() {
+		return nil
+	}
+	h := era.seedHeight
+	allVerifiers := GroupRoutine.minerReader.GetCanJoinGroupMinersAt(h)
+	if !candidateEnough(len(allVerifiers)) {
+		return nil
+	}
 
-	if GroupRoutine != nil {
-		for _, v := range GroupRoutine.ctx.cands {
+	availCandidates := make([]*model.MinerDO, 0)
+	filterFun := GroupRoutine.groupFilter.MinerJoinedLivedGroupCountFilter(memberMaxJoinGroupNum, h)
+
+	for _, m := range allVerifiers {
+		if filterFun(m.ID.ToAddress()) {
+			availCandidates = append(availCandidates, m)
+		}
+	}
+	candidates := make(candidates, 0)
+	if GroupRoutine != nil && availCandidates != nil {
+		for _, v := range availCandidates {
 			candidates = append(candidates, v)
 		}
 		return candidates

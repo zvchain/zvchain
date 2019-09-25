@@ -261,7 +261,8 @@ func (tm *DBMmanagement) excuteAccounts() {
 
 func checkStakeTransaction(trtype int8) bool {
 	if trtype == types.TransactionTypeStakeReduce || trtype == types.TransactionTypeStakeAdd ||
-		trtype == types.TransactionTypeApplyGuardMiner || trtype == types.TransactionTypeVoteMinerPool {
+		trtype == types.TransactionTypeApplyGuardMiner || trtype == types.TransactionTypeVoteMinerPool ||
+		trtype == types.TransactionTypeChangeFundGuardMode {
 		return true
 	}
 	return false
