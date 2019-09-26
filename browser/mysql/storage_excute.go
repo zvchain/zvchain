@@ -299,8 +299,8 @@ func (storage *Storage) addcursys(curtime time.Time, variable string) {
 		Variable: variable,
 		SetBy:    "xiaoli",
 	}
-	timeBegin := time.Now()
-	if timeBegin.After(curtime) {
+	//timeBegin := time.Now()
+	if curtime.After(GetTodayStartTs()) {
 		sysdata := make([]models.Sys, 0, 0)
 		storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
 		if len(sysdata) < 1 {
@@ -311,6 +311,12 @@ func (storage *Storage) addcursys(curtime time.Time, variable string) {
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
 		}
 	}
+}
+
+func GetTodayStartTs() time.Time {
+	t := time.Now()
+	tm1 := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	return tm1
 }
 
 func (storage *Storage) Deletecurcount(variable string) {
