@@ -304,7 +304,7 @@ func (storage *Storage) addcursys(curtime time.Time, variable string) {
 		sysdata := make([]models.Sys, 0, 0)
 		storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
 		if len(sysdata) < 1 {
-			hight := storage.GetCurBlockCount()
+			hight := storage.GetCurBlockCount(variable)
 			sys.Value = hight + 1
 			storage.AddObjects(sys)
 		} else {
@@ -387,10 +387,15 @@ func (storage *Storage) TopBlockHeight() (uint64, bool) {
 	return 0, false
 }
 
-func (storage *Storage) GetCurBlockCount() uint64 {
-	var blocksCountToday uint64
-	storage.db.Model(&models.Block{}).Where(" cur_time > CURDATE()").Count(&blocksCountToday)
-	return blocksCountToday
+func (storage *Storage) GetCurBlockCount(variable string) uint64 {
+	var countToday uint64
+	if variable == Blockcurblockhight {
+		storage.db.Model(&models.Block{}).Where(" cur_time > CURDATE()").Count(&countToday)
+	} else if variable == Blockcurtranhight {
+		storage.db.Model(&models.Transaction{}).Where(" cur_time > CURDATE()").Count(&countToday)
+
+	}
+	return countToday
 
 }
 
