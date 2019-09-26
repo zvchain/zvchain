@@ -29,17 +29,18 @@ const (
 const PageSize uint64 = 20
 
 type Storage struct {
-	db                    *gorm.DB
-	dbAddr                string
-	dbPort                int
-	dbUser                string
-	dbPassword            string
-	rpcAddrStr            string
-	topBlockHigh          uint64
-	topGroupHigh          uint64
-	accounts              []*models.AccountList
-	topbrowserBlockHeight uint64
-	statisticsLastUpdate  string
+	db                        *gorm.DB
+	dbAddr                    string
+	dbPort                    int
+	dbUser                    string
+	dbPassword                string
+	rpcAddrStr                string
+	topBlockHigh              uint64
+	topGroupHigh              uint64
+	accounts                  []*models.AccountList
+	topbrowserBlockHeight     uint64
+	statisticsblockLastUpdate string
+	statisticstranLastUpdate  string
 }
 
 func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *Storage {

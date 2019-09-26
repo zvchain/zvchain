@@ -113,10 +113,10 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 	isSuccess := false
 	tx := storage.db.Begin()
 
-	defer func(){
-		if isSuccess{
+	defer func() {
+		if isSuccess {
 			tx.Commit()
-		}else{
+		} else {
 			tx.Rollback()
 		}
 	}()
@@ -270,6 +270,35 @@ func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bo
 		Variable: variable,
 		SetBy:    "xiaoli",
 	}
+	storage.addcursys(curtime, variable)
+	t := time.Now()
+	date := fmt.Sprintf("%d-%d-%d", t.Year(), t.Month(), t.Day())
+	if variable == Blockcurblockhight {
+		if storage.statisticsblockLastUpdate == "" {
+			storage.statisticsblockLastUpdate = date
+		}
+		if date != storage.statisticsblockLastUpdate {
+			storage.statisticsblockLastUpdate = date
+			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
+		}
+	} else {
+		if storage.statisticstranLastUpdate == "" {
+			storage.statisticstranLastUpdate = date
+		}
+		if date != storage.statisticstranLastUpdate {
+			storage.statisticstranLastUpdate = date
+			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
+		}
+	}
+
+	return true
+}
+
+func (storage *Storage) addcursys(curtime time.Time, variable string) {
+	sys := &models.Sys{
+		Variable: variable,
+		SetBy:    "xiaoli",
+	}
 	timeBegin := time.Now()
 	if timeBegin.After(curtime) {
 		sysdata := make([]models.Sys, 0, 0)
@@ -282,16 +311,6 @@ func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bo
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
 		}
 	}
-	t := time.Now()
-	date := fmt.Sprintf("%d-%d-%d", t.Year(), t.Month(), t.Day())
-	if storage.statisticsLastUpdate == "" {
-		storage.statisticsLastUpdate = date
-	}
-	if date != storage.statisticsLastUpdate {
-		storage.statisticsLastUpdate = date
-		storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
-	}
-	return true
 }
 
 func (storage *Storage) Deletecurcount(variable string) {
@@ -457,9 +476,9 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 	//storage.statistics.BlocksCountToday += 1
 	//storage.statistics.TopBlockHeight = storage.topbrowserBlockHeight
 	var maxIndex uint64 = 0
-	blocks := make([]*models.Block,1)
+	blocks := make([]*models.Block, 1)
 	storage.db.Limit(1).Order("cur_index desc").Find(&blocks)
-	if len(blocks) > 0{
+	if len(blocks) > 0 {
 		maxIndex = blocks[0].CurIndex
 	}
 	block.CurIndex = maxIndex + 1
@@ -483,15 +502,15 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	timeBegin := time.Now()
 	//tx := storage.db.Begin()
 	var maxIndex uint64 = 0
-	txs := make([]*models.Transaction,1)
+	txs := make([]*models.Transaction, 1)
 	storage.db.Limit(1).Order("cur_index desc").Find(&txs)
-	if len(txs) > 0{
+	if len(txs) > 0 {
 		maxIndex = txs[0].CurIndex
 	}
 	for i := 0; i < len(trans); i++ {
 
 		if trans[i] != nil {
-			maxIndex ++
+			maxIndex++
 			trans[i].CurIndex = maxIndex
 			if !errors(storage.db.Create(&trans[i]).Error) {
 				transql := fmt.Sprintf("DELETE  FROM transactions WHERE  hash = '%s'",

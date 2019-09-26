@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	common2 "github.com/zvchain/zvchain/browser/common"
+	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/browser/util"
@@ -102,7 +103,6 @@ func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
 	for _, miner := range accounts {
 		targetAddrInfo := tm.storage.GetAccountById(miner)
 
-		fmt.Println("targetAddrInfo:", targetAddrInfo)
 		accounts := &models.AccountList{}
 		// if the account doesn't exist
 		if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
@@ -123,7 +123,8 @@ func (tm *DBMmanagement) excuteAccounts() {
 	if (checkpoint.Height > 0 && tm.blockHeight > checkpoint.Height) || (tm.blockHeight > topHeight-100) {
 		return
 	}
-	fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight, "CheckPointHeight", topHeight)
+	browserlog.BrowserLog.Info("[DBMmanagement] excuteAccounts height:", tm.blockHeight, "CheckPointHeight", checkpoint)
+	//fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight, "CheckPointHeight", topHeight)
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
 
@@ -282,7 +283,8 @@ func (tm *DBMmanagement) fetchTickets(address string) string {
 }
 
 func (tm *DBMmanagement) fetchGroup() {
-	fmt.Println("[DBMmanagement]  fetchGroup height:", tm.groupHeight)
+	//fmt.Println("[DBMmanagement]  fetchGroup height:", tm.groupHeight)
+	browserlog.BrowserLog.Info("[DBMmanagement] fetchGroup height:", tm.groupHeight)
 
 	//读本地数据库表
 	db := tm.storage.GetDB()

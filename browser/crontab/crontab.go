@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	common2 "github.com/zvchain/zvchain/browser/common"
+	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/browser/util"
@@ -353,7 +354,7 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	preHash := bh.PreHash
 	preBlock := core.BlockChainImpl.QueryBlockByHash(preHash)
 	preHight := preBlock.Header.Height
-	fmt.Println("BrowserForkProcessor,pre:", preHight, bh.Height)
+	browserlog.BrowserLog.Info("BrowserForkProcessor,pre:", preHight, bh.Height)
 	data := &models.ForkNotify{
 		PreHeight:   preHight,
 		LocalHeight: bh.Height,
@@ -367,11 +368,15 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 func (crontab *Crontab) Produce(data *models.ForkNotify) {
 	crontab.initdata <- data
 	fmt.Println("for Produce", util.ObjectTojson(data))
+	browserlog.BrowserLog.Info("for Produce:", util.ObjectTojson(data))
+
 }
 
 func (crontab *Crontab) ProduceReward(data *models.ForkNotify) {
 	crontab.initRewarddata <- data
 	fmt.Println("for ProduceReward", util.ObjectTojson(data))
+	browserlog.BrowserLog.Info("for ProduceReward", util.ObjectTojson(data))
+
 }
 
 func (crontab *Crontab) Consume() {
@@ -383,6 +388,8 @@ func (crontab *Crontab) Consume() {
 			crontab.dataCompensationProcess(data.LocalHeight, data.PreHeight)
 			crontab.consumeBlock(data.LocalHeight, data.PreHeight)
 			fmt.Println("for Consume", util.ObjectTojson(data))
+			browserlog.BrowserLog.Info("for Consume", util.ObjectTojson(data))
+
 		}
 	}
 }
@@ -395,13 +402,16 @@ func (crontab *Crontab) ConsumeReward() {
 			crontab.rewardDataCompensationProcess(data.LocalHeight, data.PreHeight)
 			crontab.consumeReward(data.LocalHeight, data.PreHeight)
 			fmt.Println("for ConsumeReward", util.ObjectTojson(data))
+			browserlog.BrowserLog.Info("for ConsumeReward", util.ObjectTojson(data))
+
 		}
 	}
 }
 func (crontab *Crontab) dataCompensationProcess(notifyHeight uint64, notifyPreHeight uint64) {
 	timenow := time.Now()
 	if !crontab.isInited {
-		fmt.Println("[Storage]  dataCompensationProcess start: ", notifyHeight, notifyPreHeight)
+		//fmt.Println("[Storage]  dataCompensationProcess start: ", notifyHeight, notifyPreHeight)
+		browserlog.BrowserLog.Info("[Storage]  dataCompensationProcess start: ", notifyHeight, notifyPreHeight)
 
 		dbMaxHeight := crontab.blockTopHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
@@ -409,25 +419,27 @@ func (crontab *Crontab) dataCompensationProcess(notifyHeight uint64, notifyPreHe
 			crontab.dataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInited = true
+		browserlog.BrowserLog.Info("[Storage]  dataCompensationProcess cost: ", time.Since(timenow))
 	}
-	fmt.Println("[Storage]  dataCompensationProcess cost: ", time.Since(timenow))
-
+	//fmt.Println("[Storage]  dataCompensationProcess cost: ", time.Since(timenow))
 }
 
 func (crontab *Crontab) rewardDataCompensationProcess(notifyHeight uint64, notifyPreHeight uint64) {
 	timenow := time.Now()
 	if !crontab.isInitedReward {
-		fmt.Println("[Storage]  rewardDataCompensationProcess start: ", notifyHeight, notifyPreHeight)
+		//fmt.Println("[Storage]  rewardDataCompensationProcess start: ", notifyHeight, notifyPreHeight)
+		browserlog.BrowserLog.Info("[Storage]  rewardDataCompensationProcess start: ", notifyHeight, notifyPreHeight)
 
 		dbMaxHeight := crontab.rewardStorageDataHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
 			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight)
 			crontab.rewarddataCompensation(dbMaxHeight, notifyPreHeight)
 		}
-
 		crontab.isInitedReward = true
+		browserlog.BrowserLog.Info("[Storage]  rewardDataCompensationProcess cost: ", time.Since(timenow))
+
 	}
-	fmt.Println("[Storage]  rewardDataCompensationProcess cost: ", time.Since(timenow))
+	//fmt.Println("[Storage]  rewardDataCompensationProcess cost: ", time.Since(timenow))
 
 }
 
@@ -437,13 +449,14 @@ func (crontab *Crontab) dataCompensation(dbMaxHeight uint64, notifyPreHeight uin
 	if blockceil != nil {
 		preBlockceil := core.BlockChainImpl.QueryBlockByHash(blockceil.Header.PreHash)
 		crontab.consumeBlock(blockceil.Header.Height, preBlockceil.Header.Height)
-		fmt.Println("for dataCompensation,", blockceil.Header.Height, ",", preBlockceil.Header.Height)
+		//fmt.Println("for dataCompensation,", blockceil.Header.Height, ",", preBlockceil.Header.Height)
+		browserlog.BrowserLog.Info("for dataCompensation,", blockceil.Header.Height, ",", preBlockceil.Header.Height)
 		crontab.blockTopHeight = blockceil.Header.Height + 1
 	} else {
 		crontab.blockTopHeight += 1
 	}
-	fmt.Println("[Storage]  dataCompensationProcess procee: ", crontab.blockTopHeight)
-
+	//fmt.Println("[Storage]  dataCompensationProcess procee: ", crontab.blockTopHeight)
+	browserlog.BrowserLog.Info("[Storage]  dataCompensationProcess procee: ", crontab.blockTopHeight)
 	if crontab.blockTopHeight <= notifyPreHeight {
 		crontab.dataCompensation(crontab.blockTopHeight, notifyPreHeight)
 	}
@@ -456,12 +469,14 @@ func (crontab *Crontab) rewarddataCompensation(dbMaxHeight uint64, notifyPreHeig
 	if blockceil != nil {
 		preBlockceil := core.BlockChainImpl.QueryBlockByHash(blockceil.Header.PreHash)
 		crontab.consumeReward(blockceil.Header.Height, preBlockceil.Header.Height)
-		fmt.Println("for rewarddataCompensation,", blockceil.Header.Height, ",", preBlockceil.Header.Height)
+		//fmt.Println("for rewarddataCompensation,", blockceil.Header.Height, ",", preBlockceil.Header.Height)
+		browserlog.BrowserLog.Info("for rewarddataCompensation,", blockceil.Header.Height, ",", preBlockceil.Header.Height)
 		crontab.rewardStorageDataHeight = blockceil.Header.Height + 1
 	} else {
 		crontab.rewardStorageDataHeight += 1
 	}
-	fmt.Println("[Storage]  rewarddataCompensation procee: ", crontab.rewardStorageDataHeight)
+	//fmt.Println("[Storage]  rewarddataCompensation procee: ", crontab.rewardStorageDataHeight)
+	browserlog.BrowserLog.Info("[Storage]  rewarddataCompensation procee: ", crontab.rewardStorageDataHeight)
 
 	if crontab.rewardStorageDataHeight <= notifyPreHeight {
 		crontab.rewarddataCompensation(crontab.rewardStorageDataHeight, notifyPreHeight)
