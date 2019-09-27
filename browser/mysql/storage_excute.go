@@ -57,6 +57,16 @@ func (storage *Storage) GetAccountById(address string) []*models.AccountList {
 	return accounts
 }
 
+func (storage *Storage) GetBlockByHeight(height uint64) []*models.Block {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	accounts := make([]*models.Block, 0, 0)
+	storage.db.Where("height = ? ", height).Find(&accounts)
+	return accounts
+}
+
 func (storage *Storage) GetAccountByMaxPrimaryId(maxid uint64) []*models.AccountList {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {
@@ -305,7 +315,7 @@ func (storage *Storage) addcursys(curtime time.Time, variable string) {
 		storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
 		if len(sysdata) < 1 {
 			hight := storage.GetCurBlockCount(variable)
-			sys.Value = hight + 1
+			sys.Value = hight
 			storage.AddObjects(sys)
 		} else {
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))

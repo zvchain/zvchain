@@ -59,10 +59,12 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 		initRewarddata: make(chan *models.ForkNotify, 1000),
 	}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
+	server.addGenisisblock()
 	server.storage.Deletecurcount(mysql.Blockcurblockhight)
 	server.storage.Deletecurcount(mysql.Blockrewardtophight)
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	//server.consumeReward(3, 2)
+
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtophight)
@@ -363,6 +365,17 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 
 	return nil
+}
+
+func (crontab *Crontab) addGenisisblock() {
+	datablock := crontab.storage.GetBlockByHeight(0)
+	if len(datablock) < 1 {
+		data := &models.ForkNotify{
+			PreHeight:   0,
+			LocalHeight: 0,
+		}
+		go crontab.Produce(data)
+	}
 }
 
 func (crontab *Crontab) Produce(data *models.ForkNotify) {
