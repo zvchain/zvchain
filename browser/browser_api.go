@@ -516,7 +516,7 @@ func GetMinerInfo(addr string, height uint64) (map[string]*common2.MortGage, str
 		details := core.MinerManagerImpl.GetStakeDetails(address, address)
 		var selfStakecount uint64 = 0
 		for _, detail := range details {
-			if detail.MType == types.MinerTypeProposal {
+			if detail.MType == types.MinerTypeProposal && detail.Status == types.Staked {
 				selfStakecount += detail.Value
 			}
 		}

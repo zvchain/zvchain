@@ -374,7 +374,7 @@ func (crontab *Crontab) addGenisisblock() {
 			PreHeight:   0,
 			LocalHeight: 0,
 		}
-		go crontab.Produce(data)
+		crontab.Produce(data)
 	}
 }
 
