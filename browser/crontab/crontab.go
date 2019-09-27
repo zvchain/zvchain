@@ -361,8 +361,8 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 		PreHeight:   preHight,
 		LocalHeight: bh.Height,
 	}
-	go crontab.Produce(data)
-	go crontab.ProduceReward(data)
+	crontab.Produce(data)
+	crontab.ProduceReward(data)
 
 	return nil
 }
