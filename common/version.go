@@ -19,6 +19,6 @@ const GzvVersion = "v1.0.0"
 
 const ConsensusVersion = 1
 
-const ChainDataVersion = 2
+const ChainDataVersion = 1
 
 const ProtocolVersion = 1
