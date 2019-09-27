@@ -305,7 +305,7 @@ func (storage *Storage) addcursys(curtime time.Time, variable string) {
 		storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
 		if len(sysdata) < 1 {
 			hight := storage.GetCurBlockCount(variable)
-			sys.Value = hight + 1
+			sys.Value = hight
 			storage.AddObjects(sys)
 		} else {
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
