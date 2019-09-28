@@ -60,14 +60,14 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
 	server.addGenisisblock()
-	server.storage.Deletecurcount(mysql.Blockcurblockhight)
-	server.storage.Deletecurcount(mysql.Blockrewardtophight)
+	server.storage.InitCurConfig()
+	server.storage.Deletecurcount(mysql.Blockrewardtopheight)
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	//server.consumeReward(3, 2)
 
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
-	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtophight)
+	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
 	server.blockTopHeight = server.storage.GetTopblock()
 	if server.blockRewardHeight > 0 {
 		server.blockRewardHeight += 1

@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	Blockrewardtophight = "block_reward.top_block_height"
-	Blocktophight       = "block.top_block_height"
-	Blockcurblockhight  = "block.cur_block_height"
+	Blockrewardtopheight = "block_reward.top_block_height"
+	Blocktopheight       = "block.top_block_height"
+	Blockcurblockheight  = "block.cur_block_height"
 	BlockDeleteCount    = "block.delete_count"
-	Blockcurtranhight   = "block.cur_tran_height"
+	Blockcurtranheight   = "block.cur_tran_height"
 
 	GroupTopHeight        = "group.top_group_height"
 	PrepareGroupTopHeight = "group.top_prepare_group_height"
@@ -150,7 +150,7 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 			return false
 		}
 	}
-	if !storage.IncrewardBlockheightTosys(tx, Blockrewardtophight) {
+	if !storage.IncrewardBlockheightTosys(tx, Blockrewardtopheight) {
 		return false
 	}
 	isSuccess = true
@@ -274,58 +274,58 @@ func (storage *Storage) UpdateSysConfigValue(variable string, value int64) {
 	storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", value))
 }
 
-func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bool {
+func (storage *Storage) InitCurConfig() {
+	t := time.Now()
+	date := fmt.Sprintf("%d-%d-%d", t.Year(), t.Month(), t.Day())
+	storage.statisticsblockLastUpdate = date
+	storage.statisticstranLastUpdate = date
+	storage.initVariable(Blockcurblockheight)
+	storage.initVariable(Blockcurtranheight)
+}
 
+func (storage *Storage) initVariable(variable string) {
 	sys := &models.Sys{
 		Variable: variable,
 		SetBy:    "xiaoli",
 	}
-	storage.addcursys(curtime, variable)
+	sysdata := make([]models.Sys, 0, 0)
+	storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
+	if len(sysdata) < 1 {
+		sys.Value = 0
+		success :=storage.AddObjects(sys)
+		if !success{
+			panic("init variable failed!")
+		}
+	}
+}
+
+func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bool {
+	sys := &models.Sys{
+		Variable: variable,
+		SetBy:    "xiaoli",
+	}
 	t := time.Now()
 	date := fmt.Sprintf("%d-%d-%d", t.Year(), t.Month(), t.Day())
-	if variable == Blockcurblockhight {
-		if storage.statisticsblockLastUpdate == "" {
-			storage.statisticsblockLastUpdate = date
-		}
+	if variable == Blockcurblockheight {
 		if date != storage.statisticsblockLastUpdate {
 			storage.statisticsblockLastUpdate = date
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
 		}
 	} else {
-		if storage.statisticstranLastUpdate == "" {
-			storage.statisticstranLastUpdate = date
-		}
 		if date != storage.statisticstranLastUpdate {
 			storage.statisticstranLastUpdate = date
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
 		}
 	}
-
+	if !curtime.After(GetTodayStartTs(t)){
+		storage.UpdateSysConfigValue(variable,1)
+	}
 	return true
 }
 
-func (storage *Storage) addcursys(curtime time.Time, variable string) {
-	sys := &models.Sys{
-		Variable: variable,
-		SetBy:    "xiaoli",
-	}
-	//timeBegin := time.Now()
-	if curtime.After(GetTodayStartTs()) {
-		sysdata := make([]models.Sys, 0, 0)
-		storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
-		if len(sysdata) < 1 {
-			hight := storage.GetCurBlockCount(variable)
-			sys.Value = hight
-			storage.AddObjects(sys)
-		} else {
-			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
-		}
-	}
-}
 
-func GetTodayStartTs() time.Time {
-	t := time.Now()
-	tm1 := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+func GetTodayStartTs(tm time.Time) time.Time {
+	tm1 := time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, tm.Location())
 	return tm1
 }
 
@@ -335,16 +335,6 @@ func (storage *Storage) Deletecurcount(variable string) {
 	storage.db.Exec(blocksql)
 }
 
-//func (storage *Storage) AddGroupHeightSystemconfig(sys *models.Sys) bool {
-//	hight := storage.TopGroupHeight()
-//	if hight > 0 {
-//		storage.db.Model(&sys).UpdateColumn("value", gorm.Expr("value + ?", 1))
-//	} else {
-//		sys.Value = 1
-//		storage.AddObjects(&sys)
-//	}
-//	return true
-//}
 
 func (storage *Storage) UpdateAccountByColumn(account *models.AccountList, attrs map[string]interface{}) bool {
 	//fmt.Println("[Storage] add Verification ")
@@ -395,7 +385,7 @@ func (storage *Storage) TopBlockHeight() (uint64, bool) {
 		return 0, false
 	}
 	sys := make([]models.Sys, 0, 1)
-	storage.db.Limit(1).Where("variable = ?", Blocktophight).Find(&sys)
+	storage.db.Limit(1).Where("variable = ?", Blocktopheight).Find(&sys)
 	if len(sys) > 0 {
 		//storage.topBlockHigh = sys[0].Value
 		return sys[0].Value, true
@@ -403,12 +393,12 @@ func (storage *Storage) TopBlockHeight() (uint64, bool) {
 	return 0, false
 }
 
-func (storage *Storage) GetCurBlockCount(variable string) uint64 {
+func (storage *Storage) GetCurCount(variable string) uint64 {
 	var countToday uint64
-	if variable == Blockcurblockhight {
-		storage.db.Model(&models.Block{}).Where(" cur_time > CURDATE()").Count(&countToday)
-	} else if variable == Blockcurtranhight {
-		storage.db.Model(&models.Transaction{}).Where(" cur_time > CURDATE()").Count(&countToday)
+	if variable == Blockcurblockheight {
+		storage.db.Model(&models.Block{}).Where(" cur_time >= CURDATE()").Count(&countToday)
+	} else if variable == Blockcurtranheight {
+		storage.db.Model(&models.Transaction{}).Where(" cur_time >= CURDATE()").Count(&countToday)
 
 	}
 	return countToday
@@ -417,7 +407,7 @@ func (storage *Storage) GetCurBlockCount(variable string) uint64 {
 
 func (storage *Storage) GetCurTranCount() uint64 {
 	var transCountToday uint64
-	storage.db.Model(&models.Transaction{}).Where(" cur_time > CURDATE()").Count(&transCountToday)
+	storage.db.Model(&models.Transaction{}).Where(" cur_time >= CURDATE()").Count(&transCountToday)
 	return transCountToday
 
 }
@@ -490,12 +480,6 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 		return false
 	}
 	timeBegin := time.Now()
-
-	if storage.topbrowserBlockHeight < block.Height {
-		storage.topbrowserBlockHeight = block.Height
-	}
-	//storage.statistics.BlocksCountToday += 1
-	//storage.statistics.TopBlockHeight = storage.topbrowserBlockHeight
 	var maxIndex uint64 = 0
 	blocks := make([]*models.Block, 1)
 	storage.db.Limit(1).Order("cur_index desc").Find(&blocks)
@@ -509,7 +493,7 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 		storage.db.Exec(blocksql)
 		storage.db.Create(&block)
 	}
-	storage.AddCurCountconfig(block.CurTime, Blockcurblockhight)
+	storage.AddCurCountconfig(block.CurTime, Blockcurblockheight)
 	fmt.Println("[Storage]  AddBlock cost: ", time.Since(timeBegin))
 	return true
 }
@@ -529,7 +513,6 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 		maxIndex = txs[0].CurIndex
 	}
 	for i := 0; i < len(trans); i++ {
-
 		if trans[i] != nil {
 			maxIndex++
 			trans[i].CurIndex = maxIndex
@@ -540,7 +523,7 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 				storage.db.Create(&trans[i])
 			}
 		}
-		storage.AddCurCountconfig(trans[i].CurTime, Blockcurtranhight)
+		storage.AddCurCountconfig(trans[i].CurTime, Blockcurtranheight)
 
 	}
 	//storage.statistics.TransCountToday += uint64(len(trans))
