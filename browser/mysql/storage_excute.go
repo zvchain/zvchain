@@ -317,7 +317,7 @@ func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bo
 			storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", 0)
 		}
 	}
-	if !curtime.After(GetTodayStartTs(t)){
+	if GetTodayStartTs(curtime).Equal(GetTodayStartTs(t)){
 		storage.UpdateSysConfigValue(variable,1)
 	}
 	return true
