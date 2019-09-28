@@ -279,11 +279,11 @@ func (storage *Storage) InitCurConfig() {
 	date := fmt.Sprintf("%d-%d-%d", t.Year(), t.Month(), t.Day())
 	storage.statisticsblockLastUpdate = date
 	storage.statisticstranLastUpdate = date
-	storage.initVariable(Blockcurblockheight)
-	storage.initVariable(Blockcurtranheight)
+	storage.initVariable(Blockcurblockheight,1)
+	storage.initVariable(Blockcurtranheight,0)
 }
 
-func (storage *Storage) initVariable(variable string) {
+func (storage *Storage) initVariable(variable string,count uint64) {
 	sys := &models.Sys{
 		Variable: variable,
 		SetBy:    "xiaoli",
@@ -291,7 +291,7 @@ func (storage *Storage) initVariable(variable string) {
 	sysdata := make([]models.Sys, 0, 0)
 	storage.db.Limit(1).Where("variable = ?", variable).Find(&sysdata)
 	if len(sysdata) < 1 {
-		sys.Value = 0
+		sys.Value = count
 		success :=storage.AddObjects(sys)
 		if !success{
 			panic("init variable failed!")
