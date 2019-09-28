@@ -251,7 +251,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 		}
 		//块高存储持久化
 		sys := &models.Sys{
-			Variable: mysql.Blocktophight,
+			Variable: mysql.Blocktopheight,
 			SetBy:    "wujia",
 		}
 		tm.storage.AddBlockHeightSystemconfig(sys)
