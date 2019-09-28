@@ -614,10 +614,10 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64) (e
 			fmt.Println(err) // 这里的err其实就是panic传入的内容
 		}
 	}()
-	blockSql := fmt.Sprintf("DELETE  FROM blocks WHERE height > %d and height <= %d", preHeight, localHeight)
-	transactionSql := fmt.Sprintf("DELETE  FROM transactions WHERE block_height > %d and block_height <= %d", preHeight, localHeight)
-	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d and block_height <= %d", preHeight, localHeight)
-	storage.db.Debug().Exec(blockSql)
+	blockSql := fmt.Sprintf("DELETE  FROM blocks WHERE height > %d", preHeight)
+	transactionSql := fmt.Sprintf("DELETE  FROM transactions WHERE block_height > %d", preHeight)
+	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
+	storage.db.Exec(blockSql)
 	storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
 	return err
@@ -631,7 +631,7 @@ func (storage *Storage) DeleteForkReward(preHeight uint64, localHeight uint64) (
 		}
 	}()
 
-	verifySql := fmt.Sprintf("DELETE  FROM rewards WHERE reward_height > %d and reward_height <= %d", preHeight, localHeight)
+	verifySql := fmt.Sprintf("DELETE FROM rewards WHERE reward_height > %d ", preHeight)
 	storage.db.Exec(verifySql)
 	return err
 }
