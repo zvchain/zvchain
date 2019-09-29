@@ -16,13 +16,14 @@
 package logical
 
 import (
-	"testing"
-
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"testing"
 )
 
 func genMinerDO() *model.SelfMinerDO {
@@ -94,4 +95,52 @@ func TestVrfVerifyBlock(t *testing.T) {
 	if !ok {
 		t.Errorf("vrf verify block not ok")
 	}
+}
+
+func testProve(chain *core.FullBlockChain, baseHeight uint64, castHeight uint64, sk *common.PrivateKey) (bool, common.Address) {
+	miner, err := model.NewSelfMinerDO(sk)
+	if err != nil {
+		panic(err)
+	}
+	bh := chain.QueryBlockHeaderByHeight(baseHeight)
+	if bh == nil {
+		panic(fmt.Errorf("blockis nil %v", baseHeight))
+	}
+	m := core.MinerManagerImpl.GetMiner(miner.ID.ToAddress(), types.MinerTypeProposal, baseHeight)
+	miner.Stake = m.Stake
+	worker := newVRFWorker(&miner, bh, castHeight, 0, nil)
+	totalStake := core.MinerManagerImpl.GetProposalTotalStake(baseHeight)
+	_, _, err = worker.Prove(totalStake)
+	if err != nil {
+		fmt.Println(err, baseHeight, miner.ID.GetAddrString())
+		return false, miner.ID.ToAddress()
+	}
+	return true, miner.ID.ToAddress()
+}
+
+func TestVrfWorker_Prove(t *testing.T) {
+	var (
+		db         = "/Users/pxf/Downloads/gzv_mac/d_b"
+		sks        = []string{"", ""}
+		baseHeight uint64
+		castHeight uint64
+	)
+
+	chain, err := core.NewBlockChainByDB(db)
+	if err != nil {
+		t.Fatalf("init chain error %v", err)
+	}
+
+	for _, sk := range sks {
+		kBytes := common.FromHex(sk)
+		sprivateKey := new(common.PrivateKey)
+		if !sprivateKey.ImportKey(kBytes) {
+			t.Fatalf("import key error %v", sk)
+		}
+
+		if ok, addr := testProve(chain, baseHeight, castHeight, sprivateKey); !ok {
+			t.Logf("%v not ok at height %v", addr.AddrPrefixString(), castHeight)
+		}
+	}
+
 }

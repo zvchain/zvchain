@@ -133,6 +133,75 @@ func getBlockChainConfig() *BlockChainConfig {
 	}
 }
 
+func NewBlockChainByDB(db string) (*FullBlockChain, error) {
+	chain := &FullBlockChain{
+		config: &BlockChainConfig{
+			dbfile:      db,
+			block:       "bh",
+			blockHeight: "hi",
+			state:       "st",
+			reward:      "nu",
+			tx:          "tx",
+			receipt:     "rc",
+		},
+		latestBlock:      nil,
+		init:             true,
+		isAdjusting:      false,
+		ticker:           ticker.NewGlobalTicker("chain"),
+		ts:               time2.TSInstance,
+		futureRawBlocks:  common.MustNewLRUCache(100),
+		verifiedBlocks:   common.MustNewLRUCache(10),
+		topRawBlocks:     common.MustNewLRUCache(20),
+		newBlockMessages: common.MustNewLRUCache(100),
+	}
+
+	options := &opt.Options{
+		OpenFilesCacheCapacity:        100,
+		BlockCacheCapacity:            16 * opt.MiB,
+		WriteBuffer:                   512 * opt.MiB, // Two of these are used internally
+		Filter:                        filter.NewBloomFilter(10),
+		CompactionTableSize:           4 * opt.MiB,
+		CompactionTableSizeMultiplier: 2,
+		CompactionTotalSize:           16 * opt.MiB,
+		BlockSize:                     64 * opt.KiB,
+	}
+
+	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
+	if err != nil {
+		Logger.Errorf("new datasource error:%v", err)
+		return nil, err
+	}
+
+	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+
+	chain.blockHeight, err = ds.NewPrefixDatabase(chain.config.blockHeight)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+	chain.txDb, err = ds.NewPrefixDatabase(chain.config.tx)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+	chain.stateDb, err = ds.NewPrefixDatabase(chain.config.state)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+
+	GroupManagerImpl = group.NewManager(chain, nil)
+	chain.stateCache = account.NewDatabase(chain.stateDb)
+
+	latestBH := chain.loadCurrentBlock()
+	chain.latestBlock = latestBH
+	return chain, nil
+}
+
 func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) error {
 	Logger = log.CoreLogger
 	chain := &FullBlockChain{
