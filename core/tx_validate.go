@@ -18,9 +18,10 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"math/big"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"math/big"
 )
 
 // validator is responsible for the info validation of the given transaction
@@ -108,7 +109,7 @@ func sourceRecover(tx *types.Transaction) error {
 // stateValidate performs state related validation
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
-func stateValidate(accountDB types.AccountDB, tx *types.Transaction ) (balance *big.Int, err error) {
+func stateValidate(accountDB types.AccountDB, tx *types.Transaction, height uint64) (balance *big.Int, err error) {
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance = accountDB.GetBalance(*tx.Source)
 	src := tx.Source.AddrPrefixString()
@@ -123,7 +124,7 @@ func stateValidate(accountDB types.AccountDB, tx *types.Transaction ) (balance *
 	}
 
 	// Check gas price related to height
-	if !validGasPrice(tx.GasPrice.Value(), BlockChainImpl.Height()) {
+	if !validGasPrice(tx.GasPrice.Value(), height) {
 		return nil, fmt.Errorf("gas price below the lower bound")
 	}
 	return
@@ -329,7 +330,7 @@ func getValidator(tx *types.Transaction) validator {
 			if err != nil {
 				return fmt.Errorf("fail get last state db,error = %v", err.Error())
 			}
-			if balance, err = stateValidate(accountDB, tx); err != nil {
+			if balance, err = stateValidate(accountDB, tx, BlockChainImpl.Height()); err != nil {
 				return err
 			}
 			switch tx.Type {
