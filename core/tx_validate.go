@@ -309,7 +309,7 @@ func rewardValidate(tx *types.Transaction) error {
 }
 
 // getValidator returns the corresponding validator of the given transaction
-func getValidator(tx *types.Transaction) validator {
+func getValidator(tx *types.Transaction, validateState bool) validator {
 	return func() error {
 		var err error
 		// Common validations
@@ -329,8 +329,10 @@ func getValidator(tx *types.Transaction) validator {
 			}
 			var balance *big.Int
 			// Validate state
-			if balance, err = stateValidate(tx); err != nil {
-				return err
+			if validateState {
+				if balance, err = stateValidate(tx); err != nil {
+					return err
+				}
 			}
 			switch tx.Type {
 			case types.TransactionTypeTransfer:

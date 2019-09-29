@@ -132,8 +132,8 @@ type TransactionPool interface {
 	// AddTransaction adds new transaction to the transaction pool which will be broadcast
 	AddTransaction(tx *Transaction) (bool, error)
 
-	// AsyncAddTransaction adds transaction to the transaction pool which won't be broadcast
-	AsyncAddTransaction(tx *Transaction) error
+	// AsyncAddTransactionFromBlock adds a block's transactions to the transaction pool which won't be broadcast
+	AsyncAddTransactionFromBlock(tx *Transaction) error
 
 	// GetTransaction trys to find a transaction from pool by hash and return it
 	GetTransaction(reward bool, hash common.Hash) *Transaction

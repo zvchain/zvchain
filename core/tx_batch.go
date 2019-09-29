@@ -22,7 +22,7 @@ func newTxBatchAdder(pool types.TransactionPool) *txBatchAdder {
 	}
 }
 
-func (tv *txBatchAdder) batchAdd(txs txSlice) error {
+func (tv *txBatchAdder) batchAddFromBlock(txs txSlice) error {
 	if len(txs) == 0 {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (tv *txBatchAdder) batchAdd(txs txSlice) error {
 				if atomicErr.Load() != nil {
 					return
 				}
-				if err := tv.pool.AsyncAddTransaction(tx); err != nil {
+				if err := tv.pool.AsyncAddTransactionFromBlock(tx); err != nil {
 					atomicErr.Store(err)
 					Logger.Warnf("batch add tx error:%v, tx hash %v, source %v", err, tx.Hash, tx.Source)
 					return
