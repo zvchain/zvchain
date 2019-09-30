@@ -306,7 +306,7 @@ func rewardValidate(tx *types.Transaction) error {
 }
 
 // getValidator returns the corresponding validator of the given transaction
-func getValidator(tx *types.Transaction) validator {
+func getValidator(tx *types.Transaction, validateState bool) validator {
 	return func() error {
 		var err error
 		// Common validations
@@ -326,12 +326,14 @@ func getValidator(tx *types.Transaction) validator {
 			}
 			var balance *big.Int
 			// Validate state
-			accountDB, err := BlockChainImpl.LatestAccountDB()
-			if err != nil {
-				return fmt.Errorf("fail get last state db,error = %v", err.Error())
-			}
-			if balance, err = stateValidate(accountDB, tx, BlockChainImpl.Height()); err != nil {
-				return err
+			if validateState {
+				accountDB, err := BlockChainImpl.LatestAccountDB()
+				if err != nil {
+					return fmt.Errorf("fail get last state db,error = %v", err.Error())
+				}
+				if balance, err = stateValidate(accountDB, tx, BlockChainImpl.Height()); err != nil {
+					return err
+				}
 			}
 			switch tx.Type {
 			case types.TransactionTypeTransfer:
