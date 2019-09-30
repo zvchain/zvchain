@@ -141,7 +141,7 @@ func checkState(db types.AccountDB, tx *types.Transaction, height uint64) error 
 		return errNonceError
 	}
 	// validate the state again before pack
-	if _, err := stateValidate(db, tx, height); err != nil {
+	if _, err := stateValidate(db, tx); err != nil {
 		return err
 	}
 	return nil
