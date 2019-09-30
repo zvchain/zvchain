@@ -204,11 +204,6 @@ func (p *Processor) blockProposal() {
 	}
 	height := worker.castHeight
 
-	if !p.ts.NowAfter(worker.baseBH.CurTime) {
-		blog.error("not the time!now=%v, pre=%v, height=%v", p.ts.Now(), worker.baseBH.CurTime, height)
-		return
-	}
-
 	totalStake := p.minerReader.getTotalStake(worker.baseBH.Height)
 	blog.debug("totalStake height=%v, stake=%v", height, totalStake)
 	pi, qn, err := worker.Prove(totalStake)
