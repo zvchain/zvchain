@@ -293,6 +293,7 @@ func (p *Processor) blockProposal() {
 			"blockHash":      bh.Hash.String(),
 			"preHash":        bh.PreHash.String(),
 			"preHeight":      worker.baseBH.Height,
+			"verifyGroup":    gb.GSeed.Hex(),
 		}).Info("proposal")
 
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
