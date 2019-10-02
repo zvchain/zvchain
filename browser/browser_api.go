@@ -49,10 +49,12 @@ func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword strin
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 
 	tablMmanagement.blockHeight, _ = tablMmanagement.storage.TopBlockHeight()
+	if tablMmanagement.blockHeight > 0 {
+		tablMmanagement.blockHeight += 1
+	}
 	tablMmanagement.groupHeight, _ = tablMmanagement.storage.TopGroupHeight()
 	tablMmanagement.prepareGroupHeight, _ = tablMmanagement.storage.TopPrepareGroupHeight()
 	tablMmanagement.dismissGropHeight, _ = tablMmanagement.storage.TopDismissGroupHeight()
-	tablMmanagement.blockHeight = 0
 	go tablMmanagement.loop()
 	return tablMmanagement
 }
@@ -270,6 +272,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 		sys := &models.Sys{
 			Variable: mysql.Blocktopheight,
 			SetBy:    "wujia",
+			Value:    block.Header.Height,
 		}
 		tm.storage.AddBlockHeightSystemconfig(sys)
 		tm.blockHeight = block.Header.Height + 1
@@ -280,7 +283,8 @@ func (tm *DBMmanagement) excuteAccounts() {
 func checkStakeTransaction(trtype int8) bool {
 	if trtype == types.TransactionTypeStakeReduce || trtype == types.TransactionTypeStakeAdd ||
 		trtype == types.TransactionTypeApplyGuardMiner || trtype == types.TransactionTypeVoteMinerPool ||
-		trtype == types.TransactionTypeChangeFundGuardMode {
+		trtype == types.TransactionTypeChangeFundGuardMode || trtype == types.TransactionTypeMinerAbort ||
+		trtype == types.TransactionTypeStakeRefund {
 		return true
 	}
 	return false

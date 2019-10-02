@@ -274,8 +274,8 @@ func (crontab *Crontab) excutePoolVotes() {
 
 func (crontab *Crontab) excuteBlockRewards() {
 	height, _ := crontab.storage.TopBlockHeight()
-	checkpoint := core.BlockChainImpl.LatestCheckPoint()
-	if (checkpoint.Height > 0 && crontab.blockRewardHeight > checkpoint.Height) || crontab.blockRewardHeight > height {
+	//checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if crontab.blockRewardHeight > height {
 		return
 	}
 	topblock := core.BlockChainImpl.QueryTopBlock()
@@ -291,7 +291,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 			balance := crontab.fetcher.Fetchbalance(k)
 			mapbalance[k] = balance
 		}
-		if crontab.storage.AddBlockRewardMysqlTransaction(accounts, mapbalance, mapcountplus) {
+		if crontab.storage.AddBlockRewardMysqlTransaction(accounts, mapbalance, mapcountplus, crontab.blockRewardHeight) {
 			crontab.blockRewardHeight += 1
 		}
 		crontab.excuteBlockRewards()

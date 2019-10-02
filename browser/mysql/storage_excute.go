@@ -118,7 +118,8 @@ func (storage *Storage) GetGroupByHigh(height uint64) []*models.Group {
 
 func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float64,
 	updates map[string]float64,
-	mapblockcount map[string]map[string]uint64) bool {
+	mapblockcount map[string]map[string]uint64,
+	forcount uint64) bool {
 	if storage.db == nil {
 		return false
 	}
@@ -161,7 +162,7 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 			return false
 		}
 	}
-	if !storage.IncrewardBlockheightTosys(tx, Blockrewardtopheight) {
+	if !storage.IncrewardBlockheightTosys(tx, Blockrewardtopheight, forcount) {
 		return false
 	}
 	isSuccess = true
@@ -219,7 +220,7 @@ func getstakefrom(tx *gorm.DB, address string, from string) *models.PoolStake {
 	return stake
 
 }
-func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB, variable string) bool {
+func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB, variable string, value uint64) bool {
 	if variable == "" {
 		return false
 	}
@@ -227,11 +228,12 @@ func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB, variable string) 
 	sys := &models.Sys{
 		Variable: variable,
 		SetBy:    "carrie.cxl",
+		Value:    value,
 	}
 	sysConfig := make([]models.Sys, 0, 0)
 	tx.Limit(1).Where("variable = ?", variable).Find(&sysConfig)
 	if sysConfig != nil && len(sysConfig) > 0 {
-		if !errors(tx.Model(&sysConfig[0]).UpdateColumn("value", gorm.Expr("value + ?", 1)).Error) {
+		if !errors(tx.Model(&sysConfig[0]).UpdateColumn("value", value).Error) {
 			return false
 		}
 	} else {
@@ -257,7 +259,7 @@ func (storage *Storage) AddBlockHeightSystemconfig(sys *models.Sys) bool {
 	if hight == 0 && ifexist == false {
 		storage.AddObjects(&sys)
 	} else {
-		storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", 1))
+		storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", sys.Value)
 	}
 	return true
 }
