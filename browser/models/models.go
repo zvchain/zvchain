@@ -48,7 +48,8 @@ type AccountList struct {
 	Balance          float64 `json:"balance"`
 	TotalBalance     float64 `json:"total_balance"`
 	ExtraData        string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
-
+	ProposalCount    uint64  `json:"proposal_count" gorm:"index;default:0"`
+	VerifyCount      uint64  `json:"verify_count" gorm:"index;default:0"`
 }
 
 type PoolExtraData struct {

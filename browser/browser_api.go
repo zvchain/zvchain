@@ -102,7 +102,6 @@ func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
 
 	for _, miner := range accounts {
 		targetAddrInfo := tm.storage.GetAccountById(miner)
-
 		accounts := &models.AccountList{}
 		// if the account doesn't exist
 		if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
@@ -116,14 +115,32 @@ func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
 	}
 }
 
+func (tm *DBMmanagement) excuteAccountProposalAndVerifyCount() {
+	for page := 1; page < 100; page++ {
+		accounts := tm.storage.GetAccountByPage(uint64(page))
+		for _, acc := range accounts {
+			countVerify := tm.storage.GetProposalVerifyCount(uint64(types.MinerTypeVerify), acc.Address)
+			countProposal := tm.storage.GetProposalVerifyCount(uint64(types.MinerTypeProposal), acc.Address)
+			attrs := make(map[string]interface{})
+			attrs["proposal_count"] = countProposal
+			attrs["verify_count"] = countVerify
+			account := &models.AccountList{}
+			account.Address = acc.Address
+			tm.storage.UpdateAccountByColumn(account, attrs)
+		}
+	}
+}
+
 func (tm *DBMmanagement) excuteAccounts() {
 
 	topHeight := core.BlockChainImpl.Height()
 	checkpoint := core.BlockChainImpl.LatestCheckPoint()
-	if (checkpoint.Height > 0 && tm.blockHeight > checkpoint.Height) || (tm.blockHeight > topHeight-100) {
+	if checkpoint.Height > 0 && tm.blockHeight > checkpoint.Height {
+		return
+	} else if checkpoint.Height == 0 && tm.blockHeight > topHeight-50 {
 		return
 	}
-	browserlog.BrowserLog.Info("[DBMmanagement] excuteAccounts height:", tm.blockHeight, "CheckPointHeight", checkpoint)
+	browserlog.BrowserLog.Info("[DBMmanagement] excuteAccounts height:", tm.blockHeight, "CheckPointHeight", checkpoint.Height, "TopHeight", topHeight)
 	//fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight, "CheckPointHeight", topHeight)
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)
