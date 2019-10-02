@@ -60,7 +60,7 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 		return
 	}
 	//args := fmt.Sprintf("root:Jobs1955!@tcp(119.23.205.254:3306)/tas?charset=utf8&parseTime=True&loc=Local")
-	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/tas?charset=utf8&parseTime=True&loc=Local",
+	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/gzv?charset=utf8&parseTime=True&loc=Local",
 		storage.dbUser,
 		storage.dbPassword,
 		storage.dbAddr,
