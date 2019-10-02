@@ -142,7 +142,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 	} else if checkpoint.Height == 0 && tm.blockHeight > topHeight-50 {
 		return
 	}
-	browserlog.BrowserLog.Info("[DBMmanagement] excuteAccounts height:", tm.blockHeight, "CheckPointHeight", checkpoint.Height, "TopHeight", topHeight)
+	browserlog.BrowserLog.Info("[DBMmanagement] excuteAccounts height:", tm.blockHeight, ",CheckPointHeight", checkpoint.Height, ",TopHeight", topHeight)
 	//fmt.Println("[DBMmanagement]  fetchBlock height:", tm.blockHeight, "CheckPointHeight", topHeight)
 	chain := core.BlockChainImpl
 	block := chain.QueryBlockCeil(tm.blockHeight)

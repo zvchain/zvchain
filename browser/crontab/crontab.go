@@ -278,12 +278,11 @@ func (crontab *Crontab) excuteBlockRewards() {
 	if crontab.blockRewardHeight > height {
 		return
 	}
-	topblock := core.BlockChainImpl.QueryTopBlock()
-	topheight := topblock.Height
+	//topblock := core.BlockChainImpl.QueryTopBlock()
+	//topheight := topblock.Height
 	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
-	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, 0)
-
-	if rewards != nil {
+	beginTime := time.Now()
+	if rewards != nil && len(rewards) > 0 {
 		accounts, mapcountplus := crontab.transfer.RewardsToAccounts(rewards)
 		mapbalance := make(map[string]float64)
 
@@ -295,10 +294,12 @@ func (crontab *Crontab) excuteBlockRewards() {
 			crontab.blockRewardHeight += 1
 		}
 		crontab.excuteBlockRewards()
-	} else if crontab.blockRewardHeight < topheight {
+	} else {
 		crontab.blockRewardHeight += 1
-		fmt.Println("[crontab]  fetchBlockRewards rewards nil:", crontab.blockRewardHeight, rewards)
+		fmt.Println("[crontab]  fetchBlockRewards rewards nil:", crontab.blockRewardHeight)
+		crontab.excuteBlockRewards()
 	}
+	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
 }
 
 func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
