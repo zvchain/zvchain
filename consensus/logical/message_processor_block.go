@@ -155,13 +155,15 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		p.castVerifyCh <- bh
 		ok = true
 		castor := common.BytesToAddress(bh.Castor).AddrPrefixString()
-		log.ELKLogger.WithFields(logrus.Fields{
-			"verifyHeight": bh.Height,
-			"now":          time.TSInstance.Now().UTC(),
-			"logType":      "verifyLog",
-			"version":      common.GzvVersion,
-			"castor":       castor,
-		}).Info("verify")
+		if types.EnableElk != "" {
+			log.ELKLogger.WithFields(logrus.Fields{
+				"verifyHeight": bh.Height,
+				"now":          time.TSInstance.Now().UTC(),
+				"logType":      "verifyLog",
+				"version":      common.GzvVersion,
+				"castor":       castor,
+			}).Info("verify")
+		}
 	} else {
 		err = fmt.Errorf("gen sign fail")
 	}
@@ -354,13 +356,15 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		p.reserveBlock(vctx, slot)
 		vctx.increaseAggrNum()
 		castor := common.BytesToAddress(bh.Castor).AddrPrefixString()
-		log.ELKLogger.WithFields(logrus.Fields{
-			"verifyHeight": bh.Height,
-			"now":          time.TSInstance.Now().UTC(),
-			"logType":      "verifyfromverifyLog",
-			"version":      common.GzvVersion,
-			"castor":       castor,
-		}).Info("verifyfromverify")
+		if types.EnableElk != "" {
+			log.ELKLogger.WithFields(logrus.Fields{
+				"verifyHeight": bh.Height,
+				"now":          time.TSInstance.Now().UTC(),
+				"logType":      "verifyfromverifyLog",
+				"version":      common.GzvVersion,
+				"castor":       castor,
+			}).Info("verifyfromverify")
+		}
 	}
 	return
 }

@@ -238,11 +238,13 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
-		log.ELKLogger.WithFields(logrus.Fields{
-			"now":     time2.TSInstance.Now().UTC(),
-			"logType": "versionLog",
-			"version": common.GzvVersion,
-		}).Info("versionLog")
+		if types.EnableElk != "" {
+			log.ELKLogger.WithFields(logrus.Fields{
+				"now":     time2.TSInstance.Now().UTC(),
+				"logType": "versionLog",
+				"version": common.GzvVersion,
+			}).Info("versionLog")
+		}
 		gzv.InitCha <- true
 	case clearCmd.FullCommand():
 		err := ClearBlock()

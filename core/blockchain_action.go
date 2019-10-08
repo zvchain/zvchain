@@ -173,14 +173,16 @@ func (chain *FullBlockChain) verifyTxs(block *types.Block) (txs txSlice, ok bool
 func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) types.AddBlockResult {
 	ret, _ := chain.addBlockOnChain(source, b)
 	if ret == types.AddBlockSucc {
-		log.ELKLogger.WithFields(logrus.Fields{
-			"blockHash": b.Header.Hash.Hex(),
-			"caster":    common.BytesToAddress(b.Header.Castor).AddrPrefixString(),
-			"height":    b.Header.Height,
-			"logType":   "doAddOnChain",
-			"now":       time2.TSInstance.Now().UTC(),
-			"version":   common.GzvVersion,
-		}).Info("doAddOnChain success")
+		if types.EnableElk != "" {
+			log.ELKLogger.WithFields(logrus.Fields{
+				"blockHash": b.Header.Hash.Hex(),
+				"caster":    common.BytesToAddress(b.Header.Castor).AddrPrefixString(),
+				"height":    b.Header.Height,
+				"logType":   "doAddOnChain",
+				"now":       time2.TSInstance.Now().UTC(),
+				"version":   common.GzvVersion,
+			}).Info("doAddOnChain success")
+		}
 	}
 	return ret
 }
@@ -515,12 +517,14 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		chain.addBlockOnChain("", rawBlock)
 		chain.futureRawBlocks.Remove(b.Header.Hash)
 	}
-	log.ELKLogger.WithFields(logrus.Fields{
-		"txNum":   chain.transactionPool.TxNum(),
-		"now":     time2.TSInstance.Now().UTC(),
-		"logType": "txPoolLog",
-		"version": common.GzvVersion,
-	}).Info("transaction pool log")
+	if types.EnableElk != "" {
+		log.ELKLogger.WithFields(logrus.Fields{
+			"txNum":   chain.transactionPool.TxNum(),
+			"now":     time2.TSInstance.Now().UTC(),
+			"logType": "txPoolLog",
+			"version": common.GzvVersion,
+		}).Info("transaction pool log")
+	}
 	return nil
 }
 

@@ -16,17 +16,21 @@
 package main
 
 import (
+	"github.com/zvchain/zvchain/middleware/types"
 	"runtime/debug"
 
 	"github.com/zvchain/zvchain/cmd/gzv/cli"
 )
 
+var EnableElk string
+
 func main() {
+	types.EnableElk = EnableElk
 	debug.SetTraceback("all")
 	gzv := cli.NewGzv()
-	go func(){
+	go func() {
 		<-gzv.InitCha
-		
+
 	}()
 	gzv.Run()
 }
