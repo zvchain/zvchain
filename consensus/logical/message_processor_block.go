@@ -162,6 +162,9 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 				"logType":      "verifyLog",
 				"version":      common.GzvVersion,
 				"castor":       castor,
+				"blockHash":    bh.Hash.String(),
+				"preHash":      bh.PreHash.String(),
+				"preHeight":    vctx.prevBH.Height,
 			}).Info("verify")
 		}
 	} else {
@@ -363,6 +366,9 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 				"logType":      "verifyfromverifyLog",
 				"version":      common.GzvVersion,
 				"castor":       castor,
+				"blockHash":    bh.Hash.String(),
+				"preHash":      bh.PreHash.String(),
+				"preHeight":    vctx.prevBH.Height,
 			}).Info("verifyfromverify")
 		}
 	}
