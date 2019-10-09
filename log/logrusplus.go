@@ -2,10 +2,11 @@ package log
 
 import (
 	"errors"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"strconv"
+
+	"github.com/sirupsen/logrus"
 )
 
 func removeFile(fileName string) error {
@@ -19,15 +20,17 @@ func removeFile(fileName string) error {
 }
 
 type logFileWriter struct {
-	file *os.File
-	maxSize int64
+	file     *os.File
+	maxSize  int64
+	maxFiles int
 	fileName string
-	counter int
+	counter  int
 }
 
-func newLogFileWriter(fileName string, maxSize int64) *logFileWriter {
+func newLogFileWriter(fileName string, maxSize int64, maxFiles int) *logFileWriter {
 	writer := &logFileWriter{
-		maxSize: maxSize,
+		maxSize:  maxSize,
+		maxFiles: maxFiles,
 		fileName: fileName,
 	}
 
@@ -35,7 +38,7 @@ func newLogFileWriter(fileName string, maxSize int64) *logFileWriter {
 	if err != nil {
 		return nil
 	}
-	file, err := os.OpenFile(fileName + "_0.log", os.O_CREATE|os.O_WRONLY, 0755)
+	file, err := os.OpenFile(fileName+"_0.log", os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		return nil
 	}
@@ -76,15 +79,15 @@ func (p *logFileWriter) Fire(entry *logrus.Entry) error {
 		if e != nil {
 			return e
 		}
-		file, e := os.OpenFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter), 10) + ".log",
+		file, e := os.OpenFile(p.fileName+"_"+strconv.FormatInt(int64(p.counter), 10)+".log",
 			os.O_CREATE|os.O_WRONLY, 0666)
 		if e != nil {
 			return e
 		}
 		p.file = file
 
-		if p.counter >= 2 {
-			e = removeFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter - 2), 10) + ".log")
+		if p.counter >= p.maxFiles {
+			e = removeFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter-p.maxFiles), 10) + ".log")
 			if e != nil {
 				return e
 			}
@@ -121,7 +124,7 @@ func (p *logFileWriter) Write(data []byte) (n int, e error) {
 		if e != nil {
 			return n, e
 		}
-		file, e := os.OpenFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter), 10) + ".log",
+		file, e := os.OpenFile(p.fileName+"_"+strconv.FormatInt(int64(p.counter), 10)+".log",
 			os.O_CREATE|os.O_WRONLY, 0666)
 		if e != nil {
 			return n, e
@@ -129,7 +132,7 @@ func (p *logFileWriter) Write(data []byte) (n int, e error) {
 		p.file = file
 
 		if p.counter >= 2 {
-			e = removeFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter - 2), 10) + ".log")
+			e = removeFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter-2), 10) + ".log")
 			if e != nil {
 				return n, e
 			}
@@ -152,7 +155,7 @@ func New() *Logrusplus {
 	}
 }
 
-func (lrs *Logrusplus) Logger(fileName string, maxSize int64, level logrus.Level) *logrus.Logger {
+func (lrs *Logrusplus) Logger(fileName string, maxSize int64, maxFiles int, level logrus.Level) *logrus.Logger {
 	var logger *logrus.Logger
 
 	if _logger, ok := lrs.loggers[fileName]; ok {
@@ -161,7 +164,7 @@ func (lrs *Logrusplus) Logger(fileName string, maxSize int64, level logrus.Level
 		logger = logrus.New()
 		logger.SetFormatter(&logrus.JSONFormatter{})
 
-		fileWriter := newLogFileWriter(fileName, maxSize)
+		fileWriter := newLogFileWriter(fileName, maxSize, maxFiles)
 		if fileWriter != nil {
 			logger.SetOutput(fileWriter)
 			//logger.AddHook(fileWriter)
