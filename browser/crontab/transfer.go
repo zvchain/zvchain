@@ -9,7 +9,7 @@ import (
 type Transfer struct {
 }
 
-func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) (map[string]float64, map[string]map[string]uint64) {
+func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) *BlockReward {
 	explorerAccount := make([]*models.AccountList, 0, 0)
 	mapData := make(map[string]float64)
 	mapCount := make([]map[string]map[string]uint64, 0, 0)
@@ -41,7 +41,11 @@ func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) (map[
 			}
 		}
 	}
-	return mapData, mapCountplus
+	reward := &BlockReward{
+		MapReward:     mapData,
+		MapBlockCount: mapCountplus,
+	}
+	return reward
 
 }
 

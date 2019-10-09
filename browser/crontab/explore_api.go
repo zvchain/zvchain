@@ -24,6 +24,11 @@ type ExploreBlockReward struct {
 	VerifierGasFeeReward uint64             `json:"verifier_gas_fee_reward"`
 }
 
+type BlockReward struct {
+	MapReward     map[string]float64
+	MapBlockCount map[string]map[string]uint64
+}
+
 type RewardTransaction struct {
 	Hash         common.Hash   `json:"hash"`
 	BlockHash    common.Hash   `json:"block_hash"`
