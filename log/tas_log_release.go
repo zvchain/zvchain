@@ -26,7 +26,8 @@ var PerformLogger = logrus.StandardLogger()
 var ELKLogger = logrus.StandardLogger()
 
 const (
-	MaxFileSize = 1024 * 1024 * 200
-	MaxFiles    = 2
-	Level       = logrus.DebugLevel
+	MaxFileSize     = 1024 * 1024 * 200
+	DefaultMaxFiles = 2
+	CoreMaxFiles    = 12
+	Level           = logrus.DebugLevel
 )

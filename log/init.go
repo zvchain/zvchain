@@ -17,19 +17,18 @@ func Init() {
 		}
 	}
 
-	DefaultLogger = RusPlus.Logger(logsDir+"default", MaxFileSize, MaxFiles, Level)
-	ConsensusLogger = RusPlus.Logger(logsDir+"consensus", MaxFileSize, MaxFiles, Level)
-	ConsensusStdLogger = RusPlus.Logger(logsDir+"consensus_std", MaxFileSize, MaxFiles, Level)
-	//core log should keep 12 files to ensure 3 day's logs
-	CoreLogger = RusPlus.Logger(logsDir+"core", MaxFileSize, MaxFiles*6, Level)
-	BlockSyncLogger = RusPlus.Logger(logsDir+"block_sync", MaxFileSize, MaxFiles, Level)
-	GroupLogger = RusPlus.Logger(logsDir+"group", MaxFileSize, MaxFiles, Level)
-	MiddlewareLogger = RusPlus.Logger(logsDir+"middleware", MaxFileSize, MaxFiles, Level)
-	TxSyncLogger = RusPlus.Logger(logsDir+"tx_sync", MaxFileSize, MaxFiles, Level)
-	P2PLogger = RusPlus.Logger(logsDir+"p2p", MaxFileSize, MaxFiles, Level)
-	ForkLogger = RusPlus.Logger(logsDir+"fork", MaxFileSize, MaxFiles, Level)
-	StatisticsLogger = RusPlus.Logger(logsDir+"statistics", MaxFileSize, MaxFiles, Level)
-	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, MaxFiles, Level)
-	PerformLogger = RusPlus.Logger(logsDir+"perform", MaxFileSize, MaxFiles, Level)
-	ELKLogger = RusPlus.Logger(logsDir+"ELK", MaxFileSize, MaxFiles, Level)
+	DefaultLogger = RusPlus.Logger(logsDir+"default", MaxFileSize, DefaultMaxFiles, Level)
+	ConsensusLogger = RusPlus.Logger(logsDir+"consensus", MaxFileSize, DefaultMaxFiles, Level)
+	ConsensusStdLogger = RusPlus.Logger(logsDir+"consensus_std", MaxFileSize, DefaultMaxFiles, Level)
+	CoreLogger = RusPlus.Logger(logsDir+"core", MaxFileSize, DefaultMaxFiles, Level)
+	BlockSyncLogger = RusPlus.Logger(logsDir+"block_sync", MaxFileSize, DefaultMaxFiles, Level)
+	GroupLogger = RusPlus.Logger(logsDir+"group", MaxFileSize, DefaultMaxFiles, Level)
+	MiddlewareLogger = RusPlus.Logger(logsDir+"middleware", MaxFileSize, DefaultMaxFiles, Level)
+	TxSyncLogger = RusPlus.Logger(logsDir+"tx_sync", MaxFileSize, DefaultMaxFiles, Level)
+	P2PLogger = RusPlus.Logger(logsDir+"p2p", MaxFileSize, CoreMaxFiles, Level)
+	ForkLogger = RusPlus.Logger(logsDir+"fork", MaxFileSize, DefaultMaxFiles, Level)
+	StatisticsLogger = RusPlus.Logger(logsDir+"statistics", MaxFileSize, DefaultMaxFiles, Level)
+	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, DefaultMaxFiles, Level)
+	PerformLogger = RusPlus.Logger(logsDir+"perform", MaxFileSize, DefaultMaxFiles, Level)
+	ELKLogger = RusPlus.Logger(logsDir+"ELK", MaxFileSize, DefaultMaxFiles, Level)
 }

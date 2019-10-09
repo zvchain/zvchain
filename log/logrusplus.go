@@ -131,8 +131,8 @@ func (p *logFileWriter) Write(data []byte) (n int, e error) {
 		}
 		p.file = file
 
-		if p.counter >= 2 {
-			e = removeFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter-2), 10) + ".log")
+		if p.counter >= p.maxFiles {
+			e = removeFile(p.fileName + "_" + strconv.FormatInt(int64(p.counter-p.maxFiles), 10) + ".log")
 			if e != nil {
 				return n, e
 			}
