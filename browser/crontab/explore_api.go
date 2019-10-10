@@ -25,8 +25,9 @@ type ExploreBlockReward struct {
 }
 
 type BlockReward struct {
-	MapReward     map[string]float64
-	MapBlockCount map[string]map[string]uint64
+	MapReward         map[string]float64
+	MapBlockCount     map[string]map[string]uint64
+	MapMineBlockCount map[string][]uint64
 }
 
 type RewardTransaction struct {
