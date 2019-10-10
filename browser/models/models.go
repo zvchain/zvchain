@@ -50,8 +50,8 @@ type AccountList struct {
 	ExtraData           string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
 	ProposalCount       uint64  `json:"proposal_count" gorm:"index;default:0"`
 	VerifyCount         uint64  `json:"verify_count" gorm:"index;default:0"`
-	ProposalFrozenStake uint64  `json:"proposal_frozenstake"`
-	VerifyFrozenStake   uint64  `json:"verify_frozenstake"`
+	ProposalFrozenStake uint64  `json:"proposal_frozen_stake"`
+	VerifyFrozenStake   uint64  `json:"verify_frozen_stake"`
 }
 
 type RecentMineBlock struct {
