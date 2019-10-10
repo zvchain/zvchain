@@ -367,56 +367,56 @@ func IsInExtractGuardNodes(addr common.Address) bool {
 }
 
 func GetDaemonNodeAddress()common.Address{
-	if IsMainChain(){
+	if IsNormalChain(){
 		return daemonNodeAddressNormal
 	}
 	return daemonNodeAddressTest
 }
 
 func GetUserNodeAddress()common.Address{
-	if IsMainChain(){
+	if IsNormalChain(){
 		return userNodeAddressNormal
 	}
 	return userNodeAddressTest
 }
 
 func GetCirculatesAddr()common.Address{
-	if IsMainChain(){
+	if IsNormalChain(){
 		return circulatesAddrNormal
 	}
 	return circulatesAddrTest
 }
 
 func GetStakePlatformAddr()common.Address{
-	if IsMainChain(){
+	if IsNormalChain(){
 		return stakePlatformAddrNormal
 	}
 	return stakePlatformAddrTest
 }
 
 func GetAdminAddr()common.Address{
-	if IsMainChain(){
+	if IsNormalChain(){
 		return adminAddrNormal
 	}
 	return adminAddrTest
 }
 
 func GetGenesisDefaultGroupInfo()string{
-	if IsMainChain(){
+	if IsNormalChain(){
 		return genesisDefaultGroupInfoNoraml
 	}
 	return genesisDefaultGroupInfoTest
 }
 
 func GetGuardAddress()[]common.Address{
-	if IsMainChain(){
+	if IsNormalChain(){
 		return extractGuardNodesNormal
 	}
 	return extractGuardNodesTest
 }
 
 
-func IsMainChain() bool{
-	return ChainId <= NormalChainId
+func IsNormalChain() bool{
+	return ChainId <= (common.MaxUint16 / 2)
 }
 
