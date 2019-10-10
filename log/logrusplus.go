@@ -160,7 +160,6 @@ func (lrs *Logrusplus) Logger(fileName string, maxSize int64, level logrus.Level
 	} else {
 		logger = logrus.New()
 		logger.SetFormatter(&logrus.JSONFormatter{})
-
 		fileWriter := newLogFileWriter(fileName, maxSize)
 		if fileWriter != nil {
 			logger.SetOutput(fileWriter)

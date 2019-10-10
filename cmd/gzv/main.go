@@ -26,7 +26,7 @@ func main() {
 	gzv := cli.NewGzv()
 	go func(){
 		<-gzv.InitCha
-		
+
 	}()
 	gzv.Run()
 }

@@ -17,6 +17,8 @@ package logical
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/consensus/net"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 )
@@ -102,6 +105,16 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 	block.Header.Random = random.Serialize()
 
 	r := p.doAddOnChain(block)
+
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height":    block.Header.Height,
+		"now":       p.ts.Now().UTC(),
+		"logType":   "onBlockSignAggr",
+		"version":   common.GzvVersion,
+		"castor":    common.BytesToAddress(block.Header.Castor).AddrPrefixString(),
+		"blockHash": block.Header.Hash.String(),
+		"preHash":   block.Header.PreHash.String(),
+	}).Infof("result=%v", r)
 
 	// Fork adjustment or add on chain failure does not take the logic below
 	if r != int8(types.AddBlockSucc) {
@@ -208,6 +221,7 @@ func (p *Processor) blockProposal() {
 		blog.warn("vrf prove not ok! %v", err)
 		return
 	}
+	castor := worker.miner.ID.GetAddrString()
 
 	//if height > 1 && p.proveChecker.proveExists(pi) {
 	//	blog.warn("vrf prove exist, not proposal")
@@ -269,6 +283,17 @@ func (p *Processor) blockProposal() {
 			blog.error("sign fail, id=%v, sk=%v", p.GetMinerID(), skey)
 			return
 		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"proposalHeight": height,
+			"now":            time2.TSInstance.Now().UTC(),
+			"logType":        "proposalLog",
+			"version":        common.GzvVersion,
+			"castor":         castor,
+			"blockHash":      bh.Hash.String(),
+			"preHash":        bh.PreHash.String(),
+			"preHeight":      worker.baseBH.Height,
+			"verifyGroup":    gb.GSeed.Hex(),
+		}).Info("proposal")
 
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
