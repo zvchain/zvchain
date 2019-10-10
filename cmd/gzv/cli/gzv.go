@@ -200,7 +200,6 @@ func (gzv *Gzv) Run() {
 			fmt.Println(err.Error())
 		}
 	case mineCmd.FullCommand():
-		log.EnableElk = common.GlobalConf.GetBool(Section, "enable_elk", false)
 		log.Init()
 		common.InstanceIndex = *instanceIndex
 		go func() {

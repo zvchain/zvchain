@@ -2,7 +2,6 @@ package log
 
 import "os"
 
-var EnableElk bool
 func Init() {
 	RusPlus = New()
 	StdLogger.SetLevel(Level)
