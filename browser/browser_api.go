@@ -544,8 +544,8 @@ func GetMinerInfo(addr string, height uint64) (map[string]*common2.MortGage, *co
 	}
 
 	data := &common2.FronzenAndStakeFrom{
-		ProposalFrozen: proposalfrozenStake,
-		VerifyFrozen:   verifyfrozenStake,
+		ProposalFrozen: uint64(common.RA2TAS(proposalfrozenStake)),
+		VerifyFrozen:   uint64(common.RA2TAS(verifyfrozenStake)),
 	}
 
 	var stakefrom = ""
@@ -622,8 +622,8 @@ func (tm *DBMmanagement) UpdateAccountStake(account *models.AccountList, height 
 		}
 		mapcolumn["total_stake"] = verifystake + prostake + frozensAndtakefrom.ProposalFrozen + frozensAndtakefrom.VerifyFrozen
 		mapcolumn["stake_from"] = frozensAndtakefrom.StakeFrom
-		mapcolumn["proposal_frozenstake"] = frozensAndtakefrom.ProposalFrozen
-		mapcolumn["verify_frozenstake"] = frozensAndtakefrom.VerifyFrozen
+		mapcolumn["proposal_frozen_stake"] = frozensAndtakefrom.ProposalFrozen
+		mapcolumn["verify_frozen_stake"] = frozensAndtakefrom.VerifyFrozen
 
 		tm.storage.UpdateAccountByColumn(account, mapcolumn)
 	}
