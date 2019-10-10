@@ -155,18 +155,16 @@ func (p *Processor) verifyCastMessage(msg *model.ConsensusCastMessage, preBH *ty
 		p.castVerifyCh <- bh
 		ok = true
 		castor := common.BytesToAddress(bh.Castor).AddrPrefixString()
-		if types.EnableElk != "" {
-			log.ELKLogger.WithFields(logrus.Fields{
-				"verifyHeight": bh.Height,
-				"now":          time.TSInstance.Now().UTC(),
-				"logType":      "verifyLog",
-				"version":      common.GzvVersion,
-				"castor":       castor,
-				"blockHash":    bh.Hash.String(),
-				"preHash":      bh.PreHash.String(),
-				"preHeight":    vctx.prevBH.Height,
-			}).Info("verify")
-		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"verifyHeight": bh.Height,
+			"now":          time.TSInstance.Now().UTC(),
+			"logType":      "verifyLog",
+			"version":      common.GzvVersion,
+			"castor":       castor,
+			"blockHash":    bh.Hash.String(),
+			"preHash":      bh.PreHash.String(),
+			"preHeight":    vctx.prevBH.Height,
+		}).Info("verify")
 	} else {
 		err = fmt.Errorf("gen sign fail")
 	}
@@ -359,18 +357,16 @@ func (p *Processor) doVerify(cvm *model.ConsensusVerifyMessage, vctx *VerifyCont
 		p.reserveBlock(vctx, slot)
 		vctx.increaseAggrNum()
 		castor := common.BytesToAddress(bh.Castor).AddrPrefixString()
-		if types.EnableElk != "" {
-			log.ELKLogger.WithFields(logrus.Fields{
-				"verifyHeight": bh.Height,
-				"now":          time.TSInstance.Now().UTC(),
-				"logType":      "verifyfromverifyLog",
-				"version":      common.GzvVersion,
-				"castor":       castor,
-				"blockHash":    bh.Hash.String(),
-				"preHash":      bh.PreHash.String(),
-				"preHeight":    vctx.prevBH.Height,
-			}).Info("verifyfromverify")
-		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"verifyHeight": bh.Height,
+			"now":          time.TSInstance.Now().UTC(),
+			"logType":      "verifyfromverifyLog",
+			"version":      common.GzvVersion,
+			"castor":       castor,
+			"blockHash":    bh.Hash.String(),
+			"preHash":      bh.PreHash.String(),
+			"preHeight":    vctx.prevBH.Height,
+		}).Info("verifyfromverify")
 	}
 	return
 }

@@ -33,8 +33,6 @@ type AddBlockResult int8
 // gasLimitMax expresses the max gasLimit of a transaction
 var gasLimitMax = new(BigInt).SetUint64(500000)
 
-var EnableElk string
-
 // defines all possible result of the add-block operation
 const (
 	AddBlockFailed              AddBlockResult = -1 // Means the operations is fail

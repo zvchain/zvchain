@@ -248,14 +248,12 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.updateLatestBlock(state, block)
 
 	chain.transactionPool.BackToPool(recoverTxs)
-	if types.EnableElk != "" {
-		log.ELKLogger.WithFields(logrus.Fields{
-			"removedHeight": len(removeBlocks),
-			"now":           time.TSInstance.Now().UTC(),
-			"logType":       "resetTop",
-			"version":       common.GzvVersion,
-		}).Info("resetTop")
-	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"removedHeight": len(removeBlocks),
+		"now":           time.TSInstance.Now().UTC(),
+		"logType":       "resetTop",
+		"version":       common.GzvVersion,
+	}).Info("resetTop")
 	for _, b := range removeBlocks {
 		GroupManagerImpl.OnBlockRemove(b)
 	}
