@@ -16,19 +16,15 @@
 package main
 
 import (
-	"github.com/zvchain/zvchain/common/global"
 	"runtime/debug"
 
 	"github.com/zvchain/zvchain/cmd/gzv/cli"
 )
 
-var EnableElk string
-
 func main() {
-	global.EnableElk = EnableElk
 	debug.SetTraceback("all")
 	gzv := cli.NewGzv()
-	go func() {
+	go func(){
 		<-gzv.InitCha
 
 	}()

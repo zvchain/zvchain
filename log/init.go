@@ -1,8 +1,6 @@
 package log
 
-import (
-	"os"
-)
+import "os"
 
 func Init() {
 	RusPlus = New()

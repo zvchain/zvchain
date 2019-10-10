@@ -17,9 +17,9 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
