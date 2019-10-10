@@ -285,16 +285,20 @@ func (crontab *Crontab) excuteBlockRewards() {
 	beginTime := time.Now()
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
 	if rewards != nil && len(rewards) > 0 {
-		blockrewarddata,mapMineBlockCount := crontab.transfer.RewardsToAccounts(rewards)
+		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
+		mapMineBlockCount := blockrewarddata.MapMineBlockCount
 		mapbalance := make(map[string]float64)
 
 		for k := range accounts {
 			balance := crontab.fetcher.Fetchbalance(k)
 			mapbalance[k] = balance
 		}
-		if crontab.storage.AddBlockRewardMysqlTransaction(accounts, mapbalance, mapcountplus, crontab.blockRewardHeight) &&
+		if crontab.storage.AddBlockRewardMysqlTransaction(accounts,
+			mapbalance,
+			mapcountplus,
+			crontab.blockRewardHeight) &&
 			crontab.storage.UpdateMineBlocks(mapMineBlockCount) {
 			crontab.blockRewardHeight += 1
 		}
