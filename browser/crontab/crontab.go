@@ -17,7 +17,9 @@ import (
 	"time"
 )
 
-const checkInterval = time.Second * 10
+const (
+	checkInterval = time.Second * 10
+)
 
 const (
 	ProposalStakeType = 0
@@ -55,8 +57,8 @@ type Crontab struct {
 
 func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Crontab {
 	server := &Crontab{
-		initdata:       make(chan *models.ForkNotify, 1000),
-		initRewarddata: make(chan *models.ForkNotify, 1000),
+		initdata:       make(chan *models.ForkNotify, 10000),
+		initRewarddata: make(chan *models.ForkNotify, 10000),
 	}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
 	server.addGenisisblock()
@@ -281,8 +283,11 @@ func (crontab *Crontab) excuteBlockRewards() {
 	//topheight := topblock.Height
 	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
 	beginTime := time.Now()
+	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
 	if rewards != nil && len(rewards) > 0 {
-		accounts, mapcountplus, mapMineBlockCount := crontab.transfer.RewardsToAccounts(rewards)
+		blockrewarddata,mapMineBlockCount := crontab.transfer.RewardsToAccounts(rewards)
+		accounts := blockrewarddata.MapReward
+		mapcountplus := blockrewarddata.MapBlockCount
 		mapbalance := make(map[string]float64)
 
 		for k := range accounts {
@@ -299,7 +304,6 @@ func (crontab *Crontab) excuteBlockRewards() {
 		fmt.Println("[crontab]  fetchBlockRewards rewards nil:", crontab.blockRewardHeight)
 		crontab.excuteBlockRewards()
 	}
-	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
 }
 
 func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
@@ -325,7 +329,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
 	if blockDetail != nil {
 		if maxHeight > pre {
-			server.storage.DeleteForkblock(pre, localHeight)
+			server.storage.DeleteForkblock(pre, localHeight, blockDetail.CurTime)
 		}
 		if server.storage.AddBlock(&blockDetail.Block) {
 			trans := make([]*models.Transaction, 0, 0)
@@ -429,7 +433,12 @@ func (crontab *Crontab) dataCompensationProcess(notifyHeight uint64, notifyPreHe
 
 		dbMaxHeight := crontab.blockTopHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
-			crontab.storage.DeleteForkblock(dbMaxHeight-1, dbMaxHeight)
+			blockceil := core.BlockChainImpl.QueryBlockCeil(dbMaxHeight)
+			time := time.Now()
+			if blockceil != nil {
+				time = blockceil.Header.CurTime.Local()
+			}
+			crontab.storage.DeleteForkblock(dbMaxHeight-1, dbMaxHeight, time)
 			crontab.dataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInited = true

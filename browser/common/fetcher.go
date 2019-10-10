@@ -32,6 +32,12 @@ type Group struct {
 	GroupHeight   uint64      `json:"group_height"`
 }
 
+type FronzenAndStakeFrom struct {
+	StakeFrom      string `json:"stake_from"`
+	ProposalFrozen uint64 `json:"proposal_frozen"`
+	VerifyFrozen   uint64 `json:"verify_frozen"`
+}
+
 func (api *Fetcher) ExplorerBlockDetail(height uint64) (*models.BlockDetail, error) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockCeil(height)
