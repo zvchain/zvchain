@@ -232,7 +232,7 @@ func changeFundGuardModeValidator(tx *types.Transaction) error {
 	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
 		return err
 	}
-	if !common.IsInExtractGuardNodes(*tx.Source) {
+	if !types.IsInExtractGuardNodes(*tx.Source) {
 		return fmt.Errorf("operator addr is not in extract guard nodes")
 	}
 	if len(tx.Data) != 1 {

@@ -61,8 +61,12 @@ type Gzv struct {
 
 var globalGzv *Gzv
 
+
+
+
 // miner start miner node
 func (gzv *Gzv) miner(cfg *minerConfig) error {
+	types.ChainId = cfg.chainID
 	gzv.config = cfg
 	gzv.runtimeInit()
 	err := gzv.fullInit()
@@ -196,6 +200,7 @@ func (gzv *Gzv) Run() {
 			fmt.Println(err.Error())
 		}
 	case mineCmd.FullCommand():
+		log.EnableElk = common.GlobalConf.GetBool(Section, "enable_elk", false)
 		log.Init()
 		common.InstanceIndex = *instanceIndex
 		go func() {
@@ -230,7 +235,6 @@ func (gzv *Gzv) Run() {
 			cors:              *cors,
 			privateKey:        *privKey,
 		}
-
 		// Start miner
 		err := gzv.miner(cfg)
 		if err != nil {
