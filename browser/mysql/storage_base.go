@@ -109,6 +109,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if !db.HasTable(&models.Reward{}) {
 		db.CreateTable(&models.Reward{})
 	}
+	if !db.HasTable(&models.RecentMineBlock{}) {
+		db.CreateTable(&models.RecentMineBlock{})
+	}
 
 }
 

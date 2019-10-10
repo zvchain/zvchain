@@ -9,7 +9,7 @@ import (
 type Transfer struct {
 }
 
-func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) (map[string]float64, map[string]map[string]uint64) {
+func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) (map[string]float64, map[string]map[string]uint64, map[string][]uint64) {
 	explorerAccount := make([]*models.AccountList, 0, 0)
 	mapData := make(map[string]float64)
 	mapCount := make([]map[string]map[string]uint64, 0, 0)
@@ -29,6 +29,7 @@ func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) (map[
 
 	}
 	mapCountplus := make(map[string]map[string]uint64)
+	mapMineBlockCount := make(map[string][]uint64)
 	for _, count := range mapCount {
 		for addr, data := range count {
 			if _, exists := mapCountplus[addr]; exists {
@@ -39,9 +40,14 @@ func (transfer *Transfer) RewardsToAccounts(rewards []*ExploreBlockReward) (map[
 				mapCountplus[addr]["proposal_count"] = data["proposal_count"]
 				mapCountplus[addr]["verify_count"] = data["verify_count"]
 			}
+
+			if _, ok := data["verify_block_height"]; ok {
+				mapMineBlockCount[addr] = append(mapMineBlockCount[addr], data["verify_block_height"])
+
+			}
 		}
 	}
-	return mapData, mapCountplus
+	return mapData, mapCountplus, mapMineBlockCount
 
 }
 
@@ -80,6 +86,7 @@ func (transfer *Transfer) blockRewardTOAccount(reward *ExploreBlockReward) ([]*m
 			mapCount[addr]["proposal_count"] = 0
 
 		}
+		mapCount[addr]["verify_block_height"] = reward.BlockHeight
 	}
 
 	return accounts, mapCount

@@ -52,6 +52,13 @@ type AccountList struct {
 	VerifyCount      uint64  `json:"verify_count" gorm:"index;default:0"`
 }
 
+type RecentMineBlock struct {
+	gorm.Model
+	Address              string `json:"address" gorm:"unique_index"`
+	RecentProposalBlocks string `json:"recent_proposal_blocks" gorm:"type:LONGTEXT"`
+	RecentVerifyBlocks   string `json:"recent_verify_blocks" gorm:"type:LONGTEXT"`
+}
+
 type PoolExtraData struct {
 	Vote uint64 `json:"vote"`
 }
@@ -193,3 +200,9 @@ type BlockDetail struct {
 	Receipts        []*Receipt         `json:"receipts"`
 	EvictedReceipts []*Receipt         `json:"evictedReceipts"`
 }
+
+type BlockHeights []uint64
+
+func (e BlockHeights) Len() int           { return len(e) }
+func (e BlockHeights) Less(i, j int) bool { return e[i] > e[j] }
+func (e BlockHeights) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }

@@ -6,6 +6,7 @@ import (
 	"github.com/jinzhu/gorm"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
+	"sort"
 	"time"
 )
 
@@ -21,6 +22,7 @@ const (
 	DismissGropHeight     = "group.top_dismiss_group_height"
 	LIMIT                 = 20
 	ACCOUNTDBNAME         = "account_lists"
+	RECENTMINEBLOCKS      = "recent_mine_blocks"
 )
 
 func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
@@ -166,6 +168,74 @@ func (storage *Storage) AddBlockRewardMysqlTransaction(accounts map[string]float
 		return false
 	}
 	isSuccess = true
+	return true
+}
+
+func (storage *Storage) UpdateMineBlocks(mapMineBlockCount map[string][]uint64) bool {
+
+	const MaxCounts = 1000
+	if storage.db == nil {
+		return false
+	}
+
+	updateReward := func(addr string, mineCount []uint64) error {
+
+		//mineCount, ok := mapMineBlockCount[addr]
+		pendingBlockHeights := models.BlockHeights(mineCount)
+		sort.Sort(pendingBlockHeights)
+
+		baseData := make([]models.RecentMineBlock, 0)
+		storage.db.Model(&models.RecentMineBlock{}).Where("address = ?", addr).Find(&baseData)
+
+		if len(baseData) == 0 {
+			byteVerifyBlocks, err := json.Marshal(pendingBlockHeights)
+			if err != nil {
+				return err
+			}
+			verifyBlocks := string(byteVerifyBlocks)
+
+			RecentMineBlock := models.RecentMineBlock{
+				Address:            addr,
+				RecentVerifyBlocks: verifyBlocks,
+			}
+			return storage.db.Table(RECENTMINEBLOCKS).Create(&RecentMineBlock).Error
+			//return storage.db.Create(RecentMineBlock).Error
+
+		} else {
+			blockHeights := make([]uint64, 0)
+			if err := json.Unmarshal([]byte(baseData[0].RecentVerifyBlocks), &blockHeights); err != nil {
+				return err
+			}
+
+			totalBlocks := pendingBlockHeights
+			totalBlocks = append(totalBlocks, blockHeights...)
+
+			delta := MaxCounts - len(blockHeights)
+
+			if delta < len(mineCount) {
+				totalBlocks = totalBlocks[:MaxCounts]
+			}
+
+			updateString, err := json.Marshal(totalBlocks)
+			if err != nil {
+				return err
+			}
+			RecentMineBlock := models.RecentMineBlock{
+				Address:            addr,
+				RecentVerifyBlocks: string(updateString),
+			}
+			return storage.db.Table(RECENTMINEBLOCKS).Where("address = ?", addr).Updates(RecentMineBlock).Error
+
+		}
+	}
+
+	for addr, counts := range mapMineBlockCount {
+		if !errors(updateReward(addr, counts)) {
+			fmt.Println("UpdateMineBlocks,", addr)
+			return false
+		}
+	}
+
 	return true
 }
 
