@@ -276,7 +276,7 @@ func (storage *Storage) AddSysConfig(variable string) {
 		storage.AddObjects(sys)
 	}
 }
-func (storage *Storage) UpdateSysConfigValue(variable string, value int64) {
+func (storage *Storage) UpdateSysConfigValue(variable string, value int64, isadd bool) {
 	if value < 1 {
 		return
 	}
@@ -284,7 +284,17 @@ func (storage *Storage) UpdateSysConfigValue(variable string, value int64) {
 		Variable: variable,
 		SetBy:    "xiaoli",
 	}
-	storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", value))
+	if isadd {
+		storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value + ?", value))
+	} else {
+		//err := storage.db.Model(sys).Where("variable=?", sys.Variable).UpdateColumn("value", gorm.Expr("value - ?", value)).Error
+		//when value < 0 ,out of range
+		sql := fmt.Sprintf("UPDATE sys  SET value =(CASE WHEN value < %d  THEN 0 ELSE value-%d END)  WHERE  variable = '%s' LIMIT 1",
+			value,
+			value,
+			sys.Variable)
+		storage.db.Exec(sql)
+	}
 }
 
 func (storage *Storage) InitCurConfig() {
@@ -331,7 +341,7 @@ func (storage *Storage) AddCurCountconfig(curtime time.Time, variable string) bo
 		}
 	}
 	if GetTodayStartTs(curtime).Equal(GetTodayStartTs(t)) {
-		storage.UpdateSysConfigValue(variable, 1)
+		storage.UpdateSysConfigValue(variable, 1, true)
 	}
 	return true
 }
@@ -611,7 +621,7 @@ func (storage *Storage) GetTopblock() uint64 {
 	return maxHeight
 }
 
-func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64) (err error) {
+func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, curTime time.Time) (err error) {
 
 	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
 		if err := recover(); err != nil {
@@ -621,10 +631,15 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64) (e
 	blockSql := fmt.Sprintf("DELETE  FROM blocks WHERE height > %d", preHeight)
 	transactionSql := fmt.Sprintf("DELETE  FROM transactions WHERE block_height > %d", preHeight)
 	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
-	storage.db.Exec(blockSql)
-	storage.db.Exec(transactionSql)
+	blockCount := storage.db.Exec(blockSql)
+	transactionCount := storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
+	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
+		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)
+		storage.UpdateSysConfigValue(Blockcurtranheight, transactionCount.RowsAffected, false)
+	}
 	browserlog.BrowserLog.Info("[DeleteForkblock] DeleteForkblock preHeight:", preHeight, "localHeight", localHeight)
+
 	return err
 }
 

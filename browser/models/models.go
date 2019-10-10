@@ -30,26 +30,28 @@ type PoolStake struct {
 
 type AccountList struct {
 	gorm.Model
-	Address          string  `json:"address" gorm:"unique_index"`
-	RoleType         uint64  `json:"role_type" gorm:"index;default:10"` // user default role_type value
-	ProposalStake    uint64  `json:"proposal_stake" gorm:"index"`
-	VerifyStake      uint64  `json:"verify_stake" gorm:"index"`
-	TotalStake       uint64  `json:"total_stake" gorm:"index"`
-	OtherStake       uint64  `json:"other_stake" gorm:"index"`
-	Group            string  `json:"group"`
-	WorkGroup        uint64  `json:"work_group" gorm:"index"`
-	DismissGroup     uint64  `json:"dismiss_group" gorm:"index"`
-	PrepareGroup     uint64  `json:"prepare_group" gorm:"index"`
-	TotalTransaction uint64  `json:"total_transaction"`
-	Rewards          float64 `json:"rewards"`
-	Status           int8    `json:"status" gorm:"index;default:-1"`
-	VerifyStatus     int8    `json:"verify_status" gorm:"index;default:-1"`
-	StakeFrom        string  `json:"stake_from"`
-	Balance          float64 `json:"balance"`
-	TotalBalance     float64 `json:"total_balance"`
-	ExtraData        string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
-	ProposalCount    uint64  `json:"proposal_count" gorm:"index;default:0"`
-	VerifyCount      uint64  `json:"verify_count" gorm:"index;default:0"`
+	Address             string  `json:"address" gorm:"unique_index"`
+	RoleType            uint64  `json:"role_type" gorm:"index;default:10"` // user default role_type value
+	ProposalStake       uint64  `json:"proposal_stake" gorm:"index"`
+	VerifyStake         uint64  `json:"verify_stake" gorm:"index"`
+	TotalStake          uint64  `json:"total_stake" gorm:"index"`
+	OtherStake          uint64  `json:"other_stake" gorm:"index"`
+	Group               string  `json:"group"`
+	WorkGroup           uint64  `json:"work_group" gorm:"index"`
+	DismissGroup        uint64  `json:"dismiss_group" gorm:"index"`
+	PrepareGroup        uint64  `json:"prepare_group" gorm:"index"`
+	TotalTransaction    uint64  `json:"total_transaction"`
+	Rewards             float64 `json:"rewards"`
+	Status              int8    `json:"status" gorm:"index;default:-1"`
+	VerifyStatus        int8    `json:"verify_status" gorm:"index;default:-1"`
+	StakeFrom           string  `json:"stake_from"`
+	Balance             float64 `json:"balance"`
+	TotalBalance        float64 `json:"total_balance"`
+	ExtraData           string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
+	ProposalCount       uint64  `json:"proposal_count" gorm:"index;default:0"`
+	VerifyCount         uint64  `json:"verify_count" gorm:"index;default:0"`
+	ProposalFrozenStake uint64  `json:"proposal_frozenstake"`
+	VerifyFrozenStake   uint64  `json:"verify_frozenstake"`
 }
 
 type PoolExtraData struct {
