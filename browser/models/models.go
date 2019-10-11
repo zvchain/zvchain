@@ -165,6 +165,7 @@ type Transaction struct {
 	Receipt           *Receipt `json:"receipt" gorm:"-"`
 	ExtraData         string   `json:"extra_data" gorm:"type:TEXT;size:65000"`
 	Status            uint     `json:"status" gorm:"index"`
+	ContractAddress   string   `json:"contract_address"`
 }
 
 type Receipt struct {
