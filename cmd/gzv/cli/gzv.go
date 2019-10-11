@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"os"
@@ -154,6 +155,7 @@ func (gzv *Gzv) Run() {
 	servicePort := mineCmd.Flag("port", "miner report or rpc service port").Short('p').Default("8101").Uint16()
 
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
+	disableReport := mineCmd.Flag("disablereport", "disable report.").Default("false").Bool()
 
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
@@ -237,6 +239,9 @@ func (gzv *Gzv) Run() {
 			output("initialize fail:", err)
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
+		}
+		if !*disableReport {
+			go report.StartReport(gzv.account.Pk, common.GzvVersion, int(*chainID))
 		}
 		log.ELKLogger.WithFields(logrus.Fields{
 			"now":     time2.TSInstance.Now().UTC(),
