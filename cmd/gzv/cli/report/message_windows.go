@@ -4,15 +4,16 @@ import (
 	"github.com/axgle/mahonia"
 	"math/big"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
-func CpuInfo() string {
+func CpuInfo() (coreNum int, brand string) {
 	output, _ := exec.Command("wmic", "cpu", "get", "name").Output()
 	data := string(output)
 	data = strings.ReplaceAll(data, "Name", "")
 	data = strings.TrimSpace(data)
-	return data
+	return runtime.NumCPU(), data
 }
 
 func MemInfo() float64 {
@@ -32,11 +33,11 @@ func MemInfo() float64 {
 	return float64(total) / (1024 * 1024 * 1024)
 }
 
-func OSInfo() string {
+func OSInfo() (arch, os, version string) {
 	output, _ := exec.Command("wmic", "os", "get", "Caption").Output()
 	srcCoder := mahonia.NewDecoder("gbk")
 	data := srcCoder.ConvertString(string(output))
 	data = strings.ReplaceAll(data, "Caption", "")
 	data = strings.TrimSpace(data)
-	return data
+	return runtime.GOARCH, runtime.GOOS, data
 }
