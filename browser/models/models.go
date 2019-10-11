@@ -158,12 +158,13 @@ type Transaction struct {
 	Type        int32     `json:"type"`
 	CurTime     time.Time `json:"cur_time" gorm:"index"`
 
-	GasLimit  uint64   `json:"gas_limit"`
-	GasPrice  uint64   `json:"gas_price"`
-	Hash      string   `json:"hash" gorm:"unique_index"`
-	Receipt   *Receipt `json:"receipt" gorm:"-"`
-	ExtraData string   `json:"extra_data" gorm:"type:TEXT;size:65000"`
-	Status    uint     `json:"status" gorm:"index"`
+	GasLimit          uint64   `json:"gas_limit"`
+	GasPrice          uint64   `json:"gas_price"`
+	CumulativeGasUsed uint64   `json:"cumulative_gas_used"`
+	Hash              string   `json:"hash" gorm:"unique_index"`
+	Receipt           *Receipt `json:"receipt" gorm:"-"`
+	ExtraData         string   `json:"extra_data" gorm:"type:TEXT;size:65000"`
+	Status            uint     `json:"status" gorm:"index"`
 }
 
 type Receipt struct {

@@ -342,6 +342,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				tran.BlockHash = blockDetail.Block.Hash
 				tran.BlockHeight = blockDetail.Block.Height
 				tran.CurTime = blockDetail.Block.CurTime
+				tran.CumulativeGasUsed = blockDetail.Receipts[i].CumulativeGasUsed
 				trans = append(trans, tran)
 			}
 			server.storage.AddTransactions(trans)
