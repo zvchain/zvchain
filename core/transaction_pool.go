@@ -159,7 +159,7 @@ func (pool *txPool) AsyncAddTransaction(tx *types.Transaction) error {
 	if pool.asyncAdds.Contains(tx.Hash) {
 		return nil
 	}
-	if err := pool.RecoverAndValidateTx(tx); err != nil {
+	if err := pool.recoverAndBasicValidate(tx); err != nil {
 		return err
 	}
 	pool.asyncAdds.Add(tx.Hash, tx)
@@ -207,9 +207,14 @@ func (pool *txPool) PackForCast() []*types.Transaction {
 	return result
 }
 
-// RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction
+// RecoverAndValidateTx recovers the sender of the transaction and also validates the transaction, including state validate
 func (pool *txPool) RecoverAndValidateTx(tx *types.Transaction) error {
-	return getValidator(tx)()
+	return getValidator(tx, true)()
+}
+
+// recoverAndBasicValidate recovers the sender of the transaction and also validates the transaction, excluding state validate
+func (pool *txPool) recoverAndBasicValidate(tx *types.Transaction) error {
+	return getValidator(tx, false)()
 }
 
 func (pool *txPool) tryAdd(tx *types.Transaction) (bool, error) {
