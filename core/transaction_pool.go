@@ -201,6 +201,11 @@ func (pool *txPool) TxNum() uint64 {
 	return uint64(pool.received.Len() + pool.bonPool.len())
 }
 
+// TxQueueNum returns the number of transactions in the queue
+func (pool *txPool) TxQueueNum() uint64 {
+	return uint64(len(pool.received.queue))
+}
+
 // PackForCast returns a list of transactions for casting a block
 func (pool *txPool) PackForCast() []*types.Transaction {
 	result := pool.packTx()
