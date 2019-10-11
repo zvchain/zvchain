@@ -19,11 +19,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	time2 "github.com/zvchain/zvchain/middleware/time"
-	"math"
-	"time"
 
 	"github.com/zvchain/zvchain/monitor"
 
@@ -516,10 +517,11 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		chain.futureRawBlocks.Remove(b.Header.Hash)
 	}
 	log.ELKLogger.WithFields(logrus.Fields{
-		"txNum":   chain.transactionPool.TxNum(),
-		"now":     time2.TSInstance.Now().UTC(),
-		"logType": "txPoolLog",
-		"version": common.GzvVersion,
+		"txNum":    chain.transactionPool.TxNum(),
+		"queueNum": chain.transactionPool.TxQueueNum(),
+		"now":      time2.TSInstance.Now().UTC(),
+		"logType":  "txPoolLog",
+		"version":  common.GzvVersion,
 	}).Info("transaction pool log")
 	return nil
 }
