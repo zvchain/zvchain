@@ -31,3 +31,7 @@ const (
 	CoreMaxFiles    = 2
 	Level           = logrus.InfoLevel
 )
+
+func InitElk(logsDir string) {
+	ELKLogger = RusPlus.Logger(logsDir+"ELK", MaxFileSize, DefaultMaxFiles, logrus.ErrorLevel)
+}
