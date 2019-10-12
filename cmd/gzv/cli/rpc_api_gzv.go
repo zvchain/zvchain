@@ -46,6 +46,7 @@ type groupRoutineChecker interface {
 
 type blockReader interface {
 	CheckPointAt(h uint64) *types.BlockHeader
+	Height() uint64
 }
 
 func getGroupReader() groupInfoReader {
@@ -200,21 +201,20 @@ func (api *RpcGzvImpl) Guardmode(addr string) (string, error) {
 		return "", fmt.Errorf("Wrong account address format")
 	}
 
-	fd ,err := core.MinerManagerImpl.GetFundGuard(addr)
-	if err != nil{
-		return "",err
+	fd, err := core.MinerManagerImpl.GetFundGuard(addr)
+	if err != nil {
+		return "", err
 	}
 	data := ""
-	if fd == nil{
+	if fd == nil {
 		data = "not fund gard"
-	} else if fd.FundModeType == common.SIXAddFive{
+	} else if fd.FundModeType == common.SIXAddFive {
 		data = "6+5"
-	}else{
+	} else {
 		data = "6+6"
 	}
-	return data,nil
+	return data, nil
 }
-
 
 func (api *RpcGzvImpl) MinerPoolInfo(addr string, height uint64) (*MinerPoolDetail, error) {
 	addr = strings.TrimSpace(addr)
@@ -514,4 +514,8 @@ func (api *RpcGzvImpl) GroupCheck(addr string) (*GroupCheckInfo, error) {
 func (api *RpcGzvImpl) CheckPointAt(h uint64) (*types.BlockHeader, error) {
 	cp := api.br.CheckPointAt(h)
 	return cp, nil
+}
+
+func (api *RpcGzvImpl) LatestCheckPoint() (*types.BlockHeader, error) {
+	return api.CheckPointAt(api.br.Height())
 }
