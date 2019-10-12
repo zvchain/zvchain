@@ -109,8 +109,8 @@ func InitBlockSyncer(chain *FullBlockChain) {
 }
 
 func (bs *blockSyncer) isSyncing() bool {
-	bs.lock.RLock()
-	defer bs.lock.RUnlock()
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
 
 	const (
 		blockBuffer = 50
@@ -228,9 +228,9 @@ func (bs *blockSyncer) addBlackWithOutLock(candidateID string) {
 }
 
 func (bs *blockSyncer) addBlackWithLock(candidateID string) {
-	bs.lock.RLock()
+	bs.lock.Lock()
 	delete(bs.candidatePool, candidateID)
-	bs.lock.RUnlock()
+	bs.lock.Unlock()
 	bs.addBlackProcess(candidateID)
 }
 
@@ -262,8 +262,8 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 }
 
 func (bs *blockSyncer) detectLowFork() (string, *types.BlockHeader) {
-	bs.lock.RLock()
-	defer bs.lock.RUnlock()
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
 	localTop := bs.chain.QueryTopBlock()
 
 	// Find a node in the candidate pool that is more than one epoch heights lower than the local
