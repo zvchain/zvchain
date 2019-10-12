@@ -47,7 +47,6 @@ func newLogFileWriter(fileName string, maxSize int64) *logFileWriter {
 func (p *logFileWriter) Fire(entry *logrus.Entry) error {
 	if p == nil {
 		return errors.New("logFileWriter is nil")
-
 	}
 	if p.file == nil {
 		return errors.New("file not opened")
@@ -96,7 +95,6 @@ func (p *logFileWriter) Fire(entry *logrus.Entry) error {
 func (p *logFileWriter) Write(data []byte) (n int, e error) {
 	if p == nil {
 		return 0, errors.New("logFileWriter is nil")
-
 	}
 	if p.file == nil {
 		return 0, errors.New("file not opened")
@@ -167,9 +165,7 @@ func (lrs *Logrusplus) Logger(fileName string, maxSize int64, level logrus.Level
 		} else {
 			logger.Info("Failed to log to file, using default stderr")
 		}
-
 		logger.SetLevel(level)
-
 		lrs.loggers[fileName] = logger
 	}
 

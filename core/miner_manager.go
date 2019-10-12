@@ -614,7 +614,7 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 }
 
 func (mm *MinerManager) genFundGuardNodes(accountDB types.AccountDB) {
-	for _, addr := range common.ExtractGuardNodes {
+	for _, addr := range types.GetGuardAddress() {
 		miner := &types.Miner{ID: addr.Bytes(), Type: types.MinerTypeProposal, Identity: types.MinerGuard, Status: types.MinerStatusPrepare, ApplyHeight: 0, Stake: 0}
 		bs, err := msgpack.Marshal(miner)
 		if err != nil {
