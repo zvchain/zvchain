@@ -18,6 +18,8 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"os"
@@ -40,6 +42,7 @@ import (
 
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 )
@@ -59,8 +62,12 @@ type Gzv struct {
 
 var globalGzv *Gzv
 
+
+
+
 // miner start miner node
 func (gzv *Gzv) miner(cfg *minerConfig) error {
+	types.ChainId = cfg.chainID
 	gzv.config = cfg
 	gzv.runtimeInit()
 	err := gzv.fullInit()
@@ -152,6 +159,7 @@ func (gzv *Gzv) Run() {
 	servicePort := mineCmd.Flag("port", "miner report or rpc service port").Short('p').Default("8101").Uint16()
 
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
+	disableReport := mineCmd.Flag("disablereport", "disable report.").Default("false").Bool()
 
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
@@ -228,7 +236,6 @@ func (gzv *Gzv) Run() {
 			cors:              *cors,
 			privateKey:        *privKey,
 		}
-
 		// Start miner
 		err := gzv.miner(cfg)
 		if err != nil {
@@ -236,6 +243,14 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
 			os.Exit(-1)
 		}
+		if !*disableReport {
+			go report.StartReport(gzv.account.Pk, common.GzvVersion, int(*chainID))
+		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"now":     time2.TSInstance.Now().UTC(),
+			"logType": "versionLog",
+			"version": common.GzvVersion,
+		}).Info("versionLog")
 		gzv.InitCha <- true
 	case clearCmd.FullCommand():
 		err := ClearBlock()

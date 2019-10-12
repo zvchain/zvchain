@@ -89,15 +89,15 @@ func calcReceiptsTree(receipts types.Receipts) common.Hash {
 
 func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisInfo) {
 	// FoundationContract
-	businessFoundationAddr := setupFoundationContract(stateDB, types.AdminAddr, businessFoundationToken, 1)
+	businessFoundationAddr := setupFoundationContract(stateDB, types.GetAdminAddr(), businessFoundationToken, 1)
 	stateDB.SetBalance(*businessFoundationAddr, big.NewInt(0).SetUint64(businessFoundationToken))
-	teamFoundationAddr := setupFoundationContract(stateDB, types.AdminAddr, teamFoundationToken, 2)
+	teamFoundationAddr := setupFoundationContract(stateDB, types.GetAdminAddr(), teamFoundationToken, 2)
 	stateDB.SetBalance(*teamFoundationAddr, big.NewInt(0).SetUint64(teamFoundationToken))
-	stateDB.SetNonce(types.AdminAddr, 2)
+	stateDB.SetNonce(types.GetAdminAddr(), 2)
 
 	// mining pool and circulates
-	stateDB.SetBalance(types.StakePlatformAddr, big.NewInt(0).SetUint64(stakePlatformToken))
-	stateDB.SetBalance(types.CirculatesAddr, big.NewInt(0).SetUint64(circulatesToken))
+	stateDB.SetBalance(types.GetStakePlatformAddr(), big.NewInt(0).SetUint64(stakePlatformToken))
+	stateDB.SetBalance(types.GetCirculatesAddr(), big.NewInt(0).SetUint64(circulatesToken))
 
 	// genesis balance: just for stakes two roles with minimum required value
 	genesisBalance := big.NewInt(0).SetUint64(4 * minimumStake())

@@ -104,7 +104,7 @@ func (v *VerifyMiner) processApplyGuard(op *applyGuardMinerOp, miner *types.Mine
 }
 
 func (n *NormalProposalMiner) checkStakeAdd(op *stakeAddOp, targetMiner *types.Miner) (error, types.ReceiptStatus) {
-	if op.addSource == op.addTarget || op.addSource == types.StakePlatformAddr {
+	if op.addSource == op.addTarget || op.addSource == types.GetStakePlatformAddr() {
 		return nil, types.RSSuccess
 	}
 	sourceMiner, err := getMiner(op.accountDB, op.addSource, types.MinerTypeProposal)
