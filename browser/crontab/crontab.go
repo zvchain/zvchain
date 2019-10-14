@@ -374,10 +374,20 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 		PreHeight:   preHight,
 		LocalHeight: bh.Height,
 	}
-	crontab.Produce(data)
-	crontab.ProduceReward(data)
-	crontab.ProcessPunishment(bh.Height)
+	go crontab.Produce(data)
+	go crontab.ProduceReward(data)
+	crontab.GochanPunishment(bh.Height)
 	return nil
+}
+func (crontab *Crontab) GochanPunishment(height uint64) {
+	if group.Punishment == nil {
+		return
+	}
+	punish := group.Punishment.Punish
+	groupPiece := group.Punishment.GroupPiece
+	if punish != nil || groupPiece != nil {
+		go crontab.ProcessPunishment(height)
+	}
 }
 
 func (crontab *Crontab) ProcessPunishment(height uint64) {
@@ -386,8 +396,7 @@ func (crontab *Crontab) ProcessPunishment(height uint64) {
 	}
 	punish := group.Punishment.Punish
 	groupPiece := group.Punishment.GroupPiece
-
-	fmt.Println("for ProcessPunishment,punish:", util.ObjectTojson(punish), ",piece:", util.ObjectTojson(groupPiece))
+	fmt.Println("for ProcessPunishment,punish:", util.ObjectTojson(punish), ",piece:", util.ObjectTojson(groupPiece), ",height:", height)
 	if punish != nil && punish.Height == height {
 		for _, addr := range punish.AddressList {
 			accounts := &models.AccountList{}
