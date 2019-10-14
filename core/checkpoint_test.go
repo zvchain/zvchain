@@ -20,6 +20,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/trie"
 	"math/big"
 	"math/rand"
@@ -122,6 +123,10 @@ type accountDB4CPTest struct {
 }
 
 func (db *accountDB4CPTest) CreateAccount(common.Address) {
+	panic("implement me")
+}
+
+func (db *accountDB4CPTest) GetStateObject(common.Address)account.AccAccesser{
 	panic("implement me")
 }
 

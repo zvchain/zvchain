@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 	"math"
 	"runtime"
 	"sync"
@@ -37,6 +38,15 @@ var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
 type MinerManager struct {
+	rootHash   common.Hash
+	lightAddrs []common.Address
+	heavyAddrs []common.Address
+	minerData sync.Map
+}
+
+type minerCache struct{
+	root common.Hash
+	miner *types.Miner
 }
 
 func initMinerManager() {
@@ -377,6 +387,70 @@ func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]
 	return fds, nil
 }
 
+func (mm *MinerManager) iteratorAddrsAndInCache(accountDB types.AccountDB, prefix []byte, height uint64) []common.Address {
+	addrs := make([]common.Address, 0)
+	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
+	for iter.Next() {
+		// finish the iterator
+		if !bytes.HasPrefix(iter.Key, prefix) {
+			break
+		}
+		addr := common.BytesToAddress(iter.Key[len(prefix):])
+		addrs = append(addrs, addr)
+	}
+	if bytes.Equal(prefix, common.PrefixPoolVerifier) {
+		mm.lightAddrs = addrs
+	} else {
+		mm.heavyAddrs = addrs
+	}
+	return addrs
+}
+
+func (mm *MinerManager) getAllMinerAddrs(mType types.MinerType, height uint64) []common.Address {
+	begin := time.Now()
+	defer func() {
+		Logger.Debugf("get all miners addrs cost %v", time.Since(begin).Seconds())
+	}()
+	accountDB, err := BlockChainImpl.AccountDBAt(height)
+	if err != nil {
+		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
+		return nil
+	}
+	accesser := accountDB.GetStateObject(common.MinerPoolAddr)
+	if accesser == nil {
+		Logger.Debugf("get state object nil,height = %v",height)
+		return nil
+	}
+	var prefix []byte
+	if types.IsVerifyRole(mType) {
+		prefix = common.PrefixPoolVerifier
+	} else {
+		prefix = common.PrefixPoolProposal
+	}
+	// if not equals root hash then init
+	if mm.rootHash == common.EmptyHash || mm.rootHash != accesser.GetRootHash() {
+		mm.rootHash = accesser.GetRootHash()
+		addrs := mm.iteratorAddrsAndInCache(accountDB, prefix, height)
+		return addrs
+	} else {
+		if bytes.Equal(prefix, common.PrefixPoolVerifier) {
+			if len(mm.lightAddrs) == 0 {
+				addrs := mm.iteratorAddrsAndInCache(accountDB, prefix, height)
+				return addrs
+			} else {
+				return mm.lightAddrs
+			}
+		}else{
+			if len(mm.heavyAddrs) == 0 {
+				addrs := mm.iteratorAddrsAndInCache(accountDB, prefix, height)
+				return addrs
+			}else{
+				return mm.heavyAddrs
+			}
+		}
+	}
+}
+
 // GetAllMiners returns all miners of the the specified type at the given height
 func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
 	begin := time.Now()
@@ -389,43 +463,67 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return nil
 	}
-	var prefix []byte
-	if types.IsVerifyRole(mType) {
-		prefix = common.PrefixPoolVerifier
-	} else {
-		prefix = common.PrefixPoolProposal
+	addrs := mm.getAllMinerAddrs(mType,height)
+	if len(addrs) == 0 {
+		return nil
 	}
-	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
-	addrs := make([]common.Address, 0)
-	for iter.Next() {
-		// finish the iterator
-		if !bytes.HasPrefix(iter.Key, prefix) {
-			break
-		}
-		addr := common.BytesToAddress(iter.Key[len(prefix):])
-		addrs = append(addrs, addr)
-	}
-
 	miners := make([]*types.Miner, len(addrs))
-
+	stateObjects := make([]account.AccAccesser, len(addrs))
 	Logger.Debugf("get all miners len %v, type %v, height %v", len(addrs), mType, height)
 	atErr := atomic.Value{}
-
+	getStateObjectFun := func(begin,end int){
+		for i := begin; i < end; i++ {
+			stateObject := accountDB.GetStateObject(addrs[i])
+			if stateObject == nil {
+				err = fmt.Errorf("get miner error,because stateObject is nil, addr %v", addrs[i].AddrPrefixString())
+				atErr.Store(err)
+				return
+			}
+			stateObjects[i] = stateObject
+			if atErr.Load() != nil {
+				break
+			}
+		}
+		return
+	}
 	// Get miners concurrently, and the order of the result must be kept as it is in the addrs slice
 	getMinerFunc := func(begin, end int) {
 		for i := begin; i < end; i++ {
-			miner, err := getMiner(accountDB, addrs[i], mType)
+			var (
+				miner *types.Miner
+				err error
+				needToCache bool
+			)
+
+			obj, ok := mm.minerData.Load(stateObjects[i].GetAddr())
+			if ok {
+				mc := obj.(*minerCache)
+				if mc.root == stateObjects[i].GetRootHash(){
+					miner = mc.miner
+				}else{
+					miner, err = getMinerFromStateObject(accountDB.Database(), stateObjects[i], mType)
+					needToCache= true
+				}
+			}else{
+				miner, err = getMinerFromStateObject(accountDB.Database(), stateObjects[i], mType)
+				needToCache= true
+			}
 			if err != nil {
 				Logger.Errorf("get miner error, addr %v, err %v", addrs[i].AddrPrefixString(), err)
 				atErr.Store(err)
 				return
 			}
 			if miner == nil {
-				Logger.Errorf("get miner nil, addr %v", addrs[i].AddrPrefixString())
-				atErr.Store(fmt.Errorf("get miner nil:%v", addrs[i].AddrPrefixString()))
+				err = fmt.Errorf("get miner nil:%v", addrs[i].AddrPrefixString())
+				Logger.Error(err)
+				atErr.Store(err)
 				return
 			} else {
 				miners[i] = miner
+			}
+			if needToCache{
+				mc := &minerCache{root:stateObjects[i].GetRootHash(),miner:miner}
+				mm.minerData.Store(stateObjects[i].GetAddr(),mc)
 			}
 			if atErr.Load() != nil {
 				break
@@ -447,6 +545,28 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		b, e := begin, end
 		go func() {
 			defer wg.Done()
+			getStateObjectFun(b, e)
+			Logger.Debugf("get all state object finished, range %v-%v, err:%v, height:%v", b, e, err, height)
+		}()
+		begin = end
+	}
+	wg.Wait()
+
+	if e := atErr.Load(); e != nil {
+		Logger.Errorf("get all miner error:%v", e)
+		return nil
+	}
+	Logger.Debugf("get all state object finished, height:%v,cost %v", height,time.Since(begin).Seconds())
+	wg = sync.WaitGroup{}
+	for begin := 0; begin < len(addrs); {
+		end := begin + step
+		if end > len(addrs) {
+			end = len(addrs)
+		}
+		wg.Add(1)
+		b, e := begin, end
+		go func() {
+			defer wg.Done()
 			getMinerFunc(b, e)
 			Logger.Debugf("get all miner partly finished, range %v-%v, err:%v, height:%v", b, e, err, height)
 		}()
@@ -458,7 +578,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		Logger.Errorf("get all miner error:%v", e)
 		return nil
 	}
-
+	Logger.Debugf("get all miner partly finished, height:%v,cost %v",height,time.Since(begin).Seconds())
 	return miners
 }
 
