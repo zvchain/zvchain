@@ -18,6 +18,7 @@ package core
 import (
 	"bytes"
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
@@ -37,19 +38,26 @@ var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
 type MinerManager struct {
-	rootHash   common.Hash
+	lightRootHash   common.Hash
+	heavyRootHash   common.Hash
 	lightAddrs []common.Address
 	heavyAddrs []common.Address
-	minerData sync.Map
+	minerData *lru.Cache
+	lightLock sync.RWMutex
+	heavyLock sync.RWMutex
 }
 
 type minerCache struct{
-	root common.Hash
-	miner *types.Miner
+	lightRoot common.Hash
+	heavyRoot common.Hash
+	lightMiner *types.Miner
+	heavyMiner *types.Miner
 }
 
 func initMinerManager() {
-	MinerManagerImpl = &MinerManager{}
+	MinerManagerImpl = &MinerManager{
+		minerData:common.MustNewLRUCache(100000),
+	}
 }
 
 // GuardNodesCheck check guard nodes is expired
@@ -386,7 +394,13 @@ func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]
 	return fds, nil
 }
 
-func (mm *MinerManager) iteratorAddrsAndInCache(accountDB types.AccountDB, prefix []byte, height uint64) []common.Address {
+func (mm *MinerManager) iteratorAddrs(accountDB types.AccountDB, mType types.MinerType, height uint64) []common.Address {
+	var prefix []byte
+	if types.IsVerifyRole(mType) {
+		prefix = common.PrefixPoolVerifier
+	} else {
+		prefix = common.PrefixPoolProposal
+	}
 	addrs := make([]common.Address, 0)
 	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
 	for iter.Next() {
@@ -397,79 +411,73 @@ func (mm *MinerManager) iteratorAddrsAndInCache(accountDB types.AccountDB, prefi
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
 		addrs = append(addrs, addr)
 	}
-	if bytes.Equal(prefix, common.PrefixPoolVerifier) {
-		mm.lightAddrs = addrs
-	} else {
-		mm.heavyAddrs = addrs
-	}
 	return addrs
 }
 
-func (mm *MinerManager) getAllMinerAddrs(mType types.MinerType, height uint64) []common.Address {
+func (mm *MinerManager) getAndSetAllMinerAddrs(accountDB types.AccountDB,mType types.MinerType, height uint64) []common.Address {
 	begin := time.Now()
 	defer func() {
 		Logger.Debugf("get all miners addrs cost %v", time.Since(begin).Seconds())
 	}()
-	accountDB, err := BlockChainImpl.AccountDBAt(height)
-	if err != nil {
-		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
-		return nil
-	}
+
 	accesser := accountDB.GetStateObject(common.MinerPoolAddr)
 	if accesser == nil {
 		Logger.Debugf("get state object nil,height = %v",height)
 		return nil
 	}
-	var prefix []byte
-	if types.IsVerifyRole(mType) {
-		prefix = common.PrefixPoolVerifier
-	} else {
-		prefix = common.PrefixPoolProposal
-	}
-	// if not equals root hash then init
-	if mm.rootHash == common.EmptyHash || mm.rootHash != accesser.GetRootHash() {
-		mm.rootHash = accesser.GetRootHash()
-		addrs := mm.iteratorAddrsAndInCache(accountDB, prefix, height)
-		return addrs
-	} else {
-		if bytes.Equal(prefix, common.PrefixPoolVerifier) {
-			if len(mm.lightAddrs) == 0 {
-				addrs := mm.iteratorAddrsAndInCache(accountDB, prefix, height)
-				return addrs
-			} else {
-				return mm.lightAddrs
-			}
+	if types.IsVerifyRole(mType){
+		if mm.lightRootHash == common.EmptyHash || mm.lightRootHash != accesser.GetRootHash(){
+			mm.lightRootHash = accesser.GetRootHash()
+			mm.lightAddrs = mm.iteratorAddrs(accountDB,mType, height)
 		}else{
-			if len(mm.heavyAddrs) == 0 {
-				addrs := mm.iteratorAddrsAndInCache(accountDB, prefix, height)
-				return addrs
-			}else{
-				return mm.heavyAddrs
-			}
+			Logger.Debugf("hit address cache,type is %v,height is %v",mType,height)
 		}
+		return  mm.lightAddrs
+	}else{
+		if mm.heavyRootHash == common.EmptyHash || mm.heavyRootHash != accesser.GetRootHash(){
+			mm.heavyRootHash = accesser.GetRootHash()
+			mm.heavyAddrs = mm.iteratorAddrs(accountDB,mType, height)
+		}else{
+			Logger.Debugf("hit address cache,type is %v,height is %v",mType,height)
+		}
+		return mm.heavyAddrs
 	}
 }
 
 
 // GetAllMiners returns all miners of the the specified type at the given height
 func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
+	if types.IsVerifyRole(mType){
+		mm.lightLock.Lock()
+	}else{
+		mm.heavyLock.Lock()
+	}
+
+	defer func(){
+		if types.IsVerifyRole(mType){
+			mm.lightLock.Unlock()
+		}else{
+			mm.heavyLock.Unlock()
+		}
+	}()
+
 	begin := time.Now()
 	defer func() {
 		Logger.Debugf("get all miners cost %v", time.Since(begin).Seconds())
 	}()
-
 	accountDB, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
 		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return nil
 	}
-	addrs := mm.getAllMinerAddrs(mType,height)
+	addrs := mm.getAndSetAllMinerAddrs(accountDB,mType,height)
 	if len(addrs) == 0 {
 		return nil
 	}
 	miners := make([]*types.Miner, len(addrs))
 	Logger.Debugf("get all miners len %v, type %v, height %v", len(addrs), mType, height)
 	atErr := atomic.Value{}
+	var missCount uint64 = 0
 	// Get miners concurrently, and the order of the result must be kept as it is in the addrs slice
 	getMinerFunc := func(begin, end int) {
 		for i := begin; i < end; i++ {
@@ -484,12 +492,13 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 				atErr.Store(err)
 				return
 			}
-
-			obj, ok := mm.minerData.Load(stateObject.GetAddr())
+			obj, ok := mm.minerData.Get(stateObject.GetAddr())
 			if ok {
 				mc := obj.(*minerCache)
-				if mc.root == stateObject.GetRootHash(){
-					miner = mc.miner
+				if mc.lightRoot != common.EmptyHash && types.IsVerifyRole(mType) && mc.lightRoot == stateObject.GetRootHash() && mc.lightMiner != nil{
+					miner = mc.lightMiner
+				}else if mc.heavyRoot != common.EmptyHash && types.IsProposalRole(mType) && mc.heavyRoot == stateObject.GetRootHash() && mc.heavyMiner != nil{
+					miner = mc.heavyMiner
 				}else{
 					miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
 					needToCache= true
@@ -512,8 +521,15 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 				miners[i] = miner
 			}
 			if needToCache{
-				mc := &minerCache{root:stateObject.GetRootHash(),miner:miner}
-				mm.minerData.Store(stateObject.GetAddr(),mc)
+				atomic.AddUint64(&missCount,1)
+				var mc *minerCache
+				if types.IsVerifyRole(mType) {
+					mc = &minerCache{lightRoot:stateObject.GetRootHash(),lightMiner:miner}
+					mm.minerData.Add(stateObject.GetAddr(),mc)
+				}else{
+					mc := &minerCache{heavyRoot:stateObject.GetRootHash(),heavyMiner:miner}
+					mm.minerData.Add(stateObject.GetAddr(),mc)
+				}
 			}
 			if atErr.Load() != nil {
 				break
@@ -545,7 +561,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		Logger.Errorf("get all miner error:%v", e)
 		return nil
 	}
-	Logger.Debugf("get all miner partly finished, height:%v,cost %v",height,time.Since(begin).Seconds())
+	Logger.Debugf("get all miner partly finished, height:%v,cost %v,misscount is %v",height,time.Since(begin).Seconds(),atomic.LoadUint64(&missCount))
 	return miners
 }
 
