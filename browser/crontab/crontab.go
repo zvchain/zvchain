@@ -388,14 +388,14 @@ func (crontab *Crontab) ProcessPunishment(height uint64) {
 	groupPiece := group.Punishment.GroupPiece
 
 	fmt.Println("for ProcessPunishment,punish:", util.ObjectTojson(punish), ",piece:", util.ObjectTojson(groupPiece))
-	if punish.Height == height {
+	if punish != nil && punish.Height == height {
 		for _, addr := range punish.AddressList {
 			accounts := &models.AccountList{}
 			accounts.Address = addr
 			browser.UpdateAccountStake(accounts, 0, crontab.storage)
 		}
 	}
-	if groupPiece.Height == height {
+	if groupPiece != nil && groupPiece.Height == height {
 		for _, addr := range groupPiece.AddressList {
 			accounts := &models.AccountList{}
 			accounts.Address = addr
