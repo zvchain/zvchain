@@ -22,7 +22,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
 	"math"
 	"runtime"
 	"sync"
@@ -451,6 +450,7 @@ func (mm *MinerManager) getAllMinerAddrs(mType types.MinerType, height uint64) [
 	}
 }
 
+
 // GetAllMiners returns all miners of the the specified type at the given height
 func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
 	begin := time.Now()
@@ -468,24 +468,8 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		return nil
 	}
 	miners := make([]*types.Miner, len(addrs))
-	stateObjects := make([]account.AccAccesser, len(addrs))
 	Logger.Debugf("get all miners len %v, type %v, height %v", len(addrs), mType, height)
 	atErr := atomic.Value{}
-	getStateObjectFun := func(begin,end int){
-		for i := begin; i < end; i++ {
-			stateObject := accountDB.GetStateObject(addrs[i])
-			if stateObject == nil {
-				err = fmt.Errorf("get miner error,because stateObject is nil, addr %v", addrs[i].AddrPrefixString())
-				atErr.Store(err)
-				return
-			}
-			stateObjects[i] = stateObject
-			if atErr.Load() != nil {
-				break
-			}
-		}
-		return
-	}
 	// Get miners concurrently, and the order of the result must be kept as it is in the addrs slice
 	getMinerFunc := func(begin, end int) {
 		for i := begin; i < end; i++ {
@@ -494,18 +478,24 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 				err error
 				needToCache bool
 			)
+			stateObject := accountDB.GetStateObject(addrs[i])
+			if stateObject == nil {
+				err = fmt.Errorf("get miner error,because stateObject is nil, addr %v", addrs[i].AddrPrefixString())
+				atErr.Store(err)
+				return
+			}
 
-			obj, ok := mm.minerData.Load(stateObjects[i].GetAddr())
+			obj, ok := mm.minerData.Load(stateObject.GetAddr())
 			if ok {
 				mc := obj.(*minerCache)
-				if mc.root == stateObjects[i].GetRootHash(){
+				if mc.root == stateObject.GetRootHash(){
 					miner = mc.miner
 				}else{
-					miner, err = getMinerFromStateObject(accountDB.Database(), stateObjects[i], mType)
+					miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
 					needToCache= true
 				}
 			}else{
-				miner, err = getMinerFromStateObject(accountDB.Database(), stateObjects[i], mType)
+				miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
 				needToCache= true
 			}
 			if err != nil {
@@ -522,8 +512,8 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 				miners[i] = miner
 			}
 			if needToCache{
-				mc := &minerCache{root:stateObjects[i].GetRootHash(),miner:miner}
-				mm.minerData.Store(stateObjects[i].GetAddr(),mc)
+				mc := &minerCache{root:stateObject.GetRootHash(),miner:miner}
+				mm.minerData.Store(stateObject.GetAddr(),mc)
 			}
 			if atErr.Load() != nil {
 				break
@@ -535,29 +525,6 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	parallel := runtime.NumCPU() * 2
 	step := int(math.Ceil(float64(len(addrs)) / float64(parallel)))
 	wg := sync.WaitGroup{}
-
-	for begin := 0; begin < len(addrs); {
-		end := begin + step
-		if end > len(addrs) {
-			end = len(addrs)
-		}
-		wg.Add(1)
-		b, e := begin, end
-		go func() {
-			defer wg.Done()
-			getStateObjectFun(b, e)
-			Logger.Debugf("get all state object finished, range %v-%v, err:%v, height:%v", b, e, err, height)
-		}()
-		begin = end
-	}
-	wg.Wait()
-
-	if e := atErr.Load(); e != nil {
-		Logger.Errorf("get all miner error:%v", e)
-		return nil
-	}
-	Logger.Debugf("get all state object finished, height:%v,cost %v", height,time.Since(begin).Seconds())
-	wg = sync.WaitGroup{}
 	for begin := 0; begin < len(addrs); {
 		end := begin + step
 		if end > len(addrs) {
