@@ -112,7 +112,7 @@ func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
 			if !tm.storage.AddObjects(accounts) {
 				return
 			}
-			tm.UpdateAccountStake(accounts, 0)
+			UpdateAccountStake(accounts, 0, tm.storage)
 		}
 	}
 }
@@ -246,7 +246,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 				for aa, _ := range set.M {
 					account.Address = aa.(string)
 
-					tm.UpdateAccountStake(account, 0)
+					UpdateAccountStake(account, 0, tm.storage)
 				}
 			}
 			for address, _ := range PoolList {
@@ -598,7 +598,7 @@ func GetStakeFrom(address common.Address) string {
 	return strings.Trim(stakeFrom, ",")
 }
 
-func (tm *DBMmanagement) UpdateAccountStake(account *models.AccountList, height uint64) {
+func UpdateAccountStake(account *models.AccountList, height uint64, storage *mysql.Storage) {
 	if account == nil {
 		return
 	}
@@ -625,7 +625,7 @@ func (tm *DBMmanagement) UpdateAccountStake(account *models.AccountList, height 
 		mapcolumn["proposal_frozen_stake"] = frozensAndtakefrom.ProposalFrozen
 		mapcolumn["verify_frozen_stake"] = frozensAndtakefrom.VerifyFrozen
 
-		tm.storage.UpdateAccountByColumn(account, mapcolumn)
+		storage.UpdateAccountByColumn(account, mapcolumn)
 	}
 }
 

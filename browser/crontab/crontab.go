@@ -3,6 +3,7 @@ package crontab
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zvchain/zvchain/browser"
 	common2 "github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
@@ -10,6 +11,7 @@ import (
 	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"strconv"
@@ -64,8 +66,6 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	server.addGenisisblock()
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
-	//server.consumeReward(3, 2)
-
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
@@ -374,10 +374,34 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 		PreHeight:   preHight,
 		LocalHeight: bh.Height,
 	}
-	go crontab.Produce(data)
-	go crontab.ProduceReward(data)
-
+	crontab.Produce(data)
+	crontab.ProduceReward(data)
+	crontab.ProcessPunishment(bh.Height)
 	return nil
+}
+
+func (crontab *Crontab) ProcessPunishment(height uint64) {
+	if group.Punishment == nil {
+		return
+	}
+	punish := group.Punishment.Punish
+	groupPiece := group.Punishment.GroupPiece
+
+	fmt.Println("for ProcessPunishment,punish:", util.ObjectTojson(punish), ",piece:", util.ObjectTojson(groupPiece))
+	if punish.Height == height {
+		for _, addr := range punish.AddressList {
+			accounts := &models.AccountList{}
+			accounts.Address = addr
+			browser.UpdateAccountStake(accounts, 0, crontab.storage)
+		}
+	}
+	if groupPiece.Height == height {
+		for _, addr := range groupPiece.AddressList {
+			accounts := &models.AccountList{}
+			accounts.Address = addr
+			browser.UpdateAccountStake(accounts, 0, crontab.storage)
+		}
+	}
 }
 
 func (crontab *Crontab) addGenisisblock() {
