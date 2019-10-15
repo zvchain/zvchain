@@ -167,7 +167,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		CompactionTableSize:           4 * opt.MiB,
 		CompactionTableSizeMultiplier: 2,
 		CompactionTotalSize:           16 * opt.MiB,
-		BlockSize:                     64 * opt.KiB,
+		BlockSize:                     1 * opt.KiB,
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
