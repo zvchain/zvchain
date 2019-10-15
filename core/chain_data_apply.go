@@ -54,12 +54,13 @@ func NewBlockChainByDB(db string) (*FullBlockChain, error) {
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        100,
 		BlockCacheCapacity:            16 * opt.MiB,
-		WriteBuffer:                   512 * opt.MiB, // Two of these are used internally
+		WriteBuffer:                   16 * opt.MiB, // Two of these are used internally
 		Filter:                        filter.NewBloomFilter(10),
 		CompactionTableSize:           4 * opt.MiB,
 		CompactionTableSizeMultiplier: 2,
 		CompactionTotalSize:           16 * opt.MiB,
 		BlockSize:                     64 * opt.KiB,
+		ReadOnly:                      true,
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
