@@ -60,6 +60,12 @@ func (s Storage) Copy() Storage {
 	return cpy
 }
 
+type AccAccesser interface {
+	GetData(db AccountDatabase, key []byte) []byte
+	GetRootHash() common.Hash
+	GetAddr() common.Address
+}
+
 // accountObject represents an account which is being modified.
 //
 // The usage pattern is as follows:
@@ -172,6 +178,15 @@ func (ao *accountObject) getTrie(db AccountDatabase) Trie {
 		ao.trie = tr
 	}
 	return ao.trie
+}
+
+
+func (ao *accountObject) GetRootHash() common.Hash{
+	return ao.data.Root
+}
+
+func (ao *accountObject) GetAddr() common.Address{
+	return ao.address
 }
 
 // GetData retrieves a value from the account storage trie.

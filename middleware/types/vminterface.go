@@ -19,6 +19,7 @@
 package types
 
 import (
+	"github.com/zvchain/zvchain/storage/account"
 	"math/big"
 
 	"github.com/zvchain/zvchain/common"
@@ -43,6 +44,7 @@ type AccountDB interface {
 	AddRefund(uint64)
 	GetRefund() uint64
 
+	GetStateObject(common.Address)account.AccAccesser
 	GetData(common.Address, []byte) []byte
 	SetData(common.Address, []byte, []byte)
 	RemoveData(common.Address, []byte)
@@ -60,6 +62,8 @@ type AccountDB interface {
 
 	Transfer(common.Address, common.Address, *big.Int)
 	CanTransfer(common.Address, *big.Int) bool
+
+	Database() account.AccountDatabase
 }
 
 type ChainReader interface {
