@@ -534,6 +534,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	parallel := runtime.NumCPU() * 2
 	step := int(math.Ceil(float64(len(addrs)) / float64(parallel)))
 	wg := sync.WaitGroup{}
+
 	for begin := 0; begin < len(addrs); {
 		end := begin + step
 		if end > len(addrs) {

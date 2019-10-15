@@ -232,6 +232,57 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	BlockChainImpl.Close()
 }
 
+func TestBalanceLackFork(t *testing.T){
+	err := initContext4Test(t)
+	defer clearSelf(t)
+	if err != nil {
+		t.Fatalf("failed to initContext4Test")
+	}
+
+	initBalance()
+	block0 := BlockChainImpl.QueryTopBlock()
+
+	nonce := uint64(1)
+	tx := genTestTx(500, "100", nonce, (100000000 - 1)*common.ZVC)
+
+	txpool := BlockChainImpl.GetTransactionPool()
+	_, err = txpool.AddTransaction(tx)
+
+	if err != nil {
+		t.Fatalf("fail to AddTransaction %v", err)
+	}
+
+	castor := new([]byte)
+	groupid := common.HexToHash("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff4")
+	block1 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 0, *castor, groupid)
+	time.Sleep(time.Second * 2)
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block1) {
+		t.Fatalf("fail to add block")
+	}
+
+	// resetTop to make sure block2 can pack the tx and tx2
+	_ = BlockChainImpl.resetTop(block0)
+	tx2 := genTestTx(500, "100", nonce+1, 1)
+	_, err = txpool.AddTransaction(tx2)
+	if err != nil {
+		t.Fatalf("fail to AddTransaction %v", err)
+	}
+	block2 := BlockChainImpl.CastBlock(1, common.Hex2Bytes("12"), 1, *castor, groupid)
+	time.Sleep(time.Second * 2)
+
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block1) {
+		t.Fatalf("fail to add block1")
+	}
+
+	if types.AddBlockSucc != BlockChainImpl.AddBlockOnChain(source, block2) {
+		t.Fatalf("fail to add block2")
+	}
+	lastTop := BlockChainImpl.QueryTopBlock()
+	if lastTop.Hash != block2.Header.Hash {
+		t.Fatalf("should fork to block2, but not")
+	}
+}
+
 func TestBlockChain_CastingBlock(t *testing.T) {
 	err := initContext4Test(t)
 	if err != nil {
