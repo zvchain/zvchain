@@ -62,9 +62,6 @@ type Gzv struct {
 
 var globalGzv *Gzv
 
-
-
-
 // miner start miner node
 func (gzv *Gzv) miner(cfg *minerConfig) error {
 	types.ChainId = cfg.chainID
@@ -100,6 +97,14 @@ func (gzv *Gzv) miner(cfg *minerConfig) error {
 	gzv.inited = true
 	if !ok {
 		return fmt.Errorf("start miner fail")
+	}
+	dbApply := common.GlobalConf.GetString("chain", "db_apply", "")
+	if dbApply != "" {
+		chain2, err := core.NewBlockChainByDB(dbApply)
+		if err != nil {
+			panic(err)
+		}
+		core.BlockChainImpl.ApplyChain(chain2)
 	}
 	return nil
 }

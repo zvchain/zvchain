@@ -244,6 +244,14 @@ func TestRoot(t *testing.T) {
 	account.updateRoot(s.state.db)
 	t.Log("root after update2", account.data.Root)
 
+	account.setData([]byte("2"), []byte("1323424"))
+	account.updateRoot(s.state.db)
+	t.Log("root after update3", account.data.Root)
+
+	account.setData([]byte("2"), []byte("13"))
+	account.updateRoot(s.state.db)
+	t.Log("root after update3", account.data.Root)
+
 	account.setBalance(new(big.Int).SetUint64(10))
 	account.updateRoot(s.state.db)
 	t.Log("root after set balance", account.data.Root)
