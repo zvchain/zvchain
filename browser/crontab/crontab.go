@@ -156,22 +156,22 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 		block := blocks[i]
 		verifications := make([]*models.Reward, 0, 0)
 		if block.ProposalReward > 0 {
-			mort := getMinerDetail(block.ProposalID, block.BlockHeight, types.MinerTypeProposal)
+			//mort := getMinerDetail(block.ProposalID, block.BlockHeight, types.MinerTypeProposal)
 			proposalReward := &models.Reward{
-				Type:         uint64(types.MinerTypeProposal),
-				BlockHash:    block.BlockHash,
-				BlockHeight:  block.BlockHeight,
-				NodeId:       block.ProposalID,
-				Value:        block.ProposalReward,
-				RoleType:     uint64(mort.Identity),
+				Type:        uint64(types.MinerTypeProposal),
+				BlockHash:   block.BlockHash,
+				BlockHeight: block.BlockHeight,
+				NodeId:      block.ProposalID,
+				Value:       block.ProposalReward,
+				//RoleType:     uint64(mort.Identity),
 				CurTime:      block.CurTime,
 				RewardHeight: localHeight,
 				GasFee:       float64(block.ProposalGasFeeReward),
 			}
-			if mort != nil {
-				proposalReward.Stake = mort.Stake
-				proposalReward.RoleType = uint64(mort.Identity)
-			}
+			//if mort != nil {
+			//	proposalReward.Stake = mort.Stake
+			//	proposalReward.RoleType = uint64(mort.Identity)
+			//}
 			verifications = append(verifications, proposalReward)
 
 		}
@@ -195,11 +195,11 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 				v.Type = uint64(types.MinerTypeVerify)
 				v.RewardHeight = localHeight
 				v.GasFee = rewarMoney
-				mort := getMinerDetail(v.NodeId, block.BlockHeight, types.MinerTypeVerify)
-				if mort != nil {
-					v.Stake = mort.Stake
-					v.RoleType = uint64(mort.Identity)
-				}
+				//mort := getMinerDetail(v.NodeId, block.BlockHeight, types.MinerTypeVerify)
+				//if mort != nil {
+				//	v.Stake = mort.Stake
+				//	v.RoleType = uint64(mort.Identity)
+				//}
 				verifications = append(verifications, &v)
 			}
 			blo := &models.Block{}
@@ -284,15 +284,18 @@ func (crontab *Crontab) excuteBlockRewards() {
 	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
 	beginTime := time.Now()
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
+
 	if rewards != nil && len(rewards) > 0 {
 		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
 		mapMineBlockCount := blockrewarddata.MapMineBlockCount
+
 		mapbalance := make(map[string]float64)
+		var balance float64
 
 		for k := range accounts {
-			balance := crontab.fetcher.Fetchbalance(k)
+			balance = crontab.fetcher.Fetchbalance(k)
 			mapbalance[k] = balance
 		}
 		if crontab.storage.AddBlockRewardMysqlTransaction(accounts,
@@ -308,6 +311,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 		fmt.Println("[crontab]  fetchBlockRewards rewards nil:", crontab.blockRewardHeight)
 		crontab.excuteBlockRewards()
 	}
+
 }
 
 func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
