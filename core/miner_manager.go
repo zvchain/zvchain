@@ -38,24 +38,27 @@ var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
 type MinerManager struct {
-	verifyRootHash   common.Hash
-	proposalRootHash   common.Hash
-	verifyAddrs []common.Address
-	proposalAddrs []common.Address
-	verifyMinerData *lru.Cache
-	proposalMinerData *lru.Cache
-	lock sync.RWMutex
+	verifyAddrsCache   *minerAddressCache
+	proposalAddrsCache *minerAddressCache
+	verifyMinerData    *lru.Cache
+	proposalMinerData  *lru.Cache
+	lock               sync.RWMutex
 }
 
-type minerCache struct{
+type minerAddressCache struct {
 	rootHash common.Hash
-	miner *types.Miner
+	addrs    []common.Address
+}
+
+type minerCache struct {
+	rootHash common.Hash
+	miner    *types.Miner
 }
 
 func initMinerManager() {
 	MinerManagerImpl = &MinerManager{
-		verifyMinerData:common.MustNewLRUCache(10000),
-		proposalMinerData:common.MustNewLRUCache(10000),
+		verifyMinerData:   common.MustNewLRUCache(10000),
+		proposalMinerData: common.MustNewLRUCache(10000),
 	}
 }
 
@@ -413,7 +416,7 @@ func (mm *MinerManager) iteratorAddrs(accountDB types.AccountDB, mType types.Min
 	return addrs
 }
 
-func (mm *MinerManager) getAndSetAllMinerAddrs(accountDB types.AccountDB,mType types.MinerType, height uint64) []common.Address {
+func (mm *MinerManager) getAndSetAllMinerAddrs(accountDB types.AccountDB, mType types.MinerType, height uint64) []common.Address {
 	begin := time.Now()
 	defer func() {
 		Logger.Debugf("get all miners addrs cost %v", time.Since(begin).Seconds())
@@ -421,28 +424,32 @@ func (mm *MinerManager) getAndSetAllMinerAddrs(accountDB types.AccountDB,mType t
 
 	accesser := accountDB.GetStateObject(common.MinerPoolAddr)
 	if accesser == nil {
-		Logger.Debugf("get state object nil,height = %v",height)
+		Logger.Debugf("get state object nil,height = %v", height)
 		return nil
 	}
-	if types.IsVerifyRole(mType){
-		if mm.verifyRootHash != accesser.GetRootHash(){
-			mm.verifyRootHash = accesser.GetRootHash()
-			mm.verifyAddrs = mm.iteratorAddrs(accountDB,mType, height)
-		}else{
-			Logger.Debugf("hit address cache,type is %v,height is %v",mType,height)
-		}
-		return  mm.verifyAddrs
-	}else{
-		if mm.proposalRootHash != accesser.GetRootHash(){
-			mm.proposalRootHash = accesser.GetRootHash()
-			mm.proposalAddrs = mm.iteratorAddrs(accountDB,mType, height)
-		}else{
-			Logger.Debugf("hit address cache,type is %v,height is %v",mType,height)
-		}
-		return mm.proposalAddrs
+	var mac *minerAddressCache
+	if types.IsVerifyRole(mType) {
+		mac = mm.verifyAddrsCache
+	} else {
+		mac = mm.proposalAddrsCache
 	}
+	if mac == nil {
+		mac = &minerAddressCache{}
+	}
+	if accesser.GetRootHash() != mac.rootHash {
+		addrs := mm.iteratorAddrs(accountDB, mType, height)
+		mac.rootHash = accesser.GetRootHash()
+		mac.addrs = addrs
+		if types.IsVerifyRole(mType) {
+			mm.verifyAddrsCache = mac
+		} else {
+			mm.proposalAddrsCache = mac
+		}
+	} else {
+		Logger.Debugf("hit address cache,type is %v,height is %v", mType, height)
+	}
+	return mac.addrs
 }
-
 
 // GetAllMiners returns all miners of the the specified type at the given height
 func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
@@ -457,7 +464,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return nil
 	}
-	addrs := mm.getAndSetAllMinerAddrs(accountDB,mType,height)
+	addrs := mm.getAndSetAllMinerAddrs(accountDB, mType, height)
 	if len(addrs) == 0 {
 		return nil
 	}
@@ -469,11 +476,11 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	getMinerFunc := func(begin, end int) {
 		for i := begin; i < end; i++ {
 			var (
-				miner *types.Miner
-				err error
+				miner       *types.Miner
+				err         error
 				needToCache bool
-				mc *minerCache
-				cache *lru.Cache
+				mc          *minerCache
+				cache       *lru.Cache
 			)
 			stateObject := accountDB.GetStateObject(addrs[i])
 			if stateObject == nil {
@@ -483,21 +490,21 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 			}
 			if types.IsVerifyRole(mType) {
 				cache = mm.verifyMinerData
-			}else{
+			} else {
 				cache = mm.proposalMinerData
 			}
-			obj,ok := cache.Get(stateObject.GetAddr())
+			obj, ok := cache.Get(stateObject.GetAddr())
 			if ok {
 				mc = obj.(*minerCache)
-				if mc.rootHash == stateObject.GetRootHash() && mc.miner != nil{
+				if mc.rootHash == stateObject.GetRootHash() && mc.miner != nil {
 					miner = mc.miner
-				}else{
+				} else {
 					miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
-					needToCache= true
+					needToCache = true
 				}
-			}else{
+			} else {
 				miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
-				needToCache= true
+				needToCache = true
 			}
 			if err != nil {
 				Logger.Errorf("get miner error, addr %v, err %v", addrs[i].AddrPrefixString(), err)
@@ -515,10 +522,10 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 			if atErr.Load() != nil {
 				break
 			}
-			if needToCache{
-				atomic.AddUint64(&missCount,1)
-				mc = &minerCache{rootHash:stateObject.GetRootHash(),miner:miner}
-				cache.Add(stateObject.GetAddr(),mc)
+			if needToCache {
+				atomic.AddUint64(&missCount, 1)
+				mc = &minerCache{rootHash: stateObject.GetRootHash(), miner: miner}
+				cache.Add(stateObject.GetAddr(), mc)
 			}
 		}
 		return
@@ -527,6 +534,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	parallel := runtime.NumCPU() * 2
 	step := int(math.Ceil(float64(len(addrs)) / float64(parallel)))
 	wg := sync.WaitGroup{}
+
 	for begin := 0; begin < len(addrs); {
 		end := begin + step
 		if end > len(addrs) {
@@ -547,7 +555,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		Logger.Errorf("get all miner error:%v", e)
 		return nil
 	}
-	Logger.Debugf("get all miner partly finished, height:%v,cost %v,misscount is %v",height,time.Since(begin).Seconds(),atomic.LoadUint64(&missCount))
+	Logger.Debugf("get all miner partly finished, height:%v,cost %v,misscount is %v", height, time.Since(begin).Seconds(), atomic.LoadUint64(&missCount))
 	return miners
 }
 
