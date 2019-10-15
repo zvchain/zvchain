@@ -38,25 +38,24 @@ var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
 type MinerManager struct {
-	lightRootHash   common.Hash
-	heavyRootHash   common.Hash
-	lightAddrs []common.Address
-	heavyAddrs []common.Address
-	minerData *lru.Cache
-	lightLock sync.RWMutex
-	heavyLock sync.RWMutex
+	verifyRootHash   common.Hash
+	proposalRootHash   common.Hash
+	verifyAddrs []common.Address
+	proposalAddrs []common.Address
+	verifyMinerData *lru.Cache
+	proposalMinerData *lru.Cache
+	lock sync.RWMutex
 }
 
 type minerCache struct{
-	lightRoot common.Hash
-	heavyRoot common.Hash
-	lightMiner *types.Miner
-	heavyMiner *types.Miner
+	rootHash common.Hash
+	miner *types.Miner
 }
 
 func initMinerManager() {
 	MinerManagerImpl = &MinerManager{
-		minerData:common.MustNewLRUCache(100000),
+		verifyMinerData:common.MustNewLRUCache(10000),
+		proposalMinerData:common.MustNewLRUCache(10000),
 	}
 }
 
@@ -426,41 +425,29 @@ func (mm *MinerManager) getAndSetAllMinerAddrs(accountDB types.AccountDB,mType t
 		return nil
 	}
 	if types.IsVerifyRole(mType){
-		if mm.lightRootHash == common.EmptyHash || mm.lightRootHash != accesser.GetRootHash(){
-			mm.lightRootHash = accesser.GetRootHash()
-			mm.lightAddrs = mm.iteratorAddrs(accountDB,mType, height)
+		if mm.verifyRootHash != accesser.GetRootHash(){
+			mm.verifyRootHash = accesser.GetRootHash()
+			mm.verifyAddrs = mm.iteratorAddrs(accountDB,mType, height)
 		}else{
 			Logger.Debugf("hit address cache,type is %v,height is %v",mType,height)
 		}
-		return  mm.lightAddrs
+		return  mm.verifyAddrs
 	}else{
-		if mm.heavyRootHash == common.EmptyHash || mm.heavyRootHash != accesser.GetRootHash(){
-			mm.heavyRootHash = accesser.GetRootHash()
-			mm.heavyAddrs = mm.iteratorAddrs(accountDB,mType, height)
+		if mm.proposalRootHash != accesser.GetRootHash(){
+			mm.proposalRootHash = accesser.GetRootHash()
+			mm.proposalAddrs = mm.iteratorAddrs(accountDB,mType, height)
 		}else{
 			Logger.Debugf("hit address cache,type is %v,height is %v",mType,height)
 		}
-		return mm.heavyAddrs
+		return mm.proposalAddrs
 	}
 }
 
 
 // GetAllMiners returns all miners of the the specified type at the given height
 func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
-	if types.IsVerifyRole(mType){
-		mm.lightLock.Lock()
-	}else{
-		mm.heavyLock.Lock()
-	}
-
-	defer func(){
-		if types.IsVerifyRole(mType){
-			mm.lightLock.Unlock()
-		}else{
-			mm.heavyLock.Unlock()
-		}
-	}()
-
+	mm.lock.Lock()
+	defer mm.lock.Unlock()
 	begin := time.Now()
 	defer func() {
 		Logger.Debugf("get all miners cost %v", time.Since(begin).Seconds())
@@ -485,6 +472,8 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 				miner *types.Miner
 				err error
 				needToCache bool
+				mc *minerCache
+				cache *lru.Cache
 			)
 			stateObject := accountDB.GetStateObject(addrs[i])
 			if stateObject == nil {
@@ -492,13 +481,16 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 				atErr.Store(err)
 				return
 			}
-			obj, ok := mm.minerData.Get(stateObject.GetAddr())
+			if types.IsVerifyRole(mType) {
+				cache = mm.verifyMinerData
+			}else{
+				cache = mm.proposalMinerData
+			}
+			obj,ok := cache.Get(stateObject.GetAddr())
 			if ok {
-				mc := obj.(*minerCache)
-				if mc.lightRoot != common.EmptyHash && types.IsVerifyRole(mType) && mc.lightRoot == stateObject.GetRootHash() && mc.lightMiner != nil{
-					miner = mc.lightMiner
-				}else if mc.heavyRoot != common.EmptyHash && types.IsProposalRole(mType) && mc.heavyRoot == stateObject.GetRootHash() && mc.heavyMiner != nil{
-					miner = mc.heavyMiner
+				mc = obj.(*minerCache)
+				if mc.rootHash == stateObject.GetRootHash() && mc.miner != nil{
+					miner = mc.miner
 				}else{
 					miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
 					needToCache= true
@@ -520,19 +512,13 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 			} else {
 				miners[i] = miner
 			}
-			if needToCache{
-				atomic.AddUint64(&missCount,1)
-				var mc *minerCache
-				if types.IsVerifyRole(mType) {
-					mc = &minerCache{lightRoot:stateObject.GetRootHash(),lightMiner:miner}
-					mm.minerData.Add(stateObject.GetAddr(),mc)
-				}else{
-					mc := &minerCache{heavyRoot:stateObject.GetRootHash(),heavyMiner:miner}
-					mm.minerData.Add(stateObject.GetAddr(),mc)
-				}
-			}
 			if atErr.Load() != nil {
 				break
+			}
+			if needToCache{
+				atomic.AddUint64(&missCount,1)
+				mc = &minerCache{rootHash:stateObject.GetRootHash(),miner:miner}
+				cache.Add(stateObject.GetAddr(),mc)
 			}
 		}
 		return
