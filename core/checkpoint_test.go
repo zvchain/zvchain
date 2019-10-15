@@ -122,6 +122,11 @@ type accountDB4CPTest struct {
 	datas map[string][]byte
 }
 
+
+func (db *accountDB4CPTest) Database() account.AccountDatabase{
+	panic("implement me")
+}
+
 func (db *accountDB4CPTest) CreateAccount(common.Address) {
 	panic("implement me")
 }
