@@ -773,3 +773,79 @@ func TestGroupSignature(t *testing.T) {
 	}
 	fmt.Printf("TestGroupSignature end \n")
 }
+
+func BenchmarkBatchVerify(b *testing.B) {
+	b.ResetTimer()
+	msg := []byte("this is test message")
+	n := 100
+	k := 51
+
+	r := base.NewRand()
+	sk := make([]Seckey, n)
+	pk := make([]Pubkey, n)
+	ids := make([]ID, n)
+
+	for i := 0; i < n; i++ {
+		sk[i] = *NewSeckeyFromRand(r.Deri(i))
+		pk[i] = *NewPubkeyFromSeckey(sk[i])
+		err := ids[i].SetLittleEndian([]byte{1, 2, 3, 4, 5, byte(i)})
+		if err != nil {
+			b.Error(err)
+		}
+	}
+
+	shares := make([][]Seckey, n)
+	for i := 0; i < n; i++ {
+		shares[i] = make([]Seckey, n)
+		msec := sk[i].GetMasterSecretKey(k)
+
+		for j := 0; j < n; j++ {
+			err := shares[i][j].Set(msec, &ids[j])
+			if err != nil {
+				b.Error(err)
+			}
+		}
+	}
+
+	msk := make([]Seckey, n)
+	mpk := make([]Pubkey, n)
+	shareVec := make([]Seckey, n)
+	for j := 0; j < n; j++ {
+		for i := 0; i < n; i++ {
+			shareVec[i] = shares[i][j]
+		}
+		msk[j] = *AggregateSeckeys(shareVec)
+		mpk[j] = *NewPubkeyFromSeckey(msk[j])
+	}
+
+	sigs := make([]Signature, n)
+	for i := 0; i < n; i++ {
+		sigs[i] = Sign(msk[i], msg)
+	}
+
+	gpk := AggregatePubkeys(pk)
+
+	sigVec := make([]Signature, k)
+	mpkVec := make([]Pubkey, k)
+	idVec := make([]ID, k)
+
+	for i := 0; i < k; i++ {
+		sigVec[i] = sigs[i]
+		idVec[i] = ids[i]
+		mpkVec[i] = mpk[i]
+	}
+	var gsig *Signature
+	gsig = RecoverSignature(sigVec, idVec)
+	for n := 0; n < b.N; n++ {
+		b.StartTimer()
+		ok := BatchVerify(mpkVec, msg, sigVec)
+		b.StopTimer()
+		if !ok {
+			fmt.Printf("batchVerify fail \n")
+		}
+	}
+
+	if !VerifySig(*gpk, msg, *gsig) {
+		fmt.Printf("fail to VerifySig \n")
+	}
+}

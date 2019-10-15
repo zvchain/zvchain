@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -25,4 +26,8 @@ func TestStringToAddress(t *testing.T) {
 	if addr.AddrPrefixString() != "zvf067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d810333" {
 		t.Errorf("wanted: %s, got: %s", "zvf067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d810333", addr.AddrPrefixString())
 	}
+}
+
+func TestSha256(t *testing.T) {
+	fmt.Printf("result = %v \n", ToHex(Sha256([]byte("It is a test"))))
 }

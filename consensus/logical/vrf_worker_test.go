@@ -16,9 +16,14 @@
 package logical
 
 import (
+	"crypto/rand"
+	"fmt"
+	"io"
+	"math/big"
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/common/ed25519"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/model"
@@ -94,4 +99,65 @@ func TestVrfVerifyBlock(t *testing.T) {
 	if !ok {
 		t.Errorf("vrf verify block not ok")
 	}
+}
+
+func TestVRFDistribute(t *testing.T) {
+	stakeArr := [...]uint64{
+		500,500,500,500,500,500,500,500,500,500,500,500,500,500,500,500,501,501,501,501,501,501,501,501,501,501,501,501,
+		576,600,682,709,1649,2251,2413,2768,3681,4200,8094,14335,34488,160300,185174,264371,584615,1830082,2499958,
+		2499958,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,
+		2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,
+		2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,
+		2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,
+		2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,
+		2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,2500000,
+		2500000,2500000,2500000,2500000,2500000}
+
+	var totalStake uint64 = 0
+	nNodes := len(stakeArr)
+	skArr := make([]ed25519.PrivateKey, nNodes)
+	pkArr := make([]ed25519.PublicKey, nNodes)
+	for i := 0; i < nNodes; i++ {
+		pk, sk, err := ed25519.GenerateKey(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		skArr[i] = sk
+		pkArr[i] = pk
+		totalStake += stakeArr[i]
+	}
+
+	nCount := 1000
+	nMiss := 0
+	temp := new(big.Int)
+	temp.SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
+	maxValue := new(big.Rat).SetInt(temp)
+
+	var msg [32]byte
+
+	vs := vrfThreshold(1, 136)
+
+	for c := 0; c < nCount; c++ {
+		breakFlag := false
+		io.ReadFull(rand.Reader, msg[:])
+		for i := 0; i < nNodes; i++ {
+			pi, err := ed25519.ECVRFProve(pkArr[i], skArr[i], msg[:])
+			if err != nil {
+				t.Fatal(err)
+			}
+			value := ed25519.ECVRFProof2hash(pi)
+			br := new(big.Rat).SetInt(new(big.Int).SetBytes(value))
+			pr := br.Quo(br, maxValue)
+			//vs := vrfThreshold(stakeArr[i], totalStake)
+
+			if pr.Cmp(vs) < 0 {
+				breakFlag = true
+				break
+			}
+		}
+		if breakFlag == false {
+			nMiss++
+		}
+	}
+	fmt.Printf("nodes:%v, totalStake:%v , try times: %v, miss times: %v", nNodes, totalStake, nCount, nMiss)
 }

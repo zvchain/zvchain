@@ -16,6 +16,7 @@
 package types
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/vmihailenco/msgpack"
 	"math/big"
@@ -143,4 +144,26 @@ func TestGenHash(t *testing.T) {
 		Nonce:    10,
 	}
 	t.Logf("txhash %v, gaslimit %v, gasprice %v", tx2.GenHash().Hex(), tx2.GasLimit, tx2.GasPrice)
+}
+
+func TestGenHash2(t *testing.T) {
+	src := common.StringToAddress("zvd4d108ca92871ab1115439db841553a4ec3c8eddd955ea6df299467fbfd0415e")
+	target := common.StringToAddress("zvd4d108ca92871ab1115439db841553a4ec3c8eddd955ea6df299467fbfd0415e")
+	data, _ :=base64.StdEncoding.DecodeString("JXU4RkQ5JXU5MUNDJXU2NjJGJXU4OTgxJXU1MkEwJXU1QkM2JXU3Njg0JXU1MTg1JXU1QkI5MTIzNDU2")
+	extra, _ := base64.StdEncoding.DecodeString("JXU4RkQ5JXU5MUNDJXU2NjJGJXU4OTgxJXU1MkEwJXU1QkM2JXU3Njg0JXU1MTg1JXU1QkI5MTIzNDU2")
+//	sign := common.HexToSign("0x32f4b12bfba23fbe64043becc239184f7aeccbc815f4771058907ab01379062f51f580ea494d5d70e3ae3326fc5dc90946e9629689dddab6ced86deaf3b911ea02")
+	tx1 := &RawTransaction{
+		Source:   &src,
+		Target:   &target,
+		Value:    NewBigInt(1000000000),
+		GasLimit: NewBigInt(1000),
+		GasPrice: NewBigInt(500),
+		Nonce:    10,
+		Type:     0,
+//		Sign:     sign.Bytes(),
+		Data:     data,
+		ExtraData: extra,
+	}
+	t.Logf("value %v",tx1.GasLimit.Bytes())
+	t.Logf("txhash %v, gaslimit %v, gasprice %v", tx1.GenHash().Hex(), tx1.GasLimit, tx1.GasPrice)
 }
