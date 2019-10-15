@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 const (
@@ -284,7 +285,6 @@ func (crontab *Crontab) excuteBlockRewards() {
 	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
 	beginTime := time.Now()
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
-
 	if rewards != nil && len(rewards) > 0 {
 		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards)
 		accounts := blockrewarddata.MapReward
@@ -305,12 +305,14 @@ func (crontab *Crontab) excuteBlockRewards() {
 			crontab.storage.UpdateMineBlocks(mapMineBlockCount) {
 			crontab.blockRewardHeight += 1
 		}
+		fmt.Println("Size excuteBlockRewards:", unsafe.Sizeof(blockrewarddata))
 		crontab.excuteBlockRewards()
 	} else {
 		crontab.blockRewardHeight += 1
 		fmt.Println("[crontab]  fetchBlockRewards rewards nil:", crontab.blockRewardHeight)
 		crontab.excuteBlockRewards()
 	}
+	fmt.Println("[out excuteBlockRewards] blockHeight:", crontab.blockRewardHeight)
 
 }
 
