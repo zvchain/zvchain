@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 )
 
 const (
@@ -231,6 +232,19 @@ func getFundGuardKey(prefix []byte, address common.Address) []byte {
 	buf := bytes.NewBuffer(prefix)
 	buf.Write(address.Bytes())
 	return buf.Bytes()
+}
+
+func getMinerFromStateObject(db account.AccountDatabase, stateObject account.AccAccesser,mType types.MinerType) (*types.Miner, error) {
+	data := stateObject.GetData(db, getMinerKey(mType))
+	if data != nil && len(data) > 0 {
+		var miner types.Miner
+		err := msgpack.Unmarshal(data, &miner)
+		if err != nil {
+			return nil, err
+		}
+		return &miner, nil
+	}
+	return nil, nil
 }
 
 func getMiner(db types.AccountDB, address common.Address, mType types.MinerType) (*types.Miner, error) {

@@ -93,6 +93,9 @@ func (nm *groupNetMgr) tryFullBuildProposerGroupNetAt(h uint64) bool {
 	if h < nm.expectNextFullBuiltHeight {
 		return false
 	}
+	// build the net at the middle of each epoch in order to stagger with the candidate selection of the verify-group-build routine
+	nm.expectNextFullBuiltHeight = types.EpochAt(h).Next().Start() + types.EpochLength/2
+
 	proposers := nm.mr.GetAllMiners(types.MinerTypeProposal, h)
 	ids := make([]groupsig.ID, 0)
 	stakes := make([]uint64, 0)
@@ -103,8 +106,7 @@ func (nm *groupNetMgr) tryFullBuildProposerGroupNetAt(h uint64) bool {
 	}
 	stdLogger.Debugf("buildProposerGroupNetAt %v size %v", h, len(ids))
 	nm.ns.FullBuildProposerGroupNet(ids, stakes)
-	// build the net at the middle of each epoch in order to stagger with the candidate selection of the verify-group-build routine
-	nm.expectNextFullBuiltHeight = types.EpochAt(h).Next().Start() + types.EpochLength/2
+
 	return true
 }
 
