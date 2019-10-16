@@ -15,7 +15,7 @@
 
 package common
 
-const GzvVersion = "v1.0.1"
+const GzvVersion = "v1.0.1-beta"
 
 const ConsensusVersion = 1
 
