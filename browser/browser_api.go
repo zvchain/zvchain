@@ -136,9 +136,7 @@ func (tm *DBMmanagement) excuteAccountProposalAndVerifyCount() {
 func (tm *DBMmanagement) ConsumeContract(data *common2.ContractCall, chain *core.FullBlockChain, hash common.Hash) {
 	tm.storage.UpdateContractTransaction(hash.Hex())
 	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash.Hex()))
-
-	fmt.Println("for ProduceContract", util.ObjectTojson(data))
-	browserlog.BrowserLog.Info("for ProduceContract:", util.ObjectTojson(data))
+	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
 }
 
 func (tm *DBMmanagement) excuteAccounts() {
