@@ -683,7 +683,6 @@ func (storage *Storage) GetContractByHash(hash string) []string {
 	var addr string
 	for rows.Next() {
 		rows.Scan(&addr)
-		//	fmt.Printf("find %v",height)
 		s = append(s, addr)
 	}
 	return s

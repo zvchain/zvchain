@@ -197,7 +197,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 						addressList := tm.storage.GetContractByHash(tx.GenHash().Hex())
 						wrapper := chain.GetTransactionPool().GetReceipt(tx.GenHash())
 						//contract address
-						if wrapper.Status == 0 {
+						if wrapper.Status == 0 && len(addressList) > 0 {
 							for _, addr := range addressList {
 								if _, exists := AddressCacheList[addr]; exists {
 									AddressCacheList[addr] += 0

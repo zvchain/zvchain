@@ -78,10 +78,10 @@ type Sys struct {
 
 type ContractTransaction struct {
 	gorm.Model
-	ContractCode string `json:"contract_code"`
+	ContractCode string `json:"contract_code" gorm:"index"`
 	Address      string `json:"address"`
 	Value        uint64 `json:"value"`
-	TxHash       string `json:"tx_hash"`
+	TxHash       string `json:"tx_hash" gorm:"index"`
 	TxType       uint64 `json:"tx_type"`
 	Status       uint64 `json:"status"`
 }
@@ -175,7 +175,7 @@ type Transaction struct {
 	Receipt           *Receipt `json:"receipt" gorm:"-"`
 	ExtraData         string   `json:"extra_data" gorm:"type:TEXT;size:65000"`
 	Status            uint     `json:"status" gorm:"index"`
-	ContractAddress   string   `json:"contract_address"`
+	ContractAddress   string   `json:"contract_address" gorm:"index"`
 }
 
 type Receipt struct {
