@@ -238,13 +238,23 @@ func (chain *FullBlockChain) GetNonce(address common.Address) uint64 {
 	return chain.latestStateDB.GetNonce(common.BytesToAddress(address.Bytes()))
 }
 
+func (chain *FullBlockChain) getAccountDBByHash(hash common.Hash) (types.AccountDB, error) {
+	header := chain.latestBlock
+	if header == nil || hash != header.Hash {
+		header := chain.queryBlockHeaderByHash(hash)
+		if header == nil {
+			return nil, fmt.Errorf("no data of hash %v", hash)
+		}
+	}
+	return account.NewAccountDB(header.StateTree, chain.stateCache)
+}
+
 // GetAccountDBByHash returns account database with specified block hash
 func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
-	header := chain.queryBlockHeaderByHash(hash)
-	return account.NewAccountDB(header.StateTree, chain.stateCache)
+	return chain.getAccountDBByHash(hash)
 }
 
 // AccountDBAt returns account database with specified block height
@@ -304,7 +314,7 @@ func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.B
 }
 
 func (chain *FullBlockChain) IsSyncing() bool {
-	if blockSync == nil{
+	if blockSync == nil {
 		return true
 	}
 	return blockSync.isSyncing()

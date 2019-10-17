@@ -19,6 +19,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"github.com/zvchain/zvchain/params"
 	"math/big"
 
 	"github.com/zvchain/zvchain/common"
@@ -32,8 +33,6 @@ type AddBlockResult int8
 
 // gasLimitMax expresses the max gasLimit of a transaction
 var gasLimitMax = new(BigInt).SetUint64(500000)
-
-
 
 // defines all possible result of the add-block operation
 const (
@@ -287,11 +286,17 @@ type Block struct {
 	Transactions []*RawTransaction
 }
 
+// Function for getting stake of the given proposer at the given block
+type StakeGetter func(addr common.Address, hash common.Hash) uint64
+
 // BlockWeight denotes the weight of one block
 type BlockWeight struct {
-	Hash    common.Hash
-	TotalQN uint64   // Same as TotalQN field of BlockHeader
-	PV      *big.Int // Converted from ProveValue field of BlockHeader
+	Proposer common.Address
+	PreHash  common.Hash
+	Height   uint64
+	Hash     common.Hash
+	TotalQN  uint64   // Same as TotalQN field of BlockHeader
+	PV       *big.Int // Converted from ProveValue field of BlockHeader
 }
 
 type CandidateBlockHeader struct {
@@ -301,11 +306,23 @@ type CandidateBlockHeader struct {
 
 type PvFunc func(pvBytes []byte) *big.Int
 
-var DefaultPVFunc PvFunc
+var (
+	DefaultPVFunc      PvFunc
+	DefaultStakeGetter StakeGetter
+)
 
 // MoreWeight checks the current block is more weight than the given one
 func (bw *BlockWeight) MoreWeight(bw2 *BlockWeight) bool {
 	return bw.Cmp(bw2) > 0
+}
+
+// normalizePV returns the pv value after normalization by the stake
+func (bw *BlockWeight) normalizePV() *big.Rat {
+	stake := DefaultStakeGetter(bw.Proposer, bw.PreHash)
+	if stake == 0 {
+		return new(big.Rat).SetInt64(0)
+	}
+	return new(big.Rat).Quo(new(big.Rat).SetInt(bw.PV), new(big.Rat).SetFloat64(float64(stake)))
 }
 
 // Cmp compares the weight between current block and the given one.
@@ -318,6 +335,15 @@ func (bw *BlockWeight) Cmp(bw2 *BlockWeight) int {
 	} else if bw.TotalQN < bw2.TotalQN {
 		return -1
 	}
+	if params.GetChainConfig().IsZIP001(bw.Height) && params.GetChainConfig().IsZIP001(bw2.Height) && DefaultStakeGetter != nil {
+		np1 := bw.normalizePV()
+		np2 := bw2.normalizePV()
+		cmp := np1.Cmp(np2)
+		// If normalization pv is equal, then the absolute pv is compared
+		if cmp != 0 {
+			return cmp
+		}
+	}
 	return bw.PV.Cmp(bw2.PV)
 }
 
@@ -328,9 +354,12 @@ func NewCandidateBlockHeader(bh *BlockHeader) *CandidateBlockHeader {
 
 func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 	return &BlockWeight{
-		Hash:    bh.Hash,
-		TotalQN: bh.TotalQN,
-		PV:      DefaultPVFunc(bh.ProveValue),
+		Hash:     bh.Hash,
+		TotalQN:  bh.TotalQN,
+		PV:       DefaultPVFunc(bh.ProveValue),
+		Proposer: common.BytesToAddress(bh.Castor),
+		Height:   bh.Height,
+		PreHash:  bh.PreHash,
 	}
 }
 

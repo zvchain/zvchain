@@ -532,7 +532,7 @@ func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader
 	defer bs.lock.Unlock()
 
 	cbh := types.NewCandidateBlockHeader(header)
-	if len(bs.candidatePool) < blockSyncCandidatePoolSize {
+	if len(bs.candidatePool) < blockSyncCandidatePoolSize || bs.candidatePool[source] != nil {
 		bs.candidatePool[source] = cbh
 		return
 	}
