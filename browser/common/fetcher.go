@@ -102,7 +102,7 @@ func convertLogs(logs []*types.Log, blockHash string) []*models.Log {
 				TxHash:      log.TxHash.Hex(),
 				TxIndex:     log.TxIndex,
 				BlockHash:   blockHash,
-				Index:       log.Index,
+				LogIndex:    log.Index,
 				Removed:     log.Removed,
 			}
 			modelsLogs = append(modelsLogs, newLog)

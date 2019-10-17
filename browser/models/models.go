@@ -194,11 +194,11 @@ type Log struct {
 	Address     string `json:"address" gorm:"index"`
 	Topic       string `json:"topics"`
 	Data        string `json:"data"`
-	BlockNumber uint64 `json:"blockNumber" gorm:"unique_index:idx_log"`
-	TxHash      string `json:"transactionHash"  gorm:"index"`
-	TxIndex     uint   `json:"transactionIndex" gorm:"unique_index:idx_log"`
-	BlockHash   string `json:"blockHash"`
-	Index       uint   `json:"logIndex" gorm:"unique_index:idx_log"`
+	BlockNumber uint64 `json:"block_number"" gorm:"unique_index:idx_log"`
+	TxHash      string `json:"tx_hash""  gorm:"index"`
+	TxIndex     uint   `json:"tx_index"" gorm:"unique_index:idx_log"`
+	BlockHash   string `json:"block_hash""`
+	LogIndex    uint   `json:"log_index"" gorm:"unique_index:idx_log"`
 	Removed     bool   `json:"removed"`
 }
 

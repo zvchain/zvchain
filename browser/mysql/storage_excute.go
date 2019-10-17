@@ -648,7 +648,7 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt) bool {
 		for j := 0; j < len(receipts[i].Logs); j++ {
 			if !errors(storage.db.Create(&receipts[i].Logs[j]).Error) {
 				transql := fmt.Sprintf("DELETE  FROM logs WHERE  block_number = '%d' and tx_index = '%d' and index='%d'",
-					receipts[i].Logs[j].BlockNumber, receipts[i].Logs[j].TxIndex, receipts[i].Logs[j].Index)
+					receipts[i].Logs[j].BlockNumber, receipts[i].Logs[j].TxIndex, receipts[i].Logs[j].LogIndex)
 				browserlog.BrowserLog.Info("AddLogsDELETE", transql)
 				storage.db.Exec(transql)
 				storage.db.Create(&receipts[i].Logs[j])
