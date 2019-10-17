@@ -301,8 +301,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 		if crontab.storage.AddBlockRewardMysqlTransaction(accounts,
 			mapbalance,
 			mapcountplus,
-			crontab.blockRewardHeight) &&
-			crontab.storage.UpdateMineBlocks(mapMineBlockCount) {
+			crontab.blockRewardHeight) {
 			crontab.blockRewardHeight += 1
 		}
 		fmt.Println("Size excuteBlockRewards:", unsafe.Sizeof(blockrewarddata))
