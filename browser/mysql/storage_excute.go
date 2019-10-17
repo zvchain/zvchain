@@ -564,7 +564,14 @@ func (storage *Storage) AddGroup(group *models.Group) bool {
 	storage.db.Create(&group)
 	return true
 }
-
+func (storage *Storage) AddContractTransaction(contract *models.ContractTransaction) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	storage.db.Create(&contract)
+	return true
+}
 func (storage *Storage) AddBlock(block *models.Block) bool {
 	//fmt.Println("[Storage] add block ")
 	if storage.db == nil {
@@ -693,6 +700,21 @@ func (storage *Storage) browserTopBlockHeight() uint64 {
 	return 0
 }
 
+func (storage *Storage) GetContractByHash(hash string) []string {
+	if storage.db == nil {
+		return nil
+	}
+	rows, _ := storage.db.Model(models.ContractTransaction{}).Where("tx_hash = ?", hash).Select("address").Rows() // (*sql.Rows, error)
+	defer rows.Close()
+	s := make([]string, 0, 0)
+	var addr string
+	for rows.Next() {
+		rows.Scan(&addr)
+		s = append(s, addr)
+	}
+	return s
+}
+
 func (storage *Storage) RewardTopBlockHeight() (uint64, uint64) {
 	if storage.db == nil {
 		return 0, 0
@@ -718,6 +740,10 @@ func (storage *Storage) GetTopblock() uint64 {
 	return maxHeight
 }
 
+func (storage *Storage) UpdateContractTransaction(txHash string) {
+	contractSql := fmt.Sprintf("UPDATE contract_transactions SET status = 1 WHERE tx_hash = '%s'", txHash)
+	storage.db.Exec(contractSql)
+}
 func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, curTime time.Time) (err error) {
 
 	defer func() { // 必须要先声明defer，否则不能捕获到panic异常

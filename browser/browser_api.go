@@ -133,6 +133,12 @@ func (tm *DBMmanagement) excuteAccountProposalAndVerifyCount() {
 	}
 }
 
+func (tm *DBMmanagement) ConsumeContract(data *common2.ContractCall, chain *core.FullBlockChain, hash common.Hash) {
+	tm.storage.UpdateContractTransaction(hash.Hex())
+	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash.Hex()))
+	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
+}
+
 func (tm *DBMmanagement) excuteAccounts() {
 
 	topHeight := core.BlockChainImpl.Height()
@@ -163,6 +169,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 						}
 					}
 				}
+
 				if tx.Source != nil {
 					//account list
 					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
@@ -170,7 +177,6 @@ func (tm *DBMmanagement) excuteAccounts() {
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
 					}
-
 					//if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce{
 					var target string
 					if tx.Target != nil {
@@ -182,8 +188,24 @@ func (tm *DBMmanagement) excuteAccounts() {
 						}
 					}
 
-					//}
-
+					if tx.Type == types.TransactionTypeContractCall {
+						contract := &common2.ContractCall{
+							Hash: tx.GenHash().Hex(),
+						}
+						addressList := tm.storage.GetContractByHash(tx.GenHash().Hex())
+						wrapper := chain.GetTransactionPool().GetReceipt(tx.GenHash())
+						//contract address
+						if wrapper.Status == 0 && len(addressList) > 0 {
+							for _, addr := range addressList {
+								if _, exists := AddressCacheList[addr]; exists {
+									AddressCacheList[addr] += 0
+								} else {
+									AddressCacheList[addr] = 0
+								}
+							}
+							go tm.ConsumeContract(contract, chain, tx.GenHash())
+						}
+					}
 					//check update stake
 					if checkStakeTransaction(tx.Type) {
 						if tx.Target != nil {
@@ -191,9 +213,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 						}
 					}
 					//stake list
-
 					if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce {
-
 						if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
 							if tx.Type == types.TransactionTypeStakeAdd {
 								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
