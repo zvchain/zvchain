@@ -89,6 +89,7 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
 	go crontab.ConsumeReward()
+	go crontab.fetchOldLogs()
 
 	for {
 		select {
@@ -360,9 +361,8 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				blockDetail.Receipts[i].BlockHeight = blockDetail.Block.Height
 			}
 			server.storage.AddReceipts(blockDetail.Receipts)
-
+			server.storage.AddLogs(blockDetail.Receipts)
 		}
-
 	}
 	//server.isFetchingBlocks = false
 
@@ -454,7 +454,6 @@ func (crontab *Crontab) Consume() {
 			crontab.consumeBlock(data.LocalHeight, data.PreHeight)
 			fmt.Println("for Consume", util.ObjectTojson(data))
 			browserlog.BrowserLog.Info("for Consume", util.ObjectTojson(data))
-
 		}
 	}
 }
@@ -469,6 +468,23 @@ func (crontab *Crontab) ConsumeReward() {
 			fmt.Println("for ConsumeReward", util.ObjectTojson(data))
 			browserlog.BrowserLog.Info("for ConsumeReward", util.ObjectTojson(data))
 
+		}
+	}
+}
+func (crontab *Crontab) fetchOldLogs() {
+
+	txs := make([]models.Transaction, 0)
+	crontab.storage.GetDB().Model(&models.Transaction{}).Where("type = ?", types.TransactionTypeContractCall).Find(&txs)
+	if len(txs) > 0 {
+		for _, tx := range txs {
+			blockDetail, _ := crontab.fetcher.ExplorerBlockDetail(tx.BlockHeight)
+			if blockDetail != nil {
+				for i := 0; i < len(blockDetail.Receipts); i++ {
+					blockDetail.Receipts[i].BlockHash = blockDetail.Block.Hash
+					blockDetail.Receipts[i].BlockHeight = blockDetail.Block.Height
+				}
+				crontab.storage.AddLogs(blockDetail.Receipts)
+			}
 		}
 	}
 }

@@ -318,6 +318,7 @@ func (storage *Storage) IncrewardBlockheightTosys(tx *gorm.DB, variable string, 
 func errors(error error) bool {
 	if error != nil {
 		fmt.Println("update/add error", error)
+		browserlog.BrowserLog.Info("update/add error", error)
 		return false
 	}
 	return true
@@ -627,6 +628,32 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	return true
 }
 
+func (storage *Storage) AddLogs(receipts []*models.Receipt) bool {
+	//fmt.Println("[Storage] add receipt ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	timeBegin := time.Now()
+
+	//tx := storage.db.Begin()
+	for i := 0; i < len(receipts); i++ {
+		for j := 0; j < len(receipts[i].Logs); j++ {
+			if !errors(storage.db.Create(&receipts[i].Logs[j]).Error) {
+				transql := fmt.Sprintf("DELETE  FROM logs WHERE  block_number = '%d' and tx_index = '%d' and index='%d'",
+					receipts[i].Logs[j].BlockNumber, receipts[i].Logs[j].TxIndex, receipts[i].Logs[j].Index)
+				browserlog.BrowserLog.Info("AddLogsDELETE", transql)
+				storage.db.Exec(transql)
+				storage.db.Create(&receipts[i].Logs[j])
+			}
+		}
+	}
+	//tx.Commit()
+	fmt.Println("[Storage]  AddLogs cost: ", time.Since(timeBegin))
+
+	return true
+}
+
 func (storage *Storage) AddReceipts(receipts []*models.Receipt) bool {
 	//fmt.Println("[Storage] add receipt ")
 	if storage.db == nil {
@@ -701,9 +728,11 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, cu
 	blockSql := fmt.Sprintf("DELETE  FROM blocks WHERE height > %d", preHeight)
 	transactionSql := fmt.Sprintf("DELETE  FROM transactions WHERE block_height > %d", preHeight)
 	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
+	logSql := fmt.Sprintf("DELETE  FROM logs WHERE block_number > %d", preHeight)
 	blockCount := storage.db.Exec(blockSql)
 	transactionCount := storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
+	storage.db.Exec(logSql)
 	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
 		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)
 		storage.UpdateSysConfigValue(Blockcurtranheight, transactionCount.RowsAffected, false)

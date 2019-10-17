@@ -112,7 +112,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if !db.HasTable(&models.RecentMineBlock{}) {
 		db.CreateTable(&models.RecentMineBlock{})
 	}
-
+	if !db.HasTable(&models.Log{}) {
+		db.CreateTable(&models.Log{})
+	}
 }
 
 func (storage *Storage) GetDB() *gorm.DB {
