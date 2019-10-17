@@ -76,6 +76,16 @@ type Sys struct {
 	SetBy    string `json:"set_by"`
 }
 
+type ContractTransaction struct {
+	gorm.Model
+	ContractCode string `json:"contract_code"`
+	Address      string `json:"address"`
+	Value        uint64 `json:"value"`
+	TxHash       string `json:"tx_hash"`
+	TxType       uint64 `json:"tx_type"`
+	Status       uint64 `json:"status"`
+}
+
 type Group struct {
 	Id            string   `json:"id" gorm:"index"`
 	Height        uint64   `json:"height" gorm:"index"`

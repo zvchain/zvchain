@@ -32,6 +32,9 @@ type Group struct {
 	GroupHeight   uint64      `json:"group_height"`
 }
 
+type ContractCall struct {
+	Hash string
+}
 type FronzenAndStakeFrom struct {
 	StakeFrom      string `json:"stake_from"`
 	ProposalFrozen uint64 `json:"proposal_frozen"`

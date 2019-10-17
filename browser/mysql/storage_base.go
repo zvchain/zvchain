@@ -28,6 +28,8 @@ const (
 )
 const PageSize uint64 = 20
 
+var DBStorage *Storage
+
 type Storage struct {
 	db                        *gorm.DB
 	dbAddr                    string
@@ -44,15 +46,17 @@ type Storage struct {
 }
 
 func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *Storage {
-
-	storage := &Storage{
+	if DBStorage != nil {
+		return DBStorage
+	}
+	DBStorage = &Storage{
 		dbAddr:     dbAddr,
 		dbPort:     dbPort,
 		dbUser:     dbUser,
 		dbPassword: dbPassword,
 	}
-	storage.Init(reset, resetcrontab)
-	return storage
+	DBStorage.Init(reset, resetcrontab)
+	return DBStorage
 }
 
 func (storage *Storage) Init(reset bool, resetcrontab bool) {
