@@ -344,6 +344,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 		}
 		if server.storage.AddBlock(&blockDetail.Block) {
 			trans := make([]*models.Transaction, 0, 0)
+			transContract := make([]*models.Transaction, 0, 0)
 			for i := 0; i < len(blockDetail.Trans); i++ {
 				tran := server.fetcher.ConvertTempTransactionToTransaction(blockDetail.Trans[i])
 				tran.BlockHash = blockDetail.Block.Hash
@@ -352,6 +353,9 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				tran.CumulativeGasUsed = blockDetail.Receipts[i].CumulativeGasUsed
 				if tran.Type == types.TransactionTypeContractCreate {
 					tran.ContractAddress = blockDetail.Receipts[i].ContractAddress
+				}
+				if tran.Type == types.TransactionTypeContractCall {
+					transContract = append(transContract, tran)
 				}
 				trans = append(trans, tran)
 			}
@@ -362,10 +366,32 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 			}
 			server.storage.AddReceipts(blockDetail.Receipts)
 			server.storage.AddLogs(blockDetail.Receipts)
+			server.ProcessContract(transContract)
 		}
 	}
 	//server.isFetchingBlocks = false
 
+}
+
+func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
+	chain := core.BlockChainImpl
+	for _, tx := range trans {
+		contract := &common2.ContractCall{
+			Hash: tx.Hash,
+		}
+		addressList := crontab.storage.GetContractByHash(tx.Hash)
+		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(tx.Hash))
+		//contract address
+		if wrapper.Status == 0 && len(addressList) > 0 {
+			go crontab.ConsumeContract(contract, tx.Hash)
+		}
+	}
+
+}
+func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string) {
+	tm.storage.UpdateContractTransaction(hash)
+	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash))
+	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
 }
 
 func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {

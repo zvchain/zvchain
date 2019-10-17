@@ -1,12 +1,15 @@
 package mysql
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -645,15 +648,38 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt) bool {
 
 	//tx := storage.db.Begin()
 	for i := 0; i < len(receipts); i++ {
-		for j := 0; j < len(receipts[i].Logs); j++ {
-			if !errors(storage.db.Create(&receipts[i].Logs[j]).Error) {
-				transql := fmt.Sprintf("DELETE  FROM logs WHERE  block_number = '%d' and tx_index = '%d' and index='%d'",
-					receipts[i].Logs[j].BlockNumber, receipts[i].Logs[j].TxIndex, receipts[i].Logs[j].LogIndex)
-				browserlog.BrowserLog.Info("AddLogsDELETE", transql)
-				storage.db.Exec(transql)
-				storage.db.Create(&receipts[i].Logs[j])
+		if receipts[i].Logs != nil {
+			for j := 0; j < len(receipts[i].Logs); j++ {
+				if !errors(storage.db.Create(&receipts[i].Logs[j]).Error) {
+					transql := fmt.Sprintf("DELETE  FROM logs WHERE  block_number = '%d' and tx_index = '%d' and index='%d'",
+						receipts[i].Logs[j].BlockNumber, receipts[i].Logs[j].TxIndex, receipts[i].Logs[j].LogIndex)
+					browserlog.BrowserLog.Info("AddLogsDELETE", transql)
+					storage.db.Exec(transql)
+					storage.db.Create(&receipts[i].Logs[j])
+				}
+				if receipts[i].Logs[j] != nil && receipts[i].Logs[j].Data != "" {
+					decodeBytes, err := base64.StdEncoding.DecodeString(receipts[i].Logs[j].Data)
+					if err == nil {
+						//log := string (decodeBytes)
+						logData := &common.LogData{}
+						if json.Unmarshal(decodeBytes, logData) == nil {
+							value, _ := strconv.Atoi(logData.Value)
+							contract := &models.ContractTransaction{
+								ContractCode: receipts[i].Logs[j].Address,
+								Address:      logData.User,
+								Value:        uint64(value),
+								TxHash:       receipts[i].Logs[j].TxHash,
+								TxType:       0,
+								Status:       1,
+							}
+							storage.AddContractTransaction(contract)
+						}
+					}
+
+				}
 			}
 		}
+
 	}
 	//tx.Commit()
 	fmt.Println("[Storage]  AddLogs cost: ", time.Since(timeBegin))
@@ -755,10 +781,13 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, cu
 	transactionSql := fmt.Sprintf("DELETE  FROM transactions WHERE block_height > %d", preHeight)
 	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
 	logSql := fmt.Sprintf("DELETE  FROM logs WHERE block_number > %d", preHeight)
+	contractTransSql := fmt.Sprintf("DELETE  FROM contract_transactions WHERE block_height > %d", preHeight)
 	blockCount := storage.db.Exec(blockSql)
 	transactionCount := storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
 	storage.db.Exec(logSql)
+	go storage.db.Exec(contractTransSql)
+
 	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
 		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)
 		storage.UpdateSysConfigValue(Blockcurtranheight, transactionCount.RowsAffected, false)

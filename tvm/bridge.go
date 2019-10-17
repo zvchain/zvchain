@@ -47,7 +47,9 @@ func Transfer(toAddress *C.char, value *C.char) bool {
 	go ProduceContractTransfer(controller.Transaction.GetHash().Hex(),
 		toAddressStr,
 		transValue.Uint64(),
-		contractAddr.AddrPrefixString())
+		contractAddr.AddrPrefixString(),
+		controller.BlockHeader.Height,
+	)
 
 	return true
 
