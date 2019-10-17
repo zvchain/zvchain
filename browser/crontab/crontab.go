@@ -289,7 +289,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
-		mapMineBlockCount := blockrewarddata.MapMineBlockCount
+		//mapMineBlockCount := blockrewarddata.MapMineBlockCount
 
 		mapbalance := make(map[string]float64)
 		var balance float64
