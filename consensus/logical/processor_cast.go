@@ -106,6 +106,16 @@ func (p *Processor) onBlockSignAggregation(block *types.Block, sign groupsig.Sig
 
 	r := p.doAddOnChain(block)
 
+	log.ELKLogger.WithFields(logrus.Fields{
+		"height":    block.Header.Height,
+		"now":       p.ts.Now().UTC(),
+		"logType":   "onBlockSignAggr",
+		"version":   common.GzvVersion,
+		"castor":    common.BytesToAddress(block.Header.Castor).AddrPrefixString(),
+		"blockHash": block.Header.Hash.String(),
+		"preHash":   block.Header.PreHash.String(),
+	}).Infof("result=%v", r)
+
 	// Fork adjustment or add on chain failure does not take the logic below
 	if r != int8(types.AddBlockSucc) {
 		return fmt.Errorf("onchain result %v", r)
@@ -212,13 +222,7 @@ func (p *Processor) blockProposal() {
 		return
 	}
 	castor := worker.miner.ID.GetAddrString()
-	log.ELKLogger.WithFields(logrus.Fields{
-		"proposalHeight": height,
-		"now":            time2.TSInstance.Now().UTC(),
-		"logType":        "proposalLog",
-		"version":        common.GzvVersion,
-		"castor":         castor,
-	}).Info("proposal")
+
 	//if height > 1 && p.proveChecker.proveExists(pi) {
 	//	blog.warn("vrf prove exist, not proposal")
 	//	return
@@ -279,6 +283,17 @@ func (p *Processor) blockProposal() {
 			blog.error("sign fail, id=%v, sk=%v", p.GetMinerID(), skey)
 			return
 		}
+		log.ELKLogger.WithFields(logrus.Fields{
+			"proposalHeight": height,
+			"now":            time2.TSInstance.Now().UTC(),
+			"logType":        "proposalLog",
+			"version":        common.GzvVersion,
+			"castor":         castor,
+			"blockHash":      bh.Hash.String(),
+			"preHash":        bh.PreHash.String(),
+			"preHeight":      worker.baseBH.Height,
+			"verifyGroup":    gb.GSeed.Hex(),
+		}).Info("proposal")
 
 		traceLogger.Log("PreHash=%v,Qn=%v", bh.PreHash, qn)
 
