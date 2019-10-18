@@ -84,7 +84,11 @@ func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
 
 // Deploy Deploy a contract instance
 func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log, *types.TransactionError) {
-	con.VM = NewTVM(con.Transaction.Operator(), contract)
+	var blockHeight uint64 = 0
+	if con.BlockHeader != nil {
+		blockHeight = con.BlockHeader.Height
+	}
+	con.VM = NewTVM(con.Transaction.Operator(), contract, blockHeight)
 	defer func() {
 		con.VM.DelTVM()
 		con.GasLeft = uint64(con.VM.Gas())
@@ -103,7 +107,11 @@ func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log,
 
 // ExecuteAbiEval Execute the contract with abi and returns result
 func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract, abiJSON string) (*ExecuteResult, []*types.Log, *types.TransactionError) {
-	con.VM = NewTVM(sender, contract)
+	var blockHeight uint64 = 0
+	if con.BlockHeader != nil {
+		blockHeight = con.BlockHeader.Height
+	}
+	con.VM = NewTVM(sender, contract, blockHeight)
 	con.VM.SetGas(int(con.GasLeft))
 	defer func() {
 		con.VM.DelTVM()
