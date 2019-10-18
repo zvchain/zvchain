@@ -50,7 +50,6 @@ func Transfer(toAddress *C.char, value *C.char) bool {
 		contractAddr.AddrPrefixString(),
 		controller.BlockHeader.Height,
 	)
-
 	return true
 
 }

@@ -25,9 +25,9 @@ type MortGage struct {
 
 type LogData struct {
 	User  string
-	Args  string
+	Args  []string
 	Group string
-	Value string
+	Value uint64
 }
 
 type Group struct {

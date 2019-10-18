@@ -9,7 +9,6 @@ import (
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -638,7 +637,7 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	return true
 }
 
-func (storage *Storage) AddLogs(receipts []*models.Receipt) bool {
+func (storage *Storage) AddLogs(receipts []*models.Receipt, old bool) bool {
 	//fmt.Println("[Storage] add receipt ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
@@ -657,17 +656,18 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt) bool {
 					storage.db.Exec(transql)
 					storage.db.Create(&receipts[i].Logs[j])
 				}
-				if receipts[i].Logs[j] != nil && receipts[i].Logs[j].Data != "" {
+				if old && receipts[i].Logs[j] != nil && receipts[i].Logs[j].Data != "" {
 					decodeBytes, err := base64.StdEncoding.DecodeString(receipts[i].Logs[j].Data)
+					fmt.Println("[Storage]  AddContractTransaction ", receipts[i].Logs[j].Data)
 					if err == nil {
 						//log := string (decodeBytes)
 						logData := &common.LogData{}
 						if json.Unmarshal(decodeBytes, logData) == nil {
-							value, _ := strconv.Atoi(logData.Value)
+							value := logData.Value
 							contract := &models.ContractTransaction{
 								ContractCode: receipts[i].Logs[j].Address,
 								Address:      logData.User,
-								Value:        uint64(value),
+								Value:        value,
 								TxHash:       receipts[i].Logs[j].TxHash,
 								TxType:       0,
 								Status:       1,
