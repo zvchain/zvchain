@@ -159,7 +159,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db block cache size from config
 	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
 	// get the level db write cache size from config
-	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
+	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 128)
 
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        fileCacheSize,
