@@ -19,6 +19,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"reflect"
 	"sync/atomic"
 )
 
@@ -129,7 +130,7 @@ func (sq *stakeQuerier) getRoot(addr common.Address, height uint64) (types.Accou
 		return nil, common.Hash{}
 	}
 	obj := db.GetStateObject(addr)
-	if obj == nil {
+	if obj == nil || reflect.ValueOf(obj).IsNil() {
 		Logger.Errorf("get account object nil of %v", addr.AddrPrefixString())
 		return db, common.Hash{}
 	}
