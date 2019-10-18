@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/params"
 	"testing"
 )
 
@@ -155,7 +156,7 @@ func TestVmTest(t *testing.T) {
 	//statedb, _ := core.NewAccountDB(common.Hash{}, core.NewDatabase(db))
 
 	contract := &Contract{ContractName: "test"}
-	vm := NewTVM(nil, contract)
+	vm := NewTVM(nil, contract, 0)
 	vm.SetGas(9999999999999999)
 	vm.ContractName = "test"
 	script := `
@@ -193,7 +194,7 @@ func TestTVM_VerifyABI1(t *testing.T) {
 		ContractName:    "Token",
 		ContractAddress: &contractAddr,
 	}
-	vm := NewTVM(&senderAddr, contract)
+	vm := NewTVM(&senderAddr, contract, 0)
 	vm.SetGas(9999999999999999)
 	var addr common.Address
 	addr = common.BytesToAddress([]byte("0x123"))
@@ -227,7 +228,7 @@ func TestTVM_VerifyABI2(t *testing.T) {
 		ContractName:    "A",
 		ContractAddress: &contractAddr,
 	}
-	vm := NewTVM(&senderAddr, contract)
+	vm := NewTVM(&senderAddr, contract, 0)
 	vm.SetGas(9999999999999999)
 	var addr common.Address
 	addr = common.BytesToAddress([]byte("0x123"))
@@ -251,4 +252,8 @@ func TestTVM_VerifyABI2(t *testing.T) {
 	//result := vm.ExecuteScriptKindFile(contract.Code)
 	fmt.Println("result:", result)
 
+}
+
+func init() {
+	params.InitChainConfig(1)
 }
