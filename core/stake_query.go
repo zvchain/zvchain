@@ -27,7 +27,7 @@ type stakeCacheItem struct {
 }
 
 func (item *stakeCacheItem) getStake(root common.Hash) uint64 {
-	if v, ok := item.byRoot.Get(root); ok {
+	if v, ok := item.byRoot.Peek(root); ok {
 		return v.(uint64)
 	}
 	return 0
@@ -42,7 +42,7 @@ type rootCacheItem struct {
 }
 
 func (item *rootCacheItem) getRoot(block common.Hash) common.Hash {
-	if v, ok := item.byHash.Get(block); ok {
+	if v, ok := item.byHash.Peek(block); ok {
 		return v.(common.Hash)
 	}
 	return common.Hash{}
@@ -60,7 +60,7 @@ func newStakeCacheItem() *stakeCacheItem {
 
 func newRootCacheItem() *rootCacheItem {
 	return &rootCacheItem{
-		byHash: common.MustNewLRUCache(10),
+		byHash: common.MustNewLRUCache(20),
 	}
 }
 
@@ -149,13 +149,18 @@ func (sq *stakeQuerier) getStake(addr common.Address, hash common.Hash, root com
 }
 
 func (sq *stakeQuerier) queryProposerStake(addr common.Address, hash common.Hash) uint64 {
-	root := sq.getRoot(addr, hash)
-
 	t := atomic.AddUint64(&sq.total, 1)
+	if t == 0 {
+		atomic.StoreUint64(&sq.stakeHit, 0)
+		atomic.StoreUint64(&sq.rootHit, 0)
+	}
 	if t != 0 && t%10 == 0 {
 		stakeHit := atomic.LoadUint64(&sq.stakeHit)
 		rootHit := atomic.LoadUint64(&sq.rootHit)
 		Logger.Debugf("queryProposerStake stake hit rate: %f(%v/%v), root hit rate: %f(%v/%v)", float64(stakeHit)/float64(t), stakeHit, t, float64(rootHit)/float64(t), rootHit, t)
 	}
+
+	root := sq.getRoot(addr, hash)
+
 	return sq.getStake(addr, hash, root)
 }

@@ -37,7 +37,7 @@ var config *ChainConfig
 func InitChainConfig(chainId uint16) {
 	config = &ChainConfig{
 		ChainId: chainId,
-		ZIP001:  50,
+		ZIP001:  7000,
 		ZIP002:  50,
 	}
 }
