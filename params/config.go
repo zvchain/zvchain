@@ -21,7 +21,6 @@ import (
 
 // ChainConfig defines the basic params of the chain
 type ChainConfig struct {
-
 	// Chain id identifies the current chain
 	ChainId uint16
 
@@ -32,14 +31,13 @@ type ChainConfig struct {
 	ZIP002 uint64
 }
 
-var config *ChainConfig
+var config = &ChainConfig{
+	ZIP001: 873988, // effect at : 2019-10-28 14:00:00
+	ZIP002: 50,
+}
 
 func InitChainConfig(chainId uint16) {
-	config = &ChainConfig{
-		ChainId: chainId,
-		ZIP001:  7000,
-		ZIP002:  50,
-	}
+	config.ChainId = chainId
 }
 
 func GetChainConfig() *ChainConfig {

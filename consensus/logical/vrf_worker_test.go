@@ -266,7 +266,7 @@ func TestProposalQualification(t *testing.T) {
 	}
 	stakes := generateStakes()
 	miners := generateMiners(stakes)
-	testCnt := 30000
+	testCnt := 100
 	parallel := runtime.NumCPU()
 	testCntPerCpu := testCnt / parallel
 
