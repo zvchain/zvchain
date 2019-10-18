@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/params"
 	"math/big"
+	"sync/atomic"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/time"
@@ -295,8 +296,9 @@ type BlockWeight struct {
 	PreHash  common.Hash
 	Height   uint64
 	Hash     common.Hash
-	TotalQN  uint64   // Same as TotalQN field of BlockHeader
-	PV       *big.Int // Converted from ProveValue field of BlockHeader
+	TotalQN  uint64       // Same as TotalQN field of BlockHeader
+	PV       *big.Int     // Converted from ProveValue field of BlockHeader
+	npv      atomic.Value // normalized pv cached(type *big.Rat), added in zip001
 }
 
 type CandidateBlockHeader struct {
@@ -318,11 +320,17 @@ func (bw *BlockWeight) MoreWeight(bw2 *BlockWeight) bool {
 
 // normalizePV returns the pv value after normalization by the stake
 func (bw *BlockWeight) normalizePV() *big.Rat {
+	v := bw.npv.Load()
+	if v != nil {
+		return v.(*big.Rat)
+	}
 	stake := DefaultStakeGetter(bw.Proposer, bw.PreHash)
 	if stake == 0 {
 		return new(big.Rat).SetInt64(0)
 	}
-	return new(big.Rat).Quo(new(big.Rat).SetInt(bw.PV), new(big.Rat).SetFloat64(float64(stake)))
+	npv := new(big.Rat).Quo(new(big.Rat).SetInt(bw.PV), new(big.Rat).SetFloat64(float64(stake)))
+	bw.npv.Store(npv)
+	return npv
 }
 
 // Cmp compares the weight between current block and the given one.

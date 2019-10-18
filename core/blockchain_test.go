@@ -17,6 +17,11 @@ package core
 
 import (
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/zvchain/zvchain/middleware/ticker"
+	"github.com/zvchain/zvchain/params"
+	"github.com/zvchain/zvchain/storage/tasdb"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -232,7 +237,7 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	BlockChainImpl.Close()
 }
 
-func TestBalanceLackFork(t *testing.T){
+func TestBalanceLackFork(t *testing.T) {
 	err := initContext4Test(t)
 	defer clearSelf(t)
 	if err != nil {
@@ -243,7 +248,7 @@ func TestBalanceLackFork(t *testing.T){
 	block0 := BlockChainImpl.QueryTopBlock()
 
 	nonce := uint64(1)
-	tx := genTestTx(500, "100", nonce, (100000000 - 1)*common.ZVC)
+	tx := genTestTx(500, "100", nonce, (100000000-1)*common.ZVC)
 
 	txpool := BlockChainImpl.GetTransactionPool()
 	_, err = txpool.AddTransaction(tx)
@@ -737,4 +742,125 @@ func (g *GroupCreateChecker4Test) CheckOriginPiecePacket(packet types.OriginShar
 }
 func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerContext) (types.PunishmentMsg, error) {
 	return nil, fmt.Errorf("do not need punishment")
+}
+
+func newBlockChainByDB(db string) (*FullBlockChain, error) {
+	chain := &FullBlockChain{
+		config: &BlockChainConfig{
+			dbfile:      db,
+			block:       "bh",
+			blockHeight: "hi",
+			state:       "st",
+			reward:      "nu",
+			tx:          "tx",
+			receipt:     "rc",
+		},
+		latestBlock:      nil,
+		init:             true,
+		isAdjusting:      false,
+		ticker:           ticker.NewGlobalTicker("chain"),
+		futureRawBlocks:  common.MustNewLRUCache(100),
+		verifiedBlocks:   common.MustNewLRUCache(10),
+		topRawBlocks:     common.MustNewLRUCache(20),
+		newBlockMessages: common.MustNewLRUCache(100),
+	}
+
+	options := &opt.Options{
+		OpenFilesCacheCapacity:        100,
+		BlockCacheCapacity:            16 * opt.MiB,
+		WriteBuffer:                   16 * opt.MiB, // Two of these are used internally
+		Filter:                        filter.NewBloomFilter(10),
+		CompactionTableSize:           4 * opt.MiB,
+		CompactionTableSizeMultiplier: 2,
+		CompactionTotalSize:           16 * opt.MiB,
+		BlockSize:                     64 * opt.KiB,
+		ReadOnly:                      true,
+	}
+
+	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
+	if err != nil {
+		Logger.Errorf("new datasource error:%v", err)
+		return nil, err
+	}
+
+	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+
+	chain.blockHeight, err = ds.NewPrefixDatabase(chain.config.blockHeight)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+	chain.txDb, err = ds.NewPrefixDatabase(chain.config.tx)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+	chain.stateDb, err = ds.NewPrefixDatabase(chain.config.state)
+	if err != nil {
+		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return nil, err
+	}
+
+	chain.stateCache = account.NewDatabase(chain.stateDb)
+
+	latestBH := chain.loadCurrentBlock()
+	chain.latestBlock = latestBH
+	return chain, nil
+}
+
+func TestStatProposalRate(t *testing.T) {
+	params.InitChainConfig(1)
+	common.InitConf("/Users/pxf/go_lib/src/github.com/zvchain/zvchain/core/test1.ini")
+	chain, err := newBlockChainByDB("/Users/pxf/workspace/zv-test/run1/d_b")
+	if err != nil {
+		panic(err)
+	}
+	mm := &MinerManager{}
+
+	statFunc := func(stat map[string]int, b uint64) {
+		block := chain.QueryBlockHeaderByHeight(b)
+		if block == nil {
+			return
+		}
+		p := common.ToHex(block.Castor)
+		if v, ok := stat[p]; ok {
+			stat[p] = v + 1
+		} else {
+			stat[p] = 1
+		}
+	}
+
+	beforeZIP := make(map[string]int)
+	for b := uint64(1); b < params.GetChainConfig().ZIP001; b++ {
+		statFunc(beforeZIP, b)
+	}
+	afterZIP := make(map[string]int)
+	for b := params.GetChainConfig().ZIP001; b <= chain.Height(); b++ {
+		statFunc(afterZIP, b)
+	}
+	db, _ := chain.AccountDBAt(chain.Height())
+	stakeMap := make(map[string]uint64)
+	for p, _ := range beforeZIP {
+		m := mm.getMiner(db, common.BytesToAddress(common.FromHex(p)), types.MinerTypeProposal)
+		if m == nil {
+			panic(p)
+		}
+		stakeMap[p] = m.Stake
+	}
+	for p, _ := range afterZIP {
+		m := mm.getMiner(db, common.BytesToAddress(common.FromHex(p)), types.MinerTypeProposal)
+
+		stakeMap[p] = m.Stake
+	}
+	for p, v := range beforeZIP {
+		t.Log(stakeMap[p]/common.ZVC, v, float64(v)/float64(stakeMap[p]/common.ZVC))
+	}
+	t.Log("====================================")
+	for p, v := range afterZIP {
+		t.Log(stakeMap[p]/common.ZVC, v, float64(v)/float64(stakeMap[p]/common.ZVC))
+	}
 }

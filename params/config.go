@@ -37,7 +37,7 @@ var config *ChainConfig
 func InitChainConfig(chainId uint16) {
 	config = &ChainConfig{
 		ChainId: chainId,
-		ZIP001:  7000,
+		ZIP001:  873988, // effect at : 2019-10-28 14:00:00
 		ZIP002:  50,
 	}
 }
