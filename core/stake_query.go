@@ -66,7 +66,7 @@ func newRootCacheItem() *rootCacheItem {
 
 type accountDBGetter interface {
 	// Use the lockless one of the FullBlockChain in case of deadlock when adds block on chain
-	getAccountDBByHash(hash common.Hash) (types.AccountDB, error)
+	accountDBAt(height uint64) (types.AccountDB, error)
 }
 
 type minerGetter interface {
@@ -95,34 +95,48 @@ func initStakeGetter(mGet minerGetter, dbGet accountDBGetter) {
 	types.DefaultStakeGetter = querier.queryProposerStake
 }
 
-func (sq *stakeQuerier) getRoot(addr common.Address, hash common.Hash) common.Hash {
-	v, ok := sq.rootCache.Get(addr)
-	var item *rootCacheItem
-	if ok {
-		item = v.(*rootCacheItem)
-		if root := item.getRoot(hash); root != common.EmptyHash {
-			atomic.AddUint64(&sq.rootHit, 1)
-			return root
-		}
-	} else {
-		item = newRootCacheItem()
-		sq.rootCache.ContainsOrAdd(addr, item)
-	}
-	db, err := sq.dbGet.getAccountDBByHash(hash)
+//func (sq *stakeQuerier) getRoot(addr common.Address, height uint64) common.Hash {
+//	v, ok := sq.rootCache.Get(addr)
+//	var item *rootCacheItem
+//	if ok {
+//		item = v.(*rootCacheItem)
+//		if root := item.getRoot(hash); root != common.EmptyHash {
+//			atomic.AddUint64(&sq.rootHit, 1)
+//			return root
+//		}
+//	} else {
+//		item = newRootCacheItem()
+//		sq.rootCache.ContainsOrAdd(addr, item)
+//	}
+//	db, err := sq.dbGet.accountDBAt(hash)
+//	if err != nil {
+//		Logger.Errorf("get accountDB error:%v, hash:%v", err, hash)
+//		return common.Hash{}
+//	}
+//	obj := db.GetStateObject(addr)
+//	if obj == nil {
+//		Logger.Errorf("get account object nil of %v", addr.AddrPrefixString())
+//		return common.Hash{}
+//	}
+//	item.setRoot(hash, obj.GetRootHash())
+//	return obj.GetRootHash()
+//}
+
+func (sq *stakeQuerier) getRoot(addr common.Address, height uint64) (types.AccountDB, common.Hash) {
+	db, err := sq.dbGet.accountDBAt(height)
 	if err != nil {
-		Logger.Errorf("get accountDB error:%v, hash:%v", err, hash)
-		return common.Hash{}
+		Logger.Errorf("get accountDB error:%v, height:%v", err, height)
+		return nil, common.Hash{}
 	}
 	obj := db.GetStateObject(addr)
 	if obj == nil {
 		Logger.Errorf("get account object nil of %v", addr.AddrPrefixString())
-		return common.Hash{}
+		return db, common.Hash{}
 	}
-	item.setRoot(hash, obj.GetRootHash())
-	return obj.GetRootHash()
+	return db, obj.GetRootHash()
 }
 
-func (sq *stakeQuerier) getStake(addr common.Address, hash common.Hash, root common.Hash) uint64 {
+func (sq *stakeQuerier) getStake(db types.AccountDB, addr common.Address, height uint64, root common.Hash) uint64 {
 	v, ok := sq.stakeCache.Get(addr)
 	var item *stakeCacheItem
 	if ok {
@@ -135,11 +149,6 @@ func (sq *stakeQuerier) getStake(addr common.Address, hash common.Hash, root com
 		item = newStakeCacheItem()
 		sq.stakeCache.ContainsOrAdd(addr, item)
 	}
-	db, err := sq.dbGet.getAccountDBByHash(hash)
-	if err != nil {
-		Logger.Errorf("get accountDB error:%v, hash:%v", err, hash)
-		return 0
-	}
 	m := sq.mGet.getMiner(db, addr, types.MinerTypeProposal)
 	if m == nil {
 		return 0
@@ -148,7 +157,7 @@ func (sq *stakeQuerier) getStake(addr common.Address, hash common.Hash, root com
 	return m.Stake
 }
 
-func (sq *stakeQuerier) queryProposerStake(addr common.Address, hash common.Hash) uint64 {
+func (sq *stakeQuerier) queryProposerStake(addr common.Address, height uint64) uint64 {
 	t := atomic.AddUint64(&sq.total, 1)
 	if t == 0 {
 		atomic.StoreUint64(&sq.stakeHit, 0)
@@ -160,7 +169,9 @@ func (sq *stakeQuerier) queryProposerStake(addr common.Address, hash common.Hash
 		Logger.Debugf("queryProposerStake stake hit rate: %f(%v/%v), root hit rate: %f(%v/%v)", float64(stakeHit)/float64(t), stakeHit, t, float64(rootHit)/float64(t), rootHit, t)
 	}
 
-	root := sq.getRoot(addr, hash)
-
-	return sq.getStake(addr, hash, root)
+	db, root := sq.getRoot(addr, height)
+	if db == nil || root == common.EmptyHash {
+		return 0
+	}
+	return sq.getStake(db, addr, height, root)
 }

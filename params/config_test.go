@@ -23,7 +23,7 @@ import (
 func TestCalculateZIP001Height(t *testing.T) {
 	begin := time.Date(2019, 10, 18, 12, 0, 0, 0, time.Local)
 	beginHeight := uint64(583588)
-	effect := time.Date(2019, 10, 28, 14, 0, 0, 0, time.Local)
+	effect := time.Date(2019, 10, 30, 14, 0, 0, 0, time.Local)
 	t.Log(effect.String(), effect.UTC().String())
 
 	seconds := effect.Local().Sub(begin.Local())

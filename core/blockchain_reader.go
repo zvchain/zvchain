@@ -257,19 +257,23 @@ func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (types.Account
 	return chain.getAccountDBByHash(hash)
 }
 
-// AccountDBAt returns account database with specified block height
-func (chain *FullBlockChain) AccountDBAt(height uint64) (types.AccountDB, error) {
-	chain.rwLock.RLock()
-	defer chain.rwLock.RUnlock()
-
+func (chain *FullBlockChain) accountDBAt(height uint64) (types.AccountDB, error) {
 	header := chain.latestBlock
-	if height < header.Height {
+	if header == nil || height < header.Height {
 		header = chain.queryBlockHeaderByHeightFloor(height)
 		if header == nil {
 			return nil, fmt.Errorf("no data at height %v", height)
 		}
 	}
 	return account.NewAccountDB(header.StateTree, chain.stateCache)
+}
+
+// AccountDBAt returns account database with specified block height
+func (chain *FullBlockChain) AccountDBAt(height uint64) (types.AccountDB, error) {
+	chain.rwLock.RLock()
+	defer chain.rwLock.RUnlock()
+
+	return chain.accountDBAt(height)
 }
 
 // BatchGetBlocksAfterHeight query blocks after the specified height

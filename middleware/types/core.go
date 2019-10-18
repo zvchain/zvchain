@@ -288,12 +288,11 @@ type Block struct {
 }
 
 // Function for getting stake of the given proposer at the given block
-type StakeGetter func(addr common.Address, hash common.Hash) uint64
+type StakeGetter func(addr common.Address, height uint64) uint64
 
 // BlockWeight denotes the weight of one block
 type BlockWeight struct {
 	Proposer common.Address
-	PreHash  common.Hash
 	Height   uint64
 	Hash     common.Hash
 	TotalQN  uint64       // Same as TotalQN field of BlockHeader
@@ -324,7 +323,7 @@ func (bw *BlockWeight) normalizePV() *big.Rat {
 	if v != nil {
 		return v.(*big.Rat)
 	}
-	stake := DefaultStakeGetter(bw.Proposer, bw.PreHash)
+	stake := DefaultStakeGetter(bw.Proposer, bw.Height-1)
 	if stake == 0 {
 		return new(big.Rat).SetInt64(0)
 	}
@@ -367,7 +366,6 @@ func NewBlockWeight(bh *BlockHeader) *BlockWeight {
 		PV:       DefaultPVFunc(bh.ProveValue),
 		Proposer: common.BytesToAddress(bh.Castor),
 		Height:   bh.Height,
-		PreHash:  bh.PreHash,
 	}
 }
 
