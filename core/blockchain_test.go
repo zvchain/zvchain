@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/zvchain/zvchain/middleware/ticker"
@@ -45,6 +46,10 @@ import (
 )
 
 var source = "100"
+
+func init() {
+	log.ELKLogger.SetLevel(logrus.ErrorLevel)
+}
 
 func TestPath(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
