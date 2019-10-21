@@ -14,6 +14,7 @@ import (
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/tvm"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -67,6 +68,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	server.addGenisisblock()
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
+	go server.ConsumeContractTransfer()
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
@@ -344,6 +346,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 		}
 		if server.storage.AddBlock(&blockDetail.Block) {
 			trans := make([]*models.Transaction, 0, 0)
+			transContract := make([]*models.Transaction, 0, 0)
 			for i := 0; i < len(blockDetail.Trans); i++ {
 				tran := server.fetcher.ConvertTempTransactionToTransaction(blockDetail.Trans[i])
 				tran.BlockHash = blockDetail.Block.Hash
@@ -353,6 +356,9 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				if tran.Type == types.TransactionTypeContractCreate {
 					tran.ContractAddress = blockDetail.Receipts[i].ContractAddress
 				}
+				if tran.Type == types.TransactionTypeContractCall {
+					transContract = append(transContract, tran)
+				}
 				trans = append(trans, tran)
 			}
 			server.storage.AddTransactions(trans)
@@ -361,11 +367,33 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				blockDetail.Receipts[i].BlockHeight = blockDetail.Block.Height
 			}
 			server.storage.AddReceipts(blockDetail.Receipts)
-			server.storage.AddLogs(blockDetail.Receipts)
+			server.storage.AddLogs(blockDetail.Receipts, false)
+			server.ProcessContract(transContract)
 		}
 	}
 	//server.isFetchingBlocks = false
 
+}
+
+func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
+	chain := core.BlockChainImpl
+	for _, tx := range trans {
+		contract := &common2.ContractCall{
+			Hash: tx.Hash,
+		}
+		addressList := crontab.storage.GetContractByHash(tx.Hash)
+		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(tx.Hash))
+		//contract address
+		if wrapper.Status == 0 && len(addressList) > 0 {
+			go crontab.ConsumeContract(contract, tx.Hash)
+		}
+	}
+
+}
+func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string) {
+	tm.storage.UpdateContractTransaction(hash)
+	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash))
+	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
 }
 
 func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
@@ -457,6 +485,34 @@ func (crontab *Crontab) Consume() {
 		}
 	}
 }
+func (crontab *Crontab) ConsumeContractTransfer() {
+
+	var ok = true
+	for ok {
+		select {
+		case data := <-tvm.ContractTransferData:
+			contractTransaction := &models.ContractTransaction{
+				ContractCode: data.ContractCode,
+				Address:      data.Address,
+				Value:        data.Value,
+				TxHash:       data.TxHash,
+				TxType:       0,
+				Status:       0,
+				BlockHeight:  data.BlockHeight,
+			}
+			fmt.Println("ConsumeContractTransfer:", data.Address, ",contractcode:", data.ContractCode)
+			mysql.DBStorage.AddContractTransaction(contractTransaction)
+			contractCall := &models.ContractCallTransaction{
+				ContractCode: data.ContractCode,
+				TxHash:       data.TxHash,
+				TxType:       0,
+				BlockHeight:  data.BlockHeight,
+			}
+			mysql.DBStorage.AddContractCallTransaction(contractCall)
+		}
+	}
+}
+
 func (crontab *Crontab) ConsumeReward() {
 
 	var ok = true
@@ -486,7 +542,7 @@ func (crontab *Crontab) fetchOldLogs() {
 						blockDetail.Receipts[i].BlockHash = blockDetail.Block.Hash
 						blockDetail.Receipts[i].BlockHeight = blockDetail.Block.Height
 					}
-					crontab.storage.AddLogs(blockDetail.Receipts)
+					crontab.storage.AddLogs(blockDetail.Receipts, true)
 				}
 			}
 		}

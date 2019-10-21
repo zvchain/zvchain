@@ -2,18 +2,30 @@ package tvm
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/browser/models"
-	"github.com/zvchain/zvchain/browser/mysql"
-	"github.com/zvchain/zvchain/browser/util"
 )
 
-func ProduceContractTransfer(txHash string, addr string, value uint64, contractCode string) {
-	contractTransaction := &models.ContractTransaction{
-		ContractCode: contractCode,
-		Address:      addr,
+var ContractTransferData chan *ContractTransfer
+
+type ContractTransfer struct {
+	Value        uint64
+	Address      string
+	TxHash       string
+	BlockHeight  uint64
+	ContractCode string
+}
+
+func ProduceContractTransfer(txHash string,
+	addr string,
+	value uint64,
+	contractCode string,
+	blockHeight uint64) {
+	contract := &ContractTransfer{
 		Value:        value,
+		Address:      addr,
 		TxHash:       txHash,
+		ContractCode: contractCode,
+		BlockHeight:  blockHeight,
 	}
-	mysql.DBStorage.AddContractTransaction(contractTransaction)
-	fmt.Println("ProduceContractTransfer", util.ObjectTojson(contractTransaction))
+	ContractTransferData <- contract
+	fmt.Println("ProduceContractTransfer,addr:", addr, ",contractcode:", contractCode)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/tvm"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,6 +46,7 @@ type DBMmanagement struct {
 }
 
 func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *DBMmanagement {
+	tvm.ContractTransferData = make(chan *tvm.ContractTransfer, 500)
 	tablMmanagement := &DBMmanagement{}
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 
@@ -133,12 +135,6 @@ func (tm *DBMmanagement) excuteAccountProposalAndVerifyCount() {
 	}
 }
 
-func (tm *DBMmanagement) ConsumeContract(data *common2.ContractCall, chain *core.FullBlockChain, hash common.Hash) {
-	tm.storage.UpdateContractTransaction(hash.Hex())
-	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash.Hex()))
-	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
-}
-
 func (tm *DBMmanagement) excuteAccounts() {
 
 	topHeight := core.BlockChainImpl.Height()
@@ -189,13 +185,10 @@ func (tm *DBMmanagement) excuteAccounts() {
 					}
 
 					if tx.Type == types.TransactionTypeContractCall {
-						contract := &common2.ContractCall{
-							Hash: tx.GenHash().Hex(),
-						}
 						addressList := tm.storage.GetContractByHash(tx.GenHash().Hex())
-						wrapper := chain.GetTransactionPool().GetReceipt(tx.GenHash())
+						//wrapper := chain.GetTransactionPool().GetReceipt(tx.GenHash())
 						//contract address
-						if wrapper.Status == 0 && len(addressList) > 0 {
+						if len(addressList) > 0 {
 							for _, addr := range addressList {
 								if _, exists := AddressCacheList[addr]; exists {
 									AddressCacheList[addr] += 0
@@ -203,7 +196,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 									AddressCacheList[addr] = 0
 								}
 							}
-							go tm.ConsumeContract(contract, chain, tx.GenHash())
+							//go tm.ConsumeContract(contract, chain, tx.GenHash())
 						}
 					}
 					//check update stake
