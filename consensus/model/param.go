@@ -34,7 +34,7 @@ const (
 	GroupMaxMembers int = 100
 
 	// GroupMinMembers means the minimum number of members in a group
-	GroupMinMembers int = 80
+	GroupMinMembers int = 10
 )
 
 // ConsensusParam defines all the params of the consensus engine
