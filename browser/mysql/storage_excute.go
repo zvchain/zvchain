@@ -574,6 +574,20 @@ func (storage *Storage) AddContractTransaction(contract *models.ContractTransact
 	storage.db.Create(&contract)
 	return true
 }
+func (storage *Storage) AddContractCallTransaction(contract *models.ContractCallTransaction) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	data := make([]*models.ContractCallTransaction, 0, 0)
+	storage.db.Limit(1).Where("tx_hash = ?", contract.TxHash).Find(&data)
+	if len(data) > 0 {
+		return false
+	}
+	storage.db.Create(&contract)
+	return true
+}
+
 func (storage *Storage) AddBlock(block *models.Block) bool {
 	//fmt.Println("[Storage] add block ")
 	if storage.db == nil {
@@ -671,8 +685,17 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt, old bool) bool {
 								TxHash:       receipts[i].Logs[j].TxHash,
 								TxType:       0,
 								Status:       1,
+								BlockHeight:  receipts[i].Logs[j].BlockNumber,
 							}
 							storage.AddContractTransaction(contract)
+							contractCall := &models.ContractCallTransaction{
+								ContractCode: receipts[i].Logs[j].Address,
+								TxHash:       receipts[i].Logs[j].TxHash,
+								TxType:       0,
+								BlockHeight:  receipts[i].Logs[j].BlockNumber,
+							}
+							storage.AddContractCallTransaction(contractCall)
+
 						}
 					}
 

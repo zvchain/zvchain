@@ -97,6 +97,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if !db.HasTable(&models.ContractTransaction{}) {
 		db.CreateTable(&models.ContractTransaction{})
 	}
+	if !db.HasTable(&models.ContractCallTransaction{}) {
+		db.CreateTable(&models.ContractCallTransaction{})
+	}
 	if !db.HasTable(&models.Sys{}) {
 		db.CreateTable(&models.Sys{})
 	}

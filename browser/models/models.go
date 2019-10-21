@@ -87,6 +87,14 @@ type ContractTransaction struct {
 	BlockHeight  uint64 `json:"block_height"`
 }
 
+type ContractCallTransaction struct {
+	gorm.Model
+	ContractCode string `json:"contract_code" gorm:"index"`
+	TxHash       string `json:"tx_hash" gorm:"index"`
+	TxType       uint64 `json:"tx_type"`
+	BlockHeight  uint64 `json:"block_height"`
+}
+
 type Group struct {
 	Id            string   `json:"id" gorm:"index"`
 	Height        uint64   `json:"height" gorm:"index"`

@@ -502,6 +502,13 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 			}
 			fmt.Println("ConsumeContractTransfer:", data.Address, ",contractcode:", data.ContractCode)
 			mysql.DBStorage.AddContractTransaction(contractTransaction)
+			contractCall := &models.ContractCallTransaction{
+				ContractCode: data.ContractCode,
+				TxHash:       data.TxHash,
+				TxType:       0,
+				BlockHeight:  data.BlockHeight,
+			}
+			mysql.DBStorage.AddContractCallTransaction(contractCall)
 		}
 	}
 }
