@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
@@ -676,12 +675,12 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt, old bool) bool {
 					storage.db.Create(&receipts[i].Logs[j])
 				}
 				if old && receipts[i].Logs[j] != nil && receipts[i].Logs[j].Data != "" {
-					decodeBytes, err := base64.StdEncoding.DecodeString(receipts[i].Logs[j].Data)
+					decodeBytes := receipts[i].Logs[j].Data
 					fmt.Println("[Storage]  AddContractTransaction ", receipts[i].Logs[j].Data)
-					if err == nil {
+					if decodeBytes != "" {
 						//log := string (decodeBytes)
 						logData := &common.LogData{}
-						if json.Unmarshal(decodeBytes, logData) == nil {
+						if json.Unmarshal([]byte(decodeBytes), logData) == nil {
 							value := logData.Value
 							contract := &models.ContractTransaction{
 								ContractCode: receipts[i].Logs[j].Address,
