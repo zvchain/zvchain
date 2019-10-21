@@ -559,6 +559,11 @@ func (storage *Storage) AddGroup(group *models.Group) bool {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
+	data := make([]*models.Group, 0, 0)
+	storage.db.Limit(1).Where("id = ?", group.Id).Find(&data)
+	if len(data) > 0 {
+		return false
+	}
 
 	if storage.topGroupHigh < group.Height {
 		storage.topGroupHigh = group.Height
