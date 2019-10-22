@@ -111,11 +111,11 @@ type nodeCache struct {
 
 var ncache *nodeCache
 
-func init() {
-	NewNodeCache(50000)
-}
+//func init() {
+//	CreateNodeCache(50000)
+//}
 
-func NewNodeCache(size int) {
+func CreateNodeCache(size int) {
 	ncache = &nodeCache{
 		cache: common.MustNewLRUCache(size),
 	}

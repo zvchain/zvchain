@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -159,6 +160,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db block cache size from config
 	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
 
+	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
+
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        fileCacheSize,
 		BlockCacheCapacity:            blockCacheSize * opt.MiB,
@@ -174,6 +177,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	if err != nil {
 		Logger.Errorf("new datasource error:%v", err)
 		return err
+	}
+
+	if iteratorNodeCacheSize > 0 {
+		trie.CreateNodeCache(iteratorNodeCacheSize)
 	}
 
 	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)
