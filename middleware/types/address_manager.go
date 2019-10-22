@@ -2,10 +2,8 @@ package types
 
 import (
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/params"
 )
-
-var ChainId uint16
-const NormalChainId = 10000
 
 //---------------------------------------------------------------------------normal-------------------------------------------------------------------------------------------
 // GenesisDefaultGroupInfo represent for the basic info of the genesis verifyGroup
@@ -366,57 +364,55 @@ func IsInExtractGuardNodes(addr common.Address) bool {
 	return false
 }
 
-func GetDaemonNodeAddress()common.Address{
-	if IsNormalChain(){
+func GetDaemonNodeAddress() common.Address {
+	if IsNormalChain() {
 		return daemonNodeAddressNormal
 	}
 	return daemonNodeAddressTest
 }
 
-func GetUserNodeAddress()common.Address{
-	if IsNormalChain(){
+func GetUserNodeAddress() common.Address {
+	if IsNormalChain() {
 		return userNodeAddressNormal
 	}
 	return userNodeAddressTest
 }
 
-func GetCirculatesAddr()common.Address{
-	if IsNormalChain(){
+func GetCirculatesAddr() common.Address {
+	if IsNormalChain() {
 		return circulatesAddrNormal
 	}
 	return circulatesAddrTest
 }
 
-func GetStakePlatformAddr()common.Address{
-	if IsNormalChain(){
+func GetStakePlatformAddr() common.Address {
+	if IsNormalChain() {
 		return stakePlatformAddrNormal
 	}
 	return stakePlatformAddrTest
 }
 
-func GetAdminAddr()common.Address{
-	if IsNormalChain(){
+func GetAdminAddr() common.Address {
+	if IsNormalChain() {
 		return adminAddrNormal
 	}
 	return adminAddrTest
 }
 
-func GetGenesisDefaultGroupInfo()string{
-	if IsNormalChain(){
+func GetGenesisDefaultGroupInfo() string {
+	if IsNormalChain() {
 		return genesisDefaultGroupInfoNoraml
 	}
 	return genesisDefaultGroupInfoTest
 }
 
-func GetGuardAddress()[]common.Address{
-	if IsNormalChain(){
+func GetGuardAddress() []common.Address {
+	if IsNormalChain() {
 		return extractGuardNodesNormal
 	}
 	return extractGuardNodesTest
 }
 
-
-func IsNormalChain() bool{
-	return ChainId <= (common.MaxUint16 / 2)
+func IsNormalChain() bool {
+	return params.GetChainConfig().IsMainNet()
 }
-
