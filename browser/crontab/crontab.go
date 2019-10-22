@@ -23,7 +23,6 @@ import (
 
 const (
 	check10SecInterval = time.Second * 10
-	checkHourInterval  = time.Hour * 1
 )
 
 const (
@@ -84,10 +83,8 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
-		checkHour  = time.NewTicker(checkHourInterval)
 	)
 	defer check10Sec.Stop()
-	defer checkHour.Stop()
 	go crontab.fetchOldLogs()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
@@ -95,7 +92,6 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
 	go crontab.ConsumeReward()
-	go crontab.updatePoolStatus()
 
 	for {
 		select {
@@ -103,9 +99,6 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchPoolVotes()
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
-		case <-checkHour.C:
-			go crontab.updatePoolStatus()
-
 		}
 	}
 }
@@ -416,6 +409,7 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	}
 	go crontab.Produce(data)
 	go crontab.ProduceReward(data)
+	go crontab.UpdatePoolAndProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
 	return nil
 }
@@ -555,12 +549,30 @@ func (crontab *Crontab) fetchOldLogs() {
 	}
 }
 
-func (crontab *Crontab) updatePoolStatus() {
+// 更新守护节点和矿池状态
+func (crontab *Crontab) UpdatePoolAndProtectNodeStatus() {
 
-	expiredPools := core.ExpiredPools
-	if len(expiredPools) > 0 {
-		for _, accountList := range expiredPools {
-			crontab.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", accountList.AddrPrefixString()).Update("role_type", types.InValidMinerPool)
+	expiredNodes := core.ExpiredGuardNodes
+	if len(expiredNodes) > 0 {
+		// 更新守护节点状态
+		protectNodes := make([]*models.AccountList, 0)
+		for _, node := range expiredNodes {
+			crontab.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", node.AddrPrefixString()).Limit(1).Find(&protectNodes)
+			if len(protectNodes) > 0 {
+				browser.UpdateAccountStake(protectNodes[0], 0, crontab.storage)
+			}
+		}
+
+		// 更新矿池状态
+		accountLists := make([]*models.AccountList, 0)
+		crontab.storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerPool).Find(&accountLists)
+		for _, account := range accountLists {
+			proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(account.Address), types.MinerTypeProposal)
+			if proposalInfo != nil {
+				if !proposalInfo.IsMinerPool() {
+					browser.UpdateAccountStake(account, 0, crontab.storage)
+				}
+			}
 		}
 	}
 }

@@ -33,7 +33,7 @@ const (
 	checkInterval = 1000
 )
 
-var ExpiredPools []common.Address
+var ExpiredGuardNodes []common.Address
 
 var MinerManagerImpl *MinerManager
 
@@ -98,7 +98,7 @@ func (mm *MinerManager) FundGuardExpiredCheck(accountDB types.AccountDB, height 
 		allExpiredFundAddresses = append(allExpiredFundAddresses, expiredAddresses...)
 	}
 	if len(allExpiredFundAddresses) > 0 {
-		ExpiredPools = append(ExpiredPools, allExpiredFundAddresses...)
+		ExpiredGuardNodes = append(ExpiredGuardNodes, allExpiredFundAddresses...)
 	}
 
 	return allExpiredFundAddresses, nil
@@ -201,7 +201,7 @@ func (mm *MinerManager) FullStakeGuardNodesCheck(db types.AccountDB, height uint
 		}
 	}
 	if len(expiredAddresses) > 0 {
-		ExpiredPools = append(ExpiredPools, expiredAddresses...)
+		ExpiredGuardNodes = append(ExpiredGuardNodes, expiredAddresses...)
 	}
 	return expiredAddresses, nil
 }
