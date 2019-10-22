@@ -18,11 +18,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
 	"math"
 	"math/rand"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -36,7 +37,7 @@ import (
 const (
 	sendLocalTopInterval       = 3   // Interval of sending local top block to neighbor
 	syncNeightborsInterval     = 3   // Interval of requesting synchronize block from neighbor
-	syncNeightborTimeout       = 5   // Timeout of requesting synchronize block from neighbor
+	syncNeightborTimeout       = 60  // Timeout of requesting synchronize block from neighbor
 	blockSyncCandidatePoolSize = 100 // Size of candidate peer pool for block synchronize
 )
 
