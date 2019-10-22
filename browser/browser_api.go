@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	common2 "github.com/zvchain/zvchain/browser/common"
+	"github.com/zvchain/zvchain/browser/crontab"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
@@ -163,6 +164,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 						} else {
 							PoolList[tx.Target.AddrPrefixString()] = 1
 						}
+						crontab.UpdatePoolStatus(tm.storage)
 					}
 				}
 

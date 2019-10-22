@@ -409,7 +409,7 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	}
 	go crontab.Produce(data)
 	go crontab.ProduceReward(data)
-	go crontab.UpdatePoolAndProtectNodeStatus()
+	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
 	return nil
 }
@@ -550,7 +550,7 @@ func (crontab *Crontab) fetchOldLogs() {
 }
 
 // 更新守护节点和矿池状态
-func (crontab *Crontab) UpdatePoolAndProtectNodeStatus() {
+func (crontab *Crontab) UpdateProtectNodeStatus() {
 
 	expiredNodes := core.ExpiredGuardNodes
 	if len(expiredNodes) > 0 {
@@ -564,14 +564,19 @@ func (crontab *Crontab) UpdatePoolAndProtectNodeStatus() {
 		}
 
 		// 更新矿池状态
-		accountLists := make([]*models.AccountList, 0)
-		crontab.storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerPool).Find(&accountLists)
-		for _, account := range accountLists {
-			proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(account.Address), types.MinerTypeProposal)
-			if proposalInfo != nil {
-				if !proposalInfo.IsMinerPool() {
-					browser.UpdateAccountStake(account, 0, crontab.storage)
-				}
+		UpdatePoolStatus(crontab.storage)
+	}
+}
+
+// 更新矿池状态
+func UpdatePoolStatus(storage *mysql.Storage) {
+	accountLists := make([]*models.AccountList, 0)
+	storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerPool).Find(&accountLists)
+	for _, account := range accountLists {
+		proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(account.Address), types.MinerTypeProposal)
+		if proposalInfo != nil {
+			if !proposalInfo.IsMinerPool() {
+				browser.UpdateAccountStake(account, 0, storage)
 			}
 		}
 	}
