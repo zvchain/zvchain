@@ -19,9 +19,11 @@ package trie
 import (
 	"bytes"
 	"errors"
-
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
+	"sync/atomic"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -99,6 +101,53 @@ type NodeIterator interface {
 	// iterator is not positioned at a leaf. Callers must not retain references
 	// to the value after calling Next.
 	LeafProof() [][]byte
+}
+
+type nodeCache struct {
+	cache *lru.Cache
+	hit   uint64
+	total uint64
+}
+
+var ncache *nodeCache
+
+func init() {
+	NewNodeCache(50000)
+}
+
+func NewNodeCache(size int) {
+	ncache = &nodeCache{
+		cache: common.MustNewLRUCache(size),
+	}
+}
+
+func (nc *nodeCache) getNode(hash common.Hash) node {
+	if nc == nil {
+		return nil
+	}
+	defer func() {
+		total := atomic.LoadUint64(&nc.total)
+		if total%10 == 0 && total > 0 {
+			log.CoreLogger.Debugf("node iterator getNode hit %.4f(%v/%v),cache size %v", float64(nc.hit)/float64(total), nc.hit, total, ncache.cache.Len())
+		}
+	}()
+	atomic.AddUint64(&ncache.total, 1)
+	if atomic.LoadUint64(&nc.total) == 0 {
+		atomic.StoreUint64(&nc.total, 1)
+		atomic.StoreUint64(&nc.hit, 0)
+	}
+	if v, ok := nc.cache.Get(hash); ok {
+		atomic.AddUint64(&ncache.hit, 1)
+		return v.(node)
+	}
+	return nil
+}
+
+func (nc *nodeCache) storeNode(hash common.Hash, n node) {
+	if nc == nil {
+		return
+	}
+	nc.cache.Add(hash, n)
 }
 
 // nodeIteratorState represents the iteration state at one particular node of the
@@ -291,12 +340,20 @@ func (it *nodeIterator) peek(descend bool) (*nodeIteratorState, *int, []byte, er
 
 func (st *nodeIteratorState) resolve(tr *Trie, path []byte) error {
 	if hash, ok := st.node.(hashNode); ok {
-		resolved, err := tr.resolveHash(hash, path)
-		if err != nil {
-			return err
+		h := common.BytesToHash(hash)
+		var resolved node
+		if n := ncache.getNode(h); n == nil {
+			rs, err := tr.resolveHash(hash, path)
+			if err != nil {
+				return err
+			}
+			resolved = rs
+			ncache.storeNode(h, resolved)
+		} else {
+			resolved = n
 		}
 		st.node = resolved
-		st.hash = common.BytesToHash(hash)
+		st.hash = h
 	}
 	return nil
 }
