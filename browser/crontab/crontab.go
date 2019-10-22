@@ -556,26 +556,10 @@ func (crontab *Crontab) fetchOldLogs() {
 }
 
 func (crontab *Crontab) updatePoolStatus() {
-	accontDB, err := core.BlockChainImpl.LatestAccountDB()
-	if err != nil {
-		return
-	}
-	block := core.BlockChainImpl.QueryTopBlock()
-	guardExpiredList, err := core.MinerManagerImpl.FundGuardExpiredCheck(accontDB, block.Height)
-	if err != nil {
-		return
-	}
-	fullStakeGuardNodes, err := core.MinerManagerImpl.FullStakeGuardNodesCheck(accontDB, block.Height)
-	if err != nil {
-		return
-	}
 
-	if len(guardExpiredList) > 0 {
-		for _, accountList := range guardExpiredList {
-			crontab.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", accountList.AddrPrefixString()).Update("role_type", types.InValidMinerPool)
-		}
-	} else if len(fullStakeGuardNodes) > 0 {
-		for _, accountList := range fullStakeGuardNodes {
+	expiredPools := core.ExpiredPools
+	if len(expiredPools) > 0 {
+		for _, accountList := range expiredPools {
 			crontab.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", accountList.AddrPrefixString()).Update("role_type", types.InValidMinerPool)
 		}
 	}
