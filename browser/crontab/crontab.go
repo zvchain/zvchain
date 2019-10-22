@@ -22,7 +22,8 @@ import (
 )
 
 const (
-	checkInterval = time.Second * 10
+	check10SecInterval = time.Second * 10
+	checkHourInterval  = time.Hour * 1
 )
 
 const (
@@ -82,9 +83,11 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 
 func (crontab *Crontab) loop() {
 	var (
-		check = time.NewTicker(checkInterval)
+		check10Sec = time.NewTicker(check10SecInterval)
+		checkHour  = time.NewTicker(checkHourInterval)
 	)
-	defer check.Stop()
+	defer check10Sec.Stop()
+	defer checkHour.Stop()
 	go crontab.fetchOldLogs()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
@@ -92,13 +95,16 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
 	go crontab.ConsumeReward()
+	go crontab.updatePoolStatus()
 
 	for {
 		select {
-		case <-check.C:
+		case <-check10Sec.C:
 			go crontab.fetchPoolVotes()
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
+		case <-checkHour.C:
+			go crontab.updatePoolStatus()
 
 		}
 	}
@@ -548,6 +554,33 @@ func (crontab *Crontab) fetchOldLogs() {
 		}
 	}
 }
+
+func (crontab *Crontab) updatePoolStatus() {
+	accontDB, err := core.BlockChainImpl.LatestAccountDB()
+	if err != nil {
+		return
+	}
+	block := core.BlockChainImpl.QueryTopBlock()
+	guardExpiredList, err := core.MinerManagerImpl.FundGuardExpiredCheck(accontDB, block.Height)
+	if err != nil {
+		return
+	}
+	fullStakeGuardNodes, err := core.MinerManagerImpl.FullStakeGuardNodesCheck(accontDB, block.Height)
+	if err != nil {
+		return
+	}
+
+	if len(guardExpiredList) > 0 {
+		for _, accountList := range guardExpiredList {
+			crontab.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", accountList.AddrPrefixString()).Update("role_type", types.InValidMinerPool)
+		}
+	} else if len(fullStakeGuardNodes) > 0 {
+		for _, accountList := range fullStakeGuardNodes {
+			crontab.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", accountList.AddrPrefixString()).Update("role_type", types.InValidMinerPool)
+		}
+	}
+}
+
 func (crontab *Crontab) dataCompensationProcess(notifyHeight uint64, notifyPreHeight uint64) {
 	timenow := time.Now()
 	if !crontab.isInited {
