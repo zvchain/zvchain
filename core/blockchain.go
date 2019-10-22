@@ -250,6 +250,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.cpChecker.init()
 
+	initStakeGetter(MinerManagerImpl, chain)
+
 	return nil
 }
 
