@@ -163,7 +163,6 @@ func (tm *DBMmanagement) excuteAccounts() {
 						} else {
 							PoolList[tx.Target.AddrPrefixString()] = 1
 						}
-						UpdatePoolStatus(tm.storage)
 					}
 				}
 
@@ -262,6 +261,9 @@ func (tm *DBMmanagement) excuteAccounts() {
 
 					UpdateAccountStake(account, 0, tm.storage)
 				}
+			}
+			if PoolList != nil {
+				UpdatePoolStatus(tm.storage)
 			}
 			for address, _ := range PoolList {
 				accounts := &models.AccountList{}
