@@ -195,7 +195,7 @@ type Receipt struct {
 	Logs              []*Log `json:"logs" gorm:"-"`
 
 	TxHash          string `json:"transactionHash" gorm:"unique_index"`
-	ContractAddress string `json:"contractAddress"`
+	ContractAddress string `json:"contractAddress" gorm:"index"`
 	BlockHash       string `json:"block_hash" gorm:"index"`
 	BlockHeight     uint64 `json:"block_height" gorm:"index"`
 }
