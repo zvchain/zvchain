@@ -18,11 +18,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/common/secp256k1"
-	"github.com/zvchain/zvchain/network"
 	"sync"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/zvchain/zvchain/common/secp256k1"
+	"github.com/zvchain/zvchain/network"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -56,6 +57,7 @@ var (
 	ErrGasPrice        = errors.New("gas price is too low")
 	ErrSign            = errors.New("sign error")
 	ErrDataSizeTooLong = errors.New("data size too long")
+	ErrBlockSyncing    = errors.New("block is syncing")
 )
 
 type txPool struct {
@@ -142,6 +144,9 @@ func (pool *txPool) isRewardExists(tx *types.Transaction) bool {
 
 // AddTransaction try to add a transaction into the tool
 func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
+	if blockSync.isSyncing() {
+		return false, ErrBlockSyncing
+	}
 	return pool.tryAddTransaction(tx)
 }
 
@@ -365,4 +370,8 @@ func (pool *txPool) ClearRewardTxs() {
 		}
 		return true
 	})
+}
+
+func (pool *txPool) clearReceivedTxs() {
+	pool.received.clearRoute()
 }
