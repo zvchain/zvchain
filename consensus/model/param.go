@@ -54,9 +54,11 @@ type ConsensusParam struct {
 var Param ConsensusParam
 
 func InitParam(cc common.SectionConfManager) {
+	minGroupMemCount := cc.GetInt("group_min_members", GroupMinMembers)
+	maxGroupMemCount := cc.GetInt("group_max_members", GroupMaxMembers)
 	Param = ConsensusParam{
-		GroupMemberMax:    GroupMaxMembers,
-		GroupMemberMin:    GroupMinMembers,
+		GroupMemberMax:    maxGroupMemCount,
+		GroupMemberMin:    minGroupMemCount,
 		MaxWaitBlockTime:  MaxWaitBlockTime,
 		MaxGroupCastTime:  MaxGroupBlockTime,
 		MaxQN:             5,
