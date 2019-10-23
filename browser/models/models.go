@@ -89,10 +89,12 @@ type ContractTransaction struct {
 
 type ContractCallTransaction struct {
 	gorm.Model
-	ContractCode string `json:"contract_code" gorm:"index"`
-	TxHash       string `json:"tx_hash" gorm:"index"`
-	TxType       uint64 `json:"tx_type"`
-	BlockHeight  uint64 `json:"block_height"`
+	ContractCode string    `json:"contract_code" gorm:"index"`
+	TxHash       string    `json:"tx_hash" gorm:"index"`
+	TxType       uint64    `json:"tx_type"`
+	BlockHeight  uint64    `json:"block_height"`
+	CurTime      time.Time `json:"cur_time" gorm:"index"`
+	Status       uint64    `json:"status"`
 }
 
 type Group struct {

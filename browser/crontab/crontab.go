@@ -367,7 +367,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				blockDetail.Receipts[i].BlockHeight = blockDetail.Block.Height
 			}
 			server.storage.AddReceipts(blockDetail.Receipts)
-			server.storage.AddLogs(blockDetail.Receipts, false)
+			server.storage.AddLogs(blockDetail.Receipts, trans, false)
 			server.ProcessContract(transContract)
 		}
 	}
@@ -385,13 +385,13 @@ func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
 		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(tx.Hash))
 		//contract address
 		if wrapper.Status == 0 && len(addressList) > 0 {
-			go crontab.ConsumeContract(contract, tx.Hash)
+			go crontab.ConsumeContract(contract, tx.Hash, tx.CurTime)
 		}
 	}
 
 }
-func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string) {
-	tm.storage.UpdateContractTransaction(hash)
+func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string, curtime time.Time) {
+	tm.storage.UpdateContractTransaction(hash, curtime)
 	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash))
 	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
 }
@@ -399,7 +399,6 @@ func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string) {
 func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	block := message.GetData().(*types.Block)
 	bh := block.Header
-
 	preHash := bh.PreHash
 	preBlock := core.BlockChainImpl.QueryBlockByHash(preHash)
 	preHight := preBlock.Header.Height
@@ -508,6 +507,7 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 				TxHash:       data.TxHash,
 				TxType:       0,
 				BlockHeight:  data.BlockHeight,
+				Status:       0,
 			}
 			mysql.DBStorage.AddContractCallTransaction(contractCall)
 		}
@@ -543,7 +543,15 @@ func (crontab *Crontab) fetchOldLogs() {
 						blockDetail.Receipts[i].BlockHash = blockDetail.Block.Hash
 						blockDetail.Receipts[i].BlockHeight = blockDetail.Block.Height
 					}
-					crontab.storage.AddLogs(blockDetail.Receipts, true)
+					trans := make([]*models.Transaction, 0, 0)
+					for i := 0; i < len(blockDetail.Trans); i++ {
+						tran := crontab.fetcher.ConvertTempTransactionToTransaction(blockDetail.Trans[i])
+						tran.BlockHash = blockDetail.Block.Hash
+						tran.BlockHeight = blockDetail.Block.Height
+						tran.CurTime = blockDetail.Block.CurTime
+						trans = append(trans, tran)
+					}
+					crontab.storage.AddLogs(blockDetail.Receipts, trans, true)
 				}
 			}
 		}

@@ -655,11 +655,15 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	return true
 }
 
-func (storage *Storage) AddLogs(receipts []*models.Receipt, old bool) bool {
+func (storage *Storage) AddLogs(receipts []*models.Receipt, trans []*models.Transaction, old bool) bool {
 	//fmt.Println("[Storage] add receipt ")
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
+	}
+	maptran := make(map[string]*models.Transaction)
+	for _, tr := range trans {
+		maptran[tr.Hash] = tr
 	}
 	timeBegin := time.Now()
 
@@ -697,6 +701,10 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt, old bool) bool {
 								TxHash:       receipts[i].Logs[j].TxHash,
 								TxType:       0,
 								BlockHeight:  receipts[i].Logs[j].BlockNumber,
+								Status:       1,
+							}
+							if maptran[receipts[i].Logs[j].TxHash] != nil {
+								contractCall.CurTime = maptran[receipts[i].Logs[j].TxHash].CurTime
 							}
 							storage.AddContractCallTransaction(contractCall)
 
@@ -793,9 +801,16 @@ func (storage *Storage) GetTopblock() uint64 {
 	return maxHeight
 }
 
-func (storage *Storage) UpdateContractTransaction(txHash string) {
+func (storage *Storage) UpdateContractTransaction(txHash string, curTime time.Time) {
 	contractSql := fmt.Sprintf("UPDATE contract_transactions SET status = 1 WHERE tx_hash = '%s'", txHash)
+	//contractcallSql := fmt.Sprintf("UPDATE contract_call_transactions SET status = 1 WHERE tx_hash = '%s'", txHash)
+	attrs := make(map[string]interface{})
+	attrs["status"] = 1
+	attrs["cur_time"] = curTime
+	storage.db.Model(&models.ContractCallTransaction{}).Where("tx_hash = ?", txHash).Updates(attrs)
 	storage.db.Exec(contractSql)
+	//storage.db.Exec(contractcallSql)
+
 }
 func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, curTime time.Time) (err error) {
 
