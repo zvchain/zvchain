@@ -173,8 +173,8 @@ type Transaction struct {
 	Value       float64   `json:"value"`
 	Nonce       uint64    `json:"nonce"`
 	Source      string    `json:"source" gorm:"index"`
-	Target      string    `json:"target" gorm:"index"`
-	Type        int32     `json:"type"`
+	Target      string    `json:"target" gorm:"index:idx_transactions_target_type"`
+	Type        int32     `json:"type" gorm:"index:idx_transactions_target_type"`
 	CurTime     time.Time `json:"cur_time" gorm:"index"`
 
 	GasLimit          uint64   `json:"gas_limit"`
@@ -203,11 +203,11 @@ type Log struct {
 	Address     string `json:"address" gorm:"index"`
 	Topic       string `json:"topics"`
 	Data        string `json:"data"`
-	BlockNumber uint64 `json:"block_number"" gorm:"unique_index:idx_log"`
-	TxHash      string `json:"tx_hash""  gorm:"index"`
-	TxIndex     uint   `json:"tx_index"" gorm:"unique_index:idx_log"`
-	BlockHash   string `json:"block_hash""`
-	LogIndex    uint   `json:"log_index"" gorm:"unique_index:idx_log"`
+	BlockNumber uint64 `json:"block_number" gorm:"unique_index:idx_log"`
+	TxHash      string `json:"tx_hash"  gorm:"index"`
+	TxIndex     uint   `json:"tx_index" gorm:"unique_index:idx_log"`
+	BlockHash   string `json:"block_hash"`
+	LogIndex    uint   `json:"log_index" gorm:"unique_index:idx_log"`
 	Removed     bool   `json:"removed"`
 }
 

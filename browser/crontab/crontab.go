@@ -86,6 +86,7 @@ func (crontab *Crontab) loop() {
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
+	go crontab.fetchOldReceiptToTransaction()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
 
@@ -549,6 +550,42 @@ func (crontab *Crontab) fetchOldLogs() {
 	}
 }
 
+func (crontab *Crontab) fetchOldReceiptToTransaction() {
+	trans := make([]*models.Transaction, 0)
+	crontab.storage.GetDB().Model(&models.Transaction{}).Not("type = ?", types.TransactionTypeReward).Where("cumulative_gas_used = ?", 0).Last(&trans)
+	if len(trans) > 0 {
+		type Tx struct {
+			Hash string
+			Type uint64
+		}
+		var tx Tx
+
+		receipts := make([]*models.Receipt, 0)
+
+		for i := trans[0].CurIndex; i > 0; i-- {
+			crontab.storage.GetDB().Model(&models.Transaction{}).Limit(1).Select("hash,type").Where("cur_index = ?", i).Scan(&tx)
+			if tx != (Tx{}) {
+				crontab.storage.GetDB().Model(&models.Receipt{}).Where("tx_hash = ?", tx.Hash).Limit(1).Find(&receipts)
+				if len(receipts) > 0 {
+					if tx.Type == types.TransactionTypeReward {
+						continue
+					}
+					if tx.Type != types.TransactionTypeContractCreate {
+						//只更新cumulative_gas_used 字段
+						crontab.storage.GetDB().Model(&models.Transaction{}).Where("cur_index = ?", i).Update("cumulative_gas_used", receipts[0].CumulativeGasUsed)
+					} else {
+						//contract_address字段和cumulative_gas_used 都更新
+						crontab.storage.GetDB().Model(&models.Transaction{}).Where("cur_index = ?", i).Updates(map[string]interface{}{
+							"cumulative_gas_used": receipts[0].CumulativeGasUsed,
+							"contract_address":    receipts[0].ContractAddress,
+						})
+					}
+				}
+			}
+		}
+	}
+}
+
 // 更新守护节点和矿池状态
 func (crontab *Crontab) UpdateProtectNodeStatus() {
 
@@ -564,21 +601,7 @@ func (crontab *Crontab) UpdateProtectNodeStatus() {
 		}
 
 		// 更新矿池状态
-		UpdatePoolStatus(crontab.storage)
-	}
-}
-
-// 更新矿池状态
-func UpdatePoolStatus(storage *mysql.Storage) {
-	accountLists := make([]*models.AccountList, 0)
-	storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerPool).Find(&accountLists)
-	for _, account := range accountLists {
-		proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(account.Address), types.MinerTypeProposal)
-		if proposalInfo != nil {
-			if !proposalInfo.IsMinerPool() {
-				browser.UpdateAccountStake(account, 0, storage)
-			}
-		}
+		browser.UpdatePoolStatus(crontab.storage)
 	}
 }
 

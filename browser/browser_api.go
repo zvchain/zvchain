@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	common2 "github.com/zvchain/zvchain/browser/common"
-	"github.com/zvchain/zvchain/browser/crontab"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
@@ -164,7 +163,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 						} else {
 							PoolList[tx.Target.AddrPrefixString()] = 1
 						}
-						crontab.UpdatePoolStatus(tm.storage)
+						UpdatePoolStatus(tm.storage)
 					}
 				}
 
@@ -717,4 +716,18 @@ func dataToGroup(data map[string]interface{}) *models.Group {
 		}
 	}
 	return group
+}
+
+// 更新矿池状态
+func UpdatePoolStatus(storage *mysql.Storage) {
+	accountLists := make([]*models.AccountList, 0)
+	storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerPool).Find(&accountLists)
+	for _, account := range accountLists {
+		proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(account.Address), types.MinerTypeProposal)
+		if proposalInfo != nil {
+			if !proposalInfo.IsMinerPool() {
+				UpdateAccountStake(account, 0, storage)
+			}
+		}
+	}
 }
