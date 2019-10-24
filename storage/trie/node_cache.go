@@ -16,10 +16,11 @@
 package trie
 
 import (
+	"bytes"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/storage/rlp"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"sync/atomic"
 	"time"
@@ -32,8 +33,14 @@ type nodeCache struct {
 	store tasdb.Database
 }
 
+type cacheItem struct {
+	n   node
+	raw []byte
+}
+
 type storeBlob struct {
-	Key, Value []byte
+	Key common.Hash
+	Raw []byte
 }
 
 var ncache *nodeCache
@@ -44,6 +51,7 @@ func CreateNodeCache(size int, db tasdb.Database) {
 		cache: common.MustNewLRUCache(size),
 		store: db,
 	}
+
 	ncache.loadFromDB()
 
 	ticker := time.NewTicker(60 * time.Second)
@@ -71,35 +79,36 @@ func (nc *nodeCache) getNode(hash common.Hash) node {
 	}
 	if v, ok := nc.cache.Get(hash); ok {
 		atomic.AddUint64(&ncache.hit, 1)
-		return v.(node)
+		return v.(*cacheItem).n
 	}
 	return nil
 }
 
-func (nc *nodeCache) storeNode(hash common.Hash, n node) {
+func (nc *nodeCache) storeNode(hash common.Hash, n node, raw []byte) {
 	if nc == nil {
 		return
 	}
-	nc.cache.Add(hash, n)
+	nc.cache.Add(hash, &cacheItem{n: n, raw: raw})
 }
 
 func (nc *nodeCache) loadFromDB() {
-	bytes, err := nc.store.Get(storeKey)
+	bs, err := nc.store.Get(storeKey)
 	if err != nil {
 		log.CoreLogger.Errorf("get node cache blobs error:%v", err)
 		return
 	}
 	var blobs []*storeBlob
-	err = rlp.DecodeBytes(bytes, &blobs)
+	r := bytes.NewBuffer(bs)
+	decoder := msgpack.NewDecoder(r)
+	err = decoder.Decode(&blobs)
 	if err != nil {
 		log.CoreLogger.Errorf("decode node cache blobs error:%v", err)
 		return
 	}
-	log.CoreLogger.Errorf("load node cache blobs size:%v", len(blobs))
+	log.CoreLogger.Infof("load node cache blobs size:%v", len(blobs))
 	for _, b := range blobs {
-		hash := common.BytesToHash(b.Key)
-		node := mustDecodeNode(hash.Bytes(), b.Value, 0)
-		nc.storeNode(hash, node)
+		n := mustDecodeNode(b.Key.Bytes(), b.Raw, 0)
+		nc.storeNode(b.Key, n, b.Raw)
 	}
 }
 
@@ -115,21 +124,26 @@ func (nc *nodeCache) persistCache() {
 		if !ok {
 			continue
 		}
-		cnode := &cachedNode{node: simplifyNode(v.(node))}
+		raw := v.(*cacheItem).raw
+		if raw == nil {
+			continue
+		}
 		blob := &storeBlob{
-			Key:   hash.Bytes(),
-			Value: cnode.rlp(),
+			Key: hash,
+			Raw: raw,
 		}
 		blobs = append(blobs, blob)
 	}
-	bytes, err := rlp.EncodeToBytes(blobs)
+	w := bytes.NewBuffer([]byte{})
+	encode := msgpack.NewEncoder(w)
+	err := encode.Encode(blobs)
 	if err != nil {
 		log.CoreLogger.Errorf("encode node cache blobs error:%v", err)
 		return
 	}
-	err = nc.store.Put(storeKey, bytes)
+	err = nc.store.Put(storeKey, w.Bytes())
 	if err != nil {
 		log.CoreLogger.Errorf("put node cache blobs error:%v", err)
 	}
-	log.CoreLogger.Debugf("persist node cache len %v/%v, size %v", len(vkeys), nc.cache.Len(), len(bytes))
+	log.CoreLogger.Debugf("persist node cache len %v/%v, size %v", len(vkeys), nc.cache.Len(), w.Len())
 }

@@ -309,12 +309,12 @@ func (st *nodeIteratorState) resolve(tr *Trie, path []byte, cacheEnable bool) er
 		var resolved node
 		if cacheEnable {
 			if n := ncache.getNode(h); n == nil {
-				rs, err := tr.resolveHash(hash, path)
+				rs, raw, err := tr.resolveHashAndGetRawBytes(hash, path)
 				if err != nil {
 					return err
 				}
 				resolved = rs
-				ncache.storeNode(h, resolved)
+				ncache.storeNode(h, resolved, raw)
 			} else {
 				resolved = n
 			}

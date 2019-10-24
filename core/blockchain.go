@@ -181,18 +181,18 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		return err
 	}
 
+	cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
+	if err != nil {
+		Logger.Errorf("new cache datasource error:%v", err)
+		return err
+	}
+	cacheDB, err := cacheDs.NewPrefixDatabase("")
+	if err != nil {
+		Logger.Errorf("new cache db error:%v", err)
+		return err
+	}
 	if iteratorNodeCacheSize > 0 {
-		cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
-		if err != nil {
-			Logger.Errorf("new cache datasource error:%v", err)
-			return err
-		}
-		db, err := cacheDs.NewPrefixDatabase("")
-		if err != nil {
-			Logger.Errorf("new cache db error:%v", err)
-			return err
-		}
-		trie.CreateNodeCache(iteratorNodeCacheSize, db)
+		trie.CreateNodeCache(iteratorNodeCacheSize, cacheDB)
 	}
 
 	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)
@@ -264,7 +264,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
-	initMinerManager()
+	initMinerManager(cacheDB)
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
 	chain.cpChecker.init()

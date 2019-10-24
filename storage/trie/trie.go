@@ -409,10 +409,18 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 
 func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 	hash := common.BytesToHash(n)
-	if node := t.db.node(hash, t.cachegen); node != nil {
+	if node, _ := t.db.node(hash, t.cachegen); node != nil {
 		return node, nil
 	}
 	return nil, &MissingNodeError{NodeHash: hash, Path: prefix}
+}
+
+func (t *Trie) resolveHashAndGetRawBytes(n hashNode, prefix []byte) (node, []byte, error) {
+	hash := common.BytesToHash(n)
+	if node, bs := t.db.node(hash, t.cachegen); node != nil {
+		return node, bs, nil
+	}
+	return nil, nil, &MissingNodeError{NodeHash: hash, Path: prefix}
 }
 
 // Root returns the root hash of the trie.
