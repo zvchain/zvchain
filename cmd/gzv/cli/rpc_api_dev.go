@@ -67,19 +67,9 @@ func (api *RpcDevImpl) ConnectedNodes() ([]ConnInfo, error) {
 }
 
 // TransPool query buffer transaction information
-func (api *RpcDevImpl) TransPool() ([]Transactions, error) {
+func (api *RpcDevImpl) TransPool() ([]*types.Transaction, error) {
 	transactions := core.BlockChainImpl.GetTransactionPool().GetReceived()
-	transList := make([]Transactions, 0, len(transactions))
-	for _, v := range transactions {
-		transList = append(transList, Transactions{
-			Hash:   v.Hash.Hex(),
-			Source: v.Source.AddrPrefixString(),
-			Target: v.Target.AddrPrefixString(),
-			Value:  v.Value.String(),
-		})
-	}
-
-	return transList, nil
+	return transactions, nil
 }
 
 func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (float64, error) {
