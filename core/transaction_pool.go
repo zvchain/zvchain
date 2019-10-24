@@ -144,9 +144,6 @@ func (pool *txPool) isRewardExists(tx *types.Transaction) bool {
 
 // AddTransaction try to add a transaction into the tool
 func (pool *txPool) AddTransaction(tx *types.Transaction) (bool, error) {
-	if blockSync.isSyncing() {
-		return false, ErrBlockSyncing
-	}
 	return pool.tryAddTransaction(tx)
 }
 
