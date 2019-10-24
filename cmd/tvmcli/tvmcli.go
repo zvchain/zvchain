@@ -241,7 +241,7 @@ func (t *TvmCli) ExportAbi(contractName string, contractCode string) {
 		Code:         contractCode,
 		//ContractAddress: &contractAddress,
 	}
-	vm := tvm.NewTVM(nil, &contract)
+	vm := tvm.NewTVM(nil, &contract, 0)
 	defer func() {
 		vm.DelTVM()
 	}()

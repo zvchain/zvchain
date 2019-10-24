@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/params"
 	"github.com/zvchain/zvchain/storage/account"
 	"io/ioutil"
 	"math/big"
@@ -80,22 +81,22 @@ func TestTvmCli_QueryData(t *testing.T) {
 	}
 	result = tvmCli.QueryData(erc20Contract, "bigint", 0)
 	value, _ = json.Marshal(result["bigint"])
-	if string(value) != "100000000000000000000000000000001"{
+	if string(value) != "100000000000000000000000000000001" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bigint2", 0)
 	value, _ = json.Marshal(result["bigint2"])
-	if string(value) != "-100000000000000000000000000000001"{
+	if string(value) != "-100000000000000000000000000000001" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "str", 0)
 	value, _ = json.Marshal(result["str"])
-	if string(value) != "\"\""{
+	if string(value) != "\"\"" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bool", 0)
 	value, _ = json.Marshal(result["bool"])
-	if string(value) != "false"{
+	if string(value) != "false" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "none", 0)
@@ -105,7 +106,7 @@ func TestTvmCli_QueryData(t *testing.T) {
 	}
 	result = tvmCli.QueryData(erc20Contract, "zdict", 0)
 	value, _ = json.Marshal(result["zdict"])
-	if string(value) != "{}"{
+	if string(value) != "{}" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bytes", 0)
@@ -403,4 +404,8 @@ func TestTvmCli_TestBigInt(t *testing.T) {
 
 func TestTvmCli_TestStorage(t *testing.T) {
 	_ = _deployContract("Token", "test_storage.py")
+}
+
+func init() {
+	params.InitChainConfig(1)
 }
