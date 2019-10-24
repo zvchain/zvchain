@@ -182,7 +182,17 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	}
 
 	if iteratorNodeCacheSize > 0 {
-		trie.CreateNodeCache(iteratorNodeCacheSize)
+		cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
+		if err != nil {
+			Logger.Errorf("new cache datasource error:%v", err)
+			return err
+		}
+		db, err := cacheDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new cache db error:%v", err)
+			return err
+		}
+		trie.CreateNodeCache(iteratorNodeCacheSize, db)
 	}
 
 	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)
