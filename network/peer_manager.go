@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-const DEFAULT_MAX_PEER_SIZE_PER_IP = 16
+const maxPeersPerIP = 16
 
 // PeerManager is node connection management
 type PeerManager struct {
@@ -40,7 +40,7 @@ type PeerManager struct {
 func newPeerManager() *PeerManager {
 	pm := &PeerManager{
 		peers:     make(map[uint64]*Peer),
-		peerIPSet: PeerIPSet{Limit: DEFAULT_MAX_PEER_SIZE_PER_IP, members: make(map[string]uint)},
+		peerIPSet: PeerIPSet{Limit: maxPeersPerIP, members: make(map[string]uint)},
 	}
 	priorityTable = map[uint32]SendPriorityType{
 		BlockInfoNotifyMsg:       SendPriorityHigh,
@@ -108,26 +108,27 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 
 // newConnection handling callbacks for successful connections
 func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, isAccepted bool, ip string, port uint16) {
-	Logger.Infof("new connection, netid:%v session:%v isAccepted:%v ip:%v port:%v, ip limit:%v ", id, session, isAccepted, ip, port, pm.peerIPSet.Count(ip))
+	ip = net.ParseIP(ip).String()
+	Logger.Infof("new connection, net id:%v session:%v isAccepted:%v ip:%v port:%v, peer count:%v ", id, session, isAccepted, ip, port, pm.peerIPSet.Count(ip))
 	if len(ip) > 0 && !pm.peerIPSet.Add(ip) {
 		P2PShutdown(session)
-		Logger.Infof("newConnection , peer in same IP exceed limit size !Max size:%v, ip:%v, ip limit:%v", pm.peerIPSet.Limit, ip, pm.peerIPSet.Count(ip))
+		Logger.Infof("new connection , peer in same IP exceed limit size !Max size:%v, ip:%v, peer count:%v", pm.peerIPSet.Limit, ip, pm.peerIPSet.Count(ip))
 		return
 	}
-
 	p := pm.peerByNetID(id)
 	if p == nil {
 		p = newPeer(NodeID{}, session)
 		pm.addPeer(id, p)
 	} else {
+		Logger.Infof("new connection ,peer != nil, net id:%v session:%v ip:%v port:%v, peer count:%v ", id, p.sessionID, p.IP.String(), p.Port, pm.peerIPSet.Count(p.IP.String()))
 		if session < p.sessionID && time.Since(p.connectTime) < 3*time.Second {
 			pm.peerIPSet.Remove(ip)
-			Logger.Infof("newConnection ,session less than p.sessionID  ip:%v, ip limit:%v", ip, pm.peerIPSet.Count(ip))
+			Logger.Infof("new connection ,session less than p.sessionID, ip:%v, peer count:%v", ip, pm.peerIPSet.Count(ip))
 			P2PShutdown(session)
 			return
 		} else if p.sessionID > 0 {
 			pm.peerIPSet.Remove(p.IP.String())
-			Logger.Infof("newConnection ,p.sessionID greater than  0 , ip:%v, ip limit:%v", ip, pm.peerIPSet.Count(p.IP.String()))
+			Logger.Infof("new connection ,p.sessionID greater than  0, ip:%v, peer count:%v", p.IP.String(), pm.peerIPSet.Count(p.IP.String()))
 			p.disconnect()
 		}
 	}
@@ -146,19 +147,18 @@ func (pm *PeerManager) onSendWaited(id uint64, session uint32) {
 // onDisconnected handles callbacks for disconnected connections
 func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32) {
 	p := pm.peerByNetID(id)
-
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
+
 	if p != nil && p.sessionID == session {
-		pm.peerIPSet.Remove(p.IP.String())
+		ip := p.IP.String()
+		pm.peerIPSet.Remove(ip)
+		Logger.Infof("disconnected,  node id：%v, netid：%v, session:%v ip:%v port:%v,peers:%v, peer count:%v", p.ID.GetHexString(), id, session, ip, p.Port, pm.peerIPSet.members, pm.peerIPSet.Count(ip))
 
-		Logger.Infof("OnDisconnected id：%v  session:%v ip:%v port:%v, ip limit:%v", p.ID.GetHexString(), session, p.IP, p.Port, pm.peerIPSet.Count(p.IP.String()))
 		p.onDisonnect(id, session, p2pCode)
-
-		delete(pm.peers, genNetID(p.ID))
-
+		delete(pm.peers, id)
 	} else {
-		Logger.Infof("OnDisconnected,but session is not used, net id：%v session:%v code:%v, ip limit:%v", id, session, p2pCode, pm.peerIPSet.Count(p.IP.String()))
+		Logger.Infof("disconnected, but session id is unused, net id：%v session:%v, ip:%v port:%v ,peer count", id, session, p.IP.String(), p.Port)
 	}
 }
 
@@ -274,6 +274,13 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 
 	pm.peers[netID] = peer
 	return true
+}
+
+func (pm *PeerManager) removePeer(netID uint64) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	delete(pm.peers, netID)
 }
 
 func (pm *PeerManager) ConnInfo() []Conn {
