@@ -337,6 +337,15 @@ func (mm *MinerManager) GetFullMinerPoolStake(height uint64) uint64 {
 	return getFullMinerPoolStake(height)
 }
 
+func (mm *MinerManager) getMiner(db types.AccountDB, address common.Address, mType types.MinerType) *types.Miner {
+	m, err := getMiner(db, address, mType)
+	if err != nil {
+		Logger.Errorf("get miner error:%v", err)
+		return nil
+	}
+	return m
+}
+
 // GetMiner return miner info stored in db of the given address and the miner type at the given height
 func (mm *MinerManager) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {
 	db, err := BlockChainImpl.AccountDBAt(height)
