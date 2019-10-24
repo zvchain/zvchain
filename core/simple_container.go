@@ -33,12 +33,12 @@ import (
 const maxSyncCountPreSource = 50 // max count of tx with same source to sync to neighbour node
 
 type simpleContainer struct {
-	txsMap       map[common.Hash]*TransactionWithTime
-	chain        *FullBlockChain
-	pending      *pendingContainer
-	queue        map[common.Hash]*types.Transaction
-	queueLimit   int
-	queueTimeout time.Duration
+	txsMap     map[common.Hash]*TransactionWithTime
+	chain      *FullBlockChain
+	pending    *pendingContainer
+	queue      map[common.Hash]*types.Transaction
+	queueLimit int
+	txTimeout  time.Duration
 
 	lock sync.RWMutex
 }
@@ -264,13 +264,13 @@ func newSimpleContainer(pendingLimit int, queueLimit int, chain types.BlockChain
 	timeout := time.Second * time.Duration(timeOutDuration)
 
 	c := &simpleContainer{
-		lock:         sync.RWMutex{},
-		chain:        chain.(*FullBlockChain),
-		txsMap:       make(map[common.Hash]*TransactionWithTime),
-		pending:      newPendingContainer(pendingLimit),
-		queue:        make(map[common.Hash]*types.Transaction),
-		queueLimit:   queueLimit,
-		queueTimeout: timeout,
+		lock:       sync.RWMutex{},
+		chain:      chain.(*FullBlockChain),
+		txsMap:     make(map[common.Hash]*TransactionWithTime),
+		pending:    newPendingContainer(pendingLimit),
+		queue:      make(map[common.Hash]*types.Transaction),
+		queueLimit: queueLimit,
+		txTimeout:  timeout,
 	}
 	return c
 }
@@ -477,7 +477,7 @@ func (c *simpleContainer) evictTimeout() {
 	defer c.lock.Unlock()
 
 	for _, tx := range c.txsMap {
-		if time.Since(tx.begin) > c.queueTimeout {
+		if time.Since(tx.begin) > c.txTimeout {
 			Logger.Debugf("Tx %v evicted as timeout, tx entered to pool on %v", tx.item.Hash, tx.begin)
 			c.removeWithoutLock(tx.item)
 		}
