@@ -43,7 +43,7 @@ type BasicInfo struct {
 
 func (rm *RpcMinerImpl) BasicData() (*BasicInfo, error) {
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
-	version := common.GtasVersion
+	version := common.GzvVersion
 	chainId := globalGzv.config.chainID
 	addr := common.BytesToAddress(mediator.Proc.GetMinerID().Serialize())
 	blockHeight := core.BlockChainImpl.Height()

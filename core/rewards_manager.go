@@ -191,11 +191,11 @@ func (rm *rewardManager) ParseRewardTransaction(msg types.TxMessage) (gSeed comm
 		ids = append(ids, group.Members()[idx].ID())
 	}
 
-	blockHash = rm.parseRewardBlockHash(msg)
+	blockHash = parseRewardBlockHash(msg)
 	return gSeed, ids, blockHash, new(big.Int).SetUint64(common.ByteToUint64(pf)), nil
 }
 
-func (rm *rewardManager) parseRewardBlockHash(msg types.TxMessage) common.Hash {
+func parseRewardBlockHash(msg types.TxMessage) common.Hash {
 	return common.BytesToHash(msg.Payload())
 }
 

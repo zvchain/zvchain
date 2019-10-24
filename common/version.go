@@ -15,10 +15,10 @@
 
 package common
 
-const GtasVersion = "0.9.20"
+const GzvVersion = "0.9.21"
 
 const ConsensusVersion = 1
 
-const ChainDataVersion = 17
+const ChainDataVersion = 18
 
 const ProtocolVersion = 1
