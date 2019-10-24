@@ -287,8 +287,11 @@ func (c *simpleContainer) contains(key common.Hash) bool {
 func (c *simpleContainer) get(key common.Hash) *types.Transaction {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-
-	return c.txsMap[key].item
+	warpedTx := c.txsMap[key]
+	if warpedTx != nil {
+		return warpedTx.item
+	}
+	return nil
 }
 
 func (c *simpleContainer) asSlice(limit int) []*types.Transaction {
