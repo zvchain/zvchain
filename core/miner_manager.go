@@ -66,7 +66,7 @@ func initMinerManager(storeDB tasdb.Database) {
 	MinerManagerImpl.store.loadMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)
 	MinerManagerImpl.store.loadMiners(types.MinerTypeVerify, MinerManagerImpl.verifyMinerData)
 
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(300 * time.Second)
 	go func() {
 		for range ticker.C {
 			MinerManagerImpl.store.storeMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)

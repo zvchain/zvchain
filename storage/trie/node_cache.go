@@ -54,7 +54,7 @@ func CreateNodeCache(size int, db tasdb.Database) {
 
 	ncache.loadFromDB()
 
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(300 * time.Second)
 	go func() {
 		for range ticker.C {
 			ncache.persistCache()
