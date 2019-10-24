@@ -136,7 +136,7 @@ func (ptk *peerTxsHashes) forEach(f func(k common.Hash) bool) {
 func initTxSyncer(chain *FullBlockChain, pool *txPool, networkImpl network.Network) {
 	s := &txSyncer{
 		rctNotifiy:    common.MustNewLRUCache(txPeerMaxLimit),
-		nonceErrTxs:   common.MustNewLRUCache(1000),
+		nonceErrTxs:   common.MustNewLRUCache(3000),
 		pool:          pool,
 		ticker:        ticker.NewGlobalTicker("tx_syncer"),
 		candidateKeys: common.MustNewLRUCache(3000),
