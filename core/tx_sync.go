@@ -54,6 +54,8 @@ type txSyncer struct {
 	candidateKeys *lru.Cache
 	networkImpl   network.Network
 	logger        *logrus.Logger
+
+	syncCache *lru.Cache
 }
 
 var TxSyncer *txSyncer
@@ -139,6 +141,7 @@ func initTxSyncer(chain *FullBlockChain, pool *txPool, networkImpl network.Netwo
 		chain:         chain,
 		networkImpl:   networkImpl,
 		logger:        log.TxSyncLogger,
+		syncCache:     common.MustNewLRUCache(20000),
 	}
 	s.ticker.RegisterPeriodicRoutine(txNotifyRoutine, s.notifyTxs, txNofifyInterval)
 	s.ticker.StartTickerRoutine(txNotifyRoutine, false)
@@ -288,7 +291,7 @@ func (ts *txSyncer) reqTxsRoutine() bool {
 		}
 		rms := make([]common.Hash, 0)
 		ptk.forEach(func(k common.Hash) bool {
-			if _, exist := reqMap[k]; exist {
+			if _, exist := reqMap[k]; exist || ts.syncCache.Contains(k) {
 				rms = append(rms, k)
 			} else {
 				reqMap[k] = 1
@@ -425,11 +428,13 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) error {
 	evilCount := 0
 	for _, tx := range rawTxs {
 		// this error can be ignored
-		_, err := ts.pool.AddTransaction(types.NewTransaction(tx, tx.GenHash()))
+		tx_ := types.NewTransaction(tx, tx.GenHash())
+		_, err := ts.pool.AddTransaction(tx_)
 		if err != nil {
 			if _, ok := evilErrorMap[err]; ok {
 				evilCount++
 			}
+			ts.syncCache.Add(tx_.Hash, byte(1))
 		}
 	}
 	if evilCount > txValidteErrorLimit {
