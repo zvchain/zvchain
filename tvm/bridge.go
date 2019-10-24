@@ -44,6 +44,12 @@ func Transfer(toAddress *C.char, value *C.char) bool {
 		return false
 	}
 	controller.AccountDB.Transfer(*contractAddr, to, transValue)
+	go ProduceContractTransfer(controller.Transaction.GetHash().Hex(),
+		toAddressStr,
+		transValue.Uint64(),
+		contractAddr.AddrPrefixString(),
+		controller.BlockHeader.Height,
+	)
 	return true
 
 }

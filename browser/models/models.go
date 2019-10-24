@@ -76,6 +76,27 @@ type Sys struct {
 	SetBy    string `json:"set_by"`
 }
 
+type ContractTransaction struct {
+	gorm.Model
+	ContractCode string `json:"contract_code" gorm:"index"`
+	Address      string `json:"address"`
+	Value        uint64 `json:"value"`
+	TxHash       string `json:"tx_hash" gorm:"index"`
+	TxType       uint64 `json:"tx_type"`
+	Status       uint64 `json:"status"`
+	BlockHeight  uint64 `json:"block_height"`
+}
+
+type ContractCallTransaction struct {
+	gorm.Model
+	ContractCode string    `json:"contract_code" gorm:"index"`
+	TxHash       string    `json:"tx_hash" gorm:"index"`
+	TxType       uint64    `json:"tx_type"`
+	BlockHeight  uint64    `json:"block_height"`
+	CurTime      time.Time `json:"cur_time" gorm:"index"`
+	Status       uint64    `json:"status"`
+}
+
 type Group struct {
 	Id            string   `json:"id" gorm:"index"`
 	Height        uint64   `json:"height" gorm:"index"`
@@ -154,8 +175,8 @@ type Transaction struct {
 	Value       float64   `json:"value"`
 	Nonce       uint64    `json:"nonce"`
 	Source      string    `json:"source" gorm:"index"`
-	Target      string    `json:"target" gorm:"index"`
-	Type        int32     `json:"type"`
+	Target      string    `json:"target" gorm:"index:idx_transactions_target_type"`
+	Type        int32     `json:"type" gorm:"index:idx_transactions_target_type"`
 	CurTime     time.Time `json:"cur_time" gorm:"index"`
 
 	GasLimit          uint64   `json:"gas_limit"`
@@ -165,7 +186,7 @@ type Transaction struct {
 	Receipt           *Receipt `json:"receipt" gorm:"-"`
 	ExtraData         string   `json:"extra_data" gorm:"type:TEXT;size:65000"`
 	Status            uint     `json:"status" gorm:"index"`
-	ContractAddress   string   `json:"contract_address"`
+	ContractAddress   string   `json:"contract_address" gorm:"index"`
 }
 
 type Receipt struct {
@@ -174,30 +195,24 @@ type Receipt struct {
 	Logs              []*Log `json:"logs" gorm:"-"`
 
 	TxHash          string `json:"transactionHash" gorm:"unique_index"`
-	ContractAddress string `json:"contractAddress"`
+	ContractAddress string `json:"contractAddress" gorm:"index"`
 	BlockHash       string `json:"block_hash" gorm:"index"`
 	BlockHeight     uint64 `json:"block_height" gorm:"index"`
 }
 
 type Log struct {
-	Address string `json:"address"`
-
-	Topics []string `json:"topics" gorm:"-"`
-
-	Data string `json:"data"`
-
-	BlockNumber uint64 `json:"blockNumber"  gorm:"index"`
-
-	TxHash string `json:"transactionHash"  gorm:"index"`
-
-	TxIndex uint `json:"transactionIndex"  gorm:"index"`
-
-	BlockHash string `json:"blockHash"  gorm:"index"`
-
-	Index uint `json:"logIndex"`
-
-	Removed bool `json:"removed"`
+	gorm.Model
+	Address     string `json:"address" gorm:"index"`
+	Topic       string `json:"topics"`
+	Data        string `json:"data"`
+	BlockNumber uint64 `json:"block_number" gorm:"unique_index:idx_log"`
+	TxHash      string `json:"tx_hash"  gorm:"index"`
+	TxIndex     uint   `json:"tx_index" gorm:"unique_index:idx_log"`
+	BlockHash   string `json:"block_hash"`
+	LogIndex    uint   `json:"log_index" gorm:"unique_index:idx_log"`
+	Removed     bool   `json:"removed"`
 }
+
 type BlockDetail struct {
 	Block
 	Trans           []*TempTransaction `json:"trans"`

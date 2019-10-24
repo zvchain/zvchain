@@ -22,6 +22,14 @@ type MortGage struct {
 	Identity             types.NodeIdentity `json:"identity"`
 	IdentityUpdateHeight uint64             `json:"identity_update_height"`
 }
+
+type LogData struct {
+	User  string
+	Args  []string
+	Group string
+	Value uint64
+}
+
 type Group struct {
 	Seed          common.Hash `json:"id"`
 	BeginHeight   uint64      `json:"begin_height"`
@@ -32,6 +40,9 @@ type Group struct {
 	GroupHeight   uint64      `json:"group_height"`
 }
 
+type ContractCall struct {
+	Hash string
+}
 type FronzenAndStakeFrom struct {
 	StakeFrom      string `json:"stake_from"`
 	ProposalFrozen uint64 `json:"proposal_frozen"`
@@ -58,7 +69,7 @@ func (api *Fetcher) ExplorerBlockDetail(height uint64) (*models.BlockDetail, err
 	for i, tx := range trans {
 		wrapper := chain.GetTransactionPool().GetReceipt(tx.Hash)
 		if wrapper != nil {
-			modelreceipt := convertReceipt(wrapper)
+			modelreceipt := convertReceipt(wrapper, block.Hash)
 			receipts[i] = modelreceipt
 			tx.Status = modelreceipt.Status
 		}
@@ -73,16 +84,40 @@ func (api *Fetcher) ExplorerBlockDetail(height uint64) (*models.BlockDetail, err
 	return bd, nil
 }
 
-func convertReceipt(receipt *types.Receipt) *models.Receipt {
+func convertReceipt(receipt *types.Receipt, blockHash string) *models.Receipt {
 	modelreceipt := &models.Receipt{
 		Status:            uint(receipt.Status),
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
-		Logs:              nil,
+		Logs:              convertLogs(receipt.Logs, blockHash),
 		TxHash:            receipt.TxHash.Hex(),
 		ContractAddress:   receipt.ContractAddress.AddrPrefixString(),
 	}
 	return modelreceipt
 
+}
+
+func convertLogs(logs []*types.Log, blockHash string) []*models.Log {
+
+	if len(logs) > 0 {
+		modelsLogs := make([]*models.Log, 0)
+		newLog := &models.Log{}
+		for _, log := range logs {
+			newLog = &models.Log{
+				Address:     log.Address.AddrPrefixString(),
+				Topic:       log.Topic.Hex(),
+				Data:        string(log.Data),
+				BlockNumber: log.BlockNumber,
+				TxHash:      log.TxHash.Hex(),
+				TxIndex:     log.TxIndex,
+				BlockHash:   blockHash,
+				LogIndex:    log.Index,
+				Removed:     log.Removed,
+			}
+			modelsLogs = append(modelsLogs, newLog)
+		}
+		return modelsLogs
+	}
+	return nil
 }
 
 func ConvertGroup(g types.GroupI) *models.Group {
@@ -141,7 +176,6 @@ func convertBlockHeader(b *types.Block) *models.Block {
 		TransCount: uint64(len(b.Transactions)),
 		Random:     common.ToHex(bh.Random),
 		//Qn: mediator.Proc.CalcBlockHeaderQN(bh),
-
 	}
 	return block
 }

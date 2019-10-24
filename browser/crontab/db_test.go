@@ -5,6 +5,7 @@ import (
 )
 
 func TestDB2(t *testing.T) {
+
 	//server := NewServer("10.0.0.13", 3306, "root", "root123", false)
 	//for i := 0; i < 100; i++ {
 	//	begin := uint64(i * 1000000)

@@ -13,6 +13,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/tvm"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,6 +46,7 @@ type DBMmanagement struct {
 }
 
 func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *DBMmanagement {
+	tvm.ContractTransferData = make(chan *tvm.ContractTransfer, 500)
 	tablMmanagement := &DBMmanagement{}
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 
@@ -163,6 +165,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 						}
 					}
 				}
+
 				if tx.Source != nil {
 					//account list
 					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
@@ -170,7 +173,6 @@ func (tm *DBMmanagement) excuteAccounts() {
 					} else {
 						AddressCacheList[tx.Source.AddrPrefixString()] = 1
 					}
-
 					//if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce{
 					var target string
 					if tx.Target != nil {
@@ -182,8 +184,21 @@ func (tm *DBMmanagement) excuteAccounts() {
 						}
 					}
 
-					//}
-
+					if tx.Type == types.TransactionTypeContractCall {
+						addressList := tm.storage.GetContractByHash(tx.GenHash().Hex())
+						//wrapper := chain.GetTransactionPool().GetReceipt(tx.GenHash())
+						//contract address
+						if len(addressList) > 0 {
+							for _, addr := range addressList {
+								if _, exists := AddressCacheList[addr]; exists {
+									AddressCacheList[addr] += 0
+								} else {
+									AddressCacheList[addr] = 0
+								}
+							}
+							//go tm.ConsumeContract(contract, chain, tx.GenHash())
+						}
+					}
 					//check update stake
 					if checkStakeTransaction(tx.Type) {
 						if tx.Target != nil {
@@ -191,9 +206,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 						}
 					}
 					//stake list
-
 					if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce {
-
 						if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
 							if tx.Type == types.TransactionTypeStakeAdd {
 								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
@@ -248,6 +261,9 @@ func (tm *DBMmanagement) excuteAccounts() {
 
 					UpdateAccountStake(account, 0, tm.storage)
 				}
+			}
+			if PoolList != nil {
+				UpdatePoolStatus(tm.storage)
 			}
 			for address, _ := range PoolList {
 				accounts := &models.AccountList{}
@@ -702,4 +718,18 @@ func dataToGroup(data map[string]interface{}) *models.Group {
 		}
 	}
 	return group
+}
+
+// 更新矿池状态
+func UpdatePoolStatus(storage *mysql.Storage) {
+	accountLists := make([]*models.AccountList, 0)
+	storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerPool).Find(&accountLists)
+	for _, account := range accountLists {
+		proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(account.Address), types.MinerTypeProposal)
+		if proposalInfo != nil {
+			if !proposalInfo.IsMinerPool() {
+				UpdateAccountStake(account, 0, storage)
+			}
+		}
+	}
 }
