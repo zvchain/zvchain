@@ -259,8 +259,10 @@ func newPendingContainer(limit int) *pendingContainer {
 }
 
 func newSimpleContainer(pendingLimit int, queueLimit int, chain types.BlockChain) *simpleContainer {
-	timeOutDuration := common.GlobalConf.GetInt(configSec, "tx_timeout_duration", 60*30) //default is 30 minutes
+	//timeOutDuration is the max time of a tx can keeped in tx pool, default value is 30 minutes
+	timeOutDuration := common.GlobalConf.GetInt(configSec, "tx_timeout_duration", 60*30)
 	timeout := time.Second * time.Duration(timeOutDuration)
+
 	c := &simpleContainer{
 		lock:         sync.RWMutex{},
 		chain:        chain.(*FullBlockChain),
