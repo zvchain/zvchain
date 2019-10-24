@@ -775,6 +775,20 @@ func (storage *Storage) GetContractByHash(hash string) []string {
 	}
 	return s
 }
+func (storage *Storage) GetContractAddressAll() []string {
+	if storage.db == nil {
+		return nil
+	}
+	rows, _ := storage.db.Model(models.ContractTransaction{}).Select("distinct(address) as addr").Rows() // (*sql.Rows, error)
+	defer rows.Close()
+	s := make([]string, 0, 0)
+	var addr string
+	for rows.Next() {
+		rows.Scan(&addr)
+		s = append(s, addr)
+	}
+	return s
+}
 
 func (storage *Storage) RewardTopBlockHeight() (uint64, uint64) {
 	if storage.db == nil {

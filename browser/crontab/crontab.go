@@ -3,6 +3,7 @@ package crontab
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser"
 	common2 "github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
@@ -500,7 +501,7 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 				Status:       0,
 				BlockHeight:  data.BlockHeight,
 			}
-			fmt.Println("ConsumeContractTransfer:", data.Address, ",contractcode:", data.ContractCode)
+			fmt.Println("ConsumeContractTransfer:", data.Address, ",contractcode:", data.ContractCode, ",json:", util.ObjectTojson(contractTransaction))
 			mysql.DBStorage.AddContractTransaction(contractTransaction)
 			contractCall := &models.ContractCallTransaction{
 				ContractCode: data.ContractCode,
@@ -527,6 +528,32 @@ func (crontab *Crontab) ConsumeReward() {
 
 		}
 	}
+}
+
+func (tm *Crontab) fetchContractAccount() {
+	AddressCacheList := tm.storage.GetContractAddressAll()
+	for _, address := range AddressCacheList {
+		accounts := &models.AccountList{}
+		targetAddrInfo := tm.storage.GetAccountById(address)
+		//不存在账号
+		if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
+			accounts.Address = address
+			//accounts.TotalTransaction = totalTx
+			accounts.Balance = tm.fetcher.Fetchbalance(address)
+			if !tm.storage.AddObjects(accounts) {
+				return
+			}
+			//存在账号
+		} else {
+			accounts.Address = address
+			if !tm.storage.UpdateAccountbyAddress(accounts, map[string]interface{}{"total_transaction": gorm.Expr("total_transaction + ?", 0), "balance": tm.fetcher.Fetchbalance(address)}) {
+				return
+			}
+
+		}
+		//update stake
+	}
+
 }
 func (crontab *Crontab) fetchOldLogs() {
 
@@ -556,6 +583,7 @@ func (crontab *Crontab) fetchOldLogs() {
 			}
 		}
 	}
+	crontab.fetchContractAccount()
 }
 
 func (crontab *Crontab) fetchOldReceiptToTransaction() {
