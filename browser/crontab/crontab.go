@@ -561,9 +561,13 @@ func (crontab *Crontab) fetchOldLogs() {
 	if len(logs) == 0 {
 		txs := make([]*models.Transaction, 0)
 		crontab.storage.GetDB().Model(&models.Transaction{}).Where("type = ?", types.TransactionTypeContractCall).Find(&txs)
+		heights := make(map[uint64]bool)
+		for _, tx := range txs {
+			heights[tx.BlockHeight] = true
+		}
 		if len(txs) > 0 {
-			for _, tx := range txs {
-				blockDetail, _ := crontab.fetcher.ExplorerBlockDetail(tx.BlockHeight)
+			for height, _ := range heights {
+				blockDetail, _ := crontab.fetcher.ExplorerBlockDetail(height)
 				if blockDetail != nil {
 					for i := 0; i < len(blockDetail.Receipts); i++ {
 						blockDetail.Receipts[i].BlockHash = blockDetail.Block.Hash
