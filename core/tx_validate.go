@@ -18,9 +18,10 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"math/big"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
-	"math/big"
 )
 
 // validator is responsible for the info validation of the given transaction
@@ -108,11 +109,7 @@ func sourceRecover(tx *types.Transaction) error {
 // stateValidate performs state related validation
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
-func stateValidate(tx *types.Transaction) (balance *big.Int, err error) {
-	accountDB, err := BlockChainImpl.LatestAccountDB()
-	if err != nil {
-		return nil, fmt.Errorf("fail get last state db,error = %v", err.Error())
-	}
+func stateValidate(accountDB types.AccountDB, tx *types.Transaction, height uint64) (balance *big.Int, err error) {
 	gasLimitFee := new(types.BigInt).Mul(tx.GasPrice.Value(), tx.GasLimit.Value())
 	balance = accountDB.GetBalance(*tx.Source)
 	src := tx.Source.AddrPrefixString()
@@ -127,13 +124,13 @@ func stateValidate(tx *types.Transaction) (balance *big.Int, err error) {
 	}
 
 	// Check gas price related to height
-	if !validGasPrice(tx.GasPrice.Value(), BlockChainImpl.Height()) {
+	if !validGasPrice(tx.GasPrice.Value(), height) {
 		return nil, fmt.Errorf("gas price below the lower bound")
 	}
 	return
 }
 
-func transferValidator(tx *types.Transaction, balance *big.Int) error {
+func transferValidator(tx *types.Transaction) error {
 	if tx.Target == nil {
 		return fmt.Errorf("target is nil")
 	}
@@ -141,7 +138,7 @@ func transferValidator(tx *types.Transaction, balance *big.Int) error {
 	if err != nil {
 		return err
 	}
-	return balanceValidate(tx, balance)
+	return nil
 }
 
 func minerTypeCheck(mt types.MinerType) error {
@@ -235,7 +232,7 @@ func changeFundGuardModeValidator(tx *types.Transaction) error {
 	if err := fundGuardModeCheck(common.FundModeType(tx.Data[0])); err != nil {
 		return err
 	}
-	if !common.IsInExtractGuardNodes(*tx.Source) {
+	if !types.IsInExtractGuardNodes(*tx.Source) {
 		return fmt.Errorf("operator addr is not in extract guard nodes")
 	}
 	if len(tx.Data) != 1 {
@@ -255,7 +252,7 @@ func groupValidator(tx *types.Transaction) error {
 	return nil
 }
 
-func contractCreateValidator(tx *types.Transaction, balance *big.Int) error {
+func contractCreateValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
@@ -266,10 +263,10 @@ func contractCreateValidator(tx *types.Transaction, balance *big.Int) error {
 	if err != nil {
 		return err
 	}
-	return balanceValidate(tx, balance)
+	return nil
 }
 
-func contractCallValidator(tx *types.Transaction, balance *big.Int) error {
+func contractCallValidator(tx *types.Transaction) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
@@ -279,13 +276,6 @@ func contractCallValidator(tx *types.Transaction, balance *big.Int) error {
 	err := valueValidate(tx)
 	if err != nil {
 		return err
-	}
-	return balanceValidate(tx, balance)
-}
-
-func balanceValidate(tx *types.Transaction, balance *big.Int) error {
-	if balance.Cmp(tx.Value.Value()) <= 0 {
-		return fmt.Errorf("balance not enough")
 	}
 	return nil
 }
@@ -309,7 +299,7 @@ func rewardValidate(tx *types.Transaction) error {
 }
 
 // getValidator returns the corresponding validator of the given transaction
-func getValidator(tx *types.Transaction) validator {
+func getValidator(tx *types.Transaction, validateState bool) validator {
 	return func() error {
 		var err error
 		// Common validations
@@ -327,18 +317,23 @@ func getValidator(tx *types.Transaction) validator {
 			if tx.Source == nil {
 				return fmt.Errorf("source is nil")
 			}
-			var balance *big.Int
-			// Validate state
-			if balance, err = stateValidate(tx); err != nil {
-				return err
+			if validateState {
+				// Validate state
+				accountDB, err := BlockChainImpl.LatestAccountDB()
+				if err != nil {
+					return fmt.Errorf("fail get last state db,error = %v", err.Error())
+				}
+				if _, err = stateValidate(accountDB, tx, BlockChainImpl.Height()); err != nil {
+					return err
+				}
 			}
 			switch tx.Type {
 			case types.TransactionTypeTransfer:
-				err = transferValidator(tx, balance)
+				err = transferValidator(tx)
 			case types.TransactionTypeContractCreate:
-				err = contractCreateValidator(tx, balance)
+				err = contractCreateValidator(tx)
 			case types.TransactionTypeContractCall:
-				err = contractCallValidator(tx, balance)
+				err = contractCallValidator(tx)
 			case types.TransactionTypeStakeAdd:
 				err = stakeAddValidator(tx)
 			case types.TransactionTypeMinerAbort:

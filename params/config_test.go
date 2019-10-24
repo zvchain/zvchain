@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -13,20 +13,29 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package main
+package params
 
 import (
-	"runtime/debug"
-
-	"github.com/zvchain/zvchain/cmd/gzv/cli"
+	"testing"
+	"time"
 )
 
-func main() {
-	debug.SetTraceback("all")
-	gzv := cli.NewGzv()
-	go func(){
-		<-gzv.InitCha
+func TestCalculateZIP001Height(t *testing.T) {
+	begin := time.Date(2019, 10, 18, 12, 0, 0, 0, time.Local)
+	beginHeight := uint64(583588)
+	effect := time.Date(2019, 10, 30, 14, 0, 0, 0, time.Local)
+	t.Log(effect.String(), effect.UTC().String())
 
-	}()
-	gzv.Run()
+	seconds := effect.Local().Sub(begin.Local())
+	seconds2 := effect.UTC().Sub(begin.UTC())
+
+	t.Log(seconds, seconds2)
+	if seconds2 != seconds {
+		t.Fatalf("sub error")
+	}
+
+	blocksDelta := uint64(seconds.Seconds()) / 3
+
+	zip001 := beginHeight + blocksDelta
+	t.Log(zip001)
 }

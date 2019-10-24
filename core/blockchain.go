@@ -154,10 +154,17 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.initMessageHandler()
 
+	// get the level db file cache size from config
+	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
+	// get the level db block cache size from config
+	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
+	// get the level db write cache size from config
+	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
+
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        100,
-		BlockCacheCapacity:            16 * opt.MiB,
-		WriteBuffer:                   512 * opt.MiB, // Two of these are used internally
+		OpenFilesCacheCapacity:        fileCacheSize,
+		BlockCacheCapacity:            blockCacheSize * opt.MiB,
+		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
 		Filter:                        filter.NewBloomFilter(10),
 		CompactionTableSize:           4 * opt.MiB,
 		CompactionTableSizeMultiplier: 2,
@@ -245,6 +252,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.cpChecker.init()
 
+	initStakeGetter(MinerManagerImpl, chain)
+
 	return nil
 }
 
@@ -274,7 +283,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	block.Header = &types.BlockHeader{
 		Height:     0,
 		ExtraData:  common.Sha256([]byte("zv")),
-		CurTime:    time2.TimeToTimeStamp(time.Date(2019, 4, 25, 0, 0, 0, 0, time.UTC)),
+		CurTime:    time2.TimeToTimeStamp(time.Date(2019, 9, 28, 0, 0, 0, 0, time.UTC)),
 		ProveValue: []byte{},
 		Elapsed:    0,
 		TotalQN:    0,

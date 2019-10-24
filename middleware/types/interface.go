@@ -153,6 +153,9 @@ type TransactionPool interface {
 	// TxNum returns the number of transactions in the pool
 	TxNum() uint64
 
+	// TxNum returns the number of transactions in the queue
+	TxQueueNum() uint64
+
 	// RemoveFromPool removes the transactions from pool by hash
 	RemoveFromPool(txs []common.Hash)
 

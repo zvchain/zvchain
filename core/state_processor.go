@@ -45,8 +45,6 @@ var (
 )
 
 var (
-	errGasPriceTooLow   = fmt.Errorf("gas price too low")
-	errGasTooLow        = fmt.Errorf("gas too low")
 	errBalanceNotEnough = fmt.Errorf("balance not enough")
 	errNonceError       = fmt.Errorf("nonce error")
 )
@@ -139,15 +137,12 @@ func newTransitionContext(db types.AccountDB, tx types.TxMessage, bh *types.Bloc
 }
 
 func checkState(db types.AccountDB, tx *types.Transaction, height uint64) error {
-	if !validGasPrice(&tx.GasPrice.Int, height) {
-		return errGasPriceTooLow
-	}
-	gasLimitFee := new(types.BigInt).Mul(tx.GasLimit.Value(), tx.GasPrice.Value())
-	if !db.CanTransfer(*tx.Source, gasLimitFee) {
-		return errBalanceNotEnough
-	}
 	if !validateNonce(db, tx) {
 		return errNonceError
+	}
+	// validate the state again before pack
+	if _, err := stateValidate(db, tx, height); err != nil {
+		return err
 	}
 	return nil
 }
@@ -511,11 +506,11 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(types.DaemonNodeAddress, big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(types.GetDaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(types.UserNodeAddress, big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(types.GetUserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))

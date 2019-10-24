@@ -23,6 +23,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/zvchain/zvchain/common"
 )
 
 const GroupMinRowSize = 4
@@ -518,7 +520,7 @@ func (gm *GroupManager) Broadcast(ID string, msg *MsgData, members []string, cod
 		Logger.Errorf("[group] group broadcast,msg is nil, ID:%v code:%v", ID, code)
 		return
 	}
-	Logger.Infof("[group] group broadcast, ID:%v code:%v", ID, code)
+	Logger.Infof("[group] group broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
 
 	if ID == FullNodeVirtualGroupID {
 		netCore.proposerManager.Broadcast(msg, code)
@@ -540,7 +542,7 @@ func (gm *GroupManager) Broadcast(ID string, msg *MsgData, members []string, cod
 
 func (gm *GroupManager) BroadcastExternal(ID string, msg *MsgData, members []string, code uint32) {
 
-	Logger.Infof("[group] group external broadcast, ID:%v code:%v", ID, code)
+	Logger.Infof("[group] group external broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
 	if msg == nil {
 		Logger.Errorf("[group] group external broadcast,msg is nil, ID:%v code:%v", ID, code)
 		return

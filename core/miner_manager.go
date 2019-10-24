@@ -18,10 +18,16 @@ package core
 import (
 	"bytes"
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
+	"math"
+	"runtime"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 const (
@@ -32,10 +38,28 @@ var MinerManagerImpl *MinerManager
 
 // MinerManager manage all the miner related actions
 type MinerManager struct {
+	verifyAddrsCache   *minerAddressCache
+	proposalAddrsCache *minerAddressCache
+	verifyMinerData    *lru.Cache
+	proposalMinerData  *lru.Cache
+	lock               sync.RWMutex
+}
+
+type minerAddressCache struct {
+	rootHash common.Hash
+	addrs    []common.Address
+}
+
+type minerCache struct {
+	rootHash common.Hash
+	miner    *types.Miner
 }
 
 func initMinerManager() {
-	MinerManagerImpl = &MinerManager{}
+	MinerManagerImpl = &MinerManager{
+		verifyMinerData:   common.MustNewLRUCache(10000),
+		proposalMinerData: common.MustNewLRUCache(10000),
+	}
 }
 
 // GuardNodesCheck check guard nodes is expired
@@ -304,6 +328,15 @@ func (mm *MinerManager) GetFullMinerPoolStake(height uint64) uint64 {
 	return getFullMinerPoolStake(height)
 }
 
+func (mm *MinerManager) getMiner(db types.AccountDB, address common.Address, mType types.MinerType) *types.Miner {
+	m, err := getMiner(db, address, mType)
+	if err != nil {
+		Logger.Errorf("get miner error:%v", err)
+		return nil
+	}
+	return m
+}
+
 // GetMiner return miner info stored in db of the given address and the miner type at the given height
 func (mm *MinerManager) GetMiner(address common.Address, mType types.MinerType, height uint64) *types.Miner {
 	db, err := BlockChainImpl.AccountDBAt(height)
@@ -345,14 +378,13 @@ func (mm *MinerManager) GetAllFullStakeGuardNodes(accountDB types.AccountDB) []c
 	return addrs
 }
 func (mm *MinerManager) GetFundGuard(addr string) (*fundGuardNode, error) {
-	db,err := BlockChainImpl.LatestAccountDB()
-	if err != nil{
-		return nil,err
+	db, err := BlockChainImpl.LatestAccountDB()
+	if err != nil {
+		return nil, err
 	}
 
-	return getFundGuardNode(db,common.StringToAddress(addr))
+	return getFundGuardNode(db, common.StringToAddress(addr))
 }
-
 
 func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]*fundGuardNodeDetail, error) {
 	var fds []*fundGuardNodeDetail
@@ -373,36 +405,166 @@ func (mm *MinerManager) GetAllFundStakeGuardNodes(accountDB types.AccountDB) ([]
 	return fds, nil
 }
 
-// GetAllMiners returns all miners of the the specified type at the given height
-func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
-	accountDB, err := BlockChainImpl.AccountDBAt(height)
-	if err != nil {
-		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
-		return nil
-	}
+func (mm *MinerManager) iteratorAddrs(accountDB types.AccountDB, mType types.MinerType, height uint64) []common.Address {
 	var prefix []byte
 	if types.IsVerifyRole(mType) {
 		prefix = common.PrefixPoolVerifier
 	} else {
 		prefix = common.PrefixPoolProposal
 	}
+	addrs := make([]common.Address, 0)
 	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
-	miners := make([]*types.Miner, 0)
 	for iter.Next() {
 		// finish the iterator
 		if !bytes.HasPrefix(iter.Key, prefix) {
 			break
 		}
 		addr := common.BytesToAddress(iter.Key[len(prefix):])
-		miner, err := getMiner(accountDB, addr, mType)
-		if err != nil {
-			Logger.Errorf("get all miner error:%v, addr:%v", err, addr.AddrPrefixString())
-			return nil
-		}
-		if miner != nil {
-			miners = append(miners, miner)
-		}
+		addrs = append(addrs, addr)
 	}
+	return addrs
+}
+
+func (mm *MinerManager) getAndSetAllMinerAddrs(accountDB types.AccountDB, mType types.MinerType, height uint64) []common.Address {
+	begin := time.Now()
+	defer func() {
+		Logger.Debugf("get all miners addrs cost %v", time.Since(begin).Seconds())
+	}()
+
+	accesser := accountDB.GetStateObject(common.MinerPoolAddr)
+	if accesser == nil {
+		Logger.Debugf("get state object nil,height = %v", height)
+		return nil
+	}
+	var mac *minerAddressCache
+	if types.IsVerifyRole(mType) {
+		mac = mm.verifyAddrsCache
+	} else {
+		mac = mm.proposalAddrsCache
+	}
+	if mac == nil {
+		mac = &minerAddressCache{}
+	}
+	if accesser.GetRootHash() != mac.rootHash {
+		addrs := mm.iteratorAddrs(accountDB, mType, height)
+		mac.rootHash = accesser.GetRootHash()
+		mac.addrs = addrs
+		if types.IsVerifyRole(mType) {
+			mm.verifyAddrsCache = mac
+		} else {
+			mm.proposalAddrsCache = mac
+		}
+	} else {
+		Logger.Debugf("hit address cache,type is %v,height is %v", mType, height)
+	}
+	return mac.addrs
+}
+
+// GetAllMiners returns all miners of the the specified type at the given height
+func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*types.Miner {
+	mm.lock.Lock()
+	defer mm.lock.Unlock()
+	begin := time.Now()
+	defer func() {
+		Logger.Debugf("get all miners cost %v", time.Since(begin).Seconds())
+	}()
+	accountDB, err := BlockChainImpl.AccountDBAt(height)
+	if err != nil {
+		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
+		return nil
+	}
+	addrs := mm.getAndSetAllMinerAddrs(accountDB, mType, height)
+	if len(addrs) == 0 {
+		return nil
+	}
+	miners := make([]*types.Miner, len(addrs))
+	Logger.Debugf("get all miners len %v, type %v, height %v", len(addrs), mType, height)
+	atErr := atomic.Value{}
+	var missCount uint64 = 0
+	// Get miners concurrently, and the order of the result must be kept as it is in the addrs slice
+	getMinerFunc := func(begin, end int) {
+		for i := begin; i < end; i++ {
+			var (
+				miner       *types.Miner
+				err         error
+				needToCache bool
+				mc          *minerCache
+				cache       *lru.Cache
+			)
+			stateObject := accountDB.GetStateObject(addrs[i])
+			if stateObject == nil {
+				err = fmt.Errorf("get miner error,because stateObject is nil, addr %v", addrs[i].AddrPrefixString())
+				atErr.Store(err)
+				return
+			}
+			if types.IsVerifyRole(mType) {
+				cache = mm.verifyMinerData
+			} else {
+				cache = mm.proposalMinerData
+			}
+			obj, ok := cache.Get(stateObject.GetAddr())
+			if ok {
+				mc = obj.(*minerCache)
+				if mc.rootHash == stateObject.GetRootHash() && mc.miner != nil {
+					miner = mc.miner
+				} else {
+					miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
+					needToCache = true
+				}
+			} else {
+				miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
+				needToCache = true
+			}
+			if err != nil {
+				Logger.Errorf("get miner error, addr %v, err %v", addrs[i].AddrPrefixString(), err)
+				atErr.Store(err)
+				return
+			}
+			if miner == nil {
+				err = fmt.Errorf("get miner nil:%v", addrs[i].AddrPrefixString())
+				Logger.Error(err)
+				atErr.Store(err)
+				return
+			} else {
+				miners[i] = miner
+			}
+			if atErr.Load() != nil {
+				break
+			}
+			if needToCache {
+				atomic.AddUint64(&missCount, 1)
+				mc = &minerCache{rootHash: stateObject.GetRootHash(), miner: miner}
+				cache.Add(stateObject.GetAddr(), mc)
+			}
+		}
+		return
+	}
+
+	parallel := runtime.NumCPU() * 2
+	step := int(math.Ceil(float64(len(addrs)) / float64(parallel)))
+	wg := sync.WaitGroup{}
+
+	for begin := 0; begin < len(addrs); {
+		end := begin + step
+		if end > len(addrs) {
+			end = len(addrs)
+		}
+		wg.Add(1)
+		b, e := begin, end
+		go func() {
+			defer wg.Done()
+			getMinerFunc(b, e)
+			Logger.Debugf("get all miner partly finished, range %v-%v, err:%v, height:%v", b, e, err, height)
+		}()
+		begin = end
+	}
+	wg.Wait()
+
+	if e := atErr.Load(); e != nil {
+		Logger.Errorf("get all miner error:%v", e)
+		return nil
+	}
+	Logger.Debugf("get all miner partly finished, height:%v,cost %v,misscount is %v", height, time.Since(begin).Seconds(), atomic.LoadUint64(&missCount))
 	return miners
 }
 
@@ -558,7 +720,7 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 }
 
 func (mm *MinerManager) genFundGuardNodes(accountDB types.AccountDB) {
-	for _, addr := range common.ExtractGuardNodes {
+	for _, addr := range types.GetGuardAddress() {
 		miner := &types.Miner{ID: addr.Bytes(), Type: types.MinerTypeProposal, Identity: types.MinerGuard, Status: types.MinerStatusPrepare, ApplyHeight: 0, Stake: 0}
 		bs, err := msgpack.Marshal(miner)
 		if err != nil {

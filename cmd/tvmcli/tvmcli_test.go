@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/params"
 	"github.com/zvchain/zvchain/storage/account"
 	"io/ioutil"
 	"math/big"
@@ -403,4 +404,8 @@ func TestTvmCli_TestBigInt(t *testing.T) {
 
 func TestTvmCli_TestStorage(t *testing.T) {
 	_ = _deployContract("Token", "test_storage.py")
+}
+
+func init() {
+	params.InitChainConfig(1)
 }
