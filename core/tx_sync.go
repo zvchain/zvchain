@@ -386,7 +386,7 @@ func (ts *txSyncer) onTxReq(msg notify.Message) error {
 	}
 	txs := make([]*types.RawTransaction, 0)
 	for _, txHash := range hashs {
-		tx := BlockChainImpl.transactionPool.GetTransaction(false, txHash)
+		tx := BlockChainImpl.GetTransactionByHash(false, txHash)
 		if tx != nil {
 			txs = append(txs, tx.RawTransaction)
 		}
