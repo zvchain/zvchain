@@ -133,34 +133,53 @@ func generateMiners(stakes []uint64) []*model.SelfMinerDO {
 	return miners
 }
 
+//func generateStakes() []uint64 {
+//	stakes := make([]uint64, 0)
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 10000)
+//	}
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 50000)
+//	}
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 200000)
+//	}
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 500000)
+//	}
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 1000000)
+//	}
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 1500000)
+//	}
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 1800000)
+//	}
+//	for i := 0; i < 4; i++ {
+//		stakes = append(stakes, 2100000)
+//	}
+//	for i := 0; i < 90; i++ {
+//		stakes = append(stakes, 2500000)
+//	}
+//	return stakes
+//}
+
 func generateStakes() []uint64 {
 	stakes := make([]uint64, 0)
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 10000)
-	}
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 50000)
-	}
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 200000)
-	}
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 500000)
-	}
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 1000000)
-	}
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 1500000)
-	}
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 1800000)
-	}
-	for i := 0; i < 4; i++ {
-		stakes = append(stakes, 2100000)
-	}
-	for i := 0; i < 90; i++ {
-		stakes = append(stakes, 2500000)
+	stakes = append(stakes, 500)
+	stakes = append(stakes, 5000)
+	stakes = append(stakes, 10000)
+	stakes = append(stakes, 50000)
+	stakes = append(stakes, 250000)
+	stakes = append(stakes, 500000)
+	stakes = append(stakes, 1000000)
+	stakes = append(stakes, 2000000)
+	stakes = append(stakes, 2500000)
+	stakes = append(stakes, 10000000)
+	stakes = append(stakes, 10000000)
+	for i := 0; i < 9; i++ {
+		stakes = append(stakes, 20000000)
 	}
 	return stakes
 }
@@ -266,7 +285,7 @@ func TestProposalQualification(t *testing.T) {
 	}
 	stakes := generateStakes()
 	miners := generateMiners(stakes)
-	testCnt := 100
+	testCnt := 10
 	parallel := runtime.NumCPU()
 	testCntPerCpu := testCnt / parallel
 
@@ -297,7 +316,7 @@ func TestProposalQualification(t *testing.T) {
 	wg.Wait()
 
 	rate := func(v int, stake uint64) float64 {
-		return float64(v) * 1000 / float64(stake)
+		return float64(v) * 45 / float64(stake)
 	}
 
 	rateString := func(v int, stake uint64) string {
@@ -323,7 +342,7 @@ func TestProposalQualification(t *testing.T) {
 			cnt = 1
 		}
 		if i == len(overMs)-1 {
-			t.Logf("avg:\t%v %v\t%.3f\t%.3f", lastStake, cnt, winRate/float64(cnt), winRate2/float64(cnt))
+			t.Logf("avg:\t%v %v\t%.6f\t%.6f", lastStake, cnt, winRate/float64(cnt), winRate2/float64(cnt))
 		}
 		fmt.Printf("%v\t\t q:%v %v\t\t\t w:%v %v\t\t\t w2:%v %v\n", ms.stake, ms.qualification, rateString(ms.qualification, ms.stake), ms.win, rateString(ms.win, ms.stake), ms.win2, rateString(ms.win2, ms.stake))
 	}
