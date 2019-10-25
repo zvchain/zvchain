@@ -172,7 +172,6 @@ func (ts *txSyncer) clearJob() {
 		}
 	}
 	ts.pool.ClearRewardTxs()
-	ts.pool.clearReceivedTxs()
 }
 
 func (ts *txSyncer) checkTxCanBroadcast(txHash common.Hash) bool {
