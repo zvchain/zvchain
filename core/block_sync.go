@@ -18,11 +18,13 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
 	"math"
 	"math/rand"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -34,10 +36,10 @@ import (
 )
 
 const (
-	sendLocalTopInterval       = 3   // Interval of sending local top block to neighbor
-	syncNeightborsInterval     = 3   // Interval of requesting synchronize block from neighbor
-	syncNeightborTimeout       = 5   // Timeout of requesting synchronize block from neighbor
-	blockSyncCandidatePoolSize = 100 // Size of candidate peer pool for block synchronize
+	sendLocalTopInterval        = 3   // Interval of sending local top block to neighbor
+	syncNeightborsInterval      = 3   // Interval of requesting synchronize block from neighbor
+	defaultSyncNeightborTimeout = 5   // Timeout of requesting synchronize block from neighbor
+	blockSyncCandidatePoolSize  = 100 // Size of candidate peer pool for block synchronize
 )
 
 const (
@@ -66,8 +68,9 @@ type blockSyncer struct {
 
 	ticker *ticker.GlobalTicker
 
-	lock   sync.RWMutex
-	logger *logrus.Logger
+	lock                 sync.RWMutex
+	logger               *logrus.Logger
+	syncNeightborTimeout uint32
 }
 
 type topBlockInfo struct {
@@ -84,9 +87,10 @@ func newTopBlockInfo(topBH *types.BlockHeader) *topBlockInfo {
 
 func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 	return &blockSyncer{
-		candidatePool: make(map[string]*types.CandidateBlockHeader),
-		chain:         chain,
-		syncingPeers:  make(map[string]uint64),
+		candidatePool:        make(map[string]*types.CandidateBlockHeader),
+		chain:                chain,
+		syncingPeers:         make(map[string]uint64),
+		syncNeightborTimeout: uint32(common.GlobalConf.GetInt("gzv", "block_sync_timeout", defaultSyncNeightborTimeout)),
 	}
 }
 
@@ -105,6 +109,8 @@ func InitBlockSyncer(chain *FullBlockChain) {
 	notify.BUS.Subscribe(notify.BlockInfoNotify, blockSync.topBlockInfoNotifyHandler)
 	notify.BUS.Subscribe(notify.BlockReq, blockSync.blockReqHandler)
 	notify.BUS.Subscribe(notify.BlockResponse, blockSync.blockResponseMsgHandler)
+
+	blockSync.logger.Debugf("init block syncer,block sync timeout:%v", blockSync.syncNeightborTimeout)
 
 }
 
@@ -382,7 +388,7 @@ func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo) {
 
 	bs.chain.ticker.RegisterOneTimeRoutine(bs.syncTimeoutRoutineName(id), func() bool {
 		return bs.syncComplete(id, true)
-	}, syncNeightborTimeout)
+	}, bs.syncNeightborTimeout)
 }
 
 func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
