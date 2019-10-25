@@ -58,7 +58,6 @@ var (
 	ErrSign            = errors.New("sign error")
 	ErrNonce           = errors.New("nonce error")
 	ErrDataSizeTooLong = errors.New("data size too long")
-	ErrBlockSyncing    = errors.New("block is syncing")
 )
 
 type txPool struct {
