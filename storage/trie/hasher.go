@@ -32,6 +32,7 @@ type hasher struct {
 	cachegen   uint16
 	cachelimit uint16
 	onleaf     LeafCallback
+	enableCache bool   // Whether node cache is enabled
 }
 
 // keccakState wraps sha3.state. In addition to the usual hash methods, it also supports
@@ -110,10 +111,16 @@ func (h *hasher) hash(n node, db *NodeDatabase, force bool) (node, node, error) 
 		if db != nil {
 			cn.flags.dirty = false
 		}
+		if h.enableCache{
+			acache.storeWriteNode(common.BytesToHash(cachedHash),cn)
+		}
 	case *fullNode:
 		cn.flags.hash = cachedHash
 		if db != nil {
 			cn.flags.dirty = false
+		}
+		if h.enableCache{
+			acache.storeWriteNode(common.BytesToHash(cachedHash),cn)
 		}
 	}
 	return hashed, cached, nil

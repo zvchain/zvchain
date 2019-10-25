@@ -71,6 +71,7 @@ type AccountDB struct {
 	nextRevisionID int
 
 	lock sync.RWMutex
+	enableCache bool   // Whether node cache is enabled
 }
 
 // Create a new account from a given trie.
@@ -93,6 +94,10 @@ func (adb *AccountDB) setError(err error) {
 	if adb.dbErr == nil {
 		adb.dbErr = err
 	}
+}
+
+func (adb *AccountDB) EnableNodeCache() {
+	adb.enableCache = true
 }
 
 // RemoveData set data nil
@@ -338,6 +343,9 @@ func (adb *AccountDB) deleteAccountObject(stateObject *accountObject) {
 
 // Retrieve a account object given by the address. Returns nil if not found.
 func (adb *AccountDB) getAccountObjectFromTrie(addr common.Address) (stateObject *accountObject) {
+	if adb.enableCache{
+		adb.trie.EnableNodeCache()
+	}
 	enc, err := adb.trie.TryGet(addr[:])
 	if len(enc) == 0 {
 		adb.setError(err)
@@ -546,6 +554,7 @@ func (adb *AccountDB) Commit(deleteEmptyObjects bool) (root common.Hash, err err
 	if e != nil {
 		return common.Hash{}, *e
 	}
+	adb.trie.EnableNodeCache()
 	root, err = adb.trie.Commit(func(leaf []byte, parent common.Hash) error {
 		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {

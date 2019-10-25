@@ -64,6 +64,8 @@ type AccountDB interface {
 	CanTransfer(common.Address, *big.Int) bool
 
 	Database() account.AccountDatabase
+
+	EnableNodeCache()
 }
 
 type ChainReader interface {

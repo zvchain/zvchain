@@ -164,6 +164,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
+	stateNodeCacheSize := common.GlobalConf.GetInt(configSec, "state_node_cache", 50000)
+
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        fileCacheSize,
 		BlockCacheCapacity:            blockCacheSize * opt.MiB,
@@ -193,6 +195,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	}
 	if iteratorNodeCacheSize > 0 {
 		trie.CreateNodeCache(iteratorNodeCacheSize, cacheDB)
+	}
+
+	if stateNodeCacheSize > 0 {
+		trie.CreateAccCache(stateNodeCacheSize)
 	}
 
 	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)

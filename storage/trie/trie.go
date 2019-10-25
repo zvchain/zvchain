@@ -20,8 +20,10 @@ package trie
 import (
 	"bytes"
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
+	"sync/atomic"
 )
 
 var (
@@ -36,6 +38,66 @@ var (
 // node. It's used by state sync and commit to allow handling external references
 // between account and storage tries.
 type LeafCallback func(leaf []byte, parent common.Hash) error
+
+
+type accCache struct {
+	rcache *lru.Cache
+	wcache *lru.Cache
+	hit   uint64
+	total uint64
+}
+
+var acache *accCache
+
+func CreateAccCache(size int) {
+	acache = &accCache{
+		rcache: common.MustNewLRUCache(size),
+		wcache: common.MustNewLRUCache(size),
+	}
+}
+
+func (a *accCache) storeWriteNode(hash common.Hash, n node) {
+	if a == nil {
+		return
+	}
+	a.wcache.Add(hash, n)
+}
+
+func (a *accCache) storeReadNode(hash common.Hash, n node) {
+	if a == nil {
+		return
+	}
+	a.rcache.Add(hash, n)
+}
+
+
+func (a *accCache) getNode(hash common.Hash) node {
+	if a == nil {
+		return nil
+	}
+	defer func() {
+		total := atomic.LoadUint64(&a.total)
+		if total%50 == 0 && total > 0 {
+			log.CoreLogger.Debugf("get accountobj hit %.4f(%v/%v),write cache size %v,read cache size = %v", float64(a.hit)/float64(total), a.hit, total, acache.wcache.Len() , acache.rcache.Len())
+		}
+	}()
+	atomic.AddUint64(&acache.total, 1)
+	if atomic.LoadUint64(&a.total) == 0 {
+		atomic.StoreUint64(&a.total, 1)
+		atomic.StoreUint64(&a.hit, 0)
+	}
+	if v, ok := a.wcache.Get(hash); ok {
+		atomic.AddUint64(&acache.hit, 1)
+		return v.(node)
+	}else{
+		if v, ok := a.rcache.Get(hash); ok {
+			atomic.AddUint64(&acache.hit, 1)
+			return v.(node)
+		}
+	}
+	return nil
+}
+
 
 // Trie is a Merkle Patricia Trie.
 // The zero value is an empty trie with no database.
@@ -52,6 +114,11 @@ type Trie struct {
 	// new nodes are tagged with the current generation and unloaded
 	// when their generation is older than than cachegen-cachelimit.
 	cachegen, cachelimit uint16
+	enableCache bool   // Whether node cache is enabled
+}
+
+func (t *Trie) EnableNodeCache() {
+	t.enableCache = true
 }
 
 // SetCacheLimit sets the number of 'cache generations' to keep.
@@ -144,7 +211,21 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 		}
 		return value, n, didResolve, err
 	case hashNode:
-		child, err := t.resolveHash(n, key[:pos])
+		var(
+			child node
+			err error
+		)
+		if t.enableCache {
+			hash := common.BytesToHash(n)
+			if nd := acache.getNode(hash); nd == nil {
+				child, err = t.resolveHash(n, key[:pos])
+				acache.storeReadNode(hash,child)
+			}else{
+				child = nd
+			}
+		}else{
+			child, err = t.resolveHash(n, key[:pos])
+		}
 		if err != nil {
 			return nil, n, true, err
 		}
@@ -456,5 +537,6 @@ func (t *Trie) hashRoot(db *NodeDatabase, onleaf LeafCallback) (node, node, erro
 	}
 	h := newHasher(t.cachegen, t.cachelimit, onleaf)
 	defer returnHasherToPool(h)
+	h.enableCache = t.enableCache
 	return h.hash(t.root, db, true)
 }

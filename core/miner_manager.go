@@ -487,6 +487,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 		Logger.Errorf("Get account db by height %v error:%s", height, err.Error())
 		return nil
 	}
+	accountDB.EnableNodeCache()
 	addrs := mm.getAndSetAllMinerAddrs(accountDB, mType, height)
 	if len(addrs) == 0 {
 		return nil

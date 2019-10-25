@@ -77,6 +77,9 @@ type Trie interface {
 	// NodeIterator returns an iterator that returns nodes of the trie. Iteration
 	// starts at the key after the given start key.
 	NodeIterator(startKey []byte) trie.NodeIterator
+
+	// EnableNodeCache enables node cache
+	EnableNodeCache()
 }
 
 // NewDatabase creates a backing store for state. The returned database
