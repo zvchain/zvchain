@@ -272,6 +272,14 @@ func newSimpleContainer(pendingLimit int, queueLimit int, chain types.BlockChain
 		queueLimit: queueLimit,
 		txTimeout:  timeout,
 	}
+
+	ticker := time.NewTicker(30 * time.Second)
+	go func() {
+		for range ticker.C {
+			c.clearRoute()
+		}
+	}()
+
 	return c
 }
 

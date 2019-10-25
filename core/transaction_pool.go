@@ -368,7 +368,3 @@ func (pool *txPool) ClearRewardTxs() {
 		return true
 	})
 }
-
-func (pool *txPool) clearReceivedTxs() {
-	pool.received.clearRoute()
-}
