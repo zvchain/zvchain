@@ -437,6 +437,7 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) error {
 			if err == ErrNonce {
 				ts.logger.Debugf("add tx to nonce error cache %s", txx.Hash)
 				ts.nonceErrTxs.ContainsOrAdd(txx.Hash, 1)
+				continue
 			}
 
 			if _, ok := evilErrorMap[err]; ok {
