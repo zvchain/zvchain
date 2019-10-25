@@ -466,16 +466,13 @@ func skipGetLast(skip *skip.SkipList) datacommon.Comparator {
 }
 
 func (c *simpleContainer) evictPending() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	nonceCache := make(map[common.Address]uint64)
-	txs := c.pending.asSlice(maxPendingSize)
+	txs := c.asSlice(maxPendingSize)
 	for _, tx := range txs {
 		stateNonce := c.getNonceWithCache(nonceCache, tx)
 		if tx.Nonce <= stateNonce {
 			Logger.Debugf("Tx %v evicted from pending, chain nonce is %d and tx nonce is %d", tx.Hash, stateNonce, tx.Nonce)
-			c.removeWithoutLock(tx)
+			c.remove(tx.Hash)
 		}
 	}
 }
@@ -493,6 +490,8 @@ func (c *simpleContainer) evictTimeout() {
 }
 
 func (c *simpleContainer) clearRoute() {
+	start := time.Now()
 	c.evictPending()
 	c.evictTimeout()
+	Logger.Debugf("clearRoute tasks %f seconds",time.Since(start).Seconds())
 }
