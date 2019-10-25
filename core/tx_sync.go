@@ -18,7 +18,6 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -436,7 +435,8 @@ func (ts *txSyncer) onTxResponse(msg notify.Message) error {
 		txx := types.NewTransaction(tx, tx.GenHash())
 		_, err := ts.pool.AddTransaction(txx)
 		if err != nil {
-			if strings.Contains(err.Error(), "nonce error") {
+			if err == ErrNonce {
+				ts.logger.Debugf("add tx to nonce error cache %s", txx.Hash)
 				ts.nonceErrTxs.ContainsOrAdd(txx.Hash, 1)
 			}
 

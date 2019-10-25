@@ -330,8 +330,8 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000 {
-		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d, source:%s ", stateNonce+1, tx.Nonce, tx.Source.AddrPrefixString())
-		Logger.Warn(err)
+		err = ErrNonce
+		Logger.Warnf("Tx nonce error! expect nonce:%d,real nonce:%d, source:%s ", stateNonce+1, tx.Nonce, tx.Source.AddrPrefixString())
 		return
 	}
 

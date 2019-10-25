@@ -56,6 +56,7 @@ var (
 	ErrHash            = errors.New("invalid transaction hash")
 	ErrGasPrice        = errors.New("gas price is too low")
 	ErrSign            = errors.New("sign error")
+	ErrNonce           = errors.New("nonce error")
 	ErrDataSizeTooLong = errors.New("data size too long")
 	ErrBlockSyncing    = errors.New("block is syncing")
 )
