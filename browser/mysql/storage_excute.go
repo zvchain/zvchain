@@ -704,7 +704,7 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt, trans []*models.Tran
 								Status:       1,
 							}
 							if maptran[receipts[i].Logs[j].TxHash] != nil {
-								contractCall.CurTime = maptran[receipts[i].Logs[j].TxHash].CurTime
+								contractCall.CurTime = &maptran[receipts[i].Logs[j].TxHash].CurTime
 							}
 							storage.AddContractCallTransaction(contractCall)
 
