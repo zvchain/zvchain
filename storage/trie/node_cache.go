@@ -72,13 +72,13 @@ func (nc *nodeCache) getNode(hash common.Hash) node {
 			log.CoreLogger.Debugf("node iterator getNode hit %.4f(%v/%v),cache size %v", float64(nc.hit)/float64(total), nc.hit, total, ncache.cache.Len())
 		}
 	}()
-	atomic.AddUint64(&ncache.total, 1)
+	atomic.AddUint64(&nc.total, 1)
 	if atomic.LoadUint64(&nc.total) == 0 {
 		atomic.StoreUint64(&nc.total, 1)
 		atomic.StoreUint64(&nc.hit, 0)
 	}
 	if v, ok := nc.cache.Get(hash); ok {
-		atomic.AddUint64(&ncache.hit, 1)
+		atomic.AddUint64(&nc.hit, 1)
 		return v.(*cacheItem).n
 	}
 	return nil
