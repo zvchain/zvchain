@@ -46,7 +46,6 @@ const (
 	tickerSendLocalTop         = "send_local_top"
 	tickerSyncNeighbor         = "sync_neightbor"
 	tickerSyncTimeout          = "sync_timeout"
-	configSection              = "gzv"
 	configSyncNeightborTimeout = "block_sync_timeout"
 )
 
@@ -92,7 +91,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 		candidatePool:        make(map[string]*types.CandidateBlockHeader),
 		chain:                chain,
 		syncingPeers:         make(map[string]uint64),
-		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSection, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
+		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
 	}
 }
 
