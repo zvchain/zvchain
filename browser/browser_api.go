@@ -229,12 +229,12 @@ func (tm *DBMmanagement) CreateOrUpdateStakeMapping(stakeList map[string]map[str
 
 			}
 
-			tm.UpdateAccountList(src, trgt)
 		}
+		tm.UpdateAccountList(src)
 	}
 }
 
-func (tm *DBMmanagement) UpdateAccountList(src, trgt string) {
+func (tm *DBMmanagement) UpdateAccountList(src string) {
 	type Stake struct {
 		StakeToOther   uint64
 		StakeFromOther uint64
