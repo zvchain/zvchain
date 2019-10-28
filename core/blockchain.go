@@ -75,6 +75,7 @@ type FullBlockChain struct {
 	blockHeight *tasdb.PrefixedDatabase
 	txDb        *tasdb.PrefixedDatabase
 	stateDb     *tasdb.PrefixedDatabase
+	cacheDb     *tasdb.PrefixedDatabase
 	batch       tasdb.Batch
 
 	stateCache account.AccountDatabase
@@ -191,6 +192,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("new cache db error:%v", err)
 		return err
 	}
+	chain.cacheDb = cacheDB
 	if iteratorNodeCacheSize > 0 {
 		trie.CreateNodeCache(iteratorNodeCacheSize, cacheDB)
 	}
@@ -383,6 +385,9 @@ func (chain *FullBlockChain) Close() {
 
 	if chain.stateDb != nil {
 		chain.stateDb.Close()
+	}
+	if chain.cacheDb != nil {
+		chain.cacheDb.Close()
 	}
 
 }
