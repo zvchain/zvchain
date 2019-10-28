@@ -87,7 +87,7 @@ func (s *Server) TransmitToNeighbor(msg Message) error {
 		return err
 	}
 
-	s.netCore.broadcastRandom(bytes, msg.Code, -1, 256)
+	s.netCore.broadcastRandom(bytes, msg.Code, -1, 10)
 
 	return nil
 }

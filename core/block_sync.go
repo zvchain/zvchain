@@ -36,7 +36,7 @@ import (
 const (
 	sendLocalTopInterval       = 3   // Interval of sending local top block to neighbor
 	syncNeightborsInterval     = 3   // Interval of requesting synchronize block from neighbor
-	syncNeightborTimeout       = 5   // Timeout of requesting synchronize block from neighbor
+	syncNeightborTimeout       = 30  // Timeout of requesting synchronize block from neighbor
 	blockSyncCandidatePoolSize = 100 // Size of candidate peer pool for block synchronize
 )
 
@@ -559,7 +559,7 @@ func (bs *blockSyncer) blockReqHandler(msg notify.Message) error {
 	}
 
 	bs.logger.Debugf("Rcv block request:reqHeight:%d, reqSize:%v, localHeight:%d", br.ReqHeight, br.ReqSize, localHeight)
-	blocks := bs.chain.BatchGetBlocksAfterHeight(br.ReqHeight, int(br.ReqSize))
+	blocks := bs.chain.BatchGetBlocksAfterHeight(br.ReqHeight, 2)
 	responseBlocks(m.Source(), blocks)
 	return nil
 }

@@ -389,6 +389,9 @@ func (ts *txSyncer) onTxReq(msg notify.Message) error {
 		if tx != nil {
 			txs = append(txs, tx.RawTransaction)
 		}
+		if len(txs) > 5 {
+			break
+		}
 	}
 	body, e := types.MarshalTransactions(txs)
 	if e != nil {
