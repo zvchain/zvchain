@@ -26,7 +26,7 @@ import (
 const (
 	evilTimeoutMeterMax = 5
 	evilTimAdd          = 10
-	maxReqBlockCount    = 16
+	maxReqBlockCount    = 10
 	maxEvilCount        = 100
 	eachEvilExpireTime  = "1m"
 )
