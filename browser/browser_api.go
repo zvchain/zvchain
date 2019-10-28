@@ -168,7 +168,6 @@ func (tm *DBMmanagement) executeStakeMapping() {
 			if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeRefund {
 
 				stakeMapping := &models.StakeMapping{}
-
 				stakeDetails := tm.mm.GetStakeDetails(*tx.Target, *tx.Source)
 				stakeMapping.Target = tx.Target.AddrPrefixString()
 				stakeMapping.Source = tx.Source.AddrPrefixString()
@@ -188,14 +187,21 @@ func (tm *DBMmanagement) executeStakeMapping() {
 							}
 						}
 
-						stakelist[stakeDetail.Source.AddrPrefixString()] = make(map[string]*models.StakeMapping)
-						stakelist[stakeDetail.Source.AddrPrefixString()][stakeDetail.Target.AddrPrefixString()] = stakeMapping
 					}
+
+					if _, exists := stakelist[tx.Source.AddrPrefixString()]; !exists {
+						stakelist[tx.Source.AddrPrefixString()] = make(map[string]*models.StakeMapping)
+					}
+					stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()] = stakeMapping
+
 				}
 
-				tm.CreateOrUpdateStakeMapping(stakelist)
 			}
 		}
+		if stakelist != nil {
+			tm.CreateOrUpdateStakeMapping(stakelist)
+		}
+
 		//块高存储持久化
 		sys := &models.Sys{
 			Variable: mysql.BlockStakeMappingHeight,
