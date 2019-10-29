@@ -233,6 +233,13 @@ type BlockDetail struct {
 	EvictedReceipts []*Receipt         `json:"evictedReceipts"`
 }
 
+type Config struct {
+	gorm.Model
+	Variable string `json:"variable" gorm:"unique_index"`
+	Value    string `json:"value" gorm:"type:TEXT"`
+	SetBy    string `json:"set_by"`
+}
+
 type BlockHeights []uint64
 
 func (e BlockHeights) Len() int           { return len(e) }

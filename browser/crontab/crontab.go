@@ -24,6 +24,14 @@ import (
 
 const (
 	check10SecInterval = time.Second * 10
+	check30MinInterval = time.Minute * 30
+
+	turnoverKey = "turnover"
+	cpKey       = "checkpoint"
+)
+
+var (
+	GlobalCP uint64
 )
 
 const (
@@ -84,6 +92,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
+		check30Min = time.NewTicker(check30MinInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
@@ -94,6 +103,8 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
 	go crontab.ConsumeReward()
+	go crontab.UpdateTurnOver()
+	go crontab.UpdateCheckPoint()
 
 	for {
 		select {
@@ -101,6 +112,9 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchPoolVotes()
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
+			go crontab.UpdateCheckPoint()
+		case <-check30Min.C:
+			go crontab.UpdateTurnOver()
 		}
 	}
 }
@@ -525,6 +539,52 @@ func (crontab *Crontab) ConsumeReward() {
 			fmt.Println("for ConsumeReward", util.ObjectTojson(data))
 			browserlog.BrowserLog.Info("for ConsumeReward", util.ObjectTojson(data))
 
+		}
+	}
+}
+
+func (crontab *Crontab) UpdateTurnOver() {
+	filterAddr := []string{
+		"zv88200d8e51a63301911c19f72439cac224afc7076ee705391c16f203109c0ccf",
+		"zv1d676136438ef8badbc59c89bae08ea3cdfccbbe8f4b22ac8d47361d6a3d510d",
+		"zvd675bea39b6f329919fc73c729292c7d8a3d305fb628e47f95986ec725c43824",
+		"zvc2a3709ec6f183132faf8bacbc34cdb340eb0a45a69e9d4c26290e93829de64b",
+	}
+
+	var turnover float64
+	crontab.storage.GetDB().Model(&models.AccountList{}).Select("sum(balance + total_stake - other_stake + stake_to_other) as turnover").Where("address not in (?)", filterAddr).Row().Scan(&turnover)
+	turnoverString := strconv.FormatFloat(turnover, 'E', -1, 64)
+
+	type TurnoverDB struct {
+		turnover string
+	}
+	configs := make([]*models.Config, 0)
+	crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Find(&configs)
+	if len(configs) > 0 {
+		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Update(turnoverKey, turnoverString)
+	} else {
+		config := models.Config{
+			Variable: turnoverKey,
+			Value:    turnoverString,
+		}
+		crontab.storage.GetDB().Model(&models.Config{}).Create(&config)
+	}
+}
+
+func (crontab *Crontab) UpdateCheckPoint() {
+	checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if checkpoint.Height != 0 {
+		GlobalCP = checkpoint.Height
+		configs := make([]*models.Config, 0)
+		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Find(&configs)
+		if len(configs) > 0 {
+			crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Update(cpKey, strconv.FormatUint(GlobalCP, 10))
+		} else {
+			config := models.Config{
+				Variable: cpKey,
+				Value:    strconv.FormatUint(GlobalCP, 10),
+			}
+			crontab.storage.GetDB().Model(&models.Config{}).Create(&config)
 		}
 	}
 }
