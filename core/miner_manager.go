@@ -423,6 +423,7 @@ func (mm *MinerManager) iteratorAddrs(accountDB types.AccountDB, mType types.Min
 	}
 	addrs := make([]common.Address, 0)
 	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
+	iter.EnableNodeCache()
 	for iter.Next() {
 		// finish the iterator
 		if !bytes.HasPrefix(iter.Key, prefix) {
