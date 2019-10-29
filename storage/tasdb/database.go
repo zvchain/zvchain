@@ -20,9 +20,11 @@ package tasdb
 
 import (
 	"bytes"
-	"github.com/zvchain/zvchain/log"
 	"os"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -133,6 +135,20 @@ func (db *PrefixedDatabase) CreateLDBBatch() Batch {
 func (db *PrefixedDatabase) addKVToBatch(b Batch, k, v []byte) error {
 	key := generateKey(k, db.prefix)
 	return b.Put(key, v)
+}
+
+func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
+	s := &leveldb.DBStats{}
+	err := db.db.db.Stats(s)
+	if err != nil {
+		logger.Error("failed to get leveldb s", err)
+	} else {
+		logger.Debugf("leveldb stats: WriteDelayCount:%v,WriteDelayDuration:%v,WritePaused:%v,AliveSnapshots:%v,"+
+			"AliveIterators:%v,IOWrite:%v,IORead:%v,BlockCacheSize:%v,OpenedTablesCount:%v,LevelSizes:%v,"+
+			"LevelTablesCounts:%v,LevelRead:%v,LevelWrite:%v,LevelDurations:%v", s.WriteDelayCount,
+			s.WriteDelayDuration, s.WritePaused, s.AliveSnapshots, s.AliveIterators, s.IOWrite, s.IORead, s.BlockCacheSize,
+			s.OpenedTablesCount, s.LevelSizes, s.LevelTablesCounts, s.LevelRead, s.LevelWrite, s.LevelDurations)
+	}
 }
 
 func (db *PrefixedDatabase) addDeleteToBatch(b Batch, k []byte) error {
