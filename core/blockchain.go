@@ -261,7 +261,17 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	initStakeGetter(MinerManagerImpl, chain)
 
+	chain.LogDbStats()
 	return nil
+}
+
+func (chain *FullBlockChain) LogDbStats() {
+	tc := time.NewTicker(1 * time.Minute)
+	go func() {
+		for range tc.C {
+			chain.stateDb.LogStats(Logger)
+		}
+	}()
 }
 
 func (chain *FullBlockChain) buildCache(size int) {
