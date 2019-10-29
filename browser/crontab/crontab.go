@@ -553,7 +553,7 @@ func (crontab *Crontab) UpdateTurnOver() {
 	}
 
 	var turnover float64
-	crontab.storage.GetDB().Model(&models.AccountList{}).Select("sum(balance + total_stake - other_stake + stake_to_other) as turnover").Where("address not in (?)", filterAddr).Row().Scan(&turnover)
+	crontab.storage.GetDB().Model(&models.AccountList{}).Select("(sum(total_stake)-sum(other_stake)+sum(balance)+sum(stake_to_other)) as turnover").Where("address not in (?)", filterAddr).Row().Scan(&turnover)
 	turnoverString := strconv.FormatFloat(turnover, 'E', -1, 64)
 
 	type TurnoverDB struct {
