@@ -141,7 +141,7 @@ func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
 	s := &leveldb.DBStats{}
 	err := db.db.db.Stats(s)
 	if err != nil {
-		logger.Error("failed to get leveldb s", err)
+		logger.Error("failed to get leveldb stats", err)
 	} else {
 		logger.Debugf("leveldb stats: WriteDelayCount:%v,WriteDelayDuration:%v,WritePaused:%v,AliveSnapshots:%v,"+
 			"AliveIterators:%v,IOWrite:%v,IORead:%v,BlockCacheSize:%v,OpenedTablesCount:%v,LevelSizes:%v,"+
