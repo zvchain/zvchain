@@ -440,13 +440,14 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	rm := executor.bc.GetRewardManager().(*rewardManager)
 	totalGasUsed := uint64(0)
 	for _, tx := range txs {
+		Logger.Debugf("begin process tx hash=%s,type=%d,height=%v",tx.Hash.Hex(),tx.Type,bh.Height)
 		if pack && time.Since(beginTime).Seconds() > float64(ProposerPackageTime) {
-			Logger.Infof("Cast block execute tx time out!Tx hash:%s ", tx.Hash.Hex())
+			Logger.Infof("Cast block execute tx time out!Tx hash:%s,height=%v", tx.Hash.Hex(),bh.Height)
 			break
 		}
 
 		if pack && totalGasUsed >= GasLimitForPackage {
-			Logger.Warnf("exceeds the block gas limit GasLimitForPackage :%v %v ", totalGasUsed, GasLimitForPackage)
+			Logger.Warnf("exceeds the block gas limit GasLimitForPackage :%v %v,height=%v", totalGasUsed, GasLimitForPackage,bh.Height)
 			break
 		}
 
@@ -454,13 +455,13 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 		// Apply transaction
 		ret, err := applyStateTransition(accountDB, tx, bh)
 		if err != nil {
-			Logger.Errorf("apply transaction error and will be removed: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
+			Logger.Errorf("apply transaction error and will be removed: type=%v, hash=%v, source=%v, err=%v,height=%v", tx.Type, tx.Hash.Hex(), tx.Source, err,bh.Height)
 			// transaction will be remove from pool when error happens
 			evictedTxs = append(evictedTxs, tx.Hash)
 			continue
 		}
 		if ret.err != nil {
-			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, ret.err)
+			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v,height=%v", tx.Type, tx.Hash.Hex(), tx.Source, ret.err,bh.Height)
 		}
 
 		// Accumulate gas fee
@@ -472,7 +473,7 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 				// Revert snapshot in case total gas used exceeds the limit and break the loop
 				// The tx just executed won't be packed into the block
 				accountDB.RevertToSnapshot(snapshot)
-				Logger.Warnf("revert to snapshot because total gas exceeds:%v %v ", totalGasUsed, GasLimitPerBlock)
+				Logger.Warnf("revert to snapshot because total gas exceeds:%v %v,height=%v", totalGasUsed, GasLimitPerBlock,bh.Height)
 				break
 			}
 
@@ -499,7 +500,7 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 		receipt.Height = bh.Height
 		receipts = append(receipts, receipt)
 		//errs[i] = err
-
+		Logger.Debugf("process tx end,hash=%s,type=%d,height=%v",tx.Hash.Hex(),tx.Type,bh.Height)
 	}
 	//ts.AddStat("executeLoop", time.Since(b))
 	castorTotalRewards := rm.calculateGasFeeCastorRewards(gasFee)
@@ -518,8 +519,9 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)
 	}
-
+	Logger.Debugf("begin IntermediateRoot,height = %v",bh.Height)
 	state = accountDB.IntermediateRoot(true)
+	Logger.Debugf("after IntermediateRoot,root = %v,height = %v",state.Hex(),bh.Height)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }

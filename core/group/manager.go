@@ -88,9 +88,11 @@ func (m *Manager) InitGenesis(db types.AccountDB, genesisInfo *types.GenesisInfo
 
 // RegularCheck try to create group, do punishment and refresh active group
 func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
+	log.CoreLogger.Debugf("begin execute regularCheck,height=%v",bh.Height)
 	ctx := &CheckerContext{bh.Height}
 	m.tryCreateGroup(db, m.checkerImpl, ctx)
 	m.tryDoPunish(db, m.checkerImpl, ctx)
+	log.CoreLogger.Debugf("execute regularCheck over,height=%v",bh.Height)
 }
 
 // OnBlockRemove resets group with top block with parameter bh
@@ -276,6 +278,7 @@ func markGroupFail(db types.AccountDB, seed types.SeedI) {
 }
 
 func (m *Manager) UpdateGroupSkipCounts(db types.AccountDB, bh *types.BlockHeader) {
+	log.CoreLogger.Debugf("begin execute updateGroupSkipCounts ,height=%v",bh.Height)
 	// remove skip counts for the current verify-group
 	m.poolImpl.updateSkipCount(db, bh.Group, 0)
 	pre := m.chain.QueryBlockHeaderByHash(bh.PreHash)
@@ -285,6 +288,7 @@ func (m *Manager) UpdateGroupSkipCounts(db types.AccountDB, bh *types.BlockHeade
 			m.poolImpl.updateSkipCount(db, gSeed, cnt)
 		}
 	}
+	log.CoreLogger.Debugf("execute updateGroupSkipCounts over,height=%v",bh.Height)
 }
 
 func (m *Manager) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[common.Hash]uint16, error) {
