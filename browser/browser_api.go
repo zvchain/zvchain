@@ -74,12 +74,14 @@ func (tm *DBMmanagement) loop() {
 	go tm.fetchAccounts()
 	go tm.fetchGroup()
 	go tm.fetchStakeMapping()
+	go tm.fetchBenefitAddress()
 	for {
 		select {
 		case <-check.C:
 			go tm.fetchAccounts()
 			go tm.fetchGroup()
 			go tm.fetchStakeMapping()
+			go tm.fetchBenefitAddress()
 		}
 	}
 }
@@ -102,6 +104,26 @@ func (tm *DBMmanagement) fetchStakeMapping() {
 	tm.executeStakeMapping()
 	atomic.CompareAndSwapInt32(&tm.isFetchingStakeMapping, 1, 0)
 
+}
+
+func (tm *DBMmanagement) fetchBenefitAddress() {
+	for _, addr := range common2.BenefitAddress {
+		targetAddrInfo := tm.storage.GetAccountById(addr)
+		account := &models.AccountList{}
+		// if the account doesn't exist
+		if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
+			account.Address = addr
+			account.Balance = tm.fetcher.Fetchbalance(addr)
+			if !tm.storage.AddObjects(account) {
+				return
+			}
+		} else {
+			account.Address = addr
+			if !tm.storage.UpdateAccountbyAddress(account, map[string]interface{}{"balance": tm.fetcher.Fetchbalance(addr)}) {
+				return
+			}
+		}
+	}
 }
 
 func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
