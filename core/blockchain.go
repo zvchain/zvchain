@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -74,6 +75,7 @@ type FullBlockChain struct {
 	blockHeight *tasdb.PrefixedDatabase
 	txDb        *tasdb.PrefixedDatabase
 	stateDb     *tasdb.PrefixedDatabase
+	cacheDb     *tasdb.PrefixedDatabase
 	batch       tasdb.Batch
 
 	stateCache account.AccountDatabase
@@ -161,6 +163,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db write cache size from config
 	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
 
+	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
+
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        fileCacheSize,
 		BlockCacheCapacity:            blockCacheSize * opt.MiB,
@@ -247,7 +251,26 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
-	initMinerManager()
+
+	// db cache enabled
+	if iteratorNodeCacheSize > 0 {
+		cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
+		if err != nil {
+			Logger.Errorf("new cache datasource error:%v", err)
+			return err
+		}
+		cacheDB, err := cacheDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new cache db error:%v", err)
+			return err
+		}
+		chain.cacheDb = cacheDB
+		trie.CreateNodeCache(iteratorNodeCacheSize, cacheDB)
+		initMinerManager(cacheDB)
+	} else {
+		initMinerManager(nil)
+	}
+
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
 	chain.cpChecker.init()
@@ -366,6 +389,9 @@ func (chain *FullBlockChain) Close() {
 
 	if chain.stateDb != nil {
 		chain.stateDb.Close()
+	}
+	if chain.cacheDb != nil {
+		chain.cacheDb.Close()
 	}
 
 }

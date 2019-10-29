@@ -23,6 +23,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/tasdb"
 	"math"
 	"runtime"
 	"sync"
@@ -42,6 +43,7 @@ type MinerManager struct {
 	proposalAddrsCache *minerAddressCache
 	verifyMinerData    *lru.Cache
 	proposalMinerData  *lru.Cache
+	store              *mcacheStore
 	lock               sync.RWMutex
 }
 
@@ -51,14 +53,28 @@ type minerAddressCache struct {
 }
 
 type minerCache struct {
-	rootHash common.Hash
-	miner    *types.Miner
+	RootHash common.Hash
+	Miner    *types.Miner
 }
 
-func initMinerManager() {
+func initMinerManager(storeDB tasdb.Database) {
 	MinerManagerImpl = &MinerManager{
 		verifyMinerData:   common.MustNewLRUCache(10000),
 		proposalMinerData: common.MustNewLRUCache(10000),
+		store:             initCacheStore(storeDB),
+	}
+
+	if storeDB != nil {
+		MinerManagerImpl.store.loadMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)
+		MinerManagerImpl.store.loadMiners(types.MinerTypeVerify, MinerManagerImpl.verifyMinerData)
+
+		ticker := time.NewTicker(300 * time.Second)
+		go func() {
+			for range ticker.C {
+				MinerManagerImpl.store.storeMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)
+				MinerManagerImpl.store.storeMiners(types.MinerTypeVerify, MinerManagerImpl.verifyMinerData)
+			}
+		}()
 	}
 }
 
@@ -414,6 +430,7 @@ func (mm *MinerManager) iteratorAddrs(accountDB types.AccountDB, mType types.Min
 	}
 	addrs := make([]common.Address, 0)
 	iter := accountDB.DataIterator(common.MinerPoolAddr, prefix)
+	iter.EnableNodeCache()
 	for iter.Next() {
 		// finish the iterator
 		if !bytes.HasPrefix(iter.Key, prefix) {
@@ -505,8 +522,8 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 			obj, ok := cache.Get(stateObject.GetAddr())
 			if ok {
 				mc = obj.(*minerCache)
-				if mc.rootHash == stateObject.GetRootHash() && mc.miner != nil {
-					miner = mc.miner
+				if mc.RootHash == stateObject.GetRootHash() && mc.Miner != nil {
+					miner = mc.Miner
 				} else {
 					miner, err = getMinerFromStateObject(accountDB.Database(), stateObject, mType)
 					needToCache = true
@@ -533,7 +550,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 			}
 			if needToCache {
 				atomic.AddUint64(&missCount, 1)
-				mc = &minerCache{rootHash: stateObject.GetRootHash(), miner: miner}
+				mc = &minerCache{RootHash: stateObject.GetRootHash(), Miner: miner}
 				cache.Add(stateObject.GetAddr(), mc)
 			}
 		}
