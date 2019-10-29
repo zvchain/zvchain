@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	Blockrewardtopheight = "block_reward.top_block_height"
-	Blocktopheight       = "block.top_block_height"
-	Blockcurblockheight  = "block.cur_block_height"
-	BlockDeleteCount     = "block.delete_count"
-	Blockcurtranheight   = "block.cur_tran_height"
+	Blockrewardtopheight    = "block_reward.top_block_height"
+	Blocktopheight          = "block.top_block_height"
+	BlockStakeMappingHeight = "block.stake_mapping_height"
+	Blockcurblockheight     = "block.cur_block_height"
+	BlockDeleteCount        = "block.delete_count"
+	Blockcurtranheight      = "block.cur_tran_height"
 
 	GroupTopHeight        = "group.top_group_height"
 	PrepareGroupTopHeight = "group.top_prepare_group_height"
@@ -336,6 +337,16 @@ func (storage *Storage) AddBlockHeightSystemconfig(sys *models.Sys) bool {
 	return true
 }
 
+func (storage *Storage) BlockStakeMappingHeightCfg(sys *models.Sys) bool {
+	hight, ifexist := storage.TopStakeMappingHeight()
+	if hight == 0 && ifexist == false {
+		storage.AddObjects(&sys)
+	} else {
+		storage.db.Model(&sys).Where("variable=?", sys.Variable).UpdateColumn("value", sys.Value)
+	}
+	return true
+}
+
 func (storage *Storage) AddSysConfig(variable string) {
 	sys := &models.Sys{
 		Variable: variable,
@@ -479,6 +490,19 @@ func (storage *Storage) TopBlockHeight() (uint64, bool) {
 	}
 	sys := make([]models.Sys, 0, 1)
 	storage.db.Limit(1).Where("variable = ?", Blocktopheight).Find(&sys)
+	if len(sys) > 0 {
+		//storage.topBlockHigh = sys[0].Value
+		return sys[0].Value, true
+	}
+	return 0, false
+}
+
+func (storage *Storage) TopStakeMappingHeight() (uint64, bool) {
+	if storage.db == nil {
+		return 0, false
+	}
+	sys := make([]models.Sys, 0, 1)
+	storage.db.Limit(1).Where("variable = ?", BlockStakeMappingHeight).Find(&sys)
 	if len(sys) > 0 {
 		//storage.topBlockHigh = sys[0].Value
 		return sys[0].Value, true

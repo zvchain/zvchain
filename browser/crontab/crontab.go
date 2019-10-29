@@ -625,6 +625,37 @@ func (crontab *Crontab) fetchOldReceiptToTransaction() {
 	}
 }
 
+////todo
+//func (crontab *Crontab) fetchOldStakeInfo() {
+//
+//	filterAddrs := []string{
+//		"zv96ea1d09221beb7c97edcda812736fd58f44f2add466f36793fac481a94f5710",
+//		"zv5de43446effa9bf38bff2cc8359b5ae05822e5a94bd953bfe07fbde6461d545a",
+//		"zv426c91a09fef18d953687e89535a0161aa081c31a562b2a5902239c8030904a9",
+//		"zvdfdac30bafeeba0825c77389b03089d5711bce48610b7c106658b0776abfd05b",
+//	}
+//
+//	trans := make([]*models.Transaction, 0)
+//	crontab.storage.GetDB().Model(&models.Transaction{}).Where("source in (?) and type in (?)", filterAddrs, []int{types.TransactionTypeStakeAdd, types.TransactionTypeStakeRefund}).Find(&trans)
+//	if len(trans) > 0 {
+//		wg := sync.WaitGroup{}
+//		wg.Add(len(trans))
+//		for _, tran := range trans {
+//			go func(tran *models.Transaction) {
+//				defer wg.Done()
+//				if tran.Source != tran.Target{
+//					if tran.Type == types.TransactionTypeStakeAdd{
+//
+//					}else if tran.Type ==types.TransactionTypeStakeRefund{
+//
+//					}
+//				}
+//			}(tran)
+//		}
+//		wg.Wait()
+//	}
+//}
+
 // 更新守护节点和矿池状态
 func (crontab *Crontab) UpdateProtectNodeStatus() {
 

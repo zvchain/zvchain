@@ -33,16 +33,19 @@ const (
 type DBMmanagement struct {
 	sync.Mutex
 	blockHeight        uint64
+	stakeMappingHeight uint64
 	prepareGroupHeight uint64
 	groupHeight        uint64
 	dismissGropHeight  uint64
 	storage            *mysql.Storage //待迁移
 
 	isFetchingBlocks        int32
+	isFetchingStakeMapping  int32
 	isFetchingWorkGroups    bool
 	isFetchingPrepareGroups bool
 	isFetchingDismissGroups bool
 	fetcher                 *common2.Fetcher
+	mm                      *core.MinerManager
 }
 
 func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *DBMmanagement {
@@ -54,6 +57,7 @@ func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword strin
 	if tablMmanagement.blockHeight > 0 {
 		tablMmanagement.blockHeight += 1
 	}
+	tablMmanagement.stakeMappingHeight, _ = tablMmanagement.storage.TopStakeMappingHeight()
 	tablMmanagement.groupHeight, _ = tablMmanagement.storage.TopGroupHeight()
 	tablMmanagement.prepareGroupHeight, _ = tablMmanagement.storage.TopPrepareGroupHeight()
 	tablMmanagement.dismissGropHeight, _ = tablMmanagement.storage.TopDismissGroupHeight()
@@ -69,11 +73,15 @@ func (tm *DBMmanagement) loop() {
 	tm.fetchGenesisAndGuardianAccounts()
 	go tm.fetchAccounts()
 	go tm.fetchGroup()
+	go tm.fetchStakeMapping()
+	go tm.fetchBenefitAddress()
 	for {
 		select {
 		case <-check.C:
 			go tm.fetchAccounts()
 			go tm.fetchGroup()
+			go tm.fetchStakeMapping()
+			go tm.fetchBenefitAddress()
 		}
 	}
 }
@@ -86,6 +94,36 @@ func (tm *DBMmanagement) fetchAccounts() {
 	tm.excuteAccounts()
 	atomic.CompareAndSwapInt32(&tm.isFetchingBlocks, 1, 0)
 
+}
+
+func (tm *DBMmanagement) fetchStakeMapping() {
+	// atomic operate
+	if !atomic.CompareAndSwapInt32(&tm.isFetchingStakeMapping, 0, 1) {
+		return
+	}
+	tm.executeStakeMapping()
+	atomic.CompareAndSwapInt32(&tm.isFetchingStakeMapping, 1, 0)
+
+}
+
+func (tm *DBMmanagement) fetchBenefitAddress() {
+	for _, addr := range common2.BenefitAddress {
+		targetAddrInfo := tm.storage.GetAccountById(addr)
+		account := &models.AccountList{}
+		// if the account doesn't exist
+		if targetAddrInfo == nil || len(targetAddrInfo) < 1 {
+			account.Address = addr
+			account.Balance = tm.fetcher.Fetchbalance(addr)
+			if !tm.storage.AddObjects(account) {
+				return
+			}
+		} else {
+			account.Address = addr
+			if !tm.storage.UpdateAccountbyAddress(account, map[string]interface{}{"balance": tm.fetcher.Fetchbalance(addr)}) {
+				return
+			}
+		}
+	}
 }
 
 func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
@@ -135,6 +173,103 @@ func (tm *DBMmanagement) excuteAccountProposalAndVerifyCount() {
 	}
 }
 
+func (tm *DBMmanagement) executeStakeMapping() {
+	topHeight := core.BlockChainImpl.Height()
+	checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if checkpoint.Height > 0 && tm.stakeMappingHeight > checkpoint.Height {
+		return
+	} else if checkpoint.Height == 0 && tm.stakeMappingHeight > topHeight-50 {
+		return
+	}
+	browserlog.BrowserLog.Info("[DBMmanagement] executeStakeMapping height:", tm.stakeMappingHeight, ",CheckPointHeight", checkpoint.Height, ",TopHeight", topHeight)
+	chain := core.BlockChainImpl
+	block := chain.QueryBlockCeil(tm.stakeMappingHeight)
+	if block != nil {
+		stakelist := make(map[string]map[string]*models.StakeMapping)
+		for _, tx := range block.Transactions {
+			if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeRefund {
+
+				stakeMapping := &models.StakeMapping{}
+				stakeDetails := tm.mm.GetStakeDetails(*tx.Target, *tx.Source)
+				stakeMapping.Target = tx.Target.AddrPrefixString()
+				stakeMapping.Source = tx.Source.AddrPrefixString()
+				if len(stakeDetails) > 0 {
+					for _, stakeDetail := range stakeDetails {
+						if stakeDetail.MType == types.MinerTypeProposal {
+							if stakeDetail.Status == types.Staked {
+								stakeMapping.PrpsActStake = uint64(common.RA2TAS(stakeDetail.Value))
+							} else if stakeDetail.Status == types.StakeFrozen {
+								stakeMapping.PrpsFrzStake = uint64(common.RA2TAS(stakeDetail.Value))
+							}
+						} else if stakeDetail.MType == types.MinerTypeVerify {
+							if stakeDetail.Status == types.Staked {
+								stakeMapping.VerfActStake = uint64(common.RA2TAS(stakeDetail.Value))
+							} else if stakeDetail.Status == types.StakeFrozen {
+								stakeMapping.VerfFrzStake = uint64(common.RA2TAS(stakeDetail.Value))
+							}
+						}
+
+					}
+
+					if _, exists := stakelist[tx.Source.AddrPrefixString()]; !exists {
+						stakelist[tx.Source.AddrPrefixString()] = make(map[string]*models.StakeMapping)
+					}
+					stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()] = stakeMapping
+
+				}
+
+			}
+		}
+		if stakelist != nil {
+			tm.CreateOrUpdateStakeMapping(stakelist)
+		}
+
+		//块高存储持久化
+		sys := &models.Sys{
+			Variable: mysql.BlockStakeMappingHeight,
+			SetBy:    "hokyo",
+			Value:    block.Header.Height,
+		}
+		tm.storage.BlockStakeMappingHeightCfg(sys)
+		tm.stakeMappingHeight = block.Header.Height + 1
+		tm.executeStakeMapping()
+	}
+}
+
+func (tm *DBMmanagement) CreateOrUpdateStakeMapping(stakeList map[string]map[string]*models.StakeMapping) {
+	stakeMapping := make([]*models.StakeMapping, 0)
+	for src, v1 := range stakeList {
+		for trgt, v2 := range v1 {
+			tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Find(&stakeMapping)
+			if len(stakeMapping) > 0 {
+				// update
+				tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Updates(*v2)
+
+			} else {
+				//create
+				tm.storage.GetDB().Model(&models.StakeMapping{}).Create(v2)
+
+			}
+
+		}
+		tm.UpdateAccountList(src)
+	}
+}
+
+func (tm *DBMmanagement) UpdateAccountList(src string) {
+	type Stake struct {
+		StakeToOther   uint64
+		StakeFromOther uint64
+	}
+	var stake Stake
+	tm.storage.GetDB().Model(&models.StakeMapping{}).Select("sum(prps_act_stake + prps_frz_stake + verf_act_stake + verf_frz_stake) as stake_to_other").Where("source = ? and target <> ?", src, src).Scan(&stake)
+	//tm.storage.GetDB().Model(&models.StakeMapping{}).Select("sum(prps_act_stake + prps_frz_stake + verf_act_stake + verf_frz_stake) as stake_from_other").Where("target = ? and source <>", trgt,trgt).Scan(&stake)
+
+	tm.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", src).Update("stake_to_other", stake.StakeToOther)
+	//tm.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", trgt).Update("stake_from_other", stake.StakeFromOther)
+
+}
+
 func (tm *DBMmanagement) excuteAccounts() {
 
 	topHeight := core.BlockChainImpl.Height()
@@ -153,7 +288,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 		if len(block.Transactions) > 0 {
 			AddressCacheList := make(map[string]uint64)
 			PoolList := make(map[string]uint64)
-			stakelist := make(map[string]map[string]int64)
+			//stakelist := make(map[string]map[string]int64)
 			set := &util.Set{}
 			for _, tx := range block.Transactions {
 				if tx.Type == types.TransactionTypeVoteMinerPool {
@@ -205,30 +340,30 @@ func (tm *DBMmanagement) excuteAccounts() {
 							set.Add(tx.Target.AddrPrefixString())
 						}
 					}
-					//stake list
-					if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce {
-						if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
-							if tx.Type == types.TransactionTypeStakeAdd {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
-							}
-							if tx.Type == types.TransactionTypeStakeReduce {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
-							}
-						} else {
-							stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
-							if tx.Type == types.TransactionTypeStakeAdd {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
-							}
-							if tx.Type == types.TransactionTypeStakeReduce {
-								stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
-							}
-						}
-					}
+					////stake list
+					//if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce {
+					//	if _, exists := stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()]; exists {
+					//		if tx.Type == types.TransactionTypeStakeAdd {
+					//			stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] += tx.Value.Int64()
+					//		}
+					//		if tx.Type == types.TransactionTypeStakeReduce {
+					//			stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] -= tx.Value.Int64()
+					//		}
+					//	} else {
+					//		stakelist[tx.Target.AddrPrefixString()] = map[string]int64{}
+					//		if tx.Type == types.TransactionTypeStakeAdd {
+					//			stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = tx.Value.Int64()
+					//		}
+					//		if tx.Type == types.TransactionTypeStakeReduce {
+					//			stakelist[tx.Target.AddrPrefixString()][tx.Source.AddrPrefixString()] = -tx.Value.Int64()
+					//		}
+					//	}
+					//}
 
 				}
 			}
 			//生成质押来源信息
-			generateStakefromByTransaction(tm, stakelist)
+			//generateStakefromByTransaction(tm, stakelist)
 			//begain
 			for address, totalTx := range AddressCacheList {
 				accounts := &models.AccountList{}

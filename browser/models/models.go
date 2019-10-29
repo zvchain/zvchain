@@ -35,7 +35,8 @@ type AccountList struct {
 	ProposalStake       uint64  `json:"proposal_stake" gorm:"index"`
 	VerifyStake         uint64  `json:"verify_stake" gorm:"index"`
 	TotalStake          uint64  `json:"total_stake" gorm:"index"`
-	OtherStake          uint64  `json:"other_stake" gorm:"index"`
+	StakeToOther        uint64  `json:"stake_to_other" gorm:"index"`
+	OtherStake          uint64  `json:"other_stake" gorm:"index"` // meams stake from other
 	Group               string  `json:"group"`
 	WorkGroup           uint64  `json:"work_group" gorm:"index"`
 	DismissGroup        uint64  `json:"dismiss_group" gorm:"index"`
@@ -187,6 +188,18 @@ type Transaction struct {
 	ExtraData         string   `json:"extra_data" gorm:"type:TEXT;size:65000"`
 	Status            uint     `json:"status" gorm:"index"`
 	ContractAddress   string   `json:"contract_address" gorm:"index"`
+}
+
+type StakeMapping struct {
+	gorm.Model
+	Source       string `json:"source" gorm:"unique_index:idx_stakemapping_source_target"`
+	Target       string `json:"target" gorm:"unique_index:idx_stakemapping_source_target"`
+	PrpsActStake uint64 `json:"prps_act_stake" gorm:"index"`
+	PrpsFrzStake uint64 `json:"prps_frz_stake" gorm:"index"`
+	VerfActStake uint64 `json:"verf_act_stake" gorm:"index"`
+	VerfFrzStake uint64 `json:"verf_frz_stake" gorm:"index"`
+	//PrpsUpdtHeight uint64	`json:"prps_updt_height"`
+	//VerfUpdtHeight uint64	`json:"verf_updt_height"`
 }
 
 type Receipt struct {
