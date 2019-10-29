@@ -130,6 +130,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if !db.HasTable(&models.StakeMapping{}) {
 		db.CreateTable(&models.StakeMapping{})
 	}
+	if !db.HasTable(&models.Config{}) {
+		db.CreateTable(&models.Config{})
+	}
 }
 
 func (storage *Storage) GetDB() *gorm.DB {
