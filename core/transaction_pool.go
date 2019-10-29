@@ -18,11 +18,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/common/secp256k1"
-	"github.com/zvchain/zvchain/network"
 	"sync"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/zvchain/zvchain/common/secp256k1"
+	"github.com/zvchain/zvchain/network"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -55,6 +56,7 @@ var (
 	ErrHash            = errors.New("invalid transaction hash")
 	ErrGasPrice        = errors.New("gas price is too low")
 	ErrSign            = errors.New("sign error")
+	ErrNonce           = errors.New("nonce error")
 	ErrDataSizeTooLong = errors.New("data size too long")
 )
 
