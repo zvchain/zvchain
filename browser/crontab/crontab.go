@@ -24,7 +24,7 @@ import (
 
 const (
 	check10SecInterval = time.Second * 10
-	check30MinInterval = time.Second * 30
+	check30MinInterval = time.Minute * 30
 
 	turnoverKey = "turnover"
 	cpKey       = "checkpoint"
