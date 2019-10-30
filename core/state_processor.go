@@ -439,8 +439,8 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	castor := common.BytesToAddress(bh.Castor)
 	rm := executor.bc.GetRewardManager().(*rewardManager)
 	totalGasUsed := uint64(0)
+	Logger.Debugf("begin process tx height=%v",bh.Height)
 	for _, tx := range txs {
-		Logger.Debugf("begin process tx hash=%s,type=%d,height=%v",tx.Hash.Hex(),tx.Type,bh.Height)
 		if pack && time.Since(beginTime).Seconds() > float64(ProposerPackageTime) {
 			Logger.Infof("Cast block execute tx time out!Tx hash:%s,height=%v", tx.Hash.Hex(),bh.Height)
 			break
@@ -500,8 +500,8 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 		receipt.Height = bh.Height
 		receipts = append(receipts, receipt)
 		//errs[i] = err
-		Logger.Debugf("process tx end,hash=%s,type=%d,height=%v",tx.Hash.Hex(),tx.Type,bh.Height)
 	}
+	Logger.Debugf("process tx end,len=%v,height=%v",len(txs),bh.Height)
 	//ts.AddStat("executeLoop", time.Since(b))
 	castorTotalRewards := rm.calculateGasFeeCastorRewards(gasFee)
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
