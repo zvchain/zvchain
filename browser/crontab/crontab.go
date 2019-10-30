@@ -562,7 +562,7 @@ func (crontab *Crontab) UpdateTurnOver() {
 	configs := make([]*models.Config, 0)
 	crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Find(&configs)
 	if len(configs) > 0 {
-		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Update(turnoverKey, turnoverString)
+		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Update("value", turnoverString)
 	} else {
 		config := models.Config{
 			Variable: turnoverKey,
@@ -579,7 +579,7 @@ func (crontab *Crontab) UpdateCheckPoint() {
 		configs := make([]*models.Config, 0)
 		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Find(&configs)
 		if len(configs) > 0 {
-			crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Update(cpKey, strconv.FormatUint(GlobalCP, 10))
+			crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Update("value", strconv.FormatUint(GlobalCP, 10))
 		} else {
 			config := models.Config{
 				Variable: cpKey,
