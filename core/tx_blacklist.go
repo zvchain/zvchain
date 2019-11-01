@@ -54,12 +54,6 @@ func newTxBlackList(db tasdb.Database, timeout time.Duration) *txBlackList {
 
 func (t *txBlackList) initFromDb() {
 	loadedList := t.loadList()
-	topHash := t.loadTop()
-	if topHash != nil && !t.blackList.Has(*topHash) {
-		t.blackList.Add(topHash)
-		tHash := timedHash{Hash: *topHash, Begin: time.Now()}
-		loadedList = append(loadedList, tHash)
-	}
 
 	filtered := make([]timedHash, 0)
 	for _, item := range loadedList {
@@ -69,6 +63,13 @@ func (t *txBlackList) initFromDb() {
 	}
 	for _, v := range filtered {
 		t.blackList.Add(v.Hash)
+	}
+
+	topHash := t.loadTop()
+	if topHash != nil && !t.blackList.Has(*topHash) {
+		t.blackList.Add(*topHash)
+		tHash := timedHash{Hash: *topHash, Begin: time.Now()}
+		filtered = append(filtered, tHash)
 	}
 	t.storeList(filtered)
 	Logger.Debugf("all blacklist: %v, filtered: %v ",loadedList, filtered)
@@ -107,7 +108,6 @@ func (t *txBlackList) loadList() (rs []timedHash) {
 func (t *txBlackList) loadTop() *common.Hash {
 	top, err := t.db.Get(topKey)
 	if err != nil {
-		Logger.Errorf("failed to get tx black list top: %v", err)
 		return nil
 	}
 	item := common.BytesToHash(top)

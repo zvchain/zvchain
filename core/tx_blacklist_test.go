@@ -41,13 +41,13 @@ func TestTxBlackList(t *testing.T) {
 	cacheDB, err := cacheDs.NewPrefixDatabase("")
 	tb := newTxBlackList(cacheDB, time.Hour)
 	if !tb.has(txs[0].Hash) {
-		t.Error("should has this has but not")
+		t.Error("should has this hash but not")
 	}
 	if !tb.has(txs[1].Hash) {
-		t.Error("should has this has but not")
+		t.Error("should has this hash but not")
 	}
 	if !tb.has(txs[2].Hash) {
-		t.Error("should has this has but not")
+		t.Error("should has this hash but not")
 	}
 	if tb.has(txs[3].Hash) {
 		t.Error("should not has this but got has")
