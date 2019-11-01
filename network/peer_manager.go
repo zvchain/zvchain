@@ -150,13 +150,17 @@ func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32)
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	if p != nil && p.sessionID == session {
+	if p != nil {
 		ip := p.IP.String()
-		pm.peerIPSet.Remove(ip)
 		Logger.Infof("disconnected,  node id：%v, netid：%v, session:%v ip:%v port:%v,peers:%v, peer count:%v", p.ID.GetHexString(), id, session, ip, p.Port, pm.peerIPSet.members, pm.peerIPSet.Count(ip))
+		if p.sessionID == session {
+			pm.peerIPSet.Remove(ip)
+
+			delete(pm.peers, id)
+		}
 
 		p.onDisonnect(id, session, p2pCode)
-		delete(pm.peers, id)
+
 	} else {
 		Logger.Infof("disconnected, but session id is unused, net id：%v session:%v", id, session)
 	}
