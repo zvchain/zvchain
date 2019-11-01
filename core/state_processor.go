@@ -20,6 +20,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/zvchain/zvchain/storage/tasdb"
+
 	"github.com/zvchain/zvchain/core/group"
 
 	"github.com/zvchain/zvchain/common"
@@ -364,14 +366,24 @@ func (ss *rewardExecutor) Transition() *result {
 }
 
 type stateProcessor struct {
-	bc    types.BlockChain
-	procs []statePostProcessor
+	bc        types.BlockChain
+	procs     []statePostProcessor
+	blackList *txBlackList
 }
 
 func newStateProcessor(bc types.BlockChain) *stateProcessor {
+	blackListDs, err := tasdb.NewDataSource("db_blacklist", nil)
+	if err != nil {
+		Logger.Errorf("new blacklist datasource error:%v", err)
+		return nil
+	}
+	blackListDB, err := blackListDs.NewPrefixDatabase("")
+	tbl := newTxBlackList(blackListDB, time.Hour*24)
+
 	return &stateProcessor{
-		bc:    bc,
-		procs: make([]statePostProcessor, 0),
+		bc:        bc,
+		procs:     make([]statePostProcessor, 0),
+		blackList: tbl,
 	}
 }
 
@@ -452,6 +464,14 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 
 		snapshot := accountDB.Snapshot()
 		// Apply transaction
+		if pack && executor.blackList.has(tx.Hash) {
+			Logger.Errorf("transaction in blacklist and will be removed: type=%v, hash=%v, source=%v", tx.Type, tx.Hash.Hex(), tx.Source)
+			// transaction will be remove from pool when error happens
+			evictedTxs = append(evictedTxs, tx.Hash)
+			continue
+		}
+		_ = pack && executor.blackList.setTop(tx.Hash)
+
 		ret, err := applyStateTransition(accountDB, tx, bh)
 		if err != nil {
 			Logger.Errorf("apply transaction error and will be removed: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, err)
@@ -459,6 +479,8 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 			evictedTxs = append(evictedTxs, tx.Hash)
 			continue
 		}
+		_ = pack && executor.blackList.removeTop(tx.Hash)
+
 		if ret.err != nil {
 			Logger.Errorf("apply transaction error: type=%v, hash=%v, source=%v, err=%v", tx.Type, tx.Hash.Hex(), tx.Source, ret.err)
 		}
