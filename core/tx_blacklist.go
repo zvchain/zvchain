@@ -61,16 +61,17 @@ func (t *txBlackList) initFromDb() {
 		loadedList = append(loadedList, tHash)
 	}
 
-	felted := make([]timedHash, 0)
+	filtered := make([]timedHash, 0)
 	for _, item := range loadedList {
 		if time.Since(item.Begin) < t.timeout {
-			felted = append(felted, item)
+			filtered = append(filtered, item)
 		}
 	}
-	for _, v := range felted {
+	for _, v := range filtered {
 		t.blackList.Add(v.Hash)
 	}
-	t.storeList(felted)
+	t.storeList(filtered)
+	Logger.Debugf("all blacklist: %v, filtered: %v ",loadedList, filtered)
 }
 
 func (t *txBlackList) setTop(hash common.Hash) bool {
