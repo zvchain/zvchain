@@ -101,7 +101,7 @@ type ContractCallTransaction struct {
 type TokenContract struct {
 	gorm.Model
 	ContractCode string `json:"contract_code" gorm:"index"`
-	Address      string `json:"tx_hash" gorm:"index"`
+	Creator      string `json:"creator" gorm:"index"`
 	ContractName string `json:"tx_type"`
 	ShortName    string `json:"short_name"`
 	CoinNum      uint64 `json:"coin_num" gorm:"index"`
@@ -112,8 +112,8 @@ type TokenContract struct {
 type TokenContractTransaction struct {
 	gorm.Model
 	ContractCode string `json:"contract_code" gorm:"index"`
-	Source       string `json:"tx_hash" gorm:"index"`
-	Target       string `json:"tx_hash" gorm:"index"`
+	Source       string `json:"source" gorm:"index"`
+	Target       string `json:"target" gorm:"index"`
 	Value        uint64 `json:"value"`
 	TxHash       string `json:"tx_hash" gorm:"index"`
 	TxType       uint64 `json:"tx_type"`
