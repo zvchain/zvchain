@@ -553,7 +553,7 @@ func (crontab *Crontab) UpdateTurnOver() {
 	}
 
 	var turnover float64
-	crontab.storage.GetDB().Model(&models.AccountList{}).Select("sum(balance + total_stake - other_stake + stake_to_other) as turnover").Where("address not in (?)", filterAddr).Row().Scan(&turnover)
+	crontab.storage.GetDB().Model(&models.AccountList{}).Select("(sum(total_stake)-sum(other_stake)+sum(balance)+sum(stake_to_other)) as turnover").Where("address not in (?)", filterAddr).Row().Scan(&turnover)
 	turnoverString := strconv.FormatFloat(turnover, 'E', -1, 64)
 
 	type TurnoverDB struct {
@@ -562,7 +562,7 @@ func (crontab *Crontab) UpdateTurnOver() {
 	configs := make([]*models.Config, 0)
 	crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Find(&configs)
 	if len(configs) > 0 {
-		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Update(turnoverKey, turnoverString)
+		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", turnoverKey).Update("value", turnoverString)
 	} else {
 		config := models.Config{
 			Variable: turnoverKey,
@@ -579,7 +579,7 @@ func (crontab *Crontab) UpdateCheckPoint() {
 		configs := make([]*models.Config, 0)
 		crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Find(&configs)
 		if len(configs) > 0 {
-			crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Update(cpKey, strconv.FormatUint(GlobalCP, 10))
+			crontab.storage.GetDB().Model(&models.Config{}).Where("variable = ?", cpKey).Update("value", strconv.FormatUint(GlobalCP, 10))
 		} else {
 			config := models.Config{
 				Variable: cpKey,
