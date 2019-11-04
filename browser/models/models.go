@@ -98,6 +98,37 @@ type ContractCallTransaction struct {
 	Status       uint64    `json:"status"`
 }
 
+type TokenContract struct {
+	gorm.Model
+	ContractCode string `json:"contract_code" gorm:"index"`
+	Address      string `json:"tx_hash" gorm:"index"`
+	ContractName string `json:"tx_type"`
+	ShortName    string `json:"short_name"`
+	CoinNum      uint64 `json:"coin_num" gorm:"index"`
+	MemberNum    uint64 `json:"member_num"`
+	TransferNum  uint64 `json:"transfer_num"`
+}
+
+type TokenContractTransaction struct {
+	gorm.Model
+	ContractCode string `json:"contract_code" gorm:"index"`
+	Source       string `json:"tx_hash" gorm:"index"`
+	Target       string `json:"tx_hash" gorm:"index"`
+	Value        uint64 `json:"value"`
+	TxHash       string `json:"tx_hash" gorm:"index"`
+	TxType       uint64 `json:"tx_type"`
+	Status       uint64 `json:"status"`
+	BlockHeight  uint64 `json:"block_height"`
+}
+
+type TokenContractUser struct {
+	gorm.Model
+	ContractCode string `json:"contract_code" gorm:"index"`
+	Address      string `json:"address" gorm:"index"`
+	CoinNum      string `json:"coin_num" gorm:"index"`
+	Money        uint64 `json:"money"`
+}
+
 type Group struct {
 	Id            string   `json:"id" gorm:"index"`
 	Height        uint64   `json:"height" gorm:"index"`
