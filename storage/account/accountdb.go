@@ -196,8 +196,12 @@ func (adb *AccountDB) GetCodeHash(addr common.Address) common.Hash {
 }
 
 // GetStateObject returns stateobject's interface.
-func (adb *AccountDB) GetStateObject(a common.Address)AccAccesser{
-	return adb.getAccountObject(a)
+func (adb *AccountDB) GetStateObject(a common.Address) AccAccesser {
+	data := adb.getAccountObject(a)
+	if data == nil {
+		return nil
+	}
+	return data
 }
 
 // GetData retrieves a value from the account storage trie.
