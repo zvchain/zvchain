@@ -64,3 +64,18 @@ func ObjectTojson(ob interface{}) string {
 	return strings.Trim(string(result), "\"")
 
 }
+
+func HasTransferFunc(code string) bool {
+	stringSlice := strings.Split(code, "\n")
+	for k, targetString := range stringSlice {
+		targetString = strings.TrimSpace(targetString)
+		if strings.HasPrefix(targetString, "@register.public") {
+			if len(stringSlice) > k+1 {
+				if strings.Index(stringSlice[k+1], " transfer(") != -1 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
