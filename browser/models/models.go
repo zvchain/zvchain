@@ -100,18 +100,18 @@ type ContractCallTransaction struct {
 
 type TokenContract struct {
 	gorm.Model
-	ContractCode string `json:"contract_code" gorm:"index"`
-	Creator      string `json:"creator" gorm:"index"`
-	ContractName string `json:"tx_type"`
-	ShortName    string `json:"short_name"`
-	CoinNum      uint64 `json:"coin_num" gorm:"index"`
-	MemberNum    uint64 `json:"member_num"`
-	TransferNum  uint64 `json:"transfer_num"`
+	ContractAddr  string `json:"contract_addr" gorm:"index"`
+	Creator       string `json:"creator" gorm:"index"`
+	Name          string `json:"name"`
+	Symbol        string `json:"symbol"`
+	TotalSupply   uint64 `json:"total_supply" gorm:"index"`
+	HolderNum     uint64 `json:"holder_num"`
+	TransferTimes uint64 `json:"transfer_times"`
 }
 
 type TokenContractTransaction struct {
 	gorm.Model
-	ContractCode string `json:"contract_code" gorm:"index"`
+	ContractAddr string `json:"contract_addr" gorm:"index"`
 	Source       string `json:"source" gorm:"index"`
 	Target       string `json:"target" gorm:"index"`
 	Value        uint64 `json:"value"`
@@ -123,10 +123,9 @@ type TokenContractTransaction struct {
 
 type TokenContractUser struct {
 	gorm.Model
-	ContractCode string `json:"contract_code" gorm:"index"`
+	ContractAddr string `json:"contract_addr" gorm:"index"`
 	Address      string `json:"address" gorm:"index"`
-	CoinNum      string `json:"coin_num" gorm:"index"`
-	Money        uint64 `json:"money"`
+	Count        string `json:"count" gorm:"index"`
 }
 
 type Group struct {
