@@ -105,7 +105,7 @@ type TokenContract struct {
 	Creator       string `json:"creator" gorm:"index"`
 	Name          string `json:"name"`
 	Symbol        string `json:"symbol"`
-	Decimal       uint64 `json:"decimal"`
+	Decimal       int64  `json:"decimal"`
 	HolderNum     uint64 `json:"holder_num"`
 	TransferTimes uint64 `json:"transfer_times"`
 }

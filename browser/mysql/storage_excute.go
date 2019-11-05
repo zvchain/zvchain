@@ -707,15 +707,21 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 
 		tokenContract := models.TokenContract{}
 
-		//mapInterface := make(map[string]interface{})
-		keyMap := []string{"name", "symbol"}
+		keyMap := []string{"name", "symbol", "decimal"}
 		for times, key := range keyMap {
 			data := db.GetData(common2.StringToAddress(tran.ContractAddress), []byte(key))
 			if v, ok := tvm.VmDataConvert(data).(string); ok {
-				if times == 0 {
+				switch times {
+				case 0:
 					tokenContract.Name = v
-				} else if times == 1 {
+				case 1:
 					tokenContract.Symbol = v
+				}
+			}
+			if v, ok := tvm.VmDataConvert(data).(int64); ok {
+				switch times {
+				case 2:
+					tokenContract.Decimal = v
 				}
 			}
 		}
