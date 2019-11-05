@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/tidwall/gjson"
 	"github.com/zvchain/zvchain/browser/common"
 	"github.com/zvchain/zvchain/browser/crontab"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
+	"github.com/zvchain/zvchain/browser/util"
 	common2 "github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/tvm"
-	"github.com/zvchain/zvchain/browser/util"
+	"math/big"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -717,28 +718,18 @@ func (storage *Storage) AddTokenContract(explore *crontab.Explore, tran *models.
 		}
 		tokenContract.ContractAddr = tran.ContractAddress
 
-		logMap := make(map[string]string)
-		err = json.Unmarshal([]byte(log.Data), &logMap)
-		if err != nil {
-			browserlog.BrowserLog.Error("AddTokenContract: ", err)
-			return
-		}
-		if logDetail, ok := logMap["default"]; ok {
-			logDetailSlice := strings.Split(logDetail, ",")
-			valuesAfter := make([]string, 0)
-			for _, value := range logDetailSlice {
-				value = strings.TrimSpace(value)
-				valuesAfter = append(valuesAfter, value)
-			}
+		source := gjson.Get(log.Data, "default.0").String()
+		target := gjson.Get(log.Data, "default.1").String()
+		value := gjson.Get(log.Data, "default.2").Raw
 
-			if len(valuesAfter) == 3 {
-				// source=target
-				if valuesAfter[0] == valuesAfter[1] {
-					tokenContract.HolderNum = 1
-				} else { // source != target
-					tokenContract.HolderNum = 2
+		realValue := &big.Int{}
+		realValue.SetString(value, 10)
 
-				}
+		if util.ValidateAddress(source) && util.ValidateAddress(target) {
+			if source == target {
+				tokenContract.HolderNum = 1
+			} else {
+				tokenContract.HolderNum = 2
 			}
 		}
 
@@ -746,7 +737,6 @@ func (storage *Storage) AddTokenContract(explore *crontab.Explore, tran *models.
 		storage.db.Model(models.Transaction{}).Select("source").Where("contract_address = ?", common2.StringToAddress(tran.ContractAddress)).Row().Scan(&src)
 		tokenContract.Creator = src
 		tokenContract.TransferTimes = 1
-
 		storage.db.Create(&tokenContract)
 
 	} else { //update
