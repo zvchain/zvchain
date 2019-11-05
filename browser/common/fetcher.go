@@ -2,16 +2,13 @@ package common
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/tvm"
 )
 
 type Fetcher struct {
@@ -271,26 +268,4 @@ func (tm *Fetcher) Fetchbalance(addr string) float64 {
 	balance := common.RA2TAS(b.Uint64())
 
 	return balance
-}
-func IsTokenContract(contractAddr common.Address) bool {
-	chain := core.BlockChainImpl
-	db, err := chain.LatestAccountDB()
-	if err != nil {
-		browserlog.BrowserLog.Error("isTokenContract: ", err)
-		return false
-	}
-	code := db.GetCode(contractAddr)
-	contract := tvm.Contract{}
-	err = json.Unmarshal(code, &contract)
-	if err != nil {
-		browserlog.BrowserLog.Error("isTokenContract: ", err)
-		return false
-	}
-	if util.HasTransferFunc(contract.Code) {
-		symbol := db.GetData(contractAddr, []byte("symbol"))
-		if len(symbol) >= 1 && symbol[0] == 's' {
-			return true
-		}
-	}
-	return false
 }
