@@ -99,6 +99,7 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchOldReceiptToTransaction()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
+	go crontab.fetchOldConctactCreate()
 
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
@@ -373,6 +374,13 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				}
 				if tran.Type == types.TransactionTypeContractCall {
 					transContract = append(transContract, tran)
+
+					//是否有transfer log
+					for _, log := range blockDetail.Receipts[i].Logs {
+						if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
+							server.storage.AddTokenContract(server.rpcExplore, tran, log)
+						}
+					}
 				}
 				trans = append(trans, tran)
 			}
@@ -644,6 +652,20 @@ func (crontab *Crontab) fetchOldLogs() {
 		}
 	}
 	crontab.fetchContractAccount()
+}
+
+func (crontab *Crontab) fetchOldConctactCreate() {
+
+	logs := make([]*models.Log, 0)
+	crontab.storage.GetDB().Model(&models.Transaction{}).Limit(1).Where("contract_address <> ? or contract_address <> ?", "", nil)
+	if len(logs) == 0 {
+		receipts := make([]*models.Receipt, 0)
+		crontab.storage.GetDB().Model(&models.Receipt{}).Where("type = ?", types.TransactionTypeContractCreate).Find(&receipts)
+
+		for _, receipt := range receipts {
+			crontab.storage.GetDB().Model(&models.Transaction{}).Where("hash = ?", receipt.TxHash).Update("contract_address", receipt.ContractAddress)
+		}
+	}
 }
 
 func (crontab *Crontab) fetchOldReceiptToTransaction() {

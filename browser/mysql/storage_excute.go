@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/common"
+	"github.com/zvchain/zvchain/browser/crontab"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
+	common2 "github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/tvm"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -677,6 +682,82 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	fmt.Println("[Storage]  AddTransactions cost: ", time.Since(timeBegin))
 
 	return true
+}
+
+func (storage *Storage) AddTokenContract(explore *crontab.Explore, tran *models.Transaction, log *models.Log) {
+
+	tokenContracts := make([]*models.TokenContract, 0)
+	storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).Find(&tokenContracts)
+	if len(tokenContracts) == 0 {
+		if !explore.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
+			return
+		}
+		//create
+		chain := core.BlockChainImpl
+		db, err := chain.LatestAccountDB()
+		if err != nil {
+			browserlog.BrowserLog.Error("AddTokenContract: ", err)
+			return
+		}
+
+		tokenContract := models.TokenContract{}
+
+		//mapInterface := make(map[string]interface{})
+		keyMap := []string{"name", "symbol"}
+		for times, key := range keyMap {
+			data := db.GetData(common2.StringToAddress(tran.ContractAddress), []byte(key))
+			if v, ok := tvm.VmDataConvert(data).(string); ok {
+				if times == 0 {
+					tokenContract.Name = v
+				} else if times == 1 {
+					tokenContract.Symbol = v
+				}
+			}
+		}
+		tokenContract.ContractAddr = tran.ContractAddress
+
+		logMap := make(map[string]string)
+		err = json.Unmarshal([]byte(log.Data), &logMap)
+		if err != nil {
+			browserlog.BrowserLog.Error("AddTokenContract: ", err)
+			return
+		}
+		if logDetail, ok := logMap["default"]; ok {
+			logDetailSlice := strings.Split(logDetail, ",")
+			valuesAfter := make([]string, 0)
+			for _, value := range logDetailSlice {
+				value = strings.TrimSpace(value)
+				valuesAfter = append(valuesAfter, value)
+			}
+
+			if len(valuesAfter) == 3 {
+				// source=target
+				if valuesAfter[0] == valuesAfter[1] {
+					tokenContract.HolderNum = 1
+				} else { // source != target
+					tokenContract.HolderNum = 2
+
+				}
+			}
+		}
+
+		src := ""
+		storage.db.Model(models.Transaction{}).Select("source").Where("contract_address = ?", common2.StringToAddress(tran.ContractAddress)).Row().Scan(&src)
+		tokenContract.Creator = src
+		tokenContract.TransferTimes = 1
+
+		storage.db.Create(&tokenContract)
+
+	} else { //update
+		storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?"), 1)
+		tokenTxs := make([]*models.TokenContractTransaction, 0)
+		storage.db.Model(models.TokenContractTransaction{}).Where("target = ？", common2.StringToAddress(tran.Target)).Find(&tokenTxs)
+		if len(tokenTxs) == 0 {
+			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("holder_num", gorm.Expr("holder_num + ?"), 1)
+		}
+	}
+
+	//todo update tokenContractTx
 }
 
 func (storage *Storage) AddLogs(receipts []*models.Receipt, trans []*models.Transaction, old bool) bool {

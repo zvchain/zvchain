@@ -82,7 +82,7 @@ func (api *Explore) ExplorerGroupsAfter(height uint64) []*models.Group {
 	return ret
 }
 
-func (api Explore) isTokenContract(contractAddr common.Address) bool {
+func (api Explore) IsTokenContract(contractAddr common.Address) bool {
 	chain := core.BlockChainImpl
 	db, err := chain.LatestAccountDB()
 	if err != nil {
