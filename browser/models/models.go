@@ -105,6 +105,7 @@ type TokenContract struct {
 	Creator       string `json:"creator" gorm:"index"`
 	Name          string `json:"name"`
 	Symbol        string `json:"symbol"`
+	Decimal       uint64 `json:"decimal"`
 	HolderNum     uint64 `json:"holder_num"`
 	TransferTimes uint64 `json:"transfer_times"`
 }
@@ -123,8 +124,8 @@ type TokenContractTransaction struct {
 
 type TokenContractUser struct {
 	gorm.Model
-	ContractAddr string `json:"contract_addr" gorm:"unique_index"`
-	Address      string `json:"address" gorm:"unique_index"`
+	ContractAddr string   `json:"contract_addr" gorm:"unique_index"`
+	Address      string   `json:"address" gorm:"unique_index"`
 	Value        *big.Int `json:"value" gorm:"index"`
 }
 
