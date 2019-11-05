@@ -11,6 +11,7 @@ import (
 	common2 "github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/tvm"
+	"github.com/zvchain/zvchain/browser/util"
 	"sort"
 	"strings"
 	"time"
@@ -758,6 +759,78 @@ func (storage *Storage) AddTokenContract(explore *crontab.Explore, tran *models.
 	}
 
 	//todo update tokenContractTx
+}
+
+func (storage *Storage) AddTokenTran(tokenContract *models.TokenContractTransaction) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	tx := storage.db.Begin()
+	isSuccess := true
+	defer func() {
+		if isSuccess {
+			tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+	}()
+
+	if !errors(tx.Create(&tokenContract).Error) {
+		isSuccess = false
+		return isSuccess
+	}
+	isSuccess = storage.AddTokenUser(tx, tokenContract)
+	return isSuccess
+}
+
+/*
+ add tokencontract user info
+*/
+func (storage *Storage) AddTokenUser(tx *gorm.DB, tokenContract *models.TokenContractTransaction) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	isSuccess := true
+
+	addressList := []string{tokenContract.Source, tokenContract.Target}
+	users := make([]models.TokenContractUser, 0, 0)
+	tx.Where("address in (?) and contract_addr = ?", addressList, tokenContract.ContractAddr).Find(&users)
+	createUser := make([]string, 0)
+	set := &util.Set{}
+	if len(users) > 0 {
+		for _, user := range users {
+			set.Add(user.Address)
+			if !errors(tx.Model(&models.TokenContractUser{}).
+				Where("contract_addr = ? and address = ? ", tokenContract.ContractAddr, user.Address).Update("value", 0).Error) {
+				isSuccess = false
+				return isSuccess
+			}
+		}
+		for _, user := range addressList {
+			if _, ok := set.M[user]; !ok {
+				createUser = append(createUser, user)
+			}
+		}
+	} else {
+		createUser = addressList
+	}
+	if len(createUser) > 0 {
+		for _, user := range createUser {
+			user := &models.TokenContractUser{
+				ContractAddr: tokenContract.ContractAddr,
+				Address:      user,
+				Value:        0,
+			}
+			if !errors(tx.Create(&user).Error) {
+				isSuccess = false
+				return isSuccess
+			}
+		}
+	}
+	return isSuccess
+
 }
 
 func (storage *Storage) AddLogs(receipts []*models.Receipt, trans []*models.Transaction, old bool) bool {
