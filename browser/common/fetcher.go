@@ -12,6 +12,7 @@ import (
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/tvm"
+	"strings"
 )
 
 type Fetcher struct {
@@ -293,4 +294,61 @@ func IsTokenContract(contractAddr common.Address) bool {
 		}
 	}
 	return false
+}
+
+func QueryAccountData(addr string, key string, count int) (interface{}, error) {
+	addr = strings.TrimSpace(addr)
+	// input check
+	if !common.ValidateAddress(addr) {
+		return nil, fmt.Errorf("wrong address format")
+	}
+	address := common.StringToAddress(addr)
+
+	const MaxCountQuery = 100
+	if count <= 0 {
+		count = 0
+	} else if count > MaxCountQuery {
+		count = MaxCountQuery
+	}
+
+	chain := core.BlockChainImpl
+	state, err := chain.GetAccountDBByHash(chain.QueryTopBlock().Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	var resultData interface{}
+	if count == 0 {
+		value := state.GetData(address, []byte(key))
+		if value != nil {
+			tmp := make(map[string]interface{})
+			tmp["value"] = tvm.VmDataConvert(value)
+			resultData = tmp
+		}
+	} else {
+		iter := state.DataIterator(address, []byte(key))
+		if iter != nil {
+			tmp := make([]map[string]interface{}, 0)
+			for iter.Next() {
+				k := string(iter.Key[:])
+				if !strings.HasPrefix(k, key) {
+					continue
+				}
+				v := tvm.VmDataConvert(iter.Value[:])
+				item := make(map[string]interface{}, 0)
+				item["key"] = k
+				item["value"] = v
+				tmp = append(tmp, item)
+				resultData = tmp
+				if len(tmp) >= count {
+					break
+				}
+			}
+		}
+	}
+	if resultData != nil {
+		return resultData, nil
+	} else {
+		return nil, nil
+	}
 }
