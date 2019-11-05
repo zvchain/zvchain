@@ -378,7 +378,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 					//是否有transfer log
 					for _, log := range blockDetail.Receipts[i].Logs {
 						if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
-							server.storage.AddTokenContract(server.rpcExplore, tran, log)
+							server.storage.AddTokenContract(tran, log)
 						}
 					}
 				}

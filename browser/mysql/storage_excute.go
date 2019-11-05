@@ -6,7 +6,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/tidwall/gjson"
 	"github.com/zvchain/zvchain/browser/common"
-	"github.com/zvchain/zvchain/browser/crontab"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/util"
@@ -686,12 +685,12 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	return true
 }
 
-func (storage *Storage) AddTokenContract(explore *crontab.Explore, tran *models.Transaction, log *models.Log) {
+func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.Log) {
 
 	tokenContracts := make([]*models.TokenContract, 0)
 	storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).Find(&tokenContracts)
 	if len(tokenContracts) == 0 {
-		if !explore.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
+		if !common.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
 			return
 		}
 		//create
@@ -811,7 +810,7 @@ func (storage *Storage) AddTokenUser(tx *gorm.DB, tokenContract *models.TokenCon
 			user := &models.TokenContractUser{
 				ContractAddr: tokenContract.ContractAddr,
 				Address:      user,
-				Value:        0,
+				Value:        big.NewInt(0),
 			}
 			if !errors(tx.Create(&user).Error) {
 				isSuccess = false

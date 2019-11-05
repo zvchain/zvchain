@@ -1,17 +1,13 @@
 package crontab
 
 import (
-	"encoding/json"
 	common2 "github.com/zvchain/zvchain/browser/common"
-	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
-	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/tvm"
 	"time"
 )
 
@@ -80,29 +76,6 @@ func (api *Explore) ExplorerGroupsAfter(height uint64) []*models.Group {
 		ret = append(ret, group)
 	}
 	return ret
-}
-
-func (api Explore) IsTokenContract(contractAddr common.Address) bool {
-	chain := core.BlockChainImpl
-	db, err := chain.LatestAccountDB()
-	if err != nil {
-		browserlog.BrowserLog.Error("isTokenContract: ", err)
-		return false
-	}
-	code := db.GetCode(contractAddr)
-	contract := tvm.Contract{}
-	err = json.Unmarshal(code, &contract)
-	if err != nil {
-		browserlog.BrowserLog.Error("isTokenContract: ", err)
-		return false
-	}
-	if util.HasTransferFunc(contract.Code) {
-		symbol := db.GetData(contractAddr, []byte("symbol"))
-		if len(symbol) >= 1 && symbol[0] == 's' {
-			return true
-		}
-	}
-	return false
 }
 
 func (api *Explore) GetRewardByBlock(b *types.Block) *ExploreBlockReward {
