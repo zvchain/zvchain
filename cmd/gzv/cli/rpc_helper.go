@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	browserlog "github.com/zvchain/zvchain/browser/log"
-	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/consensus/logical"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/tvm"
@@ -249,10 +248,25 @@ func IsTokenContract(contractAddr common.Address) bool {
 		browserlog.BrowserLog.Error("isTokenContract: ", err)
 		return false
 	}
-	if util.HasTransferFunc(contract.Code) {
+	if HasTransferFunc(contract.Code) {
 		symbol := db.GetData(contractAddr, []byte("symbol"))
 		if len(symbol) >= 1 && symbol[0] == 's' {
 			return true
+		}
+	}
+	return false
+}
+
+func HasTransferFunc(code string) bool {
+	stringSlice := strings.Split(code, "\n")
+	for k, targetString := range stringSlice {
+		targetString = strings.TrimSpace(targetString)
+		if strings.HasPrefix(targetString, "@register.public") {
+			if len(stringSlice) > k+1 {
+				if strings.Index(stringSlice[k+1], " transfer(") != -1 {
+					return true
+				}
+			}
 		}
 	}
 	return false
