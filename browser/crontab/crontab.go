@@ -659,14 +659,20 @@ func (crontab *Crontab) fetchOldLogs() {
 
 func (crontab *Crontab) fetchOldConctactCreate() {
 
-	logs := make([]*models.Log, 0)
-	crontab.storage.GetDB().Model(&models.Transaction{}).Limit(1).Where("contract_address <> ? or contract_address <> ?", "", nil)
-	if len(logs) == 0 {
-		receipts := make([]*models.Receipt, 0)
-		crontab.storage.GetDB().Model(&models.Receipt{}).Where("type = ?", types.TransactionTypeContractCreate).Find(&receipts)
+	txsCounts := 0
+	crontab.storage.GetDB().Raw("select count(1) from transactions where contract_address <> ? or contract_address <> ?", "", nil).Row().Scan(&txsCounts)
 
-		for _, receipt := range receipts {
-			crontab.storage.GetDB().Model(&models.Transaction{}).Where("hash = ?", receipt.TxHash).Update("contract_address", receipt.ContractAddress)
+	if txsCounts == 0 {
+		txs := make([]models.Transaction, 0)
+		crontab.storage.GetDB().Model(&models.Transaction{}).Where("type = ?", types.TransactionTypeContractCreate).Find(&txs)
+
+		for _, tx := range txs {
+			receipts := make([]*models.Receipt, 0)
+			crontab.storage.GetDB().Limit(1).Model(&models.Receipt{}).Where("tx_hash = ?", tx.Hash).Find(&receipts)
+
+			for _, receipt := range receipts {
+				crontab.storage.GetDB().Model(&models.Transaction{}).Where("hash = ?", tx.Hash).Update("contract_address", receipt.ContractAddress)
+			}
 		}
 	}
 }

@@ -750,11 +750,11 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			storage.db.Create(&tokenContract)
 
 		} else { //update
-			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?"), 1)
+			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?", 1))
 			users := make([]*models.TokenContractUser, 0)
 			storage.db.Model(models.TokenContractUser{}).Where("address = ?", target).Find(&users)
 			if len(users) == 0 {
-				storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("holder_num", gorm.Expr("holder_num + ?"), 1)
+				storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("holder_num", gorm.Expr("holder_num + ?", 1))
 			}
 		}
 		contract := &models.TokenContractTransaction{
