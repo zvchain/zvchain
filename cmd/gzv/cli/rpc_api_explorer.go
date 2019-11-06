@@ -17,11 +17,13 @@ package cli
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/tvm"
 	"strings"
 )
 
@@ -145,4 +147,40 @@ func (api *RpcExplorerImpl) ExplorerGetCandidates() (*[]ExploreCandidateList, er
 		candidateLists = append(candidateLists, candidate)
 	}
 	return &candidateLists, nil
+}
+
+func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*models.TokenContract, error) {
+	if !common.ValidateAddress(strings.TrimSpace(tokenAddr)) {
+		return nil, fmt.Errorf("wrong param format")
+	}
+	if !IsTokenContract(common.StringToAddress(tokenAddr)) {
+		return nil, fmt.Errorf("this address is not a token address")
+	}
+
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		return nil, err
+	}
+
+	tokenContract := &models.TokenContract{}
+	keyMap := []string{"name", "symbol", "decimal"}
+	for times, key := range keyMap {
+		data := db.GetData(common.StringToAddress(tokenAddr), []byte(key))
+		if v, ok := tvm.VmDataConvert(data).(string); ok {
+			switch times {
+			case 0:
+				tokenContract.Name = v
+			case 1:
+				tokenContract.Symbol = v
+			}
+		}
+		if v, ok := tvm.VmDataConvert(data).(int64); ok {
+			switch times {
+			case 2:
+				tokenContract.Decimal = v
+			}
+		}
+	}
+	return tokenContract, err
 }

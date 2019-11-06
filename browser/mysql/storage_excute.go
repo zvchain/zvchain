@@ -9,6 +9,7 @@ import (
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/util"
+	"github.com/zvchain/zvchain/cmd/gzv/cli"
 	common2 "github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/tvm"
@@ -700,7 +701,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 		realValue := &big.Int{}
 		realValue.SetString(value, 10)
 		if len(tokenContracts) == 0 {
-			if !common.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
+			if !cli.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
 				return
 			}
 			fmt.Println("IsTokenContract,", tran)
@@ -750,9 +751,9 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 
 		} else { //update
 			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?"), 1)
-			tokenTxs := make([]*models.TokenContractTransaction, 0)
-			storage.db.Model(models.TokenContractTransaction{}).Where("target = ？", common2.StringToAddress(tran.Target)).Find(&tokenTxs)
-			if len(tokenTxs) == 0 {
+			users := make([]*models.TokenContractUser, 0)
+			storage.db.Model(models.TokenContractUser{}).Where("address = ?", target).Find(&users)
+			if len(users) == 0 {
 				storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("holder_num", gorm.Expr("holder_num + ?"), 1)
 			}
 		}
