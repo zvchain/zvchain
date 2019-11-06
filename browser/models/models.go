@@ -18,7 +18,6 @@ package models
 import (
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/common"
-	"math/big"
 	"time"
 )
 
@@ -112,21 +111,21 @@ type TokenContract struct {
 
 type TokenContractTransaction struct {
 	gorm.Model
-	ContractAddr string   `json:"contract_addr" gorm:"index"`
-	Source       string   `json:"source" gorm:"index"`
-	Target       string   `json:"target" gorm:"index"`
-	Value        *big.Int `json:"value"`
-	TxHash       string   `json:"tx_hash" gorm:"index"`
-	TxType       uint64   `json:"tx_type"`
-	Status       uint64   `json:"status"`
-	BlockHeight  uint64   `json:"block_height"`
+	ContractAddr string `json:"contract_addr" gorm:"index"`
+	Source       string `json:"source" gorm:"index"`
+	Target       string `json:"target" gorm:"index"`
+	Value        string `json:"value"`
+	TxHash       string `json:"tx_hash" gorm:"index"`
+	TxType       uint64 `json:"tx_type"`
+	Status       uint64 `json:"status"`
+	BlockHeight  uint64 `json:"block_height"`
 }
 
 type TokenContractUser struct {
 	gorm.Model
-	ContractAddr string   `json:"contract_addr" gorm:"unique_index"`
-	Address      string   `json:"address" gorm:"unique_index"`
-	Value        *big.Int `json:"value" gorm:"index"`
+	ContractAddr string `json:"contract_addr" gorm:"unique_index"`
+	Address      string `json:"address" gorm:"unique_index"`
+	Value        string `json:"value" gorm:"index"`
 }
 
 type Group struct {

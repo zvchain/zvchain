@@ -686,6 +686,7 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 }
 
 func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.Log) {
+	fmt.Println(log)
 
 	tokenContracts := make([]*models.TokenContract, 0)
 	storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).Find(&tokenContracts)
@@ -702,6 +703,8 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			if !common.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
 				return
 			}
+			fmt.Println("IsTokenContract,", tran)
+
 			//create
 			chain := core.BlockChainImpl
 			db, err := chain.LatestAccountDB()
@@ -757,7 +760,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			ContractAddr: "",
 			Source:       source,
 			Target:       target,
-			Value:        realValue,
+			Value:        realValue.String(),
 			TxHash:       tran.Hash,
 			TxType:       0,
 			Status:       0,
@@ -770,6 +773,8 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 }
 
 func (storage *Storage) AddTokenTran(tokenContract *models.TokenContractTransaction) bool {
+	fmt.Println("AddTokenTran,", tokenContract)
+
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
@@ -792,15 +797,15 @@ func (storage *Storage) AddTokenTran(tokenContract *models.TokenContractTransact
 	return isSuccess
 }
 
-func getUseValue(tokenaddr string, useraddr string) *big.Int {
+func getUseValue(tokenaddr string, useraddr string) string {
 	if tokenaddr == "" && useraddr == "" {
-		return big.NewInt(0)
+		return big.NewInt(0).String()
 	}
 	key := fmt.Sprintf("balanceOf@%s", useraddr)
 	resultData, _ := common.QueryAccountData(tokenaddr, key, 0)
 	result := resultData.(map[string]interface{})
 	value := big.NewInt(result["value"].(int64))
-	return value
+	return value.String()
 }
 
 /*

@@ -352,6 +352,9 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 
 }
 func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
+	if localHeight < 548145 {
+		return
+	}
 	fmt.Println("[server]  consumeBlock height:", localHeight)
 	var maxHeight uint64
 	maxHeight = server.storage.GetTopblock()
