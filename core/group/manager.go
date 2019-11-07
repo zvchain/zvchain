@@ -18,6 +18,7 @@ package group
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
@@ -25,6 +26,7 @@ import (
 )
 
 var logger *logrus.Logger
+var Punishment *PunishmentContext
 
 // Manager implements groupContextProvider in package consensus
 type Manager struct {
@@ -89,8 +91,9 @@ func (m *Manager) InitGenesis(db types.AccountDB, genesisInfo *types.GenesisInfo
 // RegularCheck try to create group, do punishment and refresh active group
 func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 	ctx := &CheckerContext{bh.Height}
-	m.tryCreateGroup(db, m.checkerImpl, ctx)
-	m.tryDoPunish(db, m.checkerImpl, ctx)
+	Punishment = &PunishmentContext{}
+	m.tryCreateGroup(db, m.checkerImpl, ctx, Punishment)
+	m.tryDoPunish(db, m.checkerImpl, ctx, Punishment)
 }
 
 // OnBlockRemove resets group with top block with parameter bh
@@ -218,8 +221,23 @@ func (m *Manager) GetLivedGroupsByMember(address common.Address, height uint64) 
 	return groupIs
 }
 
-func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
+func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext, ctxPun *PunishmentContext) {
 	createResult := checker.CheckGroupCreateResult(ctx)
+	miners := createResult.FrozenMiners()
+	addresslist := make([]string, 0, 0)
+	if miners != nil && len(miners) > 0 {
+		fmt.Println("for tryCreateGroup", util.ObjectTojson(createResult.FrozenMiners()))
+		for _, miner := range miners {
+			addr := common.ToAddrHex(miner)
+			addresslist = append(addresslist, addr)
+		}
+		punishmentContent := &PunishmentContent{
+			Height:      ctx.Height(),
+			AddressList: addresslist,
+		}
+		ctxPun.GroupPiece = punishmentContent
+	}
+
 	if createResult == nil {
 		return
 	}
@@ -244,8 +262,22 @@ func (m *Manager) tryCreateGroup(db types.AccountDB, checker types.GroupCreateCh
 
 }
 
-func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext) {
+func (m *Manager) tryDoPunish(db types.AccountDB, checker types.GroupCreateChecker, ctx types.CheckerContext, ctxPun *PunishmentContext) {
 	msg, err := checker.CheckGroupCreatePunishment(ctx)
+	addresslist := make([]string, 0, 0)
+	if msg != nil && msg.PenaltyTarget() != nil && len(msg.PenaltyTarget()) > 0 {
+		fmt.Println("for tryDoPunish", util.ObjectTojson(msg.PenaltyTarget()))
+		for _, miner := range msg.PenaltyTarget() {
+			addr := common.ToAddrHex(miner)
+			addresslist = append(addresslist, addr)
+		}
+		punishmentContext := &PunishmentContent{
+			Height:      ctx.Height(),
+			AddressList: addresslist,
+		}
+		ctxPun.Punish = punishmentContext
+	}
+
 	if err != nil {
 		return
 	}
