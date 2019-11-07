@@ -53,8 +53,8 @@ func NewBrowserDBInit() {
 	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
 	flag.IntVar(&dbPort, "dbport", 3306, "database port")
 	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
-	flag.StringVar(&dbUser, "dbuser", "user", "database user")
-	flag.StringVar(&dbPassword, "browerdbpw", "password", "database password")
+	flag.StringVar(&dbUser, "dbuser", "root", "database user")
+	flag.StringVar(&dbPassword, "browerdbpw", "dan", "database password")
 
 	/*
 		// for local test
