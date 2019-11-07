@@ -80,6 +80,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	go server.ConsumeContractTransfer()
+	go server.ConsumeTokenContractTransfer()
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
@@ -552,9 +553,9 @@ func (crontab *Crontab) ConsumeTokenContractTransfer() {
 			} else if value, ok := data.Value.(*big.Int); ok {
 				valuestring = value.String()
 			}
-			strings.Replace(string(data.Addr), "balanceOf@", "", -1)
+			addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
 			crontab.storage.Updatetokenuser(data.ContractAddr,
-				string(data.Addr),
+				addr,
 				valuestring)
 
 		}
