@@ -5,6 +5,13 @@ import (
 )
 
 var ContractTransferData chan *ContractTransfer
+var TokenTransferData chan *TokenContractTransfer
+
+type TokenContractTransfer struct {
+	ContractAddr string
+	Addr         []byte
+	Value        interface{}
+}
 
 type ContractTransfer struct {
 	Value        uint64
@@ -14,6 +21,15 @@ type ContractTransfer struct {
 	ContractCode string
 }
 
+func ProduceTokenContractTransfer(contracttoken string, addr []byte, value []byte) {
+	contract := &TokenContractTransfer{
+		ContractAddr: contracttoken,
+		Addr:         addr,
+		Value:        VmDataConvert(value),
+	}
+	TokenTransferData <- contract
+	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), ",contractcode:", contracttoken, "value", contract.Value)
+}
 func ProduceContractTransfer(txHash string,
 	addr string,
 	value uint64,

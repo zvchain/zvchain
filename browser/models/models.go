@@ -123,8 +123,8 @@ type TokenContractTransaction struct {
 
 type TokenContractUser struct {
 	gorm.Model
-	ContractAddr string `json:"contract_addr" gorm:"unique_index"`
-	Address      string `json:"address" gorm:"unique_index"`
+	ContractAddr string `json:"contract_addr" gorm:"index"`
+	Address      string `json:"address" gorm:"index"`
 	Value        string `json:"value" gorm:"index"`
 }
 

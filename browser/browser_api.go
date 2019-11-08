@@ -50,6 +50,7 @@ type DBMmanagement struct {
 
 func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *DBMmanagement {
 	tvm.ContractTransferData = make(chan *tvm.ContractTransfer, 500)
+	tvm.TokenTransferData = make(chan *tvm.TokenContractTransfer, 500)
 	tablMmanagement := &DBMmanagement{}
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 

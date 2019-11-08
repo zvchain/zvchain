@@ -16,7 +16,9 @@ import (
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/tvm"
+	"math/big"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -78,6 +80,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	go server.ConsumeContractTransfer()
+	go server.ConsumeTokenContractTransfer()
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
@@ -352,10 +355,8 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 
 }
 func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
-	if localHeight < 548145 {
-		return
-	}
-	fmt.Println("[server]  consumeBlock height:", localHeight)
+
+	fmt.Println("[server]  consumeBlock process height:", localHeight)
 	var maxHeight uint64
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
@@ -536,6 +537,30 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 				Status:       0,
 			}
 			mysql.DBStorage.AddContractCallTransaction(contractCall)
+		}
+	}
+}
+
+func (crontab *Crontab) ConsumeTokenContractTransfer() {
+	var ok = true
+	for ok {
+		select {
+		case data := <-tvm.TokenTransferData:
+			time.Sleep(time.Second)
+			if data.Value != nil {
+				var valuestring string
+				if value, ok := data.Value.(int64); ok {
+					valuestring = big.NewInt(value).String()
+				} else if value, ok := data.Value.(*big.Int); ok {
+					valuestring = value.String()
+				}
+				addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
+				crontab.storage.Updatetokenuser(data.ContractAddr,
+					addr,
+					valuestring)
+
+			}
+
 		}
 	}
 }

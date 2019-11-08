@@ -609,6 +609,34 @@ func (storage *Storage) AddContractTransaction(contract *models.ContractTransact
 	storage.db.Create(&contract)
 	return true
 }
+
+func (storage *Storage) Updatetokenuser(contract string, addr string, value string) {
+	if value == "" {
+		return
+	}
+	token := make([]models.TokenContract, 0, 0)
+	storage.db.Where("contract_addr = ?", contract).Find(&token)
+	if len(token) < 1 {
+		return
+	}
+
+	users := make([]models.TokenContractUser, 0, 0)
+	storage.db.Where("address =? and contract_addr = ?", addr, contract).Find(&users)
+	if len(users) > 0 {
+		value := getUseValue(contract, addr)
+		storage.db.Model(&models.TokenContractUser{}).
+			Where("contract_addr = ? and address = ? ", contract, addr).
+			Update("value", value)
+	} else {
+		user := &models.TokenContractUser{
+			ContractAddr: contract,
+			Address:      addr,
+			Value:        value,
+		}
+		storage.db.Create(&user)
+	}
+
+}
 func (storage *Storage) AddContractCallTransaction(contract *models.ContractCallTransaction) bool {
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
@@ -687,14 +715,13 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 }
 
 func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.Log) {
-	fmt.Println(log)
-
 	tokenContracts := make([]*models.TokenContract, 0)
-	storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).Find(&tokenContracts)
+	storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).Find(&tokenContracts)
 	if log != nil {
-		source := gjson.Get(log.Data, "default.0").String()
-		target := gjson.Get(log.Data, "default.1").String()
-		value := gjson.Get(log.Data, "default.2").Raw
+		source := gjson.Get(log.Data, "args.0").String()
+		target := gjson.Get(log.Data, "args.1").String()
+		value := gjson.Get(log.Data, "args.2").Raw
+		browserlog.BrowserLog.Info("AddTokenContract,", source, ",", target, ",", value)
 		if source == "" || target == "" {
 			return
 		}
@@ -704,7 +731,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			if !cli.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
 				return
 			}
-			fmt.Println("IsTokenContract,", tran)
+			browserlog.BrowserLog.Info("IsTokenContract,", tran.ContractAddress)
 
 			//create
 			chain := core.BlockChainImpl
@@ -718,7 +745,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			//mapInterface := make(map[string]interface{})
 			keyMap := []string{"name", "symbol", "decimal"}
 			for times, key := range keyMap {
-				data := db.GetData(common2.StringToAddress(tran.ContractAddress), []byte(key))
+				data := db.GetData(common2.StringToAddress(log.Address), []byte(key))
 				if v, ok := tvm.VmDataConvert(data).(string); ok {
 					switch times {
 					case 0:
@@ -734,7 +761,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 					}
 				}
 			}
-			tokenContract.ContractAddr = tran.ContractAddress
+			tokenContract.ContractAddr = log.Address
 			if util.ValidateAddress(source) && util.ValidateAddress(target) {
 				if source == target {
 					tokenContract.HolderNum = 1
@@ -750,15 +777,15 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			storage.db.Create(&tokenContract)
 
 		} else { //update
-			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?", 1))
+			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?", 1))
 			users := make([]*models.TokenContractUser, 0)
 			storage.db.Model(models.TokenContractUser{}).Where("address = ?", target).Find(&users)
 			if len(users) == 0 {
-				storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", tran.ContractAddress).UpdateColumn("holder_num", gorm.Expr("holder_num + ?", 1))
+				storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).UpdateColumn("holder_num", gorm.Expr("holder_num + ?", 1))
 			}
 		}
 		contract := &models.TokenContractTransaction{
-			ContractAddr: "",
+			ContractAddr: log.Address,
 			Source:       source,
 			Target:       target,
 			Value:        realValue.String(),
@@ -767,6 +794,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			Status:       0,
 			BlockHeight:  tran.BlockHeight,
 		}
+		browserlog.BrowserLog.Info("AddTokenTran,", tran.ContractAddress)
 		//update tokenContractTx and tokenContractUser
 		storage.AddTokenTran(contract)
 	}
@@ -805,8 +833,14 @@ func getUseValue(tokenaddr string, useraddr string) string {
 	key := fmt.Sprintf("balanceOf@%s", useraddr)
 	resultData, _ := common.QueryAccountData(tokenaddr, key, 0)
 	result := resultData.(map[string]interface{})
-	value := big.NewInt(result["value"].(int64))
-	return value.String()
+	if result["value"] != nil {
+		if value, ok := result["value"].(int64); ok {
+			return big.NewInt(value).String()
+		} else if value, ok := result["value"].(*big.Int); ok {
+			return value.String()
+		}
+	}
+	return big.NewInt(0).String()
 }
 
 /*
@@ -1042,11 +1076,14 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, cu
 	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
 	logSql := fmt.Sprintf("DELETE  FROM logs WHERE block_number > %d", preHeight)
 	contractTransSql := fmt.Sprintf("DELETE  FROM contract_transactions WHERE block_height > %d", preHeight)
+	tokenTransSql := fmt.Sprintf("DELETE  FROM token_contract_transactions WHERE block_height > %d", preHeight)
+
 	blockCount := storage.db.Exec(blockSql)
 	transactionCount := storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
 	storage.db.Exec(logSql)
 	go storage.db.Exec(contractTransSql)
+	go storage.db.Exec(tokenTransSql)
 
 	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
 		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)
