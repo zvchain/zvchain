@@ -182,29 +182,34 @@ func parseABI(code string) []tvm.ABIVerify {
 			params := strings.TrimPrefix(targetString, "@register.public")
 			params = params[1 : len(params)-1]
 			args := strings.Split(params, ",")
-			for l, arg := range args {
+			argsNew := make([]string, 0)
+			for _, arg := range args {
 				arg = strings.TrimSpace(arg)
-				args[l] = arg
+				if len(arg) > 0 {
+					argsNew = append(argsNew, arg)
+				}
 			}
 
 			funcName := ""
-			funcLine := stringSlice[k+1]
-			funcLine = strings.TrimSpace(funcLine)
-			if strings.HasPrefix(funcLine, "def") {
-				funcLine = strings.TrimPrefix(funcLine, "def")
+			if k+1 < len(stringSlice) {
+				funcLine := stringSlice[k+1]
 				funcLine = strings.TrimSpace(funcLine)
+				if strings.HasPrefix(funcLine, "def") {
+					funcLine = strings.TrimPrefix(funcLine, "def")
+					funcLine = strings.TrimSpace(funcLine)
 
-				for m, v := range funcLine {
-					if v == '(' {
-						funcName = funcLine[:m]
-						funcName = strings.TrimSpace(funcName)
+					for m, v := range funcLine {
+						if v == '(' {
+							funcName = funcLine[:m]
+							funcName = strings.TrimSpace(funcName)
+						}
 					}
+					abi := tvm.ABIVerify{
+						FuncName: funcName,
+						Args:     argsNew,
+					}
+					ABIs = append(ABIs, abi)
 				}
-				abi := tvm.ABIVerify{
-					FuncName: funcName,
-					Args:     args,
-				}
-				ABIs = append(ABIs, abi)
 			}
 		}
 	}

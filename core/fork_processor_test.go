@@ -20,6 +20,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -41,6 +42,7 @@ func init() {
 	groupReader = initGroupReader4CPTest(400)
 	initPeerManager()
 	wg = &sync.WaitGroup{}
+	log.ELKLogger.SetLevel(logrus.ErrorLevel)
 }
 
 var (
@@ -78,6 +80,7 @@ func (s *msgSender4Test) Send(id string, msg network.Message) error {
 func initChain(dataPath string, id string) *FullBlockChain {
 	common.InitConf("test1.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
+	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
 	clearTicker()
 	Logger = logrus.StandardLogger()

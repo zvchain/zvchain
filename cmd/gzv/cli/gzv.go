@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
+	"github.com/zvchain/zvchain/params"
 	"os"
 	"time"
 
@@ -64,7 +65,7 @@ var globalGzv *Gzv
 
 // miner start miner node
 func (gzv *Gzv) miner(cfg *minerConfig) error {
-	types.ChainId = cfg.chainID
+	params.InitChainConfig(cfg.chainID)
 	gzv.config = cfg
 	gzv.runtimeInit()
 	err := gzv.fullInit()

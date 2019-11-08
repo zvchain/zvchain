@@ -1,4 +1,4 @@
-//   Copyright (C) 2018 ZVChain
+//   Copyright (C) 2019 ZVChain
 //
 //   This program is free software: you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -13,12 +13,29 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package common
+package params
 
-const GzvVersion = "v1.0.3-alpha2"
+import (
+	"testing"
+	"time"
+)
 
-const ConsensusVersion = 1
+func TestCalculateZIP001Height(t *testing.T) {
+	begin := time.Date(2019, 10, 18, 12, 0, 0, 0, time.Local)
+	beginHeight := uint64(583588)
+	effect := time.Date(2019, 10, 30, 14, 0, 0, 0, time.Local)
+	t.Log(effect.String(), effect.UTC().String())
 
-const ChainDataVersion = 1
+	seconds := effect.Local().Sub(begin.Local())
+	seconds2 := effect.UTC().Sub(begin.UTC())
 
-const ProtocolVersion = 1
+	t.Log(seconds, seconds2)
+	if seconds2 != seconds {
+		t.Fatalf("sub error")
+	}
+
+	blocksDelta := uint64(seconds.Seconds()) / 3
+
+	zip001 := beginHeight + blocksDelta
+	t.Log(zip001)
+}
