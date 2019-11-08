@@ -117,12 +117,12 @@ func ContractCall(addressC *C.char, funName *C.char, jsonParms *C.char, cResult 
 }
 
 //export EventCall
-func EventCall(eventName *C.char, data *C.char) {
+func EventCall(eventName *C.char, data *C.char, dataLen C.int) {
 
 	var log types.Log
 	log.Topic = common.BytesToHash(common.Sha256([]byte(C.GoString(eventName))))
 	log.Index = uint(len(controller.VM.Logs))
-	log.Data = []byte(C.GoString(data))
+	log.Data = C.GoBytes(unsafe.Pointer(data), dataLen)
 	log.TxHash = controller.Transaction.GetHash()
 	log.Address = *controller.VM.ContractAddress //*(controller.Transaction.Target)
 	log.BlockNumber = controller.BlockHeader.Height
