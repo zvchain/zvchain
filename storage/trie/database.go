@@ -318,21 +318,21 @@ func (db *NodeDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
-func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) node {
+func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	// Retrieve the node from cache if available
 	db.lock.RLock()
 	node := db.nodes[hash]
 	db.lock.RUnlock()
 
 	if node != nil {
-		return node.obj(hash, cachegen)
+		return node.obj(hash, cachegen), nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
-		return nil
+		return nil, nil
 	}
-	return mustDecodeNode(hash[:], enc, cachegen)
+	return mustDecodeNode(hash[:], enc, cachegen), enc
 }
 
 // Node retrieves an encoded cached trie node from memory. If it cannot be found
