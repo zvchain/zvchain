@@ -555,7 +555,7 @@ func (crontab *Crontab) ConsumeTokenContractTransfer() {
 					valuestring = value.String()
 				}
 				addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
-				crontab.storage.Updatetokenuser(data.ContractAddr,
+				crontab.storage.UpdateTokenUser(data.ContractAddr,
 					addr,
 					valuestring)
 
