@@ -32,8 +32,8 @@ type ChainConfig struct {
 }
 
 var config = &ChainConfig{
-	ZIP001: 321777, // effect at : 2019-10-28 10:00:00
-	ZIP002: 347188, // effect at : 2019-10-29 10:00:00
+	ZIP001: 1000, // effect at : 2019-11-11 17:10:00
+	ZIP002: 1200, // effect at : 2019-11-11 17:20:00
 }
 
 func InitChainConfig(chainId uint16) {

@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-const DEFAULT_MAX_PEER_SIZE_PER_IP = 16
+const maxPeersPerIP = 16
 
 // PeerManager is node connection management
 type PeerManager struct {
@@ -40,7 +40,7 @@ type PeerManager struct {
 func newPeerManager() *PeerManager {
 	pm := &PeerManager{
 		peers:     make(map[uint64]*Peer),
-		peerIPSet: PeerIPSet{Limit: DEFAULT_MAX_PEER_SIZE_PER_IP, members: make(map[string]uint)},
+		peerIPSet: PeerIPSet{Limit: maxPeersPerIP, members: make(map[string]uint)},
 	}
 	priorityTable = map[uint32]SendPriorityType{
 		BlockInfoNotifyMsg:       SendPriorityHigh,
@@ -108,20 +108,32 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 
 // newConnection handling callbacks for successful connections
 func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, isAccepted bool, ip string, port uint16) {
-
+	ip = net.ParseIP(ip).String()
+	Logger.Infof("new connection, net id:%v session:%v isAccepted:%v ip:%v port:%v, peer count:%v ", id, session, isAccepted, ip, port, pm.peerIPSet.Count(ip))
+	if len(ip) > 0 && !pm.peerIPSet.Add(ip) {
+		P2PShutdown(session)
+		Logger.Infof("new connection , peer in same IP exceed limit size !Max size:%v, ip:%v, peer count:%v", pm.peerIPSet.Limit, ip, pm.peerIPSet.Count(ip))
+		return
+	}
 	p := pm.peerByNetID(id)
 	if p == nil {
 		p = newPeer(NodeID{}, session)
-		p.IP = net.ParseIP(ip)
-		p.Port = int(port)
-		p.connectTimeout = uint64(time.Now().Add(connectTimeout).Unix())
-		if !pm.addPeer(id, p) {
+		pm.addPeer(id, p)
+	} else {
+		Logger.Infof("new connection ,peer != nil, net id:%v session:%v ip:%v port:%v, peer count:%v ", id, p.sessionID, p.IP.String(), p.Port, pm.peerIPSet.Count(p.IP.String()))
+		if session < p.sessionID && time.Since(p.connectTime) < 3*time.Second {
+			pm.peerIPSet.Remove(ip)
+			Logger.Infof("new connection ,session less than p.sessionID, ip:%v, peer count:%v", ip, pm.peerIPSet.Count(ip))
 			P2PShutdown(session)
 			return
+		} else if p.sessionID > 0 {
+			pm.peerIPSet.Remove(p.IP.String())
+			Logger.Infof("new connection ,p.sessionID greater than  0, ip:%v, peer count:%v", p.IP.String(), pm.peerIPSet.Count(p.IP.String()))
+			p.disconnect()
 		}
 	}
+
 	p.onConnect(id, session, p2pType, isAccepted, ip, port)
-	Logger.Infof("new connection, node id:%v  netid :%v session:%v isAccepted:%v ip:%v port:%v ", p.ID.GetHexString(), id, session, isAccepted, ip, port)
 }
 
 // onSendWaited  when the send queue is idle
@@ -137,16 +149,20 @@ func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32)
 	p := pm.peerByNetID(id)
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
-	if p != nil {
 
-		Logger.Infof("OnDisconnected id：%v  session:%v ip:%v port:%v ", p.ID.GetHexString(), session, p.IP, p.Port)
+	if p != nil {
+		ip := p.IP.String()
+		Logger.Infof("disconnected,  node id：%v, netid：%v, session:%v ip:%v port:%v,peers:%v, peer count:%v", p.ID.GetHexString(), id, session, ip, p.Port, pm.peerIPSet.members, pm.peerIPSet.Count(ip))
+		if p.sessionID == session {
+			pm.peerIPSet.Remove(ip)
+
+			delete(pm.peers, id)
+		}
+
 		p.onDisonnect(id, session, p2pCode)
 
-		delete(pm.peers, genNetID(p.ID))
-		pm.peerIPSet.Remove(p.IP.String())
-
 	} else {
-		Logger.Infof("OnDisconnected net id：%v session:%v code:%v", id, session, p2pCode)
+		Logger.Infof("disconnected, but session id is unused, net id：%v session:%v", id, session)
 	}
 }
 
@@ -260,12 +276,15 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	if peer.IP != nil && len(peer.IP.String()) > 0 && !pm.peerIPSet.Add(peer.IP.String()) {
-		Logger.Infof("addPeer failed, peer in same IP exceed limit size !Max size:%v, ip:%v", pm.peerIPSet.Limit, peer.IP.String())
-		return false
-	}
 	pm.peers[netID] = peer
 	return true
+}
+
+func (pm *PeerManager) removePeer(netID uint64) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	delete(pm.peers, netID)
 }
 
 func (pm *PeerManager) ConnInfo() []Conn {
@@ -286,12 +305,15 @@ func (pm *PeerManager) ConnInfo() []Conn {
 //PeerIPSet tracks IP of peers
 type PeerIPSet struct {
 	Limit uint // maximum number of IPs in each subnet
+	mutex sync.RWMutex
 
 	members map[string]uint
 }
 
 // Add add an IP to the set.
 func (s *PeerIPSet) Add(ip string) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	n := s.members[ip]
 	if n < s.Limit {
 		s.members[ip] = n + 1
@@ -302,6 +324,8 @@ func (s *PeerIPSet) Add(ip string) bool {
 
 // Remove removes an IP from the set.
 func (s *PeerIPSet) Remove(ip string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if n, ok := s.members[ip]; ok {
 		if n == 1 {
 			delete(s.members, ip)
@@ -311,14 +335,18 @@ func (s *PeerIPSet) Remove(ip string) {
 	}
 }
 
-// Contains whether the given IP is contained in the set.
-func (s PeerIPSet) Contains(ip string) bool {
-	_, ok := s.members[ip]
-	return ok
+// Count the count of the given IP.
+func (s PeerIPSet) Count(ip string) uint {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	c := s.members[ip]
+	return c
 }
 
 // Len returns the number of tracked IPs.
 func (s PeerIPSet) Len() int {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	n := uint(0)
 	for _, i := range s.members {
 		n += i
