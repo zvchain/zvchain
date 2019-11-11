@@ -760,7 +760,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 							} else if value2, ok := value.(*big.Int); ok {
 								valuestring = value2.String()
 							}
-							storage.UpdateTokenUser(tran.ContractAddress, realAddr, valuestring)
+							storage.UpdateTokenUser(log.Address, realAddr, valuestring)
 						}
 					}
 				}
