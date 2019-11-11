@@ -196,6 +196,9 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 	}
 
 	iter := db.DataIterator(common.StringToAddress(tokenAddr), []byte{})
+	if iter == nil {
+		return nil, iter.Err
+	}
 	//balanceOf := make(map[string]interface{})
 	for iter.Next() {
 		if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
