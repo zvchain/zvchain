@@ -32,14 +32,14 @@ import (
 )
 
 const (
-	txNofifyInterval    = 5
-	txNotifyRoutine     = "ts_notify"
-	tickerTxSyncTimeout = "sync_tx_timeout"
-	txNotifyGap         = 60
-	txMaxNotifyPerTime  = 50
-
-	txReqRoutine  = "ts_req"
-	txReqInterval = 5
+	txNofifyInterval       = 5
+	txNotifyRoutine        = "ts_notify"
+	tickerTxSyncTimeout    = "sync_tx_timeout"
+	txNotifyGap            = 60
+	txMaxNotifyPerTime     = 50
+	txSyncNeightborTimeout = 5
+	txReqRoutine           = "ts_req"
+	txReqInterval          = 5
 
 	txPeerMaxLimit = 3000
 
@@ -342,7 +342,7 @@ func (ts *txSyncer) requestTxs(id string, hash *[]common.Hash) {
 
 	ts.chain.ticker.RegisterOneTimeRoutine(ts.syncTimeoutRoutineName(id), func() bool {
 		return ts.syncTxComplete(id, true)
-	}, syncNeightborTimeout)
+	}, txSyncNeightborTimeout)
 }
 
 func (ts *txSyncer) syncTxComplete(id string, timeout bool) bool {

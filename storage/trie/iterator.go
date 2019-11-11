@@ -19,11 +19,8 @@ package trie
 import (
 	"bytes"
 	"errors"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
-	"sync/atomic"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -111,53 +108,6 @@ type NodeIterator interface {
 	// accelerate most the visits of those tries that does not change often and
 	// accelerate little with those tries than change often
 	EnableNodeCache()
-}
-
-type nodeCache struct {
-	cache *lru.Cache
-	hit   uint64
-	total uint64
-}
-
-var ncache *nodeCache
-
-//func init() {
-//	CreateNodeCache(50000)
-//}
-
-func CreateNodeCache(size int) {
-	ncache = &nodeCache{
-		cache: common.MustNewLRUCache(size),
-	}
-}
-
-func (nc *nodeCache) getNode(hash common.Hash) node {
-	if nc == nil {
-		return nil
-	}
-	defer func() {
-		total := atomic.LoadUint64(&nc.total)
-		if total%50 == 0 && total > 0 {
-			log.CoreLogger.Debugf("node iterator getNode hit %.4f(%v/%v),cache size %v", float64(nc.hit)/float64(total), nc.hit, total, ncache.cache.Len())
-		}
-	}()
-	atomic.AddUint64(&ncache.total, 1)
-	if atomic.LoadUint64(&nc.total) == 0 {
-		atomic.StoreUint64(&nc.total, 1)
-		atomic.StoreUint64(&nc.hit, 0)
-	}
-	if v, ok := nc.cache.Get(hash); ok {
-		atomic.AddUint64(&ncache.hit, 1)
-		return v.(node)
-	}
-	return nil
-}
-
-func (nc *nodeCache) storeNode(hash common.Hash, n node) {
-	if nc == nil {
-		return
-	}
-	nc.cache.Add(hash, n)
 }
 
 // nodeIteratorState represents the iteration state at one particular node of the
@@ -359,12 +309,12 @@ func (st *nodeIteratorState) resolve(tr *Trie, path []byte, cacheEnable bool) er
 		var resolved node
 		if cacheEnable {
 			if n := ncache.getNode(h); n == nil {
-				rs, err := tr.resolveHash(hash, path)
+				rs, raw, err := tr.resolveHashAndGetRawBytes(hash, path)
 				if err != nil {
 					return err
 				}
 				resolved = rs
-				ncache.storeNode(h, resolved)
+				ncache.storeNode(h, resolved, raw)
 			} else {
 				resolved = n
 			}
