@@ -743,7 +743,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			}
 
 			// 查看balanceOf
-			iter := db.DataIterator(common2.StringToAddress(tran.ContractAddress), []byte{})
+			iter := db.DataIterator(common2.StringToAddress(log.Address), []byte{})
 			if iter == nil {
 				return
 			}
