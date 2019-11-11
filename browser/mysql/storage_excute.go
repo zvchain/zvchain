@@ -14,6 +14,7 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -609,15 +610,15 @@ func (storage *Storage) AddContractTransaction(contract *models.ContractTransact
 	return true
 }
 
-func (storage *Storage) Updatetokenuser(contract string, addr string, value string) {
+func (storage *Storage) UpdateTokenUser(contract string, addr string, value string) {
 	if value == "" {
 		return
 	}
-	token := make([]models.TokenContract, 0, 0)
-	storage.db.Where("contract_addr = ?", contract).Find(&token)
-	if len(token) < 1 {
-		return
-	}
+	//token := make([]models.TokenContract, 0, 0)
+	//storage.db.Where("contract_addr = ?", contract).Find(&token)
+	//if len(token) < 1 {
+	//	return
+	//}
 
 	users := make([]models.TokenContractUser, 0, 0)
 	storage.db.Where("address =? and contract_addr = ?", addr, contract).Find(&users)
@@ -742,6 +743,27 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			if err != nil {
 				browserlog.BrowserLog.Error("AddTokenContract: ", err)
 				return
+			}
+
+			// 查看balanceOf
+			iter := db.DataIterator(common2.StringToAddress(tran.ContractAddress), []byte{})
+			//balanceOf := make(map[string]interface{})
+			for iter.Next() {
+				if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
+					realAddr := strings.TrimPrefix(string(iter.Key[:]), "balanceOf@")
+					if util.ValidateAddress(realAddr) {
+						value := tvm.VmDataConvert(iter.Value[:])
+						if value != nil {
+							var valuestring string
+							if value1, ok := value.(int64); ok {
+								valuestring = big.NewInt(value1).String()
+							} else if value2, ok := value.(*big.Int); ok {
+								valuestring = value2.String()
+							}
+							storage.UpdateTokenUser(tran.ContractAddress, realAddr, valuestring)
+						}
+					}
+				}
 			}
 
 			tokenContract := models.TokenContract{}
