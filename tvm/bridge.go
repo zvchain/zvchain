@@ -88,6 +88,8 @@ func SetData(key *C.char, kenLen C.int, value *C.char, valueLen C.int) {
 	controller.AccountDB.SetData(address, k, v)
 	if k != nil && strings.HasPrefix(string(k), "balanceOf") {
 		go ProduceTokenContractTransfer(
+			controller.Transaction.GetHash().Hex(),
+			controller.BlockHeader.Height,
 			address.AddrPrefixString(),
 			k,
 			v,

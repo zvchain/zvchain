@@ -11,6 +11,8 @@ type TokenContractTransfer struct {
 	ContractAddr string
 	Addr         []byte
 	Value        interface{}
+	TxHash       string
+	BlockHeight  uint64
 }
 
 type ContractTransfer struct {
@@ -21,14 +23,16 @@ type ContractTransfer struct {
 	ContractCode string
 }
 
-func ProduceTokenContractTransfer(contracttoken string, addr []byte, value []byte) {
+func ProduceTokenContractTransfer(txhash string, blockHeight uint64, contracttoken string, addr []byte, value []byte) {
 	contract := &TokenContractTransfer{
 		ContractAddr: contracttoken,
 		Addr:         addr,
 		Value:        VmDataConvert(value),
+		BlockHeight:  blockHeight,
+		TxHash:       txhash,
 	}
 	TokenTransferData <- contract
-	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), ",contractcode:", contracttoken, "value", contract.Value)
+	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "height:", blockHeight, ",contractcode:", contracttoken, "value", contract.Value)
 }
 func ProduceContractTransfer(txHash string,
 	addr string,

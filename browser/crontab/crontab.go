@@ -80,7 +80,6 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	go server.ConsumeContractTransfer()
-	go server.ConsumeTokenContractTransfer()
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
@@ -438,6 +437,8 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
+	go crontab.ConsumeTokenContractTransfer(bh.Height)
+
 	return nil
 }
 func (crontab *Crontab) GochanPunishment(height uint64) {
@@ -541,24 +542,32 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 	}
 }
 
-func (crontab *Crontab) ConsumeTokenContractTransfer() {
+func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64) {
 	var ok = true
 	for ok {
 		select {
 		case data := <-tvm.TokenTransferData:
-			time.Sleep(time.Second)
-			if data.Value != nil {
-				var valuestring string
-				if value, ok := data.Value.(int64); ok {
-					valuestring = big.NewInt(value).String()
-				} else if value, ok := data.Value.(*big.Int); ok {
-					valuestring = value.String()
+			if data.BlockHeight > height {
+				tvm.TokenTransferData <- data
+				break
+			}
+			chain := core.BlockChainImpl
+			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
+			if wrapper != nil {
+				if wrapper.Status == 0 {
+					if data.Value != nil {
+						var valuestring string
+						if value, ok := data.Value.(int64); ok {
+							valuestring = big.NewInt(value).String()
+						} else if value, ok := data.Value.(*big.Int); ok {
+							valuestring = value.String()
+						}
+						addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
+						crontab.storage.UpdateTokenUser(data.ContractAddr,
+							addr,
+							valuestring)
+					}
 				}
-				addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
-				crontab.storage.UpdateTokenUser(data.ContractAddr,
-					addr,
-					valuestring)
-
 			}
 
 		}
