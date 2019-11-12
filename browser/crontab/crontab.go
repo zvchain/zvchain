@@ -545,13 +545,14 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
 	var ok = true
 	chanData := tvm.MapTokenChan[hash]
-	if chanData == nil {
+	if chanData == nil || len(chanData) < 1 {
 		return
 	}
 	ticker := time.NewTicker(time.Second * 5)
 	for ok {
 		select {
 		case data := <-chanData:
+			browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, height, hash)
 			chain := core.BlockChainImpl
 			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 			if wrapper != nil {
@@ -573,11 +574,12 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 			topHeight := core.BlockChainImpl.Height()
 			if height > topHeight || (len(chanData) < 1 && height < topHeight) {
 				close(chanData)
-				break
+				delete(tvm.MapTokenChan, hash)
+				return
 			}
 		}
 	}
-	delete(tvm.MapTokenChan, hash)
+	fmt.Println("deleete ConsumeTokenContractTransfer", hash)
 
 }
 
