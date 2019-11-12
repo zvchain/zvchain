@@ -80,7 +80,6 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	go server.ConsumeContractTransfer()
-	go server.ConsumeTokenContractTransfer()
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
@@ -438,6 +437,8 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
+	go crontab.ConsumeTokenContractTransfer(bh.Height, bh.Hash.Hex())
+
 	return nil
 }
 func (crontab *Crontab) GochanPunishment(height uint64) {
@@ -541,25 +542,43 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 	}
 }
 
-func (crontab *Crontab) ConsumeTokenContractTransfer() {
+func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
 	var ok = true
+	chanData := tvm.MapTokenChan[hash]
+	if chanData == nil {
+		return
+	}
+	ticker := time.NewTicker(time.Second * 5)
 	for ok {
 		select {
-		case data := <-tvm.TokenTransferData:
-			time.Sleep(time.Second)
-			var valuestring string
-			if value, ok := data.Value.(int64); ok {
-				valuestring = big.NewInt(value).String()
-			} else if value, ok := data.Value.(*big.Int); ok {
-				valuestring = value.String()
-			}
-			addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
-			crontab.storage.UpdateTokenUser(data.ContractAddr,
-				addr,
-				valuestring)
+		case data := <-chanData:
+			chain := core.BlockChainImpl
+			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
+			if wrapper != nil {
+				if wrapper.Status == 0 && data.Value != nil {
+					var valuestring string
+					if value, ok := data.Value.(int64); ok {
+						valuestring = big.NewInt(value).String()
+					} else if value, ok := data.Value.(*big.Int); ok {
+						valuestring = value.String()
+					}
+					addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
+					crontab.storage.UpdateTokenUser(data.ContractAddr,
+						addr,
+						valuestring)
+				}
 
+			}
+		case <-ticker.C:
+			topHeight := core.BlockChainImpl.Height()
+			if height > topHeight || (len(chanData) < 1 && height < topHeight) {
+				close(chanData)
+				break
+			}
 		}
 	}
+	delete(tvm.MapTokenChan, hash)
+
 }
 
 func (crontab *Crontab) ConsumeReward() {
@@ -681,14 +700,20 @@ func (crontab *Crontab) fetchOldLogs() {
 
 func (crontab *Crontab) fetchOldConctactCreate() {
 
-	logs := make([]*models.Log, 0)
-	crontab.storage.GetDB().Model(&models.Transaction{}).Limit(1).Where("contract_address <> ? or contract_address <> ?", "", nil)
-	if len(logs) == 0 {
-		receipts := make([]*models.Receipt, 0)
-		crontab.storage.GetDB().Model(&models.Receipt{}).Where("type = ?", types.TransactionTypeContractCreate).Find(&receipts)
+	txsCounts := 0
+	crontab.storage.GetDB().Raw("select count(1) from transactions where contract_address <> ? or contract_address <> ?", "", nil).Row().Scan(&txsCounts)
 
-		for _, receipt := range receipts {
-			crontab.storage.GetDB().Model(&models.Transaction{}).Where("hash = ?", receipt.TxHash).Update("contract_address", receipt.ContractAddress)
+	if txsCounts == 0 {
+		txs := make([]models.Transaction, 0)
+		crontab.storage.GetDB().Model(&models.Transaction{}).Where("type = ?", types.TransactionTypeContractCreate).Find(&txs)
+
+		for _, tx := range txs {
+			receipts := make([]*models.Receipt, 0)
+			crontab.storage.GetDB().Limit(1).Model(&models.Receipt{}).Where("tx_hash = ?", tx.Hash).Find(&receipts)
+
+			for _, receipt := range receipts {
+				crontab.storage.GetDB().Model(&models.Transaction{}).Where("hash = ?", tx.Hash).Update("contract_address", receipt.ContractAddress)
+			}
 		}
 	}
 }

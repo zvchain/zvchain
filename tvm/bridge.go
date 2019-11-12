@@ -87,12 +87,14 @@ func SetData(key *C.char, kenLen C.int, value *C.char, valueLen C.int) {
 	v := C.GoBytes(unsafe.Pointer(value), valueLen)
 	controller.AccountDB.SetData(address, k, v)
 	if k != nil && strings.HasPrefix(string(k), "balanceOf") {
-		go ProduceTokenContractTransfer(address.AddrPrefixString(),
+		go ProduceTokenContractTransfer(
+			controller.Transaction.GetHash().Hex(),
+			controller.BlockHeader.Hash.Hex(),
+			address.AddrPrefixString(),
 			k,
 			v,
 		)
 	}
-
 }
 
 //export BlockHash

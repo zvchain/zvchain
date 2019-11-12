@@ -4,13 +4,15 @@ import (
 	"fmt"
 )
 
-var ContractTransferData chan *ContractTransfer
-var TokenTransferData chan *TokenContractTransfer
+var ContractTransferData = make(chan *ContractTransfer, 500)
+var MapTokenChan = make(map[string]chan *TokenContractTransfer)
 
 type TokenContractTransfer struct {
 	ContractAddr string
 	Addr         []byte
 	Value        interface{}
+	TxHash       string
+	BlockHash    string
 }
 
 type ContractTransfer struct {
@@ -21,14 +23,20 @@ type ContractTransfer struct {
 	ContractCode string
 }
 
-func ProduceTokenContractTransfer(contracttoken string, addr []byte, value []byte) {
+func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken string, addr []byte, value []byte) {
 	contract := &TokenContractTransfer{
 		ContractAddr: contracttoken,
 		Addr:         addr,
 		Value:        VmDataConvert(value),
+		BlockHash:    blockHash,
+		TxHash:       txhash,
 	}
-	TokenTransferData <- contract
-	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), ",contractcode:", contracttoken, "value", contract.Value)
+	if MapTokenChan[blockHash] == nil {
+		MapTokenChan[blockHash] = make(chan *TokenContractTransfer, 500)
+	}
+	MapTokenChan[blockHash] <- contract
+	//TokenTransferData <- contract
+	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
 }
 func ProduceContractTransfer(txHash string,
 	addr string,
