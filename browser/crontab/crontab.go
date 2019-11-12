@@ -545,8 +545,6 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
 	var ok = true
 	chanData := tvm.MapTokenChan[hash]
-	fmt.Println("ConsumeTokenContractTransfer chanData", chanData)
-
 	if chanData == nil || len(chanData) < 1 {
 		return
 	}
@@ -554,7 +552,7 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 	for ok {
 		select {
 		case data := <-chanData:
-			fmt.Println("ConsumeTokenContractTransfer,json:", util.ObjectTojson(data), data.TxHash, height, hash)
+			browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, height, hash)
 			chain := core.BlockChainImpl
 			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 			if wrapper != nil {
@@ -573,17 +571,15 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 
 			}
 		case <-ticker.C:
-			fmt.Println("ConsumeTokenContractTransfer,break:", height)
 			topHeight := core.BlockChainImpl.Height()
 			if height > topHeight || (len(chanData) < 1 && height < topHeight) {
 				close(chanData)
-				break
+				delete(tvm.MapTokenChan, hash)
+				return
 			}
 		}
 	}
 	fmt.Println("deleete ConsumeTokenContractTransfer", hash)
-
-	delete(tvm.MapTokenChan, hash)
 
 }
 
