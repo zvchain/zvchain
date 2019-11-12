@@ -437,7 +437,7 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
-	go crontab.ConsumeTokenContractTransfer(bh.Height)
+	go crontab.ConsumeTokenContractTransfer(bh.Height, bh.Hash.Hex())
 
 	return nil
 }
@@ -542,12 +542,13 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 	}
 }
 
-func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64) {
+func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
 	var ok = true
-	chanData := tvm.MapTokenChan[height]
+	chanData := tvm.MapTokenChan[hash]
 	if chanData == nil {
 		return
 	}
+	ticker := time.NewTicker(time.Second * 5)
 	for ok {
 		select {
 		case data := <-chanData:
@@ -568,10 +569,15 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64) {
 				}
 
 			}
-
+		case <-ticker.C:
+			topHeight := core.BlockChainImpl.Height()
+			if height > topHeight || (len(chanData) < 1 && height < topHeight) {
+				close(chanData)
+				break
+			}
 		}
 	}
-	delete(tvm.MapTokenChan, height)
+	delete(tvm.MapTokenChan, hash)
 
 }
 
