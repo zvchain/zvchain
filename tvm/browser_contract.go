@@ -36,7 +36,7 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 	}
 	MapTokenChan[blockHash] <- contract
 	//TokenTransferData <- contract
-	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
+	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, "tx_hash:", txhash, ",contractcode:", contracttoken, "value", contract.Value)
 }
 func ProduceContractTransfer(txHash string,
 	addr string,
