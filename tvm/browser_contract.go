@@ -5,7 +5,7 @@ import (
 )
 
 var ContractTransferData = make(chan *ContractTransfer, 500)
-var TokenTransferData = make(chan *TokenContractTransfer, 500)
+var MapTokenChan = make(map[uint64]chan *TokenContractTransfer)
 
 type TokenContractTransfer struct {
 	ContractAddr string
@@ -31,7 +31,11 @@ func ProduceTokenContractTransfer(txhash string, blockHeight uint64, contracttok
 		BlockHeight:  blockHeight,
 		TxHash:       txhash,
 	}
-	TokenTransferData <- contract
+	if MapTokenChan[blockHeight] == nil {
+		MapTokenChan[blockHeight] = make(chan *TokenContractTransfer, 500)
+	}
+	MapTokenChan[blockHeight] <- contract
+	//TokenTransferData <- contract
 	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "height:", blockHeight, ",contractcode:", contracttoken, "value", contract.Value)
 }
 func ProduceContractTransfer(txHash string,

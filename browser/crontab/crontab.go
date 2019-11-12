@@ -544,34 +544,35 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 
 func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64) {
 	var ok = true
+	chanData := tvm.MapTokenChan[height]
+	if chanData == nil {
+		return
+	}
 	for ok {
 		select {
-		case data := <-tvm.TokenTransferData:
-			if data.BlockHeight > height {
-				tvm.TokenTransferData <- data
-				break
-			}
+		case data := <-chanData:
 			chain := core.BlockChainImpl
 			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 			if wrapper != nil {
-				if wrapper.Status == 0 {
-					if data.Value != nil {
-						var valuestring string
-						if value, ok := data.Value.(int64); ok {
-							valuestring = big.NewInt(value).String()
-						} else if value, ok := data.Value.(*big.Int); ok {
-							valuestring = value.String()
-						}
-						addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
-						crontab.storage.UpdateTokenUser(data.ContractAddr,
-							addr,
-							valuestring)
+				if wrapper.Status == 0 && data.Value != nil {
+					var valuestring string
+					if value, ok := data.Value.(int64); ok {
+						valuestring = big.NewInt(value).String()
+					} else if value, ok := data.Value.(*big.Int); ok {
+						valuestring = value.String()
 					}
+					addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
+					crontab.storage.UpdateTokenUser(data.ContractAddr,
+						addr,
+						valuestring)
 				}
+
 			}
 
 		}
 	}
+	delete(tvm.MapTokenChan, height)
+
 }
 
 func (crontab *Crontab) ConsumeReward() {
