@@ -554,7 +554,7 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 	for ok {
 		select {
 		case data := <-chanData:
-			fmt.Println("ConsumeTokenContractTransfer", data.TxHash, height, hash)
+			fmt.Println("ConsumeTokenContractTransfer,json:", util.ObjectTojson(data), data.TxHash, height, hash)
 			chain := core.BlockChainImpl
 			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 			if wrapper != nil {
