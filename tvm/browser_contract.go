@@ -4,8 +4,8 @@ import (
 	"fmt"
 )
 
-var ContractTransferData chan *ContractTransfer
-var TokenTransferData chan *TokenContractTransfer
+var ContractTransferData = make(chan *ContractTransfer, 500)
+var TokenTransferData = make(chan *TokenContractTransfer, 500)
 
 type TokenContractTransfer struct {
 	ContractAddr string
