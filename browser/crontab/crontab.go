@@ -547,7 +547,7 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 	chanData := tvm.MapTokenChan[hash]
 	fmt.Println("ConsumeTokenContractTransfer chanData", chanData)
 
-	if chanData == nil {
+	if chanData == nil || len(chanData) < 1 {
 		return
 	}
 	ticker := time.NewTicker(time.Second * 5)
@@ -573,6 +573,7 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 
 			}
 		case <-ticker.C:
+			fmt.Println("ConsumeTokenContractTransfer,break:", height)
 			topHeight := core.BlockChainImpl.Height()
 			if height > topHeight || (len(chanData) < 1 && height < topHeight) {
 				close(chanData)
