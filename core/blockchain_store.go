@@ -17,17 +17,21 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/middleware/time"
+	"github.com/zvchain/zvchain/middleware/notify"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
+	"github.com/zvchain/zvchain/storage/trie"
 	"sync/atomic"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
+
+const TriesInMemory = types.EpochLength*5 + 1
 
 type newTopMessage struct {
 	bh *types.BlockHeader
@@ -46,11 +50,55 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
-
 	triedb := chain.stateCache.TrieDB()
-	err = triedb.Commit(root, false)
-	if err != nil {
-		return fmt.Errorf("trie commit error:%s", err.Error())
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", true)
+	if trieGc && b.Header.Height > 0 {
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+		chain.triegc.Push(root, -int64(b.Header.Height))
+		lascp := chain.latestCP.Load()
+		if lascp != nil {
+			cpHeader := lascp.(*types.BlockHeader)
+			if cpHeader.Height > TriesInMemory {
+				chosen := cpHeader.Height - TriesInMemory
+				if chain.triegcCount >= 1000 {
+					ph := chain.queryBlockHeaderByHeight(chain.persistenceHeight)
+					if ph == nil {
+						log.CorpLogger.Warnf("persistence find height not exists,height is %v,triecount is %v,currentHeight is %v,cp is %v", chain.persistenceHeight, chain.triegcCount, cpHeader.Height)
+					} else {
+						begin := time.Now()
+						err = triedb.Commit(ph.StateTree, true)
+						if err != nil {
+							return fmt.Errorf("persistence trie commit error:%s", err.Error())
+						}
+						chain.triegcCount = 0
+						trie.TrieStore.StoreTriePureHeight(chain.persistenceHeight)
+						persistenceCost := time.Since(begin)
+						log.CorpLogger.Debugf("persistence height is %v,triecount is %v,currentHeight is %v,cp is %v，cost =%vms", chain.persistenceHeight, chain.triegcCount, b.Header.Height, cpHeader.Height, persistenceCost)
+
+					}
+				}
+				hasGc := false
+				// Garbage collect anything below our required write retention
+				for !chain.triegc.Empty() {
+					root, number := chain.triegc.Pop()
+					if uint64(-number) > chosen {
+						chain.triegc.Push(root, number)
+						break
+					}
+					hasGc = true
+					triedb.Dereference(root.(common.Hash))
+				}
+				if hasGc {
+					chain.triegcCount++
+					chain.persistenceHeight = chosen + 1
+				}
+			}
+		}
+	} else {
+		err = triedb.Commit(root, false)
+		if err != nil {
+			return fmt.Errorf("trie commit error:%s", err.Error())
+		}
 	}
 	return nil
 }
@@ -68,7 +116,6 @@ func (chain *FullBlockChain) updateLatestBlock(state *account.AccountDB, header 
 	chain.latestBlock = header
 
 	Logger.Debugf("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
-	//taslog.Flush()
 }
 
 func (chain *FullBlockChain) saveBlockHeader(hash common.Hash, dataBytes []byte) error {
@@ -250,7 +297,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.transactionPool.BackToPool(recoverTxs)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"removedHeight": len(removeBlocks),
-		"now":           time.TSInstance.Now().UTC(),
+		"now":           time2.TSInstance.Now().UTC(),
 		"logType":       "resetTop",
 		"version":       common.GzvVersion,
 	}).Info("resetTop")
@@ -317,6 +364,15 @@ func (chain *FullBlockChain) loadCurrentBlock() *types.BlockHeader {
 	}
 	hash := common.BytesToHash(bs)
 	return chain.queryBlockHeaderByHash(hash)
+}
+
+func (chain *FullBlockChain) loadCurrentBlockBody() *types.Block {
+	bs, err := chain.blocks.Get([]byte(blockStatusKey))
+	if err != nil {
+		return nil
+	}
+	hash := common.BytesToHash(bs)
+	return chain.queryBlockByHash(hash)
 }
 
 func (chain *FullBlockChain) hasBlock(hash common.Hash) bool {

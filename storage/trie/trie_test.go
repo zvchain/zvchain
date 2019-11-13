@@ -41,6 +41,61 @@ func newEmpty() *Trie {
 	return trie
 }
 
+var dataMap = make(map[string]interface{})
+
+func TestGCInsert(t *testing.T) {
+	dir, nd := tempDB()
+	defer func() {
+		os.Remove(dir)
+	}()
+	// height = 1
+	trie, _ := NewTrie(common.Hash{}, nd)
+	trie.Update([]byte("t1"), []byte("t1value"))
+	trie.Update([]byte("t2"), []byte("t2value"))
+	trie.Update([]byte("t3"), []byte("t3value"))
+	trie.Update([]byte("t4"), []byte("t4value"))
+	root1, _ := trie.Commit(nil)
+	nd.Reference(root1, common.Hash{})
+
+	// height = 2
+	trie, _ = NewTrie(root1, nd)
+	trie.Update([]byte("t1"), []byte("t1value1"))
+	trie.Update([]byte("t2"), []byte("t2value1"))
+	trie.Update([]byte("t5"), []byte("t5value"))
+	root2, _ := trie.Commit(nil)
+	nd.Reference(root2, common.Hash{})
+
+	// height = 3
+	trie, _ = NewTrie(root2, nd)
+	trie.Update([]byte("t1"), []byte("t1value2"))
+	trie.Update([]byte("t3"), []byte("t3value1"))
+	root3, _ := trie.Commit(nil)
+	nd.Reference(root3, common.Hash{})
+
+	// height = 4
+	trie, _ = NewTrie(root2, nd)
+	trie.Update([]byte("t1"), []byte("t1value3"))
+	trie.Update([]byte("t3"), []byte("t3value2"))
+	root4, _ := trie.Commit(nil)
+	nd.Reference(root4, common.Hash{})
+
+	// begin gc height 1
+	nd.Dereference(root1)
+	// commit height 4
+	nd.Commit(root4, false)
+
+	nd.diskdb.Close()
+
+	//shut down
+	db2 := newDbFromDir(dir)
+	trie, _ = NewTrie(root4, db2)
+	vl := trie.Get([]byte("t5"))
+	if string(vl) != "t5value" {
+		t.Fatalf("expect %s,but got %s", "t5value", vl)
+	}
+	db2.diskdb.Close()
+}
+
 func TestEmptyTrie(t *testing.T) {
 	var trie Trie
 	res := trie.Hash()
@@ -594,6 +649,14 @@ func tempDB() (string, *NodeDatabase) {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
 	return dir, NewDatabase(diskdb)
+}
+
+func newDbFromDir(dir string) *NodeDatabase {
+	diskdb, err := tasdb.NewLDBDatabase(dir, nil)
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary database: %v", err))
+	}
+	return NewDatabase(diskdb)
 }
 
 func getString(trie *Trie, k string) []byte {

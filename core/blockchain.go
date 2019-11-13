@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common/prque"
 	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
@@ -71,14 +72,16 @@ type BlockChainConfig struct {
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
 type FullBlockChain struct {
-	blocks      *tasdb.PrefixedDatabase
-	blockHeight *tasdb.PrefixedDatabase
-	txDb        *tasdb.PrefixedDatabase
-	stateDb     *tasdb.PrefixedDatabase
-	cacheDb     *tasdb.PrefixedDatabase
-	batch       tasdb.Batch
-
-	stateCache account.AccountDatabase
+	blocks            *tasdb.PrefixedDatabase
+	blockHeight       *tasdb.PrefixedDatabase
+	txDb              *tasdb.PrefixedDatabase
+	stateDb           *tasdb.PrefixedDatabase
+	cacheDb           *tasdb.PrefixedDatabase
+	batch             tasdb.Batch
+	triegc            *prque.Prque // Priority queue mapping block numbers to tries to gc
+	triegcCount       uint64
+	persistenceHeight uint64
+	stateCache        account.AccountDatabase
 
 	transactionPool types.TransactionPool
 
@@ -143,6 +146,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		init:             true,
 		isAdjusting:      false,
 		consensusHelper:  helper,
+		triegc:           prque.NewPrque(),
 		ticker:           ticker.NewGlobalTicker("chain"),
 		ts:               time2.TSInstance,
 		futureRawBlocks:  common.MustNewLRUCache(100),
@@ -176,6 +180,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		BlockSize:                     64 * opt.KiB,
 	}
 
+	trie.NewTrieStorage("triecopy.store")
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
 	if err != nil {
 		Logger.Errorf("new datasource error:%v", err)
@@ -229,6 +234,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
 
+	chain.suppleState()
 	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")

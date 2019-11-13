@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/storage/trie"
 	"math"
 	"time"
 
@@ -256,6 +257,40 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 		return false, fmt.Errorf("consensus verify fail, err=%v", err.Error())
 	}
 	return true, nil
+}
+
+func (chain *FullBlockChain) suppleState() {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", true)
+	if !trieGc {
+		return
+	}
+	block := chain.loadCurrentBlockBody()
+	if block == nil {
+		return
+	}
+	Logger.Debugf("begin suppleState")
+	lastTrieHeight := trie.TrieStore.GetLastTrieHeight()
+
+	for lastTrieHeight < block.Header.Height {
+		lastTrieHeight++
+		block = chain.QueryBlockByHeight(lastTrieHeight)
+		if block == nil {
+			lastTrieHeight++
+			continue
+		}
+		trans := make([]*types.Transaction, 0)
+		for _, tx := range block.Transactions {
+			trans = append(trans, types.NewTransaction(tx, tx.GenHash()))
+		}
+		success, ps := chain.executeTransaction(block, trans)
+		if !success {
+			panic("suppleState execute tx failed!")
+		}
+		if err := chain.saveBlockState(block, ps.state); err != nil {
+			panic("suppleState save blockstate failed!")
+		}
+		lastTrieHeight++
+	}
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
