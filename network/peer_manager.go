@@ -158,7 +158,7 @@ func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32)
 		p.onDisonnect(id, session, p2pCode)
 		delete(pm.peers, id)
 	} else {
-		Logger.Infof("disconnected, but session id is unused, net id：%v session:%v", id, session)
+		Logger.Infof("disconnected, but session id is unused, net id：%v session:%v, ip:%v port:%v ,peer count", id, session, p.IP.String(), p.Port)
 	}
 }
 
