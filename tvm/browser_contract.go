@@ -62,13 +62,3 @@ func ProduceContractTransfer(txHash string,
 	ContractTransferData <- contract
 	fmt.Println("ProduceContractTransfer,addr:", addr, ",contractcode:", contractCode)
 }
-
-func Get(k string) string {
-
-	d.Lock.Lock()
-
-	defer d.Lock.UnLock()
-
-	return d.Data[k]
-
-}
