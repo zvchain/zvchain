@@ -830,6 +830,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			TxType:       0,
 			Status:       0,
 			BlockHeight:  tran.BlockHeight,
+			CurTime:      tran.CurTime,
 		}
 		fmt.Println("AddTokenTran", contract)
 		//update tokenContractTx and tokenContractUser
