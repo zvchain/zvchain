@@ -7,7 +7,7 @@ import (
 
 var ContractTransferData = make(chan *ContractTransfer, 500)
 var MapTokenChan = make(map[string]chan *TokenContractTransfer)
-var lock = new(sync.RWMutex)
+var Lock = new(sync.RWMutex)
 
 type TokenContractTransfer struct {
 	ContractAddr string
@@ -33,19 +33,19 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 		BlockHash:    blockHash,
 		TxHash:       txhash,
 	}
-	lock.Lock()
+	Lock.Lock()
 	if MapTokenChan[blockHash] == nil {
 		MapTokenChan[blockHash] = make(chan *TokenContractTransfer, 500)
 	}
-	lock.Unlock()
+	Lock.Unlock()
 	setmap(blockHash, contract)
 	//TokenTransferData <- contract
 	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
 }
 func setmap(blockHash string, contract *TokenContractTransfer) {
-	lock.Lock()
+	Lock.Lock()
 	MapTokenChan[blockHash] <- contract
-	lock.Unlock()
+	Lock.Unlock()
 
 }
 
