@@ -2,10 +2,12 @@ package tvm
 
 import (
 	"fmt"
+	"sync"
 )
 
 var ContractTransferData = make(chan *ContractTransfer, 500)
 var MapTokenChan = make(map[string]chan *TokenContractTransfer)
+var lock = new(sync.RWMutex)
 
 type TokenContractTransfer struct {
 	ContractAddr string
@@ -31,13 +33,20 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 		BlockHash:    blockHash,
 		TxHash:       txhash,
 	}
+	lock.Lock()
 	if MapTokenChan[blockHash] == nil {
 		MapTokenChan[blockHash] = make(chan *TokenContractTransfer, 500)
 	}
-	MapTokenChan[blockHash] <- contract
+	lock.Unlock()
+	setmap(blockHash, contract)
 	//TokenTransferData <- contract
 	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
 }
+func setmap(blockHash string, contract *TokenContractTransfer) {
+	MapTokenChan[blockHash] <- contract
+
+}
+
 func ProduceContractTransfer(txHash string,
 	addr string,
 	value uint64,
@@ -52,4 +61,14 @@ func ProduceContractTransfer(txHash string,
 	}
 	ContractTransferData <- contract
 	fmt.Println("ProduceContractTransfer,addr:", addr, ",contractcode:", contractCode)
+}
+
+func Get(k string) string {
+
+	d.Lock.Lock()
+
+	defer d.Lock.UnLock()
+
+	return d.Data[k]
+
 }
