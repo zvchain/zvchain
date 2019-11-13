@@ -407,6 +407,7 @@ func (gzv *Gzv) fullInit() error {
 	if cfg.enableMonitor || common.GlobalConf.GetBool(Section, "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
+	core.BlockChainImpl.FixState()
 	return nil
 }
 

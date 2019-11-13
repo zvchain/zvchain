@@ -52,7 +52,7 @@ var (
 	ErrCommitBlockFail = errors.New("commit block fail")
 	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
-
+var ProcessFixState bool
 var BlockChainImpl *FullBlockChain
 
 var GroupManagerImpl *group.Manager
@@ -180,7 +180,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		BlockSize:                     64 * opt.KiB,
 	}
 
-	trie.NewTrieStorage("triecopy.store")
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
 	if err != nil {
 		Logger.Errorf("new datasource error:%v", err)
@@ -222,8 +221,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
-	latestBH := chain.loadCurrentBlock()
-
 	GroupManagerImpl = group.NewManager(chain, helper)
 
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
@@ -233,8 +230,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-
-	chain.suppleState()
+	chain.resetBlock()
+	latestBH := chain.loadCurrentBlock()
 	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")

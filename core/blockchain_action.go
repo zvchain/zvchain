@@ -227,7 +227,6 @@ func (chain *FullBlockChain) processFutureBlock(b *types.Block, source string) {
 }
 
 func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool, error) {
-
 	if b == nil {
 		return false, fmt.Errorf("block is nil")
 	}
@@ -259,37 +258,66 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
-func (chain *FullBlockChain) suppleState() {
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", true)
+func (chain *FullBlockChain) resetBlock() {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", trie.GcMode)
 	if !trieGc {
 		return
 	}
-	block := chain.loadCurrentBlockBody()
-	if block == nil {
+	trie.NewTrieStorage("triecopy.store")
+	latestBH := chain.loadCurrentBlock()
+	if latestBH == nil{
 		return
 	}
-	Logger.Debugf("begin suppleState")
-	lastTrieHeight := trie.TrieStore.GetLastTrieHeight()
+	if trie.TrieStore.GetCurrentHeight() < latestBH.Height{
+		trie.TrieStore.StoreCurHeight(latestBH.Height)
+	}
+	stateHeight :=  trie.TrieStore.GetLastTrieHeight()
+	if stateHeight < latestBH.Height{
+		hash:=chain.queryBlockHash(stateHeight)
+		err := chain.storeBlockHash(*hash)
+		if err!= nil{
+			panic(fmt.Errorf("reset block hash error,height is %v",stateHeight))
+		}
+	}
+}
 
-	for lastTrieHeight < block.Header.Height {
+func (chain *FullBlockChain) FixState() {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", trie.GcMode)
+	if !trieGc {
+		return
+	}
+	ProcessFixState = true
+	begin := time.Now()
+	defer func(){
+		ProcessFixState = false
+		fmt.Printf("fix state cost %v \n",time.Since(begin))
+	}()
+	topHeight :=  trie.TrieStore.GetCurrentHeight()
+	block := chain.QueryBlockByHeight(topHeight)
+	if block == nil {
+		panic(fmt.Errorf("find block is nil,height is %v",topHeight))
+	}
+	lastTrieHeight := trie.TrieStore.GetLastTrieHeight()
+	fmt.Printf("begin fix State from %v - %v \n",lastTrieHeight,topHeight)
+	for lastTrieHeight < topHeight {
 		lastTrieHeight++
-		block = chain.QueryBlockByHeight(lastTrieHeight)
-		if block == nil {
-			lastTrieHeight++
+		curBlock := chain.QueryBlockByHeight(lastTrieHeight)
+		if curBlock == nil {
 			continue
 		}
 		trans := make([]*types.Transaction, 0)
-		for _, tx := range block.Transactions {
+		for _, tx := range curBlock.Transactions {
 			trans = append(trans, types.NewTransaction(tx, tx.GenHash()))
 		}
-		success, ps := chain.executeTransaction(block, trans)
+		success, ps := chain.executeTransaction(curBlock, trans)
 		if !success {
-			panic("suppleState execute tx failed!")
+			panic("fixState execute tx failed!")
 		}
-		if err := chain.saveBlockState(block, ps.state); err != nil {
-			panic("suppleState save blockstate failed!")
+		err := chain.storePartBlock(curBlock,ps)
+		if err !=nil{
+			panic(fmt.Errorf("fixState storePartBlock failed,err=%v",err))
 		}
-		lastTrieHeight++
+		notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: curBlock})
 	}
 }
 
@@ -495,7 +523,6 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlic
 	}
 
 	preRoot := preBlock.StateTree
-
 	state, err := account.NewAccountDB(preRoot, chain.stateCache)
 	if err != nil {
 		Logger.Errorf("Fail to new stateDb, error:%s", err)
@@ -544,6 +571,9 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	if latestCP != nil {
 		Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
 		chain.latestCP.Store(latestCP)
+	}
+	if ProcessFixState{
+		return nil
 	}
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
 		rawBlock := value.(*types.Block)

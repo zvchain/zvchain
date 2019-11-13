@@ -31,7 +31,7 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 )
 
-const TriesInMemory = types.EpochLength*5 + 1
+const TriesInMemory = types.EpochLength*25 + 1
 
 type newTopMessage struct {
 	bh *types.BlockHeader
@@ -51,7 +51,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
 	triedb := chain.stateCache.TrieDB()
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", true)
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", trie.GcMode)
 	if trieGc && b.Header.Height > 0 {
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
@@ -95,6 +95,9 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			}
 		}
 	} else {
+		if trieGc{
+			trie.TrieStore.StoreTriePureHeight(0)
+		}
 		err = triedb.Commit(root, false)
 		if err != nil {
 			return fmt.Errorf("trie commit error:%s", err.Error())
@@ -129,6 +132,53 @@ func (chain *FullBlockChain) saveBlockHeight(height uint64, dataBytes []byte) er
 func (chain *FullBlockChain) saveBlockTxs(blockHash common.Hash, dataBytes []byte) error {
 	return chain.txDb.AddKv(chain.batch, blockHash.Bytes(), dataBytes)
 }
+
+func (chain *FullBlockChain) storeBlockHash(hash common.Hash)(err error) {
+	chain.rwLock.Lock()
+	defer chain.rwLock.Unlock()
+
+	defer chain.batch.Reset()
+
+	// Save current block
+	if err = chain.saveCurrentBlock(hash); err != nil {
+		return
+	}
+	// Batch write
+	if err = chain.batch.Write(); err != nil {
+		return
+	}
+	return nil
+}
+
+func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostState)(err error) {
+	bh := block.Header
+	chain.rwLock.Lock()
+	defer chain.rwLock.Unlock()
+
+	defer chain.batch.Reset()
+
+	// Commit state
+	if err = chain.saveBlockState(block, ps.state); err != nil {
+		return
+	}
+	
+	// Save current block
+	if err = chain.saveCurrentBlock(bh.Hash); err != nil {
+		return
+	}
+	// Batch write
+	if err = chain.batch.Write(); err != nil {
+		return
+	}
+	//ps.ts.AddStat("batch.Write", time.Since(b))
+
+	chain.updateLatestBlock(ps.state, bh)
+	
+	return nil
+}
+
+
+
 
 // commitBlock persist a block in a batch
 func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostState) (ok bool, err error) {
@@ -364,15 +414,6 @@ func (chain *FullBlockChain) loadCurrentBlock() *types.BlockHeader {
 	}
 	hash := common.BytesToHash(bs)
 	return chain.queryBlockHeaderByHash(hash)
-}
-
-func (chain *FullBlockChain) loadCurrentBlockBody() *types.Block {
-	bs, err := chain.blocks.Get([]byte(blockStatusKey))
-	if err != nil {
-		return nil
-	}
-	hash := common.BytesToHash(bs)
-	return chain.queryBlockByHash(hash)
 }
 
 func (chain *FullBlockChain) hasBlock(hash common.Hash) bool {
