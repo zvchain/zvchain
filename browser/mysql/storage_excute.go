@@ -610,6 +610,15 @@ func (storage *Storage) AddContractTransaction(contract *models.ContractTransact
 	return true
 }
 
+func (storage *Storage) IsDbTokenContract(contract string) bool {
+	token := make([]models.TokenContract, 0, 0)
+	storage.db.Where("contract_addr = ?", contract).Find(&token)
+	if len(token) < 1 {
+		return false
+	}
+	return true
+}
+
 func (storage *Storage) UpdateTokenUser(contract string, addr string, value string) {
 	if value == "" {
 		return
