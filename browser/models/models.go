@@ -111,14 +111,15 @@ type TokenContract struct {
 
 type TokenContractTransaction struct {
 	gorm.Model
-	ContractAddr string `json:"contract_addr" gorm:"index"`
-	Source       string `json:"source" gorm:"index"`
-	Target       string `json:"target" gorm:"index"`
-	Value        string `json:"value"`
-	TxHash       string `json:"tx_hash" gorm:"index"`
-	TxType       uint64 `json:"tx_type"`
-	Status       uint64 `json:"status"`
-	BlockHeight  uint64 `json:"block_height"`
+	ContractAddr string    `json:"contract_addr" gorm:"index"`
+	Source       string    `json:"source" gorm:"index"`
+	Target       string    `json:"target" gorm:"index"`
+	Value        string    `json:"value"`
+	TxHash       string    `json:"tx_hash" gorm:"index"`
+	TxType       uint64    `json:"tx_type"`
+	Status       uint64    `json:"status"`
+	BlockHeight  uint64    `json:"block_height"`
+	CurTime      time.Time `json:"cur_time" gorm:"index"`
 }
 
 type TokenContractUser struct {

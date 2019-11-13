@@ -827,6 +827,7 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 			TxType:       0,
 			Status:       0,
 			BlockHeight:  tran.BlockHeight,
+			CurTime:      tran.CurTime,
 		}
 		browserlog.BrowserLog.Info("AddTokenTran,", tran.ContractAddress)
 		//update tokenContractTx and tokenContractUser
