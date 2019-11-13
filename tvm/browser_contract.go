@@ -43,7 +43,9 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
 }
 func setmap(blockHash string, contract *TokenContractTransfer) {
+	lock.Lock()
 	MapTokenChan[blockHash] <- contract
+	lock.Unlock()
 
 }
 
