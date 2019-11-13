@@ -555,7 +555,7 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 			if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
 				return
 			}
-			browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, height, hash)
+			browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, ",", height, ",", hash)
 			chain := core.BlockChainImpl
 			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 			if wrapper != nil {
