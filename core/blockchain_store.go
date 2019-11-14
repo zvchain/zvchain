@@ -29,7 +29,7 @@ import (
 	"sync/atomic"
 )
 
-const TriesInMemory = types.EpochLength*26
+const TriesInMemory = types.EpochLength*27+1
 const PersistenceHeight = types.EpochLength*20
 
 type newTopMessage struct {

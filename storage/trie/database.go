@@ -284,23 +284,21 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
-func (db *NodeDatabase) FixInsert(data []interface{}) {
+func (db *NodeDatabase) FixInsert(data []interface{})error {
 	if len(data) == 0{
-		return
+		return nil
 	}
-	db.lock.Lock()
+	batch := db.diskdb.NewBatch()
 	for _,v :=  range data{
 		bob := v.([]*storeBlob)
 		for _,sb := range bob{
-			n := mustDecodeNode(sb.Key.Bytes(), sb.Raw, 0)
-			if vl,ok := n.(*shortNode);ok{
-				vl.Key = hexToCompact(vl.Key)
+			if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
+				return err
 			}
-			db.insert(common.BytesToHash(sb.Key.Bytes()),sb.Raw,n)
 		}
 	}
-	defer db.lock.Unlock()
-
+	batch.Write()
+	return nil
 }
 
 // insert inserts a collapsed trie node into the memory database. This method is

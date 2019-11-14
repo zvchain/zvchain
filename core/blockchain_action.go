@@ -339,7 +339,10 @@ func (chain *FullBlockChain) FixTrieDataFromDB() {
 			_,caches := triedb.DecodeStoreBlob(data)
 			nodeCache = append(nodeCache,caches)
 		}
-		triedb.FixInsert(nodeCache)
+		err:=triedb.FixInsert(nodeCache)
+		if err != nil{
+			panic(fmt.Errorf("fix data error,error is %v",err))
+		}
 	}
 }
 
