@@ -419,24 +419,32 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 func (db *NodeDatabase) Dereference(root common.Hash) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
-
+	hashs := []common.Hash{}
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{})
+	db.dereference(root, common.Hash{},&hashs)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
-	db.gctime += time.Since(start)
 
+
+	if len(hashs) > 0 {
+		batch := db.diskdb.NewBatch()
+		for _,h := range hashs{
+			db.diskdb.Delete(h[:])
+		}
+		batch.Write()
+	}
+	db.gctime += time.Since(start)
 	//memcacheGCTimeTimer.Update(time.Since(start))
 	//memcacheGCSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheGCNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
-	log.DefaultLogger.Debug("Dereferenced trie from memory database", "nodes", nodes-len(db.nodes), "size", storage-db.nodesSize, "time", time.Since(start),
-		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.nodes), "livesize", db.nodesSize)
+	log.GcLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
+		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024))
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,hashs *[]common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -461,16 +469,22 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 	}
 	if node.parents == 0 {
 		// Remove the node from the flush-list
-		if child == db.oldest {
+		switch child {
+		case db.oldest:
 			db.oldest = node.flushNext
-		} else {
+			db.nodes[node.flushNext].flushPrev = common.Hash{}
+		case db.newest:
+			db.newest = node.flushPrev
+			db.nodes[node.flushPrev].flushNext = common.Hash{}
+		default:
 			db.nodes[node.flushPrev].flushNext = node.flushNext
 			db.nodes[node.flushNext].flushPrev = node.flushPrev
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			db.dereference(hash, child)
+			db.dereference(hash, child,hashs)
 		}
+		*hashs = append(*hashs,child)
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 	}
@@ -581,7 +595,7 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 // to disk, forcefully tearing down all references in both directions.
 //
 // As a side effect, all pre-images accumulated up to this point are also written.
-func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
+func (db *NodeDatabase) Commit(node common.Hash, report bool,clearCache bool) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -626,9 +640,9 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
-
-	db.uncache(node)
-
+	if clearCache{
+		db.uncache(node)
+	}
 	//memcacheCommitTimeTimer.Update(time.Since(start))
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))
@@ -679,9 +693,14 @@ func (db *NodeDatabase) uncache(hash common.Hash) {
 		return
 	}
 	// Node still exists, remove it from the flush-list
-	if hash == db.oldest {
+	switch hash {
+	case db.oldest:
 		db.oldest = node.flushNext
-	} else {
+		db.nodes[node.flushNext].flushPrev = common.Hash{}
+	case db.newest:
+		db.newest = node.flushPrev
+		db.nodes[node.flushPrev].flushNext = common.Hash{}
+	default:
 		db.nodes[node.flushPrev].flushNext = node.flushNext
 		db.nodes[node.flushNext].flushPrev = node.flushPrev
 	}

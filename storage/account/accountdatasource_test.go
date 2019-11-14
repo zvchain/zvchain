@@ -49,7 +49,7 @@ func TestExpandTrie(t *testing.T) {
 	}
 
 	root, _ := trie1.Commit(nil)
-	triedb.TrieDB().Commit(root, false)
+	triedb.TrieDB().Commit(root, false,true)
 
 	for i := 0; i < 100; i++ {
 		vl := string(getString(trie1, strconv.Itoa(i)))

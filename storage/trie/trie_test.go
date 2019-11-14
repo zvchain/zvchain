@@ -83,7 +83,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")
 	root, _ := trie.Commit(nil)
 	if !memonly {
-		triedb.Commit(root, true)
+		triedb.Commit(root, true,true)
 	}
 
 	trie, _ = NewTrie(root, triedb)
@@ -332,7 +332,7 @@ func TestCacheUnload(t *testing.T) {
 	updateString(trie, key2, "this is the branch of key2.")
 
 	root, _ := trie.Commit(nil)
-	trie.db.Commit(root, true)
+	trie.db.Commit(root, true,true)
 
 	// Commit the trie repeatedly and access key1.
 	// The branch containing it is loaded from DB exactly two times:

@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common/prque"
 	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
@@ -43,6 +44,8 @@ const (
 	blockStatusKey = "bcurrent"
 	configSec      = "chain"
 )
+
+var gcEnable       = true
 
 var (
 	ErrBlockExist      = errors.New("block exist")
@@ -78,6 +81,7 @@ type FullBlockChain struct {
 	cacheDb     *tasdb.PrefixedDatabase
 	batch       tasdb.Batch
 
+	triegc      *prque.Prque
 	stateCache account.AccountDatabase
 
 	transactionPool types.TransactionPool
@@ -143,6 +147,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		init:             true,
 		isAdjusting:      false,
 		consensusHelper:  helper,
+		triegc:           prque.NewPrque(),
 		ticker:           ticker.NewGlobalTicker("chain"),
 		ts:               time2.TSInstance,
 		futureRawBlocks:  common.MustNewLRUCache(100),
