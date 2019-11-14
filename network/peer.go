@@ -314,10 +314,8 @@ func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted b
 	p.resetData()
 	p.resetAuthContext()
 	p.connecting = false
-	if session > p.sessionID {
+	p.sessionID = session
 
-		p.sessionID = session
-	}
 	if len(ip) > 0 {
 		p.IP = net.ParseIP(ip)
 	}
