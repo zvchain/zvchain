@@ -284,6 +284,25 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
+func (db *NodeDatabase) FixInsert(data []interface{}) {
+	if len(data) == 0{
+		return
+	}
+	db.lock.Lock()
+	for _,v :=  range data{
+		bob := v.([]*storeBlob)
+		for _,sb := range bob{
+			n := mustDecodeNode(sb.Key.Bytes(), sb.Raw, 0)
+			if vl,ok := n.(*shortNode);ok{
+				vl.Key = hexToCompact(vl.Key)
+			}
+			db.insert(common.BytesToHash(sb.Key.Bytes()),sb.Raw,n)
+		}
+	}
+	defer db.lock.Unlock()
+
+}
+
 // insert inserts a collapsed trie node into the memory database. This method is
 // a more generic version of InsertBlob, supporting both raw blob insertions as
 // well ex trie node insertions. The blob must always be specified to allow proper
@@ -431,27 +450,44 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *NodeDatabase) Dereference(root common.Hash) {
+func (db *NodeDatabase) Dereference(height uint64,root common.Hash)  {
 	db.lock.Lock()
 	defer db.lock.Unlock()
-
+	cl := make(map[common.Hash]*cachedNode)
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{})
+	db.dereference(root, common.Hash{},cl)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
+
+	if len(cl) > 0 {
+		dirtyBlobs :=[]*storeBlob{}
+		for k,v := range cl{
+			bt := v.rlp()
+			sb := &storeBlob{Key:k,Raw:bt}
+			dirtyBlobs = append(dirtyBlobs,sb)
+		}
+		dts,err := rlp.EncodeToBytes(dirtyBlobs)
+		if err != nil{
+			panic(fmt.Errorf("encode error，error is %v",err))
+		}
+		TrieStore.StoreDirtyTrie(root,dts)
+	}
 	db.gctime += time.Since(start)
-
-	//memcacheGCTimeTimer.Update(time.Since(start))
-	//memcacheGCSizeMeter.Mark(int64(storage - db.nodesSize))
-	//memcacheGCNodesMeter.Mark(int64(nodes - len(db.nodes)))
-
 	log.CorpLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
 		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024))
 }
 
+func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error,dirtyBlobs []*storeBlob){
+	err = rlp.DecodeBytes(data,&dirtyBlobs)
+	if err != nil{
+		err = fmt.Errorf("decode storeBlob error,error is %v",err)
+	}
+	return nil,dirtyBlobs
+}
+
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,cl map[common.Hash]*cachedNode){
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -490,8 +526,9 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			db.dereference(hash, child)
+			db.dereference(hash, child,cl)
 		}
+		cl[child] = db.nodes[child]
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 		if node.children != nil {
@@ -651,7 +688,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
 
-	db.uncache(node)
+	//db.uncache(node)
 
 	//memcacheCommitTimeTimer.Update(time.Since(start))
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))

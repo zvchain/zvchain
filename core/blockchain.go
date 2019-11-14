@@ -79,8 +79,6 @@ type FullBlockChain struct {
 	cacheDb           *tasdb.PrefixedDatabase
 	batch             tasdb.Batch
 	triegc            *prque.Prque // Priority queue mapping block numbers to tries to gc
-	triegcCount       uint64
-	persistenceHeight uint64
 	stateCache        account.AccountDatabase
 
 	transactionPool types.TransactionPool
@@ -275,7 +273,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	}
 
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
-
+	
+	chain.FixTrieDataFromDB()
 	chain.cpChecker.init()
 
 	initStakeGetter(MinerManagerImpl, chain)

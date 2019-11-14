@@ -18,20 +18,19 @@ package core
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	time2 "github.com/zvchain/zvchain/middleware/time"
+	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
+	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/trie"
 	"sync/atomic"
-	"time"
-
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/storage/account"
 )
 
-const TriesInMemory = types.EpochLength*25 + 1
+const TriesInMemory = types.EpochLength*26
+const PersistenceHeight = types.EpochLength*20
 
 type newTopMessage struct {
 	bh *types.BlockHeader
@@ -55,47 +54,34 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	if trieGc && b.Header.Height > 0 {
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
-		lascp := chain.latestCP.Load()
-		if lascp != nil {
-			cpHeader := lascp.(*types.BlockHeader)
-			if cpHeader.Height > TriesInMemory {
-				chosen := cpHeader.Height - TriesInMemory
-				if chain.triegcCount >= 1000 {
-					ph := chain.queryBlockHeaderByHeight(chain.persistenceHeight)
-					if ph == nil {
-						log.CorpLogger.Warnf("persistence find height not exists,height is %v,triecount is %v,currentHeight is %v,cp is %v", chain.persistenceHeight, chain.triegcCount, cpHeader.Height)
-					} else {
-						begin := time.Now()
-						err = triedb.Commit(ph.StateTree, true)
-						if err != nil {
-							return fmt.Errorf("persistence trie commit error:%s", err.Error())
-						}
-						chain.triegcCount = 0
-						trie.TrieStore.StoreTriePureHeight(chain.persistenceHeight)
-						persistenceCost := time.Since(begin)
-						log.CorpLogger.Debugf("persistence height is %v,triecount is %v,currentHeight is %v,cp is %v，cost =%vms", chain.persistenceHeight, chain.triegcCount, b.Header.Height, cpHeader.Height, persistenceCost)
-
+		if b.Header.Height > TriesInMemory {
+			chosen := b.Header.Height - TriesInMemory
+			if chosen % PersistenceHeight == 0 {
+				ph := chain.queryBlockHeaderByHeight(chosen)
+				if ph == nil {
+					log.CorpLogger.Warnf("persistence find height not exists,height is %v,currentHeight is %v", chosen, b.Header.Height)
+				} else {
+					go chain.DeleteDirtyTrie(chosen)
+					err = triedb.Commit(ph.StateTree, true)
+					if err != nil {
+						return fmt.Errorf("persistence trie commit error:%s", err.Error())
 					}
+					trie.TrieStore.StoreTriePureHeight(chosen)
+					log.CorpLogger.Debugf("persistence from %v-%v",chosen,b.Header.Height)
 				}
-				hasGc := false
-				// Garbage collect anything below our required write retention
-				for !chain.triegc.Empty() {
-					root, number := chain.triegc.Pop()
-					if uint64(-number) > chosen {
-						chain.triegc.Push(root, number)
-						break
-					}
-					hasGc = true
-					triedb.Dereference(root.(common.Hash))
+			}
+			// Garbage collect anything below our required write retention
+			for !chain.triegc.Empty() {
+				root, number := chain.triegc.Pop()
+				if uint64(-number) > chosen {
+					chain.triegc.Push(root, number)
+					break
 				}
-				if hasGc {
-					chain.triegcCount++
-					chain.persistenceHeight = chosen + 1
-				}
+				triedb.Dereference(uint64(-number),root.(common.Hash))
 			}
 		}
 	} else {
-		if trieGc{
+		if trieGc {
 			trie.TrieStore.StoreTriePureHeight(0)
 		}
 		err = triedb.Commit(root, false)
@@ -133,7 +119,7 @@ func (chain *FullBlockChain) saveBlockTxs(blockHash common.Hash, dataBytes []byt
 	return chain.txDb.AddKv(chain.batch, blockHash.Bytes(), dataBytes)
 }
 
-func (chain *FullBlockChain) storeBlockHash(hash common.Hash)(err error) {
+func (chain *FullBlockChain) storeBlockHash(hash common.Hash) (err error) {
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
 
@@ -150,7 +136,7 @@ func (chain *FullBlockChain) storeBlockHash(hash common.Hash)(err error) {
 	return nil
 }
 
-func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostState)(err error) {
+func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostState) (err error) {
 	bh := block.Header
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
@@ -161,7 +147,7 @@ func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostS
 	if err = chain.saveBlockState(block, ps.state); err != nil {
 		return
 	}
-	
+
 	// Save current block
 	if err = chain.saveCurrentBlock(bh.Hash); err != nil {
 		return
@@ -173,12 +159,9 @@ func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostS
 	//ps.ts.AddStat("batch.Write", time.Since(b))
 
 	chain.updateLatestBlock(ps.state, bh)
-	
+
 	return nil
 }
-
-
-
 
 // commitBlock persist a block in a batch
 func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostState) (ok bool, err error) {
