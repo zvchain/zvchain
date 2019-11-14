@@ -75,6 +75,7 @@ type FullBlockChain struct {
 	blockHeight *tasdb.PrefixedDatabase
 	txDb        *tasdb.PrefixedDatabase
 	stateDb     *tasdb.PrefixedDatabase
+	cacheDb     *tasdb.PrefixedDatabase
 	batch       tasdb.Batch
 
 	stateCache account.AccountDatabase
@@ -181,10 +182,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		return err
 	}
 
-	if iteratorNodeCacheSize > 0 {
-		trie.CreateNodeCache(iteratorNodeCacheSize)
-	}
-
 	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)
 	if err != nil {
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
@@ -254,7 +251,26 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
-	initMinerManager()
+
+	// db cache enabled
+	if iteratorNodeCacheSize > 0 {
+		cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
+		if err != nil {
+			Logger.Errorf("new cache datasource error:%v", err)
+			return err
+		}
+		cacheDB, err := cacheDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new cache db error:%v", err)
+			return err
+		}
+		chain.cacheDb = cacheDB
+		trie.CreateNodeCache(iteratorNodeCacheSize, cacheDB)
+		initMinerManager(cacheDB)
+	} else {
+		initMinerManager(nil)
+	}
+
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
 	chain.cpChecker.init()
@@ -373,6 +389,9 @@ func (chain *FullBlockChain) Close() {
 
 	if chain.stateDb != nil {
 		chain.stateDb.Close()
+	}
+	if chain.cacheDb != nil {
+		chain.cacheDb.Close()
 	}
 
 }

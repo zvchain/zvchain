@@ -558,6 +558,7 @@ func clearTicker() {
 func initContext4Test(t *testing.T) error {
 	common.InitConf("../tas_config_all.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", t.Name())
+	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	network.Logger = log.P2PLogger
 	err := middleware.InitMiddleware()
 	if err != nil {
