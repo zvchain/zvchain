@@ -156,23 +156,31 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.initMessageHandler()
 
+	conf := common.GlobalConf.GetSectionManager(configSec)
 	// get the level db file cache size from config
-	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
+	fileCacheSize := conf.GetInt("db_file_cache", 500)
 	// get the level db block cache size from config
-	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
+	blockCacheSize := conf.GetInt("db_block_cache", 512)
 	// get the level db write cache size from config
-	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
+	writeBufferSize := conf.GetInt("db_write_cache", 512)
 
-	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
+	iteratorNodeCacheSize := conf.GetInt("db_node_cache", 30000)
+
+	compTableSize := conf.GetInt("compaction_table_size", 4)
+	compTotalSize := conf.GetInt("compaction_total_size", 16)
+
+	tableMultiplier := conf.GetDouble("compaction_table_size_multiplier", 2)
+	totalSizeMultiplier := conf.GetDouble("compaction_total_size_multiplier", 10)
 
 	options := &opt.Options{
 		OpenFilesCacheCapacity:        fileCacheSize,
 		BlockCacheCapacity:            blockCacheSize * opt.MiB,
 		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
 		Filter:                        filter.NewBloomFilter(10),
-		CompactionTableSize:           4 * opt.MiB,
-		CompactionTableSizeMultiplier: 2,
-		CompactionTotalSize:           16 * opt.MiB,
+		CompactionTableSize:           compTableSize * opt.MiB,
+		CompactionTableSizeMultiplier: tableMultiplier,
+		CompactionTotalSize:           compTotalSize * opt.MiB,
+		CompactionTotalSizeMultiplier: totalSizeMultiplier,
 		BlockSize:                     64 * opt.KiB,
 	}
 
