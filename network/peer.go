@@ -324,9 +324,9 @@ func (p *Peer) onConnect(id uint64, session uint32, p2pType uint32, isAccepted b
 	}
 	p.connectTime = time.Now()
 
+	p.sendList.pendingSend = 0
 	netCore.ping(p.ID, nil)
 
-	p.sendList.pendingSend = 0
 	p.sendList.autoSend(p)
 }
 
