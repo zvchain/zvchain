@@ -25,7 +25,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/monitor"
 	"github.com/zvchain/zvchain/storage/account"
-	"github.com/zvchain/zvchain/storage/trie"
 	"sync/atomic"
 )
 
@@ -50,7 +49,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
 	triedb := chain.stateCache.TrieDB()
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", trie.GcMode)
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
 	if trieGc && b.Header.Height > 0 {
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
@@ -64,9 +63,12 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 					go chain.DeleteDirtyTrie(chosen)
 					err = triedb.Commit(ph.StateTree, true)
 					if err != nil {
-						return fmt.Errorf("persistence trie commit error:%s", err.Error())
+						return fmt.Errorf("state commit error:%s", err.Error())
 					}
-					trie.TrieStore.StoreTriePureHeight(chosen)
+					err = dirtyState.StoreTriePureHeight(chosen)
+					if err != nil{
+						return fmt.Errorf("state commit error:%s", err.Error())
+					}
 					log.CorpLogger.Debugf("persistence from %v-%v",chosen,b.Header.Height)
 				}
 			}
@@ -77,12 +79,18 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 					chain.triegc.Push(root, number)
 					break
 				}
-				triedb.Dereference(uint64(-number),root.(common.Hash))
+				err = triedb.Dereference(uint64(-number),root.(common.Hash),dirtyState)
+				if err != nil{
+					return fmt.Errorf("trie commit error:%s", err.Error())
+				}
 			}
 		}
 	} else {
 		if trieGc {
-			trie.TrieStore.StoreTriePureHeight(0)
+			err := dirtyState.StoreTriePureHeight(0)
+			if err != nil{
+				return fmt.Errorf("trie commit error:%s", err.Error())
+			}
 		}
 		err = triedb.Commit(root, false)
 		if err != nil {

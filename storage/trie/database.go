@@ -36,6 +36,7 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
+var removeKeys []*common.Hash
 // DatabaseReader wraps the Get and Has method of a backing store for the trie.
 type DatabaseReader interface {
 	// Get retrieves the value associated with key form the database.
@@ -44,6 +45,14 @@ type DatabaseReader interface {
 	// Has retrieves whether a key is present in the database.
 	Has(key []byte) (bool, error)
 }
+
+
+// DirtyStateReader wraps the Get and Has method of a backing store for the dirty trie.
+type DirtyStateReader interface {
+	StoreDirtyTrie(root common.Hash, nb []byte) error
+}
+
+
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
@@ -284,20 +293,44 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
+
+func (db *NodeDatabase) DeleteDirtyKeys()error {
+	if len(removeKeys) == 0{
+		return nil
+	}
+	batch := db.diskdb.NewBatch()
+	defer func(){
+		batch.Write()
+		batch.Reset()
+	}()
+	for _,v :=  range removeKeys{
+		if err := batch.Delete(v[:]); err != nil {
+			return err
+		}
+	}
+	removeKeys = []*common.Hash{}
+	return nil
+}
+
 func (db *NodeDatabase) FixInsert(data []interface{})error {
 	if len(data) == 0{
 		return nil
 	}
 	batch := db.diskdb.NewBatch()
+	defer func(){
+		batch.Write()
+		batch.Reset()
+	}()
+	removeKeys = []*common.Hash{}
 	for _,v :=  range data{
 		bob := v.([]*storeBlob)
 		for _,sb := range bob{
+			removeKeys = append(removeKeys,&sb.Key)
 			if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
 				return err
 			}
 		}
 	}
-	batch.Write()
 	return nil
 }
 
@@ -448,7 +481,7 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *NodeDatabase) Dereference(height uint64,root common.Hash)  {
+func (db *NodeDatabase) Dereference(height uint64,root common.Hash,dbReader DirtyStateReader)error  {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 	cl := make(map[common.Hash]*cachedNode)
@@ -467,13 +500,17 @@ func (db *NodeDatabase) Dereference(height uint64,root common.Hash)  {
 		}
 		dts,err := rlp.EncodeToBytes(dirtyBlobs)
 		if err != nil{
-			panic(fmt.Errorf("encode error，error is %v",err))
+			return fmt.Errorf("encode error，error is %v",err)
 		}
-		TrieStore.StoreDirtyTrie(root,dts)
+		err = dbReader.StoreDirtyTrie(root,dts)
+		if err != nil{
+			return err
+		}
 	}
 	db.gctime += time.Since(start)
 	log.CorpLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
 		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024))
+	return nil
 }
 
 func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error,dirtyBlobs []*storeBlob){

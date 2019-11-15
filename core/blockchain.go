@@ -77,6 +77,7 @@ type FullBlockChain struct {
 	txDb              *tasdb.PrefixedDatabase
 	stateDb           *tasdb.PrefixedDatabase
 	cacheDb           *tasdb.PrefixedDatabase
+	dirtyStateDb      *tasdb.PrefixedDatabase
 	batch             tasdb.Batch
 	triegc            *prque.Prque // Priority queue mapping block numbers to tries to gc
 	stateCache        account.AccountDatabase
@@ -211,6 +212,23 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
+
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	if trieGc{
+		dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
+		if err != nil {
+			Logger.Errorf("new dirty state datasource error:%v", err)
+			return err
+		}
+		dirtyStateDb, err := dirtyStateDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new dirty state db error:%v", err)
+			return err
+		}
+		chain.dirtyStateDb = dirtyStateDb
+		initDirtyStore(chain.dirtyStateDb)
+	}
+
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
@@ -228,7 +246,14 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	chain.resetBlock()
+	err = chain.resetBlockHeight()
+	if err != nil{
+		return err
+	}
+	err = chain.FixTrieDataFromDB()
+	if err != nil{
+		return err
+	}
 	latestBH := chain.loadCurrentBlock()
 	if nil != latestBH {
 		if !chain.versionValidate() {
@@ -273,8 +298,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	}
 
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
-	
-	chain.FixTrieDataFromDB()
+
 	chain.cpChecker.init()
 
 	initStakeGetter(MinerManagerImpl, chain)
@@ -394,6 +418,10 @@ func (chain *FullBlockChain) Close() {
 	}
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
+	}
+
+	if chain.dirtyStateDb != nil{
+		chain.dirtyStateDb.Close()
 	}
 
 }

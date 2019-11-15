@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/storage/trie"
 	"math"
 	"time"
 
@@ -258,31 +257,35 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
-func (chain *FullBlockChain) resetBlock() {
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", trie.GcMode)
+func (chain *FullBlockChain) resetBlockHeight() error{
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
 	if !trieGc {
-		return
+		return nil
 	}
-	trie.NewTrieStorage("triecopy.store")
 	latestBH := chain.loadCurrentBlock()
 	if latestBH == nil {
-		return
+		return nil
 	}
-	if trie.TrieStore.GetCurrentHeight() < latestBH.Height {
-		trie.TrieStore.StoreCurHeight(latestBH.Height)
+	curHeight := dirtyState.GetCurrentHeight()
+	if curHeight < latestBH.Height {
+		err:=dirtyState.StoreCurHeight(latestBH.Height)
+		if err != nil{
+			return err
+		}
 	}
-	stateHeight := trie.TrieStore.GetLastTrieHeight()
+	stateHeight  := dirtyState.GetLastTrieHeight()
 	if stateHeight < latestBH.Height {
 		hash := chain.queryBlockHash(stateHeight)
 		err := chain.storeBlockHash(*hash)
 		if err != nil {
-			panic(fmt.Errorf("reset block hash error,height is %v", stateHeight))
+			return fmt.Errorf("reset block hash error,height is %v", stateHeight)
 		}
 	}
+	return nil
 }
 
 func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
-	lastDeleteHeight := trie.TrieStore.GetLastDeleteDirtyTrieHeight()
+	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
 	if persistenceHeight <= lastDeleteHeight + TriesInMemory + 1{
 		return
 	}
@@ -298,27 +301,35 @@ func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 		if bh == nil{
 			continue
 		}
-		trie.TrieStore.DeleteDirtyTrie(bh.StateTree,bh.Height)
+		err := dirtyState.DeleteDirtyTrie(bh.StateTree,bh.Height)
+		if err != nil{
+			log.CoreLogger.Error(err)
+			break
+		}
 	}
 }
 
 
-func (chain *FullBlockChain) FixTrieDataFromDB() {
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", trie.GcMode)
+func (chain *FullBlockChain) FixTrieDataFromDB()error {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
 	if !trieGc {
-		return
+		return nil
 	}
-	topHeight := trie.TrieStore.GetCurrentHeight()
+	topHeight:= dirtyState.GetCurrentHeight()
+	
 	block := chain.QueryBlockByHeight(topHeight)
 	if block == nil {
-		panic(fmt.Errorf("find block is nil,height is %v", topHeight))
+		return fmt.Errorf("find block is nil,height is %v", topHeight)
 	}
-	lastTrieHeight := trie.TrieStore.GetLastTrieHeight()
+	lastTrieHeight:= dirtyState.GetLastTrieHeight()
 	if lastTrieHeight < topHeight {
 		end := lastTrieHeight
 		var begin uint64 = 1
 		if lastTrieHeight > TriesInMemory{
 			begin = lastTrieHeight - uint64(TriesInMemory)
+		}
+		if end < begin{
+			return nil
 		}
 		start := time.Now()
 		defer func(){
@@ -332,24 +343,28 @@ func (chain *FullBlockChain) FixTrieDataFromDB() {
 			if bh == nil{
 				continue
 			}
-			data := trie.TrieStore.GetDirtyByRoot(bh.StateTree)
-			if len(data) == 0{
-				panic(fmt.Errorf("get dirty state data failed,height is %v",bh.Height))
+			data := dirtyState.GetDirtyByRoot(bh.StateTree)
+			if len(data) == 0 {
+				return fmt.Errorf("get dirty state data failed,height is %v",bh.Height)
 			}
-			_,caches := triedb.DecodeStoreBlob(data)
+			err,caches := triedb.DecodeStoreBlob(data)
+			if err != nil{
+				return err
+			}
 			nodeCache = append(nodeCache,caches)
 		}
 		err:=triedb.FixInsert(nodeCache)
 		if err != nil{
-			panic(fmt.Errorf("fix data error,error is %v",err))
+			return fmt.Errorf("fix data error,error is %v",err)
 		}
 	}
+	return nil
 }
 
-func (chain *FullBlockChain) FixState() {
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", trie.GcMode)
+func (chain *FullBlockChain) FixState() error{
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
 	if !trieGc {
-		return
+		return nil
 	}
 	ProcessFixState = true
 	begin := time.Now()
@@ -357,12 +372,12 @@ func (chain *FullBlockChain) FixState() {
 		ProcessFixState = false
 		fmt.Printf("fix state cost %v \n", time.Since(begin))
 	}()
-	topHeight := trie.TrieStore.GetCurrentHeight()
+	topHeight := dirtyState.GetCurrentHeight()
 	block := chain.QueryBlockByHeight(topHeight)
 	if block == nil {
-		panic(fmt.Errorf("find block is nil,height is %v", topHeight))
+		return fmt.Errorf("find block is nil,height is %v", topHeight)
 	}
-	lastTrieHeight := trie.TrieStore.GetLastTrieHeight()
+	lastTrieHeight := dirtyState.GetLastTrieHeight()
 	fmt.Printf("begin fix State from %v - %v \n", lastTrieHeight, topHeight)
 	for lastTrieHeight < topHeight {
 		lastTrieHeight++
@@ -380,10 +395,12 @@ func (chain *FullBlockChain) FixState() {
 		}
 		err := chain.storePartBlock(curBlock, ps)
 		if err != nil {
-			panic(fmt.Errorf("fixState storePartBlock failed,err=%v", err))
+			return  fmt.Errorf("fixState storePartBlock failed,err=%v", err)
 		}
 		notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: curBlock})
 	}
+	chain.stateCache.TrieDB().DeleteDirtyKeys()
+	return nil
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
