@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	datacommon "github.com/Workiva/go-datastructures/common"
 	"github.com/Workiva/go-datastructures/slice/skip"
@@ -32,13 +33,23 @@ import (
 const maxSyncCountPreSource = 50 // max count of tx with same source to sync to neighbour node
 
 type simpleContainer struct {
-	txsMap     map[common.Hash]*types.Transaction
+	txsMap     map[common.Hash]*TransactionWithTime
 	chain      *FullBlockChain
 	pending    *pendingContainer
 	queue      map[common.Hash]*types.Transaction
 	queueLimit int
+	txTimeout  time.Duration
 
 	lock sync.RWMutex
+}
+
+type TransactionWithTime struct {
+	item  *types.Transaction
+	begin time.Time
+}
+
+func warpTransaction(tx *types.Transaction) *TransactionWithTime {
+	return &TransactionWithTime{tx, time.Now()}
 }
 
 type orderByNonceTx struct {
@@ -248,14 +259,27 @@ func newPendingContainer(limit int) *pendingContainer {
 }
 
 func newSimpleContainer(pendingLimit int, queueLimit int, chain types.BlockChain) *simpleContainer {
+	//timeOutDuration is the max time of a tx can keeped in tx pool, default value is 30 minutes
+	timeOutDuration := common.GlobalConf.GetInt(configSec, "tx_timeout_duration", 60*30)
+	timeout := time.Second * time.Duration(timeOutDuration)
+
 	c := &simpleContainer{
 		lock:       sync.RWMutex{},
 		chain:      chain.(*FullBlockChain),
-		txsMap:     make(map[common.Hash]*types.Transaction),
+		txsMap:     make(map[common.Hash]*TransactionWithTime),
 		pending:    newPendingContainer(pendingLimit),
 		queue:      make(map[common.Hash]*types.Transaction),
 		queueLimit: queueLimit,
+		txTimeout:  timeout,
 	}
+
+	ticker := time.NewTicker(30 * time.Second)
+	go func() {
+		for range ticker.C {
+			c.clearRoute()
+		}
+	}()
+
 	return c
 }
 
@@ -273,8 +297,11 @@ func (c *simpleContainer) contains(key common.Hash) bool {
 func (c *simpleContainer) get(key common.Hash) *types.Transaction {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-
-	return c.txsMap[key]
+	warpedTx := c.txsMap[key]
+	if warpedTx != nil {
+		return warpedTx.item
+	}
+	return nil
 }
 
 func (c *simpleContainer) asSlice(limit int) []*types.Transaction {
@@ -311,8 +338,8 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 	}
 	stateNonce := c.getStateNonce(tx)
 	if tx.Nonce <= stateNonce || tx.Nonce > stateNonce+1000 {
-		err = fmt.Errorf("Tx nonce error! expect nonce:%d,real nonce:%d, source:%s ", stateNonce+1, tx.Nonce, tx.Source.AddrPrefixString())
-		Logger.Warn(err)
+		err = ErrNonce
+		Logger.Warnf("Tx nonce error! expect nonce:%d,real nonce:%d, source:%s ", stateNonce+1, tx.Nonce, tx.Source.AddrPrefixString())
 		return
 	}
 
@@ -323,7 +350,7 @@ func (c *simpleContainer) push(tx *types.Transaction) (err error) {
 			return
 		}
 	}
-	c.txsMap[tx.Hash] = tx
+	c.txsMap[tx.Hash] = warpTransaction(tx)
 	if evicted != nil {
 		Logger.Debugf("Tx %v replaced by %v as higher gas price when push()", evicted.Hash, tx.Hash)
 		if evicted.Hash == tx.Hash {
@@ -366,8 +393,11 @@ func (c *simpleContainer) remove(key common.Hash) {
 	if tx == nil {
 		return
 	}
+	c.removeWithoutLock(tx.item)
+}
 
-	delete(c.txsMap, key)
+func (c *simpleContainer) removeWithoutLock(tx *types.Transaction) {
+	delete(c.txsMap, tx.Hash)
 	c.pending.remove(tx)
 	delete(c.queue, tx.Hash)
 }
@@ -433,4 +463,35 @@ func skipGetLast(skip *skip.SkipList) datacommon.Comparator {
 		return nil
 	}
 	return skip.ByPosition(skip.Len() - 1)
+}
+
+func (c *simpleContainer) evictPending() {
+	nonceCache := make(map[common.Address]uint64)
+	txs := c.asSlice(maxPendingSize)
+	for _, tx := range txs {
+		stateNonce := c.getNonceWithCache(nonceCache, tx)
+		if tx.Nonce <= stateNonce {
+			Logger.Debugf("Tx %v evicted from pending, chain nonce is %d and tx nonce is %d", tx.Hash, stateNonce, tx.Nonce)
+			c.remove(tx.Hash)
+		}
+	}
+}
+
+func (c *simpleContainer) evictTimeout() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	for _, tx := range c.txsMap {
+		if time.Since(tx.begin) > c.txTimeout {
+			Logger.Debugf("Tx %v evicted as timeout, tx entered to pool on %v", tx.item.Hash, tx.begin)
+			c.removeWithoutLock(tx.item)
+		}
+	}
+}
+
+func (c *simpleContainer) clearRoute() {
+	start := time.Now()
+	c.evictPending()
+	c.evictTimeout()
+	Logger.Debugf("clearRoute tasks %f seconds", time.Since(start).Seconds())
 }
