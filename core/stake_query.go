@@ -165,9 +165,9 @@ func (sq *stakeQuerier) queryProposerStake(addr common.Address, height uint64) u
 		atomic.StoreUint64(&sq.rootHit, 0)
 	}
 	if t != 0 && t%10 == 0 {
-		stakeHit := atomic.LoadUint64(&sq.stakeHit)
-		rootHit := atomic.LoadUint64(&sq.rootHit)
-		Logger.Debugf("queryProposerStake stake hit rate: %f(%v/%v), root hit rate: %f(%v/%v),height=%v", float64(stakeHit)/float64(t), stakeHit, t, float64(rootHit)/float64(t), rootHit, height)
+		//stakeHit := atomic.LoadUint64(&sq.stakeHit)
+		//rootHit := atomic.LoadUint64(&sq.rootHit)
+		Logger.Debugf("queryProposerStake height=%v", height)
 	}
 
 	db, root := sq.getRoot(addr, height)
