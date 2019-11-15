@@ -319,7 +319,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 	
 	block := chain.QueryBlockByHeight(topHeight)
 	if block == nil {
-		return fmt.Errorf("find block is nil,height is %v", topHeight)
+		return nil
 	}
 	lastTrieHeight:= dirtyState.GetLastTrieHeight()
 	if lastTrieHeight < topHeight {
