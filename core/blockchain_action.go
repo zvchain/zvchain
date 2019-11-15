@@ -286,11 +286,11 @@ func (chain *FullBlockChain) resetBlockHeight() error{
 
 func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
-	if persistenceHeight <= lastDeleteHeight + TriesInMemory + 1{
+	if persistenceHeight <= lastDeleteHeight + TriesInMemory + 1 {
 		return
 	}
 	beginHeight := lastDeleteHeight + 1
-	endHeight := persistenceHeight - (lastDeleteHeight + TriesInMemory + 1)
+	endHeight := persistenceHeight - TriesInMemory
 	begin := time.Now()
 	defer func(){
 		log.CorpLogger.Debugf("delete dirty trie from db success,height is %v-%v,cost=%v",beginHeight,endHeight,time.Since(begin))
@@ -345,7 +345,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			}
 			data := dirtyState.GetDirtyByRoot(bh.StateTree)
 			if len(data) == 0 {
-				return fmt.Errorf("get dirty state data failed,height is %v",bh.Height)
+				return fmt.Errorf("get dirty state data failed,height is %v，root is %v",bh.Height,bh.StateTree.Hex())
 			}
 			err,caches := triedb.DecodeStoreBlob(data)
 			if err != nil{
