@@ -506,10 +506,12 @@ func (db *NodeDatabase) Dereference(height uint64,root common.Hash,dbReader Dirt
 		if err != nil{
 			return err
 		}
+	}else{
+		log.CorpLogger.Debugf("Dereferenced trie,find no changed,height is %v,root is %v",height,root.Hex())
 	}
 	db.gctime += time.Since(start)
-	log.CorpLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
-		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024))
+	log.CorpLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v,height=%v,root=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
+		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024),height,root.Hex())
 	return nil
 }
 

@@ -66,6 +66,7 @@ func (store *dirtyStateStore) StoreDirtyTrie(root common.Hash, nb []byte) error 
 	if err != nil {
 		return fmt.Errorf("store diry trie error %v", err)
 	}
+	log.CorpLogger.Debugf("store trie root hash is %v,len is %v",root.Hex(),len(nb))
 	return nil
 }
 

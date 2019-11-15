@@ -345,7 +345,8 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			}
 			data := dirtyState.GetDirtyByRoot(bh.StateTree)
 			if len(data) == 0 {
-				return fmt.Errorf("get dirty state data failed,height is %v，root is %v",bh.Height,bh.StateTree.Hex())
+				log.CorpLogger.Debugf("get dirty state data nil,height is %v，root is %v",bh.Height,bh.StateTree.Hex())
+				continue
 			}
 			err,caches := triedb.DecodeStoreBlob(data)
 			if err != nil{
