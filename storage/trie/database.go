@@ -36,7 +36,8 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
-var removeKeys []*common.Hash
+var dirtyStateCache = map[uint64]interface{}{}
+
 // DatabaseReader wraps the Get and Has method of a backing store for the trie.
 type DatabaseReader interface {
 	// Get retrieves the value associated with key form the database.
@@ -46,13 +47,10 @@ type DatabaseReader interface {
 	Has(key []byte) (bool, error)
 }
 
-
 // DirtyStateReader wraps the Get and Has method of a backing store for the dirty trie.
 type DirtyStateReader interface {
 	StoreDirtyTrie(root common.Hash, nb []byte) error
 }
-
-
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
@@ -293,39 +291,45 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
+func (db *NodeDatabase) DirtyKeyProcessEnd() {
+	dirtyStateCache = nil
+}
 
-func (db *NodeDatabase) DeleteDirtyKeys()error {
-	if len(removeKeys) == 0{
+func (db *NodeDatabase) DeleteDirtyKeysByHeight(height uint64) error {
+	vl, ok := dirtyStateCache[height]
+	if !ok {
 		return nil
 	}
 	batch := db.diskdb.NewBatch()
-	defer func(){
+	defer func() {
 		batch.Write()
 		batch.Reset()
 	}()
-	for _,v :=  range removeKeys{
-		if err := batch.Delete(v[:]); err != nil {
+	bob := vl.([]*storeBlob)
+	for _, sb := range bob {
+		if err := batch.Delete(sb.Key[:]); err != nil {
 			return err
 		}
 	}
-	removeKeys = []*common.Hash{}
 	return nil
 }
 
-func (db *NodeDatabase) FixInsert(data []interface{})error {
-	if len(data) == 0{
+func (db *NodeDatabase) FixInsertCache(height uint64,data interface{}) {
+	dirtyStateCache[height] = data
+}
+
+func (db *NodeDatabase) CacheBatchToDb()error {
+	if len(dirtyStateCache) == 0 {
 		return nil
 	}
 	batch := db.diskdb.NewBatch()
-	defer func(){
+	defer func() {
 		batch.Write()
 		batch.Reset()
 	}()
-	removeKeys = []*common.Hash{}
-	for _,v :=  range data{
-		bob := v.([]*storeBlob)
-		for _,sb := range bob{
-			removeKeys = append(removeKeys,&sb.Key)
+	for _, data := range dirtyStateCache {
+		bob := data.([]*storeBlob)
+		for _, sb := range bob {
 			if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
 				return err
 			}
@@ -481,50 +485,50 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *NodeDatabase) Dereference(height uint64,root common.Hash,dbReader DirtyStateReader)error  {
+func (db *NodeDatabase) Dereference(height uint64, root common.Hash, dbReader DirtyStateReader) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 	cl := make(map[common.Hash]*cachedNode)
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{},cl)
+	db.dereference(root, common.Hash{}, cl)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
 
 	if len(cl) > 0 {
-		dirtyBlobs :=[]*storeBlob{}
-		for k,v := range cl{
+		dirtyBlobs := []*storeBlob{}
+		for k, v := range cl {
 			bt := v.rlp()
-			sb := &storeBlob{Key:k,Raw:bt}
-			dirtyBlobs = append(dirtyBlobs,sb)
+			sb := &storeBlob{Key: k, Raw: bt}
+			dirtyBlobs = append(dirtyBlobs, sb)
 		}
-		dts,err := rlp.EncodeToBytes(dirtyBlobs)
-		if err != nil{
-			return fmt.Errorf("encode error，error is %v",err)
+		dts, err := rlp.EncodeToBytes(dirtyBlobs)
+		if err != nil {
+			return fmt.Errorf("encode error，error is %v", err)
 		}
-		err = dbReader.StoreDirtyTrie(root,dts)
-		if err != nil{
+		err = dbReader.StoreDirtyTrie(root, dts)
+		if err != nil {
 			return err
 		}
-	}else{
-		log.CorpLogger.Debugf("Dereferenced trie,find no changed,height is %v,root is %v",height,root.Hex())
+	} else {
+		log.CorpLogger.Debugf("Dereferenced trie,find no changed,height is %v,root is %v", height, root.Hex())
 	}
 	db.gctime += time.Since(start)
 	log.CorpLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v,height=%v,root=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
-		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024),height,root.Hex())
+		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024), height, root.Hex())
 	return nil
 }
 
-func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error,dirtyBlobs []*storeBlob){
-	err = rlp.DecodeBytes(data,&dirtyBlobs)
-	if err != nil{
-		err = fmt.Errorf("decode storeBlob error,error is %v",err)
+func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*storeBlob) {
+	err = rlp.DecodeBytes(data, &dirtyBlobs)
+	if err != nil {
+		err = fmt.Errorf("decode storeBlob error,error is %v", err)
 	}
-	return nil,dirtyBlobs
+	return nil, dirtyBlobs
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,cl map[common.Hash]*cachedNode){
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl map[common.Hash]*cachedNode) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -563,7 +567,7 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,cl map
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			db.dereference(hash, child,cl)
+			db.dereference(hash, child, cl)
 		}
 		cl[child] = db.nodes[child]
 		delete(db.nodes, child)

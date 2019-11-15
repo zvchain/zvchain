@@ -316,7 +316,6 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 		return nil
 	}
 	topHeight:= dirtyState.GetCurrentHeight()
-	
 	block := chain.QueryBlockByHeight(topHeight)
 	if block == nil {
 		return nil
@@ -325,8 +324,8 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 	if lastTrieHeight < topHeight {
 		end := lastTrieHeight
 		var begin uint64 = 1
-		if lastTrieHeight > TriesInMemory{
-			begin = lastTrieHeight - uint64(TriesInMemory)
+		if end > TriesInMemory{
+			begin = end - uint64(TriesInMemory)
 		}
 		if end < begin{
 			return nil
@@ -336,7 +335,6 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			fmt.Printf("fix dirty state data success,from %v-%v,cost %v \n",begin,end,time.Since(start))
 		}()
 		fmt.Printf("begin fix dirty state data,from %v-%v \n",begin,end)
-		nodeCache :=[]interface{}{}
 		triedb := chain.stateCache.TrieDB()
 		for i := begin;i<=end;i++{
 			bh := chain.queryBlockHeaderByHeight(i)
@@ -352,11 +350,11 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			if err != nil{
 				return err
 			}
-			nodeCache = append(nodeCache,caches)
+			triedb.FixInsertCache(i,caches)
 		}
-		err:=triedb.FixInsert(nodeCache)
-		if err != nil{
-			return fmt.Errorf("fix data error,error is %v",err)
+		err := triedb.CacheBatchToDb()
+		if  err != nil{
+			return fmt.Errorf("dirty state cache to db insert error,error is %v",err)
 		}
 	}
 	return nil
@@ -392,15 +390,21 @@ func (chain *FullBlockChain) FixState() error{
 		}
 		success, ps := chain.executeTransaction(curBlock, trans)
 		if !success {
-			panic("fixState execute tx failed!")
+			return  fmt.Errorf("fixState execute tx failed,height is %v",lastTrieHeight)
 		}
 		err := chain.storePartBlock(curBlock, ps)
 		if err != nil {
 			return  fmt.Errorf("fixState storePartBlock failed,err=%v", err)
 		}
 		notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: curBlock})
+		if lastTrieHeight > TriesInMemory{
+			err = chain.stateCache.TrieDB().DeleteDirtyKeysByHeight(lastTrieHeight - TriesInMemory-1)
+			if err != nil{
+				return fmt.Errorf("delete dirty state data error,err is %v",err)
+			}
+		}
 	}
-	chain.stateCache.TrieDB().DeleteDirtyKeys()
+	chain.stateCache.TrieDB().DirtyKeyProcessEnd()
 	return nil
 }
 
