@@ -36,7 +36,7 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
-var dirtyStateCache = map[uint64]interface{}{}
+var removeKeys = []common.Hash{}
 
 // DatabaseReader wraps the Get and Has method of a backing store for the trie.
 type DatabaseReader interface {
@@ -291,35 +291,24 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
-func (db *NodeDatabase) DirtyKeyProcessEnd() {
-	dirtyStateCache = nil
-}
-
-func (db *NodeDatabase) DeleteDirtyKeysByHeight(height uint64) error {
-	vl, ok := dirtyStateCache[height]
-	if !ok {
-		return nil
-	}
+func (db *NodeDatabase) DirtyKeyProcessEnd()error {
 	batch := db.diskdb.NewBatch()
 	defer func() {
 		batch.Write()
 		batch.Reset()
 	}()
-	bob := vl.([]*storeBlob)
-	for _, sb := range bob {
-		if err := batch.Delete(sb.Key[:]); err != nil {
+	for _,k := range removeKeys {
+		if err := batch.Delete(k[:]); err != nil {
 			return err
 		}
 	}
+	removeKeys = nil
 	return nil
 }
 
-func (db *NodeDatabase) FixInsertCache(height uint64,data interface{}) {
-	dirtyStateCache[height] = data
-}
 
-func (db *NodeDatabase) CacheBatchToDb()error {
-	if len(dirtyStateCache) == 0 {
+func (db *NodeDatabase) CacheBatchToDb(cache []interface{})error {
+	if len(cache) == 0 {
 		return nil
 	}
 	batch := db.diskdb.NewBatch()
@@ -327,11 +316,15 @@ func (db *NodeDatabase) CacheBatchToDb()error {
 		batch.Write()
 		batch.Reset()
 	}()
-	for _, data := range dirtyStateCache {
+	for _, data := range cache {
 		bob := data.([]*storeBlob)
 		for _, sb := range bob {
-			if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
-				return err
+			d,_:=db.diskdb.Get(sb.Key[:])
+			if len(d) == 0{
+				if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
+					return err
+				}
+				removeKeys = append(removeKeys,sb.Key)
 			}
 		}
 	}

@@ -336,6 +336,8 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 		}()
 		fmt.Printf("begin fix dirty state data,from %v-%v \n",begin,end)
 		triedb := chain.stateCache.TrieDB()
+
+		dirtyStateCache := []interface{}{}
 		for i := begin;i<=end;i++{
 			bh := chain.queryBlockHeaderByHeight(i)
 			if bh == nil{
@@ -350,9 +352,9 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			if err != nil{
 				return err
 			}
-			triedb.FixInsertCache(i,caches)
+			dirtyStateCache = append(dirtyStateCache,caches)
 		}
-		err := triedb.CacheBatchToDb()
+		err := triedb.CacheBatchToDb(dirtyStateCache)
 		if  err != nil{
 			return fmt.Errorf("dirty state cache to db insert error,error is %v",err)
 		}
@@ -397,14 +399,11 @@ func (chain *FullBlockChain) FixState() error{
 			return  fmt.Errorf("fixState storePartBlock failed,err=%v", err)
 		}
 		notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: curBlock})
-		if lastTrieHeight > TriesInMemory{
-			err = chain.stateCache.TrieDB().DeleteDirtyKeysByHeight(lastTrieHeight - TriesInMemory-1)
-			if err != nil{
-				return fmt.Errorf("delete dirty state data error,err is %v",err)
-			}
-		}
 	}
-	chain.stateCache.TrieDB().DirtyKeyProcessEnd()
+	err := chain.stateCache.TrieDB().DirtyKeyProcessEnd()
+	if err != nil{
+		return fmt.Errorf("delete dirty state error,err is %v",err)
+	}
 	return nil
 }
 
