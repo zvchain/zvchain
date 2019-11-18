@@ -566,7 +566,7 @@ func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash stri
 				} else if value, ok := data.Value.(*big.Int); ok {
 					valuestring = value.String()
 				}
-				addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
+				addr := strings.TrimPrefix(data.Addr, "balanceOf@")
 				fmt.Println("UpdateTokenUser,json:", addr+","+data.ContractAddr+","+valuestring)
 				crontab.storage.UpdateTokenUser(data.ContractAddr,
 					addr,

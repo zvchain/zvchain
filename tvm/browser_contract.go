@@ -18,7 +18,7 @@ var MapTokenContractData = new(sync.Map)
 
 type TokenContractTransfer struct {
 	ContractAddr string
-	Addr         []byte
+	Addr         string
 	Value        interface{}
 	TxHash       string
 	BlockHash    string
@@ -35,7 +35,7 @@ type ContractTransfer struct {
 func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken string, addr []byte, value []byte) {
 	contract := &TokenContractTransfer{
 		ContractAddr: contracttoken,
-		Addr:         addr,
+		Addr:         string(addr),
 		Value:        VmDataConvert(value),
 		BlockHash:    blockHash,
 		TxHash:       txhash,
