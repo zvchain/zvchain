@@ -437,7 +437,7 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
-	go crontab.ConsumeTokenContractTransfer(bh.Height, bh.Hash.Hex())
+	go crontab.NewConsumeTokenContractTransfer(bh.Height, bh.Hash.Hex())
 
 	return nil
 }
@@ -540,6 +540,44 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 			mysql.DBStorage.AddContractCallTransaction(contractCall)
 		}
 	}
+}
+
+func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash string) {
+	datas, err := tvm.GetTokenContractldbdata(hash)
+	if datas == nil {
+		return
+	}
+	if err != nil {
+		browserlog.BrowserLog.Error("NewConsumeTokenContractTransfer,error")
+		return
+	}
+	for _, data := range datas {
+		if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
+			continue
+		}
+		browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, ",", height, ",", hash)
+		chain := core.BlockChainImpl
+		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
+		if wrapper != nil {
+			if wrapper.Status == 0 && data.Value != nil {
+				var valuestring string
+				if value, ok := data.Value.(int64); ok {
+					valuestring = big.NewInt(value).String()
+				} else if value, ok := data.Value.(*big.Int); ok {
+					valuestring = value.String()
+				}
+				addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
+				crontab.storage.UpdateTokenUser(data.ContractAddr,
+					addr,
+					valuestring)
+			}
+
+		}
+
+	}
+	tvm.MapTokenContractData.Delete(hash)
+	fmt.Println("delete ConsumeTokenContractTransfer", hash)
+
 }
 
 func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
