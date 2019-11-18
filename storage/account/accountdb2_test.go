@@ -76,7 +76,7 @@ func TestAccountDB_SetData(t *testing.T) {
 func TestAccountDB_SetCode(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
 	defer db.Close()
-	triedb := NewDatabase(db)
+	triedb := NewDatabase(db,nil)
 	state, _ := NewAccountDB(common.Hash{}, triedb)
 	state.SetCode(common.BytesToAddress([]byte("2")), []byte("code"))
 	root, _ := state.Commit(false)

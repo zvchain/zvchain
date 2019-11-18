@@ -52,7 +52,6 @@ var (
 	ErrCommitBlockFail = errors.New("commit block fail")
 	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
-var ProcessFixState bool
 var BlockChainImpl *FullBlockChain
 
 var GroupManagerImpl *group.Manager
@@ -226,7 +225,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 			return err
 		}
 		chain.dirtyStateDb = dirtyStateDb
-		initDirtyStore(chain.dirtyStateDb)
 	}
 
 	chain.rewardManager = NewRewardManager()
@@ -235,7 +233,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
-	chain.stateCache = account.NewDatabase(chain.stateDb)
+	chain.stateCache = account.NewDatabase(chain.stateDb,chain.dirtyStateDb)
 
 	GroupManagerImpl = group.NewManager(chain, helper)
 
@@ -246,14 +244,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	err = chain.resetBlockHeight()
-	if err != nil{
-		return err
-	}
-	err = chain.FixTrieDataFromDB()
-	if err != nil{
-		return err
-	}
+
 	latestBH := chain.loadCurrentBlock()
 	if nil != latestBH {
 		if !chain.versionValidate() {
@@ -319,6 +310,7 @@ func (chain *FullBlockChain) buildCache(size int) {
 		}
 	}
 }
+
 
 // insertGenesisBlock creates the genesis block and some necessary information，
 // and commit it

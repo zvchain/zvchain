@@ -58,6 +58,8 @@ type DirtyStateReader interface {
 type NodeDatabase struct {
 	diskdb tasdb.Database // Persistent storage for matured trie nodes
 
+	dirtydb tasdb.Database // Persistent storage for full trie nodes
+	dirtyNodes  map[common.Hash]*cachedNode
 	nodes  map[common.Hash]*cachedNode // Data and references relationships of a node
 	oldest common.Hash                 // Oldest tracked node, flush-list head
 	newest common.Hash                 // Newest tracked node, flush-list tail
@@ -78,6 +80,7 @@ type NodeDatabase struct {
 	preimagesSize common.StorageSize // Storage size of the preimages cache
 
 	lock sync.RWMutex
+
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
@@ -267,10 +270,12 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb tasdb.Database) *NodeDatabase {
+func NewDatabase(diskdb tasdb.Database, dirtyDb tasdb.Database) *NodeDatabase {
 	return &NodeDatabase{
 		diskdb:    diskdb,
+		dirtydb:   dirtyDb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
+		dirtyNodes:make(map[common.Hash]*cachedNode),
 		preimages: make(map[common.Hash][]byte),
 	}
 }
@@ -279,6 +284,7 @@ func NewDatabase(diskdb tasdb.Database) *NodeDatabase {
 func (db *NodeDatabase) DiskDB() DatabaseReader {
 	return db.diskdb
 }
+
 
 // InsertBlob writes a new reference tracked blob to the memory database if it's
 // yet unknown. This method should only be used for non-trie nodes that require
@@ -291,13 +297,13 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
-func (db *NodeDatabase) DirtyKeyProcessEnd()error {
+func (db *NodeDatabase) DirtyKeyProcessEnd() error {
 	batch := db.diskdb.NewBatch()
 	defer func() {
 		batch.Write()
 		batch.Reset()
 	}()
-	for _,k := range removeKeys {
+	for _, k := range removeKeys {
 		if err := batch.Delete(k[:]); err != nil {
 			return err
 		}
@@ -306,8 +312,7 @@ func (db *NodeDatabase) DirtyKeyProcessEnd()error {
 	return nil
 }
 
-
-func (db *NodeDatabase) CacheBatchToDb(cache []interface{})error {
+func (db *NodeDatabase) CacheBatchToDb(cache []interface{}) error {
 	if len(cache) == 0 {
 		return nil
 	}
@@ -319,16 +324,22 @@ func (db *NodeDatabase) CacheBatchToDb(cache []interface{})error {
 	for _, data := range cache {
 		bob := data.([]*storeBlob)
 		for _, sb := range bob {
-			d,_:=db.diskdb.Get(sb.Key[:])
-			if len(d) == 0{
+			d, _ := db.diskdb.Get(sb.Key[:])
+			if len(d) == 0 {
 				if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
 					return err
 				}
-				removeKeys = append(removeKeys,sb.Key)
+				removeKeys = append(removeKeys, sb.Key)
 			}
 		}
 	}
 	return nil
+}
+
+func (db *NodeDatabase) ClearDitry() {
+	db.lock.Lock()
+	db.dirtyNodes = make(map[common.Hash]*cachedNode)
+	db.lock.Unlock()
 }
 
 // insert inserts a collapsed trie node into the memory database. This method is
@@ -352,6 +363,7 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 		}
 	}
 	db.nodes[hash] = entry
+	db.dirtyNodes[hash] = entry
 
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
@@ -388,7 +400,10 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
-		return nil, nil
+		enc,err = db.dirtydb.Get(hash[:])
+		if err != nil || enc == nil {
+			return nil, nil
+		}
 	}
 	return mustDecodeNode(hash[:], enc, cachegen), enc
 }
@@ -477,31 +492,37 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
+func (db *NodeDatabase) DeleteDirtyState(dirtyData []common.Hash) error {
+	batch := db.dirtydb.NewBatch()
+	for _, k := range dirtyData {
+		err := batch.Delete(k[:])
+		if err != nil {
+			return err
+		}
+	}
+	err := batch.Write()
+	if err != nil {
+		return err
+	}
+	batch.Reset()
+	return nil
+}
+
 // Dereference removes an existing reference from a root node.
-func (db *NodeDatabase) Dereference(height uint64, root common.Hash, dbReader DirtyStateReader) error {
+func (db *NodeDatabase) Dereference(height uint64, root common.Hash) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
-	cl := make(map[common.Hash]*cachedNode)
+	cl := []common.Hash{}
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{}, cl)
+	db.dereference(root, common.Hash{}, &cl)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
 
 	if len(cl) > 0 {
-		dirtyBlobs := []*storeBlob{}
-		for k, v := range cl {
-			bt := v.rlp()
-			sb := &storeBlob{Key: k, Raw: bt}
-			dirtyBlobs = append(dirtyBlobs, sb)
-		}
-		dts, err := rlp.EncodeToBytes(dirtyBlobs)
+		err := db.DeleteDirtyState(cl)
 		if err != nil {
-			return fmt.Errorf("encode error，error is %v", err)
-		}
-		err = dbReader.StoreDirtyTrie(root, dts)
-		if err != nil {
-			return err
+			return fmt.Errorf("delete dirty state failed,err is %v", err)
 		}
 	} else {
 		log.CorpLogger.Debugf("Dereferenced trie,find no changed,height is %v,root is %v", height, root.Hex())
@@ -521,7 +542,7 @@ func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*s
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl map[common.Hash]*cachedNode) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl *[]common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -562,7 +583,7 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl ma
 		for _, hash := range node.childs() {
 			db.dereference(hash, child, cl)
 		}
-		cl[child] = db.nodes[child]
+		*cl = append(*cl, child)
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 		if node.children != nil {
@@ -666,17 +687,40 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 	//memcacheFlushSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheFlushNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
-	log.DefaultLogger.Debug("Persisted nodes from memory database", "nodes", nodes-len(db.nodes), "size", storage-db.nodesSize, "time", time.Since(start),
+	log.CorpLogger.Debug("Persisted nodes from memory database", "nodes", nodes-len(db.nodes), "size", storage-db.nodesSize, "time", time.Since(start),
 		"flushnodes", db.flushnodes, "flushsize", db.flushsize, "flushtime", db.flushtime, "livenodes", len(db.nodes), "livesize", db.nodesSize)
 
 	return nil
+}
+
+func (db *NodeDatabase) CommitDirtyToDb() error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+	batch := db.dirtydb.NewBatch()
+	totalSize := 0
+	for k,v := range db.dirtyNodes{
+		bts :=  v.rlp()
+		totalSize+=len(bts)
+		err := batch.Put(k[:],bts)
+		if err != nil{
+			return err
+		}
+	}
+	err :=  batch.Write()
+	if err !=  nil{
+		return err
+	}
+	log.CorpLogger.Debugf("commit dirty to small db,len is %v,size is %v",len(db.dirtyNodes),totalSize)
+	return nil
+
 }
 
 // Commit iterates over all the children of a particular node, writes them out
 // to disk, forcefully tearing down all references in both directions.
 //
 // As a side effect, all pre-images accumulated up to this point are also written.
-func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
+func (db *NodeDatabase) Commit(node common.Hash, report bool) (error,[]common.Hash) {
+	toDeleteHashs := []common.Hash{}
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -691,27 +735,27 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 		if err := batch.Put(db.secureKey(hash[:]), preimage); err != nil {
 			log.DefaultLogger.Error("Failed to commit preimage from trie database", "err", err)
 			db.lock.RUnlock()
-			return err
+			return err,toDeleteHashs
 		}
 		if batch.ValueSize() > tasdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
-				return err
+				return err,toDeleteHashs
 			}
 			batch.Reset()
 		}
 	}
 	// Move the trie itself into the batch, flushing if enough data is accumulated
 	nodes, storage := len(db.nodes), db.nodesSize
-	if err := db.commit(node, batch); err != nil {
+	if err := db.commit(node, batch,&toDeleteHashs); err != nil {
 		log.DefaultLogger.Error("Failed to commit trie from trie database", "err", err)
 		db.lock.RUnlock()
-		return err
+		return err,toDeleteHashs
 	}
 	// Write batch ready, unlock for readers during persistence
 	if err := batch.Write(); err != nil {
 		log.DefaultLogger.Error("Failed to write trie to disk", "err", err)
 		db.lock.RUnlock()
-		return err
+		return err,toDeleteHashs
 	}
 	db.lock.RUnlock()
 
@@ -735,18 +779,18 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 	db.gcnodes, db.gcsize, db.gctime = 0, 0, 0
 	db.flushnodes, db.flushsize, db.flushtime = 0, 0, 0
 
-	return nil
+	return nil,toDeleteHashs
 }
 
 // commit is the private locked version of Commit.
-func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
+func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch,toDeleteHashs *[]common.Hash)error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
 	if !ok {
 		return nil
 	}
 	for _, child := range node.childs() {
-		if err := db.commit(child, batch); err != nil {
+		if err := db.commit(child, batch,toDeleteHashs); err != nil {
 			return err
 		}
 	}
@@ -760,6 +804,7 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 		}
 		batch.Reset()
 	}
+	*toDeleteHashs = append(*toDeleteHashs,hash)
 	return nil
 }
 

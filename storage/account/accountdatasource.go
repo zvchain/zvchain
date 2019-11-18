@@ -82,10 +82,10 @@ type Trie interface {
 // NewDatabase creates a backing store for state. The returned database
 // is safe for concurrent use and retains a lot of collapsed RLP trie nodes in a
 // large memory cache.
-func NewDatabase(db tasdb.Database) AccountDatabase {
+func NewDatabase(db tasdb.Database,dirtyDb tasdb.Database) AccountDatabase {
 	csc, _ := lru.New(codeSizeCacheSize)
 	return &storageDB{
-		db:            trie.NewDatabase(db),
+		db:            trie.NewDatabase(db,dirtyDb),
 		codeSizeCache: csc,
 	}
 }

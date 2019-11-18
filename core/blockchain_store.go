@@ -28,8 +28,9 @@ import (
 	"sync/atomic"
 )
 
-const TriesInMemory = types.EpochLength*27+1
-const PersistenceHeight = types.EpochLength*20
+const TriesInMemory = types.EpochLength*27 + 1
+const PersistenceHeight = types.EpochLength * 20
+var GcMode  =  true
 
 type newTopMessage struct {
 	bh *types.BlockHeader
@@ -44,61 +45,57 @@ func (msg *newTopMessage) GetData() interface{} {
 }
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	triedb := chain.stateCache.TrieDB()
+	triedb.ClearDitry()
 	root, err := state.Commit(true)
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
-	triedb := chain.stateCache.TrieDB()
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
-	if trieGc && b.Header.Height > 0 {
+	if trieGc {
+		err = triedb.CommitDirtyToDb()
+		if err != nil {
+			return fmt.Errorf("trie commit to dirty db error:%s", err.Error())
+		}
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
 		if b.Header.Height > TriesInMemory {
 			chosen := b.Header.Height - TriesInMemory
-			if chosen % PersistenceHeight == 0 {
+			if chosen%PersistenceHeight == 0 {
 				ph := chain.queryBlockHeaderByHeight(chosen)
 				if ph == nil {
 					log.CorpLogger.Warnf("persistence find height not exists,height is %v,currentHeight is %v", chosen, b.Header.Height)
 				} else {
-					go chain.DeleteDirtyTrie(chosen)
-					err = triedb.Commit(ph.StateTree, true)
+					var toDeleteHashs []common.Hash
+					err,toDeleteHashs = triedb.Commit(ph.StateTree, true)
 					if err != nil {
 						return fmt.Errorf("state commit error:%s", err.Error())
 					}
-					err = dirtyState.StoreTriePureHeight(chosen)
-					if err != nil{
-						return fmt.Errorf("state commit error:%s", err.Error())
-					}
-					log.CorpLogger.Debugf("persistence from %v-%v",chosen,b.Header.Height)
+					chain.DeleteDirtyTrie(chosen,b.Header.Height,toDeleteHashs)
+					log.CorpLogger.Debugf("persistence from %v-%v", chosen, b.Header.Height)
 				}
 			}
-			// Garbage collect anything below our required write retention
 			for !chain.triegc.Empty() {
 				root, number := chain.triegc.Pop()
 				if uint64(-number) > chosen {
 					chain.triegc.Push(root, number)
 					break
 				}
-				err = triedb.Dereference(uint64(-number),root.(common.Hash),dirtyState)
-				if err != nil{
+				err = triedb.Dereference(uint64(-number), root.(common.Hash))
+				if err != nil {
 					return fmt.Errorf("trie commit error:%s", err.Error())
 				}
 			}
 		}
 	} else {
-		if trieGc {
-			err := dirtyState.StoreTriePureHeight(0)
-			if err != nil{
-				return fmt.Errorf("trie commit error:%s", err.Error())
-			}
-		}
-		err = triedb.Commit(root, false)
+		err,_ = triedb.Commit(root, false)
 		if err != nil {
 			return fmt.Errorf("trie commit error:%s", err.Error())
 		}
 	}
 	return nil
 }
+
 
 func (chain *FullBlockChain) saveCurrentBlock(hash common.Hash) error {
 	err := chain.blocks.AddKv(chain.batch, []byte(blockStatusKey), hash.Bytes())
