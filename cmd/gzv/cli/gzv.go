@@ -397,7 +397,6 @@ func (gzv *Gzv) fullInit() error {
 	if enableTraceLog {
 		monitor.InitPerformTraceLogger()
 	}
-
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
 	ok := mediator.ConsensusInit(minerInfo, common.GlobalConf)
@@ -406,10 +405,6 @@ func (gzv *Gzv) fullInit() error {
 	}
 	if cfg.enableMonitor || common.GlobalConf.GetBool(Section, "enable_monitor", false) {
 		monitor.InitLogService(id)
-	}
-	err = core.BlockChainImpl.FixState()
-	if err != nil{
-		return err
 	}
 	return nil
 }
