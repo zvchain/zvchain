@@ -700,7 +700,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) (error,[]common.Ha
 	}
 	// Move the trie itself into the batch, flushing if enough data is accumulated
 	nodes, storage := len(db.nodes), db.nodesSize
-	if err := db.commit(node, batch,&toDeleteHashs); err != nil {
+	if err := db.commit(node, batch); err != nil {
 		log.DefaultLogger.Error("Failed to commit trie from trie database", "err", err)
 		db.lock.RUnlock()
 		return err,toDeleteHashs
@@ -720,7 +720,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) (error,[]common.Ha
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
 
-	db.uncache(node)
+	db.uncache(node,&toDeleteHashs)
 
 	//memcacheCommitTimeTimer.Update(time.Since(start))
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))
@@ -737,14 +737,14 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) (error,[]common.Ha
 }
 
 // commit is the private locked version of Commit.
-func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch,toDeleteHashs *[]common.Hash)error {
+func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch)error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
 	if !ok {
 		return nil
 	}
 	for _, child := range node.childs() {
-		if err := db.commit(child, batch,toDeleteHashs); err != nil {
+		if err := db.commit(child, batch); err != nil {
 			return err
 		}
 	}
@@ -758,7 +758,6 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch,toDeleteHashs
 		}
 		batch.Reset()
 	}
-	*toDeleteHashs = append(*toDeleteHashs,hash)
 	return nil
 }
 
@@ -766,7 +765,7 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch,toDeleteHashs
 // persisted trie is removed from the cache. The reason behind the two-phase
 // commit is to ensure consistent data availability while moving from memory
 // to disk.
-func (db *NodeDatabase) uncache(hash common.Hash) {
+func (db *NodeDatabase) uncache(hash common.Hash,toDeleteHashs *[]common.Hash) {
 	// If the node does not exist, we're done on this path
 	node, ok := db.nodes[hash]
 	if !ok {
@@ -786,9 +785,10 @@ func (db *NodeDatabase) uncache(hash common.Hash) {
 	}
 	// Uncache the node's subtries and remove the node itself too
 	for _, child := range node.childs() {
-		db.uncache(child)
+		db.uncache(child,toDeleteHashs)
 	}
 	delete(db.nodes, hash)
+	*toDeleteHashs = append(*toDeleteHashs,hash)
 	db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 }
 
