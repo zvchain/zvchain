@@ -124,49 +124,6 @@ func (chain *FullBlockChain) saveBlockTxs(blockHash common.Hash, dataBytes []byt
 	return chain.txDb.AddKv(chain.batch, blockHash.Bytes(), dataBytes)
 }
 
-func (chain *FullBlockChain) storeBlockHash(hash common.Hash) (err error) {
-	chain.rwLock.Lock()
-	defer chain.rwLock.Unlock()
-
-	defer chain.batch.Reset()
-
-	// Save current block
-	if err = chain.saveCurrentBlock(hash); err != nil {
-		return
-	}
-	// Batch write
-	if err = chain.batch.Write(); err != nil {
-		return
-	}
-	return nil
-}
-
-func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostState) (err error) {
-	bh := block.Header
-	chain.rwLock.Lock()
-	defer chain.rwLock.Unlock()
-
-	defer chain.batch.Reset()
-
-	// Commit state
-	if err = chain.saveBlockState(block, ps.state); err != nil {
-		return
-	}
-
-	// Save current block
-	if err = chain.saveCurrentBlock(bh.Hash); err != nil {
-		return
-	}
-	// Batch write
-	if err = chain.batch.Write(); err != nil {
-		return
-	}
-	//ps.ts.AddStat("batch.Write", time.Since(b))
-
-	chain.updateLatestBlock(ps.state, bh)
-
-	return nil
-}
 
 // commitBlock persist a block in a batch
 func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostState) (ok bool, err error) {

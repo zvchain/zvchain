@@ -36,7 +36,6 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
-var removeKeys = []common.Hash{}
 
 // DatabaseReader wraps the Get and Has method of a backing store for the trie.
 type DatabaseReader interface {
@@ -297,44 +296,7 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
-func (db *NodeDatabase) DirtyKeyProcessEnd() error {
-	batch := db.diskdb.NewBatch()
-	defer func() {
-		batch.Write()
-		batch.Reset()
-	}()
-	for _, k := range removeKeys {
-		if err := batch.Delete(k[:]); err != nil {
-			return err
-		}
-	}
-	removeKeys = nil
-	return nil
-}
 
-func (db *NodeDatabase) CacheBatchToDb(cache []interface{}) error {
-	if len(cache) == 0 {
-		return nil
-	}
-	batch := db.diskdb.NewBatch()
-	defer func() {
-		batch.Write()
-		batch.Reset()
-	}()
-	for _, data := range cache {
-		bob := data.([]*storeBlob)
-		for _, sb := range bob {
-			d, _ := db.diskdb.Get(sb.Key[:])
-			if len(d) == 0 {
-				if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
-					return err
-				}
-				removeKeys = append(removeKeys, sb.Key)
-			}
-		}
-	}
-	return nil
-}
 
 func (db *NodeDatabase) ClearDitry() {
 	db.lock.Lock()
@@ -531,14 +493,6 @@ func (db *NodeDatabase) Dereference(height uint64, root common.Hash) error {
 	log.CorpLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v,height=%v,root=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
 		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024), height, root.Hex())
 	return nil
-}
-
-func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*storeBlob) {
-	err = rlp.DecodeBytes(data, &dirtyBlobs)
-	if err != nil {
-		err = fmt.Errorf("decode storeBlob error,error is %v", err)
-	}
-	return nil, dirtyBlobs
 }
 
 // dereference is the private locked version of Dereference.
