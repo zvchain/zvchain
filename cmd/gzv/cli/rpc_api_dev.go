@@ -17,16 +17,19 @@ package cli
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/pmylund/sortutil"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/network"
 )
@@ -598,4 +601,107 @@ func (api *RpcDevImpl) JumpBlockInfo(begin, end uint64) (map[string][2]int, erro
 		}
 	}
 	return ret, nil
+}
+
+// GetTps
+func (api *RpcDevImpl) GetTps(minutes int64) (map[string]interface{}, error) {
+	var max int64 = 60 * 60 * 24 * 10
+	if minutes > max || minutes < 1 {
+		return nil, errors.New(fmt.Sprintf("input should between 1 and %d", max))
+	}
+	var (
+		total       int64  = 0
+		bCount      int64  = 0
+		startHeight uint64 = 0
+	)
+	now := time2.TimeToTimeStamp(time.Now())
+	chain := core.BlockChainImpl
+	top := chain.QueryTopBlock()
+	current := chain.QueryBlockByHash(top.Hash)
+	for {
+		bCount += 1
+		total += int64(len(current.Transactions))
+		current = chain.QueryBlockByHash(current.Header.PreHash)
+		if current == nil {
+			break
+		}
+		if now.SinceSeconds(current.Header.CurTime) > minutes*60 {
+			break
+		}
+	}
+
+	if current != nil {
+		startHeight = current.Header.Height
+	}
+	ret := make(map[string]interface{})
+	ret["tps"] = int64(total / minutes / 60)
+	ret["block_count"] = bCount
+	ret["start_height"] = startHeight
+	ret["end_height"] = top.Height
+
+	return ret, nil
+}
+
+type blockTime struct {
+	Height  uint64
+	CurTime time2.TimeStamp
+}
+
+func (api *RpcDevImpl) GetBlocksTime(count int, last uint64) ([]blockTime, error) {
+	if last == 0 {
+		last = core.BlockChainImpl.Height()
+	}
+
+	if count > 10000 {
+		return nil, errors.New(fmt.Sprintf("count should less than 10000"))
+	}
+	blocks := make([]blockTime, 0)
+	chain := core.BlockChainImpl
+	top := chain.QueryBlockHeaderFloor(last)
+	current := chain.QueryBlockHeaderByHash(top.Hash)
+
+	for count > 0 {
+		blocks = append(blocks, blockTime{current.Height, current.CurTime})
+		count -= 1
+		current = chain.QueryBlockHeaderByHash(current.PreHash)
+		if current == nil {
+			break
+		}
+	}
+
+	return blocks, nil
+}
+
+// Txs is user transaction interface, used for sending transaction to the node
+func (api *RpcDevImpl) Txs(txRaws []TxRawData) (string, error) {
+	for _, txRaw := range txRaws {
+		if !validateTxType(txRaw.TxType) {
+			return "", fmt.Errorf("not supported txType")
+		}
+
+		// Check the address for the specified tx types
+		switch txRaw.TxType {
+		case types.TransactionTypeTransfer, types.TransactionTypeContractCall, types.TransactionTypeStakeAdd,
+			types.TransactionTypeStakeReduce,
+			types.TransactionTypeStakeRefund, types.TransactionTypeVoteMinerPool:
+			if !common.ValidateAddress(strings.TrimSpace(txRaw.Target)) {
+				return "", fmt.Errorf("wrong target address format")
+			}
+		}
+		if !common.ValidateAddress(txRaw.Source) {
+			return "", fmt.Errorf("wrong source address")
+		}
+
+		trans := txRawToTransaction(&txRaw)
+
+		if err := sendTransaction(trans); err != nil {
+			return "", err
+		}
+	}
+	//
+	return "success", nil
+}
+
+func (api *RpcDevImpl) GetPoolSize() uint64 {
+	return core.BlockChainImpl.GetTransactionPool().TxNum() + 100
 }
