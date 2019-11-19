@@ -66,12 +66,12 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 				if ph == nil {
 					log.CorpLogger.Warnf("persistence find height not exists,height is %v,currentHeight is %v", chosen, b.Header.Height)
 				} else {
-					//var toDeleteHashs []common.Hash
-					err,_ = triedb.Commit(ph.StateTree, true)
+					var toDeleteHashs []common.Hash
+					err,toDeleteHashs = triedb.Commit(ph.StateTree, true)
 					if err != nil {
 						return fmt.Errorf("state commit error:%s", err.Error())
 					}
-					//chain.DeleteDirtyTrie(chosen,b.Header.Height,toDeleteHashs)
+					chain.DeleteDirtyTrie(chosen,b.Header.Height,toDeleteHashs)
 					log.CorpLogger.Debugf("persistence from %v-%v", chosen, b.Header.Height)
 				}
 			}
