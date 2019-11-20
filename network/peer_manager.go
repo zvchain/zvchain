@@ -114,7 +114,7 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 	}
 
 	Logger.Infof("new connection, net id:%v session:%v isAccepted:%v ip:%v port:%v, peer count:%v ", id, session, isAccepted, ip, port, pm.peerIPSet.Count(ip))
-	if len(ip) > 0 && !pm.peerIPSet.Add(ip) && isAccepted {
+	if len(ip) > 0 && !pm.peerIPSet.Add(ip) {
 		P2PShutdown(session)
 		Logger.Infof("new connection , peer in same IP exceed limit size !Max size:%v, ip:%v, peer count:%v", pm.peerIPSet.Limit, ip, pm.peerIPSet.Count(ip))
 		return
