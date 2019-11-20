@@ -526,6 +526,11 @@ func (nc *NetCore) recvData(netID uint64, session uint32, data []byte) {
 		Logger.Errorf("recv data, but peer not in peer manager ! net id:%v session:%v", netID, session)
 		return
 	}
+	if p.sessionID != session {
+		Logger.Errorf("recv data, but p.sessionID != session disconnect ! net id:%v session:%v", netID, session)
+		P2PShutdown(session)
+		return
+	}
 
 	p.addRecvData(data)
 	nc.unhandled <- p
@@ -760,7 +765,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 
 	statistics.AddCount("net.handleData", uint32(req.DataType), uint64(len(req.Data)))
 	if req.DataType == DataType_DataNormal {
-		nc.onHandleDataMessage(req, srcNodeID)
+		nc.onHandleDataMessage(req, srcNodeID, p)
 		return nil
 	}
 
@@ -781,7 +786,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 			bizID := nc.messageManager.byteToBizID(req.BizMessageID)
 			nc.messageManager.handleBiz(bizID)
 		}
-		nc.onHandleDataMessage(req, srcNodeID)
+		nc.onHandleDataMessage(req, srcNodeID, p)
 	}
 
 	//group row message just handle it,but don't forward
@@ -827,25 +832,23 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 	return nil
 }
 
-func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
+func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID, p *Peer) {
 	if atomic.LoadInt32(&nc.unhandledDataMsg) > MaxUnhandledMessageCount {
 		Logger.Info("unhandled message too much , drop this message !")
 		return
 	}
 
 	chainID, protocolVersion := decodeMessageInfo(data.MessageInfo)
-	p := nc.peerManager.peerByID(fromID)
-	if p != nil {
-		p.chainID = chainID
-		if !p.IsCompatible() {
-			Logger.Info("Node chain ID not compatible, drop this message !")
-			return
-		}
 
-		if !p.isAuthSucceed {
-			Logger.Info("Peer Authentication is not succeed , drop this message !")
-			return
-		}
+	p.chainID = chainID
+	if !p.IsCompatible() {
+		Logger.Info("Node chain ID not compatible, drop this message !")
+		return
+	}
+
+	if !p.isAuthSucceed {
+		Logger.Info("Peer Authentication is not succeed , drop this message !")
+		return
 	}
 
 	if netServerInstance != nil {

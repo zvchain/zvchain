@@ -293,10 +293,7 @@ func (p *Peer) setRemoteVerifyResult(result bool) {
 }
 
 func (p *Peer) verifyUpdate() {
-
-	if !p.isAuthSucceed && p.verifyResult && p.remoteVerifyResult {
-		p.isAuthSucceed = true
-	}
+	p.isAuthSucceed = p.verifyResult && p.remoteVerifyResult
 }
 
 func (p *Peer) isEmpty() bool {

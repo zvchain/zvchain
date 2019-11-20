@@ -108,9 +108,13 @@ func (pm *PeerManager) write(toid NodeID, toaddr *net.UDPAddr, packet *bytes.Buf
 
 // newConnection handling callbacks for successful connections
 func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, isAccepted bool, ip string, port uint16) {
-	ip = net.ParseIP(ip).String()
+
+	if len(ip) > 0 {
+		ip = net.ParseIP(ip).String()
+	}
+
 	Logger.Infof("new connection, net id:%v session:%v isAccepted:%v ip:%v port:%v, peer count:%v ", id, session, isAccepted, ip, port, pm.peerIPSet.Count(ip))
-	if len(ip) > 0 && !pm.peerIPSet.Add(ip) {
+	if len(ip) > 0 && !pm.peerIPSet.Add(ip) && isAccepted {
 		P2PShutdown(session)
 		Logger.Infof("new connection , peer in same IP exceed limit size !Max size:%v, ip:%v, peer count:%v", pm.peerIPSet.Limit, ip, pm.peerIPSet.Count(ip))
 		return
@@ -152,15 +156,13 @@ func (pm *PeerManager) onDisconnected(id uint64, session uint32, p2pCode uint32)
 
 	if p != nil {
 		ip := p.IP.String()
-		Logger.Infof("disconnected,  node id：%v, netid：%v, session:%v ip:%v port:%v,peers:%v, peer count:%v", p.ID.GetHexString(), id, session, ip, p.Port, pm.peerIPSet.members, pm.peerIPSet.Count(ip))
+		Logger.Infof("disconnected,  node id：%v, netid：%v, session:%v ip:%v port:%v, peer count:%v", p.ID.GetHexString(), id, session, ip, p.Port, pm.peerIPSet.Count(ip))
 		if p.sessionID == session {
 			pm.peerIPSet.Remove(ip)
 
 			delete(pm.peers, id)
+			p.onDisonnect(id, session, p2pCode)
 		}
-
-		p.onDisonnect(id, session, p2pCode)
-
 	} else {
 		Logger.Infof("disconnected, but session id is unused, net id：%v session:%v", id, session)
 	}
@@ -194,8 +196,7 @@ func (pm *PeerManager) checkPeers() {
 
 			if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid() {
 				go netServerInstance.netCore.ping(p.ID, nil)
-			}
-			if !p.verifyResult && p.sessionID > 0 {
+			} else if !p.verifyResult && p.sessionID > 0 {
 				pongMsg := MsgPong{Version: 0, VerifyResult: p.verifyResult}
 
 				packet, _, err := netServerInstance.netCore.encodePacket(MessageType_MessagePong, &pongMsg)
@@ -203,6 +204,8 @@ func (pm *PeerManager) checkPeers() {
 					return
 				}
 				p.write(packet, P2PMessageCodeBase+uint32(MessageType_MessagePong))
+			} else if time.Since(p.connectTime) > 60*time.Second {
+				p.disconnect()
 			}
 		}
 	}
