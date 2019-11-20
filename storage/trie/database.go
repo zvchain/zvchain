@@ -675,7 +675,7 @@ func (db *NodeDatabase) ReduceDirtyStateParents(dirtyData map[common.Hash]*dbNod
 	for k,v := range dirtyData{
 		bts,err := db.dirtydb.Get(k[:])
 		if bts == nil || err != nil{
-			log.CorpLogger.Warn("reduce find update node value is nil,key is %v",k.Hex())
+			log.CorpLogger.Warnf("reduce find update node value is nil,key is %s",k.Hex())
 		}else{
 			count := common.ByteToUInt16(bts[0:2])
 			if v.parents >= count{
