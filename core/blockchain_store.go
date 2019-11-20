@@ -26,6 +26,7 @@ import (
 	"github.com/zvchain/zvchain/monitor"
 	"github.com/zvchain/zvchain/storage/account"
 	"sync/atomic"
+	"time"
 )
 
 const TriesInMemory = types.EpochLength*27 + 1
@@ -45,6 +46,7 @@ func (msg *newTopMessage) GetData() interface{} {
 }
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
+	begin := time.Now()
 	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
 	triedb := chain.stateCache.TrieDB()
 	triedb.ClearDitry()
@@ -53,11 +55,11 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
 	if trieGc {
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		err = triedb.CommitDirtyToDb()
 		if err != nil {
 			return fmt.Errorf("trie commit to dirty db error:%s", err.Error())
 		}
-		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
 		if b.Header.Height > TriesInMemory {
 			chosen := b.Header.Height - TriesInMemory
@@ -93,6 +95,8 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			return fmt.Errorf("trie commit error:%s", err.Error())
 		}
 	}
+
+	log.CorpLogger.Debugf("savestatecost%v",time.Since(begin))
 	return nil
 }
 

@@ -262,7 +262,7 @@ func (chain *FullBlockChain) DeleteDirtyTrie(deleteHeight uint64,currentHeight u
 		return
 	}
 	chain.stateCache.TrieDB().DeleteDirtyState(hashs)
-	log.CorpLogger.Debugf("delete dirty trie from db success,height is %v-%v,len=%v",deleteHeight,currentHeight,len(hashs))
+	log.CorpLogger.Debugf("commit delete dirty trie from db success,height is %v-%v,len=%v",deleteHeight,currentHeight,len(hashs))
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {

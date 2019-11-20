@@ -348,13 +348,13 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 				if vlupdate,ok := db.updateDirtyNodes[child];ok{
 					vlupdate.parents++
 				}else{
-					db.updateDirtyNodes[child] = &dbNode{node:c.node,parents: c.parents}
+					db.updateDirtyNodes[child] = &dbNode{node:c.node,parents: 1}
 				}
 			}
 		}
 	}
 	db.nodes[hash] = entry
-	db.insertDirtyNodes[hash] = &dbNode{node:entry.node,parents:entry.parents}
+	db.insertDirtyNodes[hash] = &dbNode{node:entry.node,parents:0}
 
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
@@ -482,6 +482,16 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	db.nodes[parent].children[child]++
 	if db.nodes[parent].children[child] == 1 {
 		db.childrenSize += common.HashLength + 2 // uint16 counter
+	}
+
+	if vlupdate,ok := db.insertDirtyNodes[child];ok{
+		vlupdate.parents++
+	}else{
+		if vlupdate,ok := db.updateDirtyNodes[child];ok{
+			vlupdate.parents++
+		}else{
+			db.updateDirtyNodes[child] = &dbNode{node:node.node,parents: 1}
+		}
 	}
 }
 
@@ -669,6 +679,7 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 
 
 func (db *NodeDatabase) ReduceDirtyStateParents(dirtyData map[common.Hash]*dbNode) error {
+	begin:= time.Now()
 	batch := db.dirtydb.NewBatch()
 	deleteCount := 0
 	updateCount :=0
@@ -700,7 +711,7 @@ func (db *NodeDatabase) ReduceDirtyStateParents(dirtyData map[common.Hash]*dbNod
 	if err !=  nil{
 		return err
 	}
-	log.CorpLogger.Debugf("reduce parent,delete count is %v,update count is %v",deleteCount,updateCount)
+	log.CorpLogger.Debugf("reduce parent,delete count is %v,update count is %v,cost=%v",deleteCount,updateCount,time.Since(begin))
 	return nil
 }
 
@@ -722,6 +733,7 @@ func (db *NodeDatabase) DeleteDirtyState(dirtyData []common.Hash) error {
 }
 
 func (db *NodeDatabase) CommitDirtyToDb() error {
+	begin := time.Now()
 	db.lock.Lock()
 	defer db.lock.Unlock()
 	batch := db.dirtydb.NewBatch()
@@ -757,7 +769,7 @@ func (db *NodeDatabase) CommitDirtyToDb() error {
 	if err !=  nil{
 		return err
 	}
-	log.CorpLogger.Debugf("commit dirty to small db,insert size is %v,update size is %v",len(db.insertDirtyNodes),len(db.updateDirtyNodes))
+	log.CorpLogger.Debugf("commit dirty to small db,insert size is %v,update size is %v,cost=%v",len(db.insertDirtyNodes),len(db.updateDirtyNodes),time.Since(begin))
 	return nil
 
 }
