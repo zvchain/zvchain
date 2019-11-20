@@ -17,6 +17,7 @@
 package trie
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"io"
@@ -58,7 +59,8 @@ type NodeDatabase struct {
 	diskdb tasdb.Database // Persistent storage for matured trie nodes
 
 	dirtydb tasdb.Database // Persistent storage for full trie nodes
-	dirtyNodes  map[common.Hash]*cachedNode
+	insertDirtyNodes  map[common.Hash]*dbNode
+	updateDirtyNodes  map[common.Hash]*dbNode
 	nodes  map[common.Hash]*cachedNode // Data and references relationships of a node
 	oldest common.Hash                 // Oldest tracked node, flush-list head
 	newest common.Hash                 // Newest tracked node, flush-list tail
@@ -136,6 +138,22 @@ type cachedNode struct {
 
 	flushPrev common.Hash // Previous node in the flush-list
 	flushNext common.Hash // Next node in the flush-list
+}
+
+type dbNode struct {
+	node node
+	parents  uint16
+}
+
+func (n *dbNode) rlp() []byte {
+	if node, ok := n.node.(rawNode); ok {
+		return node
+	}
+	blob, err := rlp.EncodeToBytes(n.node)
+	if err != nil {
+		panic(err)
+	}
+	return blob
 }
 
 // cachedNodeSize is the raw size of a cachedNode data structure without any
@@ -274,7 +292,8 @@ func NewDatabase(diskdb tasdb.Database, dirtyDb tasdb.Database) *NodeDatabase {
 		diskdb:    diskdb,
 		dirtydb:   dirtyDb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
-		dirtyNodes:make(map[common.Hash]*cachedNode),
+		insertDirtyNodes:make(map[common.Hash]*dbNode),
+		updateDirtyNodes:make(map[common.Hash]*dbNode),
 		preimages: make(map[common.Hash][]byte),
 	}
 }
@@ -300,7 +319,8 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 
 func (db *NodeDatabase) ClearDitry() {
 	db.lock.Lock()
-	db.dirtyNodes = make(map[common.Hash]*cachedNode)
+	db.insertDirtyNodes = make(map[common.Hash]*dbNode)
+	db.updateDirtyNodes = make(map[common.Hash]*dbNode)
 	db.lock.Unlock()
 }
 
@@ -322,10 +342,19 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	for _, child := range entry.childs() {
 		if c := db.nodes[child]; c != nil {
 			c.parents++
+			if vl,ok := db.insertDirtyNodes[child];ok{
+				vl.parents++
+			}else{
+				if vlupdate,ok := db.updateDirtyNodes[child];ok{
+					vlupdate.parents++
+				}else{
+					db.updateDirtyNodes[child] = &dbNode{node:c.node,parents: c.parents}
+				}
+			}
 		}
 	}
 	db.nodes[hash] = entry
-	db.dirtyNodes[hash] = entry
+	db.insertDirtyNodes[hash] = &dbNode{node:entry.node,parents:entry.parents}
 
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
@@ -365,6 +394,8 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 		enc,err = db.dirtydb.Get(hash[:])
 		if err != nil || enc == nil {
 			return nil, nil
+		}else{
+			enc = enc[2:]
 		}
 	}
 	return mustDecodeNode(hash[:], enc, cachegen), enc
@@ -454,35 +485,20 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-func (db *NodeDatabase) DeleteDirtyState(dirtyData []common.Hash) error {
-	batch := db.dirtydb.NewBatch()
-	for _, k := range dirtyData {
-		err := batch.Delete(k[:])
-		if err != nil {
-			return err
-		}
-	}
-	err := batch.Write()
-	if err != nil {
-		return err
-	}
-	batch.Reset()
-	return nil
-}
 
 // Dereference removes an existing reference from a root node.
 func (db *NodeDatabase) Dereference(height uint64, root common.Hash) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
-	cl := []common.Hash{}
+	cl := make(map[common.Hash]*dbNode)
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{}, &cl)
+	db.dereference(root, common.Hash{}, cl)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
 
 	if len(cl) > 0 {
-		err := db.DeleteDirtyState(cl)
+		err := db.ReduceDirtyStateParents(cl)
 		if err != nil {
 			return fmt.Errorf("delete dirty state failed,err is %v", err)
 		}
@@ -496,7 +512,7 @@ func (db *NodeDatabase) Dereference(height uint64, root common.Hash) error {
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl *[]common.Hash) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl map[common.Hash]*dbNode) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -519,6 +535,11 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl *[
 		// then reverted into short), causing a cached node to have no parents. That is
 		// no problem in itself, but don't make maxint parents out of it.
 		node.parents--
+		if vl,ok:=cl[child];ok{
+			vl.parents++
+		}else{
+			cl[child] = &dbNode{node:node.node,parents:1}
+		}
 	}
 	if node.parents == 0 {
 		// Remove the node from the flush-list
@@ -537,7 +558,6 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl *[
 		for _, hash := range node.childs() {
 			db.dereference(hash, child, cl)
 		}
-		*cl = append(*cl, child)
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 		if node.children != nil {
@@ -647,24 +667,97 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 	return nil
 }
 
-func (db *NodeDatabase) CommitDirtyToDb() error {
-	db.lock.Lock()
-	defer db.lock.Unlock()
+
+func (db *NodeDatabase) ReduceDirtyStateParents(dirtyData map[common.Hash]*dbNode) error {
 	batch := db.dirtydb.NewBatch()
-	totalSize := 0
-	for k,v := range db.dirtyNodes{
-		bts :=  v.rlp()
-		totalSize+=len(bts)
-		err := batch.Put(k[:],bts)
-		if err != nil{
-			return err
+	deleteCount := 0
+	updateCount :=0
+	for k,v := range dirtyData{
+		bts,err := db.dirtydb.Get(k[:])
+		if bts == nil || err != nil{
+			log.CorpLogger.Warn("reduce find update node value is nil,key is %v",k.Hex())
+		}else{
+			count := common.ByteToUInt16(bts[0:2])
+			if v.parents >= count{
+				err := batch.Delete(k[:])
+				if err != nil{
+					return err
+				}
+				deleteCount++
+			}else{
+				count -= v.parents
+				bytesBuffer := bytes.NewBuffer(common.UInt16ToByte(count))
+				bytesBuffer.Write(bts[2:])
+				err := batch.Put(k[:],bytesBuffer.Bytes())
+				if err != nil{
+					return err
+				}
+				updateCount++
+			}
 		}
 	}
 	err :=  batch.Write()
 	if err !=  nil{
 		return err
 	}
-	log.CorpLogger.Debugf("commit dirty to small db,len is %v,size is %v",len(db.dirtyNodes),totalSize)
+	log.CorpLogger.Debugf("reduce parent,delete count is %v,update count is %v",deleteCount,updateCount)
+	return nil
+}
+
+func (db *NodeDatabase) DeleteDirtyState(dirtyData []common.Hash) error {
+	batch := db.dirtydb.NewBatch()
+	for _, k := range dirtyData {
+		err := batch.Delete(k[:])
+		if err != nil {
+			return err
+		}
+	}
+	err := batch.Write()
+	if err != nil {
+		return err
+	}
+	batch.Reset()
+	log.CorpLogger.Debugf("delete count is %v",len(dirtyData))
+	return nil
+}
+
+func (db *NodeDatabase) CommitDirtyToDb() error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+	batch := db.dirtydb.NewBatch()
+	totalSize := 0
+	for k,v := range db.insertDirtyNodes{
+		bts :=  v.rlp()
+		totalSize+=len(bts)
+		bytesBuffer := bytes.NewBuffer(common.UInt16ToByte(v.parents))
+		bytesBuffer.Write(bts)
+		err := batch.Put(k[:],bytesBuffer.Bytes())
+		if err != nil{
+			return err
+		}
+	}
+
+	for k,v := range db.updateDirtyNodes{
+		bts,err := db.dirtydb.Get(k[:])
+		if bts == nil || err != nil{
+			log.CorpLogger.Warn("find update node value is nil,key is %v",k.Hex())
+		}else{
+			count := common.ByteToUInt16(bts[0:2])
+			count += v.parents
+
+			bytesBuffer := bytes.NewBuffer(common.UInt16ToByte(count))
+			bytesBuffer.Write(bts[2:])
+			err := batch.Put(k[:],bytesBuffer.Bytes())
+			if err != nil{
+				return err
+			}
+		}
+	}
+	err :=  batch.Write()
+	if err !=  nil{
+		return err
+	}
+	log.CorpLogger.Debugf("commit dirty to small db,insert size is %v,update size is %v",len(db.insertDirtyNodes),len(db.updateDirtyNodes))
 	return nil
 
 }
