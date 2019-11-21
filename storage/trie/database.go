@@ -59,8 +59,7 @@ type NodeDatabase struct {
 	diskdb tasdb.Database // Persistent storage for matured trie nodes
 
 	dirtydb tasdb.Database // Persistent storage for full trie nodes
-	insertDirtyNodes  map[common.Hash]*dbNode
-	updateDirtyNodes  map[common.Hash]*dbNode
+	dirtyNodes  map[common.Hash]*dbNode
 	nodes  map[common.Hash]*cachedNode // Data and references relationships of a node
 	oldest common.Hash                 // Oldest tracked node, flush-list head
 	newest common.Hash                 // Newest tracked node, flush-list tail
@@ -292,8 +291,7 @@ func NewDatabase(diskdb tasdb.Database, dirtyDb tasdb.Database) *NodeDatabase {
 		diskdb:    diskdb,
 		dirtydb:   dirtyDb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
-		insertDirtyNodes:make(map[common.Hash]*dbNode),
-		updateDirtyNodes:make(map[common.Hash]*dbNode),
+		dirtyNodes:make(map[common.Hash]*dbNode),
 		preimages: make(map[common.Hash][]byte),
 	}
 }
@@ -319,8 +317,7 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 
 func (db *NodeDatabase) ClearDitry() {
 	db.lock.Lock()
-	db.insertDirtyNodes = make(map[common.Hash]*dbNode)
-	db.updateDirtyNodes = make(map[common.Hash]*dbNode)
+	db.dirtyNodes = make(map[common.Hash]*dbNode)
 	db.lock.Unlock()
 }
 
@@ -342,19 +339,15 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	for _, child := range entry.childs() {
 		if c := db.nodes[child]; c != nil {
 			c.parents++
-			if vl,ok := db.insertDirtyNodes[child];ok{
+			if vl,ok := db.dirtyNodes[child];ok{
 				vl.parents++
 			}else{
-				if vlupdate,ok := db.updateDirtyNodes[child];ok{
-					vlupdate.parents++
-				}else{
-					db.updateDirtyNodes[child] = &dbNode{node:c.node,parents: 1}
-				}
+				db.dirtyNodes[child] = &dbNode{node:c.node,parents: 1}
 			}
 		}
 	}
 	db.nodes[hash] = entry
-	db.insertDirtyNodes[hash] = &dbNode{node:entry.node,parents:0}
+	db.dirtyNodes[hash] = &dbNode{node:entry.node,parents:0}
 
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
@@ -484,14 +477,10 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 		db.childrenSize += common.HashLength + 2 // uint16 counter
 	}
 
-	if vlupdate,ok := db.insertDirtyNodes[child];ok{
+	if vlupdate,ok := db.dirtyNodes[child];ok{
 		vlupdate.parents++
 	}else{
-		if vlupdate,ok := db.updateDirtyNodes[child];ok{
-			vlupdate.parents++
-		}else{
-			db.updateDirtyNodes[child] = &dbNode{node:node.node,parents: 1}
-		}
+		db.dirtyNodes[child] = &dbNode{node:node.node,parents: 1}
 	}
 }
 
@@ -737,28 +726,20 @@ func (db *NodeDatabase) CommitDirtyToDb() error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 	batch := db.dirtydb.NewBatch()
-	totalSize := 0
-	for k,v := range db.insertDirtyNodes{
-		bts :=  v.rlp()
-		totalSize+=len(bts)
-		bytesBuffer := bytes.NewBuffer(common.UInt16ToByte(v.parents))
-		bytesBuffer.Write(bts)
-		err := batch.Put(k[:],bytesBuffer.Bytes())
-		if err != nil{
-			return err
-		}
-	}
-
-	for k,v := range db.updateDirtyNodes{
+	for k,v := range db.dirtyNodes{
 		bts,err := db.dirtydb.Get(k[:])
-		if bts == nil || err != nil{
-			log.CorpLogger.Warn("find update node value is nil,key is %v",k.Hex())
-		}else{
+		if err == nil || len(bts) > 0{
 			count := common.ByteToUInt16(bts[0:2])
 			count += v.parents
-
 			bytesBuffer := bytes.NewBuffer(common.UInt16ToByte(count))
 			bytesBuffer.Write(bts[2:])
+			err := batch.Put(k[:],bytesBuffer.Bytes())
+			if err != nil{
+				return err
+			}
+		}else{
+			bytesBuffer := bytes.NewBuffer(common.UInt16ToByte(v.parents))
+			bytesBuffer.Write(v.rlp())
 			err := batch.Put(k[:],bytesBuffer.Bytes())
 			if err != nil{
 				return err
@@ -769,7 +750,7 @@ func (db *NodeDatabase) CommitDirtyToDb() error {
 	if err !=  nil{
 		return err
 	}
-	log.CorpLogger.Debugf("commit dirty to small db,insert size is %v,update size is %v,cost=%v",len(db.insertDirtyNodes),len(db.updateDirtyNodes),time.Since(begin))
+	log.CorpLogger.Debugf("commit dirty to small db, size is %v,cost=%v",len(db.dirtyNodes),time.Since(begin))
 	return nil
 
 }
