@@ -26,7 +26,8 @@ require (
 	github.com/rs/cors v1.6.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.3.0 // indirect
-	github.com/syndtr/goleveldb v1.0.0
+	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
+
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/willf/bitset v1.1.10 // indirect
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
