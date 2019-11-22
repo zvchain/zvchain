@@ -28,6 +28,12 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+const (
+	configMaxBroadcastCount = "max_broadcast_count"
+	maxBroadcastCount       = 256
+	configSection           = "p2p"
+)
+
 type Server struct {
 	Self *Node
 
@@ -80,14 +86,15 @@ func (s *Server) SpreadToGroup(groupID string, groupMembers []string, msg Messag
 	return nil
 }
 
-func (s *Server) TransmitToNeighbor(msg Message) error {
+func (s *Server) TransmitToNeighbor(msg Message, blacklist []string) error {
 	bytes, err := marshalMessage(msg)
 	if err != nil {
 		Logger.Errorf("Marshal message error:%s", err.Error())
 		return err
 	}
 
-	s.netCore.broadcastRandom(bytes, msg.Code, -1, 256)
+	maxCount := int(common.GlobalConf.GetInt(configSection, configMaxBroadcastCount, maxBroadcastCount))
+	s.netCore.broadcastRandom(bytes, msg.Code, -1, maxCount, blacklist)
 
 	return nil
 }

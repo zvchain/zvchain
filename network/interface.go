@@ -85,7 +85,7 @@ type Network interface {
 	SpreadToGroup(groupID string, groupMembers []string, msg Message, digest MsgDigest) error
 
 	//TransmitToNeighbor Send message to neighbor nodes
-	TransmitToNeighbor(msg Message) error
+	TransmitToNeighbor(msg Message, blacklist []string) error
 
 	//Broadcast Send the message to all nodes it connects to and the node which receive the message also broadcast the message to their neighbor once
 	Broadcast(msg Message) error
