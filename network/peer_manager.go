@@ -236,11 +236,10 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCou
 	} else {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		randomNodes := r.Perm(peerSize)
-		availablePeers := make([]*Peer, 0)
 
 		for i := 0; i < maxCount; i++ {
 			p := availablePeers[randomNodes[i]]
-			availablePeers = append(availablePeers, p)
+			sendPeers = append(sendPeers, p)
 		}
 	}
 
