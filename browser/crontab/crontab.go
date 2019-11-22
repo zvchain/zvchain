@@ -360,6 +360,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
 	if blockDetail != nil {
+		go server.NewConsumeTokenContractTransfer(blockDetail.Block.Height, blockDetail.Block.Hash)
 		if maxHeight > pre {
 			server.storage.DeleteForkblock(pre, localHeight, blockDetail.CurTime)
 		}
@@ -437,7 +438,6 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
-	go crontab.NewConsumeTokenContractTransfer(bh.Height, bh.Hash.Hex())
 
 	return nil
 }
