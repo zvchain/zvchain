@@ -298,15 +298,10 @@ func (db *NodeDatabase) DirtyKeyProcessEnd() {
 }
 
 
-func (db *NodeDatabase) CacheBatchToDb(cache []interface{})error {
+func (db *NodeDatabase) LoadDiryStateData(cache []interface{}) {
 	if len(cache) == 0 {
-		return nil
+		return
 	}
-	batch := db.diskdb.NewBatch()
-	defer func() {
-		batch.Write()
-		batch.Reset()
-	}()
 	for _, data := range cache {
 		bob := data.([]*storeBlob)
 		for _, sb := range bob {
@@ -314,7 +309,6 @@ func (db *NodeDatabase) CacheBatchToDb(cache []interface{})error {
 			dirtyNodeCache[sb.Key] = nd
 		}
 	}
-	return nil
 }
 
 // insert inserts a collapsed trie node into the memory database. This method is

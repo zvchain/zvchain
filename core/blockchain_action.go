@@ -343,6 +343,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			if bh == nil{
 				continue
 			}
+
 			data := dirtyState.GetDirtyByRoot(bh.StateTree)
 			if len(data) == 0 {
 				log.CorpLogger.Debugf("get dirty state data nil,height is %v，root is %v",bh.Height,bh.StateTree.Hex())
@@ -354,10 +355,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			}
 			dirtyStateCache = append(dirtyStateCache,caches)
 		}
-		err := triedb.CacheBatchToDb(dirtyStateCache)
-		if  err != nil{
-			return fmt.Errorf("dirty state cache to db insert error,error is %v",err)
-		}
+		triedb.LoadDiryStateData(dirtyStateCache)
 	}
 	return nil
 }
