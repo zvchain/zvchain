@@ -310,7 +310,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
-			tvm.SetTokenContractMapToLdb(block.Header.Hash.Hex())
+			tvm.SetTokenContractMapToLdb(block.Header.Hash.Hex(), block.Header.Height)
 			chain.successOnChainCallBack(block)
 		}
 	}()
