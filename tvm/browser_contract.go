@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/browser/ldb"
-	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"io"
 	"sync"
@@ -51,7 +50,7 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 		(MapTokenContractData).Store(blockHash, contracts)
 	}
 	setTokenContractMapToLdb(blockHash)
-	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
+	fmt.Println("ProduceTokenContract,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
 }
 
 func setTokenContractMapToLdb(blockHash string) {
@@ -63,14 +62,13 @@ func setTokenContractMapToLdb(blockHash string) {
 
 func GetTokenContractldbdata(blockkey string) ([]*TokenContractTransfer, error) {
 	if blockkey == "" {
-		return nil, fmt.Errorf("data is empty")
+		return nil, fmt.Errorf("token data is empty")
 	}
 	data, _ := ldb.TokenSetdata.Get([]byte(blockkey))
 
 	if len(data) == 0 {
-		return nil, fmt.Errorf("data is empty")
+		return nil, fmt.Errorf("token data is empty")
 	}
-
 	txs := make([]*TokenContractTransfer, 0)
 	dataReader := bytes.NewReader(data)
 
@@ -95,14 +93,11 @@ func GetTokenContractldbdata(blockkey string) ([]*TokenContractTransfer, error) 
 			return nil, err
 		}
 		tx, err := unmarshalTo(txBytes)
-		str := tx.TxHash + "," + tx.BlockHash + "," + string(tx.Addr)
-		fmt.Println("getldbdata,txinfo", str)
 		if err != nil {
 			return nil, err
 		}
 		txs = append(txs, tx)
 	}
-	fmt.Println("getldbdata,", util.ObjectTojson(txs))
 	return txs, nil
 }
 

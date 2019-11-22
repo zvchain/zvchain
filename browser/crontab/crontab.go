@@ -548,14 +548,14 @@ func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash stri
 		return
 	}
 	if err != nil {
-		browserlog.BrowserLog.Error("NewConsumeTokenContractTransfer,error")
+		browserlog.BrowserLog.Error("NewConsumeTokenContract,error")
 		return
 	}
 	for _, data := range datas {
 		if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
 			continue
 		}
-		browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", util.ObjectTojson(data))
+		browserlog.BrowserLog.Info("ConsumeTokenContract,json:", util.ObjectTojson(data))
 		chain := core.BlockChainImpl
 		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 		if wrapper != nil {
@@ -567,7 +567,6 @@ func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash stri
 					valuestring = value.String()
 				}
 				addr := strings.TrimPrefix(data.Addr, "balanceOf@")
-				fmt.Println("UpdateTokenUser,json:", addr+","+data.ContractAddr+","+valuestring)
 				crontab.storage.UpdateTokenUser(data.ContractAddr,
 					addr,
 					valuestring)
@@ -577,7 +576,12 @@ func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash stri
 
 	}
 	tvm.MapTokenContractData.Delete(hash)
-	fmt.Println("delete ConsumeTokenContractTransfer", hash)
+	var length int
+	tvm.MapTokenContractData.Range(func(k, v interface{}) bool {
+		length++
+		return true
+	})
+	fmt.Println("delete ConsumeTokenContract:", hash, ",maplen:", length)
 
 }
 
