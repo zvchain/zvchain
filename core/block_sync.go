@@ -576,7 +576,6 @@ func (bs *blockSyncer) notifyCounterAdd(source string, header *types.BlockHeader
 	if header.Height >= top.Height {
 		counter := bs.getOrAddNotifyCounter(header)
 		counter.Add(source, header.Hash)
-		bs.logger.Debugf("notify counter add notify from=%v, hash=%v,height=%v,len=%v", source, header.Hash.Hex(), header.Height, counter.Len())
 	}
 
 }
@@ -586,8 +585,6 @@ func (bs *blockSyncer) getOrAddNotifyCounter(header *types.BlockHeader) *lru.Cac
 	if !exit {
 		v = common.MustNewLRUCache(1024)
 		bs.notifyCounters.Add(header.Height, v)
-		bs.logger.Debugf("notify counter add counter height=%v,len=%v", header.Height, bs.notifyCounters.Len())
-
 	}
 	return v.(*lru.Cache)
 }

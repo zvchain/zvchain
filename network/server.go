@@ -28,19 +28,14 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-const (
-	configMaxBroadcastCount = "max_broadcast_count"
-	maxBroadcastCount       = 256
-	configSection           = "p2p"
-)
-
 type Server struct {
 	Self *Node
 
 	netCore *NetCore
 	config  *NetworkConfig
 
-	consensusHandler MsgHandler
+	consensusHandler  MsgHandler
+	maxBroadcastCount int
 }
 
 func (s *Server) Send(id string, msg Message) error {
@@ -93,8 +88,7 @@ func (s *Server) TransmitToNeighbor(msg Message, blacklist []string) error {
 		return err
 	}
 
-	maxCount := int(common.GlobalConf.GetInt(configSection, configMaxBroadcastCount, maxBroadcastCount))
-	s.netCore.broadcastRandom(bytes, msg.Code, -1, maxCount, blacklist)
+	s.netCore.broadcastRandom(bytes, msg.Code, -1, s.maxBroadcastCount, blacklist)
 
 	return nil
 }
