@@ -587,9 +587,7 @@ func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash stri
 
 func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
 	var ok = true
-	tvm.Lock.Lock()
 	chanData := tvm.MapTokenChan[hash]
-	tvm.Lock.Unlock()
 	if chanData == nil || len(chanData) < 1 {
 		return
 	}

@@ -41,19 +41,20 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 	}
 	contracts := make([]*TokenContractTransfer, 1)
 	contracts[0] = contract
-
-	if obj, ok := (MapTokenContractData).Load(blockHash); ok {
+	Lock.Lock()
+	defer Lock.Unlock()
+	if obj, ok := MapTokenContractData.Load(blockHash); ok {
 		objToken := obj.([]*TokenContractTransfer)
 		objToken = append(objToken, contract)
-		(MapTokenContractData).Store(blockHash, objToken)
+		MapTokenContractData.Store(blockHash, objToken)
 	} else {
-		(MapTokenContractData).Store(blockHash, contracts)
+		MapTokenContractData.Store(blockHash, contracts)
 	}
-	setTokenContractMapToLdb(blockHash)
+	//SetTokenContractMapToLdb(blockHash)
 	fmt.Println("ProduceTokenContract,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
 }
 
-func setTokenContractMapToLdb(blockHash string) {
+func SetTokenContractMapToLdb(blockHash string) {
 	if obj, ok := (MapTokenContractData).Load(blockHash); ok {
 		objToken := obj.([]*TokenContractTransfer)
 		addLdbData(blockHash, objToken)

@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/tvm"
 	"math"
 	"time"
 
@@ -309,6 +310,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
+			tvm.SetTokenContractMapToLdb(block.Header.Hash.Hex())
 			chain.successOnChainCallBack(block)
 		}
 	}()
