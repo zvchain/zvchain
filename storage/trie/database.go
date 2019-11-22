@@ -36,7 +36,9 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
-var removeKeys = []common.Hash{}
+
+var dirtyNodeCache  = make(map[common.Hash]node)
+
 
 // DatabaseReader wraps the Get and Has method of a backing store for the trie.
 type DatabaseReader interface {
@@ -291,19 +293,8 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
-func (db *NodeDatabase) DirtyKeyProcessEnd()error {
-	batch := db.diskdb.NewBatch()
-	defer func() {
-		batch.Write()
-		batch.Reset()
-	}()
-	for _,k := range removeKeys {
-		if err := batch.Delete(k[:]); err != nil {
-			return err
-		}
-	}
-	removeKeys = nil
-	return nil
+func (db *NodeDatabase) DirtyKeyProcessEnd() {
+	dirtyNodeCache = nil
 }
 
 
@@ -319,13 +310,8 @@ func (db *NodeDatabase) CacheBatchToDb(cache []interface{})error {
 	for _, data := range cache {
 		bob := data.([]*storeBlob)
 		for _, sb := range bob {
-			d,_:=db.diskdb.Get(sb.Key[:])
-			if len(d) == 0{
-				if err := batch.Put(sb.Key[:], sb.Raw); err != nil {
-					return err
-				}
-				removeKeys = append(removeKeys,sb.Key)
-			}
+			nd := mustDecodeNode(sb.Key[:], sb.Raw, 0)
+			dirtyNodeCache[sb.Key] = nd
 		}
 	}
 	return nil
@@ -385,6 +371,9 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	if node != nil {
 		return node.obj(hash, cachegen), nil
 	}
+	if nd,ok := dirtyNodeCache[hash];ok{
+		return nd,nil
+	}
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
@@ -403,6 +392,9 @@ func (db *NodeDatabase) Node(hash common.Hash) ([]byte, error) {
 
 	if node != nil {
 		return node.rlp(), nil
+	}
+	if vl,ok:=dirtyNodeCache[hash];ok{
+		return vl.(rawNode),nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
 	return db.diskdb.Get(hash[:])

@@ -400,10 +400,7 @@ func (chain *FullBlockChain) FixState() error{
 		}
 		notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: curBlock})
 	}
-	err := chain.stateCache.TrieDB().DirtyKeyProcessEnd()
-	if err != nil{
-		return fmt.Errorf("delete dirty state error,err is %v",err)
-	}
+	chain.stateCache.TrieDB().DirtyKeyProcessEnd()
 	return nil
 }
 
