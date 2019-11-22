@@ -406,7 +406,17 @@ func (db *NodeDatabase) Node(hash common.Hash) ([]byte, error) {
 		return node.rlp(), nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
-	return db.diskdb.Get(hash[:])
+	 //enc,err := db.diskdb.Get(hash[:])
+	enc, err := db.diskdb.Get(hash[:])
+	if err != nil || enc == nil {
+		enc,err = db.dirtydb.Get(hash[:])
+		if err != nil || enc == nil {
+			return nil, nil
+		}else{
+			enc = enc[2:]
+		}
+	}
+	return enc,err
 }
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be

@@ -95,8 +95,10 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			return fmt.Errorf("trie commit error:%s", err.Error())
 		}
 	}
+	if time.Since(begin).Nanoseconds()/1e6 > 100{
+		log.CorpLogger.Debugf("savestatecost%v",time.Since(begin).Nanoseconds()/1e6 )
+	}
 
-	log.CorpLogger.Debugf("savestatecost%v",time.Since(begin))
 	return nil
 }
 
