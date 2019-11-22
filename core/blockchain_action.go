@@ -337,7 +337,6 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 		fmt.Printf("begin fix dirty state data,from %v-%v \n",begin,end)
 		triedb := chain.stateCache.TrieDB()
 
-		dirtyStateCache := []interface{}{}
 		for i := begin;i<=end;i++{
 			bh := chain.queryBlockHeaderByHeight(i)
 			if bh == nil{
@@ -353,9 +352,8 @@ func (chain *FullBlockChain) FixTrieDataFromDB()error {
 			if err != nil{
 				return err
 			}
-			dirtyStateCache = append(dirtyStateCache,caches)
+			triedb.AddDirtyStateToCache(caches)
 		}
-		triedb.LoadDiryStateData(dirtyStateCache)
 	}
 	return nil
 }
