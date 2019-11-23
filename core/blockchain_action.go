@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -282,6 +283,41 @@ func (chain *FullBlockChain) resetBlockHeight() error{
 		}
 	}
 	return nil
+}
+
+func (chain *FullBlockChain) Stop() {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	if !trieGc{
+		return
+	}
+	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
+		return
+	}
+	chain.wg.Wait()
+	begin := time.Now()
+	defer func(){
+		fmt.Printf("stop success,cost %v",time.Since(begin))
+	}()
+	fmt.Printf("stop process begin...")
+	bh := chain.QueryTopBlock()
+	if  bh == nil{
+		return
+	}
+	triedb := chain.stateCache.TrieDB()
+	for !chain.triegc.Empty() {
+		root, number := chain.triegc.Pop()
+		if bh.Height -  TriesInMemory < uint64(-number){
+			err := triedb.Commit(root.(common.Hash), true)
+			if err != nil{
+				fmt.Printf("stopping trie commit statedb error:%s", err.Error())
+			}
+			err = dirtyState.StoreTriePureHeight(uint64(-number))
+			if err != nil{
+				fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
+			}
+			return
+		}
+	}
 }
 
 func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {

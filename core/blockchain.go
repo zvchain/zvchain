@@ -81,7 +81,7 @@ type FullBlockChain struct {
 	batch             tasdb.Batch
 	triegc            *prque.Prque // Priority queue mapping block numbers to tries to gc
 	stateCache        account.AccountDatabase
-
+	running int32         // running must be called atomically
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -89,7 +89,7 @@ type FullBlockChain struct {
 	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
-
+	wg            sync.WaitGroup
 	rwLock sync.RWMutex // Read-write lock
 
 	mu      sync.Mutex // Mutex lock

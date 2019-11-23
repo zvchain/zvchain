@@ -115,7 +115,8 @@ func (gzv *Gzv) exit(ctrlC <-chan bool, quit chan<- bool) {
 		return
 	}
 	fmt.Println("exiting...")
-	core.BlockChainImpl.Close()
+	core.BlockChainImpl.Stop()
+	//core.BlockChainImpl.Close()
 	//taslog.Close()
 	mediator.StopMiner()
 	if gzv.inited {

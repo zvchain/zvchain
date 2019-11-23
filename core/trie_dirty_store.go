@@ -70,6 +70,7 @@ func (store *dirtyStateStore) StoreDirtyTrie(root common.Hash, nb []byte) error 
 	return nil
 }
 
+
 func (store *dirtyStateStore) StoreTriePureHeight(height uint64) error {
 	err:= store.db.Put([]byte(trieHeightStore), common.UInt64ToByte(height))
 	if err != nil {

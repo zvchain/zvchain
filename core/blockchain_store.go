@@ -44,6 +44,8 @@ func (msg *newTopMessage) GetData() interface{} {
 }
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
+	chain.wg.Add(1)
+	defer chain.wg.Done()
 	root, err := state.Commit(true)
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
@@ -67,7 +69,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 					}
 					err = dirtyState.StoreTriePureHeight(chosen)
 					if err != nil{
-						return fmt.Errorf("state commit error:%s", err.Error())
+						return fmt.Errorf("StoreTriePureHeight error:%s", err.Error())
 					}
 					log.CorpLogger.Debugf("persistence from %v-%v",chosen,b.Header.Height)
 				}
@@ -259,6 +261,8 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 }
 
 func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
+	chain.wg.Add(1)
+	defer chain.wg.Done()
 	if !chain.isAdjusting {
 		chain.isAdjusting = true
 		defer func() {

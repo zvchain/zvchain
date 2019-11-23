@@ -468,7 +468,7 @@ func (db *NodeDatabase) Dereference(height uint64, root common.Hash, dbReader Di
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
 
-	if len(cl) > 0 {
+	if len(cl) > 0{
 		dirtyBlobs := []*storeBlob{}
 		for k, v := range cl {
 			bt := v.rlp()
