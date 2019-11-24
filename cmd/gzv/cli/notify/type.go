@@ -1,11 +1,14 @@
 package notify
 
 type Notice struct {
-	Version          string `json:"version"`
-	Notify_Gap       uint64 `json:"notify_gap"`
-	Effective_Height uint64 `json:"effective_height"`
-	Priority         uint64 `json:"priority"`
-	Notice_Content   string `json:"notice_content"`
+	Version               string   `json:"version"`
+	NotifyGap             uint64   `json:"notifyGap"`
+	EffectiveHeight       uint64   `json:"effectiveHeight"`
+	Priority              uint64   `json:"priority"`
+	NoticeContent         string   `json:"noticeContent"`
+	UpdateListsForLinux   []string `json:"update_lists_for_linux"`
+	UpdateListsForDrawin  []string `json:"update_lists_for_drawin"`
+	UpdateListsForWindows []string `json:"update_lists_for_windows"`
 }
 
 type Result struct {

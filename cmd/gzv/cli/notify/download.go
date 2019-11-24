@@ -39,6 +39,7 @@ func (vc *VersionChecker) download() error {
 		panic("URL err")
 	}
 	filename := path.Base(uri.Path)
+	vc.download_filename = filename
 
 	res, err = clent.Get(durl)
 	if err != nil {
@@ -110,7 +111,7 @@ func isFileExist(filepath string, filesize int64) bool {
 		fmt.Println(info)
 		return false
 	}
-	fmt.Printf("=====>>>filesize: %v, info.Size : %v \n", filesize, info.Size())
+	fmt.Printf("[newfilesize: %v], [oldfilesize : %v] \n", filesize, info.Size())
 	if filesize == info.Size() {
 		fmt.Printf("Installation package already exists : %v , %v , %v \n", info.Name(), info.Size(), info.ModTime())
 		return true
@@ -153,7 +154,6 @@ func DeCompress(srcFile *os.File, dest string) error {
 			continue
 		}
 		defer srcFile.Close()
-		fmt.Println("================================>>", dest+innerFile.Name)
 		newFile, err := os.Create(dest + innerFile.Name)
 		if err != nil {
 			fmt.Println("Unzip File Error : ", err)

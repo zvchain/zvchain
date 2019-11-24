@@ -22,10 +22,10 @@ func (vc *VersionChecker) checkversion() (bool, error) {
 	}
 
 	vc.version = notice.Version
-	vc.notify_gap = notice.Notify_Gap
-	vc.effective_height = notice.Effective_Height
+	vc.notify_gap = notice.NotifyGap
+	vc.effective_height = notice.EffectiveHeight
 	vc.priority = notice.Priority
-	vc.notice_content = notice.Notice_Content
+	vc.notice_content = notice.NoticeContent
 
 	return OldVersion, nil
 }
@@ -97,10 +97,27 @@ func requestVersion() (*Notice, error) {
 	n := res.Data.(map[string]interface{})["data"].(map[string]interface{})
 
 	notice.Version = n["version"].(string)
-	notice.Notify_Gap = uint64(n["notify_gap"].(float64))
-	notice.Effective_Height = uint64(n["effective_height"].(float64))
+	notice.NotifyGap = uint64(n["notifyGap"].(float64))
+	notice.EffectiveHeight = uint64(n["effectiveHeight"].(float64))
 	notice.Priority = uint64(n["priority"].(float64))
-	notice.Notice_Content = n["notice_content"].(string)
+	notice.NoticeContent = n["noticeContent"].(string)
+
+	li := n["update_lists_for_linux"].([]interface{})
+	dr := n["update_lists_for_drawin"].([]interface{})
+	wi := n["update_lists_for_windows"].([]interface{})
+
+	for _, file := range li {
+		notice.UpdateListsForLinux = append(notice.UpdateListsForLinux, file.(string))
+	}
+
+	for _, file := range dr {
+		notice.UpdateListsForDrawin = append(notice.UpdateListsForDrawin, file.(string))
+	}
+
+	for _, file := range wi {
+		notice.UpdateListsForWindows = append(notice.UpdateListsForWindows, file.(string))
+	}
+
 	fmt.Println("=========  notice ============", notice)
 
 	return notice, nil

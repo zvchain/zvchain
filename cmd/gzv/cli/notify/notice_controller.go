@@ -17,6 +17,7 @@ const GzvFile = "gzv"
 const System = runtime.GOOS
 const CheckVersioGap = time.Second * 10
 const Timeout = time.Second * 60
+const Download_Filename = "gzv_mac.zip"
 
 var (
 	RequestUrl = "http://127.0.0.1:8000/request"
@@ -27,12 +28,13 @@ var (
 )
 
 type VersionChecker struct {
-	version          string
-	notify_gap       uint64
-	effective_height uint64
-	priority         uint64
-	notice_content   string
-	filesize         int64
+	version           string
+	notify_gap        uint64
+	effective_height  uint64
+	priority          uint64
+	notice_content    string
+	filesize          int64
+	download_filename string
 }
 
 func NewVersionChecker() *VersionChecker {
@@ -61,7 +63,7 @@ func InitVersionChecker() {
 				nm.versionChecker = vc
 
 				//Check if the latest version has been downloaded locally
-				if isFileExist(UpdatePath+"/"+vc.version+"/"+GzvFile, vc.filesize) {
+				if isFileExist(UpdatePath+"/"+vc.version+"/"+vc.download_filename, vc.filesize) {
 					fmt.Println("The latest version has been downloaded locally, but not yet run\n")
 					time.Sleep(CheckVersioGap)
 					cancel()
@@ -126,7 +128,7 @@ func (nm *NotifyManager) processOutput(ctx context.Context, i int) {
 			time.Sleep(time.Second * time.Duration(int64(gap)))
 			output := fmt.Sprintf("The current Gzv program is not the latest version. It needs to be updated to the latest version %s as soon as possible\n", nm.versionChecker.version)
 			log.DefaultLogger.Errorln(fmt.Errorf(output))
-			fmt.Printf("++++++++ processOutput version --->>> [ %v ],%v", i, output)
+			fmt.Printf("processOutput version --->>> [ %v ],%v", i, output)
 		}
 	}
 }
