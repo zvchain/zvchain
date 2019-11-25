@@ -260,6 +260,9 @@ func (p *Processor) verifyCachedMsg(hash common.Hash) {
 	verifys := p.blockContexts.getVerifyMsgCache(hash)
 	if verifys != nil {
 		for _, vmsg := range verifys.verifyMsgs {
+			if vmsg == nil {
+				continue
+			}
 			p.OnMessageVerify(vmsg)
 		}
 	}
