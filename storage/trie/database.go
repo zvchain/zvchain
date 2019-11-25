@@ -751,12 +751,15 @@ func (db *NodeDatabase) getNodeByHash(key common.Hash)[]byte{
 func (db *NodeDatabase) DeleteByRoot(root common.Hash){
 	db.dirty.lock.Lock()
 	defer db.dirty.lock.Unlock()
+	count := 0
 	if mp,ok := db.dirty.state[root];ok{
 		for k,_ := range mp{
 			delete(db.dirty.nodes,k)
+			count++
 		}
 	}
 	delete(db.dirty.state,root)
+	log.CorpLogger.Debugf("delete from memory,hash is %v,count is %v",root,count)
 }
 
 func (db *NodeDatabase) geneToDbDataByRoot(root common.Hash)[]*storeBlob{

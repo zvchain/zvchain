@@ -57,7 +57,6 @@ func (store *dirtyStateStore) DeleteDirtyTrie(root common.Hash,height uint64) er
 	if err != nil{
 		return fmt.Errorf("delete store diry trie error %v", err)
 	}
-	log.CorpLogger.Debugf("delete dirty data,height is %v,hash is %v",height,root.Hex())
 	return nil
 }
 

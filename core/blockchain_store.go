@@ -29,7 +29,7 @@ import (
 )
 const CropCount = 20
 const TriesInMemory = types.EpochLength*27+1
-const PersistenceHeight = types.EpochLength*20
+const PersistenceHeight = types.EpochLength*10
 
 type newTopMessage struct {
 	bh *types.BlockHeader
