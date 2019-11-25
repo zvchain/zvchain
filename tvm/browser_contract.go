@@ -1,17 +1,23 @@
 package tvm
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/vmihailenco/msgpack"
+	"github.com/zvchain/zvchain/browser/ldb"
+	"github.com/zvchain/zvchain/common"
+	"io"
 	"sync"
 )
 
 var ContractTransferData = make(chan *ContractTransfer, 500)
 var MapTokenChan = make(map[string]chan *TokenContractTransfer)
 var Lock = new(sync.RWMutex)
+var MapTokenContractData = new(sync.Map)
 
 type TokenContractTransfer struct {
 	ContractAddr string
-	Addr         []byte
+	Addr         string
 	Value        interface{}
 	TxHash       string
 	BlockHash    string
@@ -28,25 +34,100 @@ type ContractTransfer struct {
 func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken string, addr []byte, value []byte) {
 	contract := &TokenContractTransfer{
 		ContractAddr: contracttoken,
-		Addr:         addr,
+		Addr:         string(addr),
 		Value:        VmDataConvert(value),
 		BlockHash:    blockHash,
 		TxHash:       txhash,
 	}
+	contracts := make([]*TokenContractTransfer, 1)
+	contracts[0] = contract
 	Lock.Lock()
-	if MapTokenChan[blockHash] == nil {
-		MapTokenChan[blockHash] = make(chan *TokenContractTransfer, 500)
+	defer Lock.Unlock()
+	if obj, ok := MapTokenContractData.Load(blockHash); ok {
+		objToken := obj.([]*TokenContractTransfer)
+		objToken = append(objToken, contract)
+		MapTokenContractData.Store(blockHash, objToken)
+	} else {
+		MapTokenContractData.Store(blockHash, contracts)
 	}
-	Lock.Unlock()
-	setmap(blockHash, contract)
-	//TokenTransferData <- contract
-	fmt.Println("ProduceTokenContractTransfer,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
+	//SetTokenContractMapToLdb(blockHash)
+	fmt.Println("ProduceTokenContract,addr:", string(addr), "hash:", blockHash, ",contractcode:", contracttoken, "value", contract.Value)
 }
-func setmap(blockHash string, contract *TokenContractTransfer) {
-	Lock.Lock()
-	MapTokenChan[blockHash] <- contract
-	Lock.Unlock()
 
+func SetTokenContractMapToLdb(blockHash string, height uint64) {
+	fmt.Println("SetTokenContractMapToLdb,entr:", blockHash, ",height:", height)
+	if obj, ok := (MapTokenContractData).Load(blockHash); ok {
+		fmt.Println("SetTokenContractMapToLdb,exist:", blockHash, ",height:", height)
+		objToken := obj.([]*TokenContractTransfer)
+		addLdbData(blockHash, objToken)
+	}
+}
+
+func GetTokenContractldbdata(blockkey string) ([]*TokenContractTransfer, error) {
+	if blockkey == "" {
+		return nil, fmt.Errorf("token data is empty")
+	}
+	data, _ := ldb.TokenSetdata.Get([]byte(blockkey))
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("token data is empty")
+	}
+	txs := make([]*TokenContractTransfer, 0)
+	dataReader := bytes.NewReader(data)
+
+	twoBytes := make([]byte, 2)
+	if _, err := io.ReadFull(dataReader, twoBytes); err != nil {
+		return nil, err
+	}
+	txNum := common.ByteToUInt16(twoBytes)
+	if txNum == 0 {
+		return txs, nil
+	}
+	lenBytes := make([]byte, txNum*2)
+	if _, err := io.ReadFull(dataReader, lenBytes); err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < int(txNum); i++ {
+		txLen := common.ByteToUInt16(lenBytes[2*i : 2*(i+1)])
+		txBytes := make([]byte, txLen)
+		_, err := io.ReadFull(dataReader, txBytes)
+		if err != nil {
+			return nil, err
+		}
+		tx, err := unmarshalTo(txBytes)
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+	return txs, nil
+}
+
+func unmarshalTo(data []byte) (*TokenContractTransfer, error) {
+	var tx TokenContractTransfer
+	err := msgpack.Unmarshal(data, &tx)
+	if err != nil {
+		return nil, err
+	}
+	return &tx, nil
+}
+
+func addLdbData(blockkey string, data []*TokenContractTransfer) {
+	dataBuf := bytes.NewBuffer([]byte{})
+	dataBuf.Write(common.UInt16ToByte(uint16(len(data))))
+	txBuf := bytes.NewBuffer([]byte{})
+	for _, tt := range data {
+		txBytes, err := msgpack.Marshal(tt)
+		if err != nil {
+			continue
+		}
+		dataBuf.Write(common.UInt16ToByte(uint16(len(txBytes))))
+		// Write each transaction length
+		txBuf.Write(txBytes)
+	}
+	dataBuf.Write(txBuf.Bytes())
+	ldb.TokenSetdata.Put([]byte(blockkey), dataBuf.Bytes())
 }
 
 func ProduceContractTransfer(txHash string,

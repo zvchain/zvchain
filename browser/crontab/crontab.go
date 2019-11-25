@@ -396,6 +396,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 			server.storage.AddLogs(blockDetail.Receipts, trans, false)
 			server.ProcessContract(transContract)
 		}
+		server.NewConsumeTokenContractTransfer(blockDetail.Block.Height, blockDetail.Block.Hash)
 	}
 	//server.isFetchingBlocks = false
 
@@ -437,7 +438,6 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
-	go crontab.ConsumeTokenContractTransfer(bh.Height, bh.Hash.Hex())
 
 	return nil
 }
@@ -542,11 +542,52 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 	}
 }
 
+func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash string) {
+	datas, err := tvm.GetTokenContractldbdata(hash)
+	if datas == nil {
+		return
+	}
+	if err != nil {
+		browserlog.BrowserLog.Error("NewConsumeTokenContract,error")
+		return
+	}
+	for _, data := range datas {
+		if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
+			continue
+		}
+		browserlog.BrowserLog.Info("ConsumeTokenContract,json:", util.ObjectTojson(data))
+		chain := core.BlockChainImpl
+		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
+		if wrapper != nil {
+			if wrapper.Status == 0 && data.Value != nil {
+				var valuestring string
+				if value, ok := data.Value.(int64); ok {
+					valuestring = big.NewInt(value).String()
+				} else if value, ok := data.Value.(*big.Int); ok {
+					valuestring = value.String()
+				}
+				addr := strings.TrimPrefix(data.Addr, "balanceOf@")
+				crontab.storage.UpdateTokenUser(data.ContractAddr,
+					addr,
+					valuestring)
+			}
+
+		}
+
+	}
+	tvm.MapTokenContractData.Delete(hash)
+	var length int
+	tvm.MapTokenContractData.Range(func(k, v interface{}) bool {
+		length++
+		return true
+	})
+	fmt.Println("delete ConsumeTokenContract:", hash, ",maplen:", length)
+
+}
+
 func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
 	var ok = true
-	tvm.Lock.Lock()
 	chanData := tvm.MapTokenChan[hash]
-	tvm.Lock.Unlock()
 	if chanData == nil || len(chanData) < 1 {
 		return
 	}
@@ -554,10 +595,10 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 	for ok {
 		select {
 		case data := <-chanData:
-			browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, ",", height, ",", hash)
 			if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
 				return
 			}
+			browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, ",", height, ",", hash)
 			chain := core.BlockChainImpl
 			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 			if wrapper != nil {
