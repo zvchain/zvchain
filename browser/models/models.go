@@ -155,7 +155,7 @@ type MinerToBlock struct {
 	gorm.Model
 	Address       string `json:"address" gorm:"unique_index:idx_addr_seq"`
 	Sequence      uint64 `json:"sequence" gorm:"unique_index:idx_addr_seq"`
-	PrpsBlockIDs  string `json:"prps_block_ids"`
+	PrpsBlockIDs  string `json:"prps_block_ids" gorm:"type:TEXT"`
 	VerfBlockIDs  string `json:"verf_block_ids" gorm:"type:TEXT"`
 	PrpsBlockCnts uint64 `json:"prps_block_cnts"`
 	VerfBlockCnts uint64 `json:"verf_block_cnts"`
