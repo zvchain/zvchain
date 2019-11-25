@@ -22,12 +22,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"math"
 	"math/rand"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	zvtime "github.com/zvchain/zvchain/middleware/time"
@@ -40,6 +40,9 @@ const (
 	syncNeightborsInterval      = 3   // Interval of requesting synchronize block from neighbor
 	defaultSyncNeightborTimeout = 5   // Timeout of requesting synchronize block from neighbor
 	blockSyncCandidatePoolSize  = 100 // Size of candidate peer pool for block synchronize
+
+	notifyCounterCacheSize         = 20   // size of LRU cache for notify counters
+	notifyCounterCacheSizePerBLock = 1024 // size of LRU cache for per block notify counter
 )
 
 const (
@@ -93,7 +96,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 		candidatePool:        make(map[string]*types.CandidateBlockHeader),
 		chain:                chain,
 		syncingPeers:         make(map[string]uint64),
-		notifyCounters:       common.MustNewLRUCache(3),
+		notifyCounters:       common.MustNewLRUCache(notifyCounterCacheSize),
 		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
 	}
 }
@@ -411,10 +414,7 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	counter := bs.getOrAddNotifyCounter(top)
 	blacklist := make([]string, 0)
 	for _, nodeStr := range counter.Keys() {
-		hash, ok := counter.Get(nodeStr)
-		if ok && hash == top.Hash {
-			blacklist = append(blacklist, nodeStr.(string))
-		}
+		blacklist = append(blacklist, nodeStr.(string))
 	}
 
 	network.GetNetInstance().TransmitToNeighbor(message, blacklist)
@@ -575,16 +575,16 @@ func (bs *blockSyncer) notifyCounterAdd(source string, header *types.BlockHeader
 
 	if header.Height >= top.Height {
 		counter := bs.getOrAddNotifyCounter(header)
-		counter.Add(source, header.Hash)
+		counter.Add(source, nil)
 	}
 
 }
 
 func (bs *blockSyncer) getOrAddNotifyCounter(header *types.BlockHeader) *lru.Cache {
-	v, exit := bs.notifyCounters.Get(header.Height)
+	v, exit := bs.notifyCounters.Get(header.Hash)
 	if !exit {
-		v = common.MustNewLRUCache(1024)
-		bs.notifyCounters.Add(header.Height, v)
+		v = common.MustNewLRUCache(notifyCounterCacheSizePerBLock)
+		bs.notifyCounters.Add(header.Hash, v)
 	}
 	return v.(*lru.Cache)
 }
