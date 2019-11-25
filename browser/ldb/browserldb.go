@@ -21,7 +21,7 @@ type BrowserLdb struct {
 
 func getBrowserConfig() *BrowserConfig {
 	return &BrowserConfig{
-		dbFile:           common.GlobalConf.GetString("chain", "db_blocks", "browserd_b"),
+		dbFile:           common.GlobalConf.GetString("chain", "db_browser", "browserd_b"),
 		contractTransfer: "tr",
 		tokenSetdata:     "set",
 	}
