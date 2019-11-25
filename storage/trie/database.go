@@ -36,7 +36,12 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
-var dirtyNodeCache = make(map[common.Hash]node)
+
+type dirtyState struct {
+	state map[common.Hash]map[common.Hash]*[]byte
+	nodes map[common.Hash]*[]byte
+	lock sync.RWMutex
+}
 
 // DatabaseReader wraps the Get and Has method of a backing store for the trie.
 type DatabaseReader interface {
@@ -61,6 +66,8 @@ type NodeDatabase struct {
 	nodes  map[common.Hash]*cachedNode // Data and references relationships of a node
 	oldest common.Hash                 // Oldest tracked node, flush-list head
 	newest common.Hash                 // Newest tracked node, flush-list tail
+
+	dirty *dirtyState
 
 	preimages map[common.Hash][]byte // Preimages of nodes from the secure trie
 	seckeybuf [secureKeyLength]byte  // Ephemeral buffer for calculating preimage keys
@@ -157,6 +164,7 @@ func (n *cachedNode) rlp() []byte {
 	}
 	return blob
 }
+
 
 // obj returns the decoded and expanded trie node, either directly from the cache,
 // or by regenerating it from the rlp encoded blob.
@@ -272,6 +280,10 @@ func NewDatabase(diskdb tasdb.Database) *NodeDatabase {
 		diskdb:    diskdb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
 		preimages: make(map[common.Hash][]byte),
+		dirty:&dirtyState{
+			state:make( map[common.Hash]map[common.Hash]*[]byte),
+			nodes:make(map[common.Hash]*[]byte),
+		},
 	}
 }
 
@@ -291,17 +303,13 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.insert(hash, blob, rawNode(blob))
 }
 
-func (db *NodeDatabase) DirtyKeyProcessEnd() {
-	dirtyNodeCache = nil
-}
 
-func (db *NodeDatabase) AddDirtyStateToCache(caches []*storeBlob) {
+func (db *NodeDatabase) AddDirtyStateToCache(root common.Hash,caches []*storeBlob) {
 	if len(caches) == 0 {
 		return
 	}
 	for _, data := range caches {
-		nd := mustDecodeNode(data.Key[:], data.Raw, 0)
-		dirtyNodeCache[data.Key] = nd
+		db.insertDirtyNode(root,data.Key,data.Raw)
 	}
 }
 
@@ -359,13 +367,17 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	if node != nil {
 		return node.obj(hash, cachegen), nil
 	}
-	if nd, ok := dirtyNodeCache[hash]; ok {
-		return nd, nil
-	}
-	// Content unavailable in memory, attempt to retrieve from disk
-	enc, err := db.diskdb.Get(hash[:])
-	if err != nil || enc == nil {
-		return nil, nil
+	var(
+	 	enc []byte
+		 err error
+	)
+	enc = db.getNodeByHash(hash)
+	if enc == nil || len(enc) == 0{
+		// Content unavailable in memory, attempt to retrieve from disk
+		enc, err = db.diskdb.Get(hash[:])
+		if err != nil || enc == nil {
+			return nil, nil
+		}
 	}
 	return mustDecodeNode(hash[:], enc, cachegen), enc
 }
@@ -381,8 +393,9 @@ func (db *NodeDatabase) Node(hash common.Hash) ([]byte, error) {
 	if node != nil {
 		return node.rlp(), nil
 	}
-	if vl, ok := dirtyNodeCache[hash]; ok {
-		return vl.(rawNode), nil
+	nd := db.getNodeByHash(hash)
+	if nd != nil{
+		return nd,nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
 	return db.diskdb.Get(hash[:])
@@ -461,27 +474,24 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 func (db *NodeDatabase) Dereference(height uint64, root common.Hash, dbReader DirtyStateReader) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
-	cl := make(map[common.Hash]*cachedNode)
+	db.loadAndCreateMapByRoot(root)
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{}, cl)
+	db.dereference(root, common.Hash{},root)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
 
-	if len(cl) > 0 && dbReader != nil{
-		dirtyBlobs := []*storeBlob{}
-		for k, v := range cl {
-			bt := v.rlp()
-			sb := &storeBlob{Key: k, Raw: bt}
-			dirtyBlobs = append(dirtyBlobs, sb)
-		}
-		dts, err := rlp.EncodeToBytes(dirtyBlobs)
-		if err != nil {
-			return fmt.Errorf("encode error，error is %v", err)
-		}
-		err = dbReader.StoreDirtyTrie(root, dts)
-		if err != nil {
-			return err
+	if dbReader != nil{
+		dirtyBlobs := db.geneToDbDataByRoot(root)
+		if len(dirtyBlobs) > 0 {
+			dts, err := rlp.EncodeToBytes(dirtyBlobs)
+			if err != nil {
+				return fmt.Errorf("encode error，error is %v", err)
+			}
+			err = dbReader.StoreDirtyTrie(root, dts)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		log.CorpLogger.Debugf("Dereferenced trie,find no changed,height is %v,root is %v", height, root.Hex())
@@ -501,7 +511,7 @@ func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*s
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl map[common.Hash]*cachedNode) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,root common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -540,9 +550,9 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, cl ma
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			db.dereference(hash, child, cl)
+			db.dereference(hash, child,root)
 		}
-		cl[child] = db.nodes[child]
+		db.insertDirtyNode(root,child,db.nodes[child].rlp())
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 		if node.children != nil {
@@ -716,6 +726,64 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 	db.flushnodes, db.flushsize, db.flushtime = 0, 0, 0
 
 	return nil
+}
+
+func (db *NodeDatabase) loadAndCreateMapByRoot(hash common.Hash){
+	db.dirty.lock.Lock()
+	defer db.dirty.lock.Unlock()
+	_,ok :=db.dirty.state[hash]
+	if !ok{
+		mp := make(map[common.Hash]*[]byte)
+		db.dirty.state[hash] = mp
+	}
+}
+
+func (db *NodeDatabase) getNodeByHash(key common.Hash)[]byte{
+	db.dirty.lock.Lock()
+	defer db.dirty.lock.Unlock()
+	if bt,ok := db.dirty.nodes[key];ok{
+		return *bt
+	}
+	return nil
+}
+
+
+func (db *NodeDatabase) DeleteByRoot(root common.Hash){
+	db.dirty.lock.Lock()
+	defer db.dirty.lock.Unlock()
+	if mp,ok := db.dirty.state[root];ok{
+		for k,_ := range mp{
+			delete(db.dirty.nodes,k)
+		}
+	}
+	delete(db.dirty.state,root)
+}
+
+func (db *NodeDatabase) geneToDbDataByRoot(root common.Hash)[]*storeBlob{
+	db.dirty.lock.Lock()
+	defer db.dirty.lock.Unlock()
+	mp,ok :=db.dirty.state[root]
+	if !ok{
+		return nil
+	}
+	dirtyBlobs := []*storeBlob{}
+	for k,v := range mp {
+		sb := &storeBlob{Key: k, Raw:*v}
+		dirtyBlobs = append(dirtyBlobs, sb)
+	}
+	return dirtyBlobs
+}
+
+func (db *NodeDatabase) insertDirtyNode(root,key common.Hash,value []byte){
+	db.dirty.lock.Lock()
+	defer db.dirty.lock.Unlock()
+	mp,ok :=db.dirty.state[root]
+	if !ok{
+		mp = make(map[common.Hash]*[]byte)
+		db.dirty.state[root] = mp
+	}
+	mp[key] = &value
+	db.dirty.nodes[key] = &value
 }
 
 // commit is the private locked version of Commit.

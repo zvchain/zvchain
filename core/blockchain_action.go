@@ -303,10 +303,10 @@ func (chain *FullBlockChain) Stop() {
 	if bh == nil {
 		return
 	}
-	if bh.Height <= TriesInMemory {
+	if bh.Height <= CropCount {
 		return
 	}
-	closen := bh.Height - TriesInMemory + 1
+	closen := bh.Height - CropCount + 1
 	triedb := chain.stateCache.TrieDB()
 	for !chain.triegc.Empty() {
 		root, number := chain.triegc.Pop()
@@ -347,6 +347,7 @@ func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 			log.CoreLogger.Error(err)
 			break
 		}
+		chain.stateCache.TrieDB().DeleteByRoot(bh.StateTree)
 	}
 }
 
@@ -392,7 +393,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB() error {
 			if err != nil {
 				return err
 			}
-			triedb.AddDirtyStateToCache(caches)
+			triedb.AddDirtyStateToCache(bh.StateTree,caches)
 		}
 	}
 	return nil
@@ -436,7 +437,6 @@ func (chain *FullBlockChain) FixState() error {
 		}
 		notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: curBlock})
 	}
-	chain.stateCache.TrieDB().DirtyKeyProcessEnd()
 	return nil
 }
 
