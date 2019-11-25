@@ -82,7 +82,6 @@ func (sendList *SendList) send(peer *Peer, packet *bytes.Buffer, code int) {
 
 	if diff > WaitTimeout {
 		sendList.pendingSend = 0
-		sendList.lastOnWait = time.Now()
 		Logger.Infof("send list  WaitTimeout ！ net id:%v session:%v ", peer.ID.GetHexString(), peer.sessionID)
 	}
 
