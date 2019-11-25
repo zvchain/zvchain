@@ -22,10 +22,11 @@ func (vc *VersionChecker) checkversion() (bool, error) {
 	}
 
 	vc.version = notice.Version
-	vc.notify_gap = notice.NotifyGap
-	vc.effective_height = notice.EffectiveHeight
+	vc.notifyGap = notice.NotifyGap
+	vc.effectiveHeight = notice.EffectiveHeight
 	vc.priority = notice.Priority
-	vc.notice_content = notice.NoticeContent
+	vc.noticeContent = notice.NoticeContent
+	vc.fileUpdateLists = notice.UpdateInfo
 
 	return OldVersion, nil
 }
@@ -88,7 +89,9 @@ func requestVersion() (*Notice, error) {
 		return nil, err
 	}
 
-	notice := &Notice{}
+	notice := &Notice{
+		UpdateInfo: &UpdateInfos{},
+	}
 
 	if res.Data == nil {
 		return nil, fmt.Errorf("version response is empty\n")
@@ -102,23 +105,25 @@ func requestVersion() (*Notice, error) {
 	notice.Priority = uint64(n["priority"].(float64))
 	notice.NoticeContent = n["noticeContent"].(string)
 
-	li := n["update_lists_for_linux"].([]interface{})
-	dr := n["update_lists_for_drawin"].([]interface{})
-	wi := n["update_lists_for_windows"].([]interface{})
+	list := make(map[string]interface{}, 0)
 
-	for _, file := range li {
-		notice.UpdateListsForLinux = append(notice.UpdateListsForLinux, file.(string))
+	switch System {
+	case "darwin":
+		list = n["update_for_drawin"].(map[string]interface{})
+	case "linux":
+		list = n["update_for_linux"].(map[string]interface{})
+	case "windows":
+		list = n["update_for_windows"].(map[string]interface{})
 	}
 
-	for _, file := range dr {
-		notice.UpdateListsForDrawin = append(notice.UpdateListsForDrawin, file.(string))
+	notice.UpdateInfo.PackgeUrl = list["packge_url"].(string)
+	notice.UpdateInfo.Packgemd5 = list["packge_md5"].(string)
+	updateFileList := list["filelist"].([]interface{})
+	for _, file := range updateFileList {
+		notice.UpdateInfo.Filelist = append(notice.UpdateInfo.Filelist, file.(string))
 	}
 
-	for _, file := range wi {
-		notice.UpdateListsForWindows = append(notice.UpdateListsForWindows, file.(string))
-	}
-
-	fmt.Println("=========  notice ============", notice)
+	fmt.Println("notice ============", notice, notice.UpdateInfo)
 
 	return notice, nil
 }

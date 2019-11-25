@@ -2,6 +2,9 @@ package notify
 
 import (
 	"archive/zip"
+	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"io"
@@ -14,7 +17,7 @@ import (
 
 func (vc *VersionChecker) download() error {
 	var (
-		durl       string
+		durl       = vc.fileUpdateLists.PackgeUrl
 		fsize      int64
 		err        error
 		res        *http.Response
@@ -25,21 +28,12 @@ func (vc *VersionChecker) download() error {
 	clent := new(http.Client)
 	clent.Timeout = Timeout
 
-	switch System {
-	case "darwin":
-		durl = UrlDarwin
-	case "linux":
-		durl = UrlLinux
-	case "windows":
-		durl = UrlWindows
-	}
-
 	uri, err := url.ParseRequestURI(durl)
 	if err != nil {
 		panic("URL err")
 	}
 	filename := path.Base(uri.Path)
-	vc.download_filename = filename
+	vc.downloadFilename = filename
 
 	res, err = clent.Get(durl)
 	if err != nil {
@@ -66,10 +60,17 @@ func (vc *VersionChecker) download() error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	_, err = io.Copy(f, res.Body)
 	if err != nil {
 		return err
+	}
+
+	err = CheckMD5(targetFile+filename, vc.fileUpdateLists.Packgemd5)
+	if err != nil {
+		os.Remove(targetFile + filename)
+		return fmt.Errorf("Failed to checkMD5, downloaded file has been removed /n", err)
 	}
 
 	err = DeCompressByPath(targetFile+filename, targetFile)
@@ -80,7 +81,6 @@ func (vc *VersionChecker) download() error {
 	fmt.Println("The latest version of GzV has been downloaded successfully\n")
 	log.DefaultLogger.Info("The latest version of GzV has been downloaded successfully\n ")
 
-	defer f.Close()
 	return nil
 }
 
@@ -169,4 +169,33 @@ func DeCompress(srcFile *os.File, dest string) error {
 		newFile.Close()
 	}
 	return nil
+}
+
+func CheckMD5(path, targethash string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		fmt.Println("Open", err)
+		return err
+	}
+	defer f.Close()
+
+	md5hash := md5.New()
+	if _, err := io.Copy(md5hash, f); err != nil {
+		fmt.Println("Copy", err)
+		return err
+	}
+
+	hash := md5hash.Sum(nil)
+	hashbin, err := hex.DecodeString(targethash)
+	if err != nil {
+		fmt.Println("Hex", err)
+		return err
+	}
+
+	if bytes.Equal(hash, hashbin) {
+		fmt.Println("CheckMD5 successful !!!")
+		return nil
+	}
+
+	return fmt.Errorf("Hash inconsistency")
 }

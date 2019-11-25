@@ -1,7 +1,6 @@
 package notify
 
 import (
-	"context"
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -13,32 +12,29 @@ const OldVersion = false
 const NewVersion = true
 const NoticeDB = "db_notify"
 const UpdatePath = "update"
-const GzvFile = "gzv"
 const System = runtime.GOOS
-const CheckVersioGap = time.Second * 10
+const CheckVersioGap = time.Second * 5
 const Timeout = time.Second * 60
-const Download_Filename = "gzv_mac.zip"
 
 var (
 	RequestUrl = "http://127.0.0.1:8000/request"
-	UrlLinux   = "http://127.0.0.1:8000/linux"
-	//UrlDarwin  = "http://127.0.0.1:8000/drawin"
-	UrlDarwin  = "https://developer.zvchain.io/zip/gzv_mac.zip"
-	UrlWindows = "http://127.0.0.1:8000/windows"
 )
 
 type VersionChecker struct {
-	version           string
-	notify_gap        uint64
-	effective_height  uint64
-	priority          uint64
-	notice_content    string
-	filesize          int64
-	download_filename string
+	version          string
+	notifyGap        uint64
+	effectiveHeight  uint64
+	priority         uint64
+	noticeContent    string
+	filesize         int64
+	downloadFilename string
+	fileUpdateLists  *UpdateInfos
 }
 
 func NewVersionChecker() *VersionChecker {
-	versionChecker := &VersionChecker{}
+	versionChecker := &VersionChecker{
+		fileUpdateLists: &UpdateInfos{},
+	}
 	return versionChecker
 }
 
@@ -46,11 +42,11 @@ func InitVersionChecker() {
 	vc := NewVersionChecker()
 	nm := NewNotifyManager()
 
-	tiker := time.NewTicker(CheckVersioGap)
+	ctiker := time.NewTicker(CheckVersioGap)
+
 	for i := 0; i < 20; i++ {
 		select {
-		case <-tiker.C:
-			ctx, cancel := context.WithCancel(context.Background())
+		case <-ctiker.C:
 			//Check if the local running program is the latest version
 			bl, err := vc.checkversion()
 			if err != nil {
@@ -59,14 +55,14 @@ func InitVersionChecker() {
 			}
 
 			if !bl {
-				go nm.processOutput(ctx, i)
-				nm.versionChecker = vc
+				//ptiker := time.NewTicker(CheckVersioGap)
+				timeOut := time.After(CheckVersioGap)
+				go nm.processOutput(i, timeOut)
 
+				nm.versionChecker = vc
 				//Check if the latest version has been downloaded locally
-				if isFileExist(UpdatePath+"/"+vc.version+"/"+vc.download_filename, vc.filesize) {
+				if isFileExist(UpdatePath+"/"+vc.version+"/"+vc.downloadFilename, vc.filesize) {
 					fmt.Println("The latest version has been downloaded locally, but not yet run\n")
-					time.Sleep(CheckVersioGap)
-					cancel()
 					continue
 				}
 
@@ -74,13 +70,8 @@ func InitVersionChecker() {
 				if err != nil {
 					log.DefaultLogger.Errorln(err)
 					fmt.Println(" DownLoad Err :", err)
-					time.Sleep(CheckVersioGap)
-					cancel()
 					continue
 				}
-
-				time.Sleep(CheckVersioGap)
-				cancel()
 			}
 		}
 	}
@@ -117,12 +108,12 @@ func NewNotifyManager() *NotifyManager {
 //
 //}
 
-func (nm *NotifyManager) processOutput(ctx context.Context, i int) {
-	gap := nm.versionChecker.notify_gap
+func (nm *NotifyManager) processOutput(i int, timeout <-chan time.Time) {
+	gap := nm.versionChecker.notifyGap
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-timeout:
 			return
 		default:
 			time.Sleep(time.Second * time.Duration(int64(gap)))
