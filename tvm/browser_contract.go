@@ -55,7 +55,6 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 }
 
 func SetTokenContractMapToLdb(blockHash string, height uint64) {
-	fmt.Println("SetTokenContractMapToLdb,entr:", blockHash, ",height:", height)
 	if obj, ok := (MapTokenContractData).Load(blockHash); ok {
 		fmt.Println("SetTokenContractMapToLdb,exist:", blockHash, ",height:", height)
 		objToken := obj.([]*TokenContractTransfer)
