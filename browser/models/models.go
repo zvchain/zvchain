@@ -182,6 +182,31 @@ type Reward struct {
 	GasFee       float64   `json:"gas_fee" gorm:"index"`
 }
 
+type MinerToBlock struct {
+	gorm.Model
+	Address       string `json:"address" gorm:"unique_index:idx_addr_seq"`
+	Sequence      uint64 `json:"sequence" gorm:"unique_index:idx_addr_seq"`
+	PrpsBlockIDs  string `json:"prps_block_ids"`
+	VerfBlockIDs  string `json:"verf_block_ids" gorm:"type:TEXT"`
+	PrpsBlockCnts uint64 `json:"prps_block_cnts"`
+	VerfBlockCnts uint64 `json:"verf_block_cnts"`
+}
+
+type BlockToMiner struct {
+	gorm.Model
+	BlockHeight  uint64    `json:"block_height" gorm:"unique_index"`
+	BlockHash    string    `json:"block_hash" gorm:"unique_index"`
+	RewardHeight uint64    `json:"reward_height"`
+	CurTime      time.Time `json:"cur_time"`
+	PrpsNodeID   string    `json:"prps_node_id"`
+	VerfNodeIDs  string    `json:"verf_node_ids" gorm:"type:TEXT"`
+	VerfNodeCnts uint64    `json:"verf_node_cnts"`
+	PrpsReward   uint64    `json:"prps_reward"`
+	VerfReward   uint64    `json:"verf_reward"`
+	PrpsGasFee   uint64    `json:"prps_gas_fee"`
+	VerfGasFee   uint64    `json:"verf_gas_fee"`
+}
+
 type TempTransaction struct {
 	Data   []byte          `json:"data"`
 	Value  float64         `json:"value"`
