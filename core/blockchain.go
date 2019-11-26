@@ -162,7 +162,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
 	// get the level db block cache size from config
-	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 200)
+	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 100)
 	// get the level db write cache size from config
 	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 300)
 
