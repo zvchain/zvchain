@@ -17,17 +17,19 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/middleware/time"
-	"github.com/zvchain/zvchain/monitor"
-	"sync/atomic"
-
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/notify"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/monitor"
 	"github.com/zvchain/zvchain/storage/account"
+	"sync/atomic"
 )
+const CropCount = 20
+const TriesInMemory = types.EpochLength * 27 + (cpMaxScanEpochs + 1) * types.EpochLength + 1
+const PersistenceHeight = types.EpochLength * 10
 
 type newTopMessage struct {
 	bh *types.BlockHeader
@@ -42,15 +44,60 @@ func (msg *newTopMessage) GetData() interface{} {
 }
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
+	chain.wg.Add(1)
+	defer chain.wg.Done()
 	root, err := state.Commit(true)
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
-
 	triedb := chain.stateCache.TrieDB()
-	err = triedb.Commit(root, false)
-	if err != nil {
-		return fmt.Errorf("trie commit error:%s", err.Error())
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	if trieGc && b.Header.Height > 0 {
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+		chain.triegc.Push(root, -int64(b.Header.Height))
+		if b.Header.Height > CropCount {
+			chosen := b.Header.Height - CropCount
+			if chosen % PersistenceHeight == 0 {
+				ph := chain.queryBlockHeaderByHeight(chosen)
+				if ph == nil {
+					log.CorpLogger.Warnf("persistence find height not exists,height is %v,currentHeight is %v", chosen, b.Header.Height)
+				} else {
+					go chain.DeleteDirtyTrie(chosen)
+					err = triedb.Commit(ph.StateTree, true)
+					if err != nil {
+						return fmt.Errorf("state commit error:%s", err.Error())
+					}
+					err = dirtyState.StoreTriePureHeight(chosen)
+					if err != nil{
+						return fmt.Errorf("StoreTriePureHeight error:%s", err.Error())
+					}
+					log.CorpLogger.Debugf("persistence from %v-%v",chosen,b.Header.Height)
+				}
+			}
+			// Garbage collect anything below our required write retention
+			for !chain.triegc.Empty() {
+				root, number := chain.triegc.Pop()
+				if uint64(-number) > chosen {
+					chain.triegc.Push(root, number)
+					break
+				}
+				err = triedb.Dereference(uint64(-number),root.(common.Hash),dirtyState)
+				if err != nil{
+					return fmt.Errorf("trie commit error:%s", err.Error())
+				}
+			}
+		}
+	} else {
+		if trieGc {
+			err := dirtyState.StoreTriePureHeight(0)
+			if err != nil{
+				return fmt.Errorf("trie commit error:%s", err.Error())
+			}
+		}
+		err = triedb.Commit(root, false)
+		if err != nil {
+			return fmt.Errorf("trie commit error:%s", err.Error())
+		}
 	}
 	return nil
 }
@@ -68,7 +115,6 @@ func (chain *FullBlockChain) updateLatestBlock(state *account.AccountDB, header 
 	chain.latestBlock = header
 
 	Logger.Debugf("updateLatestBlock success,height=%v,root hash is %x", header.Height, header.StateTree)
-	//taslog.Flush()
 }
 
 func (chain *FullBlockChain) saveBlockHeader(hash common.Hash, dataBytes []byte) error {
@@ -81,6 +127,50 @@ func (chain *FullBlockChain) saveBlockHeight(height uint64, dataBytes []byte) er
 
 func (chain *FullBlockChain) saveBlockTxs(blockHash common.Hash, dataBytes []byte) error {
 	return chain.txDb.AddKv(chain.batch, blockHash.Bytes(), dataBytes)
+}
+
+func (chain *FullBlockChain) storeBlockHash(hash common.Hash) (err error) {
+	chain.rwLock.Lock()
+	defer chain.rwLock.Unlock()
+
+	defer chain.batch.Reset()
+
+	// Save current block
+	if err = chain.saveCurrentBlock(hash); err != nil {
+		return
+	}
+	// Batch write
+	if err = chain.batch.Write(); err != nil {
+		return
+	}
+	return nil
+}
+
+func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostState) (err error) {
+	bh := block.Header
+	chain.rwLock.Lock()
+	defer chain.rwLock.Unlock()
+
+	defer chain.batch.Reset()
+
+	// Commit state
+	if err = chain.saveBlockState(block, ps.state); err != nil {
+		return
+	}
+
+	// Save current block
+	if err = chain.saveCurrentBlock(bh.Hash); err != nil {
+		return
+	}
+	// Batch write
+	if err = chain.batch.Write(); err != nil {
+		return
+	}
+	//ps.ts.AddStat("batch.Write", time.Since(b))
+
+	chain.updateLatestBlock(ps.state, bh)
+
+	return nil
 }
 
 // commitBlock persist a block in a batch
@@ -171,6 +261,8 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 }
 
 func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
+	chain.wg.Add(1)
+	defer chain.wg.Done()
 	if !chain.isAdjusting {
 		chain.isAdjusting = true
 		defer func() {
@@ -250,7 +342,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.transactionPool.BackToPool(recoverTxs)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"removedHeight": len(removeBlocks),
-		"now":           time.TSInstance.Now().UTC(),
+		"now":           time2.TSInstance.Now().UTC(),
 		"logType":       "resetTop",
 		"version":       common.GzvVersion,
 	}).Info("resetTop")

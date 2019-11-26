@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common/prque"
 	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
@@ -51,7 +52,7 @@ var (
 	ErrCommitBlockFail = errors.New("commit block fail")
 	ErrBlockSizeLimit  = errors.New("block size exceed the limit")
 )
-
+var ProcessFixState bool
 var BlockChainImpl *FullBlockChain
 
 var GroupManagerImpl *group.Manager
@@ -71,15 +72,16 @@ type BlockChainConfig struct {
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
 type FullBlockChain struct {
-	blocks      *tasdb.PrefixedDatabase
-	blockHeight *tasdb.PrefixedDatabase
-	txDb        *tasdb.PrefixedDatabase
-	stateDb     *tasdb.PrefixedDatabase
-	cacheDb     *tasdb.PrefixedDatabase
-	batch       tasdb.Batch
-
-	stateCache account.AccountDatabase
-
+	blocks            *tasdb.PrefixedDatabase
+	blockHeight       *tasdb.PrefixedDatabase
+	txDb              *tasdb.PrefixedDatabase
+	stateDb           *tasdb.PrefixedDatabase
+	cacheDb           *tasdb.PrefixedDatabase
+	dirtyStateDb      *tasdb.PrefixedDatabase
+	batch             tasdb.Batch
+	triegc            *prque.Prque // Priority queue mapping block numbers to tries to gc
+	stateCache        account.AccountDatabase
+	running int32         // running must be called atomically
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -87,7 +89,7 @@ type FullBlockChain struct {
 	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
-
+	wg            sync.WaitGroup
 	rwLock sync.RWMutex // Read-write lock
 
 	mu      sync.Mutex // Mutex lock
@@ -143,6 +145,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		init:             true,
 		isAdjusting:      false,
 		consensusHelper:  helper,
+		triegc:           prque.NewPrque(),
 		ticker:           ticker.NewGlobalTicker("chain"),
 		ts:               time2.TSInstance,
 		futureRawBlocks:  common.MustNewLRUCache(100),
@@ -209,6 +212,23 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
+
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	if trieGc{
+		dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
+		if err != nil {
+			Logger.Errorf("new dirty state datasource error:%v", err)
+			return err
+		}
+		dirtyStateDb, err := dirtyStateDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new dirty state db error:%v", err)
+			return err
+		}
+		chain.dirtyStateDb = dirtyStateDb
+		initDirtyStore(chain.dirtyStateDb)
+	}
+
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
@@ -216,8 +236,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
-
-	latestBH := chain.loadCurrentBlock()
 
 	GroupManagerImpl = group.NewManager(chain, helper)
 
@@ -228,7 +246,15 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-
+	err = chain.resetBlockHeight()
+	if err != nil{
+		return err
+	}
+	err = chain.FixTrieDataFromDB()
+	if err != nil{
+		return err
+	}
+	latestBH := chain.loadCurrentBlock()
 	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
@@ -392,6 +418,10 @@ func (chain *FullBlockChain) Close() {
 	}
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
+	}
+
+	if chain.dirtyStateDb != nil{
+		chain.dirtyStateDb.Close()
 	}
 
 }
