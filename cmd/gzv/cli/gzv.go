@@ -186,7 +186,7 @@ func (gzv *Gzv) Run() {
 	// In test mode, P2P NAT is closed
 	testMode := mineCmd.Flag("test", "test mode").Bool()
 	seedAddr := mineCmd.Flag("seed", "seed address").String()
-	natAddr := mineCmd.Flag("nat", "nat server address").Default("natproxy.zvchain.io").String()
+	natAddr := mineCmd.Flag("nat", "nat server address").Default("127.0.0.1").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("3100").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
 
