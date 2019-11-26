@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -321,6 +322,7 @@ func (chain *FullBlockChain) Stop() {
 		}
 		fmt.Printf("commit data height is %v \n",(-number))
 	}
+	os.Exit(0)
 }
 
 func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
