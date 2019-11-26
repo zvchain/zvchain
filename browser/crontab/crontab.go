@@ -398,7 +398,7 @@ func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
 		addressList := crontab.storage.GetContractByHash(tx.Hash)
 		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(tx.Hash))
 		//contract address
-		if wrapper.Status == 0 && len(addressList) > 0 {
+		if wrapper != nil && wrapper.Status == 0 && len(addressList) > 0 {
 			go crontab.ConsumeContract(contract, tx.Hash, tx.CurTime)
 		}
 	}
