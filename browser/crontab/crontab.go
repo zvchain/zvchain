@@ -25,6 +25,7 @@ import (
 const (
 	check10SecInterval = time.Second * 10
 	check30MinInterval = time.Minute * 30
+	check1HourInterval = time.Minute * 60
 
 	turnoverKey = "turnover"
 	cpKey       = "checkpoint"
@@ -46,6 +47,7 @@ type Crontab struct {
 	rewardStorageDataHeight uint64
 	curblockcount           uint64
 	curTrancount            uint64
+	ConfirmRewardHeight     uint64
 
 	page              uint64
 	maxid             uint
@@ -93,6 +95,7 @@ func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
 		check30Min = time.NewTicker(check30MinInterval)
+		check1Hour = time.NewTicker(check1HourInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
@@ -115,6 +118,9 @@ func (crontab *Crontab) loop() {
 			go crontab.UpdateCheckPoint()
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
+		case <-check1Hour.C:
+			fmt.Println("")
+
 		}
 	}
 }
@@ -541,6 +547,17 @@ func (crontab *Crontab) ConsumeReward() {
 
 		}
 	}
+}
+
+func (crontab *Crontab) ConfirmRewardsToMinerBlock() {
+	topHeight := core.BlockChainImpl.Height()
+	checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if checkpoint.Height > 0 && crontab.ConfirmRewardHeight > checkpoint.Height {
+		return
+	} else if checkpoint.Height == 0 && crontab.ConfirmRewardHeight > topHeight-100 {
+		return
+	}
+
 }
 
 func (crontab *Crontab) UpdateTurnOver() {
