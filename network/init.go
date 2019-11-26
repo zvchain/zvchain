@@ -145,7 +145,10 @@ func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig
 	var netCore NetCore
 	n, _ := netCore.InitNetCore(netConfig)
 
-	maxCount := int(common.GlobalConf.GetInt(configSection, configMaxBroadcastCount, maxBroadcastCount))
+	maxCount := maxBroadcastCount
+	if common.GlobalConf != nil {
+		maxCount = int(common.GlobalConf.GetInt(configSection, configMaxBroadcastCount, maxBroadcastCount))
+	}
 
 	netServerInstance = &Server{Self: self,
 		netCore:           n,
