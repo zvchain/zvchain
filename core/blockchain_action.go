@@ -374,9 +374,9 @@ func (chain *FullBlockChain) FixTrieDataFromDB() error {
 		}
 		start := time.Now()
 		defer func() {
-			fmt.Printf("fix dirty state data success,from %v-%v,cost %v \n", begin, end, time.Since(start))
+			log.CorpLogger.Debugf("fix dirty state data success,from %v-%v,cost %v \n", begin, end, time.Since(start))
 		}()
-		fmt.Printf("begin fix dirty state data,from %v-%v \n", begin, end)
+		log.CorpLogger.Debugf("begin fix dirty state data,from %v-%v \n", begin, end)
 		triedb := chain.stateCache.TrieDB()
 
 		for i := begin; i <= end; i++ {
@@ -409,7 +409,7 @@ func (chain *FullBlockChain) FixState() error {
 	begin := time.Now()
 	defer func() {
 		ProcessFixState = false
-		fmt.Printf("fix state cost %v \n", time.Since(begin))
+		log.CorpLogger.Debugf("fix state cost %v \n", time.Since(begin))
 	}()
 	topHeight := dirtyState.GetCurrentHeight()
 	block := chain.QueryBlockByHeight(topHeight)
@@ -417,7 +417,7 @@ func (chain *FullBlockChain) FixState() error {
 		return fmt.Errorf("find block is nil,height is %v", topHeight)
 	}
 	lastTrieHeight := dirtyState.GetLastTrieHeight()
-	fmt.Printf("begin fix State from %v - %v \n", lastTrieHeight, topHeight)
+	log.CorpLogger.Debugf("begin fix State from %v - %v \n", lastTrieHeight, topHeight)
 	for lastTrieHeight < topHeight {
 		lastTrieHeight++
 		curBlock := chain.QueryBlockByHeight(lastTrieHeight)
@@ -451,6 +451,11 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 
 	defer func() {
 		traceLog.Log("ret=%v, err=%v", ret, err)
+		end := time.Now()
+		cost := (end.UnixNano()/1e6 - begin.UnixNano()/1e6)
+		if cost > 1000{
+			Logger.Debugf("addBlockOnchain expired hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
+		}
 		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
 	}()
 
