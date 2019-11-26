@@ -390,18 +390,6 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 }
 
 func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
-	chain := core.BlockChainImpl
-	for _, tx := range trans {
-		contract := &common2.ContractCall{
-			Hash: tx.Hash,
-		}
-		addressList := crontab.storage.GetContractByHash(tx.Hash)
-		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(tx.Hash))
-		//contract address
-		if wrapper != nil && wrapper.Status == 0 && len(addressList) > 0 {
-			go crontab.ConsumeContract(contract, tx.Hash, tx.CurTime)
-		}
-	}
 
 }
 func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string, curtime time.Time) {
