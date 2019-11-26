@@ -174,9 +174,6 @@ func (chain *FullBlockChain) verifyTxs(block *types.Block) (txs txSlice, ok bool
 // 		2, the same height block with a larger QN value on the chain, then we should discard it
 // 		3, need adjust the blockchain, there will be a fork
 func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) types.AddBlockResult {
-	if atomic.LoadInt32(&chain.procInterrupt) == 1 {
-		return types.AddBlockSucc
-	}
 	ret, _ := chain.addBlockOnChain(source, b)
 	if ret == types.AddBlockSucc {
 		log.ELKLogger.WithFields(logrus.Fields{
@@ -452,6 +449,9 @@ func (chain *FullBlockChain) FixState() error {
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
+	if atomic.LoadInt32(&chain.procInterrupt) == 1 {
+		return types.AddBlockSucc,nil
+	}
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
