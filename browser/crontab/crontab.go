@@ -360,7 +360,6 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
 	if blockDetail != nil {
-		go server.NewConsumeTokenContractTransfer(blockDetail.Block.Height, blockDetail.Block.Hash)
 		if maxHeight > pre {
 			server.storage.DeleteForkblock(pre, localHeight, blockDetail.CurTime)
 		}
@@ -397,6 +396,8 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 			server.storage.AddLogs(blockDetail.Receipts, trans, false)
 			server.ProcessContract(transContract)
 		}
+		server.NewConsumeTokenContractTransfer(blockDetail.Block.Height, blockDetail.Block.Hash)
+
 	}
 	//server.isFetchingBlocks = false
 
