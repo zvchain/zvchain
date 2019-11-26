@@ -90,6 +90,7 @@ type FullBlockChain struct {
 
 	topRawBlocks *lru.Cache
 	wg            sync.WaitGroup
+	procInterrupt int32          // interrupt signaler for block processing
 	rwLock sync.RWMutex // Read-write lock
 
 	mu      sync.Mutex // Mutex lock

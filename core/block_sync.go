@@ -18,13 +18,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"math"
-	"math/rand"
-	"sync"
-
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
+	"math"
+	"math/rand"
+	"sync"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/middleware/notify"
