@@ -411,11 +411,15 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	}
 	message := network.Message{Code: network.BlockInfoNotifyMsg, Body: body}
 
+	bs.lock.Lock()
+
 	counter := bs.getOrAddNotifyCounter(top)
 	blacklist := make([]string, 0)
 	for _, nodeStr := range counter.Keys() {
 		blacklist = append(blacklist, nodeStr.(string))
 	}
+
+	bs.lock.Unlock()
 
 	network.GetNetInstance().TransmitToNeighbor(message, blacklist)
 	return true
