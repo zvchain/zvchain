@@ -246,14 +246,14 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	err = chain.resetBlockHeight()
-	if err != nil{
-		return err
-	}
-	err = chain.FixTrieDataFromDB()
-	if err != nil{
-		return err
-	}
+	//err = chain.resetBlockHeight()
+	//if err != nil{
+	//	return err
+	//}
+	//err = chain.FixTrieDataFromDB()
+	//if err != nil{
+	//	return err
+	//}
 	latestBH := chain.loadCurrentBlock()
 	if nil != latestBH {
 		if !chain.versionValidate() {
