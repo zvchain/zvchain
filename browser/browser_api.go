@@ -13,7 +13,6 @@ import (
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/tvm"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -49,7 +48,6 @@ type DBMmanagement struct {
 }
 
 func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *DBMmanagement {
-	tvm.ContractTransferData = make(chan *tvm.ContractTransfer, 500)
 	tablMmanagement := &DBMmanagement{}
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 

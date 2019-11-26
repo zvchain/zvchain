@@ -17,13 +17,27 @@ package cli
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/groupsig"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/tvm"
+	"math/big"
 	"strings"
 )
+
+type TokenContract struct {
+	ContractAddr  string            `json:"contract_addr" gorm:"index"`
+	Creator       string            `json:"creator" gorm:"index"`
+	Name          string            `json:"name"`
+	Symbol        string            `json:"symbol"`
+	Decimal       int64             `json:"decimal"`
+	HolderNum     uint64            `json:"holder_num"`
+	TransferTimes uint64            `json:"transfer_times"`
+	TokenHolders  map[string]string `json:"token_holders"`
+}
 
 // RpcExplorerImpl provides rpc service for blockchain explorer use
 type RpcExplorerImpl struct {
@@ -145,4 +159,63 @@ func (api *RpcExplorerImpl) ExplorerGetCandidates() (*[]ExploreCandidateList, er
 		candidateLists = append(candidateLists, candidate)
 	}
 	return &candidateLists, nil
+}
+
+func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, error) {
+	if !common.ValidateAddress(strings.TrimSpace(tokenAddr)) {
+		return nil, fmt.Errorf("wrong param format")
+	}
+	if !IsTokenContract(common.StringToAddress(tokenAddr)) {
+		return nil, fmt.Errorf("this address is not a token address")
+	}
+
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		return nil, err
+	}
+
+	tokenContract := &TokenContract{}
+	keyMap := []string{"name", "symbol", "decimal"}
+	for times, key := range keyMap {
+		data := db.GetData(common.StringToAddress(tokenAddr), []byte(key))
+		if v, ok := tvm.VmDataConvert(data).(string); ok {
+			switch times {
+			case 0:
+				tokenContract.Name = v
+			case 1:
+				tokenContract.Symbol = v
+			}
+		}
+		if v, ok := tvm.VmDataConvert(data).(int64); ok {
+			switch times {
+			case 2:
+				tokenContract.Decimal = v
+			}
+		}
+	}
+
+	iter := db.DataIterator(common.StringToAddress(tokenAddr), []byte{})
+	if iter == nil {
+		return nil, iter.Err
+	}
+	//balanceOf := make(map[string]interface{})
+	for iter.Next() {
+		if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
+			realAddr := strings.TrimPrefix(string(iter.Key[:]), "balanceOf@")
+			if util.ValidateAddress(realAddr) {
+				value := tvm.VmDataConvert(iter.Value[:])
+				if value != nil {
+					var valuestring string
+					if value1, ok := value.(int64); ok {
+						valuestring = big.NewInt(value1).String()
+					} else if value2, ok := value.(*big.Int); ok {
+						valuestring = value2.String()
+					}
+					tokenContract.TokenHolders[realAddr] = valuestring
+				}
+			}
+		}
+	}
+	return tokenContract, err
 }

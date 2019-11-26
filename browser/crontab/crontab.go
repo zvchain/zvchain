@@ -16,7 +16,9 @@ import (
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/tvm"
+	"math/big"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -99,6 +101,7 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchOldReceiptToTransaction()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
+	go crontab.fetchOldConctactCreate()
 
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
@@ -350,7 +353,8 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 
 }
 func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
-	fmt.Println("[server]  consumeBlock height:", localHeight)
+
+	fmt.Println("[server]  consumeBlock process height:", localHeight)
 	var maxHeight uint64
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
@@ -372,6 +376,13 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				}
 				if tran.Type == types.TransactionTypeContractCall {
 					transContract = append(transContract, tran)
+
+					//是否有transfer log
+					for _, log := range blockDetail.Receipts[i].Logs {
+						if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
+							server.storage.AddTokenContract(tran, log)
+						}
+					}
 				}
 				trans = append(trans, tran)
 			}
@@ -384,6 +395,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 			server.storage.AddLogs(blockDetail.Receipts, trans, false)
 			server.ProcessContract(transContract)
 		}
+		server.NewConsumeTokenContractTransfer(blockDetail.Block.Height, blockDetail.Block.Hash)
 	}
 	//server.isFetchingBlocks = false
 
@@ -424,6 +436,7 @@ func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
 	go crontab.ProduceReward(data)
 	go crontab.UpdateProtectNodeStatus()
 	crontab.GochanPunishment(bh.Height)
+
 	return nil
 }
 func (crontab *Crontab) GochanPunishment(height uint64) {
@@ -525,6 +538,93 @@ func (crontab *Crontab) ConsumeContractTransfer() {
 			mysql.DBStorage.AddContractCallTransaction(contractCall)
 		}
 	}
+}
+
+func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash string) {
+	datas, err := tvm.GetTokenContractldbdata(hash)
+	if datas == nil {
+		return
+	}
+	if err != nil {
+		browserlog.BrowserLog.Error("NewConsumeTokenContract,error")
+		return
+	}
+	for _, data := range datas {
+		if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
+			continue
+		}
+		browserlog.BrowserLog.Info("ConsumeTokenContract,json:", util.ObjectTojson(data))
+		chain := core.BlockChainImpl
+		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
+		if wrapper != nil {
+			if wrapper.Status == 0 && data.Value != nil {
+				var valuestring string
+				if value, ok := data.Value.(int64); ok {
+					valuestring = big.NewInt(value).String()
+				} else if value, ok := data.Value.(*big.Int); ok {
+					valuestring = value.String()
+				}
+				addr := strings.TrimPrefix(data.Addr, "balanceOf@")
+				crontab.storage.UpdateTokenUser(data.ContractAddr,
+					addr,
+					valuestring)
+			}
+
+		}
+
+	}
+	tvm.MapTokenContractData.Delete(hash)
+	var length int
+	tvm.MapTokenContractData.Range(func(k, v interface{}) bool {
+		length++
+		return true
+	})
+	fmt.Println("delete ConsumeTokenContract:", hash, ",maplen:", length)
+
+}
+
+func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string) {
+	var ok = true
+	chanData := tvm.MapTokenChan[hash]
+	if chanData == nil || len(chanData) < 1 {
+		return
+	}
+	ticker := time.NewTicker(time.Second * 5)
+	for ok {
+		select {
+		case data := <-chanData:
+			if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
+				return
+			}
+			browserlog.BrowserLog.Info("ConsumeTokenContractTransfer,json:", data.TxHash, ",", height, ",", hash)
+			chain := core.BlockChainImpl
+			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
+			if wrapper != nil {
+				if wrapper.Status == 0 && data.Value != nil {
+					var valuestring string
+					if value, ok := data.Value.(int64); ok {
+						valuestring = big.NewInt(value).String()
+					} else if value, ok := data.Value.(*big.Int); ok {
+						valuestring = value.String()
+					}
+					addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
+					crontab.storage.UpdateTokenUser(data.ContractAddr,
+						addr,
+						valuestring)
+				}
+
+			}
+		case <-ticker.C:
+			topHeight := core.BlockChainImpl.Height()
+			if height > topHeight || (len(chanData) < 1 && height < topHeight) {
+				close(chanData)
+				delete(tvm.MapTokenChan, hash)
+				return
+			}
+		}
+	}
+	fmt.Println("deleete ConsumeTokenContractTransfer", hash)
+
 }
 
 func (crontab *Crontab) ConsumeReward() {
@@ -646,6 +746,26 @@ func (crontab *Crontab) fetchOldLogs() {
 		}
 	}
 	crontab.fetchContractAccount()
+}
+
+func (crontab *Crontab) fetchOldConctactCreate() {
+
+	txsCounts := 0
+	crontab.storage.GetDB().Raw("select count(1) from transactions where contract_address <> ? or contract_address <> ?", "", nil).Row().Scan(&txsCounts)
+
+	if txsCounts == 0 {
+		txs := make([]models.Transaction, 0)
+		crontab.storage.GetDB().Model(&models.Transaction{}).Where("type = ?", types.TransactionTypeContractCreate).Find(&txs)
+
+		for _, tx := range txs {
+			receipts := make([]*models.Receipt, 0)
+			crontab.storage.GetDB().Limit(1).Model(&models.Receipt{}).Where("tx_hash = ?", tx.Hash).Find(&receipts)
+
+			for _, receipt := range receipts {
+				crontab.storage.GetDB().Model(&models.Transaction{}).Where("hash = ?", tx.Hash).Update("contract_address", receipt.ContractAddress)
+			}
+		}
+	}
 }
 
 func (crontab *Crontab) fetchOldReceiptToTransaction() {

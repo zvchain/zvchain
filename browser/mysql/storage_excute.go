@@ -4,10 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/tidwall/gjson"
 	"github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
+	"github.com/zvchain/zvchain/browser/util"
+	"github.com/zvchain/zvchain/cmd/gzv/cli"
+	common2 "github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/tvm"
+	"math/big"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -602,6 +610,43 @@ func (storage *Storage) AddContractTransaction(contract *models.ContractTransact
 	storage.db.Create(&contract)
 	return true
 }
+
+func (storage *Storage) IsDbTokenContract(contract string) bool {
+	token := make([]models.TokenContract, 0, 0)
+	storage.db.Where("contract_addr = ?", contract).Find(&token)
+	if len(token) < 1 {
+		return false
+	}
+	return true
+}
+
+func (storage *Storage) UpdateTokenUser(contract string, addr string, value string) {
+	if value == "" {
+		return
+	}
+	//token := make([]models.TokenContract, 0, 0)
+	//storage.db.Where("contract_addr = ?", contract).Find(&token)
+	//if len(token) < 1 {
+	//	return
+	//}
+
+	users := make([]models.TokenContractUser, 0, 0)
+	storage.db.Where("address =? and contract_addr = ?", addr, contract).Find(&users)
+	if len(users) > 0 {
+		value := getUseValue(contract, addr)
+		storage.db.Model(&models.TokenContractUser{}).
+			Where("contract_addr = ? and address = ? ", contract, addr).
+			Update("value", value)
+	} else {
+		user := &models.TokenContractUser{
+			ContractAddr: contract,
+			Address:      addr,
+			Value:        value,
+		}
+		storage.db.Create(&user)
+	}
+
+}
 func (storage *Storage) AddContractCallTransaction(contract *models.ContractCallTransaction) bool {
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
@@ -677,6 +722,210 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	fmt.Println("[Storage]  AddTransactions cost: ", time.Since(timeBegin))
 
 	return true
+}
+
+func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.Log) {
+	tokenContracts := make([]*models.TokenContract, 0)
+	storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).Find(&tokenContracts)
+	if log != nil {
+		source := gjson.Get(log.Data, "args.0").String()
+		target := gjson.Get(log.Data, "args.1").String()
+		value := gjson.Get(log.Data, "args.2").Raw
+		browserlog.BrowserLog.Info("AddTokenContract,", source, ",", target, ",", value)
+		if source == "" || target == "" {
+			return
+		}
+		realValue := &big.Int{}
+		realValue.SetString(value, 10)
+		if len(tokenContracts) == 0 {
+			if !cli.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
+				return
+			}
+			browserlog.BrowserLog.Info("IsTokenContract,", tran.ContractAddress)
+
+			//create
+			chain := core.BlockChainImpl
+			db, err := chain.LatestAccountDB()
+			if err != nil {
+				browserlog.BrowserLog.Error("AddTokenContract: ", err)
+				return
+			}
+
+			// 查看balanceOf
+			iter := db.DataIterator(common2.StringToAddress(log.Address), []byte{})
+			if iter == nil {
+				return
+			}
+			//balanceOf := make(map[string]interface{})
+			for iter.Next() {
+				if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
+					realAddr := strings.TrimPrefix(string(iter.Key[:]), "balanceOf@")
+					if util.ValidateAddress(realAddr) {
+						value := tvm.VmDataConvert(iter.Value[:])
+						if value != nil {
+							var valuestring string
+							if value1, ok := value.(int64); ok {
+								valuestring = big.NewInt(value1).String()
+							} else if value2, ok := value.(*big.Int); ok {
+								valuestring = value2.String()
+							}
+							storage.UpdateTokenUser(log.Address, realAddr, valuestring)
+						}
+					}
+				}
+			}
+
+			tokenContract := models.TokenContract{}
+			//mapInterface := make(map[string]interface{})
+			keyMap := []string{"name", "symbol", "decimal"}
+			for times, key := range keyMap {
+				data := db.GetData(common2.StringToAddress(log.Address), []byte(key))
+				if v, ok := tvm.VmDataConvert(data).(string); ok {
+					switch times {
+					case 0:
+						tokenContract.Name = v
+					case 1:
+						tokenContract.Symbol = v
+					}
+				}
+				if v, ok := tvm.VmDataConvert(data).(int64); ok {
+					switch times {
+					case 2:
+						tokenContract.Decimal = v
+					}
+				}
+			}
+			tokenContract.ContractAddr = log.Address
+			if util.ValidateAddress(source) && util.ValidateAddress(target) {
+				if source == target {
+					tokenContract.HolderNum = 1
+				} else {
+					tokenContract.HolderNum = 2
+				}
+			}
+
+			src := ""
+			storage.db.Model(models.Transaction{}).Select("source").Where("contract_address = ? ", tran.Target).Row().Scan(&src)
+			tokenContract.Creator = src
+			tokenContract.TransferTimes = 1
+			storage.db.Create(&tokenContract)
+
+		} else { //update
+			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?", 1))
+			users := make([]*models.TokenContractUser, 0)
+			storage.db.Model(models.TokenContractUser{}).Where("address = ?", target).Find(&users)
+			if len(users) == 0 {
+				storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).UpdateColumn("holder_num", gorm.Expr("holder_num + ?", 1))
+			}
+		}
+		contract := &models.TokenContractTransaction{
+			ContractAddr: log.Address,
+			Source:       source,
+			Target:       target,
+			Value:        realValue.String(),
+			TxHash:       tran.Hash,
+			TxType:       0,
+			Status:       0,
+			BlockHeight:  tran.BlockHeight,
+			CurTime:      tran.CurTime,
+		}
+		browserlog.BrowserLog.Info("AddTokenTran,", tran.ContractAddress)
+		//update tokenContractTx and tokenContractUser
+		storage.AddTokenTran(contract)
+	}
+
+}
+
+func (storage *Storage) AddTokenTran(tokenContract *models.TokenContractTransaction) bool {
+	fmt.Println("AddTokenTran,", tokenContract)
+
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	tx := storage.db.Begin()
+	isSuccess := true
+	defer func() {
+		if isSuccess {
+			tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+	}()
+
+	if !errors(tx.Create(&tokenContract).Error) {
+		isSuccess = false
+		return isSuccess
+	}
+	isSuccess = storage.AddTokenUser(tx, tokenContract)
+	return isSuccess
+}
+
+func getUseValue(tokenaddr string, useraddr string) string {
+	if tokenaddr == "" && useraddr == "" {
+		return big.NewInt(0).String()
+	}
+	key := fmt.Sprintf("balanceOf@%s", useraddr)
+	resultData, _ := common.QueryAccountData(tokenaddr, key, 0)
+	result := resultData.(map[string]interface{})
+	if result["value"] != nil {
+		if value, ok := result["value"].(int64); ok {
+			return big.NewInt(value).String()
+		} else if value, ok := result["value"].(*big.Int); ok {
+			return value.String()
+		}
+	}
+	return big.NewInt(0).String()
+}
+
+/*
+ add tokencontract user info
+*/
+func (storage *Storage) AddTokenUser(tx *gorm.DB, tokenContract *models.TokenContractTransaction) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	isSuccess := true
+
+	addressList := []string{tokenContract.Source, tokenContract.Target}
+	users := make([]models.TokenContractUser, 0, 0)
+	tx.Where("address in (?) and contract_addr = ?", addressList, tokenContract.ContractAddr).Find(&users)
+	createUser := make([]string, 0)
+	set := &util.Set{}
+	if len(users) > 0 {
+		for _, user := range users {
+			set.Add(user.Address)
+			value := getUseValue(tokenContract.ContractAddr, user.Address)
+			if !errors(tx.Model(&models.TokenContractUser{}).
+				Where("contract_addr = ? and address = ? ", tokenContract.ContractAddr, user.Address).Update("value", value).Error) {
+				isSuccess = false
+				return isSuccess
+			}
+		}
+		for _, user := range addressList {
+			if _, ok := set.M[user]; !ok {
+				createUser = append(createUser, user)
+			}
+		}
+	} else {
+		createUser = addressList
+	}
+	if len(createUser) > 0 {
+		for _, user := range createUser {
+			user := &models.TokenContractUser{
+				ContractAddr: tokenContract.ContractAddr,
+				Address:      user,
+				Value:        getUseValue(tokenContract.ContractAddr, user),
+			}
+			if !errors(tx.Create(&user).Error) {
+				isSuccess = false
+				return isSuccess
+			}
+		}
+	}
+	return isSuccess
+
 }
 
 func (storage *Storage) AddLogs(receipts []*models.Receipt, trans []*models.Transaction, old bool) bool {
@@ -862,11 +1111,14 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, cu
 	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
 	logSql := fmt.Sprintf("DELETE  FROM logs WHERE block_number > %d", preHeight)
 	contractTransSql := fmt.Sprintf("DELETE  FROM contract_transactions WHERE block_height > %d", preHeight)
+	tokenTransSql := fmt.Sprintf("DELETE  FROM token_contract_transactions WHERE block_height > %d", preHeight)
+
 	blockCount := storage.db.Exec(blockSql)
 	transactionCount := storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
 	storage.db.Exec(logSql)
 	go storage.db.Exec(contractTransSql)
+	go storage.db.Exec(tokenTransSql)
 
 	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
 		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)

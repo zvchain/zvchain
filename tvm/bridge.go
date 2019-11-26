@@ -21,6 +21,7 @@ package tvm
 import "C"
 import (
 	"math/big"
+	"strings"
 	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
@@ -85,6 +86,15 @@ func SetData(key *C.char, kenLen C.int, value *C.char, valueLen C.int) {
 	k := C.GoBytes(unsafe.Pointer(key), kenLen)
 	v := C.GoBytes(unsafe.Pointer(value), valueLen)
 	controller.AccountDB.SetData(address, k, v)
+	if k != nil && strings.HasPrefix(string(k), "balanceOf@") {
+		ProduceTokenContractTransfer(
+			controller.Transaction.GetHash().Hex(),
+			controller.BlockHeader.Hash.Hex(),
+			address.AddrPrefixString(),
+			k,
+			v,
+		)
+	}
 }
 
 //export BlockHash

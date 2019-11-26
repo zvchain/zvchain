@@ -77,6 +77,7 @@ func (api *Explore) ExplorerGroupsAfter(height uint64) []*models.Group {
 	}
 	return ret
 }
+
 func (api *Explore) GetRewardByBlock(b *types.Block) *ExploreBlockReward {
 	chain := core.BlockChainImpl
 	if b == nil {
