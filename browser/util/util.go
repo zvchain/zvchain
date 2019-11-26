@@ -17,6 +17,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -63,4 +64,12 @@ func ObjectTojson(ob interface{}) string {
 	result, _ := json.Marshal(ob)
 	return strings.Trim(string(result), "\"")
 
+}
+func InsertUint64SliceCopy(slice, insertion []uint64, index int) []uint64 {
+	result := make([]uint64, len(slice)+len(insertion))
+	at := copy(result, slice[:index])
+	at += copy(result[at:], insertion)
+	copy(result[at:], slice[index:])
+	fmt.Printf("%6T\n", at)
+	return result
 }

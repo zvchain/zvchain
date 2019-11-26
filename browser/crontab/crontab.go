@@ -83,6 +83,10 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
+	confirmRewardHeight := server.storage.MinConfirmBlockRewardHeight()
+	if confirmRewardHeight > 0 {
+		server.ConfirmRewardHeight = confirmRewardHeight
+	}
 	server.blockTopHeight = server.storage.GetTopblock()
 	if server.blockRewardHeight > 0 {
 		server.blockRewardHeight += 1
@@ -119,6 +123,7 @@ func (crontab *Crontab) loop() {
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 		case <-check1Hour.C:
+			go crontab.ConfirmRewardsToMinerBlock()
 			fmt.Println("")
 
 		}
@@ -575,14 +580,20 @@ func (crontab *Crontab) ConsumeReward() {
 }
 
 func (crontab *Crontab) ConfirmRewardsToMinerBlock() {
-	topHeight := core.BlockChainImpl.Height()
-	checkpoint := core.BlockChainImpl.LatestCheckPoint()
-	if checkpoint.Height > 0 && crontab.ConfirmRewardHeight > checkpoint.Height {
+	//topHeight := core.BlockChainImpl.Height()
+	topHeight := crontab.storage.MaxConfirmBlockRewardHeight()
+	//checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if crontab.ConfirmRewardHeight > topHeight-1000 {
+		return
+	}
+	/*if checkpoint.Height > 0 && crontab.ConfirmRewardHeight > checkpoint.Height {
 		return
 	} else if checkpoint.Height == 0 && crontab.ConfirmRewardHeight > topHeight-100 {
 		return
-	}
-
+	}*/
+	crontab.storage.Reward2MinerBlock(crontab.ConfirmRewardHeight)
+	crontab.ConfirmRewardHeight = crontab.ConfirmRewardHeight + 1
+	crontab.ConfirmRewardsToMinerBlock()
 }
 
 func (crontab *Crontab) UpdateTurnOver() {
