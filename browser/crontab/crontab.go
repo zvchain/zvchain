@@ -378,9 +378,11 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 					transContract = append(transContract, tran)
 
 					//是否有transfer log
-					for _, log := range blockDetail.Receipts[i].Logs {
-						if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
-							server.storage.AddTokenContract(tran, log)
+					if blockDetail.Receipts[i] != nil {
+						for _, log := range blockDetail.Receipts[i].Logs {
+							if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
+								server.storage.AddTokenContract(tran, log)
+							}
 						}
 					}
 				}
