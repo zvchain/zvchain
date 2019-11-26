@@ -27,9 +27,8 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 	"sync/atomic"
 )
-const CropCount = 20
 const TriesInMemory = types.EpochLength * 27 + (cpMaxScanEpochs + 1) * types.EpochLength + 1
-const PersistenceHeight = types.EpochLength * 10
+const PersistenceHeight = types.EpochLength * 30
 
 type newTopMessage struct {
 	bh *types.BlockHeader
