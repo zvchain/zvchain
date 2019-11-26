@@ -293,6 +293,7 @@ func (chain *FullBlockChain) Stop() {
 	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
 		return
 	}
+	atomic.StoreInt32(&chain.procInterrupt, 1)
 	chain.wg.Wait()
 	begin := time.Now()
 	defer func() {
@@ -441,6 +442,9 @@ func (chain *FullBlockChain) FixState() error {
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
+	if atomic.LoadInt32(&chain.procInterrupt) == 1 {
+		return types.AddBlockSucc,nil
+	}
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)

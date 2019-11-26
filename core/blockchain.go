@@ -83,7 +83,7 @@ type FullBlockChain struct {
 	stateCache        account.AccountDatabase
 	running int32         // running must be called atomically
 	transactionPool types.TransactionPool
-
+	procInterrupt int32          // interrupt signaler for block processing
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
 	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
@@ -162,9 +162,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
 	// get the level db block cache size from config
-	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
+	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 200)
 	// get the level db write cache size from config
-	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
+	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 300)
 
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
