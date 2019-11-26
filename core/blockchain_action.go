@@ -298,16 +298,17 @@ func (chain *FullBlockChain) Stop() {
 	defer func() {
 		fmt.Printf("stop success,cost %v", time.Since(begin))
 	}()
-	fmt.Printf("stop process begin...")
+
 	bh := chain.QueryTopBlock()
 	if bh == nil {
 		return
 	}
-	if bh.Height <= CropCount {
-		return
-	}
-	closen := bh.Height - CropCount + 1
+	fmt.Printf("stop process begin,local height is %v \n",bh.Height)
 	triedb := chain.stateCache.TrieDB()
+	var closen uint64 = 0
+	if bh.Height > TriesInMemory{
+		closen = bh.Height - uint64(TriesInMemory)
+	}
 	for !chain.triegc.Empty() {
 		root, number := chain.triegc.Pop()
 		if uint64(-number) < closen {
@@ -317,10 +318,7 @@ func (chain *FullBlockChain) Stop() {
 		if err != nil {
 			fmt.Printf("stopping trie commit statedb error:%s", err.Error())
 		}
-		err = dirtyState.StoreTriePureHeight(uint64(-number))
-		if err != nil {
-			fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
-		}
+		fmt.Printf("commit data height is %v \n",(-number))
 		return
 	}
 }

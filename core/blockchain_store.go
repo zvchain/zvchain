@@ -55,8 +55,8 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	if trieGc && b.Header.Height > 0 {
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
-		if b.Header.Height > CropCount {
-			chosen := b.Header.Height - CropCount
+		if b.Header.Height > TriesInMemory {
+			chosen := b.Header.Height - TriesInMemory
 			if chosen % PersistenceHeight == 0 {
 				ph := chain.queryBlockHeaderByHeight(chosen)
 				if ph == nil {
