@@ -261,6 +261,9 @@ func (p *Processor) verifyCachedMsg(hash common.Hash) {
 	if verifys != nil {
 		copyMsgs :=verifys.getVerifyMsgs()
 		for _, vmsg := range copyMsgs {
+			if vmsg == nil {
+				continue
+			}
 			p.OnMessageVerify(vmsg)
 		}
 	}
