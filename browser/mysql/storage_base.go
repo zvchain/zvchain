@@ -230,6 +230,31 @@ func (storage *Storage) AddRewards(rewards []*models.Reward) bool {
 	return true
 }
 
+func (storage *Storage) AddBlockToMiner(rewards []*models.BlockToMiner) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	if len(rewards) < 1 {
+		return false
+	}
+	timeBegin := time.Now()
+	for i := 0; i < len(rewards); i++ {
+		//fmt.Println("[Storage] add verification:",verifications[i])
+		if rewards[i] != nil {
+			fmt.Printf(">>>%+v", rewards[i])
+			if !errors(storage.db.Create(&rewards[i]).Error) {
+				rewardsql := fmt.Sprintf("DELETE  FROM rewards WHERE  block_height = '%d' ",
+					rewards[i].BlockHeight)
+				storage.db.Exec(rewardsql)
+				storage.db.Create(&rewards[i])
+			}
+		}
+	}
+	fmt.Println("[Storage]  AddBlockToMiner cost: ", time.Since(timeBegin), "，len :", len(rewards))
+	return true
+}
+
 func (storage *Storage) SetLoadVerified(block *models.Block) bool {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {

@@ -887,6 +887,11 @@ func (storage *Storage) DeleteForkReward(preHeight uint64, localHeight uint64) (
 
 	verifySql := fmt.Sprintf("DELETE FROM rewards WHERE reward_height > %d ", preHeight)
 	storage.db.Exec(verifySql)
-	browserlog.BrowserLog.Info("[DeleteForkReward] DeleteForkReward preHeight:", preHeight, "localHeight", localHeight)
+	browserlog.BrowserLog.Info("[DeleteForkReward] rewards preHeight:", preHeight, "localHeight", localHeight)
+
+	sql2 := fmt.Sprintf("DELETE FROM block_to_miners WHERE reward_height > %d ", preHeight)
+	storage.db.Exec(sql2)
+	browserlog.BrowserLog.Info("[DeleteForkReward] block_to_miners preHeight:", preHeight, "localHeight", localHeight)
+
 	return err
 }

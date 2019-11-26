@@ -174,6 +174,8 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 	for i := 0; i < len(blocks); i++ {
 		block := blocks[i]
 		verifications := make([]*models.Reward, 0, 0)
+		blockToMiners := make([]*models.BlockToMiner, 0, 0)
+		blockToMiner := &models.BlockToMiner{}
 		if block.ProposalReward > 0 {
 			//mort := getMinerDetail(block.ProposalID, block.BlockHeight, types.MinerTypeProposal)
 			proposalReward := &models.Reward{
@@ -191,6 +193,16 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 			//	proposalReward.Stake = mort.Stake
 			//	proposalReward.RoleType = uint64(mort.Identity)
 			//}
+			blockToMiner = &models.BlockToMiner{
+				BlockHeight:  block.BlockHeight,
+				BlockHash:    block.BlockHash,
+				RewardHeight: localHeight,
+				CurTime:      block.CurTime,
+				PrpsNodeID:   block.ProposalID,
+				PrpsReward:   block.ProposalReward,
+				PrpsGasFee:   block.ProposalGasFeeReward,
+			}
+
 			verifications = append(verifications, proposalReward)
 
 		}
@@ -204,6 +216,7 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 			gas := fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids)))
 			rewarMoney, _ := strconv.ParseFloat(gas, 64)
 
+			idsString := ""
 			for n := 0; n < len(ids); n++ {
 				v := models.Reward{}
 				v.BlockHash = block.BlockHash
@@ -220,13 +233,25 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 				//	v.RoleType = uint64(mort.Identity)
 				//}
 				verifications = append(verifications, &v)
+				idsString = fmt.Sprintf(idsString+"%s\r\n", ids[n].GetAddrString())
 			}
+
+			blockToMiner.VerfNodeIDs = idsString
+			blockToMiner.VerfNodeCnts = uint64(len(ids))
+			blockToMiner.VerfReward = verifierBonus.Value
+			if v, err := strconv.ParseFloat(fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids))), 64); err == nil {
+				blockToMiner.VerfSingleGasFee = v
+			}
+			blockToMiner.VerfTotalGasFee = block.VerifierGasFeeReward
+
 			blo := &models.Block{}
 			blo.Hash = block.BlockHash
 			crontab.storage.SetLoadVerified(blo)
 
 		}
+		blockToMiners = append(blockToMiners, blockToMiner)
 		crontab.storage.AddRewards(verifications)
+		crontab.storage.AddBlockToMiner(blockToMiners)
 	}
 
 }
