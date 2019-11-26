@@ -616,6 +616,118 @@ func (storage *Storage) AddContractCallTransaction(contract *models.ContractCall
 	return true
 }
 
+func (storage *Storage) Reward2MinerBlock(height uint64) bool {
+	rewards := make([]*models.Reward, 0)
+
+	storage.db.Where("height = ?", height).Find(&rewards)
+	isSuccess := false
+	tx := storage.db.Begin()
+	mapMiner := make(map[string]*models.BlockConfirmMiner)
+	for _, reward := range rewards {
+		if _, exists := mapMiner[reward.NodeId]; exists {
+			miner := mapMiner[reward.NodeId]
+			if reward.Type == 0 {
+				miner.VerHight = reward.BlockHeight
+			}
+			if reward.Type == 1 {
+				miner.ProHeight = reward.BlockHeight
+			}
+			mapMiner[reward.NodeId] = miner
+		} else {
+			miner := &models.BlockConfirmMiner{}
+			if reward.Type == 0 {
+				miner.VerHight = reward.BlockHeight
+			}
+			if reward.Type == 1 {
+				miner.ProHeight = reward.BlockHeight
+			}
+			mapMiner[reward.NodeId] = miner
+		}
+	}
+	defer func() {
+		if isSuccess {
+			tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+	}()
+	updateMinerBlock := func(addr string, verheight uint64, proHeight uint64) error {
+		rewards := make([]*models.MinerToBlock, 0)
+		tx.Limit(1).Where("address = ?", addr).Order("sequence desc").Find(&rewards)
+
+		if len(rewards) > 0 {
+			mapData := make(map[string]interface{})
+			if verheight > 0 {
+				blockVerHeights := make([]uint64, 0)
+				if err := json.Unmarshal([]byte(rewards[0].VerfBlockIDs), &blockVerHeights); err != nil {
+					return err
+				}
+				blockVerHeights = append(blockVerHeights, verheight)
+				updateVerString, err := json.Marshal(blockVerHeights)
+				if err != nil {
+					return err
+				}
+				mapData["verf_block_ids"] = updateVerString
+
+			}
+			if proHeight > 0 {
+				blockProHeights := make([]uint64, 0)
+				if err := json.Unmarshal([]byte(rewards[0].PrpsBlockIDs), &blockProHeights); err != nil {
+					return err
+				}
+				blockProHeights = append(blockProHeights, proHeight)
+				updateProString, err := json.Marshal(blockProHeights)
+				if err != nil {
+					return err
+				}
+				mapData["prps_block_ids"] = updateProString
+
+			}
+			return tx.Model(&models.MinerToBlock{}).
+				Where("id = ?", rewards[0].ID).
+				Updates(mapData).Error
+		} else {
+			MineBlock := models.MinerToBlock{
+				Address: addr,
+			}
+			verblock := make([]uint64, 0)
+			problock := make([]uint64, 0)
+			if proHeight > 0 {
+				problock = append(problock, proHeight)
+				byteProBlocks, err := json.Marshal(problock)
+				if err != nil {
+					return err
+				}
+				proBlocks := string(byteProBlocks)
+				MineBlock.PrpsBlockIDs = proBlocks
+			}
+			if verheight > 0 {
+				verblock = append(verblock, verheight)
+				byteVerifyBlocks, err := json.Marshal(verblock)
+				if err != nil {
+					return err
+				}
+				verifyBlocks := string(byteVerifyBlocks)
+				MineBlock.VerfBlockIDs = verifyBlocks
+			}
+			return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
+		}
+
+	}
+	if len(rewards) > 0 {
+		for addr, miner := range mapMiner {
+			if errors(updateMinerBlock(addr, miner.VerHight, miner.ProHeight)) {
+				isSuccess = false
+			}
+		}
+	}
+	isSuccess = true
+	return isSuccess
+
+}
+func (storage *Storage) UpMinerBlock(addr string, height uint64) {
+
+}
 func (storage *Storage) AddBlock(block *models.Block) bool {
 	//fmt.Println("[Storage] add block ")
 	if storage.db == nil {

@@ -270,6 +270,11 @@ type Config struct {
 
 type BlockHeights []uint64
 
+type BlockConfirmMiner struct {
+	ProHeight uint64
+	VerHight  uint64
+}
+
 func (e BlockHeights) Len() int           { return len(e) }
 func (e BlockHeights) Less(i, j int) bool { return e[i] > e[j] }
 func (e BlockHeights) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
