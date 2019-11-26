@@ -493,5 +493,5 @@ func (c *simpleContainer) clearRoute() {
 	start := time.Now()
 	c.evictPending()
 	c.evictTimeout()
-	Logger.Debugf("clearRoute tasks %f seconds",time.Since(start).Seconds())
+	Logger.Debugf("clearRoute tasks %f seconds", time.Since(start).Seconds())
 }

@@ -124,7 +124,7 @@ class Token(object):
     #     self.totalSupply -= _value
     #     Event.emit("Burn", _from, _value)
     #     return True
-`
+    @register.public(str, int)`
 
 var cfg = &minerConfig{
 	rpcLevel:      rpcLevelDev,
@@ -197,4 +197,8 @@ func TestUnmarhsalTxRawData(t *testing.T) {
 func TestParseABI(t *testing.T) {
 	abi := parseABI(code)
 	fmt.Println(abi)
+	for _, v := range abi {
+		fmt.Println(v.FuncName)
+		fmt.Println(len(v.Args))
+	}
 }
