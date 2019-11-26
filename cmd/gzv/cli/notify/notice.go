@@ -3,7 +3,6 @@ package notify
 import (
 	"fmt"
 	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/storage/tasdb"
 	"runtime"
 	"time"
 )
@@ -13,7 +12,7 @@ const NewVersion = true
 const NoticeDB = "db_notify"
 const UpdatePath = "update"
 const System = runtime.GOOS
-const CheckVersioGap = time.Second * 5
+const CheckVersioGap = time.Hour
 const Timeout = time.Second * 60
 
 var (
@@ -44,7 +43,7 @@ func InitVersionChecker() {
 
 	ctiker := time.NewTicker(CheckVersioGap)
 
-	for i := 0; i < 20; i++ {
+	for {
 		select {
 		case <-ctiker.C:
 			//Check if the local running program is the latest version
@@ -55,11 +54,10 @@ func InitVersionChecker() {
 			}
 
 			if !bl {
-				//ptiker := time.NewTicker(CheckVersioGap)
 				timeOut := time.After(CheckVersioGap)
-				go nm.processOutput(i, timeOut)
-
 				nm.versionChecker = vc
+				go nm.processOutput(timeOut)
+
 				//Check if the latest version has been downloaded locally
 				if isFileExist(UpdatePath+"/"+vc.version+"/"+vc.downloadFilename, vc.filesize) {
 					fmt.Println("The latest version has been downloaded locally, but not yet run\n")
@@ -79,38 +77,19 @@ func InitVersionChecker() {
 
 type NotifyManager struct {
 	versionChecker *VersionChecker
-	stateDb        *tasdb.PrefixedDatabase
 }
 
 func NewNotifyManager() *NotifyManager {
-	ds, err := tasdb.NewDataSource(NoticeDB, nil)
-	if err != nil {
-		log.DefaultLogger.Errorln(err)
-		return nil
-	}
-	pd, err := ds.NewPrefixDatabase("")
-	if err != nil {
-		log.DefaultLogger.Errorln(err)
-		return nil
-	}
 
 	nm := &NotifyManager{
-		stateDb: pd,
+		&VersionChecker{},
 	}
 
 	return nm
 }
 
-//func (nm *NotifyManager) getNotice() {
-//
-//}
-//func (nm *NotifyManager) removeNotice() {
-//
-//}
-
-func (nm *NotifyManager) processOutput(i int, timeout <-chan time.Time) {
+func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 	gap := nm.versionChecker.notifyGap
-
 	for {
 		select {
 		case <-timeout:
@@ -119,7 +98,7 @@ func (nm *NotifyManager) processOutput(i int, timeout <-chan time.Time) {
 			time.Sleep(time.Second * time.Duration(int64(gap)))
 			output := fmt.Sprintf("The current Gzv program is not the latest version. It needs to be updated to the latest version %s as soon as possible\n", nm.versionChecker.version)
 			log.DefaultLogger.Errorln(fmt.Errorf(output))
-			fmt.Printf("processOutput version --->>> [ %v ],%v", i, output)
+			fmt.Printf("processOutput version --->>> %v", output)
 		}
 	}
 }

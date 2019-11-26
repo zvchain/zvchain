@@ -30,7 +30,7 @@ func (vc *VersionChecker) download() error {
 
 	uri, err := url.ParseRequestURI(durl)
 	if err != nil {
-		panic("URL err")
+		return fmt.Errorf("URL err")
 	}
 	filename := path.Base(uri.Path)
 	vc.downloadFilename = filename
@@ -44,7 +44,6 @@ func (vc *VersionChecker) download() error {
 	if err != nil {
 		return err
 	}
-
 	vc.filesize = fsize
 	if isFileExist(targetFile+filename, fsize) {
 		fmt.Println("Installation package already exists ！\n")
@@ -131,10 +130,10 @@ func DeCompressByPath(tarFile, dest string) error {
 	defer srcFile.Close()
 	return DeCompress(srcFile, dest)
 }
+
 func DeCompress(srcFile *os.File, dest string) error {
 	zipFile, err := zip.OpenReader(srcFile.Name())
 	if err != nil {
-		fmt.Println("Unzip File Error：", err)
 		return err
 	}
 	defer zipFile.Close()
@@ -143,30 +142,27 @@ func DeCompress(srcFile *os.File, dest string) error {
 		if info.IsDir() {
 			err = os.MkdirAll(innerFile.Name, os.ModePerm)
 			if err != nil {
-				fmt.Println("Unzip File Error : ", err)
 				return err
 			}
 			continue
 		}
 		srcFile, err := innerFile.Open()
 		if err != nil {
-			fmt.Println("Unzip File Error : ", err)
-			continue
+			return fmt.Errorf("Unzip File Error : ", err)
 		}
 		defer srcFile.Close()
 		newFile, err := os.Create(dest + innerFile.Name)
 		if err != nil {
-			fmt.Println("Unzip File Error : ", err)
-			continue
+			return fmt.Errorf("Unzip File Error : ", err)
 		}
+		defer newFile.Close()
 		err = os.Chmod(dest+innerFile.Name, 0777)
 		if err != nil {
-			fmt.Println("Chmod File Error : ", err)
-			continue
+			return fmt.Errorf("Unzip File Error : ", err)
 		}
 
 		io.Copy(newFile, srcFile)
-		newFile.Close()
+
 	}
 	return nil
 }
@@ -174,21 +170,18 @@ func DeCompress(srcFile *os.File, dest string) error {
 func CheckMD5(path, targethash string) error {
 	f, err := os.Open(path)
 	if err != nil {
-		fmt.Println("Open", err)
 		return err
 	}
 	defer f.Close()
 
 	md5hash := md5.New()
 	if _, err := io.Copy(md5hash, f); err != nil {
-		fmt.Println("Copy", err)
 		return err
 	}
 
 	hash := md5hash.Sum(nil)
 	hashbin, err := hex.DecodeString(targethash)
 	if err != nil {
-		fmt.Println("Hex", err)
 		return err
 	}
 
