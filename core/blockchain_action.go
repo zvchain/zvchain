@@ -310,6 +310,7 @@ func (chain *FullBlockChain) Stop() {
 	if bh.Height > TriesInMemory{
 		closen = bh.Height - uint64(TriesInMemory)
 	}
+	var lastBlockHeight uint64 = common.MaxUint64
 	fmt.Printf("stop process begin,local height is %v,closen is%v \n",bh.Height,closen)
 	for !chain.triegc.Empty() {
 		root, number := chain.triegc.Pop()
@@ -319,8 +320,14 @@ func (chain *FullBlockChain) Stop() {
 		err := triedb.Commit(root.(common.Hash), true)
 		if err != nil {
 			fmt.Printf("stopping trie commit statedb error:%s", err.Error())
+			break
+		}else{
+			lastBlockHeight = uint64(-number)
 		}
 		fmt.Printf("commit data height is %v \n",(-number))
+	}
+	if lastBlockHeight != common.MaxUint64{
+		dirtyState.StoreTriePureHeight(lastBlockHeight)
 	}
 	os.Exit(0)
 }

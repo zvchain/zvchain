@@ -416,10 +416,10 @@ func (gzv *Gzv) fullInit() error {
 	if cfg.enableMonitor || common.GlobalConf.GetBool(Section, "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
-	//err = core.BlockChainImpl.FixState()
-	//if err != nil{
-	//	return err
-	//}
+	err = core.BlockChainImpl.FixState()
+	if err != nil{
+		return err
+	}
 	return nil
 }
 
