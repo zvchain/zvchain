@@ -64,12 +64,12 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 					if err != nil {
 						return fmt.Errorf("state commit error:%s", err.Error())
 					}
-					// delete dirty state data
-					go chain.DeleteDirtyTrie(chosen)
 					err = dirtyState.StoreTriePureHeight(chosen)
 					if err != nil{
 						return fmt.Errorf("StoreTriePureHeight error:%s", err.Error())
 					}
+					// delete dirty state data
+					go chain.DeleteDirtyTrie(chosen)
 					log.CorpLogger.Debugf("persistence from %v-%v",chosen,b.Header.Height)
 				}
 			}
