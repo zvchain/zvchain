@@ -375,7 +375,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				tran.CumulativeGasUsed = blockDetail.Receipts[i].CumulativeGasUsed
 				if tran.Type == types.TransactionTypeContractCreate {
 					tran.ContractAddress = blockDetail.Receipts[i].ContractAddress
-					go server.HandleTempTokenTable(tran.Hash, tran.ContractAddress, tran.Source)
+					go server.HandleTempTokenTable(tran.Hash, tran.ContractAddress, tran.Source, blockDetail.Receipts[i].Status)
 				}
 				if tran.Type == types.TransactionTypeContractCall {
 					transContract = append(transContract, tran)
@@ -404,10 +404,18 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	//server.isFetchingBlocks = false
 }
 
-func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string) {
+func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, status uint) {
 	tempDeployHashes := make([]*models.TempDeployToken, 0)
 	crontab.storage.GetDB().Model(&models.TempDeployToken{}).Where("tx_hash = ?", txHash).Find(&tempDeployHashes)
 	if len(tempDeployHashes) > 0 {
+
+		if status != 0 {
+			sql := fmt.Sprintf("DELETE  FROM temp_deploy_tokens WHERE tx_hash = '%s'", txHash)
+			if crontab.storage.GetDB().Exec(sql).Error != nil {
+				fmt.Printf("delete TempDeployToken fail when status != 0,tx_hash = %s\n", txHash)
+			}
+			return
+		}
 
 		api := cli.RpcExplorerImpl{}
 		tokenContract, err := api.ExplorerTokenMsg(tokenAddr)
@@ -433,7 +441,7 @@ func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string) {
 			Name:         tokenContract.Name,
 			Symbol:       tokenContract.Symbol,
 			Decimal:      tokenContract.Decimal,
-			HolderNum:    uint64(len(tokenContract.TokenHolders)),
+			HolderNum:    tokenContract.HolderNum,
 		}
 		if tx.Create(&subTokenContract).Error != nil {
 			isSuccess1 = false
