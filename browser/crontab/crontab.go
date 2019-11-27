@@ -756,7 +756,7 @@ func (crontab *Crontab) SearchTempDeployToken() {
 				fmt.Println("[SearchTempDeployToken] err:", err)
 				return
 			}
-			if res.Transaction != nil && res.Receipt != nil {
+			if res != nil && res.Transaction != nil && res.Receipt != nil {
 				crontab.HandleTempTokenTable(res.Transaction.Hash.Hex(), res.Receipt.ContractAddress.AddrPrefixString(), res.Transaction.Source.AddrPrefixString(), uint(res.Receipt.Status))
 			}
 		}
