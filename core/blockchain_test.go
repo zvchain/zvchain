@@ -780,7 +780,7 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 		CompactionTableSizeMultiplier: 2,
 		CompactionTotalSize:           16 * opt.MiB,
 		BlockSize:                     64 * opt.KiB,
-		ReadOnly:                      true,
+		//ReadOnly:                      true,
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)

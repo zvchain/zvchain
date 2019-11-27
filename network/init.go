@@ -46,6 +46,12 @@ type NetworkConfig struct {
 	SK              string
 }
 
+const (
+	configMaxBroadcastCount = "max_broadcast_count"
+	maxBroadcastCount       = 256
+	configSection           = "p2p"
+)
+
 var netServerInstance *Server
 
 var Logger *logrus.Logger
@@ -139,7 +145,17 @@ func Init(config *common.ConfManager, consensusHandler MsgHandler, networkConfig
 	var netCore NetCore
 	n, _ := netCore.InitNetCore(netConfig)
 
-	netServerInstance = &Server{Self: self, netCore: n, consensusHandler: consensusHandler, config: &networkConfig}
+	maxCount := maxBroadcastCount
+	if common.GlobalConf != nil {
+		maxCount = int(common.GlobalConf.GetInt(configSection, configMaxBroadcastCount, maxBroadcastCount))
+	}
+
+	netServerInstance = &Server{Self: self,
+		netCore:           n,
+		consensusHandler:  consensusHandler,
+		config:            &networkConfig,
+		maxBroadcastCount: maxCount}
+
 	return nil
 }
 
