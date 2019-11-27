@@ -317,6 +317,7 @@ func (chain *FullBlockChain) Stop() {
 		err := triedb.Commit(root.(common.Hash), true)
 		if err != nil {
 			fmt.Printf("stopping trie commit statedb error:%s", err.Error())
+			return
 		}
 		err = dirtyState.StoreTriePureHeight(uint64(-number))
 		if err != nil {
@@ -360,7 +361,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB() error {
 	topHeight := dirtyState.GetCurrentHeight()
 	block := chain.QueryBlockByHeight(topHeight)
 	if block == nil {
-		return nil
+		return fmt.Errorf("height %v can not be found",topHeight)
 	}
 	lastTrieHeight := dirtyState.GetLastTrieHeight()
 	if lastTrieHeight < topHeight {
@@ -452,7 +453,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		traceLog.Log("ret=%v, err=%v", ret, err)
 		end := time.Now()
-		cost := (end.UnixNano()/1e6 - begin.UnixNano()/1e6)
+		cost := end.UnixNano()/1e6 - begin.UnixNano()/1e6
 		if cost > 1000{
 			Logger.Debugf("addBlockOnchain expired hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
 		}

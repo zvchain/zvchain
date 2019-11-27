@@ -60,11 +60,12 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 				if ph == nil {
 					log.CorpLogger.Warnf("persistence find height not exists,height is %v,currentHeight is %v", chosen, b.Header.Height)
 				} else {
-					go chain.DeleteDirtyTrie(chosen)
 					err = triedb.Commit(ph.StateTree, true)
 					if err != nil {
 						return fmt.Errorf("state commit error:%s", err.Error())
 					}
+					// delete dirty state data
+					go chain.DeleteDirtyTrie(chosen)
 					err = dirtyState.StoreTriePureHeight(chosen)
 					if err != nil{
 						return fmt.Errorf("StoreTriePureHeight error:%s", err.Error())
@@ -128,9 +129,6 @@ func (chain *FullBlockChain) saveBlockTxs(blockHash common.Hash, dataBytes []byt
 }
 
 func (chain *FullBlockChain) storeBlockHash(hash common.Hash) (err error) {
-	chain.rwLock.Lock()
-	defer chain.rwLock.Unlock()
-
 	defer chain.batch.Reset()
 
 	// Save current block
