@@ -747,6 +747,12 @@ func (db *NodeDatabase) getNodeByHash(key common.Hash)[]byte{
 	return nil
 }
 
+func (db *NodeDatabase) ShowMemoryDirtyCount(){
+	db.dirty.lock.Lock()
+	defer db.dirty.lock.Unlock()
+	log.CorpLogger.Debugf("after delete,memor count is %v",len(db.dirty.nodes))
+
+}
 
 func (db *NodeDatabase) DeleteByRoot(root common.Hash){
 	db.dirty.lock.Lock()

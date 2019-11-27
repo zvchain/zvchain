@@ -351,6 +351,7 @@ func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 		}
 		chain.stateCache.TrieDB().DeleteByRoot(bh.StateTree)
 	}
+	chain.stateCache.TrieDB().ShowMemoryDirtyCount()
 }
 
 func (chain *FullBlockChain) FixTrieDataFromDB() error {
