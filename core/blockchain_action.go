@@ -458,6 +458,11 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 
 	defer func() {
 		traceLog.Log("ret=%v, err=%v", ret, err)
+		end := time.Now()
+		cost := end.UnixNano()/1e6 - begin.UnixNano()/1e6
+		if cost > 1000{
+			Logger.Debugf("addBlockOnchain expired hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
+		}
 		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
 	}()
 

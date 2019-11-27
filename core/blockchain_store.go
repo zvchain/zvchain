@@ -43,8 +43,6 @@ func (msg *newTopMessage) GetData() interface{} {
 }
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
-	chain.wg.Add(1)
-	defer chain.wg.Done()
 	root, err := state.Commit(true)
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
@@ -174,6 +172,8 @@ func (chain *FullBlockChain) storePartBlock(block *types.Block, ps *executePostS
 
 // commitBlock persist a block in a batch
 func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostState) (ok bool, err error) {
+	chain.wg.Add(1)
+	defer chain.wg.Done()
 	traceLog := monitor.NewPerformTraceLogger("commitBlock", block.Header.Hash, block.Header.Height)
 	traceLog.SetParent("addBlockOnChain")
 	defer traceLog.Log("")
