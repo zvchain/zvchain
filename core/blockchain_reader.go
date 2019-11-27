@@ -323,3 +323,13 @@ func (chain *FullBlockChain) IsSyncing() bool {
 	}
 	return blockSync.isSyncing()
 }
+// GetProperty returns chain's db status
+func (chain *FullBlockChain) GetProperty(propName string) (string, error) {
+	return chain.stateDb.GetProperty(propName)
+}
+
+// Compact compacts the database
+func (chain *FullBlockChain) Compact(start []byte, limit []byte) error {
+	return chain.stateDb.Compact(start, limit);
+
+}

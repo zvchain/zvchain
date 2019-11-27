@@ -17,6 +17,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/log"
 	"strings"
 
 	"github.com/zvchain/zvchain/common"
@@ -68,4 +69,19 @@ func (api *RpcDevImpl) DebugGetRawTx(hash string) (*Transaction, error) {
 		return trans, nil
 	}
 	return nil, nil
+}
+
+func (api *RpcDevImpl) DebugGetDbProp(propName string) (string, error) {
+	return core.BlockChainImpl.GetProperty(propName)
+}
+
+func (api *RpcDevImpl) DebugChaindbCompact() ( error) {
+	for b := byte(0); b < 255; b++ {
+		log.DefaultLogger.Info("Compacting chain database", "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
+		if err := core.BlockChainImpl.Compact([]byte{b}, []byte{b + 1}); err != nil {
+			log.DefaultLogger.Error("Database compaction failed", "err", err)
+			return err
+		}
+	}
+	return nil
 }
