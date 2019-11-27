@@ -4,7 +4,8 @@ jobs:
   include:
     - stage: build
       os: osx
-      go: 1.12.x
+      osx_image: xcode11.2
+      go: 1.13.x
       before_install:
         - git submodule sync
         - git submodule update --init
@@ -26,7 +27,8 @@ jobs:
 
     - stage: test
       os: osx
-      go: 1.12.x
+      go: 1.13.x
+      osx_image: xcode11.2
       before_install:
         - git submodule sync
         - git submodule update --init

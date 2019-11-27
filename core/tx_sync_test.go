@@ -363,7 +363,7 @@ func (s *NetTest) SpreadToGroup(groupID string, groupMembers []string, msg netwo
 	return nil
 }
 
-func (s *NetTest) TransmitToNeighbor(msg network.Message) error { return nil }
+func (s *NetTest) TransmitToNeighbor(msg network.Message, blacklist []string) error { return nil }
 
 func (s *NetTest) Broadcast(msg network.Message) error { return nil }
 
