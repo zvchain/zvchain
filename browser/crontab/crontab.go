@@ -109,6 +109,7 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
+	go crontab.SearchTempDeployToken()
 
 	for {
 		select {
@@ -119,6 +120,8 @@ func (crontab *Crontab) loop() {
 			go crontab.UpdateCheckPoint()
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
+			go crontab.SearchTempDeployToken()
+
 		}
 	}
 }
@@ -405,6 +408,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 }
 
 func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, status uint) {
+	fmt.Printf("[in HandleTempTokenTable] txHash:%v, tokenAddr:%v, source:%v, status:%v\n", txHash, tokenAddr, source, status)
 	tempDeployHashes := make([]*models.TempDeployToken, 0)
 	crontab.storage.GetDB().Model(&models.TempDeployToken{}).Where("tx_hash = ?", txHash).Find(&tempDeployHashes)
 	if len(tempDeployHashes) > 0 {
@@ -413,8 +417,9 @@ func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, s
 			sql := fmt.Sprintf("DELETE  FROM temp_deploy_tokens WHERE tx_hash = '%s'", txHash)
 			if crontab.storage.GetDB().Exec(sql).Error != nil {
 				fmt.Printf("delete TempDeployToken fail when status != 0,tx_hash = %s\n", txHash)
+				return
 			}
-			return
+			fmt.Printf("success DELETE  FROM temp_deploy_tokens WHERE tx_hash = %s when status != 0", txHash)
 		}
 
 		api := cli.RpcExplorerImpl{}
@@ -430,6 +435,7 @@ func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, s
 		defer func() {
 			if isSuccess1 && isSuccess2 && isSuccess3 {
 				tx.Commit()
+				fmt.Printf("success DELETE  FROM temp_deploy_tokens WHERE tx_hash = %s when tx commit", txHash)
 			} else {
 				tx.Rollback()
 			}
@@ -736,6 +742,24 @@ func (crontab *Crontab) UpdateTurnOver() {
 			Value:    turnoverString,
 		}
 		crontab.storage.GetDB().Model(&models.Config{}).Create(&config)
+	}
+}
+
+func (crontab *Crontab) SearchTempDeployToken() {
+	tempDeployHashes := make([]*models.TempDeployToken, 0)
+	crontab.storage.GetDB().Model(&models.TempDeployToken{}).Find(&tempDeployHashes)
+	if len(tempDeployHashes) > 0 {
+		api := &cli.RpcGzvImpl{}
+		for _, v := range tempDeployHashes {
+			res, err := api.TxReceipt(v.TxHash)
+			if err != nil {
+				fmt.Println("[SearchTempDeployToken] err:", err)
+				return
+			}
+			if res.Transaction != nil && res.Receipt != nil {
+				crontab.HandleTempTokenTable(res.Transaction.Hash.Hex(), res.Receipt.ContractAddress.AddrPrefixString(), res.Transaction.Source.AddrPrefixString(), uint(res.Receipt.Status))
+			}
+		}
 	}
 }
 
