@@ -206,8 +206,10 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 		fmt.Println("iterValue:", string(iter.Value[:]))
 		if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
 			realAddr := strings.TrimPrefix(string(iter.Key[:]), "balanceOf@")
+			fmt.Println("realAddr:", realAddr)
 			if util.ValidateAddress(realAddr) {
 				value := tvm.VmDataConvert(iter.Value[:])
+				fmt.Println("value:", value)
 				if value != nil {
 					var valuestring string
 					if value1, ok := value.(int64); ok {
@@ -216,6 +218,7 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 						valuestring = value2.String()
 					}
 					tokenHolder[realAddr] = valuestring
+					fmt.Println("tokenHolder:", tokenHolder)
 				}
 			}
 		}
