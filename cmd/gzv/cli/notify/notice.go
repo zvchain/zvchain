@@ -96,9 +96,17 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 			return
 		default:
 			time.Sleep(time.Second * time.Duration(int64(gap)))
-			output := fmt.Sprintf("The current Gzv program is not the latest version. It needs to be updated to the latest version %s as soon as possible\n", nm.versionChecker.version)
+			//output := fmt.Sprintf("The current Gzv program is not the latest version. It needs to be updated to the latest version %s as soon as possible\n", nm.versionChecker.version)
+			output := fmt.Sprintf("[ Version ] : %s \n "+
+				"[ EffectiveHeight ] : %d \n "+
+				"[ Priority ] : %d \n "+
+				"[ Contents ] : %v \n ",
+				nm.versionChecker.version,
+				nm.versionChecker.effectiveHeight,
+				nm.versionChecker.priority,
+				nm.versionChecker.noticeContent)
 			log.DefaultLogger.Errorln(fmt.Errorf(output))
-			fmt.Printf("processOutput version --->>> %v", output)
+			fmt.Printf("\n================= New version notification ================= \n %v \n============================================================ \n\n", output)
 		}
 	}
 }
