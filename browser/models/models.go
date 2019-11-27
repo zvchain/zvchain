@@ -198,6 +198,11 @@ type TempTransaction struct {
 	Status    uint   `json:"status"`
 }
 
+type TempDeployToken struct {
+	gorm.Model
+	TxHash string `json:"tx_hash" gorm:"index"`
+}
+
 type Transaction struct {
 	gorm.Model
 	BlockHash   string    `json:"block_hash" gorm:"index"`

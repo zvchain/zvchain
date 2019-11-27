@@ -142,6 +142,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if !db.HasTable(&models.TokenContractTransaction{}) {
 		db.CreateTable(&models.TokenContractTransaction{})
 	}
+	if !db.HasTable(&models.TempDeployToken{}) {
+		db.CreateTable(&models.TempDeployToken{})
+	}
 }
 
 func (storage *Storage) GetDB() *gorm.DB {
