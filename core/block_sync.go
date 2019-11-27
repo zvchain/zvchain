@@ -42,7 +42,7 @@ const (
 	blockSyncCandidatePoolSize  = 100 // Size of candidate peer pool for block synchronize
 
 	notifyCounterCacheSize         = 20   // size of LRU cache for notify counters
-	notifyCounterCacheSizePerBLock = 1024 // size of LRU cache for per block notify counter
+	notifyCounterCacheSizePerBlock = 1024 // size of LRU cache for per block notify counter
 )
 
 const (
@@ -411,15 +411,11 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	}
 	message := network.Message{Code: network.BlockInfoNotifyMsg, Body: body}
 
-	bs.lock.Lock()
-
 	counter := bs.getOrAddNotifyCounter(top)
 	blacklist := make([]string, 0)
 	for _, nodeStr := range counter.Keys() {
 		blacklist = append(blacklist, nodeStr.(string))
 	}
-
-	bs.lock.Unlock()
 
 	network.GetNetInstance().TransmitToNeighbor(message, blacklist)
 	return true
@@ -574,8 +570,6 @@ func (bs *blockSyncer) notifyCounterAdd(source string, header *types.BlockHeader
 	if top.Height == 0 {
 		return
 	}
-	bs.lock.Lock()
-	defer bs.lock.Unlock()
 
 	if header.Height >= top.Height {
 		counter := bs.getOrAddNotifyCounter(header)
@@ -587,8 +581,8 @@ func (bs *blockSyncer) notifyCounterAdd(source string, header *types.BlockHeader
 func (bs *blockSyncer) getOrAddNotifyCounter(header *types.BlockHeader) *lru.Cache {
 	v, exit := bs.notifyCounters.Get(header.Hash)
 	if !exit {
-		v = common.MustNewLRUCache(notifyCounterCacheSizePerBLock)
-		bs.notifyCounters.Add(header.Hash, v)
+		v = common.MustNewLRUCache(notifyCounterCacheSizePerBlock)
+		bs.notifyCounters.ContainsOrAdd(header.Hash, v)
 	}
 	return v.(*lru.Cache)
 }
