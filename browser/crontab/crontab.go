@@ -10,6 +10,7 @@ import (
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/browser/util"
+	"github.com/zvchain/zvchain/cmd/gzv/cli"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/core/group"
@@ -374,6 +375,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				tran.CumulativeGasUsed = blockDetail.Receipts[i].CumulativeGasUsed
 				if tran.Type == types.TransactionTypeContractCreate {
 					tran.ContractAddress = blockDetail.Receipts[i].ContractAddress
+					go server.HandleTempTokenTable(tran.Hash, tran.ContractAddress, tran.Source)
 				}
 				if tran.Type == types.TransactionTypeContractCall {
 					transContract = append(transContract, tran)
@@ -400,7 +402,63 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 
 	}
 	//server.isFetchingBlocks = false
+}
 
+func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string) {
+	tempDeployHashes := make([]*models.TempDeployToken, 0)
+	crontab.storage.GetDB().Model(&models.TempDeployToken{}).Where("tx_hash = ?", txHash).Find(&tempDeployHashes)
+	if len(tempDeployHashes) > 0 {
+
+		api := cli.RpcExplorerImpl{}
+		tokenContract, err := api.ExplorerTokenMsg(tokenAddr)
+		if err != nil {
+			fmt.Printf("[HandleTempTokenTable] err :%s", err.Error())
+			return
+		}
+
+		isSuccess1, isSuccess2, isSuccess3 := true, true, true
+		tx := crontab.storage.GetDB().Begin()
+
+		defer func() {
+			if isSuccess1 && isSuccess2 && isSuccess3 {
+				tx.Commit()
+			} else {
+				tx.Rollback()
+			}
+		}()
+
+		subTokenContract := models.TokenContract{
+			ContractAddr: tokenAddr,
+			Creator:      source,
+			Name:         tokenContract.Name,
+			Symbol:       tokenContract.Symbol,
+			Decimal:      tokenContract.Decimal,
+			HolderNum:    uint64(len(tokenContract.TokenHolders)),
+		}
+		if tx.Create(&subTokenContract).Error != nil {
+			isSuccess1 = false
+			fmt.Printf("create subTokenContract fail,subTokenContract = %+v\n", subTokenContract)
+		}
+
+		for key, value := range tokenContract.TokenHolders {
+			user := &models.TokenContractUser{
+				ContractAddr: tokenAddr,
+				Address:      key,
+				Value:        value,
+			}
+			if tx.Create(&user).Error != nil {
+				isSuccess2 = false
+				fmt.Printf("create TokenContractUser fail,key = %s,value=%s\n", key, value)
+				break
+			}
+		}
+
+		sql := fmt.Sprintf("DELETE  FROM temp_deploy_tokens WHERE tx_hash = '%s'", txHash)
+		if tx.Exec(sql).Error != nil {
+			isSuccess3 = false
+			fmt.Printf("delete TempDeployToken fail,tx_hash = %s\n", txHash)
+		}
+	}
 }
 
 func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
@@ -416,8 +474,8 @@ func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
 			go crontab.ConsumeContract(contract, tx.Hash, tx.CurTime)
 		}
 	}
-
 }
+
 func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string, curtime time.Time) {
 	tm.storage.UpdateContractTransaction(hash, curtime)
 	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash))
