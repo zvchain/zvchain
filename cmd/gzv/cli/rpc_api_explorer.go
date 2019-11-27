@@ -200,6 +200,7 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 		return nil, iter.Err
 	}
 	//balanceOf := make(map[string]interface{})
+	tokenHolder := make(map[string]string, 0)
 	for iter.Next() {
 		if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
 			realAddr := strings.TrimPrefix(string(iter.Key[:]), "balanceOf@")
@@ -212,10 +213,12 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 					} else if value2, ok := value.(*big.Int); ok {
 						valuestring = value2.String()
 					}
-					tokenContract.TokenHolders[realAddr] = valuestring
+					tokenHolder[realAddr] = valuestring
 				}
 			}
 		}
 	}
+	tokenContract.TokenHolders = tokenHolder
+	tokenContract.HolderNum = uint64(len(tokenHolder))
 	return tokenContract, err
 }
