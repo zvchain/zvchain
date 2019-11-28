@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/logical"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/tvm"
+	"regexp"
 	"strings"
 
 	"github.com/zvchain/zvchain/common"
@@ -30,6 +31,13 @@ import (
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
 )
+
+var RegexpStr = `{"code":"TransferEvent = Event(\"transfer\")\nclass Token(object):\n    def __init__(self):\n        self.name = \\"[0-9a-zA-Z]{1,64}\\"\n        self.symbol = \\"[0-9a-zA-Z]{1,16}\\"\n^        self.decimal = [1-9]{1}$\n^        self.totalSupply = [1-9][0-9]{0,11}$\n        self.balanceOf = zdict()\n        self.allowance = zdict()\n        self.balanceOf[msg.sender] = self.totalSupply\n\n    def _transfer(self, _from, _to, _value):\n        if _to not in self.balanceOf:\n            self.balanceOf[_to] = 0\n        if _from not in self.balanceOf:\n            self.balanceOf[_from] = 0\n        # Whether the account balance meets the transfer amount\n        if self.balanceOf[_from] < _value:\n            return False\n        # Check if the transfer amount is legal\n        if _value <= 0:\n            return False\n        # Transfer\n        self.balanceOf[_from] -= _value\n        self.balanceOf[_to] += _value\n        return True\n\n    @register.public(str, int)\n    def transfer(self, _to, _value):\n        if self._transfer(msg.sender, _to, _value):\n            TransferEvent.emit(msg.sender, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(str, int)\n    def approve(self, _spender, _value):\n        if _value <= 0:\n            raise Exception('')\n        if msg.sender not in self.allowance:\n            self.allowance[msg.sender] = zdict()\n        self.allowance[msg.sender][_spender] = _value\n\n    @register.public(str, str, int)\n    def transfer_from(self, _from, _to, _value):\n        if _value > self.allowance[_from][msg.sender]:\n            raise Exception('')\n        self.allowance[_from][msg.sender] -= _value\n        if self._transfer(_from, _to, _value):\n            TransferEvent.emit(_from, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(int)\n    def burn(self, _value):\n        if _value <= 0:\n            raise Exception('')\n        if self.balanceOf[msg.sender] < _value:\n            raise Exception('')\n        self.balanceOf[msg.sender] -= _value\n        self.totalSupply -= _value","contract_name":"Token"}`
+var TokenCodeReg = regexp.MustCompile("")
+
+func ValidateTokenCode(str string) bool {
+	return TokenCodeReg.MatchString(str)
+}
 
 func convertTransaction(tx *types.Transaction) *Transaction {
 	var (
@@ -275,4 +283,37 @@ func HasTransferFunc(code string) bool {
 		}
 	}
 	return false
+}
+
+func IsTokenContractFromZiWeiBao(contractAddr common.Address) bool {
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("IsTokenContractFromZiWeiBao: ", err)
+		return false
+	}
+	code := db.GetCode(contractAddr)
+	RegexpStrSlice := strings.Split(RegexpStr, "\\n")
+	codeSlice := strings.Split(string(code), "\\n")
+
+	if len(RegexpStrSlice) != len(codeSlice) {
+		browserlog.BrowserLog.Error("len(RegexpStrSlice) != len(codeSlice)")
+		return false
+	}
+
+	for k, v1 := range RegexpStrSlice {
+		if k < 3 || k > 6 {
+			if k < len(codeSlice) && v1 != codeSlice[k] {
+				browserlog.BrowserLog.Error("v1 != codeSlice[k]. v1=:", v1, " ,codeSlice[k]=", codeSlice[k])
+				return false
+			}
+		} else if k >= 3 && k <= 6 {
+			TokenCodeReg = regexp.MustCompile(v1)
+			if !ValidateTokenCode(codeSlice[k]) {
+				browserlog.BrowserLog.Error("v:", codeSlice[k], " not match RegexpStrSlice:", v1)
+				return false
+			}
+		}
+	}
+	return true
 }
