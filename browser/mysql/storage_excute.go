@@ -25,6 +25,7 @@ const (
 	LIMIT                 = 20
 	ACCOUNTDBNAME         = "account_lists"
 	RECENTMINEBLOCKS      = "recent_mine_blocks"
+	MAXCONFIRMREWARDCOUNT = 1000
 )
 
 func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
@@ -678,7 +679,7 @@ func upMinerBlock(tx *gorm.DB, addr string,
 	tx.Limit(1).Where("address = ? and type = ?", addr, typeId).
 		Order("sequence desc").Find(&rewards)
 
-	if len(rewards) > 0 && rewards[0].BlockCnts < 1000 {
+	if len(rewards) > 0 && rewards[0].BlockCnts < MAXCONFIRMREWARDCOUNT {
 		mapData := make(map[string]interface{})
 		blockVerHeights := make([]uint64, 0)
 		if err := json.Unmarshal([]byte(rewards[0].BlockIDs), &blockVerHeights); err != nil {
@@ -705,7 +706,7 @@ func upMinerBlock(tx *gorm.DB, addr string,
 
 	} else {
 		sequence := uint64(0)
-		if len(rewards) > 0 && rewards[0].BlockCnts >= 1000 {
+		if len(rewards) > 0 && rewards[0].BlockCnts >= MAXCONFIRMREWARDCOUNT {
 			sequence = rewards[0].Sequence + 1
 		}
 		MineBlock := models.MinerToBlock{
@@ -740,9 +741,9 @@ func upAccountConfirmCount(tx *gorm.DB,
 	addr string) error {
 	mapAccountData := make(map[string]interface{})
 	if typeId == 0 {
-		mapAccountData["verify_confirm_count"] = sequence*1000 + size
+		mapAccountData["verify_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
 	} else {
-		mapAccountData["proposal_confirm_count"] = sequence*1000 + size
+		mapAccountData["proposal_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
 
 	}
 	err := tx.Table(ACCOUNTDBNAME).
