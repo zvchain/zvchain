@@ -17,8 +17,9 @@ package cli
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/log"
 	"strings"
+
+	"github.com/zvchain/zvchain/log"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
@@ -75,13 +76,23 @@ func (api *RpcDevImpl) DebugGetDbProp(propName string) (string, error) {
 	return core.BlockChainImpl.GetProperty(propName)
 }
 
-func (api *RpcDevImpl) DebugChaindbCompact() ( error) {
-	for b := byte(0); b < 255; b++ {
-		log.DefaultLogger.Info("Compacting chain database", "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
-		if err := core.BlockChainImpl.Compact([]byte{b}, []byte{b + 1}); err != nil {
-			log.DefaultLogger.Error("Database compaction failed", "err", err)
-			return err
-		}
+// DebugChaindbCompact starts a compaction with given range. if both start and limit are empty, it will start a full compaction.
+func (api *RpcDevImpl) DebugChaindbCompact(start string, limit string) error {
+	var (
+		startByte []byte
+		limitByte []byte
+	)
+	if len(start) > 0 {
+		startByte = []byte(start)
+	}
+	if len(limit) > 0 {
+		limitByte = []byte(limit)
+	}
+
+	log.DefaultLogger.Info("Compacting chain database:", "range", fmt.Sprintf("0x%0.2X-0x%0.2X", start, limit))
+	if err := core.BlockChainImpl.Compact(startByte, limitByte); err != nil {
+		log.DefaultLogger.Error("Database compaction failed", "err", err)
+		return err
 	}
 	return nil
 }
