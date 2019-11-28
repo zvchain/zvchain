@@ -7,7 +7,6 @@ import (
 	"github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
-	"github.com/zvchain/zvchain/browser/util"
 	"sort"
 	"time"
 )
@@ -642,7 +641,7 @@ func (storage *Storage) AddContractCallTransaction(contract *models.ContractCall
 
 func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 	rewards := make([]*models.Reward, 0)
-	storage.db.Where("height = ?", height).Find(&rewards)
+	storage.db.Where("block_height = ?", height).Find(&rewards)
 	if len(rewards) < 1 {
 		return true
 	}
@@ -681,45 +680,78 @@ func upMinerBlock(tx *gorm.DB, addr string,
 
 	if len(rewards) > 0 && rewards[0].BlockCnts < 1000 {
 		mapData := make(map[string]interface{})
-		if height > 0 {
-			blockVerHeights := make([]uint64, 0)
-			if err := json.Unmarshal([]byte(rewards[0].BlockIDs), &blockVerHeights); err != nil {
-				return err
-			}
-			//blockVerHeights = append(blockVerHeights, height)
-			blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
-			updateVerString, err := json.Marshal(blockVerHeights)
-			if err != nil {
-				return err
-			}
-			mapData["block_ids"] = updateVerString
-			mapData["block_cnts"] = len(blockVerHeights)
+		blockVerHeights := make([]uint64, 0)
+		if err := json.Unmarshal([]byte(rewards[0].BlockIDs), &blockVerHeights); err != nil {
+			return err
 		}
+		blockVerHeights = append(blockVerHeights, height)
+		//blockVerHeights = append(blockVerHeights, height)
+		//blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
+		updateVerString, err := json.Marshal(blockVerHeights)
+		if err != nil {
+			return err
+		}
+		mapData["block_ids"] = updateVerString
+		mapData["block_cnts"] = len(blockVerHeights)
+
+		erraccount := upAccountConfirmCount(tx, typeId, rewards[0].Sequence, uint64(len(blockVerHeights)), addr)
+		if erraccount != nil {
+			return erraccount
+		}
+
 		return tx.Model(&models.MinerToBlock{}).
 			Where("id = ?", rewards[0].ID).
 			Updates(mapData).Error
+
 	} else {
-		sequence := uint64(1)
+		sequence := uint64(0)
 		if len(rewards) > 0 && rewards[0].BlockCnts >= 1000 {
 			sequence = rewards[0].Sequence + 1
 		}
 		MineBlock := models.MinerToBlock{
 			Address: addr,
 		}
-		problock := make([]uint64, 0)
+		problockList := make([]uint64, 0)
 		if height > 0 {
-			problock = append(problock, height)
-			byteProBlocks, err := json.Marshal(problock)
+			problockList = append(problockList, height)
+			byteProBlocks, err := json.Marshal(problockList)
 			if err != nil {
 				return err
 			}
-			proBlocks := string(byteProBlocks)
-			MineBlock.BlockIDs = proBlocks
+			proBlockString := string(byteProBlocks)
+			MineBlock.BlockIDs = proBlockString
 			MineBlock.Sequence = sequence
-			MineBlock.BlockCnts = len(proBlocks)
+			MineBlock.BlockCnts = len(problockList)
+			MineBlock.Type = typeId
+			erraccount := upAccountConfirmCount(tx, typeId, sequence, uint64(len(problockList)), addr)
+			if erraccount != nil {
+				return erraccount
+			}
+
 		}
 		return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
 	}
+}
+
+func upAccountConfirmCount(tx *gorm.DB,
+	typeId uint64,
+	sequence uint64,
+	size uint64,
+	addr string) error {
+	mapAccountData := make(map[string]interface{})
+	if typeId == 0 {
+		mapAccountData["verify_confirm_count"] = sequence*1000 + size
+	} else {
+		mapAccountData["proposal_confirm_count"] = sequence*1000 + size
+
+	}
+	err := tx.Table(ACCOUNTDBNAME).
+		Where("address = ?", addr).
+		Updates(mapAccountData).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 func (storage *Storage) AddBlock(block *models.Block) bool {
 	//fmt.Println("[Storage] add block ")
@@ -1012,6 +1044,7 @@ func DeleteRewardByHeight(tx *gorm.DB, height uint64) error {
 	verifySql := fmt.Sprintf("DELETE FROM rewards WHERE block_height = %d ", height)
 
 	browserlog.BrowserLog.Info("[DeleteRewardByHeight] DeleteRewardByHeight Height:", height)
+	fmt.Println("DeleteRewardByHeight,", height)
 	return tx.Exec(verifySql).Error
 
 }
