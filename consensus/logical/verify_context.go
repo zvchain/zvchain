@@ -236,7 +236,13 @@ func (vc *VerifyContext) PrepareSlot(bh *types.BlockHeader) (*SlotContext, error
 	sc := createSlotContext(bh, int(vc.group.header.Threshold()))
 	if v, ok := vc.proposers[sc.castor.GetAddrString()]; ok && vc.castHeight > 1 {
 		if v != bh.Hash {
-			return nil, fmt.Errorf("too many proposals: castor %v", sc.castor.GetAddrString())
+			if v.Big().Cmp(bh.Hash.Big()) < 0 {
+				consensusLogger.Debugf("too many proposals, do replace: castor %v, exist %v, coming %v", sc.castor.GetAddrString(), bh.Hash.Hex(), v.Hex())
+				vc.proposers[sc.castor.GetAddrString()] = bh.Hash
+				delete(vc.slots, v)
+			} else {
+				return nil, fmt.Errorf("too many proposals, return error: castor %v, exist %v, coming %v", sc.castor.GetAddrString(), bh.Hash.Hex(), v.Hex())
+			}
 		}
 	} else {
 		vc.proposers[sc.castor.GetAddrString()] = bh.Hash
