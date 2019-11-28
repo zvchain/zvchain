@@ -414,17 +414,22 @@ func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, s
 	if len(tempDeployHashes) > 0 {
 
 		if status != 0 {
-			sql := fmt.Sprintf("DELETE  FROM temp_deploy_tokens WHERE tx_hash = '%s'", txHash)
-			if crontab.storage.GetDB().Exec(sql).Error != nil {
+			if crontab.handleDelSql(txHash) {
+				fmt.Printf("success DELETE  FROM temp_deploy_tokens WHERE tx_hash = %s when status != 0\n", txHash)
+			} else {
 				fmt.Printf("delete TempDeployToken fail when status != 0,tx_hash = %s\n", txHash)
-				return
 			}
-			fmt.Printf("success DELETE  FROM temp_deploy_tokens WHERE tx_hash = %s when status != 0", txHash)
+			return
 		}
 
 		api := cli.RpcExplorerImpl{}
 		tokenContract, err := api.ExplorerTokenMsg(tokenAddr)
 		if err != nil {
+			if crontab.handleDelSql(txHash) {
+				fmt.Printf("success DELETE FROM temp_deploy_tokens WHERE tx_hash = %s and ExplorerTokenMsg err = %s\n", txHash, err.Error())
+			} else {
+				fmt.Printf("delete TempDeployToken fail WHERE tx_hash = %s and ExplorerTokenMsg err = %s\n", txHash, err.Error())
+			}
 			fmt.Printf("[HandleTempTokenTable] err :%s", err.Error())
 			return
 		}
@@ -438,6 +443,7 @@ func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, s
 				fmt.Printf("success DELETE  FROM temp_deploy_tokens WHERE tx_hash = %s when tx commit", txHash)
 			} else {
 				tx.Rollback()
+				fmt.Printf("roll back  FROM temp_deploy_tokens WHERE tx_hash = %s when tx commit", txHash)
 			}
 		}()
 
@@ -473,6 +479,15 @@ func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, s
 			fmt.Printf("delete TempDeployToken fail,tx_hash = %s\n", txHash)
 		}
 	}
+}
+
+func (crontab *Crontab) handleDelSql(txHash string) bool {
+	sql := fmt.Sprintf("DELETE  FROM temp_deploy_tokens WHERE tx_hash = '%s'", txHash)
+	if crontab.storage.GetDB().Exec(sql).Error != nil {
+		fmt.Printf(" handleDelSql err,tx_hash = %s\n", txHash)
+		return false
+	}
+	return true
 }
 
 func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
