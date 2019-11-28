@@ -165,7 +165,7 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 	if !common.ValidateAddress(strings.TrimSpace(tokenAddr)) {
 		return nil, fmt.Errorf("wrong param format")
 	}
-	if !IsTokenContract(common.StringToAddress(tokenAddr)) {
+	if !IsTokenContractFromZiWeiBao(common.StringToAddress(tokenAddr)) {
 		return nil, fmt.Errorf("this address is not a token address")
 	}
 
