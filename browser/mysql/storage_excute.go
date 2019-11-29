@@ -1001,9 +1001,28 @@ func (storage *Storage) DeleteForkReward(preHeight uint64, localHeight uint64) (
 	storage.db.Exec(verifySql)
 	browserlog.BrowserLog.Info("[DeleteForkReward] rewards preHeight:", preHeight, "localHeight", localHeight)
 
-	sql2 := fmt.Sprintf("DELETE FROM block_to_miners WHERE reward_height > %d ", preHeight)
-	storage.db.Exec(sql2)
-	browserlog.BrowserLog.Info("[DeleteForkReward] block_to_miners preHeight:", preHeight, "localHeight", localHeight)
-
+	tx := storage.db.Begin()
+	sql2 := fmt.Sprintf("DELETE FROM block_to_miners WHERE block_height > %d ", preHeight)
+	sql3 := fmt.Sprintf("UPDATE block_to_miners SET `reward_height` = null,`verf_node_ids`=null, `verf_node_cnts`=null, `verf_reward`=null, `verf_total_gas_fee`=null  WHERE (`reward_height` > %d)", preHeight)
+	if storage.db.Exec(sql2).Error == nil && storage.db.Exec(sql3).Error == nil {
+		tx.Commit()
+		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners success. preHeight:", preHeight, "localHeight", localHeight)
+	} else {
+		tx.Rollback()
+		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners fail. preHeight:", preHeight, "localHeight", localHeight)
+	}
 	return err
+}
+
+func (storage *Storage) ExistRewardBlockHeight(blockHeight int) bool {
+	if storage.db == nil {
+		return false
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Limit(1).Where("block_height = ? and type =1", blockHeight).Find(&rewards)
+	if len(rewards) > 0 {
+
+		return true
+	}
+	return false
 }

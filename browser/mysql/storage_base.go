@@ -230,28 +230,96 @@ func (storage *Storage) AddRewards(rewards []*models.Reward) bool {
 	return true
 }
 
-func (storage *Storage) AddBlockToMiner(rewards []*models.BlockToMiner) bool {
+func (storage *Storage) AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs []*models.BlockToMiner) bool {
+
+	createSuccess, updateSucceess := true, true
+
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	if len(rewards) < 1 {
+	if len(blockToMinersPrpses) == 0 && len(blockToMinersVerfs) == 0 {
 		return false
 	}
 	timeBegin := time.Now()
-	for i := 0; i < len(rewards); i++ {
-		//fmt.Println("[Storage] add verification:",verifications[i])
-		if rewards[i] != nil {
-			fmt.Printf(">>>%+v", rewards[i])
-			if !errors(storage.db.Create(&rewards[i]).Error) {
-				rewardsql := fmt.Sprintf("DELETE  FROM rewards WHERE  block_height = '%d' ",
-					rewards[i].BlockHeight)
-				storage.db.Exec(rewardsql)
-				storage.db.Create(&rewards[i])
+	tx := storage.db.Begin()
+	for i := 0; i < len(blockToMinersPrpses); i++ {
+		if blockToMinersPrpses[i] != nil {
+			if !errors(storage.db.Create(&blockToMinersPrpses[i]).Error) {
+				createSuccess = false
+				rewardsql := fmt.Sprintf("DELETE  FROM block_to_miners WHERE  block_height = '%d' ",
+					blockToMinersPrpses[i].BlockHeight)
+				if storage.db.Exec(rewardsql).Error == nil && storage.db.Create(&blockToMinersPrpses[i]) == nil {
+					createSuccess = true
+				}
 			}
 		}
 	}
-	fmt.Println("[Storage]  AddBlockToMiner cost: ", time.Since(timeBegin), "，len :", len(rewards))
+	for _, v := range blockToMinersVerfs {
+		if v != nil {
+			if storage.db.Model(&models.BlockToMiner{}).Where("block_height = ?", v.BlockHeight).Updates(*v).Error != nil {
+				updateSucceess = false
+			}
+		}
+	}
+
+	if createSuccess && updateSucceess {
+		tx.Commit()
+		fmt.Println("[Storage]  AddBlockToMiner Success. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+	} else {
+		tx.Rollback()
+		fmt.Println("[Storage]  AddBlockToMiner Fail. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+	}
+
+	return true
+}
+
+func (storage *Storage) AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs []*models.BlockToMiner) bool {
+
+	createSuccess, updateSucceess := true, true
+
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	if len(blockToMinersPrpses) == 0 && len(blockToMinersVerfs) == 0 {
+		return false
+	}
+	timeBegin := time.Now()
+	tx := storage.db.Begin()
+	for _, v := range blockToMinersPrpses {
+		if v != nil {
+			blockToMiners := make([]*models.BlockToMiner, 0)
+			storage.db.Model(&models.BlockToMiner{}).Where("block_height = ?", v.BlockHeight).Find(&blockToMiners)
+			if len(blockToMiners) == 0 {
+				if !errors(storage.db.Create(&v).Error) {
+					createSuccess = false
+					rewardsql := fmt.Sprintf("DELETE  FROM block_to_miners WHERE  block_height = '%d' ",
+						v.BlockHeight)
+					if storage.db.Exec(rewardsql).Error == nil && storage.db.Create(&v) == nil {
+						createSuccess = true
+					}
+				}
+			}
+		}
+	}
+
+	for _, v := range blockToMinersVerfs {
+		if v != nil {
+			if storage.db.Model(&models.BlockToMiner{}).Where("block_height = ?", v.BlockHeight).Updates(*v).Error != nil {
+				updateSucceess = false
+			}
+		}
+	}
+
+	if createSuccess && updateSucceess {
+		tx.Commit()
+		fmt.Println("[Storage]  AddBlockToMiner Success. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+	} else {
+		tx.Rollback()
+		fmt.Println("[Storage]  AddBlockToMiner Fail. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+	}
+
 	return true
 }
 
