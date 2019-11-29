@@ -27,6 +27,7 @@ import (
 const (
 	check10SecInterval = time.Second * 10
 	check30MinInterval = time.Minute * 30
+	check1HourInterval = time.Minute * 60
 
 	turnoverKey = "turnover"
 	cpKey       = "checkpoint"
@@ -48,6 +49,7 @@ type Crontab struct {
 	rewardStorageDataHeight uint64
 	curblockcount           uint64
 	curTrancount            uint64
+	ConfirmRewardHeight     uint64
 
 	page              uint64
 	maxid             uint
@@ -59,13 +61,14 @@ type Crontab struct {
 	isInited          bool
 	isInitedReward    bool
 
-	isFetchingPoolvotes int32
-	rpcExplore          *Explore
-	transfer            *Transfer
-	fetcher             *common2.Fetcher
-	isFetchingBlocks    bool
-	initdata            chan *models.ForkNotify
-	initRewarddata      chan *models.ForkNotify
+	isFetchingPoolvotes  int32
+	isConfirmBlockReward int32
+	rpcExplore           *Explore
+	transfer             *Transfer
+	fetcher              *common2.Fetcher
+	isFetchingBlocks     bool
+	initdata             chan *models.ForkNotify
+	initRewarddata       chan *models.ForkNotify
 
 	isFetchingVerfications bool
 }
@@ -83,6 +86,10 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
+	confirmRewardHeight := server.storage.MinConfirmBlockRewardHeight()
+	if confirmRewardHeight > 0 {
+		server.ConfirmRewardHeight = confirmRewardHeight
+	}
 	server.blockTopHeight = server.storage.GetTopblock()
 	if server.blockRewardHeight > 0 {
 		server.blockRewardHeight += 1
@@ -95,19 +102,20 @@ func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
 		check30Min = time.NewTicker(check30MinInterval)
+		//check1Hour = time.NewTicker(check1HourInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
 	go crontab.fetchOldReceiptToTransaction()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
-	go crontab.fetchOldConctactCreate()
 
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
+	go crontab.fetchConfirmRewardsToMinerBlock()
 
 	for {
 		select {
@@ -118,6 +126,8 @@ func (crontab *Crontab) loop() {
 			go crontab.UpdateCheckPoint()
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
+			go crontab.fetchConfirmRewardsToMinerBlock()
+
 		}
 	}
 }
@@ -130,6 +140,17 @@ func (crontab *Crontab) fetchPoolVotes() {
 	}
 	crontab.excutePoolVotes()
 	atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 1, 0)
+
+}
+
+//update ConfirmRewards
+func (crontab *Crontab) fetchConfirmRewardsToMinerBlock() {
+
+	if !atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 0, 1) {
+		return
+	}
+	crontab.ConfirmRewardsToMinerBlock()
+	atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 1, 0)
 
 }
 
@@ -412,7 +433,7 @@ func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
 		addressList := crontab.storage.GetContractByHash(tx.Hash)
 		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(tx.Hash))
 		//contract address
-		if wrapper.Status == 0 && len(addressList) > 0 {
+		if wrapper != nil && wrapper.Status == 0 && len(addressList) > 0 {
 			go crontab.ConsumeContract(contract, tx.Hash, tx.CurTime)
 		}
 	}
@@ -643,6 +664,23 @@ func (crontab *Crontab) ConsumeReward() {
 
 		}
 	}
+}
+
+func (crontab *Crontab) ConfirmRewardsToMinerBlock() {
+	//topHeight := core.BlockChainImpl.Height()
+	topHeight := crontab.storage.MaxConfirmBlockRewardHeight()
+	//checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	if crontab.ConfirmRewardHeight > topHeight-1000 {
+		return
+	}
+	/*if checkpoint.Height > 0 && crontab.ConfirmRewardHeight > checkpoint.Height {
+		return
+	} else if checkpoint.Height == 0 && crontab.ConfirmRewardHeight > topHeight-100 {
+		return
+	}*/
+	crontab.storage.Reward2MinerBlock(crontab.ConfirmRewardHeight)
+	crontab.ConfirmRewardHeight = crontab.ConfirmRewardHeight + 1
+	crontab.ConfirmRewardsToMinerBlock()
 }
 
 func (crontab *Crontab) UpdateTurnOver() {
