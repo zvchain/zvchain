@@ -164,7 +164,7 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 	if !common.ValidateAddress(strings.TrimSpace(tokenAddr)) {
 		return nil, fmt.Errorf("wrong param format")
 	}
-	if !IsTokenContract(common.StringToAddress(tokenAddr)) {
+	if !IsTokenContractFromZiWeiBao(common.StringToAddress(tokenAddr)) {
 		return nil, fmt.Errorf("this address is not a token address")
 	}
 
@@ -199,11 +199,16 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 		return nil, iter.Err
 	}
 	//balanceOf := make(map[string]interface{})
+	tokenHolder := make(map[string]string)
 	for iter.Next() {
+		fmt.Println("iterKey:", string(iter.Key[:]))
+		fmt.Println("iterValue:", string(iter.Value[:]))
 		if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
 			realAddr := strings.TrimPrefix(string(iter.Key[:]), "balanceOf@")
+			fmt.Println("realAddr:", realAddr)
 			if util.ValidateAddress(realAddr) {
 				value := tvm.VmDataConvert(iter.Value[:])
+				fmt.Println("value:", value)
 				if value != nil {
 					var valuestring string
 					if value1, ok := value.(int64); ok {
@@ -211,10 +216,13 @@ func (api *RpcExplorerImpl) ExplorerTokenMsg(tokenAddr string) (*TokenContract, 
 					} else if value2, ok := value.(*big.Int); ok {
 						valuestring = value2.String()
 					}
-					tokenContract.TokenHolders[realAddr] = valuestring
+					tokenHolder[realAddr] = valuestring
+					fmt.Println("tokenHolder:", tokenHolder)
 				}
 			}
 		}
 	}
+	tokenContract.TokenHolders = tokenHolder
+	tokenContract.HolderNum = uint64(len(tokenHolder))
 	return tokenContract, err
 }
