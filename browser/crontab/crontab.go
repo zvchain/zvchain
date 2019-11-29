@@ -59,13 +59,14 @@ type Crontab struct {
 	isInited          bool
 	isInitedReward    bool
 
-	isFetchingPoolvotes int32
-	rpcExplore          *Explore
-	transfer            *Transfer
-	fetcher             *common2.Fetcher
-	isFetchingBlocks    bool
-	initdata            chan *models.ForkNotify
-	initRewarddata      chan *models.ForkNotify
+	isFetchingPoolvotes  int32
+	isConfirmBlockReward int32
+	rpcExplore           *Explore
+	transfer             *Transfer
+	fetcher              *common2.Fetcher
+	isFetchingBlocks     bool
+	initdata             chan *models.ForkNotify
+	initRewarddata       chan *models.ForkNotify
 
 	isFetchingVerfications bool
 }
@@ -112,7 +113,7 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
-	go crontab.ConfirmRewardsToMinerBlock()
+	go crontab.fetchConfirmRewardsToMinerBlock()
 
 	for {
 		select {
@@ -123,7 +124,7 @@ func (crontab *Crontab) loop() {
 			go crontab.UpdateCheckPoint()
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
-			go crontab.ConfirmRewardsToMinerBlock()
+			go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
 	}
@@ -137,6 +138,17 @@ func (crontab *Crontab) fetchPoolVotes() {
 	}
 	crontab.excutePoolVotes()
 	atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 1, 0)
+
+}
+
+//update ConfirmRewards
+func (crontab *Crontab) fetchConfirmRewardsToMinerBlock() {
+
+	if !atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 0, 1) {
+		return
+	}
+	crontab.ConfirmRewardsToMinerBlock()
+	atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 1, 0)
 
 }
 
