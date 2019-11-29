@@ -12,12 +12,14 @@ import (
 )
 
 const (
-	Blockrewardtopheight    = "block_reward.top_block_height"
-	Blocktopheight          = "block.top_block_height"
-	BlockStakeMappingHeight = "block.stake_mapping_height"
-	Blockcurblockheight     = "block.cur_block_height"
-	BlockDeleteCount        = "block.delete_count"
-	Blockcurtranheight      = "block.cur_tran_height"
+	Blockrewardtopheight     = "block_reward.top_block_height"
+	Blocktopheight           = "block.top_block_height"
+	BlockStakeMappingHeight  = "block.stake_mapping_height"
+	Blockcurblockheight      = "block.cur_block_height"
+	BlockDeleteCount         = "block.delete_count"
+	Blockcurtranheight       = "block.cur_tran_height"
+	BlockSupplementCurHeight = "block.supp_cur_height"
+	BlockSupplementAimHeight = "block.supp_aim_height"
 
 	GroupTopHeight        = "group.top_group_height"
 	PrepareGroupTopHeight = "group.top_prepare_group_height"
@@ -25,6 +27,7 @@ const (
 	LIMIT                 = 20
 	ACCOUNTDBNAME         = "account_lists"
 	RECENTMINEBLOCKS      = "recent_mine_blocks"
+	MAXCONFIRMREWARDCOUNT = 1000
 )
 
 func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
@@ -470,6 +473,29 @@ func (storage *Storage) UpdateAccountbyAddress(account *models.AccountList, attr
 
 }
 
+func (storage *Storage) MinConfirmBlockRewardHeight() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Limit(1).Order("id ASC").Find(&rewards)
+	if len(rewards) > 0 {
+		return rewards[0].BlockHeight
+	}
+	return 0
+}
+func (storage *Storage) MaxConfirmBlockRewardHeight() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Limit(1).Order("id DESC").Find(&rewards)
+	if len(rewards) > 0 {
+		return rewards[0].BlockHeight
+	}
+	return 0
+}
+
 // get topblockreward height
 func (storage *Storage) TopBlockRewardHeight(variable string) uint64 {
 	if storage.db == nil {
@@ -617,33 +643,25 @@ func (storage *Storage) AddContractCallTransaction(contract *models.ContractCall
 }
 
 func (storage *Storage) Reward2MinerBlock(height uint64) bool {
-	rewards := make([]*models.Reward, 0)
 
-	storage.db.Where("height = ?", height).Find(&rewards)
+	rewards := make([]*models.Reward, 0)
+	storage.db.Where("block_height = ?", height).Find(&rewards)
+	if len(rewards) < 1 {
+		return true
+	}
 	isSuccess := false
 	tx := storage.db.Begin()
-	mapMiner := make(map[string]*models.BlockConfirmMiner)
+
 	for _, reward := range rewards {
-		if _, exists := mapMiner[reward.NodeId]; exists {
-			miner := mapMiner[reward.NodeId]
-			if reward.Type == 0 {
-				miner.VerHight = reward.BlockHeight
-			}
-			if reward.Type == 1 {
-				miner.ProHeight = reward.BlockHeight
-			}
-			mapMiner[reward.NodeId] = miner
-		} else {
-			miner := &models.BlockConfirmMiner{}
-			if reward.Type == 0 {
-				miner.VerHight = reward.BlockHeight
-			}
-			if reward.Type == 1 {
-				miner.ProHeight = reward.BlockHeight
-			}
-			mapMiner[reward.NodeId] = miner
+		if !errors(upMinerBlock(tx, reward.NodeId, reward.BlockHeight, reward.Type)) {
+			return false
 		}
 	}
+
+	if !errors(DeleteRewardByHeight(tx, height)) {
+		return false
+	}
+
 	defer func() {
 		if isSuccess {
 			tx.Commit()
@@ -651,82 +669,96 @@ func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 			tx.Rollback()
 		}
 	}()
-	updateMinerBlock := func(addr string, verheight uint64, proHeight uint64) error {
-		rewards := make([]*models.MinerToBlock, 0)
-		tx.Limit(1).Where("address = ?", addr).Order("sequence desc").Find(&rewards)
-
-		if len(rewards) > 0 {
-			mapData := make(map[string]interface{})
-			if verheight > 0 {
-				blockVerHeights := make([]uint64, 0)
-				if err := json.Unmarshal([]byte(rewards[0].VerfBlockIDs), &blockVerHeights); err != nil {
-					return err
-				}
-				blockVerHeights = append(blockVerHeights, verheight)
-				updateVerString, err := json.Marshal(blockVerHeights)
-				if err != nil {
-					return err
-				}
-				mapData["verf_block_ids"] = updateVerString
-
-			}
-			if proHeight > 0 {
-				blockProHeights := make([]uint64, 0)
-				if err := json.Unmarshal([]byte(rewards[0].PrpsBlockIDs), &blockProHeights); err != nil {
-					return err
-				}
-				blockProHeights = append(blockProHeights, proHeight)
-				updateProString, err := json.Marshal(blockProHeights)
-				if err != nil {
-					return err
-				}
-				mapData["prps_block_ids"] = updateProString
-
-			}
-			return tx.Model(&models.MinerToBlock{}).
-				Where("id = ?", rewards[0].ID).
-				Updates(mapData).Error
-		} else {
-			MineBlock := models.MinerToBlock{
-				Address: addr,
-			}
-			verblock := make([]uint64, 0)
-			problock := make([]uint64, 0)
-			if proHeight > 0 {
-				problock = append(problock, proHeight)
-				byteProBlocks, err := json.Marshal(problock)
-				if err != nil {
-					return err
-				}
-				proBlocks := string(byteProBlocks)
-				MineBlock.PrpsBlockIDs = proBlocks
-			}
-			if verheight > 0 {
-				verblock = append(verblock, verheight)
-				byteVerifyBlocks, err := json.Marshal(verblock)
-				if err != nil {
-					return err
-				}
-				verifyBlocks := string(byteVerifyBlocks)
-				MineBlock.VerfBlockIDs = verifyBlocks
-			}
-			return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
-		}
-
-	}
-	if len(rewards) > 0 {
-		for addr, miner := range mapMiner {
-			if errors(updateMinerBlock(addr, miner.VerHight, miner.ProHeight)) {
-				isSuccess = false
-			}
-		}
-	}
 	isSuccess = true
 	return isSuccess
 
 }
-func (storage *Storage) UpMinerBlock(addr string, height uint64) {
 
+func upMinerBlock(tx *gorm.DB, addr string,
+	height uint64,
+	typeId uint64) error {
+	if addr == "" || height < 0 || typeId < 0 {
+		return nil
+	}
+	rewards := make([]*models.MinerToBlock, 0)
+	tx.Limit(1).Where("address = ? and type = ?", addr, typeId).
+		Order("sequence desc").Find(&rewards)
+
+	if len(rewards) > 0 && rewards[0].BlockCnts < MAXCONFIRMREWARDCOUNT {
+		mapData := make(map[string]interface{})
+		blockVerHeights := make([]uint64, 0)
+		if err := json.Unmarshal([]byte(rewards[0].BlockIDs), &blockVerHeights); err != nil {
+			return err
+		}
+		blockVerHeights = append(blockVerHeights, height)
+		//blockVerHeights = append(blockVerHeights, height)
+		//blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
+		updateVerString, err := json.Marshal(blockVerHeights)
+		if err != nil {
+			return err
+		}
+		mapData["block_ids"] = updateVerString
+		mapData["block_cnts"] = len(blockVerHeights)
+
+		//erraccount := upAccountConfirmCount(tx, typeId, rewards[0].Sequence, uint64(len(blockVerHeights)), addr)
+		//if erraccount != nil {
+		//	return erraccount
+		//}
+
+		return tx.Model(&models.MinerToBlock{}).
+			Where("id = ?", rewards[0].ID).
+			Updates(mapData).Error
+
+	} else {
+		sequence := uint64(0)
+		if len(rewards) > 0 && rewards[0].BlockCnts >= MAXCONFIRMREWARDCOUNT {
+			sequence = rewards[0].Sequence + 1
+		}
+		MineBlock := models.MinerToBlock{
+			Address: addr,
+		}
+		problockList := make([]uint64, 0)
+		if height > 0 {
+			problockList = append(problockList, height)
+			byteProBlocks, err := json.Marshal(problockList)
+			if err != nil {
+				return err
+			}
+			proBlockString := string(byteProBlocks)
+			MineBlock.BlockIDs = proBlockString
+			MineBlock.Sequence = sequence
+			MineBlock.BlockCnts = len(problockList)
+			MineBlock.Type = typeId
+			//erraccount := upAccountConfirmCount(tx, typeId, sequence, uint64(len(problockList)), addr)
+			//if erraccount != nil {
+			//	return erraccount
+			//}
+
+		}
+		return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
+	}
+}
+
+func upAccountConfirmCount(tx *gorm.DB,
+	typeId uint64,
+	sequence uint64,
+	size uint64,
+	addr string) error {
+	mapAccountData := make(map[string]interface{})
+	if typeId == 0 {
+		mapAccountData["verify_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+	} else {
+		mapAccountData["proposal_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+
+	}
+
+	err := tx.Table(ACCOUNTDBNAME).
+		Where("address = ?", addr).
+		Updates(mapAccountData).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 func (storage *Storage) AddBlock(block *models.Block) bool {
 	//fmt.Println("[Storage] add block ")
@@ -1025,4 +1057,20 @@ func (storage *Storage) ExistRewardBlockHeight(blockHeight int) bool {
 		return true
 	}
 	return false
+}
+
+func DeleteRewardByHeight(tx *gorm.DB, height uint64) error {
+
+	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+		if err := recover(); err != nil {
+			fmt.Println(err) // 这里的err其实就是panic传入的内容
+		}
+	}()
+
+	verifySql := fmt.Sprintf("DELETE FROM rewards WHERE block_height = %d ", height)
+
+	browserlog.BrowserLog.Info("[DeleteRewardByHeight] DeleteRewardByHeight Height:", height)
+	fmt.Println("DeleteRewardByHeight,", height)
+	return tx.Exec(verifySql).Error
+
 }
