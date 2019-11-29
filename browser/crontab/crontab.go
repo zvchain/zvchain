@@ -10,6 +10,7 @@ import (
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/mysql"
 	"github.com/zvchain/zvchain/browser/util"
+	"github.com/zvchain/zvchain/cmd/gzv/cli"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/core/group"
@@ -102,19 +103,20 @@ func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
 		check30Min = time.NewTicker(check30MinInterval)
-		//check1Hour = time.NewTicker(check1HourInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
 	go crontab.fetchOldReceiptToTransaction()
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
+	go crontab.fetchOldConctactCreate()
 
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
+	go crontab.SearchTempDeployToken()
 	go crontab.fetchConfirmRewardsToMinerBlock()
 
 	for {
@@ -126,6 +128,7 @@ func (crontab *Crontab) loop() {
 			go crontab.UpdateCheckPoint()
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
+			go crontab.SearchTempDeployToken()
 			go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
@@ -395,6 +398,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				tran.CumulativeGasUsed = blockDetail.Receipts[i].CumulativeGasUsed
 				if tran.Type == types.TransactionTypeContractCreate {
 					tran.ContractAddress = blockDetail.Receipts[i].ContractAddress
+					go server.HandleTempTokenTable(tran.Hash, tran.ContractAddress, tran.Source, blockDetail.Receipts[i].Status)
 				}
 				if tran.Type == types.TransactionTypeContractCall {
 					transContract = append(transContract, tran)
@@ -421,7 +425,89 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 
 	}
 	//server.isFetchingBlocks = false
+}
 
+func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, status uint) {
+	fmt.Printf("[in HandleTempTokenTable] txHash:%v, tokenAddr:%v, source:%v, status:%v\n", txHash, tokenAddr, source, status)
+	tempDeployHashes := make([]*models.TempDeployToken, 0)
+	crontab.storage.GetDB().Model(&models.TempDeployToken{}).Where("tx_hash = ?", txHash).Find(&tempDeployHashes)
+	if len(tempDeployHashes) > 0 {
+
+		if status != 0 {
+			if crontab.handleDelSql(txHash) {
+				fmt.Printf("success DELETE  FROM temp_deploy_tokens WHERE tx_hash = %s when status != 0\n", txHash)
+			} else {
+				fmt.Printf("delete TempDeployToken fail when status != 0,tx_hash = %s\n", txHash)
+			}
+			return
+		}
+
+		api := cli.RpcExplorerImpl{}
+		tokenContract, err := api.ExplorerTokenMsg(tokenAddr)
+		if err != nil {
+			if crontab.handleDelSql(txHash) {
+				fmt.Printf("success DELETE FROM temp_deploy_tokens WHERE tx_hash = %s and ExplorerTokenMsg err = %s\n", txHash, err.Error())
+			} else {
+				fmt.Printf("delete TempDeployToken fail WHERE tx_hash = %s and ExplorerTokenMsg err = %s\n", txHash, err.Error())
+			}
+			fmt.Printf("[HandleTempTokenTable] err :%s", err.Error())
+			return
+		}
+
+		isSuccess1, isSuccess2, isSuccess3 := true, true, true
+		tx := crontab.storage.GetDB().Begin()
+
+		defer func() {
+			if isSuccess1 && isSuccess2 && isSuccess3 {
+				tx.Commit()
+				fmt.Printf("success DELETE  FROM temp_deploy_tokens WHERE tx_hash = %s when tx commit", txHash)
+			} else {
+				tx.Rollback()
+				fmt.Printf("roll back  FROM temp_deploy_tokens WHERE tx_hash = %s when tx commit", txHash)
+			}
+		}()
+
+		subTokenContract := models.TokenContract{
+			ContractAddr: tokenAddr,
+			Creator:      source,
+			Name:         tokenContract.Name,
+			Symbol:       tokenContract.Symbol,
+			Decimal:      tokenContract.Decimal,
+			HolderNum:    tokenContract.HolderNum,
+		}
+		if tx.Create(&subTokenContract).Error != nil {
+			isSuccess1 = false
+			fmt.Printf("create subTokenContract fail,subTokenContract = %+v\n", subTokenContract)
+		}
+
+		for key, value := range tokenContract.TokenHolders {
+			user := &models.TokenContractUser{
+				ContractAddr: tokenAddr,
+				Address:      key,
+				Value:        value,
+			}
+			if tx.Create(&user).Error != nil {
+				isSuccess2 = false
+				fmt.Printf("create TokenContractUser fail,key = %s,value=%s\n", key, value)
+				break
+			}
+		}
+
+		sql := fmt.Sprintf("DELETE  FROM temp_deploy_tokens WHERE tx_hash = '%s'", txHash)
+		if tx.Exec(sql).Error != nil {
+			isSuccess3 = false
+			fmt.Printf("delete TempDeployToken fail,tx_hash = %s\n", txHash)
+		}
+	}
+}
+
+func (crontab *Crontab) handleDelSql(txHash string) bool {
+	sql := fmt.Sprintf("DELETE  FROM temp_deploy_tokens WHERE tx_hash = '%s'", txHash)
+	if crontab.storage.GetDB().Exec(sql).Error != nil {
+		fmt.Printf(" handleDelSql err,tx_hash = %s\n", txHash)
+		return false
+	}
+	return true
 }
 
 func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
@@ -708,6 +794,24 @@ func (crontab *Crontab) UpdateTurnOver() {
 			Value:    turnoverString,
 		}
 		crontab.storage.GetDB().Model(&models.Config{}).Create(&config)
+	}
+}
+
+func (crontab *Crontab) SearchTempDeployToken() {
+	tempDeployHashes := make([]*models.TempDeployToken, 0)
+	crontab.storage.GetDB().Model(&models.TempDeployToken{}).Find(&tempDeployHashes)
+	if len(tempDeployHashes) > 0 {
+		api := &cli.RpcGzvImpl{}
+		for _, v := range tempDeployHashes {
+			res, err := api.TxReceipt(v.TxHash)
+			if err != nil {
+				fmt.Println("[SearchTempDeployToken] err:", err)
+				return
+			}
+			if res != nil && res.Transaction != nil && res.Receipt != nil {
+				crontab.HandleTempTokenTable(res.Transaction.Hash.Hex(), res.Receipt.ContractAddress.AddrPrefixString(), res.Transaction.Source.AddrPrefixString(), uint(res.Receipt.Status))
+			}
+		}
 	}
 }
 
