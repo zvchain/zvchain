@@ -99,7 +99,7 @@ func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
 		check30Min = time.NewTicker(check30MinInterval)
-		check1Hour = time.NewTicker(check1HourInterval)
+		//check1Hour = time.NewTicker(check1HourInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
@@ -112,6 +112,7 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
+	go crontab.ConfirmRewardsToMinerBlock()
 
 	for {
 		select {
@@ -122,9 +123,7 @@ func (crontab *Crontab) loop() {
 			go crontab.UpdateCheckPoint()
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
-		case <-check1Hour.C:
 			go crontab.ConfirmRewardsToMinerBlock()
-			fmt.Println("")
 
 		}
 	}
