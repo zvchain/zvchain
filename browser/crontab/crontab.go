@@ -209,33 +209,37 @@ func (crontab *Crontab) supplementBlockToMiner() {
 	var aimHeight uint64 = 0
 	var height uint64 = 0
 
-	crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementAimHeight).Row().Scan(&aimHeight)
-	if aimHeight == 0 {
-		crontab.storage.GetDB().Model(&models.BlockToMiner{}).Select("min(reward_height)").Where("reward_height <> 0").Row().Scan(&height)
-		if height != 0 {
-			sys1 := &models.Sys{
-				Variable: mysql.BlockSupplementAimHeight,
-				Value:    height,
-				SetBy:    "dan",
+	if SupplementBlockToMinerHeight == 0 {
+		crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementAimHeight).Row().Scan(&aimHeight)
+		SupplementBlockToMinerHeight = aimHeight
+		if SupplementBlockToMinerHeight == 0 {
+			crontab.storage.GetDB().Model(&models.BlockToMiner{}).Select("min(reward_height)").Where("reward_height <> 0").Row().Scan(&height)
+			if height != 0 {
+				sys1 := &models.Sys{
+					Variable: mysql.BlockSupplementAimHeight,
+					Value:    height,
+					SetBy:    "dan",
+				}
+				sys2 := &models.Sys{
+					Variable: mysql.BlockSupplementCurHeight,
+					SetBy:    "dan",
+				}
+				crontab.storage.GetDB().Create(sys1)
+				crontab.storage.GetDB().Create(sys2)
+				crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementAimHeight).Row().Scan(&aimHeight)
+				SupplementBlockToMinerHeight = aimHeight
 			}
-			sys2 := &models.Sys{
-				Variable: mysql.BlockSupplementCurHeight,
-				SetBy:    "dan",
-			}
-			crontab.storage.GetDB().Create(sys1)
-			crontab.storage.GetDB().Create(sys2)
-			crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementAimHeight).Row().Scan(&aimHeight)
 		}
 	}
 
 	var curHeight uint64 = 0
 	crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementCurHeight).Row().Scan(&curHeight)
 
-	for i := curHeight; i < aimHeight; i++ {
+	for i := curHeight; i < SupplementBlockToMinerHeight; i++ {
 		blocks, proposalReward := crontab.rpcExplore.GetPreHightRewardByHeight(uint64(i))
 		if proposalReward == nil && len(blocks) == 0 {
 			fmt.Println("[server]  fetchVerfications empty:", i)
-			return
+			continue
 		}
 		fmt.Println("[server]  fetchVerfications:", len(blocks))
 		blockToMinersVerfs := make([]*models.BlockToMiner, 0, 0)
@@ -286,7 +290,9 @@ func (crontab *Crontab) supplementBlockToMiner() {
 		curHeight++
 		crontab.storage.GetDB().Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementCurHeight).Update("value", curHeight)
 	}
-	FinishSyncSupplementBlockToMiner = true
+	if aimHeight != 0 {
+		FinishSyncSupplementBlockToMiner = true
+	}
 }
 
 func (crontab *Crontab) supplementProposalReward() {
