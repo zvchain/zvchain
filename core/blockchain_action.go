@@ -360,6 +360,9 @@ func (chain *FullBlockChain) FixTrieDataFromDB() error {
 		return nil
 	}
 	topHeight := dirtyState.GetCurrentHeight()
+	if topHeight == 0{
+		return nil
+	}
 	block := chain.QueryBlockByHeight(topHeight)
 	if block == nil {
 		return fmt.Errorf("height %v can not be found",topHeight)
