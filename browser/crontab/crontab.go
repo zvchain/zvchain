@@ -35,7 +35,9 @@ const (
 )
 
 var (
-	GlobalCP uint64
+	GlobalCP                         uint64
+	FinishSyncSupplementBlockToMiner bool = false
+	SupplementBlockToMinerHeight     uint64
 )
 
 const (
@@ -44,13 +46,14 @@ const (
 )
 
 type Crontab struct {
-	storage                 *mysql.Storage
-	blockRewardHeight       uint64
-	blockTopHeight          uint64
-	rewardStorageDataHeight uint64
-	curblockcount           uint64
-	curTrancount            uint64
-	ConfirmRewardHeight     uint64
+	storage                       *mysql.Storage
+	blockRewardHeight             uint64
+	blockTopHeight                uint64
+	rewardStorageDataHeight       uint64
+	blockToMinerStorageDataHeight uint64
+	curblockcount                 uint64
+	curTrancount                  uint64
+	ConfirmRewardHeight           uint64
 
 	page              uint64
 	maxid             uint
@@ -80,7 +83,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, rese
 		initRewarddata: make(chan *models.ForkNotify, 10000),
 	}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
-	server.addGenisisblock()
+	server.addGenisisblockAndReward()
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	go server.ConsumeContractTransfer()
@@ -116,9 +119,9 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
-	go crontab.SearchTempDeployToken()
+	go crontab.supplementProposalReward()
+	go crontab.fetchOldBlockToMiner()
 	go crontab.fetchConfirmRewardsToMinerBlock()
-
 	for {
 		select {
 		case <-check10Sec.C:
@@ -126,6 +129,8 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
 			go crontab.UpdateCheckPoint()
+			go crontab.fetchOldBlockToMiner()
+
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
@@ -189,38 +194,178 @@ func (crontab *Crontab) fetchGroups() {
 
 }
 
+//uopdate invalid guard and pool
+func (crontab *Crontab) fetchOldBlockToMiner() {
+
+	if !atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 0, 1) {
+		return
+	}
+	crontab.supplementBlockToMiner()
+	atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 1, 0)
+
+}
+
+func (crontab *Crontab) supplementBlockToMiner() {
+	if FinishSyncSupplementBlockToMiner {
+		return
+	}
+	var aimHeight uint64 = 0
+	var height uint64 = 0
+
+	if SupplementBlockToMinerHeight == 0 {
+		crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementAimHeight).Row().Scan(&aimHeight)
+		SupplementBlockToMinerHeight = aimHeight
+		if SupplementBlockToMinerHeight == 0 {
+			crontab.storage.GetDB().Model(&models.BlockToMiner{}).Select("min(reward_height)").Where("reward_height <> 0").Row().Scan(&height)
+			if height != 0 {
+				sys1 := &models.Sys{
+					Variable: mysql.BlockSupplementAimHeight,
+					Value:    height,
+					SetBy:    "dan",
+				}
+				sys2 := &models.Sys{
+					Variable: mysql.BlockSupplementCurHeight,
+					SetBy:    "dan",
+				}
+				crontab.storage.GetDB().Create(sys1)
+				crontab.storage.GetDB().Create(sys2)
+				crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementAimHeight).Row().Scan(&aimHeight)
+				SupplementBlockToMinerHeight = aimHeight
+			}
+		}
+	}
+
+	var curHeight uint64 = 0
+	crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementCurHeight).Row().Scan(&curHeight)
+
+	for i := curHeight; i < SupplementBlockToMinerHeight; i++ {
+		blocks, proposalReward := crontab.rpcExplore.GetPreHightRewardByHeight(uint64(i))
+		if proposalReward == nil && len(blocks) == 0 {
+			fmt.Println("[server]  fetchVerfications empty:", i)
+			continue
+		}
+		fmt.Println("[server]  fetchVerfications:", len(blocks))
+		blockToMinersVerfs := make([]*models.BlockToMiner, 0, 0)
+		blockToMinersPrpses := make([]*models.BlockToMiner, 0, 0)
+		blockToMinerVerf := &models.BlockToMiner{}
+		blockToMinerPrps := &models.BlockToMiner{}
+
+		if proposalReward != nil {
+
+			blockToMinerPrps = &models.BlockToMiner{
+				BlockHeight: proposalReward.BlockHeight,
+				BlockHash:   proposalReward.BlockHash,
+				CurTime:     proposalReward.CurTime,
+				PrpsNodeID:  proposalReward.ProposalID,
+				PrpsReward:  proposalReward.ProposalReward,
+				PrpsGasFee:  proposalReward.ProposalGasFeeReward,
+			}
+			blockToMinersPrpses = append(blockToMinersPrpses, blockToMinerPrps)
+		}
+		for j := 0; j < len(blocks); j++ {
+			block := blocks[j]
+			if block.VerifierReward != nil {
+				verifierBonus := block.VerifierReward
+				if verifierBonus.TargetIDs == nil {
+					continue
+				}
+				ids := verifierBonus.TargetIDs
+				idsString := ""
+				for n := 0; n < len(ids); n++ {
+					idsString = fmt.Sprintf(idsString+"%s\r\n", ids[n].GetAddrString())
+				}
+
+				blockToMinerVerf = &models.BlockToMiner{
+					BlockHeight:     block.BlockHeight,
+					RewardHeight:    uint64(i),
+					VerfNodeIDs:     idsString,
+					VerfNodeCnts:    uint64(len(ids)),
+					VerfReward:      verifierBonus.Value,
+					VerfTotalGasFee: block.VerifierGasFeeReward,
+				}
+				if v, err := strconv.ParseFloat(fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids))), 64); err == nil {
+					blockToMinerVerf.VerfSingleGasFee = v
+				}
+			}
+			blockToMinersVerfs = append(blockToMinersVerfs, blockToMinerVerf)
+		}
+		crontab.storage.AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs)
+		curHeight++
+		crontab.storage.GetDB().Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementCurHeight).Update("value", curHeight)
+	}
+	if aimHeight != 0 {
+		FinishSyncSupplementBlockToMiner = true
+	}
+}
+
+func (crontab *Crontab) supplementProposalReward() {
+	chain := core.BlockChainImpl
+	topheight := chain.Height()
+
+	for height := 0; height < int(topheight); height++ {
+		existProposalReward := crontab.storage.ExistRewardBlockHeight(height)
+		if !existProposalReward {
+			b := chain.QueryBlockByHeight(uint64(height))
+			proposalReward := crontab.rpcExplore.GetProposalRewardByBlock(b)
+			verifications := make([]*models.Reward, 0, 0)
+			if proposalReward != nil {
+				proposalReward := &models.Reward{
+					Type:         uint64(types.MinerTypeProposal),
+					BlockHash:    proposalReward.BlockHash,
+					BlockHeight:  proposalReward.BlockHeight,
+					NodeId:       proposalReward.ProposalID,
+					Value:        proposalReward.ProposalReward,
+					CurTime:      proposalReward.CurTime,
+					RewardHeight: uint64(height),
+					GasFee:       float64(proposalReward.ProposalGasFeeReward),
+				}
+				verifications = append(verifications, proposalReward)
+			}
+			crontab.storage.AddRewards(verifications)
+		}
+	}
+}
+
 func (crontab *Crontab) fetchReward(localHeight uint64) {
 
-	blocks := crontab.rpcExplore.GetPreHightRewardByHeight(localHeight)
-
-	if blocks == nil || len(blocks) == 0 {
+	blocks, proposalReward := crontab.rpcExplore.GetPreHightRewardByHeight(localHeight)
+	if proposalReward == nil && len(blocks) == 0 {
 		fmt.Println("[server]  fetchVerfications empty:", localHeight)
 		return
 	}
 	fmt.Println("[server]  fetchVerfications:", len(blocks))
+	verifications := make([]*models.Reward, 0, 0)
+	blockToMinersVerfs := make([]*models.BlockToMiner, 0, 0)
+	blockToMinersPrpses := make([]*models.BlockToMiner, 0, 0)
+	blockToMinerVerf := &models.BlockToMiner{}
+	blockToMinerPrps := &models.BlockToMiner{}
+
+	if proposalReward != nil {
+		subProposalReward := &models.Reward{
+			Type:         uint64(types.MinerTypeProposal),
+			BlockHash:    proposalReward.BlockHash,
+			BlockHeight:  proposalReward.BlockHeight,
+			NodeId:       proposalReward.ProposalID,
+			Value:        proposalReward.ProposalReward,
+			CurTime:      proposalReward.CurTime,
+			RewardHeight: localHeight,
+			GasFee:       float64(proposalReward.ProposalGasFeeReward),
+		}
+		verifications = append(verifications, subProposalReward)
+
+		blockToMinerPrps = &models.BlockToMiner{
+			BlockHeight: proposalReward.BlockHeight,
+			BlockHash:   proposalReward.BlockHash,
+			CurTime:     proposalReward.CurTime,
+			PrpsNodeID:  proposalReward.ProposalID,
+			PrpsReward:  proposalReward.ProposalReward,
+			PrpsGasFee:  proposalReward.ProposalGasFeeReward,
+		}
+		blockToMinersPrpses = append(blockToMinersPrpses, blockToMinerPrps)
+	}
 	for i := 0; i < len(blocks); i++ {
 		block := blocks[i]
-		verifications := make([]*models.Reward, 0, 0)
-		if block.ProposalReward > 0 {
-			//mort := getMinerDetail(block.ProposalID, block.BlockHeight, types.MinerTypeProposal)
-			proposalReward := &models.Reward{
-				Type:        uint64(types.MinerTypeProposal),
-				BlockHash:   block.BlockHash,
-				BlockHeight: block.BlockHeight,
-				NodeId:      block.ProposalID,
-				Value:       block.ProposalReward,
-				//RoleType:     uint64(mort.Identity),
-				CurTime:      block.CurTime,
-				RewardHeight: localHeight,
-				GasFee:       float64(block.ProposalGasFeeReward),
-			}
-			//if mort != nil {
-			//	proposalReward.Stake = mort.Stake
-			//	proposalReward.RoleType = uint64(mort.Identity)
-			//}
-			verifications = append(verifications, proposalReward)
 
-		}
 		if block.VerifierReward != nil {
 			verifierBonus := block.VerifierReward
 			if verifierBonus.TargetIDs == nil {
@@ -231,6 +376,7 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 			gas := fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids)))
 			rewarMoney, _ := strconv.ParseFloat(gas, 64)
 
+			idsString := ""
 			for n := 0; n < len(ids); n++ {
 				v := models.Reward{}
 				v.BlockHash = block.BlockHash
@@ -241,21 +387,31 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 				v.Type = uint64(types.MinerTypeVerify)
 				v.RewardHeight = localHeight
 				v.GasFee = rewarMoney
-				//mort := getMinerDetail(v.NodeId, block.BlockHeight, types.MinerTypeVerify)
-				//if mort != nil {
-				//	v.Stake = mort.Stake
-				//	v.RoleType = uint64(mort.Identity)
-				//}
 				verifications = append(verifications, &v)
+				idsString = fmt.Sprintf(idsString+"%s\r\n", ids[n].GetAddrString())
 			}
+
+			blockToMinerVerf = &models.BlockToMiner{
+				BlockHeight:     block.BlockHeight,
+				RewardHeight:    localHeight,
+				VerfNodeIDs:     idsString,
+				VerfNodeCnts:    uint64(len(ids)),
+				VerfReward:      verifierBonus.Value,
+				VerfTotalGasFee: block.VerifierGasFeeReward,
+			}
+			if v, err := strconv.ParseFloat(fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids))), 64); err == nil {
+				blockToMinerVerf.VerfSingleGasFee = v
+			}
+
 			blo := &models.Block{}
 			blo.Hash = block.BlockHash
 			crontab.storage.SetLoadVerified(blo)
 
 		}
+		blockToMinersVerfs = append(blockToMinersVerfs, blockToMinerVerf)
 		crontab.storage.AddRewards(verifications)
 	}
-
+	crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
 }
 
 func getMinerDetail(addr string, height uint64, bizType types.MinerType) *common2.MortGage {
@@ -327,11 +483,11 @@ func (crontab *Crontab) excuteBlockRewards() {
 	}
 	//topblock := core.BlockChainImpl.QueryTopBlock()
 	//topheight := topblock.Height
-	rewards := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
+	rewards, proposalReward := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
 	beginTime := time.Now()
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
 	if rewards != nil && len(rewards) > 0 {
-		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards)
+		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards, proposalReward)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
 		mapMineBlockCount := blockrewarddata.MapMineBlockCount
@@ -378,8 +534,7 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 
 }
 func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
-
-	fmt.Println("[server]  consumeBlock process height:", localHeight)
+	fmt.Println("[server]  consumeBlock height:", localHeight)
 	var maxHeight uint64
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
@@ -583,7 +738,7 @@ func (crontab *Crontab) ProcessPunishment(height uint64) {
 	}
 }
 
-func (crontab *Crontab) addGenisisblock() {
+func (crontab *Crontab) addGenisisblockAndReward() {
 	datablock := crontab.storage.GetBlockByHeight(0)
 	if len(datablock) < 1 {
 		data := &models.ForkNotify{
@@ -591,6 +746,7 @@ func (crontab *Crontab) addGenisisblock() {
 			LocalHeight: 0,
 		}
 		crontab.Produce(data)
+		crontab.ProduceReward(data)
 	}
 }
 

@@ -19,12 +19,14 @@ import (
 )
 
 const (
-	Blockrewardtopheight    = "block_reward.top_block_height"
-	Blocktopheight          = "block.top_block_height"
-	BlockStakeMappingHeight = "block.stake_mapping_height"
-	Blockcurblockheight     = "block.cur_block_height"
-	BlockDeleteCount        = "block.delete_count"
-	Blockcurtranheight      = "block.cur_tran_height"
+	Blockrewardtopheight     = "block_reward.top_block_height"
+	Blocktopheight           = "block.top_block_height"
+	BlockStakeMappingHeight  = "block.stake_mapping_height"
+	Blockcurblockheight      = "block.cur_block_height"
+	BlockDeleteCount         = "block.delete_count"
+	Blockcurtranheight       = "block.cur_tran_height"
+	BlockSupplementCurHeight = "block.supp_cur_height"
+	BlockSupplementAimHeight = "block.supp_aim_height"
 
 	GroupTopHeight        = "group.top_group_height"
 	PrepareGroupTopHeight = "group.top_prepare_group_height"
@@ -33,6 +35,7 @@ const (
 	ACCOUNTDBNAME         = "account_lists"
 	RECENTMINEBLOCKS      = "recent_mine_blocks"
 	MAXCONFIRMREWARDCOUNT = 1000
+	MINERLISTDBNAME       = "miner_lists"
 )
 
 func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
@@ -783,21 +786,39 @@ func upAccountConfirmCount(tx *gorm.DB,
 	sequence uint64,
 	size uint64,
 	addr string) error {
-	mapAccountData := make(map[string]interface{})
-	if typeId == 0 {
-		mapAccountData["verify_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+
+	minerlist := make([]*models.MinerList, 0)
+	tx.Limit(1).Where("address = ?", addr).Find(&minerlist)
+	if len(minerlist) > 0 {
+		mapAccountData := make(map[string]interface{})
+		if typeId == 0 {
+			mapAccountData["verify_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+		} else {
+			mapAccountData["proposal_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+
+		}
+		err := tx.Table(MINERLISTDBNAME).
+			Where("address = ?", addr).
+			Updates(mapAccountData).Error
+		if err != nil {
+			return err
+		}
+		return nil
 	} else {
-		mapAccountData["proposal_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+		miner := models.MinerList{
+			Address: addr,
+		}
+		if typeId == 0 {
+			miner.ProposalConfirmCount = sequence*MAXCONFIRMREWARDCOUNT + size
+		} else {
+			miner.VerifyConfirmCount = sequence*MAXCONFIRMREWARDCOUNT + size
+		}
+		return tx.Model(models.MinerList{}).Create(&miner).Error
 
 	}
-	err := tx.Table(ACCOUNTDBNAME).
-		Where("address = ?", addr).
-		Updates(mapAccountData).Error
-	if err != nil {
-		return err
-	}
-	return nil
+
 }
+
 func (storage *Storage) AddBlock(block *models.Block) bool {
 	//fmt.Println("[Storage] add block ")
 	if storage.db == nil {
@@ -1277,8 +1298,32 @@ func (storage *Storage) DeleteForkReward(preHeight uint64, localHeight uint64) (
 
 	verifySql := fmt.Sprintf("DELETE FROM rewards WHERE reward_height > %d ", preHeight)
 	storage.db.Exec(verifySql)
-	browserlog.BrowserLog.Info("[DeleteForkReward] DeleteForkReward preHeight:", preHeight, "localHeight", localHeight)
+	browserlog.BrowserLog.Info("[DeleteForkReward] rewards preHeight:", preHeight, "localHeight", localHeight)
+
+	tx := storage.db.Begin()
+	sql2 := fmt.Sprintf("DELETE FROM block_to_miners WHERE block_height > %d ", preHeight)
+	sql3 := fmt.Sprintf("UPDATE block_to_miners SET `reward_height` = null,`verf_node_ids`=null, `verf_node_cnts`=null, `verf_reward`=null, `verf_total_gas_fee`=null  WHERE (`reward_height` > %d)", preHeight)
+	if storage.db.Exec(sql2).Error == nil && storage.db.Exec(sql3).Error == nil {
+		tx.Commit()
+		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners success. preHeight:", preHeight, "localHeight", localHeight)
+	} else {
+		tx.Rollback()
+		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners fail. preHeight:", preHeight, "localHeight", localHeight)
+	}
 	return err
+}
+
+func (storage *Storage) ExistRewardBlockHeight(blockHeight int) bool {
+	if storage.db == nil {
+		return false
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Limit(1).Where("block_height = ? and type =1", blockHeight).Find(&rewards)
+	if len(rewards) > 0 {
+
+		return true
+	}
+	return false
 }
 
 func DeleteRewardByHeight(tx *gorm.DB, height uint64) error {

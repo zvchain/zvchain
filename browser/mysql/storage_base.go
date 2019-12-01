@@ -64,7 +64,7 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 		return
 	}
 	//args := fmt.Sprintf("root:Jobs1955!@tcp(119.23.205.254:3306)/tas?charset=utf8&parseTime=True&loc=Local")
-	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/test?charset=utf8&parseTime=True&loc=Local",
+	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/kyback?charset=utf8&parseTime=True&loc=Local",
 		storage.dbUser,
 		storage.dbPassword,
 		storage.dbAddr,
@@ -150,6 +150,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	}
 	if !db.HasTable(&models.MinerToBlock{}) {
 		db.CreateTable(&models.MinerToBlock{})
+	}
+	if !db.HasTable(&models.MinerList{}) {
+		db.CreateTable(&models.MinerList{})
 	}
 }
 
@@ -240,6 +243,96 @@ func (storage *Storage) AddRewards(rewards []*models.Reward) bool {
 	}
 	fmt.Println("[Storage]  AddRewards cost: ", time.Since(timeBegin), "，len :", len(rewards))
 	return true
+}
+
+func (storage *Storage) AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs []*models.BlockToMiner) bool {
+
+	createSuccess, updateSucceess := true, true
+
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	if len(blockToMinersPrpses) == 0 && len(blockToMinersVerfs) == 0 {
+		return false
+	}
+	timeBegin := time.Now()
+	tx := storage.db.Begin()
+	for i := 0; i < len(blockToMinersPrpses); i++ {
+		if blockToMinersPrpses[i] != nil {
+			if !errors(tx.Create(&blockToMinersPrpses[i]).Error) {
+				createSuccess = false
+				rewardsql := fmt.Sprintf("DELETE  FROM block_to_miners WHERE  block_height = '%d' ",
+					blockToMinersPrpses[i].BlockHeight)
+				if tx.Exec(rewardsql).Error == nil && tx.Create(&blockToMinersPrpses[i]).Error == nil {
+					createSuccess = true
+				}
+			}
+		}
+	}
+	for _, v := range blockToMinersVerfs {
+		if v != nil {
+			if tx.Model(&models.BlockToMiner{}).Where("block_height = ?", v.BlockHeight).Updates(*v).Error != nil {
+				updateSucceess = false
+			}
+		}
+	}
+
+	if createSuccess && updateSucceess {
+		tx.Commit()
+		fmt.Println("[Storage]  AddBlockToMiner Success. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+	} else {
+		tx.Rollback()
+		fmt.Println("[Storage]  AddBlockToMiner Fail. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+	}
+
+	return true
+}
+
+func (storage *Storage) AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs []*models.BlockToMiner) bool {
+
+	createSuccess, updateSucceess := true, true
+
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	if len(blockToMinersPrpses) == 0 && len(blockToMinersVerfs) == 0 {
+		return false
+	}
+	timeBegin := time.Now()
+	tx := storage.db.Begin()
+	for _, v := range blockToMinersPrpses {
+		if v != nil {
+			blockToMiners := make([]*models.BlockToMiner, 0)
+			tx.Model(&models.BlockToMiner{}).Where("block_height = ?", v.BlockHeight).Find(&blockToMiners)
+			if len(blockToMiners) == 0 {
+				if !errors(storage.db.Create(&v).Error) {
+					createSuccess = false
+				}
+			}
+		}
+	}
+
+	for _, v := range blockToMinersVerfs {
+		if v != nil {
+			if tx.Model(&models.BlockToMiner{}).Where("block_height = ?", v.BlockHeight).Updates(*v).Error != nil {
+				updateSucceess = false
+			}
+		}
+	}
+
+	if createSuccess && updateSucceess {
+		tx.Commit()
+		fmt.Println("[Storage]  AddBlockToMiner Success. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+		return true
+	} else {
+		tx.Rollback()
+		fmt.Println("[Storage]  AddBlockToMiner Fail. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
+		return false
+	}
+
+	return false
 }
 
 func (storage *Storage) SetLoadVerified(block *models.Block) bool {
