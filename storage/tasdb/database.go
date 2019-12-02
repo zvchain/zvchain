@@ -143,10 +143,24 @@ func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
 	if err != nil {
 		logger.Error("failed to get leveldb stats", err)
 	} else {
+		byte2MB := 1048576
+		LevelSizes := s.LevelSizes[:0]
+		for _, v := range s.LevelSizes {
+			LevelSizes = append(LevelSizes, v/int64(byte2MB))
+		}
+		LevelRead := s.LevelRead[:0]
+		for _, v := range s.LevelRead {
+			LevelRead = append(LevelRead, v/int64(byte2MB))
+		}
+		LevelWrite := s.LevelWrite[:0]
+		for _, v := range s.LevelWrite {
+			LevelWrite = append(LevelWrite, v/int64(byte2MB))
+		}
+
 		logger.Debugf("leveldb stats: WriteDelayCount:%v,WriteDelayDuration:%v,WritePaused:%v,AliveSnapshots:%v,"+
-			"AliveIterators:%v,IOWrite:%v,IORead:%v,BlockCacheSize:%v,OpenedTablesCount:%v,LevelSizes:%v,"+
-			"LevelTablesCounts:%v,LevelRead:%v,LevelWrite:%v,LevelDurations:%v", s.WriteDelayCount,
-			s.WriteDelayDuration, s.WritePaused, s.AliveSnapshots, s.AliveIterators, s.IOWrite, s.IORead, s.BlockCacheSize,
+			"AliveIterators:%v,IOWrite:%vMB,IORead:%vMB,BlockCacheSize:%vMB,OpenedTablesCount:%v,LevelSizes:%vMB,"+
+			"LevelTablesCounts:%v,LevelRead:%vMB,LevelWrite:%vMB,LevelDurations:%v", s.WriteDelayCount,
+			s.WriteDelayDuration, s.WritePaused, s.AliveSnapshots, s.AliveIterators, s.IOWrite/uint64(byte2MB), s.IORead/uint64(byte2MB), s.BlockCacheSize/byte2MB,
 			s.OpenedTablesCount, s.LevelSizes, s.LevelTablesCounts, s.LevelRead, s.LevelWrite, s.LevelDurations)
 	}
 }
