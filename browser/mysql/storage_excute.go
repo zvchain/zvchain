@@ -492,6 +492,19 @@ func (storage *Storage) MinConfirmBlockRewardHeight() uint64 {
 	}
 	return 0
 }
+
+func (storage *Storage) MinBlockHeightverReward() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Unscoped().Limit(1).Where("type = 0").Order("block_height DESC").Find(&rewards)
+	if len(rewards) > 0 {
+		return rewards[0].BlockHeight
+	}
+	return 0
+}
+
 func (storage *Storage) MaxConfirmBlockRewardHeight() uint64 {
 	if storage.db == nil {
 		return 0

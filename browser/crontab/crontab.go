@@ -311,11 +311,9 @@ func (crontab *Crontab) supplementBlockToMiner() {
 	}
 }
 
-func (crontab *Crontab) supplementProposalReward() {
-	chain := core.BlockChainImpl
-	topheight := chain.Height()
+func (crontab *Crontab) proposalsupplyrewarddata(chain *core.FullBlockChain, minheight uint64, maxheight uint64) {
 
-	for height := 0; height < int(topheight); height++ {
+	for height := int(minheight); height < int(maxheight); height++ {
 		existProposalReward := crontab.storage.ExistRewardBlockHeight(height)
 		if !existProposalReward {
 			b := chain.QueryBlockByHeight(uint64(height))
@@ -337,6 +335,13 @@ func (crontab *Crontab) supplementProposalReward() {
 			crontab.storage.AddRewards(verifications)
 		}
 	}
+}
+
+func (crontab *Crontab) supplementProposalReward() {
+
+	chain := core.BlockChainImpl
+	topheight := chain.Height()
+	crontab.proposalsupplyrewarddata(chain, 0, topheight)
 }
 
 func (crontab *Crontab) fetchReward(localHeight uint64) {
@@ -1202,6 +1207,7 @@ func (crontab *Crontab) rewardDataCompensationProcess(notifyHeight uint64, notif
 		dbMaxHeight := crontab.rewardStorageDataHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
 			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight)
+			crontab.proposalrewardSupplementarydata(dbMaxHeight)
 			crontab.rewarddataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInitedReward = true
@@ -1228,6 +1234,15 @@ func (crontab *Crontab) dataCompensation(dbMaxHeight uint64, notifyPreHeight uin
 	browserlog.BrowserLog.Info("[Storage]  dataCompensationProcess procee: ", crontab.blockTopHeight)
 	if crontab.blockTopHeight <= notifyPreHeight {
 		crontab.dataCompensation(crontab.blockTopHeight, notifyPreHeight)
+	}
+
+}
+
+func (crontab *Crontab) proposalrewardSupplementarydata(height uint64) {
+	chain := core.BlockChainImpl
+	verrewardheight := crontab.storage.MinBlockHeightverReward()
+	if verrewardheight > 0 {
+		crontab.proposalsupplyrewarddata(chain, verrewardheight, height)
 	}
 
 }
