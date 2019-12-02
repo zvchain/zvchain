@@ -137,31 +137,39 @@ func (db *PrefixedDatabase) addKVToBatch(b Batch, k, v []byte) error {
 	return b.Put(key, v)
 }
 
+var dbStats = &leveldb.DBStats{}
+
 func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
-	s := &leveldb.DBStats{}
-	err := db.db.db.Stats(s)
+	byte2MB := 1048576
+	lastWrite := dbStats.IOWrite / uint64(byte2MB)
+	lastRead := dbStats.IORead / uint64(byte2MB)
+
+	err := db.db.db.Stats(dbStats)
 	if err != nil {
 		logger.Error("failed to get leveldb stats", err)
 	} else {
-		byte2MB := 1048576
-		LevelSizes := s.LevelSizes[:0]
-		for _, v := range s.LevelSizes {
+
+		LevelSizes := dbStats.LevelSizes[:0]
+		for _, v := range dbStats.LevelSizes {
 			LevelSizes = append(LevelSizes, v/int64(byte2MB))
 		}
-		LevelRead := s.LevelRead[:0]
-		for _, v := range s.LevelRead {
+		LevelRead := dbStats.LevelRead[:0]
+		for _, v := range dbStats.LevelRead {
 			LevelRead = append(LevelRead, v/int64(byte2MB))
 		}
-		LevelWrite := s.LevelWrite[:0]
-		for _, v := range s.LevelWrite {
+		LevelWrite := dbStats.LevelWrite[:0]
+		for _, v := range dbStats.LevelWrite {
 			LevelWrite = append(LevelWrite, v/int64(byte2MB))
 		}
+		iOWriteInc := dbStats.IOWrite/uint64(byte2MB) - lastWrite
+		iOReadInc := dbStats.IORead/uint64(byte2MB) - lastRead
 
 		logger.Debugf("leveldb stats: WriteDelayCount:%v,WriteDelayDuration:%v,WritePaused:%v,AliveSnapshots:%v,"+
-			"AliveIterators:%v,IOWrite:%vMB,IORead:%vMB,BlockCacheSize:%vMB,OpenedTablesCount:%v,LevelSizes:%vMB,"+
-			"LevelTablesCounts:%v,LevelRead:%vMB,LevelWrite:%vMB,LevelDurations:%v", s.WriteDelayCount,
-			s.WriteDelayDuration, s.WritePaused, s.AliveSnapshots, s.AliveIterators, s.IOWrite/uint64(byte2MB), s.IORead/uint64(byte2MB), s.BlockCacheSize/byte2MB,
-			s.OpenedTablesCount, s.LevelSizes, s.LevelTablesCounts, s.LevelRead, s.LevelWrite, s.LevelDurations)
+			"AliveIterators:%v,IOWrite:%vMB,IORead:%vMB,IOWriteInc:%vMB,IOReadInc:%vMB,BlockCacheSize:%vMB,OpenedTablesCount:%v,LevelSizes:%vMB,"+
+			"LevelTablesCounts:%v,LevelRead:%vMB,LevelWrite:%vMB,LevelDurations:%v", dbStats.WriteDelayCount,
+			dbStats.WriteDelayDuration, dbStats.WritePaused, dbStats.AliveSnapshots, dbStats.AliveIterators, dbStats.IOWrite/uint64(byte2MB),
+			dbStats.IORead/uint64(byte2MB), iOWriteInc, iOReadInc, dbStats.BlockCacheSize/byte2MB,
+			dbStats.OpenedTablesCount, dbStats.LevelSizes, dbStats.LevelTablesCounts, dbStats.LevelRead, dbStats.LevelWrite, dbStats.LevelDurations)
 	}
 }
 
