@@ -409,9 +409,11 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 
 		}
 		blockToMinersVerfs = append(blockToMinersVerfs, blockToMinerVerf)
+	}
+	if len(verifications) > 0 {
 		crontab.storage.AddRewards(verifications)
 	}
-	crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
+	//crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
 }
 
 func getMinerDetail(addr string, height uint64, bizType types.MinerType) *common2.MortGage {
