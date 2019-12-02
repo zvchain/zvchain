@@ -289,7 +289,7 @@ func (storage *Storage) AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs 
 	return true
 }
 
-func (storage *Storage) AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs []*models.BlockToMiner) bool {
+func (storage *Storage) AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs []*models.BlockToMiner, tx *gorm.DB) bool {
 
 	createSuccess, updateSucceess := true, true
 
@@ -301,7 +301,7 @@ func (storage *Storage) AddBlockToMinerSupplement(blockToMinersPrpses, blockToMi
 		return false
 	}
 	timeBegin := time.Now()
-	tx := storage.db.Begin()
+	//tx := storage.db.Begin()
 	for _, v := range blockToMinersPrpses {
 		if v != nil {
 			blockToMiners := make([]*models.BlockToMiner, 0)
@@ -323,11 +323,9 @@ func (storage *Storage) AddBlockToMinerSupplement(blockToMinersPrpses, blockToMi
 	}
 
 	if createSuccess && updateSucceess {
-		tx.Commit()
 		fmt.Println("[Storage]  AddBlockToMiner Success. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
 		return true
 	} else {
-		tx.Rollback()
 		fmt.Println("[Storage]  AddBlockToMiner Fail. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
 		return false
 	}
