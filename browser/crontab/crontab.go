@@ -270,18 +270,23 @@ func (crontab *Crontab) supplementBlockToMiner() {
 					continue
 				}
 				ids := verifierBonus.TargetIDs
-				idsString := ""
+				idsString := make([]string, 0)
 				for n := 0; n < len(ids); n++ {
-					idsString = fmt.Sprintf(idsString+"%s\r\n", ids[n].GetAddrString())
+					idsString = append(idsString, ids[n].GetAddrString())
+
 				}
 
 				blockToMinerVerf = &models.BlockToMiner{
 					BlockHeight:     block.BlockHeight,
 					RewardHeight:    uint64(i),
-					VerfNodeIDs:     idsString,
 					VerfNodeCnts:    uint64(len(ids)),
 					VerfReward:      verifierBonus.Value,
 					VerfTotalGasFee: block.VerifierGasFeeReward,
+				}
+
+				idsJSONString, err := json.Marshal(idsString)
+				if err == nil {
+					blockToMinerVerf.VerfNodeIDs = string(idsJSONString)
 				}
 				if v, err := strconv.ParseFloat(fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids))), 64); err == nil {
 					blockToMinerVerf.VerfSingleGasFee = v
@@ -376,7 +381,7 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 			gas := fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids)))
 			rewarMoney, _ := strconv.ParseFloat(gas, 64)
 
-			idsString := ""
+			idsString := make([]string, 0)
 			for n := 0; n < len(ids); n++ {
 				v := models.Reward{}
 				v.BlockHash = block.BlockHash
@@ -388,17 +393,22 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 				v.RewardHeight = localHeight
 				v.GasFee = rewarMoney
 				verifications = append(verifications, &v)
-				idsString = fmt.Sprintf(idsString+"%s\r\n", ids[n].GetAddrString())
+				idsString = append(idsString, ids[n].GetAddrString())
 			}
 
 			blockToMinerVerf = &models.BlockToMiner{
 				BlockHeight:     block.BlockHeight,
 				RewardHeight:    localHeight,
-				VerfNodeIDs:     idsString,
 				VerfNodeCnts:    uint64(len(ids)),
 				VerfReward:      verifierBonus.Value,
 				VerfTotalGasFee: block.VerifierGasFeeReward,
 			}
+
+			idsJSONString, err := json.Marshal(idsString)
+			if err == nil {
+				blockToMinerVerf.VerfNodeIDs = string(idsJSONString)
+			}
+
 			if v, err := strconv.ParseFloat(fmt.Sprintf("%.9f", float64(block.VerifierGasFeeReward)/float64(len(ids))), 64); err == nil {
 				blockToMinerVerf.VerfSingleGasFee = v
 			}
