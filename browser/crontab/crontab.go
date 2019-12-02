@@ -549,6 +549,7 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 	chain := core.BlockChainImpl
 	blockDetail := chain.QueryBlockCeil(localHeight)
 	if blockDetail != nil {
+		fmt.Println("[server]  consumeRewardforkhei:", maxHeight, ",", pre)
 		if maxHeight > pre {
 			server.storage.DeleteForkReward(pre, localHeight)
 		}

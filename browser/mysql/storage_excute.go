@@ -1318,7 +1318,7 @@ func (storage *Storage) DeleteForkReward(preHeight uint64, localHeight uint64) (
 	sql3 := fmt.Sprintf("UPDATE block_to_miners SET `reward_height` = null,`verf_node_ids`=null, `verf_node_cnts`=null, `verf_reward`=null, `verf_total_gas_fee`=null  WHERE (`reward_height` > %d)", preHeight)
 	if storage.db.Exec(sql2).Error == nil && storage.db.Exec(sql3).Error == nil {
 		tx.Commit()
-		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners success. preHeight:", preHeight, "localHeight", localHeight)
+		browserlog.BrowserLog.Info("[DeleteForkReward] commit block_to_miners success. preHeight:", preHeight, "localHeight", localHeight)
 	} else {
 		tx.Rollback()
 		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners fail. preHeight:", preHeight, "localHeight", localHeight)
