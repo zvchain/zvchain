@@ -119,7 +119,7 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
-	go crontab.supplementProposalReward()
+	//go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
 	go crontab.fetchConfirmRewardsToMinerBlock()
 	for {
@@ -306,18 +306,18 @@ func (crontab *Crontab) supplementProposalReward() {
 		existProposalReward := crontab.storage.ExistRewardBlockHeight(height)
 		if !existProposalReward {
 			b := chain.QueryBlockByHeight(uint64(height))
-			proposalReward := crontab.rpcExplore.GetProposalRewardByBlock(b)
+			proposalRewardBlock := crontab.rpcExplore.GetProposalRewardByBlock(b)
 			verifications := make([]*models.Reward, 0, 0)
-			if proposalReward != nil {
+			if proposalRewardBlock != nil {
 				proposalReward := &models.Reward{
 					Type:         uint64(types.MinerTypeProposal),
-					BlockHash:    proposalReward.BlockHash,
-					BlockHeight:  proposalReward.BlockHeight,
-					NodeId:       proposalReward.ProposalID,
-					Value:        proposalReward.ProposalReward,
-					CurTime:      proposalReward.CurTime,
+					BlockHash:    proposalRewardBlock.BlockHash,
+					BlockHeight:  proposalRewardBlock.BlockHeight,
+					NodeId:       proposalRewardBlock.ProposalID,
+					Value:        proposalRewardBlock.ProposalReward,
+					CurTime:      proposalRewardBlock.CurTime,
 					RewardHeight: uint64(height),
-					GasFee:       float64(proposalReward.ProposalGasFeeReward),
+					GasFee:       float64(proposalRewardBlock.ProposalGasFeeReward),
 				}
 				verifications = append(verifications, proposalReward)
 			}

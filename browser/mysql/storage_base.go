@@ -20,6 +20,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/zvchain/zvchain/browser/models"
+	"github.com/zvchain/zvchain/browser/util"
 	"time"
 )
 
@@ -222,6 +223,8 @@ func (storage *Storage) AddVerifications(verifications []*models.Verification) b
 }
 
 func (storage *Storage) AddRewards(rewards []*models.Reward) bool {
+	fmt.Println("[server]  AddRewardsjsonliebiao:", util.ObjectTojson(rewards))
+
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
