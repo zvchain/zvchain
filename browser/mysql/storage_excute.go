@@ -19,23 +19,24 @@ import (
 )
 
 const (
-	Blockrewardtopheight     = "block_reward.top_block_height"
-	Blocktopheight           = "block.top_block_height"
-	BlockStakeMappingHeight  = "block.stake_mapping_height"
-	Blockcurblockheight      = "block.cur_block_height"
-	BlockDeleteCount         = "block.delete_count"
-	Blockcurtranheight       = "block.cur_tran_height"
-	BlockSupplementCurHeight = "block.supp_cur_height"
-	BlockSupplementAimHeight = "block.supp_aim_height"
-
-	GroupTopHeight        = "group.top_group_height"
-	PrepareGroupTopHeight = "group.top_prepare_group_height"
-	DismissGropHeight     = "group.top_dismiss_group_height"
-	LIMIT                 = 20
-	ACCOUNTDBNAME         = "account_lists"
-	RECENTMINEBLOCKS      = "recent_mine_blocks"
-	MAXCONFIRMREWARDCOUNT = 1000
-	MINERLISTDBNAME       = "miner_lists"
+	Blockrewardtopheight                       = "block_reward.top_block_height"
+	Blocktopheight                             = "block.top_block_height"
+	BlockStakeMappingHeight                    = "block.stake_mapping_height"
+	Blockcurblockheight                        = "block.cur_block_height"
+	BlockDeleteCount                           = "block.delete_count"
+	Blockcurtranheight                         = "block.cur_tran_height"
+	BlockSupplementCurHeight                   = "block.supp_cur_height"
+	BlockSupplementAimHeight                   = "block.supp_aim_height"
+	BlockSupplementProposalrewardprocessHeight = "block.pro_reward_process_height"
+	BlockSupplementProposalrewardEndHeight     = "block.pro_reward_end_height"
+	GroupTopHeight                             = "group.top_group_height"
+	PrepareGroupTopHeight                      = "group.top_prepare_group_height"
+	DismissGropHeight                          = "group.top_dismiss_group_height"
+	LIMIT                                      = 20
+	ACCOUNTDBNAME                              = "account_lists"
+	RECENTMINEBLOCKS                           = "recent_mine_blocks"
+	MAXCONFIRMREWARDCOUNT                      = 1000
+	MINERLISTDBNAME                            = "miner_lists"
 )
 
 func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {

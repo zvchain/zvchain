@@ -119,9 +119,9 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
-	go crontab.supplementProposalReward()
-	go crontab.fetchOldBlockToMiner()
-	go crontab.fetchConfirmRewardsToMinerBlock()
+	//go crontab.supplementProposalReward()
+	//go crontab.fetchOldBlockToMiner()
+	//go crontab.fetchConfirmRewardsToMinerBlock()
 	for {
 		select {
 		case <-check10Sec.C:
@@ -129,12 +129,12 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
 			go crontab.UpdateCheckPoint()
-			go crontab.fetchOldBlockToMiner()
+			//go crontab.fetchOldBlockToMiner()
 
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
-			go crontab.fetchConfirmRewardsToMinerBlock()
+			//go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
 	}
@@ -311,7 +311,9 @@ func (crontab *Crontab) supplementBlockToMiner() {
 	}
 }
 
-func (crontab *Crontab) proposalsupplyrewarddata(chain *core.FullBlockChain, minheight uint64, maxheight uint64) {
+func (crontab *Crontab) proposalsupplyrewarddata(chain *core.FullBlockChain,
+	minheight uint64,
+	maxheight uint64, upsys bool) {
 
 	for height := int(minheight); height < int(maxheight); height++ {
 		existProposalReward := crontab.storage.ExistRewardBlockHeight(height)
@@ -334,14 +336,40 @@ func (crontab *Crontab) proposalsupplyrewarddata(chain *core.FullBlockChain, min
 			}
 			crontab.storage.AddRewards(verifications)
 		}
+		if upsys {
+			crontab.storage.GetDB().Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementProposalrewardprocessHeight).Update("value", height)
+		}
 	}
 }
-
 func (crontab *Crontab) supplementProposalReward() {
 
-	chain := core.BlockChainImpl
-	topheight := chain.Height()
-	crontab.proposalsupplyrewarddata(chain, 0, topheight)
+	sysConfig := make([]models.Sys, 0, 0)
+	crontab.storage.GetDB().Limit(1).Where("variable = ?", mysql.BlockSupplementProposalrewardprocessHeight).Find(&sysConfig)
+	maxsysConfig := make([]models.Sys, 0, 0)
+	crontab.storage.GetDB().Limit(1).Where("variable = ?", mysql.BlockSupplementProposalrewardEndHeight).Find(&maxsysConfig)
+
+	var minheight uint64
+	if len(sysConfig) > 0 {
+		minheight = sysConfig[0].Value
+	} else {
+		max := crontab.storage.MinConfirmBlockRewardHeight()
+		sys1 := &models.Sys{
+			Variable: mysql.BlockSupplementProposalrewardEndHeight,
+			Value:    max,
+			SetBy:    "xiaoli",
+		}
+		sys2 := &models.Sys{
+			Variable: mysql.BlockSupplementProposalrewardprocessHeight,
+			SetBy:    "xiaoli",
+			Value:    0,
+		}
+		crontab.storage.GetDB().Create(sys1)
+		crontab.storage.GetDB().Create(sys2)
+	}
+	if minheight < maxsysConfig[0].Value {
+		chain := core.BlockChainImpl
+		crontab.proposalsupplyrewarddata(chain, minheight, maxsysConfig[0].Value, true)
+	}
 }
 
 func (crontab *Crontab) fetchReward(localHeight uint64) {
@@ -436,7 +464,7 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 	if len(verifications) > 0 {
 		crontab.storage.AddRewards(verifications)
 	}
-	crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
+	//crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
 }
 
 func getMinerDetail(addr string, height uint64, bizType types.MinerType) *common2.MortGage {
@@ -1243,7 +1271,7 @@ func (crontab *Crontab) proposalrewardSupplementarydata(height uint64) {
 	chain := core.BlockChainImpl
 	verrewardheight := crontab.storage.MinBlockHeightverReward()
 	if verrewardheight > 0 {
-		crontab.proposalsupplyrewarddata(chain, verrewardheight, height)
+		crontab.proposalsupplyrewarddata(chain, verrewardheight, height, false)
 	}
 
 }
