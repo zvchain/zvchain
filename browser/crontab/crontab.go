@@ -119,9 +119,9 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
-	//go crontab.supplementProposalReward()
+	go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
-	//go crontab.fetchConfirmRewardsToMinerBlock()
+	go crontab.fetchConfirmRewardsToMinerBlock()
 	for {
 		select {
 		case <-check10Sec.C:
@@ -134,7 +134,7 @@ func (crontab *Crontab) loop() {
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
-			//go crontab.fetchConfirmRewardsToMinerBlock()
+			go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
 	}
@@ -423,7 +423,7 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 	if len(verifications) > 0 {
 		crontab.storage.AddRewards(verifications)
 	}
-	//crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
+	crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
 }
 
 func getMinerDetail(addr string, height uint64, bizType types.MinerType) *common2.MortGage {
