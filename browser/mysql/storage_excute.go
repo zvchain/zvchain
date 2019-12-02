@@ -487,7 +487,7 @@ func (storage *Storage) MinConfirmBlockRewardHeight() uint64 {
 		return 0
 	}
 	rewards := make([]models.Reward, 0, 0)
-	storage.db.Limit(1).Order("id ASC").Find(&rewards)
+	storage.db.Limit(1).Order("block_height ASC").Find(&rewards)
 	if len(rewards) > 0 {
 		return rewards[0].BlockHeight
 	}
