@@ -291,9 +291,17 @@ func (crontab *Crontab) supplementBlockToMiner() {
 			}
 			blockToMinersVerfs = append(blockToMinersVerfs, blockToMinerVerf)
 		}
-		crontab.storage.AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs)
-		curHeight++
-		crontab.storage.GetDB().Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementCurHeight).Update("value", curHeight)
+		tx := crontab.storage.GetDB().Begin()
+		if crontab.storage.AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs, tx) {
+			curHeight++
+			if tx.Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementCurHeight).Update("value", curHeight).Error == nil {
+				tx.Commit()
+			} else {
+				tx.Rollback()
+			}
+		} else {
+			tx.Rollback()
+		}
 	}
 	if aimHeight != 0 {
 		FinishSyncSupplementBlockToMiner = true
