@@ -16,9 +16,15 @@ type Explore struct{}
 type ExploreBlockReward struct {
 	BlockHash            string
 	BlockHeight          uint64
-	ProposalID           string             `json:"proposal_id"`
-	ProposalReward       uint64             `json:"proposal_reward"`
-	ProposalGasFeeReward uint64             `json:"proposal_gas_fee_reward"`
+	ProposalID           string    `json:"proposal_id"`
+	ProposalReward       uint64    `json:"proposal_reward"`
+	ProposalGasFeeReward uint64    `json:"proposal_gas_fee_reward"`
+	CurTime              time.Time `json:"cur_time" gorm:"index"`
+}
+
+type ExploreBlockVerifyReward struct {
+	BlockHash            string
+	BlockHeight          uint64
 	CurTime              time.Time          `json:"cur_time" gorm:"index"`
 	VerifierReward       *RewardTransaction `json:"verifier_reward"`
 	VerifierGasFeeReward uint64             `json:"verifier_gas_fee_reward"`
@@ -41,19 +47,19 @@ type RewardTransaction struct {
 	Success      bool          `json:"success"`
 }
 
-func (api *Explore) GetPreHightRewardByHeight(height uint64) []*ExploreBlockReward {
+func (api *Explore) GetPreHightRewardByHeight(height uint64) ([]*ExploreBlockVerifyReward, *ExploreBlockReward) {
 	chain := core.BlockChainImpl
 	b := chain.QueryBlockByHeight(height)
 	if b == nil {
-		return nil
+		return nil, nil
 
 	}
-	exploreBlockReward := make([]*ExploreBlockReward, 0, 0)
+	exploreBlockReward := make([]*ExploreBlockVerifyReward, 0, 0)
 	if b.Transactions != nil {
 		for _, tx := range b.Transactions {
 			if tx.IsReward() {
 				block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
-				reward := api.GetRewardByBlock(block)
+				reward := api.GetVerifyRewardByBlock(block)
 				if reward != nil {
 					reward.BlockHeight = block.Header.Height
 					reward.BlockHash = block.Header.Hash.Hex()
@@ -63,7 +69,8 @@ func (api *Explore) GetPreHightRewardByHeight(height uint64) []*ExploreBlockRewa
 			}
 		}
 	}
-	return exploreBlockReward
+	proposalReward := api.GetProposalRewardByBlock(b)
+	return exploreBlockReward, proposalReward
 
 }
 
@@ -77,8 +84,7 @@ func (api *Explore) ExplorerGroupsAfter(height uint64) []*models.Group {
 	}
 	return ret
 }
-
-func (api *Explore) GetRewardByBlock(b *types.Block) *ExploreBlockReward {
+func (api *Explore) GetProposalRewardByBlock(b *types.Block) *ExploreBlockReward {
 	chain := core.BlockChainImpl
 	if b == nil {
 		return nil
@@ -104,7 +110,22 @@ func (api *Explore) GetRewardByBlock(b *types.Block) *ExploreBlockReward {
 	}
 	share := rm.CalculateCastRewardShare(bh.Height, bh.GasFee)
 	ret.ProposalReward = share.ForBlockProposal + packedReward
+	ret.CurTime = bh.CurTime.Local()
+	ret.BlockHeight = bh.Height
+	ret.BlockHash = bh.Hash.Hex()
 	ret.ProposalGasFeeReward = share.FeeForProposer
+	return ret
+}
+
+func (api *Explore) GetVerifyRewardByBlock(b *types.Block) *ExploreBlockVerifyReward {
+	chain := core.BlockChainImpl
+	if b == nil {
+		return nil
+	}
+	bh := b.Header
+	rm := chain.GetRewardManager()
+	share := rm.CalculateCastRewardShare(bh.Height, bh.GasFee)
+	ret := &ExploreBlockVerifyReward{}
 	if rewardTx := chain.GetRewardManager().GetRewardTransactionByBlockHash(bh.Hash); rewardTx != nil {
 		genReward := convertRewardTransaction1(rewardTx)
 		genReward.Success = true
