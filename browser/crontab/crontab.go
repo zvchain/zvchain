@@ -552,7 +552,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards, proposalReward)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
-		mapMineBlockCount := blockrewarddata.MapMineBlockCount
+		//mapMineBlockCount := blockrewarddata.MapMineBlockCount
 
 		mapbalance := make(map[string]float64)
 		var balance float64
@@ -564,8 +564,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 		if crontab.storage.AddBlockRewardMysqlTransaction(accounts,
 			mapbalance,
 			mapcountplus,
-			crontab.blockRewardHeight) &&
-			crontab.storage.UpdateMineBlocks(mapMineBlockCount) {
+			crontab.blockRewardHeight) {
 			crontab.blockRewardHeight += 1
 		}
 		fmt.Println("Size excuteBlockRewards:", unsafe.Sizeof(blockrewarddata))
