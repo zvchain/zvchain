@@ -544,7 +544,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 	rewards, proposalReward := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
 	beginTime := time.Now()
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
-	if rewards != nil && len(rewards) > 0 {
+	if (rewards != nil && len(rewards) > 0) || proposalReward != nil {
 		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards, proposalReward)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
