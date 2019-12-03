@@ -314,31 +314,70 @@ func (crontab *Crontab) supplementBlockToMiner() {
 	}
 }
 
-func (crontab *Crontab) supplementProposalReward() {
-	chain := core.BlockChainImpl
-	topheight := chain.Height()
+func (crontab *Crontab) proposalsupplyrewarddata(chain *core.FullBlockChain,
+	minheight uint64,
+	maxheight uint64, upsys bool) {
+	fmt.Println("proposalsupplyrewarddata, height,", minheight, ",", maxheight)
 
-	for height := 0; height < int(topheight); height++ {
+	for height := int(minheight); height < int(maxheight); height++ {
 		existProposalReward := crontab.storage.ExistRewardBlockHeight(height)
 		if !existProposalReward {
+			fmt.Println("proposalsupplyrewarddata, sys,", height)
 			b := chain.QueryBlockByHeight(uint64(height))
-			proposalReward := crontab.rpcExplore.GetProposalRewardByBlock(b)
+			proposalRewardBlock := crontab.rpcExplore.GetProposalRewardByBlock(b)
 			verifications := make([]*models.Reward, 0, 0)
-			if proposalReward != nil {
+			if proposalRewardBlock != nil {
 				proposalReward := &models.Reward{
 					Type:         uint64(types.MinerTypeProposal),
-					BlockHash:    proposalReward.BlockHash,
-					BlockHeight:  proposalReward.BlockHeight,
-					NodeId:       proposalReward.ProposalID,
-					Value:        proposalReward.ProposalReward,
-					CurTime:      proposalReward.CurTime,
+					BlockHash:    proposalRewardBlock.BlockHash,
+					BlockHeight:  proposalRewardBlock.BlockHeight,
+					NodeId:       proposalRewardBlock.ProposalID,
+					Value:        proposalRewardBlock.ProposalReward,
+					CurTime:      proposalRewardBlock.CurTime,
 					RewardHeight: uint64(height),
-					GasFee:       float64(proposalReward.ProposalGasFeeReward),
+					GasFee:       float64(proposalRewardBlock.ProposalGasFeeReward),
 				}
 				verifications = append(verifications, proposalReward)
 			}
 			crontab.storage.AddRewards(verifications)
 		}
+		if upsys {
+			crontab.storage.GetDB().Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementProposalrewardprocessHeight).Update("value", height)
+		}
+	}
+}
+func (crontab *Crontab) supplementProposalReward() {
+
+	sysConfig := make([]models.Sys, 0, 0)
+	crontab.storage.GetDB().Limit(1).Where("variable = ?", mysql.BlockSupplementProposalrewardprocessHeight).Find(&sysConfig)
+	maxsysConfig := make([]models.Sys, 0, 0)
+	crontab.storage.GetDB().Limit(1).Where("variable = ?", mysql.BlockSupplementProposalrewardEndHeight).Find(&maxsysConfig)
+	var minheight, max uint64
+	if len(sysConfig) > 0 {
+		minheight = sysConfig[0].Value
+		max = maxsysConfig[0].Value
+		if max == 0 {
+			max = crontab.storage.MaxConfirmBlockRewardHeight()
+			crontab.storage.GetDB().Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementProposalrewardEndHeight).Update("value", max)
+		}
+	} else {
+		max = crontab.storage.MaxConfirmBlockRewardHeight()
+		sys1 := &models.Sys{
+			Variable: mysql.BlockSupplementProposalrewardEndHeight,
+			Value:    max,
+			SetBy:    "xiaoli",
+		}
+		sys2 := &models.Sys{
+			Variable: mysql.BlockSupplementProposalrewardprocessHeight,
+			SetBy:    "xiaoli",
+			Value:    0,
+		}
+		crontab.storage.GetDB().Create(sys1)
+		crontab.storage.GetDB().Create(sys2)
+	}
+	if minheight < max {
+		chain := core.BlockChainImpl
+		crontab.proposalsupplyrewarddata(chain, minheight, max, true)
 	}
 }
 
@@ -430,6 +469,8 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 
 		}
 		blockToMinersVerfs = append(blockToMinersVerfs, blockToMinerVerf)
+	}
+	if len(verifications) > 0 {
 		crontab.storage.AddRewards(verifications)
 	}
 	crontab.storage.AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs)
@@ -507,7 +548,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 	rewards, proposalReward := crontab.rpcExplore.GetPreHightRewardByHeight(crontab.blockRewardHeight)
 	beginTime := time.Now()
 	fmt.Println("[crontab]  fetchBlockRewards height:", crontab.blockRewardHeight, "delay:", time.Since(beginTime))
-	if rewards != nil && len(rewards) > 0 {
+	if (rewards != nil && len(rewards) > 0) || proposalReward != nil {
 		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards, proposalReward)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
@@ -1209,6 +1250,7 @@ func (crontab *Crontab) rewardDataCompensationProcess(notifyHeight uint64, notif
 		dbMaxHeight := crontab.rewardStorageDataHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
 			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight)
+			crontab.proposalrewardSupplementarydata(dbMaxHeight)
 			crontab.rewarddataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInitedReward = true
@@ -1235,6 +1277,15 @@ func (crontab *Crontab) dataCompensation(dbMaxHeight uint64, notifyPreHeight uin
 	browserlog.BrowserLog.Info("[Storage]  dataCompensationProcess procee: ", crontab.blockTopHeight)
 	if crontab.blockTopHeight <= notifyPreHeight {
 		crontab.dataCompensation(crontab.blockTopHeight, notifyPreHeight)
+	}
+
+}
+
+func (crontab *Crontab) proposalrewardSupplementarydata(height uint64) {
+	chain := core.BlockChainImpl
+	verrewardheight := crontab.storage.MinBlockHeightverReward()
+	if verrewardheight > 0 {
+		crontab.proposalsupplyrewarddata(chain, verrewardheight, height, false)
 	}
 
 }
