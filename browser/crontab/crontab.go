@@ -238,7 +238,7 @@ func (crontab *Crontab) supplementBlockToMiner() {
 	var curHeight uint64 = 0
 	crontab.storage.GetDB().Model(&models.Sys{}).Select("value").Where("variable = ?", mysql.BlockSupplementCurHeight).Row().Scan(&curHeight)
 
-	for i := curHeight; i < SupplementBlockToMinerHeight; i++ {
+	for i := curHeight; i <= SupplementBlockToMinerHeight; i++ {
 		blocks, proposalReward := crontab.rpcExplore.GetPreHightRewardByHeight(uint64(i))
 		if proposalReward == nil && len(blocks) == 0 {
 			fmt.Println("[server]  fetchVerfications empty:", i)
@@ -250,7 +250,7 @@ func (crontab *Crontab) supplementBlockToMiner() {
 		blockToMinerVerf := &models.BlockToMiner{}
 		blockToMinerPrps := &models.BlockToMiner{}
 
-		if proposalReward != nil {
+		if proposalReward != nil && i != SupplementBlockToMinerHeight {
 
 			blockToMinerPrps = &models.BlockToMiner{
 				BlockHeight: proposalReward.BlockHeight,
@@ -296,8 +296,7 @@ func (crontab *Crontab) supplementBlockToMiner() {
 		}
 		tx := crontab.storage.GetDB().Begin()
 		if crontab.storage.AddBlockToMinerSupplement(blockToMinersPrpses, blockToMinersVerfs, tx) {
-			curHeight++
-			if tx.Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementCurHeight).Update("value", curHeight).Error == nil {
+			if tx.Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementCurHeight).Update("value", i).Error == nil {
 				tx.Commit()
 			} else {
 				tx.Rollback()
