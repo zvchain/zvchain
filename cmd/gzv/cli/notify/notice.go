@@ -41,6 +41,7 @@ func NewVersionChecker() *VersionChecker {
 func InitVersionChecker() {
 	defer func() {
 		if err := recover(); err != nil {
+			log.DefaultLogger.Errorln("InitVersionChecker err:", err)
 			fmt.Println("InitVersionChecker err:", err)
 		}
 	}()
@@ -98,7 +99,7 @@ func NewNotifyManager() *NotifyManager {
 func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println("processOutput err:", err)
+			log.DefaultLogger.Errorln("processOutput err:", err)
 		}
 	}()
 
