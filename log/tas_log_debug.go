@@ -24,6 +24,7 @@ var StatisticsLogger = logrus.StandardLogger()
 var TVMLogger = logrus.StandardLogger()
 var PerformLogger = logrus.StandardLogger()
 var ELKLogger = logrus.StandardLogger()
+var MeterLogger = logrus.StandardLogger()
 
 const (
 	MaxFileSize     = 1024 * 1024 * 200

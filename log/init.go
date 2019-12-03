@@ -30,5 +30,6 @@ func Init() {
 	StatisticsLogger = RusPlus.Logger(logsDir+"statistics", MaxFileSize, DefaultMaxFiles, Level)
 	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, DefaultMaxFiles, Level)
 	PerformLogger = RusPlus.Logger(logsDir+"perform", MaxFileSize, DefaultMaxFiles, Level)
+	MeterLogger = RusPlus.Logger(logsDir+"meter", MaxFileSize, DefaultMaxFiles, Level)
 	InitElk(logsDir)
 }

@@ -279,10 +279,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 }
 
 func (chain *FullBlockChain) LogDbStats() {
-	tc := time.NewTicker(15 * time.Second)
+	tc := time.NewTicker(3 * time.Second)
 	go func() {
 		for range tc.C {
-			chain.stateDb.LogStats(Logger)
+			chain.stateDb.LogStats(log.MeterLogger)
 		}
 	}()
 }

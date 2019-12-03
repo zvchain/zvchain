@@ -21,6 +21,7 @@ package tasdb
 import (
 	"bytes"
 	"os"
+	"runtime/debug"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -140,6 +141,14 @@ func (db *PrefixedDatabase) addKVToBatch(b Batch, k, v []byte) error {
 var dbStats = &leveldb.DBStats{}
 
 func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("error：%v\n", r)
+			s := debug.Stack()
+			logger.Errorf(string(s))
+		}
+	}()
+
 	byte2MB := 1048576
 	lastWrite := dbStats.IOWrite / uint64(byte2MB)
 	lastRead := dbStats.IORead / uint64(byte2MB)
