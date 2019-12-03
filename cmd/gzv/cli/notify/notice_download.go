@@ -46,7 +46,7 @@ func (vc *VersionChecker) download() error {
 	}
 	vc.filesize = fsize
 	if isFileExist(targetFile+filename, fsize) {
-		fmt.Println("Installation package already exists ！\n")
+		fmt.Println("Installation package already exists ！")
 		return nil
 	}
 
@@ -69,7 +69,7 @@ func (vc *VersionChecker) download() error {
 	err = CheckMD5(targetFile+filename, vc.fileUpdateLists.Packgemd5)
 	if err != nil {
 		os.Remove(targetFile + filename)
-		return fmt.Errorf("Failed to checkMD5, downloaded file has been removed /n", err)
+		return fmt.Errorf("Failed to checkMD5, downloaded file has been removed ,err : %v \n", err)
 	}
 
 	err = DeCompressByPath(targetFile+filename, targetFile)
@@ -77,8 +77,8 @@ func (vc *VersionChecker) download() error {
 		return err
 	}
 
-	fmt.Println("The latest version of GzV has been downloaded successfully\n")
-	log.DefaultLogger.Info("The latest version of GzV has been downloaded successfully\n ")
+	fmt.Println("The latest version of GzV has been downloaded successfully")
+	log.DefaultLogger.Info("The latest version of GzV has been downloaded successfully ")
 
 	return nil
 }
@@ -148,17 +148,17 @@ func DeCompress(srcFile *os.File, dest string) error {
 		}
 		srcFile, err := innerFile.Open()
 		if err != nil {
-			return fmt.Errorf("Unzip File Error : ", err)
+			return fmt.Errorf("Unzip File Error : %v\n", err)
 		}
 		defer srcFile.Close()
 		newFile, err := os.Create(dest + innerFile.Name)
 		if err != nil {
-			return fmt.Errorf("Unzip File Error : ", err)
+			return fmt.Errorf("Unzip File Error : %v\n", err)
 		}
 		defer newFile.Close()
 		err = os.Chmod(dest+innerFile.Name, 0777)
 		if err != nil {
-			return fmt.Errorf("Unzip File Error : ", err)
+			return fmt.Errorf("Unzip File Error : %v\n", err)
 		}
 
 		io.Copy(newFile, srcFile)

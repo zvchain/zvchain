@@ -56,33 +56,71 @@ func requestVersion() (*Notice, error) {
 		return nil, fmt.Errorf("version response is empty\n")
 	}
 
-	n := res.Data.(map[string]interface{})["data"].(map[string]interface{})
+	if n, ok := res.Data.(map[string]interface{})["data"].(map[string]interface{}); ok {
 
-	notice.Version = n["version"].(string)
-	notice.NotifyGap = uint64(n["notifyGap"].(float64))
-	notice.EffectiveHeight = uint64(n["effectiveHeight"].(float64))
-	notice.Priority = uint64(n["priority"].(float64))
-	notice.NoticeContent = n["noticeContent"].(string)
+		v, ok := n["version"].(string)
+		if ok {
+			notice.Version = v
+		}
 
-	list := make(map[string]interface{}, 0)
+		ng, ok := n["notifyGap"].(float64)
+		if ok {
+			notice.NotifyGap = uint64(ng)
+		}
 
-	switch System {
-	case "darwin":
-		list = n["update_for_drawin"].(map[string]interface{})
-	case "linux":
-		list = n["update_for_linux"].(map[string]interface{})
-	case "windows":
-		list = n["update_for_windows"].(map[string]interface{})
+		eh, ok := n["effectiveHeight"].(float64)
+		if ok {
+			notice.EffectiveHeight = uint64(eh)
+		}
+
+		pr, ok := n["priority"].(float64)
+		if ok {
+			notice.EffectiveHeight = uint64(pr)
+		}
+
+		nc, ok := n["noticeContent"].(string)
+		if ok {
+			notice.NoticeContent = nc
+		}
+
+		list := make(map[string]interface{}, 0)
+
+		switch System {
+		case "darwin":
+			list, ok = n["update_for_drawin"].(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("assertion err")
+			}
+		case "linux":
+			list, ok = n["update_for_linux"].(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("assertion err")
+			}
+		case "windows":
+			list, ok = n["update_for_windows"].(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("assertion err")
+			}
+		}
+
+		url, ok := list["packge_url"].(string)
+		if ok {
+			notice.UpdateInfo.PackgeUrl = url
+		}
+
+		md5, ok := list["packge_md5"].(string)
+		if ok {
+			notice.UpdateInfo.Packgemd5 = md5
+		}
+
+		updateFileList, ok := list["filelist"].([]interface{})
+		if ok {
+			for _, file := range updateFileList {
+				notice.UpdateInfo.Filelist = append(notice.UpdateInfo.Filelist, file.(string))
+			}
+		}
+		fmt.Printf("notice : %v [%v] \n", notice, notice.UpdateInfo)
 	}
 
-	notice.UpdateInfo.PackgeUrl = list["packge_url"].(string)
-	notice.UpdateInfo.Packgemd5 = list["packge_md5"].(string)
-	updateFileList := list["filelist"].([]interface{})
-	for _, file := range updateFileList {
-		notice.UpdateInfo.Filelist = append(notice.UpdateInfo.Filelist, file.(string))
-	}
-
-	fmt.Printf("notice : %v [%v]", notice, notice.UpdateInfo)
-
-	return notice, nil
+	return notice, err
 }

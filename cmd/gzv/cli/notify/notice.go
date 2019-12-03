@@ -2,6 +2,7 @@ package notify
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"runtime"
 	"time"
@@ -9,14 +10,14 @@ import (
 
 const OldVersion = false
 const NewVersion = true
-const NoticeDB = "db_notify"
 const UpdatePath = "update"
 const System = runtime.GOOS
 const CheckVersioGap = time.Hour
 const Timeout = time.Second * 60
+const DefaultRequestURL = "http://127.0.0.1:8000/request"
 
 var (
-	RequestUrl = "http://127.0.0.1:8000/request"
+	RequestUrl string
 )
 
 type VersionChecker struct {
@@ -38,6 +39,12 @@ func NewVersionChecker() *VersionChecker {
 }
 
 func InitVersionChecker() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("InitVersionChecker err:", err)
+		}
+	}()
+	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", DefaultRequestURL)
 	vc := NewVersionChecker()
 	nm := NewNotifyManager()
 
@@ -60,7 +67,7 @@ func InitVersionChecker() {
 
 				//Check if the latest version has been downloaded locally
 				if isFileExist(UpdatePath+"/"+vc.version+"/"+vc.downloadFilename, vc.filesize) {
-					fmt.Println("The latest version has been downloaded locally, but not yet run\n")
+					fmt.Println("The latest version has been downloaded locally, but not yet run")
 					continue
 				}
 
@@ -89,6 +96,12 @@ func NewNotifyManager() *NotifyManager {
 }
 
 func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("processOutput err:", err)
+		}
+	}()
+
 	gap := nm.versionChecker.notifyGap
 	for {
 		select {
