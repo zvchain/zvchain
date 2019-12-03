@@ -28,12 +28,12 @@ type VersionChecker struct {
 	noticeContent    string
 	filesize         int64
 	downloadFilename string
-	fileUpdateLists  *UpdateInfos
+	fileUpdateLists  *UpdateInfo
 }
 
 func NewVersionChecker() *VersionChecker {
 	versionChecker := &VersionChecker{
-		fileUpdateLists: &UpdateInfos{},
+		fileUpdateLists: &UpdateInfo{},
 	}
 	return versionChecker
 }
@@ -55,6 +55,7 @@ func InitVersionChecker() {
 		select {
 		case <-ctiker.C:
 			//Check if the local running program is the latest version
+			log.DefaultLogger.Infoln("start checkversion ...")
 			bl, err := vc.checkversion()
 			if err != nil {
 				log.DefaultLogger.Errorln(err)
@@ -68,16 +69,18 @@ func InitVersionChecker() {
 
 				//Check if the latest version has been downloaded locally
 				if isFileExist(UpdatePath+"/"+vc.version+"/"+vc.downloadFilename, vc.filesize) {
+					log.DefaultLogger.Errorln("The latest version has been downloaded locally, but not yet run")
 					fmt.Println("The latest version has been downloaded locally, but not yet run")
 					continue
 				}
-
+				log.DefaultLogger.Infoln("start download ...")
 				err := vc.download()
 				if err != nil {
 					log.DefaultLogger.Errorln(err)
 					fmt.Println(" DownLoad Err :", err)
 					continue
 				}
+
 			}
 		}
 	}

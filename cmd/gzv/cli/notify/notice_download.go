@@ -17,7 +17,7 @@ import (
 
 func (vc *VersionChecker) download() error {
 	var (
-		durl       = vc.fileUpdateLists.PackgeUrl
+		durl       = vc.fileUpdateLists.PackageUrl
 		fsize      int64
 		err        error
 		res        *http.Response
@@ -66,7 +66,7 @@ func (vc *VersionChecker) download() error {
 		return err
 	}
 
-	err = CheckMD5(targetFile+filename, vc.fileUpdateLists.Packgemd5)
+	err = CheckMD5(targetFile+filename, vc.fileUpdateLists.Packagemd5)
 	if err != nil {
 		os.Remove(targetFile + filename)
 		return fmt.Errorf("Failed to checkMD5, downloaded file has been removed ,err : %v \n", err)
@@ -78,7 +78,7 @@ func (vc *VersionChecker) download() error {
 	}
 
 	fmt.Println("The latest version of GzV has been downloaded successfully")
-	log.DefaultLogger.Info("The latest version of GzV has been downloaded successfully ")
+	log.DefaultLogger.Infoln("The latest version of GzV has been downloaded successfully ")
 
 	return nil
 }

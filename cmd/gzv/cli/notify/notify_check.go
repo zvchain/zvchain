@@ -26,7 +26,7 @@ func (vc *VersionChecker) checkversion() (bool, error) {
 	vc.effectiveHeight = notice.EffectiveHeight
 	vc.priority = notice.Priority
 	vc.noticeContent = notice.NoticeContent
-	vc.fileUpdateLists = notice.UpdateInfo
+	vc.fileUpdateLists = notice.UpdateInfos
 
 	return OldVersion, nil
 }
@@ -49,7 +49,7 @@ func requestVersion() (*Notice, error) {
 	}
 
 	notice := &Notice{
-		UpdateInfo: &UpdateInfos{},
+		UpdateInfos: &UpdateInfo{},
 	}
 
 	if res.Data == nil {
@@ -63,12 +63,12 @@ func requestVersion() (*Notice, error) {
 			notice.Version = v
 		}
 
-		ng, ok := n["notifyGap"].(float64)
+		ng, ok := n["notify_gap"].(float64)
 		if ok {
 			notice.NotifyGap = uint64(ng)
 		}
 
-		eh, ok := n["effectiveHeight"].(float64)
+		eh, ok := n["effective_height"].(float64)
 		if ok {
 			notice.EffectiveHeight = uint64(eh)
 		}
@@ -78,7 +78,7 @@ func requestVersion() (*Notice, error) {
 			notice.EffectiveHeight = uint64(pr)
 		}
 
-		nc, ok := n["noticeContent"].(string)
+		nc, ok := n["notice_content"].(string)
 		if ok {
 			notice.NoticeContent = nc
 		}
@@ -87,7 +87,7 @@ func requestVersion() (*Notice, error) {
 
 		switch System {
 		case "darwin":
-			list, ok = n["update_for_drawin"].(map[string]interface{})
+			list, ok = n["update_for_darwin"].(map[string]interface{})
 			if !ok {
 				return nil, fmt.Errorf("assertion err")
 			}
@@ -103,23 +103,23 @@ func requestVersion() (*Notice, error) {
 			}
 		}
 
-		url, ok := list["packge_url"].(string)
+		url, ok := list["package_url"].(string)
 		if ok {
-			notice.UpdateInfo.PackgeUrl = url
+			notice.UpdateInfos.PackageUrl = url
 		}
 
-		md5, ok := list["packge_md5"].(string)
+		md5, ok := list["package_md5"].(string)
 		if ok {
-			notice.UpdateInfo.Packgemd5 = md5
+			notice.UpdateInfos.Packagemd5 = md5
 		}
 
-		updateFileList, ok := list["filelist"].([]interface{})
+		updateFileList, ok := list["file_list"].([]interface{})
 		if ok {
 			for _, file := range updateFileList {
-				notice.UpdateInfo.Filelist = append(notice.UpdateInfo.Filelist, file.(string))
+				notice.UpdateInfos.Filelist = append(notice.UpdateInfos.Filelist, file.(string))
 			}
 		}
-		fmt.Printf("notice : %v [%v] \n", notice, notice.UpdateInfo)
+		fmt.Printf("VersionInfo : %v [%v] \n", notice, notice.UpdateInfos)
 	}
 
 	return notice, err
