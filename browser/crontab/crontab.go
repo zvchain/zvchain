@@ -313,10 +313,12 @@ func (crontab *Crontab) supplementBlockToMiner() {
 func (crontab *Crontab) proposalsupplyrewarddata(chain *core.FullBlockChain,
 	minheight uint64,
 	maxheight uint64, upsys bool) {
+	fmt.Println("proposalsupplyrewarddata, height,", minheight, ",", maxheight)
 
 	for height := int(minheight); height < int(maxheight); height++ {
 		existProposalReward := crontab.storage.ExistRewardBlockHeight(height)
 		if !existProposalReward {
+			fmt.Println("proposalsupplyrewarddata, sys,", height)
 			b := chain.QueryBlockByHeight(uint64(height))
 			proposalRewardBlock := crontab.rpcExplore.GetProposalRewardByBlock(b)
 			verifications := make([]*models.Reward, 0, 0)
