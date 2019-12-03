@@ -140,13 +140,6 @@ func (db *PrefixedDatabase) addDeleteToBatch(b Batch, k []byte) error {
 	return b.Delete(key)
 }
 
-func (db *PrefixedDatabase) GetProperty(propName string) (value string, err error) {
-	if propName == ""{
-		propName = "leveldb.stats"
-	}
-	return db.db.db.GetProperty(propName)
-}
-
 func (db *PrefixedDatabase) Compact(start []byte, limit []byte) error {
 	return db.db.db.CompactRange(util.Range{Start: start, Limit: limit})
 }

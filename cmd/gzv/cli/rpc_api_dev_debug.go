@@ -72,10 +72,6 @@ func (api *RpcDevImpl) DebugGetRawTx(hash string) (*Transaction, error) {
 	return nil, nil
 }
 
-func (api *RpcDevImpl) DebugGetDbProp(propName string) (string, error) {
-	return core.BlockChainImpl.GetProperty(propName)
-}
-
 // DebugChaindbCompact starts a compaction with given range. if both start and limit are empty, it will start a full compaction.
 func (api *RpcDevImpl) DebugChaindbCompact(start string, limit string) error {
 	var (
