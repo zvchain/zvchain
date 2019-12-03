@@ -352,11 +352,11 @@ func (crontab *Crontab) supplementProposalReward() {
 		minheight = sysConfig[0].Value
 		max = maxsysConfig[0].Value
 		if max == 0 {
-			max = crontab.storage.MinConfirmBlockRewardHeight()
+			max = crontab.storage.MaxConfirmBlockRewardHeight()
 			crontab.storage.GetDB().Model(&models.Sys{}).Where("variable = ?", mysql.BlockSupplementProposalrewardEndHeight).Update("value", max)
 		}
 	} else {
-		max = crontab.storage.MinConfirmBlockRewardHeight()
+		max = crontab.storage.MaxConfirmBlockRewardHeight()
 		sys1 := &models.Sys{
 			Variable: mysql.BlockSupplementProposalrewardEndHeight,
 			Value:    max,
