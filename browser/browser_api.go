@@ -241,14 +241,19 @@ func (tm *DBMmanagement) CreateOrUpdateStakeMapping(stakeList map[string]map[str
 			tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Find(&stakeMapping)
 			if len(stakeMapping) > 0 {
 				// update
-				tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Updates(*v2)
+				err := tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Updates(
+					map[string]interface{}{
+						"prps_act_stake": v2.PrpsActStake,
+						"prps_frz_stake": v2.PrpsFrzStake,
+						"verf_act_stake": v2.VerfActStake,
+						"verf_frz_stake": v2.VerfFrzStake,
+					}).Error
+				fmt.Println(err)
 
 			} else {
 				//create
 				tm.storage.GetDB().Model(&models.StakeMapping{}).Create(v2)
-
 			}
-
 		}
 		tm.UpdateAccountList(src)
 	}
