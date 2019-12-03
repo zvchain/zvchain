@@ -11,5 +11,5 @@ var (
 )
 
 func InitLog() {
-	BrowserLog = log.RusPlus.Logger(logsDir+"browser", log.MaxFileSize, 2, log.Level)
+	BrowserLog = log.RusPlus.Logger(logsDir+"browser", log.MaxFileSize, log.DefaultMaxFiles, log.Level)
 }

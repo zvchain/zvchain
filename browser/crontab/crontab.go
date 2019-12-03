@@ -106,6 +106,7 @@ func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
 		check30Min = time.NewTicker(check30MinInterval)
+		//check1Hour = time.NewTicker(check1HourInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
@@ -119,9 +120,11 @@ func (crontab *Crontab) loop() {
 	go crontab.ConsumeReward()
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
+	go crontab.SearchTempDeployToken()
 	go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
-	go crontab.fetchConfirmRewardsToMinerBlock()
+	//go crontab.fetchConfirmRewardsToMinerBlock()
+
 	for {
 		select {
 		case <-check10Sec.C:
@@ -134,7 +137,8 @@ func (crontab *Crontab) loop() {
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
-			go crontab.fetchConfirmRewardsToMinerBlock()
+
+			//go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
 	}
@@ -548,7 +552,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 		blockrewarddata := crontab.transfer.RewardsToAccounts(rewards, proposalReward)
 		accounts := blockrewarddata.MapReward
 		mapcountplus := blockrewarddata.MapBlockCount
-		mapMineBlockCount := blockrewarddata.MapMineBlockCount
+		//mapMineBlockCount := blockrewarddata.MapMineBlockCount
 
 		mapbalance := make(map[string]float64)
 		var balance float64
@@ -560,8 +564,7 @@ func (crontab *Crontab) excuteBlockRewards() {
 		if crontab.storage.AddBlockRewardMysqlTransaction(accounts,
 			mapbalance,
 			mapcountplus,
-			crontab.blockRewardHeight) &&
-			crontab.storage.UpdateMineBlocks(mapMineBlockCount) {
+			crontab.blockRewardHeight) {
 			crontab.blockRewardHeight += 1
 		}
 		fmt.Println("Size excuteBlockRewards:", unsafe.Sizeof(blockrewarddata))
@@ -618,9 +621,11 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 					transContract = append(transContract, tran)
 
 					//是否有transfer log
-					for _, log := range blockDetail.Receipts[i].Logs {
-						if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
-							server.storage.AddTokenContract(tran, log)
+					if blockDetail.Receipts[i] != nil {
+						for _, log := range blockDetail.Receipts[i].Logs {
+							if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
+								server.storage.AddTokenContract(tran, log)
+							}
 						}
 					}
 				}
@@ -1080,9 +1085,13 @@ func (crontab *Crontab) fetchOldLogs() {
 	if len(logs) == 0 {
 		txs := make([]*models.Transaction, 0)
 		crontab.storage.GetDB().Model(&models.Transaction{}).Where("type = ?", types.TransactionTypeContractCall).Find(&txs)
+		heights := make(map[uint64]bool)
+		for _, tx := range txs {
+			heights[tx.BlockHeight] = true
+		}
 		if len(txs) > 0 {
-			for _, tx := range txs {
-				blockDetail, _ := crontab.fetcher.ExplorerBlockDetail(tx.BlockHeight)
+			for height, _ := range heights {
+				blockDetail, _ := crontab.fetcher.ExplorerBlockDetail(height)
 				if blockDetail != nil {
 					for i := 0; i < len(blockDetail.Receipts); i++ {
 						blockDetail.Receipts[i].BlockHash = blockDetail.Block.Hash

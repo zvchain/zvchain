@@ -135,6 +135,11 @@ func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
 		accounts = append(accounts, miner)
 	}
 
+	// guardian accounts
+	for _, guardNode := range types.GetGuardAddress() {
+		accounts = append(accounts, guardNode.AddrPrefixString())
+	}
+
 	for _, miner := range accounts {
 		targetAddrInfo := tm.storage.GetAccountById(miner)
 		accounts := &models.AccountList{}

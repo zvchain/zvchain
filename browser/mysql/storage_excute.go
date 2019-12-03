@@ -9,6 +9,7 @@ import (
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/util"
+	"github.com/zvchain/zvchain/cmd/gzv/cli"
 	common2 "github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/tvm"
@@ -702,6 +703,7 @@ func (storage *Storage) AddContractCallTransaction(contract *models.ContractCall
 }
 
 func (storage *Storage) Reward2MinerBlock(height uint64) bool {
+
 	rewards := make([]*models.Reward, 0)
 	storage.db.Where("block_height = ?", height).Find(&rewards)
 	if len(rewards) < 1 {
@@ -709,6 +711,7 @@ func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 	}
 	isSuccess := false
 	tx := storage.db.Begin()
+
 	for _, reward := range rewards {
 		if !errors(upMinerBlock(tx, reward.NodeId, reward.BlockHeight, reward.Type)) {
 			return false
@@ -905,19 +908,17 @@ func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.L
 		source := gjson.Get(log.Data, "args.0").String()
 		target := gjson.Get(log.Data, "args.1").String()
 		value := gjson.Get(log.Data, "args.2").Raw
-		fmt.Println("AddTokenContract", source, target)
+		browserlog.BrowserLog.Info("AddTokenContract,", source, ",", target, ",", value)
 		if source == "" || target == "" {
 			return
 		}
 		realValue := &big.Int{}
 		realValue.SetString(value, 10)
 		if len(tokenContracts) == 0 {
-			fmt.Println("IsTokenContract", source, target, log.Address)
-
-			if !common.IsTokenContract(common2.StringToAddress(log.Address)) {
+			if !cli.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
 				return
 			}
-			fmt.Println("IsTokenContract,", tran)
+			browserlog.BrowserLog.Info("IsTokenContract,", tran.ContractAddress)
 
 			//create
 			chain := core.BlockChainImpl
@@ -1153,7 +1154,7 @@ func (storage *Storage) AddLogs(receipts []*models.Receipt, trans []*models.Tran
 								Status:       1,
 							}
 							if maptran[receipts[i].Logs[j].TxHash] != nil {
-								contractCall.CurTime = maptran[receipts[i].Logs[j].TxHash].CurTime
+								contractCall.CurTime = &maptran[receipts[i].Logs[j].TxHash].CurTime
 							}
 							storage.AddContractCallTransaction(contractCall)
 
@@ -1287,11 +1288,14 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, cu
 	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
 	logSql := fmt.Sprintf("DELETE  FROM logs WHERE block_number > %d", preHeight)
 	contractTransSql := fmt.Sprintf("DELETE  FROM contract_transactions WHERE block_height > %d", preHeight)
+	tokenTransSql := fmt.Sprintf("DELETE  FROM token_contract_transactions WHERE block_height > %d", preHeight)
+
 	blockCount := storage.db.Exec(blockSql)
 	transactionCount := storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
 	storage.db.Exec(logSql)
 	go storage.db.Exec(contractTransSql)
+	go storage.db.Exec(tokenTransSql)
 
 	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
 		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)
