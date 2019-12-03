@@ -2,9 +2,7 @@ package common
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
@@ -272,46 +270,6 @@ func (tm *Fetcher) Fetchbalance(addr string) float64 {
 	balance := common.RA2TAS(b.Uint64())
 
 	return balance
-}
-
-func HasTransferFunc(code string) bool {
-	stringSlice := strings.Split(code, "\n")
-	for k, targetString := range stringSlice {
-		targetString = strings.TrimSpace(targetString)
-		if strings.HasPrefix(targetString, "@register.public") {
-			if len(stringSlice) > k+1 {
-				if strings.Index(stringSlice[k+1], " transfer(") != -1 {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-func IsTokenContract(contractAddr common.Address) bool {
-	chain := core.BlockChainImpl
-	db, err := chain.LatestAccountDB()
-	if err != nil {
-		browserlog.BrowserLog.Error("isTokenContract: ", err)
-		return false
-	}
-	code := db.GetCode(contractAddr)
-	contract := tvm.Contract{}
-	fmt.Println("IsTokenContract json,", string(code))
-	err = json.Unmarshal(code, &contract)
-	if err != nil {
-		browserlog.BrowserLog.Error("isTokenContract err: ", err)
-		return false
-	}
-	if HasTransferFunc(contract.Code) {
-		symbol := db.GetData(contractAddr, []byte("symbol"))
-		fmt.Println("IsTokenContract HasTransferFunc,", symbol)
-
-		if len(symbol) >= 1 && symbol[0] == 's' {
-			return true
-		}
-	}
-	return false
 }
 
 func QueryAccountData(addr string, key string, count int) (interface{}, error) {
