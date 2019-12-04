@@ -283,7 +283,7 @@ func (chain *FullBlockChain) LogDbStats() {
 	if dbInterval <= 0 {
 		return
 	}
-	tc := time.NewTicker(3 * time.Second)
+	tc := time.NewTicker(time.Duration(dbInterval) * time.Second)
 	go func() {
 		for range tc.C {
 			chain.stateDb.LogStats(log.MeterLogger)
