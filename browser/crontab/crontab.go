@@ -121,9 +121,9 @@ func (crontab *Crontab) loop() {
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
 	go crontab.SearchTempDeployToken()
-	go crontab.supplementProposalReward()
+	//go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
-	//go crontab.fetchConfirmRewardsToMinerBlock()
+	go crontab.fetchConfirmRewardsToMinerBlock()
 
 	for {
 		select {
@@ -132,13 +132,13 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
 			go crontab.UpdateCheckPoint()
-			go crontab.fetchOldBlockToMiner()
+			//go crontab.fetchOldBlockToMiner()
 
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
 
-			//go crontab.fetchConfirmRewardsToMinerBlock()
+			go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
 	}
@@ -978,6 +978,10 @@ func (crontab *Crontab) ConfirmRewardsToMinerBlock() {
 	if crontab.ConfirmRewardHeight > topHeight-1000 {
 		return
 	}
+	if GetHourMinut1e(time.Now()) == "00" {
+		return
+	}
+
 	/*if checkpoint.Height > 0 && crontab.ConfirmRewardHeight > checkpoint.Height {
 		return
 	} else if checkpoint.Height == 0 && crontab.ConfirmRewardHeight > topHeight-100 {
@@ -986,6 +990,12 @@ func (crontab *Crontab) ConfirmRewardsToMinerBlock() {
 	crontab.storage.Reward2MinerBlock(crontab.ConfirmRewardHeight)
 	crontab.ConfirmRewardHeight = crontab.ConfirmRewardHeight + 1
 	crontab.ConfirmRewardsToMinerBlock()
+}
+
+func GetHourMinut1e(tm time.Time) string {
+	h := tm.Hour()
+	m := tm.Minute()
+	return strconv.Itoa(h) + strconv.Itoa(m)
 }
 
 func (crontab *Crontab) UpdateTurnOver() {
@@ -1249,7 +1259,7 @@ func (crontab *Crontab) rewardDataCompensationProcess(notifyHeight uint64, notif
 		dbMaxHeight := crontab.rewardStorageDataHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
 			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight)
-			crontab.proposalrewardSupplementarydata(dbMaxHeight)
+			//crontab.proposalrewardSupplementarydata(dbMaxHeight)
 			crontab.rewarddataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInitedReward = true

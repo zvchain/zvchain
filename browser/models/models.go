@@ -191,10 +191,10 @@ type Reward struct {
 
 type MinerToBlock struct {
 	gorm.Model
+	Type      uint64 `json:"type" gorm:"unique_index:idx_addr_seq" `
 	Address   string `json:"address" gorm:"unique_index:idx_addr_seq"`
 	BlockIDs  string `json:"block_ids" gorm:"type:TEXT"`
 	BlockCnts int    `json:"block_cnts"`
-	Type      uint64 `json:"type" gorm:"unique_index:idx_addr_seq" `
 	Sequence  uint64 `json:"sequence" gorm:"unique_index:idx_addr_seq"`
 }
 
