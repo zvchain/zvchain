@@ -16,11 +16,13 @@
 package core
 
 import (
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
 	"sync"
 
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
+
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -228,14 +230,18 @@ func (fp *forkProcessor) timeoutTickerName() string {
 }
 
 func (fp *forkProcessor) findAncestorRequest(topHash common.Hash) {
-
+	ctx := fp.syncCtx
+	if ctx == nil {
+		fp.logger.Debugf("ctx is nil: topHash=%v", topHash)
+		return
+	}
 	chainPieceInfo := fp.getLocalPieceInfo(topHash)
 	if len(chainPieceInfo) == 0 {
 		fp.reset()
 		return
 	}
 
-	reqCnt := peerManagerImpl.getPeerReqBlockCount(fp.syncCtx.target)
+	reqCnt := peerManagerImpl.getPeerReqBlockCount(ctx.target)
 
 	pieceReq := &findAncestorPieceReq{
 		ChainPiece: chainPieceInfo,
@@ -248,12 +254,12 @@ func (fp *forkProcessor) findAncestorRequest(topHash common.Hash) {
 		fp.reset()
 		return
 	}
-	fp.logger.Debugf("req piece from %v, reqCnt %v", fp.syncCtx.target, reqCnt)
+	fp.logger.Debugf("req piece from %v, reqCnt %v", ctx.target, reqCnt)
 
 	message := network.Message{Code: network.ForkFindAncestorReq, Body: body}
-	fp.msgSender.Send(fp.syncCtx.target, message)
+	fp.msgSender.Send(ctx.target, message)
 
-	fp.syncCtx.lastReqPiece = pieceReq
+	ctx.lastReqPiece = pieceReq
 
 	// Start ticker
 	fp.chain.ticker.RegisterOneTimeRoutine(fp.timeoutTickerName(), func() bool {
