@@ -166,7 +166,7 @@ type BlockToMiner struct {
 	gorm.Model
 	BlockHeight      uint64    `json:"block_height" gorm:"unique_index"`
 	BlockHash        string    `json:"block_hash" gorm:"unique_index"`
-	RewardHeight     uint64    `json:"reward_height"`
+	RewardHeight     uint64    `json:"reward_height" gorm:"index"`
 	CurTime          time.Time `json:"cur_time" gorm:"index"`
 	PrpsNodeID       string    `json:"prps_node_id"`
 	VerfNodeIDs      string    `json:"verf_node_ids" gorm:"type:TEXT"`
