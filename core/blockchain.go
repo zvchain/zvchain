@@ -279,8 +279,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 }
 
 func (chain *FullBlockChain) LogDbStats() {
-	dbMeter := common.GlobalConf.GetBool(configSec, "meter_db", false)
-	if !dbMeter {
+	dbInterval := common.GlobalConf.GetInt(configSec, "meter_db_interval", 0)
+	if dbInterval <= 0 {
 		return
 	}
 	tc := time.NewTicker(3 * time.Second)
