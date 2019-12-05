@@ -68,6 +68,9 @@ type BlockChainConfig struct {
 	reward      string
 	tx          string
 	receipt     string
+
+	// Whether commit data to the disk when adding block on chain, default is true
+	commit bool
 }
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
@@ -133,6 +136,7 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		tx:      "tx",
 		receipt: "rc",
+		commit:  common.GlobalConf.GetBool(configSec, "db_commit", true),
 	}
 }
 
@@ -167,10 +171,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        fileCacheSize,
-		BlockCacheCapacity:            blockCacheSize * opt.MiB,
-		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
+		OpenFilesCacheCapacity: fileCacheSize,
+		BlockCacheCapacity:     blockCacheSize * opt.MiB,
+		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
@@ -444,4 +448,37 @@ func (chain *FullBlockChain) Version() int {
 // Version of chain Id
 func (chain *FullBlockChain) AddTransactionToPool(tx *types.Transaction) (bool, error) {
 	return chain.GetTransactionPool().AddTransaction(tx)
+}
+
+// VerifyChainSlice verify chain slice by replaying the transactions of the given height range 【start, end)
+func (chain *FullBlockChain) VerifyChainSlice(begin, end uint64) error {
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(begin)) {
+		return fmt.Errorf("no blocks found from %v", begin)
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height >= end {
+			break
+		}
+		hash := common.BytesToHash(iter.Value())
+		b := chain.queryBlockByHash(hash)
+		if b == nil {
+			break
+		}
+
+		_, err := chain.addBlockOnChain("", b)
+		if err != nil {
+			return fmt.Errorf("verify block fail at %v, err %v", height, err)
+		}
+		Logger.Debugf("verify block %v ok", height)
+
+		if !iter.Next() {
+			break
+		}
+	}
+	return nil
 }
