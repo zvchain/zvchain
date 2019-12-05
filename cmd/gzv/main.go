@@ -49,7 +49,7 @@ func NewBrowserDBInit() {
 	flag.BoolVar(&help, "h", false, "help")
 	flag.BoolVar(&reset, "reset", false, "reset database")
 	flag.BoolVar(&resetcrontab, "resetcrontab", false, "resetcrontab database")
-	flag.StringVar(&browerdbaddr, "browerdbaddr", "114.55.66.243", "database address")
+	flag.StringVar(&browerdbaddr, "browerdbaddr", "localhost", "database address")
 	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
 	flag.IntVar(&dbPort, "dbport", 3306, "database port")
 	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
