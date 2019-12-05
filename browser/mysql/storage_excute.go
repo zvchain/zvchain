@@ -516,12 +516,12 @@ func (storage *Storage) MinBlockHeightverReward() uint64 {
 	}
 	return 0
 }
-func (storage *Storage) MinToMaxAccountverReward(off uint64, limit uint64) []string {
+func (storage *Storage) MinToMaxAccountverReward(off uint64, limit uint64) []models.RewardHeightAddress {
 	if storage.db == nil {
 		return nil
 	}
-	s := make([]string, 0, 0)
-	storage.db.Unscoped().Model(&models.AccountList{}).Offset(off).Limit(limit).Where("verify_count > 0").Order("verify_count DESC").Select("address").Scan(&s)
+	s := make([]models.RewardHeightAddress, 0, 0)
+	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("verify_count > 0").Order("verify_count DESC").Select("address").Scan(&s)
 	return s
 }
 func (storage *Storage) MaxConfirmBlockRewardHeight() uint64 {
@@ -752,8 +752,8 @@ func (storage *Storage) Reward2MinerBlockByAddress() {
 
 		addrs := storage.MinToMaxAccountverReward(uint64(i*100), 100)
 		for _, addr := range addrs {
-			storage.Reward2MinerBlockNew(addr, 0, maxHeight)
-			storage.Reward2MinerBlockNew(addr, 1, maxHeight)
+			storage.Reward2MinerBlockNew(addr.Address, 0, maxHeight)
+			storage.Reward2MinerBlockNew(addr.Address, 1, maxHeight)
 		}
 	}
 
