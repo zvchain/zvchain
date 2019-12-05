@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func (vc *VersionChecker) checkversion() (bool, error) {
+func (vc *VersionChecker) checkVersion() (bool, error) {
 	notice, err := requestVersion()
 	if err != nil {
 		return NewVersion, err

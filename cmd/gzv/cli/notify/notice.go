@@ -56,7 +56,7 @@ func InitVersionChecker() {
 		case <-ctiker.C:
 			//Check if the local running program is the latest version
 			log.DefaultLogger.Infoln("start checkversion ...")
-			bl, err := vc.checkversion()
+			bl, err := vc.checkVersion()
 			if err != nil {
 				log.DefaultLogger.Errorln(err)
 				continue
