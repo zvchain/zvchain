@@ -123,7 +123,7 @@ func (crontab *Crontab) loop() {
 	go crontab.SearchTempDeployToken()
 	go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
-	//go crontab.fetchConfirmRewardsToMinerBlock()
+	go crontab.fetchConfirmRewardsToMinerBlock()
 
 	for {
 		select {
@@ -138,7 +138,7 @@ func (crontab *Crontab) loop() {
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
 
-			//go crontab.fetchConfirmRewardsToMinerBlock()
+			go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
 	}
@@ -161,7 +161,8 @@ func (crontab *Crontab) fetchConfirmRewardsToMinerBlock() {
 	if !atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 0, 1) {
 		return
 	}
-	crontab.ConfirmRewardsToMinerBlock()
+	//crontab.ConfirmRewardsToMinerBlock()
+	crontab.storage.Reward2MinerBlockByAddress()
 	atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 1, 0)
 
 }
