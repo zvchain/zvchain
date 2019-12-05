@@ -18,6 +18,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/zvchain/zvchain/browser"
 	"github.com/zvchain/zvchain/browser/crontab"
 	"github.com/zvchain/zvchain/browser/ldb"
 	browserlog "github.com/zvchain/zvchain/browser/log"
@@ -72,6 +73,7 @@ func NewBrowserDBInit() {
 	browserlog.InitLog()
 	ldb.InitBrowserdb()
 	fmt.Println("browserdbmmanagement flags:", browerdbaddr, dbPort, dbUser, dbPassword, reset)
-	//browser.NewDBMmanagement(browerdbaddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
+
+	browser.NewDBMmanagement(browerdbaddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 	crontab.NewServer(browerdbaddr, dbPort, dbUser, dbPassword, reset)
 }
