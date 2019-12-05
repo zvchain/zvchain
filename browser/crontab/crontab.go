@@ -121,7 +121,7 @@ func (crontab *Crontab) loop() {
 	go crontab.UpdateTurnOver()
 	go crontab.UpdateCheckPoint()
 	go crontab.SearchTempDeployToken()
-	go crontab.supplementProposalReward()
+	//go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
 	go crontab.fetchConfirmRewardsToMinerBlock()
 
