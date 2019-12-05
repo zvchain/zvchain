@@ -803,8 +803,8 @@ func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxH
 	}
 	sort.Ints(total)
 	hights := make([]int, 0)
-	if len(total) < count {
-		hights = total[0:count]
+	if len(total) <= count {
+		hights = total[0:]
 		storage.addminerBlock(address, hights, typeId, miners)
 	} else {
 		hights = total[0:count]
@@ -814,7 +814,7 @@ func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxH
 		start := 0
 		for l := 0; l <= size; l++ {
 			miners, count := storage.getExistminerBlock(address, typeId)
-			if len(backward[start:]) < count {
+			if len(backward[start:]) <= count {
 				hights = backward[start:]
 				start = start + len(hights)
 			} else {
@@ -829,7 +829,7 @@ func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxH
 	ll := 0
 	for z := 0; z <= primsize; z++ {
 
-		if len(idPrimarys[z*100:]) < 100 {
+		if len(idPrimarys[z*100:]) <= 100 {
 			ids = idPrimarys[z*100:]
 
 		} else {
