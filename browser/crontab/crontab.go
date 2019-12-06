@@ -18,6 +18,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -46,7 +47,9 @@ const (
 )
 
 type Crontab struct {
-	storage                       *mysql.Storage
+	storage      *mysql.Storage
+	slaveStorage *mysql.SlaveStorage
+
 	blockRewardHeight             uint64
 	blockTopHeight                uint64
 	rewardStorageDataHeight       uint64
@@ -77,12 +80,15 @@ type Crontab struct {
 	isFetchingVerfications bool
 }
 
-func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Crontab {
+func NewServer(dbAddr string, dbPort int, dbUser string,
+	dbPassword string, reset bool,
+	browerslavedbaddr string, slavedbUser string, slavePassword string) *Crontab {
 	server := &Crontab{
 		initdata:       make(chan *models.ForkNotify, 10000),
 		initRewarddata: make(chan *models.ForkNotify, 10000),
 	}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
+	server.slaveStorage = mysql.NewSlaveStorage(browerslavedbaddr, dbPort, slavedbUser, slavePassword, reset, false)
 	server.addGenisisblockAndReward()
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
@@ -106,7 +112,7 @@ func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
 		check30Min = time.NewTicker(check30MinInterval)
-		//check1Hour = time.NewTicker(check1HourInterval)
+		check1Hour = time.NewTicker(check1HourInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
@@ -132,12 +138,12 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
 			go crontab.UpdateCheckPoint()
-			go crontab.fetchOldBlockToMiner()
+			//go crontab.fetchOldBlockToMiner()
 
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
-
+		case <-check1Hour.C:
 			go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
@@ -162,9 +168,84 @@ func (crontab *Crontab) fetchConfirmRewardsToMinerBlock() {
 		return
 	}
 	//crontab.ConfirmRewardsToMinerBlock()
-	crontab.storage.Reward2MinerBlockByAddress()
+	crontab.Reward2MinerBlockByAddress()
 	atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 1, 0)
 
+}
+
+func (crontab *Crontab) Reward2MinerBlockByAddress() {
+
+	topHeight := crontab.storage.MaxConfirmBlockRewardHeight()
+	//checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	maxHeight := topHeight - 1000
+
+	//addr := storage.MinConfirmBlockReward()
+	for i := 0; i < 24; i++ {
+
+		addrs := crontab.storage.MinToMaxAccountverReward(uint64(i*100), 100)
+		for _, addr := range addrs {
+			crontab.Reward2MinerBlockNew(addr.Address, 0, maxHeight)
+			crontab.Reward2MinerBlockNew(addr.Address, 1, maxHeight)
+		}
+	}
+	proaddr := crontab.storage.MinToMaxAccountproposalReward(0, 100)
+	for _, paddr := range proaddr {
+		crontab.Reward2MinerBlockNew(paddr.Address, 1, maxHeight)
+	}
+
+}
+func (crontab *Crontab) Reward2MinerBlockNew(address string, typeId uint64, maxHeight uint64) bool {
+	fmt.Println("Reward2MinerBlockNew,", address, time.Now())
+
+	timestamp := time.Now()
+	miners, count := crontab.storage.GetExistminerBlock(address, typeId)
+	total, idPrimarys := crontab.slaveStorage.SlaveRewardDatas(address, typeId, maxHeight)
+	if len(total) < 1 {
+		return true
+	}
+	sort.Ints(total)
+	hights := make([]int, 0)
+	if len(total) <= count {
+		hights = total[0:]
+		crontab.storage.AddminerBlock(address, hights, typeId, miners)
+	} else {
+		hights = total[0:count]
+		crontab.storage.AddminerBlock(address, hights, typeId, miners)
+		backward := total[count:]
+		size := len(backward) / mysql.MAXCONFIRMREWARDCOUNT
+		start := 0
+		for l := 0; l <= size; l++ {
+			miners, count := crontab.storage.GetExistminerBlock(address, typeId)
+			if len(backward[start:]) <= count {
+				hights = backward[start:]
+				start = start + len(hights)
+			} else {
+				hights = backward[start : start+count]
+				start = start + count
+			}
+			crontab.storage.AddminerBlock(address, hights, typeId, miners)
+		}
+	}
+	primsize := len(idPrimarys) / 100
+	ids := make([]uint64, 0)
+	ll := 0
+	for z := 0; z <= primsize; z++ {
+
+		if len(idPrimarys[z*100:]) <= 100 {
+			ids = idPrimarys[z*100:]
+
+		} else {
+			ids = idPrimarys[z*100 : z*100+100]
+		}
+		ll += len(ids)
+		if !util.Errors(crontab.storage.DeleteRewardByIds(ids)) {
+			fmt.Println("Reward2MinerBlockNew,delete error", address, ids)
+			return false
+		}
+	}
+	fmt.Println("lenth,maxheight,total,address,", address, ",", ll, ",", maxHeight, ",", len(total))
+	fmt.Println("cost time,addr:", address, ",", typeId, ",", time.Since(timestamp))
+	return true
 }
 
 func (crontab *Crontab) fetchBlockRewards() {
@@ -586,7 +667,6 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 	chain := core.BlockChainImpl
 	blockDetail := chain.QueryBlockCeil(localHeight)
 	if blockDetail != nil {
-		fmt.Println("[server]  consumeRewardforkhei:", maxHeight, ",", pre)
 		if maxHeight > pre {
 			server.storage.DeleteForkReward(pre, localHeight)
 		}
@@ -597,7 +677,8 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 
 }
 func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
-	fmt.Println("[server]  consumeBlock height:", localHeight)
+
+	fmt.Println("[server]  consumeBlock process height:", localHeight)
 	var maxHeight uint64
 	maxHeight = server.storage.GetTopblock()
 	blockDetail, _ := server.fetcher.ExplorerBlockDetail(localHeight)
@@ -642,7 +723,6 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 			server.ProcessContract(transContract)
 		}
 		server.NewConsumeTokenContractTransfer(blockDetail.Block.Height, blockDetail.Block.Hash)
-
 	}
 	//server.isFetchingBlocks = false
 }
@@ -743,8 +823,8 @@ func (crontab *Crontab) ProcessContract(trans []*models.Transaction) {
 			go crontab.ConsumeContract(contract, tx.Hash, tx.CurTime)
 		}
 	}
-
 }
+
 func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string, curtime time.Time) {
 	tm.storage.UpdateContractTransaction(hash, curtime)
 	fmt.Println("for UpdateContractTransaction", util.ObjectTojson(hash))
@@ -980,6 +1060,10 @@ func (crontab *Crontab) ConfirmRewardsToMinerBlock() {
 	if crontab.ConfirmRewardHeight > topHeight-1000 {
 		return
 	}
+	if GetHourMinut1e(time.Now()) == "00" {
+		return
+	}
+
 	/*if checkpoint.Height > 0 && crontab.ConfirmRewardHeight > checkpoint.Height {
 		return
 	} else if checkpoint.Height == 0 && crontab.ConfirmRewardHeight > topHeight-100 {
@@ -988,6 +1072,12 @@ func (crontab *Crontab) ConfirmRewardsToMinerBlock() {
 	crontab.storage.Reward2MinerBlock(crontab.ConfirmRewardHeight)
 	crontab.ConfirmRewardHeight = crontab.ConfirmRewardHeight + 1
 	crontab.ConfirmRewardsToMinerBlock()
+}
+
+func GetHourMinut1e(tm time.Time) string {
+	h := tm.Hour()
+	m := tm.Minute()
+	return strconv.Itoa(h) + strconv.Itoa(m)
 }
 
 func (crontab *Crontab) UpdateTurnOver() {
@@ -1251,7 +1341,7 @@ func (crontab *Crontab) rewardDataCompensationProcess(notifyHeight uint64, notif
 		dbMaxHeight := crontab.rewardStorageDataHeight
 		if dbMaxHeight > 0 && dbMaxHeight <= notifyPreHeight {
 			crontab.storage.DeleteForkReward(dbMaxHeight-1, dbMaxHeight)
-			crontab.proposalrewardSupplementarydata(dbMaxHeight)
+			//crontab.proposalrewardSupplementarydata(dbMaxHeight)
 			crontab.rewarddataCompensation(dbMaxHeight, notifyPreHeight)
 		}
 		crontab.isInitedReward = true
