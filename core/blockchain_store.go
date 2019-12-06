@@ -17,9 +17,9 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
@@ -601,6 +601,35 @@ func (chain *FullBlockChain) batchGetBlocksBetween(begin, end uint64) []*types.B
 		}
 		hash := common.BytesToHash(iter.Value())
 		b := chain.queryBlockByHash(hash)
+		if b == nil {
+			break
+		}
+
+		blocks = append(blocks, b)
+		if !iter.Next() {
+			break
+		}
+	}
+	return blocks
+}
+
+// batchGetBlockHeadersBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) batchGetBlockHeadersBetween(begin, end uint64) []*types.BlockHeader {
+	blocks := make([]*types.BlockHeader, 0)
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(begin)) {
+		return blocks
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height >= end {
+			break
+		}
+		hash := common.BytesToHash(iter.Value())
+		b := chain.queryBlockHeaderByHash(hash)
 		if b == nil {
 			break
 		}
