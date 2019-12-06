@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common/prque"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -43,6 +44,7 @@ import (
 const (
 	blockStatusKey = "bcurrent"
 	configSec      = "chain"
+	gc             = "gc"
 )
 
 var (
@@ -80,8 +82,8 @@ type FullBlockChain struct {
 	stateDb     *tasdb.PrefixedDatabase
 	cacheDb     *tasdb.PrefixedDatabase
 	batch       tasdb.Batch
-
-	stateCache account.AccountDatabase
+	triegc      *prque.Prque // Priority queue mapping block numbers to tries to gc
+	stateCache  account.AccountDatabase
 
 	transactionPool types.TransactionPool
 
@@ -148,6 +150,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		isAdjusting:      false,
 		consensusHelper:  helper,
 		ticker:           ticker.NewGlobalTicker("chain"),
+		triegc:           prque.NewPrque(),
 		ts:               time2.TSInstance,
 		futureRawBlocks:  common.MustNewLRUCache(100),
 		verifiedBlocks:   common.MustNewLRUCache(10),
@@ -169,6 +172,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
 	options := &opt.Options{
 		OpenFilesCacheCapacity: fileCacheSize,
 		BlockCacheCapacity:     blockCacheSize * opt.MiB,
@@ -215,7 +219,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
-	chain.stateCache = account.NewDatabase(chain.stateDb)
+	chain.stateCache = account.NewDatabase(chain.stateDb, trieGc)
 
 	latestBH := chain.loadCurrentBlock()
 

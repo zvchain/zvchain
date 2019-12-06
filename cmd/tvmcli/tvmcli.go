@@ -119,7 +119,7 @@ func (t *TvmCli) init() {
 	}
 	fmt.Println(currentPath)
 	t.db, _ = tasdb.NewLDBDatabase(currentPath+"/db", nil)
-	t.database = account.NewDatabase(t.db)
+	t.database = account.NewDatabase(t.db,false)
 
 	if Exists(currentPath + "/settings.ini") {
 		t.settings = common.NewConfINIManager(currentPath + "/settings.ini")
