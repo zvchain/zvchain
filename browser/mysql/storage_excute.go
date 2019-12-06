@@ -521,9 +521,18 @@ func (storage *Storage) MinToMaxAccountverReward(off uint64, limit uint64) []mod
 		return nil
 	}
 	s := make([]models.RewardHeightAddress, 0, 0)
-	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("verify_count > 0").Order("verify_count DESC").Select("address").Scan(&s)
+	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("verify_count > 0").Order("verify_count ASC").Select("address").Scan(&s)
 	return s
 }
+func (storage *Storage) MinToMaxAccountproposalReward(off uint64, limit uint64) []models.RewardHeightAddress {
+	if storage.db == nil {
+		return nil
+	}
+	s := make([]models.RewardHeightAddress, 0, 0)
+	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("proposal_count > 0 and verify_count = 0").Order("proposal_count ASC").Select("address").Scan(&s)
+	return s
+}
+
 func (storage *Storage) MaxConfirmBlockRewardHeight() uint64 {
 	if storage.db == nil {
 		return 0
@@ -756,6 +765,11 @@ func (storage *Storage) Reward2MinerBlockByAddress() {
 			storage.Reward2MinerBlockNew(addr.Address, 1, maxHeight)
 		}
 	}
+	proaddr := storage.MinToMaxAccountproposalReward(0, 100)
+
+	for _, paddr := range proaddr {
+		storage.Reward2MinerBlockNew(paddr.Address, 1, maxHeight)
+	}
 
 }
 
@@ -774,6 +788,8 @@ func (storage *Storage) getExistminerBlock(address string, typeId uint64) ([]*mo
 }
 
 func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxHeight uint64) bool {
+	fmt.Println("Reward2MinerBlockNew,", address, time.Now())
+
 	timestamp := time.Now()
 	miners, count := storage.getExistminerBlock(address, typeId)
 	total := make([]int, 0)
@@ -800,6 +816,9 @@ func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxH
 		if len(s) < 5000 {
 			break
 		}
+	}
+	if len(total) < 1 {
+		return true
 	}
 	sort.Ints(total)
 	hights := make([]int, 0)
@@ -840,7 +859,7 @@ func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxH
 			return false
 		}
 	}
-	fmt.Println("lenth,maxheight,total", ll, ",", maxHeight, ",", len(total))
+	fmt.Println("lenth,maxheight,total,address,", address, ",", ll, ",", maxHeight, ",", len(total))
 	fmt.Println("cost time,addr:", address, ",", typeId, ",", time.Since(timestamp))
 	return true
 }
