@@ -71,6 +71,8 @@ type BlockChainConfig struct {
 
 	// Whether commit data to the disk when adding block on chain, default is true
 	commit bool
+	// Whether checks the block existence, default is true
+	checkExist bool
 }
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
@@ -134,9 +136,10 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		reward: "nu",
 
-		tx:      "tx",
-		receipt: "rc",
-		commit:  common.GlobalConf.GetBool(configSec, "db_commit", true),
+		tx:         "tx",
+		receipt:    "rc",
+		commit:     common.GlobalConf.GetBool(configSec, "db_commit", true),
+		checkExist: common.GlobalConf.GetBool(configSec, "check_block_exists", true),
 	}
 }
 
@@ -452,6 +455,19 @@ func (chain *FullBlockChain) AddTransactionToPool(tx *types.Transaction) (bool, 
 
 // VerifyChainSlice verify chain slice by replaying the transactions of the given height range 【start, end)
 func (chain *FullBlockChain) VerifyChainSlice(begin, end uint64) error {
+	if end == 0 {
+		end = chain.Height()
+	}
+	if begin == 0 {
+		begin = 1
+	}
+	genesisBlock := chain.QueryBlockHeaderFloor(begin - 1)
+	adb, err := account.NewAccountDB(genesisBlock.StateTree, chain.stateCache)
+	if err != nil {
+		return err
+	}
+	chain.updateLatestBlock(adb, genesisBlock)
+
 	iter := chain.blockHeight.NewIterator()
 	defer iter.Release()
 
@@ -470,8 +486,8 @@ func (chain *FullBlockChain) VerifyChainSlice(begin, end uint64) error {
 			break
 		}
 
-		_, err := chain.addBlockOnChain("", b)
-		if err != nil {
+		ret, err := chain.addBlockOnChain("", b)
+		if ret != types.AddBlockSucc && ret != types.AddBlockExisted {
 			return fmt.Errorf("verify block fail at %v, err %v", height, err)
 		}
 		Logger.Debugf("verify block %v ok", height)

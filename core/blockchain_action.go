@@ -282,7 +282,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	topBlock := chain.getLatestBlock()
 	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", block.Header.Hash, block.Header.PreHash, block.Header.Height, block.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
 
-	if chain.HasBlock(bh.Hash) {
+	if chain.config.checkExist && chain.HasBlock(bh.Hash) {
 		return types.AddBlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, block); !ok {
@@ -315,7 +315,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 
 	topBlock = chain.getLatestBlock()
 
-	if chain.HasBlock(bh.Hash) {
+	if chain.config.checkExist && chain.HasBlock(bh.Hash) {
 		ret = types.AddBlockExisted
 		err = ErrBlockExist
 		return

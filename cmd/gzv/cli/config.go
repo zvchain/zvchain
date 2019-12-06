@@ -33,4 +33,7 @@ type minerConfig struct {
 	resetHash         string
 	cors              string
 	privateKey        string
+
+	// validation
+	vBegin, vEnd uint64
 }

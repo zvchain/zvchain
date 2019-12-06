@@ -66,7 +66,6 @@ var globalGzv *Gzv
 // miner start miner node
 func (gzv *Gzv) miner(cfg *minerConfig) error {
 	params.InitChainConfig(cfg.chainID)
-	gzv.config = cfg
 	gzv.runtimeInit()
 	err := gzv.fullInit()
 	if err != nil {
@@ -137,6 +136,8 @@ func (gzv *Gzv) Run() {
 	configFile := app.Flag("config", "Config file").Default("zv.ini").String()
 	pprofPort := app.Flag("pprof", "enable pprof").Default("23333").Uint()
 	keystore := app.Flag("keystore", "the keystore path, default is current path").Default("keystore").Short('k').String()
+	privKey := app.Flag("privatekey", "privatekey used for miner process").Default("").String()
+	passWd := app.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
 
 	// Console
 	consoleCmd := app.Command("console", "start gzv console")
@@ -163,8 +164,7 @@ func (gzv *Gzv) Run() {
 	super := mineCmd.Flag("super", "start super node").Bool()
 	instanceIndex := mineCmd.Flag("instance", "instance index").Short('i').Default("0").Int()
 	*instanceIndex = 0
-	privKey := mineCmd.Flag("privatekey", "privatekey used for miner process").Default("").String()
-	passWd := mineCmd.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
+
 	apply := mineCmd.Flag("apply", "apply heavy or light miner").String()
 	if *apply == "heavy" {
 		fmt.Println("Welcome to be a ZV propose miner!")
@@ -182,6 +182,10 @@ func (gzv *Gzv) Run() {
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
 
 	clearCmd := app.Command("clear", "Clear the data of blockchain")
+
+	validateCmd := app.Command("validate", "validate chain data by replaying the transactions")
+	validateBegin := validateCmd.Flag("begin", "beginning block height of the validation").Default("0").Uint64()
+	validateEnd := validateCmd.Flag("end", "ending block height of the validation").Default("0").Uint64()
 
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -234,6 +238,8 @@ func (gzv *Gzv) Run() {
 			cors:              *cors,
 			privateKey:        *privKey,
 		}
+		gzv.config = cfg
+
 		// Start miner
 		err := gzv.miner(cfg)
 		if err != nil {
@@ -257,6 +263,30 @@ func (gzv *Gzv) Run() {
 		} else {
 			fmt.Println("clear blockchain successfully")
 		}
+	case validateCmd.FullCommand():
+		log.Init()
+		types.InitMiddleware()
+		cfg := &minerConfig{
+			keystore:   *keystore,
+			password:   *passWd,
+			privateKey: *privKey,
+			vBegin:     *validateBegin,
+			vEnd:       *validateEnd,
+		}
+		gzv.config = cfg
+		common.GlobalConf.SetBool("chain", "db_commit", false)
+		common.GlobalConf.SetBool("chain", "check_block_exists", false)
+		if err := gzv.coreInit(); err != nil {
+			output("initialize fail:", err)
+			os.Exit(-1)
+		}
+		initMsgShower(mediator.Proc.GetMinerID().Serialize(), nil)
+		err := core.BlockChainImpl.VerifyChainSlice(cfg.vBegin, cfg.vEnd)
+		if err != nil {
+			output("verify error", err)
+			os.Exit(0)
+		}
+		output("verify finished")
 	}
 	<-quitChan
 }
@@ -299,6 +329,54 @@ func (gzv *Gzv) checkAddress(keystore, address, password string, autoCreateAccou
 		return nil
 	}
 	return fmt.Errorf("please provide a miner account and correct password! ")
+}
+
+// coreInit only init core components for consensus or chain validation, network not inited
+func (gzv *Gzv) coreInit() error {
+	var err error
+	// Initialization middlewarex
+	middleware.InitMiddleware()
+	cfg := gzv.config
+
+	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
+
+	if cfg.privateKey != "" {
+		kBytes := common.FromHex(cfg.privateKey)
+		sk := new(common.PrivateKey)
+		if !sk.ImportKey(kBytes) {
+			return ErrInternal
+		}
+		acc, err := recoverAccountByPrivateKey(sk, true)
+		if err != nil {
+			return err
+		}
+		gzv.account = *acc
+	} else {
+		err = gzv.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
+		if err != nil {
+			return err
+		}
+	}
+
+	common.GlobalConf.SetString(Section, "miner", gzv.account.Address)
+	fmt.Println("Your Miner Address:", gzv.account.Address)
+
+	sk := common.HexToSecKey(gzv.account.Sk)
+	minerInfo, err := model.NewSelfMinerDO(sk)
+	if err != nil {
+		return err
+	}
+	helper := mediator.NewConsensusHelper(minerInfo.ID)
+
+	err = core.InitCore(helper, &gzv.account)
+	if err != nil {
+		return err
+	}
+	ok := mediator.ConsensusInit(minerInfo, common.GlobalConf)
+	if !ok {
+		return errors.New("consensus module error")
+	}
+	return nil
 }
 
 func (gzv *Gzv) fullInit() error {
