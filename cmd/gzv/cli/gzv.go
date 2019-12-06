@@ -183,9 +183,9 @@ func (gzv *Gzv) Run() {
 
 	clearCmd := app.Command("clear", "Clear the data of blockchain")
 
-	validateCmd := app.Command("validate", "validate chain data by replaying the transactions")
-	validateBegin := validateCmd.Flag("begin", "beginning block height of the validation").Default("0").Uint64()
-	validateEnd := validateCmd.Flag("end", "ending block height of the validation").Default("0").Uint64()
+	pruneCmd := app.Command("prune", "fully prune database by replaying the transactions")
+	srcDir := pruneCmd.Flag("src", "directory of data to be pruned").Required().String()
+	destDir := pruneCmd.Flag("dest", "directory of pruned-data").String()
 
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -263,30 +263,36 @@ func (gzv *Gzv) Run() {
 		} else {
 			fmt.Println("clear blockchain successfully")
 		}
-	case validateCmd.FullCommand():
+	case pruneCmd.FullCommand():
 		log.Init()
 		types.InitMiddleware()
+
 		cfg := &minerConfig{
 			keystore:   *keystore,
 			password:   *passWd,
 			privateKey: *privKey,
-			vBegin:     *validateBegin,
-			vEnd:       *validateEnd,
 		}
 		gzv.config = cfg
-		common.GlobalConf.SetBool("chain", "db_commit", false)
-		common.GlobalConf.SetBool("chain", "check_block_exists", false)
+		if *destDir != "" {
+			common.GlobalConf.SetString("chain", "db_blocks", *destDir)
+		}
+		common.GlobalConf.SetBool("chain", "prune_mode", true)
 		if err := gzv.coreInit(); err != nil {
 			output("initialize fail:", err)
 			os.Exit(-1)
 		}
-		initMsgShower(mediator.Proc.GetMinerID().Serialize(), nil)
-		err := core.BlockChainImpl.VerifyChainSlice(cfg.vBegin, cfg.vEnd)
+		provider, err := core.NewLocalBlockProvider(*srcDir)
 		if err != nil {
-			output("verify error", err)
+			output("new local block provider error %v", err)
+			os.Exit(-1)
+		}
+
+		err = core.BlockChainImpl.Replay(provider, os.Stdout)
+		if err != nil {
+			output("replay error", err)
 			os.Exit(0)
 		}
-		output("verify finished")
+		output("replay finished")
 	}
 	<-quitChan
 }

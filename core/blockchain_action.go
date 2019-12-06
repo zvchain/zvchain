@@ -282,7 +282,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	topBlock := chain.getLatestBlock()
 	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", block.Header.Hash, block.Header.PreHash, block.Header.Height, block.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
 
-	if chain.config.checkExist && chain.HasBlock(bh.Hash) {
+	if chain.HasBlock(bh.Hash) {
 		return types.AddBlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, block); !ok {
@@ -315,7 +315,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 
 	topBlock = chain.getLatestBlock()
 
-	if chain.config.checkExist && chain.HasBlock(bh.Hash) {
+	if chain.HasBlock(bh.Hash) {
 		ret = types.AddBlockExisted
 		err = ErrBlockExist
 		return
@@ -396,13 +396,8 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block, tSlice txSlice
 		return
 	}
 
-	if chain.config.commit {
-		// Commit to DB
-		return chain.commitBlock(block, ps)
-	} else {
-		chain.updateLatestBlock(ps.state, block.Header)
-		return true, nil
-	}
+	// Commit to DB
+	return chain.commitBlock(block, ps)
 }
 
 // validateTxs check tx sign and recover source
@@ -589,11 +584,15 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 		chain.isAdjusting = false
 	}()
 
-	for _, b := range addBlocks {
+	chain.AddChainSlice(source, addBlocks, callback)
+	return nil
+}
+
+func (chain *FullBlockChain) AddChainSlice(source string, chainSlice []*types.Block, cb batchAddBlockCallback) {
+	for _, b := range chainSlice {
 		ret := chain.AddBlockOnChain(source, b)
-		if !callback(b, ret) {
+		if !cb(b, ret) {
 			break
 		}
 	}
-	return nil
 }
