@@ -495,6 +495,18 @@ func (storage *Storage) MinConfirmBlockRewardHeight() uint64 {
 	return 0
 }
 
+func (storage *Storage) MinConfirmBlockReward() string {
+	if storage.db == nil {
+		return ""
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Limit(1).Find(&rewards)
+	if len(rewards) > 0 {
+		return rewards[0].NodeId
+	}
+	return ""
+}
+
 func (storage *Storage) MinBlockHeightverReward() uint64 {
 	if storage.db == nil {
 		return 0
@@ -505,6 +517,24 @@ func (storage *Storage) MinBlockHeightverReward() uint64 {
 		return rewards[0].BlockHeight
 	}
 	return 0
+}
+
+func (storage *Storage) MinToMaxAccountverReward(off uint64, limit uint64) []models.RewardHeightAddress {
+	if storage.db == nil {
+		return nil
+	}
+	s := make([]models.RewardHeightAddress, 0, 0)
+	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("verify_count > 0").Order("verify_count ASC").Select("address").Scan(&s)
+	return s
+}
+
+func (storage *Storage) MinToMaxAccountproposalReward(off uint64, limit uint64) []models.RewardHeightAddress {
+	if storage.db == nil {
+		return nil
+	}
+	s := make([]models.RewardHeightAddress, 0, 0)
+	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("proposal_count > 0 and verify_count = 0").Order("proposal_count ASC").Select("address").Scan(&s)
+	return s
 }
 
 func (storage *Storage) MaxConfirmBlockRewardHeight() uint64 {
@@ -702,6 +732,169 @@ func (storage *Storage) AddContractCallTransaction(contract *models.ContractCall
 	return true
 }
 
+func (storage *Storage) Reward2blocktest() []int {
+	total := make([]int, 0)
+	times := time.Now()
+	for i := 0; i < 10; i++ {
+		rows, _ := storage.db.Model(models.Reward{}).Where("type = ? and node_id = ? ", 0, "zv7765c91258b248aa0ddcadc5c9287210afd145984a20bda67fc204c9de8b3491").Offset(i * 5000).Limit(5000).Select("block_height").Rows()
+		defer rows.Close()
+		s := make([]int, 0, 0)
+		var addr int
+		for rows.Next() {
+			rows.Scan(&addr)
+			s = append(s, addr)
+		}
+		total = append(total, s...)
+		if len(s) < 5000 {
+			break
+		}
+	}
+	sort.Ints(total)
+	fmt.Println("cost:", time.Since(times))
+	return total
+}
+
+func (storage *Storage) Reward2MinerBlockByAddress() {
+
+	topHeight := storage.MaxConfirmBlockRewardHeight()
+	//checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	maxHeight := topHeight - 1000
+
+	//addr := storage.MinConfirmBlockReward()
+	for i := 0; i < 24; i++ {
+
+		addrs := storage.MinToMaxAccountverReward(uint64(i*100), 100)
+		for _, addr := range addrs {
+			storage.Reward2MinerBlockNew(addr.Address, 0, maxHeight)
+			storage.Reward2MinerBlockNew(addr.Address, 1, maxHeight)
+		}
+	}
+	proaddr := storage.MinToMaxAccountproposalReward(0, 100)
+	for _, paddr := range proaddr {
+		storage.Reward2MinerBlockNew(paddr.Address, 1, maxHeight)
+	}
+
+}
+
+func (storage *Storage) getExistminerBlock(address string, typeId uint64) ([]*models.MinerToBlock, int) {
+	miners := make([]*models.MinerToBlock, 0)
+	storage.db.Limit(1).Where("type = ? and address = ? ", typeId, address).
+		Order("sequence desc").Find(&miners)
+	count := MAXCONFIRMREWARDCOUNT
+	if len(miners) > 0 {
+		dbcount := miners[0].BlockCnts
+		if dbcount < MAXCONFIRMREWARDCOUNT {
+			count = MAXCONFIRMREWARDCOUNT - dbcount
+		}
+	}
+	return miners, count
+}
+
+func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxHeight uint64) bool {
+	fmt.Println("Reward2MinerBlockNew,", address, time.Now())
+
+	timestamp := time.Now()
+	miners, count := storage.getExistminerBlock(address, typeId)
+	total := make([]int, 0)
+	idPrimarys := make([]uint64, 0)
+
+	for i := 0; i < 30; i++ {
+		list := make([]models.RewardHeightAndId, 0)
+		storage.db.Model(&models.Reward{}).Where("type = ? and node_id = ? ", typeId, address).Offset(i * 5000).Limit(5000).Select("block_height,id").Scan(&list)
+		//defer rows.Close()
+		//rows,_:=storage.db.Model(&models.Reward{}).Where("type = ? and node_id = ? ",typeId, address).Offset(i*5000).Limit(5000).Select("block_height,id").Rows()
+		s := make([]int, 0, 0)
+		p := make([]uint64, 0, 0)
+		for _, rewardheight := range list {
+			if uint64(rewardheight.BlockHeight) > maxHeight {
+				break
+			}
+			s = append(s, rewardheight.BlockHeight)
+			p = append(p, rewardheight.Id)
+		}
+		total = append(total, s...)
+		idPrimarys = append(idPrimarys, p...)
+		if len(s) < 5000 {
+			break
+		}
+	}
+	if len(total) < 1 {
+		return true
+	}
+	sort.Ints(total)
+	hights := make([]int, 0)
+	if len(total) <= count {
+		hights = total[0:]
+		storage.addminerBlock(address, hights, typeId, miners)
+	} else {
+		hights = total[0:count]
+		storage.addminerBlock(address, hights, typeId, miners)
+		backward := total[count:]
+		size := len(backward) / MAXCONFIRMREWARDCOUNT
+		start := 0
+		for l := 0; l <= size; l++ {
+			miners, count := storage.getExistminerBlock(address, typeId)
+			if len(backward[start:]) <= count {
+				hights = backward[start:]
+				start = start + len(hights)
+			} else {
+				hights = backward[start : start+count]
+				start = start + count
+			}
+			storage.addminerBlock(address, hights, typeId, miners)
+		}
+	}
+	primsize := len(idPrimarys) / 100
+	ids := make([]uint64, 0)
+	ll := 0
+	for z := 0; z <= primsize; z++ {
+
+		if len(idPrimarys[z*100:]) <= 100 {
+			ids = idPrimarys[z*100:]
+
+		} else {
+			ids = idPrimarys[z*100 : z*100+100]
+		}
+		ll += len(ids)
+		if !errors(storage.DeleteRewardByIds(ids)) {
+			fmt.Println("Reward2MinerBlockNew,delete error", address, ids)
+			return false
+		}
+	}
+	fmt.Println("lenth,maxheight,total,address,", address, ",", ll, ",", maxHeight, ",", len(total))
+	fmt.Println("cost time,addr:", address, ",", typeId, ",", time.Since(timestamp))
+	return true
+}
+
+func (storage *Storage) addminerBlock(address string, heights []int, typeId uint64, miners []*models.MinerToBlock) bool {
+	if len(heights) < 1 {
+		return true
+	}
+	heightuint64 := make([]uint64, 0)
+	for _, h := range heights {
+		heightuint64 = append(heightuint64, uint64(h))
+	}
+	isSuccess := false
+	tx := storage.db.Begin()
+
+	if !errors(upMinerBlocks(tx, address, heightuint64, typeId, miners)) {
+		return false
+	}
+
+	//if !errors(DeleteRewardByIds(tx, ids)) {
+	//	return false
+	//}
+
+	defer func() {
+		if isSuccess {
+			tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+	}()
+	isSuccess = true
+	return isSuccess
+}
 func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 
 	rewards := make([]*models.Reward, 0)
@@ -731,6 +924,68 @@ func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 	isSuccess = true
 	return isSuccess
 
+}
+
+func upMinerBlocks(tx *gorm.DB,
+	addr string,
+	heights []uint64,
+	typeId uint64, rewards []*models.MinerToBlock) error {
+	if addr == "" || len(heights) < 0 || typeId < 0 {
+		return nil
+	}
+	if len(rewards) > 0 && rewards[0].BlockCnts < MAXCONFIRMREWARDCOUNT {
+		mapData := make(map[string]interface{})
+		blockVerHeights := make([]uint64, 0)
+		if err := json.Unmarshal([]byte(rewards[0].BlockIDs), &blockVerHeights); err != nil {
+			return err
+		}
+		blockVerHeights = append(blockVerHeights, heights...)
+		//blockVerHeights = append(blockVerHeights, height)
+		//blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
+		updateVerString, err := json.Marshal(blockVerHeights)
+		if err != nil {
+			return err
+		}
+		mapData["block_ids"] = updateVerString
+		mapData["block_cnts"] = len(blockVerHeights)
+
+		erraccount := upAccountConfirmCount(tx, typeId, rewards[0].Sequence, uint64(len(blockVerHeights)), addr)
+		if erraccount != nil {
+			return erraccount
+		}
+
+		return tx.Model(&models.MinerToBlock{}).
+			Where("id = ?", rewards[0].ID).
+			Updates(mapData).Error
+
+	} else {
+		sequence := uint64(0)
+		if len(rewards) > 0 && rewards[0].BlockCnts >= MAXCONFIRMREWARDCOUNT {
+			sequence = rewards[0].Sequence + 1
+		}
+		MineBlock := models.MinerToBlock{
+			Address: addr,
+		}
+		problockList := make([]uint64, 0)
+		if len(heights) > 0 {
+			problockList = append(problockList, heights...)
+			byteProBlocks, err := json.Marshal(problockList)
+			if err != nil {
+				return err
+			}
+			proBlockString := string(byteProBlocks)
+			MineBlock.BlockIDs = proBlockString
+			MineBlock.Sequence = sequence
+			MineBlock.BlockCnts = len(problockList)
+			MineBlock.Type = typeId
+			erraccount := upAccountConfirmCount(tx, typeId, sequence, uint64(len(problockList)), addr)
+			if erraccount != nil {
+				return erraccount
+			}
+
+		}
+		return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
+	}
 }
 
 func upMinerBlock(tx *gorm.DB, addr string,
@@ -1340,6 +1595,20 @@ func (storage *Storage) ExistRewardBlockHeight(blockHeight int) bool {
 		return true
 	}
 	return false
+}
+
+func (storage *Storage) DeleteRewardByIds(ids []uint64) error {
+
+	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+		if err := recover(); err != nil {
+			fmt.Println(err) // 这里的err其实就是panic传入的内容
+		}
+	}()
+	//verifySql := fmt.Sprintf("DELETE FROM rewards WHERE block_height = %d ", height)
+	fmt.Println("DeleteRewardByHeight,", ids)
+	return storage.db.Unscoped().Where("id in (?)", ids).Delete(&models.Reward{}).Error
+	//return tx.Exec(verifySql).Error
+
 }
 
 func DeleteRewardByHeight(tx *gorm.DB, height uint64) error {
