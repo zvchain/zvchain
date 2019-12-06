@@ -811,7 +811,7 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 		return nil, err
 	}
 
-	chain.stateCache = account.NewDatabase(chain.stateDb)
+	chain.stateCache = account.NewDatabase(chain.stateDb,false)
 
 	latestBH := chain.loadCurrentBlock()
 	chain.latestBlock = latestBH

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"io"
+	"reflect"
 	"sync"
 	"time"
 
@@ -65,10 +66,12 @@ type NodeDatabase struct {
 	flushnodes uint64             // Nodes flushed since last commit
 	flushsize  common.StorageSize // Data storage flushed since last commit
 
+	childrenSize  common.StorageSize // Storage size of the external children tracking
 	nodesSize     common.StorageSize // Storage size of the nodes cache (exc. flushlist)
 	preimagesSize common.StorageSize // Storage size of the preimages cache
 
 	lock sync.RWMutex
+	enableGc bool						// enableGc crop dirty state if true
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
@@ -126,6 +129,15 @@ type cachedNode struct {
 	flushPrev common.Hash // Previous node in the flush-list
 	flushNext common.Hash // Next node in the flush-list
 }
+
+// cachedNodeSize is the raw size of a cachedNode data structure without any
+// node data included. It's an approximate size, but should be a lot better
+// than not counting them.
+var cachedNodeSize = int(reflect.TypeOf(cachedNode{}).Size())
+
+// cachedNodeChildrenSize is the raw size of an initialized but empty external
+// reference map.
+const cachedNodeChildrenSize = 48
 
 // rlp returns the raw rlp encoded blob of the cached node, either directly from
 // the cache, or by regenerating it from the collapsed node.
@@ -249,11 +261,12 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb tasdb.Database) *NodeDatabase {
+func NewDatabase(diskdb tasdb.Database,gcEnable bool) *NodeDatabase {
 	return &NodeDatabase{
 		diskdb:    diskdb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
 		preimages: make(map[common.Hash][]byte),
+		enableGc:gcEnable,
 	}
 }
 
@@ -408,20 +421,24 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	// If the reference already exists, only duplicate for roots
 	if db.nodes[parent].children == nil {
 		db.nodes[parent].children = make(map[common.Hash]uint16)
+		db.childrenSize += cachedNodeChildrenSize
 	} else if _, ok = db.nodes[parent].children[child]; ok && parent != (common.Hash{}) {
 		return
 	}
 	node.parents++
 	db.nodes[parent].children[child]++
+	if db.nodes[parent].children[child] == 1 {
+		db.childrenSize += common.HashLength + 2 // uint16 counter
+	}
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *NodeDatabase) Dereference(root common.Hash) {
+func (db *NodeDatabase) Dereference(height uint64,root common.Hash,dirtyStates *[]*common.Hash) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{})
+	db.dereference(root, common.Hash{},dirtyStates)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
@@ -431,12 +448,12 @@ func (db *NodeDatabase) Dereference(root common.Hash) {
 	//memcacheGCSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheGCNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
-	log.DefaultLogger.Debug("Dereferenced trie from memory database", "nodes", nodes-len(db.nodes), "size", storage-db.nodesSize, "time", time.Since(start),
-		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.nodes), "livesize", db.nodesSize)
+	log.CropLogger.Debugf("Dereferenced trie from memory database,nodes=%v,size=%v,time=%v,gcnodes=%v,gcsize=%v,gctime=%v,livenodes=%v,livesize=%v,height=%v,root=%v", nodes-len(db.nodes), (storage-db.nodesSize)/(1024*1024), time.Since(start),
+		db.gcnodes, db.gcsize/(1024*1024), db.gctime, len(db.nodes), db.nodesSize/(1024*1024), height, root.Hex())
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,dirtyStates *[]*common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -444,6 +461,7 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 		node.children[child]--
 		if node.children[child] == 0 {
 			delete(node.children, child)
+			db.childrenSize -= (common.HashLength + 2) // uint16 counter
 		}
 	}
 	// If the child does not exist, it's a previously committed node.
@@ -461,18 +479,29 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 	}
 	if node.parents == 0 {
 		// Remove the node from the flush-list
-		if child == db.oldest {
+		switch child {
+		case db.oldest:
 			db.oldest = node.flushNext
-		} else {
+			db.nodes[node.flushNext].flushPrev = common.Hash{}
+		case db.newest:
+			db.newest = node.flushPrev
+			db.nodes[node.flushPrev].flushNext = common.Hash{}
+		default:
 			db.nodes[node.flushPrev].flushNext = node.flushNext
 			db.nodes[node.flushNext].flushPrev = node.flushPrev
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			db.dereference(hash, child)
+			db.dereference(hash, child,dirtyStates)
+		}
+		if db.enableGc{
+			*dirtyStates = append(*dirtyStates,&child)
 		}
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
+		if node.children != nil {
+			db.childrenSize -= cachedNodeChildrenSize
+		}
 	}
 }
 
@@ -577,6 +606,29 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 	return nil
 }
 
+// BatchDeleteDirtyState delete history state node if open gc mode
+func (db *NodeDatabase) BatchDeleteDirtyState(hashs []*common.Hash) {
+	if len(hashs) == 0{
+		return
+	}
+	begin := time.Now()
+	batch := db.diskdb.NewBatch()
+	defer func(){
+		log.CropLogger.Debugf("batch delete size = %v,cost=%v",len(hashs),time.Since(begin))
+	}()
+	for _,hash := range hashs{
+		err := batch.Delete(hash[:])
+		if err != nil{
+			log.CoreLogger.Errorf("batch delete state error,err is %v",err)
+			return
+		}
+	}
+	err := batch.Write()
+	if err != nil{
+		log.CoreLogger.Errorf("batch delete write state error,err is %v",err)
+	}
+}
+
 // Commit iterates over all the children of a particular node, writes them out
 // to disk, forcefully tearing down all references in both directions.
 //
@@ -626,9 +678,9 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
-
-	db.uncache(node)
-
+	if !db.enableGc{
+		db.uncache(node)
+	}
 	//memcacheCommitTimeTimer.Update(time.Since(start))
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))
@@ -679,9 +731,14 @@ func (db *NodeDatabase) uncache(hash common.Hash) {
 		return
 	}
 	// Node still exists, remove it from the flush-list
-	if hash == db.oldest {
+	switch hash {
+	case db.oldest:
 		db.oldest = node.flushNext
-	} else {
+		db.nodes[node.flushNext].flushPrev = common.Hash{}
+	case db.newest:
+		db.newest = node.flushPrev
+		db.nodes[node.flushPrev].flushNext = common.Hash{}
+	default:
 		db.nodes[node.flushPrev].flushNext = node.flushNext
 		db.nodes[node.flushNext].flushPrev = node.flushPrev
 	}
@@ -691,6 +748,9 @@ func (db *NodeDatabase) uncache(hash common.Hash) {
 	}
 	delete(db.nodes, hash)
 	db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
+	if node.children != nil {
+		db.nodesSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+	}
 }
 
 // Size returns the current storage size of the memory cache in front of the
@@ -699,11 +759,12 @@ func (db *NodeDatabase) Size() (common.StorageSize, common.StorageSize) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
-	// db.nodesSize only contains the useful data in the cache, but when reporting
+	// db.dirtiesSize only contains the useful data in the cache, but when reporting
 	// the total memory consumption, the maintenance metadata is also needed to be
-	// counted. For every useful node, we track 2 extra hashes as the flushlist.
-	var flushlistSize = common.StorageSize((len(db.nodes) - 1) * 2 * common.HashLength)
-	return db.nodesSize + flushlistSize, db.preimagesSize
+	// counted.
+	var metadataSize = common.StorageSize((len(db.nodes) - 1) * cachedNodeSize)
+	var metarootRefs = common.StorageSize(len(db.nodes[common.Hash{}].children) * (common.HashLength + 2))
+	return db.nodesSize + db.childrenSize + metadataSize - metarootRefs, db.preimagesSize
 }
 
 // verifyIntegrity is a debug method to iterate over the entire trie stored in

@@ -26,7 +26,7 @@ import (
 func TestAccountDB_AddBalance(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
 	defer db.Close()
-	triedb := NewDatabase(db)
+	triedb := NewDatabase(db,false)
 	state, _ := NewAccountDB(common.Hash{}, triedb)
 	state.SetBalance(common.BytesToAddress([]byte("1")), big.NewInt(1000000))
 	state.AddBalance(common.BytesToAddress([]byte("2")), big.NewInt(1))
@@ -47,7 +47,7 @@ func TestAccountDB_AddBalance(t *testing.T) {
 func TestAccountDB_SetData(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
 	defer db.Close()
-	triedb := NewDatabase(db)
+	triedb := NewDatabase(db,false)
 	state, _ := NewAccountDB(common.Hash{}, triedb)
 	state.SetData(common.BytesToAddress([]byte("1")), []byte("aa"), []byte("v1"))
 	state.SetData(common.BytesToAddress([]byte("1")), []byte("bb"), []byte("v2"))
@@ -76,7 +76,7 @@ func TestAccountDB_SetData(t *testing.T) {
 func TestAccountDB_SetCode(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
 	defer db.Close()
-	triedb := NewDatabase(db)
+	triedb := NewDatabase(db,false)
 	state, _ := NewAccountDB(common.Hash{}, triedb)
 	state.SetCode(common.BytesToAddress([]byte("2")), []byte("code"))
 	root, _ := state.Commit(false)

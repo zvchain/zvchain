@@ -28,7 +28,8 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
-
+const TriesInMemory uint64 = types.EpochLength * 4
+var GcMode = true
 type newTopMessage struct {
 	bh *types.BlockHeader
 }
@@ -46,11 +47,26 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
-
 	triedb := chain.stateCache.TrieDB()
 	err = triedb.Commit(root, false)
 	if err != nil {
 		return fmt.Errorf("trie commit error:%s", err.Error())
+	}
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	if trieGc{
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+		chain.triegc.Push(root, -int64(b.Header.Height))
+		cp := chain.latestCP.Load()
+		if cp != nil{
+			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height,TriesInMemory)
+			if len(cropItems) > 0 {
+				dirtyStates := []*common.Hash{}
+				for _,vl := range cropItems{
+					triedb.Dereference(uint64(-vl.Priority),vl.Value.(common.Hash),&dirtyStates)
+				}
+				go triedb.BatchDeleteDirtyState(dirtyStates)
+			}
+		}
 	}
 	return nil
 }
