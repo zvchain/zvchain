@@ -606,6 +606,48 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 	return nil
 }
 
+func (db *NodeDatabase) ClearFromNodes(height uint64,limit common.StorageSize) {
+	db.lock.RLock()
+	defer db.lock.RUnlock()
+	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
+	size := db.nodesSize + common.StorageSize((len(db.nodes)-1)*cachedNodeSize)
+	size += db.childrenSize - common.StorageSize(len(db.nodes[common.Hash{}].children)*(common.HashLength+2))
+	// Keep delete nodes from the flush-list until we're below allowance
+	oldest := db.oldest
+	for size > limit && oldest != (common.Hash{}) {
+		// Fetch the oldest referenced node and push into the batch
+		node := db.nodes[oldest]
+		// Iterate to the next flush item, or abort if the size cap was achieved. Size
+		// is the total size, including the useful cached data (hash -> blob), the
+		// cache item metadata, as well as external children mappings.
+		size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
+		if node.children != nil {
+			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		}
+		oldest = node.flushNext
+	}
+	for db.oldest != oldest {
+		node := db.nodes[db.oldest]
+		delete(db.nodes, db.oldest)
+		db.oldest = node.flushNext
+
+		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
+		if node.children != nil {
+			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		}
+	}
+	if db.oldest != (common.Hash{}) {
+		db.nodes[db.oldest].flushPrev = common.Hash{}
+	}
+
+	db.flushnodes += uint64(nodes - len(db.nodes))
+	db.flushsize += storage - db.nodesSize
+	db.flushtime += time.Since(start)
+
+	log.CropLogger.Debugf("Clear nodes from memory clear ,height is %v,clear count %v,clear size %v,cost %v,total flush nodes %v,total flush size %v,total flush time is %v,live node %v,live size %v",
+		height,nodes-len(db.nodes),storage-db.nodesSize,time.Since(start),db.flushnodes,db.flushsize,db.flushtime,len(db.nodes),db.nodesSize)
+}
+
 // BatchDeleteDirtyState delete history state node if open gc mode
 func (db *NodeDatabase) BatchDeleteDirtyState(hashs []*common.Hash) {
 	if len(hashs) == 0{
@@ -759,7 +801,7 @@ func (db *NodeDatabase) Size() (common.StorageSize, common.StorageSize) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
-	// db.dirtiesSize only contains the useful data in the cache, but when reporting
+	// db.nodesSize only contains the useful data in the cache, but when reporting
 	// the total memory consumption, the maintenance metadata is also needed to be
 	// counted.
 	var metadataSize = common.StorageSize((len(db.nodes) - 1) * cachedNodeSize)

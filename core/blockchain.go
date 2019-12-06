@@ -44,6 +44,7 @@ import (
 const (
 	blockStatusKey = "bcurrent"
 	configSec      = "chain"
+	gc             = "gc"
 )
 
 var (
@@ -79,8 +80,8 @@ type FullBlockChain struct {
 	stateDb     *tasdb.PrefixedDatabase
 	cacheDb     *tasdb.PrefixedDatabase
 	batch       tasdb.Batch
-	triegc            *prque.Prque // Priority queue mapping block numbers to tries to gc
-	stateCache account.AccountDatabase
+	triegc      *prque.Prque // Priority queue mapping block numbers to tries to gc
+	stateCache  account.AccountDatabase
 
 	transactionPool types.TransactionPool
 
@@ -170,10 +171,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        fileCacheSize,
-		BlockCacheCapacity:            blockCacheSize * opt.MiB,
-		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
+		OpenFilesCacheCapacity: fileCacheSize,
+		BlockCacheCapacity:     blockCacheSize * opt.MiB,
+		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
@@ -215,7 +216,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
-	chain.stateCache = account.NewDatabase(chain.stateDb,trieGc)
+	chain.stateCache = account.NewDatabase(chain.stateDb, trieGc)
 
 	latestBH := chain.loadCurrentBlock()
 

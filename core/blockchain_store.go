@@ -29,7 +29,11 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 )
 const TriesInMemory uint64 = types.EpochLength * 4
-var GcMode = true
+var(
+	GcMode = true
+	maxTriesInMemory = 300
+	everyClearFromMemory = 1
+)
 type newTopMessage struct {
 	bh *types.BlockHeader
 }
@@ -57,6 +61,12 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
 		cp := chain.latestCP.Load()
+		limit := common.StorageSize(common.GlobalConf.GetInt(gc, "max_tries_memory", maxTriesInMemory) * 1024 * 1024)
+		nodes, _ := triedb.Size()
+		if nodes > limit{
+			clear := common.StorageSize(common.GlobalConf.GetInt(gc, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024)
+			triedb.ClearFromNodes(b.Header.Height,limit - clear)
+		}
 		if cp != nil{
 			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height,TriesInMemory)
 			if len(cropItems) > 0 {
