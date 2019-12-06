@@ -396,13 +396,8 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block, tSlice txSlice
 		return
 	}
 
-	if chain.config.commit {
-		// Commit to DB
-		return chain.commitBlock(block, ps)
-	} else {
-		chain.updateLatestBlock(ps.state, block.Header)
-		return true, nil
-	}
+	// Commit to DB
+	return chain.commitBlock(block, ps)
 }
 
 // validateTxs check tx sign and recover source
