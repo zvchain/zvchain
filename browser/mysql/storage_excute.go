@@ -1506,7 +1506,7 @@ func (storage *Storage) DeleteRewardByIds(ids []uint64) error {
 		}
 	}()
 	//verifySql := fmt.Sprintf("DELETE FROM rewards WHERE block_height = %d ", height)
-	fmt.Println("DeleteRewardByHeight,", ids)
+	//fmt.Println("DeleteRewardByHeight,", ids)
 	return storage.db.Unscoped().Where("id in (?)", ids).Delete(&models.Reward{}).Error
 	//return tx.Exec(verifySql).Error
 
