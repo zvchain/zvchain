@@ -73,3 +73,10 @@ func InsertUint64SliceCopy(slice, insertion []uint64, index int) []uint64 {
 	fmt.Printf("%6T\n", at)
 	return result
 }
+func Errors(error error) bool {
+	if error != nil {
+		fmt.Println("update/add error", error)
+		return false
+	}
+	return true
+}

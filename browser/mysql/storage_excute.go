@@ -337,7 +337,6 @@ func errors(error error) bool {
 		return false
 	}
 	return true
-
 }
 
 func (storage *Storage) AddBlockHeightSystemconfig(sys *models.Sys) bool {
@@ -754,29 +753,7 @@ func (storage *Storage) Reward2blocktest() []int {
 	return total
 }
 
-func (storage *Storage) Reward2MinerBlockByAddress() {
-
-	topHeight := storage.MaxConfirmBlockRewardHeight()
-	//checkpoint := core.BlockChainImpl.LatestCheckPoint()
-	maxHeight := topHeight - 1000
-
-	//addr := storage.MinConfirmBlockReward()
-	for i := 0; i < 24; i++ {
-
-		addrs := storage.MinToMaxAccountverReward(uint64(i*100), 100)
-		for _, addr := range addrs {
-			storage.Reward2MinerBlockNew(addr.Address, 0, maxHeight)
-			storage.Reward2MinerBlockNew(addr.Address, 1, maxHeight)
-		}
-	}
-	proaddr := storage.MinToMaxAccountproposalReward(0, 100)
-	for _, paddr := range proaddr {
-		storage.Reward2MinerBlockNew(paddr.Address, 1, maxHeight)
-	}
-
-}
-
-func (storage *Storage) getExistminerBlock(address string, typeId uint64) ([]*models.MinerToBlock, int) {
+func (storage *Storage) GetExistminerBlock(address string, typeId uint64) ([]*models.MinerToBlock, int) {
 	miners := make([]*models.MinerToBlock, 0)
 	storage.db.Limit(1).Where("type = ? and address = ? ", typeId, address).
 		Order("sequence desc").Find(&miners)
@@ -790,83 +767,7 @@ func (storage *Storage) getExistminerBlock(address string, typeId uint64) ([]*mo
 	return miners, count
 }
 
-func (storage *Storage) Reward2MinerBlockNew(address string, typeId uint64, maxHeight uint64) bool {
-	fmt.Println("Reward2MinerBlockNew,", address, time.Now())
-
-	timestamp := time.Now()
-	miners, count := storage.getExistminerBlock(address, typeId)
-	total := make([]int, 0)
-	idPrimarys := make([]uint64, 0)
-
-	for i := 0; i < 30; i++ {
-		list := make([]models.RewardHeightAndId, 0)
-		storage.db.Model(&models.Reward{}).Where("type = ? and node_id = ? ", typeId, address).Offset(i * 5000).Limit(5000).Select("block_height,id").Scan(&list)
-		//defer rows.Close()
-		//rows,_:=storage.db.Model(&models.Reward{}).Where("type = ? and node_id = ? ",typeId, address).Offset(i*5000).Limit(5000).Select("block_height,id").Rows()
-		s := make([]int, 0, 0)
-		p := make([]uint64, 0, 0)
-		for _, rewardheight := range list {
-			if uint64(rewardheight.BlockHeight) > maxHeight {
-				break
-			}
-			s = append(s, rewardheight.BlockHeight)
-			p = append(p, rewardheight.Id)
-		}
-		total = append(total, s...)
-		idPrimarys = append(idPrimarys, p...)
-		if len(s) < 5000 {
-			break
-		}
-	}
-	if len(total) < 1 {
-		return true
-	}
-	sort.Ints(total)
-	hights := make([]int, 0)
-	if len(total) <= count {
-		hights = total[0:]
-		storage.addminerBlock(address, hights, typeId, miners)
-	} else {
-		hights = total[0:count]
-		storage.addminerBlock(address, hights, typeId, miners)
-		backward := total[count:]
-		size := len(backward) / MAXCONFIRMREWARDCOUNT
-		start := 0
-		for l := 0; l <= size; l++ {
-			miners, count := storage.getExistminerBlock(address, typeId)
-			if len(backward[start:]) <= count {
-				hights = backward[start:]
-				start = start + len(hights)
-			} else {
-				hights = backward[start : start+count]
-				start = start + count
-			}
-			storage.addminerBlock(address, hights, typeId, miners)
-		}
-	}
-	primsize := len(idPrimarys) / 100
-	ids := make([]uint64, 0)
-	ll := 0
-	for z := 0; z <= primsize; z++ {
-
-		if len(idPrimarys[z*100:]) <= 100 {
-			ids = idPrimarys[z*100:]
-
-		} else {
-			ids = idPrimarys[z*100 : z*100+100]
-		}
-		ll += len(ids)
-		if !errors(storage.DeleteRewardByIds(ids)) {
-			fmt.Println("Reward2MinerBlockNew,delete error", address, ids)
-			return false
-		}
-	}
-	fmt.Println("lenth,maxheight,total,address,", address, ",", ll, ",", maxHeight, ",", len(total))
-	fmt.Println("cost time,addr:", address, ",", typeId, ",", time.Since(timestamp))
-	return true
-}
-
-func (storage *Storage) addminerBlock(address string, heights []int, typeId uint64, miners []*models.MinerToBlock) bool {
+func (storage *Storage) AddminerBlock(address string, heights []int, typeId uint64, miners []*models.MinerToBlock) bool {
 	if len(heights) < 1 {
 		return true
 	}

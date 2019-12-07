@@ -40,9 +40,9 @@ func main() {
 }
 
 func NewBrowserDBInit() {
-	var browerdbaddr, rpcAddr string
+	var browerdbaddr, rpcAddr, browerslavedbaddr string
 	var dbPort, rpcPort int
-	var dbUser, dbPassword string
+	var dbUser, dbPassword, slavedbUser, slavePassword string
 	var help bool
 	var reset bool
 	var resetcrontab bool
@@ -51,10 +51,13 @@ func NewBrowserDBInit() {
 	flag.BoolVar(&reset, "reset", false, "reset database")
 	flag.BoolVar(&resetcrontab, "resetcrontab", false, "resetcrontab database")
 	flag.StringVar(&browerdbaddr, "browerdbaddr", "localhost", "database address")
+	flag.StringVar(&browerslavedbaddr, "browerslavedbaddr", "localhost", "database address")
 	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
 	flag.IntVar(&dbPort, "dbport", 3306, "database port")
 	flag.IntVar(&rpcPort, "rpcport", 8101, "RPC port")
 	flag.StringVar(&dbUser, "dbuser", "root", "database user")
+	flag.StringVar(&slavedbUser, "slavedbUser", "root", "database user")
+	flag.StringVar(&slavePassword, "slavePassword", "dan", "database password")
 	flag.StringVar(&dbPassword, "browerdbpw", "dan", "database password")
 
 	/*
@@ -74,5 +77,5 @@ func NewBrowserDBInit() {
 	ldb.InitBrowserdb()
 	fmt.Println("browserdbmmanagement flags:", browerdbaddr, dbPort, dbUser, dbPassword, reset)
 	browser.NewDBMmanagement(browerdbaddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
-	crontab.NewServer(browerdbaddr, dbPort, dbUser, dbPassword, reset)
+	crontab.NewServer(browerdbaddr, dbPort, dbUser, dbPassword, reset, browerslavedbaddr, slavedbUser, slavePassword)
 }

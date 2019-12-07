@@ -18,6 +18,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -46,7 +47,9 @@ const (
 )
 
 type Crontab struct {
-	storage                       *mysql.Storage
+	storage      *mysql.Storage
+	slaveStorage *mysql.SlaveStorage
+
 	blockRewardHeight             uint64
 	blockTopHeight                uint64
 	rewardStorageDataHeight       uint64
@@ -77,12 +80,15 @@ type Crontab struct {
 	isFetchingVerfications bool
 }
 
-func NewServer(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool) *Crontab {
+func NewServer(dbAddr string, dbPort int, dbUser string,
+	dbPassword string, reset bool,
+	browerslavedbaddr string, slavedbUser string, slavePassword string) *Crontab {
 	server := &Crontab{
 		initdata:       make(chan *models.ForkNotify, 10000),
 		initRewarddata: make(chan *models.ForkNotify, 10000),
 	}
 	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, false)
+	server.slaveStorage = mysql.NewSlaveStorage(browerslavedbaddr, dbPort, slavedbUser, slavePassword, reset, false)
 	server.addGenisisblockAndReward()
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
@@ -162,9 +168,84 @@ func (crontab *Crontab) fetchConfirmRewardsToMinerBlock() {
 		return
 	}
 	//crontab.ConfirmRewardsToMinerBlock()
-	crontab.storage.Reward2MinerBlockByAddress()
+	crontab.Reward2MinerBlockByAddress()
 	atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 1, 0)
 
+}
+
+func (crontab *Crontab) Reward2MinerBlockByAddress() {
+
+	topHeight := crontab.storage.MaxConfirmBlockRewardHeight()
+	//checkpoint := core.BlockChainImpl.LatestCheckPoint()
+	maxHeight := topHeight - 1000
+
+	//addr := storage.MinConfirmBlockReward()
+	for i := 0; i < 24; i++ {
+
+		addrs := crontab.storage.MinToMaxAccountverReward(uint64(i*100), 100)
+		for _, addr := range addrs {
+			crontab.Reward2MinerBlockNew(addr.Address, 0, maxHeight)
+			crontab.Reward2MinerBlockNew(addr.Address, 1, maxHeight)
+		}
+	}
+	proaddr := crontab.storage.MinToMaxAccountproposalReward(0, 100)
+	for _, paddr := range proaddr {
+		crontab.Reward2MinerBlockNew(paddr.Address, 1, maxHeight)
+	}
+
+}
+func (crontab *Crontab) Reward2MinerBlockNew(address string, typeId uint64, maxHeight uint64) bool {
+	fmt.Println("Reward2MinerBlockNew,", address, time.Now())
+
+	timestamp := time.Now()
+	miners, count := crontab.storage.GetExistminerBlock(address, typeId)
+	total, idPrimarys := crontab.slaveStorage.SlaveRewardDatas(address, typeId, maxHeight)
+	if len(total) < 1 {
+		return true
+	}
+	sort.Ints(total)
+	hights := make([]int, 0)
+	if len(total) <= count {
+		hights = total[0:]
+		crontab.storage.AddminerBlock(address, hights, typeId, miners)
+	} else {
+		hights = total[0:count]
+		crontab.storage.AddminerBlock(address, hights, typeId, miners)
+		backward := total[count:]
+		size := len(backward) / mysql.MAXCONFIRMREWARDCOUNT
+		start := 0
+		for l := 0; l <= size; l++ {
+			miners, count := crontab.storage.GetExistminerBlock(address, typeId)
+			if len(backward[start:]) <= count {
+				hights = backward[start:]
+				start = start + len(hights)
+			} else {
+				hights = backward[start : start+count]
+				start = start + count
+			}
+			crontab.storage.AddminerBlock(address, hights, typeId, miners)
+		}
+	}
+	primsize := len(idPrimarys) / 100
+	ids := make([]uint64, 0)
+	ll := 0
+	for z := 0; z <= primsize; z++ {
+
+		if len(idPrimarys[z*100:]) <= 100 {
+			ids = idPrimarys[z*100:]
+
+		} else {
+			ids = idPrimarys[z*100 : z*100+100]
+		}
+		ll += len(ids)
+		if !util.Errors(crontab.storage.DeleteRewardByIds(ids)) {
+			fmt.Println("Reward2MinerBlockNew,delete error", address, ids)
+			return false
+		}
+	}
+	fmt.Println("lenth,maxheight,total,address,", address, ",", ll, ",", maxHeight, ",", len(total))
+	fmt.Println("cost time,addr:", address, ",", typeId, ",", time.Since(timestamp))
+	return true
 }
 
 func (crontab *Crontab) fetchBlockRewards() {

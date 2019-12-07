@@ -29,6 +29,7 @@ const (
 const PageSize uint64 = 20
 
 var DBStorage *Storage
+var SLAVEDBStorage *SlaveStorage
 
 type Storage struct {
 	db                        *gorm.DB
@@ -45,6 +46,17 @@ type Storage struct {
 	statisticstranLastUpdate  string
 }
 
+type SlaveStorage struct {
+	db           *gorm.DB
+	dbAddr       string
+	dbPort       int
+	dbUser       string
+	dbPassword   string
+	rpcAddrStr   string
+	topBlockHigh uint64
+	topGroupHigh uint64
+}
+
 func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *Storage {
 	if DBStorage != nil {
 		return DBStorage
@@ -58,7 +70,38 @@ func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, res
 	DBStorage.Init(reset, resetcrontab)
 	return DBStorage
 }
+func NewSlaveStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *SlaveStorage {
+	if SLAVEDBStorage != nil {
+		return SLAVEDBStorage
+	}
+	SLAVEDBStorage = &SlaveStorage{
+		dbAddr:     dbAddr,
+		dbPort:     dbPort,
+		dbUser:     dbUser,
+		dbPassword: dbPassword,
+	}
+	SLAVEDBStorage.SLAVEInit(reset, resetcrontab)
+	return SLAVEDBStorage
+}
 
+func (storage *SlaveStorage) SLAVEInit(reset bool, resetcrontab bool) {
+	if storage.db != nil {
+		return
+	}
+	//args := fmt.Sprintf("root:Jobs1955!@tcp(119.23.205.254:3306)/tas?charset=utf8&parseTime=True&loc=Local")
+	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/gzv?charset=utf8&parseTime=True&loc=Local",
+		storage.dbUser,
+		storage.dbPassword,
+		storage.dbAddr,
+		storage.dbPort)
+	fmt.Println("[SlaveStorage] db args:", args)
+	db, err := gorm.Open("mysql", args)
+	if err != nil {
+		fmt.Println("[SlaveStorage] gorm.Open err:", err)
+		return
+	}
+	storage.db = db
+}
 func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if storage.db != nil {
 		return
