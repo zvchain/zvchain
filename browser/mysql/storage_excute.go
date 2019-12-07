@@ -982,9 +982,9 @@ func upAccountConfirmCount(tx *gorm.DB,
 			Address: addr,
 		}
 		if typeId == 0 {
-			miner.ProposalConfirmCount = sequence*MAXCONFIRMREWARDCOUNT + size
-		} else {
 			miner.VerifyConfirmCount = sequence*MAXCONFIRMREWARDCOUNT + size
+		} else {
+			miner.ProposalConfirmCount = sequence*MAXCONFIRMREWARDCOUNT + size
 		}
 		return tx.Model(models.MinerList{}).Create(&miner).Error
 
