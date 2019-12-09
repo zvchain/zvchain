@@ -17,11 +17,14 @@
 package trie
 
 import (
+	"errors"
 	"fmt"
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/zvchain/zvchain/log"
 	"io"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -51,9 +54,16 @@ type DatabaseReader interface {
 type NodeDatabase struct {
 	diskdb tasdb.Database // Persistent storage for matured trie nodes
 
-	nodes  map[common.Hash]*cachedNode // Data and references relationships of a node
-	oldest common.Hash                 // Oldest tracked node, flush-list head
-	newest common.Hash                 // Newest tracked node, flush-list tail
+	nodes    map[common.Hash]*cachedNode // Data and references relationships of a node
+	cache    *fastcache.Cache
+	hit      uint64
+	total    uint64
+	hitSize  uint64
+	miss     uint64
+	missSize uint64
+
+	oldest common.Hash // Oldest tracked node, flush-list head
+	newest common.Hash // Newest tracked node, flush-list tail
 
 	preimages map[common.Hash][]byte // Preimages of nodes from the secure trie
 	seckeybuf [secureKeyLength]byte  // Ephemeral buffer for calculating preimage keys
@@ -70,8 +80,8 @@ type NodeDatabase struct {
 	nodesSize     common.StorageSize // Storage size of the nodes cache (exc. flushlist)
 	preimagesSize common.StorageSize // Storage size of the preimages cache
 
-	lock sync.RWMutex
-	enableGc bool						// enableGc crop dirty state if true
+	lock     sync.RWMutex
+	enableGc bool // enableGc crop dirty state if true
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
@@ -261,12 +271,17 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb tasdb.Database,gcEnable bool) *NodeDatabase {
+func NewDatabase(diskdb tasdb.Database, cacheSize int, gcEnable bool) *NodeDatabase {
+	var cache *fastcache.Cache
+	if cacheSize > 0 {
+		cache = fastcache.New(cacheSize * 1024 * 1024)
+	}
 	return &NodeDatabase{
 		diskdb:    diskdb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
 		preimages: make(map[common.Hash][]byte),
-		enableGc:gcEnable,
+		enableGc:  gcEnable,
+		cache:     cache,
 	}
 }
 
@@ -307,6 +322,7 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 		}
 	}
 	db.nodes[hash] = entry
+	db.cache.Set(hash.Bytes(), blob)
 
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
@@ -332,6 +348,20 @@ func (db *NodeDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
 func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
+	atomic.AddUint64(&db.total, 1)
+	// Retrieve the node from the clean cache if available
+	if db.cache != nil {
+		if enc := db.cache.Get(nil, hash[:]); enc != nil {
+			atomic.AddUint64(&db.hit, 1)
+			atomic.AddUint64(&db.hitSize, uint64(len(enc)))
+			if db.total%1000 == 0 {
+				log.CoreLogger.Infof("fastcache total %v, hit %v, hitRate %v, hitSize %vMB, missRate %v, missSize %vMB", db.total, db.hit, float64(db.hit)/float64(db.total), db.hitSize/1024.0/1024.0,
+					float64(db.miss)/float64(db.total), db.missSize/1024.0/1024.0)
+			}
+			return mustDecodeNode(hash[:], enc, cachegen), nil
+		}
+	}
+
 	// Retrieve the node from cache if available
 	db.lock.RLock()
 	node := db.nodes[hash]
@@ -340,10 +370,15 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	if node != nil {
 		return node.obj(hash, cachegen), nil
 	}
+	atomic.AddUint64(&db.miss, 1)
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
 		return nil, nil
+	}
+	if db.cache != nil {
+		db.cache.Set(hash[:], enc)
+		atomic.AddUint64(&db.missSize, uint64(len(enc)))
 	}
 	return mustDecodeNode(hash[:], enc, cachegen), enc
 }
@@ -351,16 +386,42 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 // Node retrieves an encoded cached trie node from memory. If it cannot be found
 // cached, the method queries the persistent database for the content.
 func (db *NodeDatabase) Node(hash common.Hash) ([]byte, error) {
-	// Retrieve the node from cache if available
+	/// It doens't make sense to retrieve the metaroot
+	if hash == (common.Hash{}) {
+		return nil, errors.New("not found")
+	}
+	// Retrieve the node from the clean cache if available
+	atomic.AddUint64(&db.total, 1)
+	// Retrieve the node from the clean cache if available
+	if db.cache != nil {
+		if enc := db.cache.Get(nil, hash[:]); enc != nil {
+			atomic.AddUint64(&db.hit, 1)
+			atomic.AddUint64(&db.hitSize, uint64(len(enc)))
+			if db.total%1000 == 0 {
+				log.CoreLogger.Infof("fastcache total %v, hit %v, hitRate %v, hitSize %vMB, missRate %v, missSize %vMB", db.total, db.hit, float64(db.hit)/float64(db.total), db.hitSize/1024.0/1024.0,
+					float64(db.miss)/float64(db.total), db.missSize/1024.0/1024.0)
+			}
+			return enc, nil
+		}
+	}
+	// Retrieve the node from the dirty cache if available
 	db.lock.RLock()
-	node := db.nodes[hash]
+	dirty := db.nodes[hash]
 	db.lock.RUnlock()
 
-	if node != nil {
-		return node.rlp(), nil
+	if dirty != nil {
+		return dirty.rlp(), nil
 	}
+	atomic.AddUint64(&db.miss, 1)
 	// Content unavailable in memory, attempt to retrieve from disk
-	return db.diskdb.Get(hash[:])
+	enc, err := db.diskdb.Get(hash[:])
+	if err == nil && enc != nil {
+		if db.cache != nil {
+			db.cache.Set(hash[:], enc)
+			atomic.AddUint64(&db.missSize, uint64(len(enc)))
+		}
+	}
+	return enc, err
 }
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be
@@ -433,12 +494,12 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *NodeDatabase) Dereference(height uint64,root common.Hash,dirtyStates *[]*common.Hash) {
+func (db *NodeDatabase) Dereference(height uint64, root common.Hash, dirtyStates *[]*common.Hash) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{},dirtyStates)
+	db.dereference(root, common.Hash{}, dirtyStates)
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
@@ -453,7 +514,7 @@ func (db *NodeDatabase) Dereference(height uint64,root common.Hash,dirtyStates *
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,dirtyStates *[]*common.Hash) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, dirtyStates *[]*common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -492,10 +553,10 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash,dirtyS
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			db.dereference(hash, child,dirtyStates)
+			db.dereference(hash, child, dirtyStates)
 		}
-		if db.enableGc{
-			*dirtyStates = append(*dirtyStates,&child)
+		if db.enableGc {
+			*dirtyStates = append(*dirtyStates, &child)
 		}
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
@@ -606,7 +667,7 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 	return nil
 }
 
-func (db *NodeDatabase) ClearFromNodes(height uint64,limit common.StorageSize) {
+func (db *NodeDatabase) ClearFromNodes(height uint64, limit common.StorageSize) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
@@ -645,29 +706,29 @@ func (db *NodeDatabase) ClearFromNodes(height uint64,limit common.StorageSize) {
 	db.flushtime += time.Since(start)
 
 	log.CropLogger.Debugf("Clear nodes from memory clear ,height is %v,clear count %v,clear size %v,cost %v,total flush nodes %v,total flush size %v,total flush time is %v,live node %v,live size %v",
-		height,nodes-len(db.nodes),storage-db.nodesSize,time.Since(start),db.flushnodes,db.flushsize,db.flushtime,len(db.nodes),db.nodesSize)
+		height, nodes-len(db.nodes), storage-db.nodesSize, time.Since(start), db.flushnodes, db.flushsize, db.flushtime, len(db.nodes), db.nodesSize)
 }
 
 // BatchDeleteDirtyState delete history state node if open gc mode
 func (db *NodeDatabase) BatchDeleteDirtyState(hashs []*common.Hash) {
-	if len(hashs) == 0{
+	if len(hashs) == 0 {
 		return
 	}
 	begin := time.Now()
 	batch := db.diskdb.NewBatch()
-	defer func(){
-		log.CropLogger.Debugf("batch delete size = %v,cost=%v",len(hashs),time.Since(begin))
+	defer func() {
+		log.CropLogger.Debugf("batch delete size = %v,cost=%v", len(hashs), time.Since(begin))
 	}()
-	for _,hash := range hashs{
+	for _, hash := range hashs {
 		err := batch.Delete(hash[:])
-		if err != nil{
-			log.CoreLogger.Errorf("batch delete state error,err is %v",err)
+		if err != nil {
+			log.CoreLogger.Errorf("batch delete state error,err is %v", err)
 			return
 		}
 	}
 	err := batch.Write()
-	if err != nil{
-		log.CoreLogger.Errorf("batch delete write state error,err is %v",err)
+	if err != nil {
+		log.CoreLogger.Errorf("batch delete write state error,err is %v", err)
 	}
 }
 
@@ -720,7 +781,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
-	if !db.enableGc{
+	if !db.enableGc {
 		db.uncache(node)
 	}
 	//memcacheCommitTimeTimer.Update(time.Since(start))
@@ -749,9 +810,11 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 			return err
 		}
 	}
-	if err := batch.Put(hash[:], node.rlp()); err != nil {
+	v := node.rlp()
+	if err := batch.Put(hash[:], v); err != nil {
 		return err
 	}
+	db.cache.Set(hash.Bytes(), v)
 	// If we've reached an optimal batch size, commit and start over
 	if batch.ValueSize() >= tasdb.IdealBatchSize {
 		if err := batch.Write(); err != nil {

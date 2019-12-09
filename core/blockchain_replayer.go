@@ -38,12 +38,13 @@ type BlockProvider interface {
 
 func (chain *FullBlockChain) Replay(provider BlockProvider, out io.Writer) error {
 	begin := chain.Height() + 1
+	const step = 100
 	for {
 		t := time.Now()
-		blocks := provider.Provide(begin, begin+20)
+		blocks := provider.Provide(begin, begin+step)
 
 		if len(blocks) == 0 {
-			begin += 20
+			begin += step
 			continue
 		}
 		for _, b := range blocks {
@@ -59,7 +60,7 @@ func (chain *FullBlockChain) Replay(provider BlockProvider, out io.Writer) error
 		}
 
 		cost := time.Since(t)
-		bps := 20 / cost.Seconds()
+		bps := float64(len(blocks)) / cost.Seconds()
 		remainT := time.Duration(float64(top-begin)/bps) * time.Second
 
 		out.Write([]byte(fmt.Sprintf("replay block %v finished, bps %v, remain %v\n", begin-1, bps, remainT.String())))
