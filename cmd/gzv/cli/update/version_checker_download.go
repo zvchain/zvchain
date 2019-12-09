@@ -99,7 +99,7 @@ func isFileExist(filepath string) bool {
 		fmt.Println(info)
 		return false
 	}
-	log.DefaultLogger.Infoln("Installation package already exists : %v , %v , %v \n", info.Name(), info.Size(), info.ModTime())
+	log.DefaultLogger.Infof("Installation package already exists : %v , %v , %v \n", info.Name(), info.Size(), info.ModTime())
 	return true
 }
 
