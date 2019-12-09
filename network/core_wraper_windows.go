@@ -205,6 +205,16 @@ void p2p_shutdown(uint32_t session)
 	}
 }
 
+uint32_t p2p_kcp_rxrtt(uint32_t session)
+{
+	void* api = p2p_api(__FUNCTION__);
+	if (api)
+    {
+    	((void(*)(uint32_t session))api)(session);
+	}
+}
+
+
 void p2p_send(uint32_t session, const void* data, uint32_t size)
 {
 	void* api = p2p_api(__FUNCTION__);
@@ -245,6 +255,10 @@ func P2PConnect(id uint64, ip string, port uint16) {
 
 func P2PShutdown(session uint32) {
 	C.p2p_shutdown(C.uint(session))
+}
+
+func P2PSessionRtt(session uint32) uint32 {
+	return (uint32)(C.p2p_kcp_rxrtt(C.uint(session)))
 }
 
 func P2PSend(session uint32, data []byte) {

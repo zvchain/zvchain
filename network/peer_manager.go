@@ -188,6 +188,9 @@ func (pm *PeerManager) checkPeers() {
 				}
 				p.write(packet, P2PMessageCodeBase+uint32(MessageType_MessagePong))
 			}
+		} else {
+			Logger.Debugf("peer info  net id：%v session:%v rtt:%v", p.ID.GetHexString(), p.sessionID, P2PSessionRtt(p.sessionID))
+
 		}
 	}
 }

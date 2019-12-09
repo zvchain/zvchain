@@ -149,6 +149,10 @@ func P2PShutdown(session uint32) {
 	C.p2p_shutdown(C.uint(session))
 }
 
+func P2PSessionRtt(session uint32) uint32 {
+	return (uint32)(C.p2p_kcp_rxrtt(C.uint(session)))
+}
+
 func P2PSend(session uint32, data []byte) {
 
 	const maxSize = 64 * 1024
