@@ -67,8 +67,9 @@ var blockSync *blockSyncer
 type blockSyncer struct {
 	chain *FullBlockChain
 
-	candidatePool map[string]*types.CandidateBlockHeader
-	syncingPeers  map[string]uint64
+	candidatePool   map[string]*types.CandidateBlockHeader
+	syncingPeers    map[string]uint64
+	syncingPeersTop map[string]*types.CandidateBlockHeader
 
 	ticker *ticker.GlobalTicker
 
@@ -94,6 +95,7 @@ func newTopBlockInfo(topBH *types.BlockHeader) *topBlockInfo {
 func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 	return &blockSyncer{
 		candidatePool:        make(map[string]*types.CandidateBlockHeader),
+		syncingPeersTop:      make(map[string]*types.CandidateBlockHeader),
 		chain:                chain,
 		syncingPeers:         make(map[string]uint64),
 		notifyCounters:       common.MustNewLRUCache(notifyCounterCacheSize),
@@ -274,6 +276,16 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	return nil
 }
 
+func (bs *blockSyncer) getSyncingPeerTopBlock(id string) *types.CandidateBlockHeader {
+	bs.lock.RLock()
+	defer bs.lock.RUnlock()
+	tb, ok := bs.syncingPeersTop[id]
+	if ok {
+		return tb
+	}
+	return nil
+}
+
 func (bs *blockSyncer) detectLowFork() (string, *types.BlockHeader) {
 	bs.lock.Lock()
 	defer bs.lock.Unlock()
@@ -365,6 +377,7 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 	notify.BUS.Publish(notify.BlockSync, &syncMessage{CandidateInfo: candInfo})
 
 	bs.requestBlock(candInfo)
+	bs.syncingPeersTop[candidate] = candidateTop
 	return true
 }
 
@@ -462,6 +475,7 @@ func (bs *blockSyncer) syncComplete(id string, timeout bool) bool {
 	bs.lock.Lock()
 	defer bs.lock.Unlock()
 	delete(bs.syncingPeers, id)
+	delete(bs.syncingPeersTop, id)
 	return true
 }
 
@@ -506,7 +520,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 			bs.logger.Errorf("recv block lower than reqHeight: %v %v", blocks[0].Header.Height, reqHeight)
 			return nil
 		}
-		peerTop := bs.getPeerTopBlock(source)
+		peerTop := bs.getSyncingPeerTopBlock(source)
 		localTop := newTopBlockInfo(bs.chain.QueryTopBlock())
 
 		if peerTop == nil {
