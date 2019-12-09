@@ -18,11 +18,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/zvchain/zvchain/storage/trie"
 
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -157,7 +158,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.initMessageHandler()
 
 	// get the level db file cache size from config
-	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
+	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
 	// get the level db block cache size from config
 	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
 	// get the level db write cache size from config
@@ -166,14 +167,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        fileCacheSize,
-		BlockCacheCapacity:            blockCacheSize * opt.MiB,
-		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
-		CompactionTableSize:           4 * opt.MiB,
-		CompactionTableSizeMultiplier: 2,
-		CompactionTotalSize:           16 * opt.MiB,
-		BlockSize:                     64 * opt.KiB,
+		OpenFilesCacheCapacity: fileCacheSize,
+		BlockCacheCapacity:     blockCacheSize * opt.MiB,
+		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
@@ -277,7 +274,17 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	initStakeGetter(MinerManagerImpl, chain)
 
+	chain.LogDbStats()
 	return nil
+}
+
+func (chain *FullBlockChain) LogDbStats() {
+	tc := time.NewTicker(3 * time.Second)
+	go func() {
+		for range tc.C {
+			chain.stateDb.LogStats(log.MeterLogger)
+		}
+	}()
 }
 
 func (chain *FullBlockChain) buildCache(size int) {

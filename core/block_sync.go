@@ -18,16 +18,16 @@ package core
 import (
 	"errors"
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"math"
 	"math/rand"
 	"sync"
 
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/log"
-
 	"github.com/gogo/protobuf/proto"
-	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	zvtime "github.com/zvchain/zvchain/middleware/time"
@@ -40,6 +40,9 @@ const (
 	syncNeightborsInterval      = 3   // Interval of requesting synchronize block from neighbor
 	defaultSyncNeightborTimeout = 5   // Timeout of requesting synchronize block from neighbor
 	blockSyncCandidatePoolSize  = 100 // Size of candidate peer pool for block synchronize
+
+	notifyCounterCacheSize         = 20   // size of LRU cache for notify counters
+	notifyCounterCacheSizePerBlock = 1024 // size of LRU cache for per block notify counter
 )
 
 const (
@@ -72,6 +75,8 @@ type blockSyncer struct {
 	lock                 sync.RWMutex
 	logger               *logrus.Logger
 	syncNeightborTimeout uint32
+
+	notifyCounters *lru.Cache
 }
 
 type topBlockInfo struct {
@@ -91,6 +96,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 		candidatePool:        make(map[string]*types.CandidateBlockHeader),
 		chain:                chain,
 		syncingPeers:         make(map[string]uint64),
+		notifyCounters:       common.MustNewLRUCache(notifyCounterCacheSize),
 		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
 	}
 }
@@ -404,7 +410,14 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 		return false
 	}
 	message := network.Message{Code: network.BlockInfoNotifyMsg, Body: body}
-	network.GetNetInstance().TransmitToNeighbor(message)
+
+	counter := bs.getOrAddNotifyCounter(top)
+	blacklist := make([]string, 0)
+	for _, nodeStr := range counter.Keys() {
+		blacklist = append(blacklist, nodeStr.(string))
+	}
+
+	network.GetNetInstance().TransmitToNeighbor(message, blacklist)
 	return true
 }
 
@@ -428,6 +441,7 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) error {
 	bs.logger.Debugf("recv block notify from %v, header %v %v", bnm.Source(), blockHeader.Height, blockHeader.Hash)
 
 	bs.addCandidatePool(source, blockHeader)
+	bs.notifyCounterAdd(source, blockHeader)
 	return nil
 }
 
@@ -549,6 +563,28 @@ func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader
 			bs.candidatePool[source] = cbh
 		}
 	}
+}
+
+func (bs *blockSyncer) notifyCounterAdd(source string, header *types.BlockHeader) {
+	top := bs.chain.QueryTopBlock()
+	if top.Height == 0 {
+		return
+	}
+
+	if header.Height >= top.Height {
+		counter := bs.getOrAddNotifyCounter(header)
+		counter.Add(source, nil)
+	}
+
+}
+
+func (bs *blockSyncer) getOrAddNotifyCounter(header *types.BlockHeader) *lru.Cache {
+	v, exit := bs.notifyCounters.Get(header.Hash)
+	if !exit {
+		v = common.MustNewLRUCache(notifyCounterCacheSizePerBlock)
+		bs.notifyCounters.ContainsOrAdd(header.Hash, v)
+	}
+	return v.(*lru.Cache)
 }
 
 func (bs *blockSyncer) blockReqHandler(msg notify.Message) error {
