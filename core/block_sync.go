@@ -558,7 +558,7 @@ func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader
 		return
 	}
 	for id, tbi := range bs.candidatePool {
-		if cbh.BW.MoreWeight(tbi.BW) {
+		if cbh.BW.MoreWeight(tbi.BW) && !bs.inSyncingPeers(id) {
 			delete(bs.candidatePool, id)
 			bs.candidatePool[source] = cbh
 		}
@@ -605,6 +605,14 @@ func (bs *blockSyncer) blockReqHandler(msg notify.Message) error {
 	blocks := bs.chain.BatchGetBlocksAfterHeight(br.ReqHeight, int(br.ReqSize))
 	responseBlocks(m.Source(), blocks)
 	return nil
+}
+
+func (bs *blockSyncer) inSyncingPeers(id string) bool {
+	if _, ok := bs.syncingPeers[id]; ok {
+		return true
+	} else {
+		return false
+	}
 }
 
 func responseBlocks(targetID string, blocks []*types.Block) {
