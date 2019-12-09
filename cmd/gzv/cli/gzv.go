@@ -19,8 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/cmd/gzv/cli/notify"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
+	"github.com/zvchain/zvchain/cmd/gzv/cli/update"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/params"
@@ -248,7 +248,7 @@ func (gzv *Gzv) Run() {
 		}
 
 		if !*disableNotice {
-			go notify.InitVersionChecker()
+			go update.InitVersionChecker()
 		}
 
 		log.ELKLogger.WithFields(logrus.Fields{

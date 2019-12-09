@@ -1,4 +1,4 @@
-package notify
+package update
 
 type UpdateInfo struct {
 	PackageUrl  string   `json:"package_url"`

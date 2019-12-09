@@ -1,4 +1,4 @@
-package notify
+package update
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ const OldVersion = false
 const NewVersion = true
 const UpdatePath = "update"
 const System = runtime.GOOS
-const CheckVersioGap = time.Hour
+const CheckVersionGap = time.Hour
 const Timeout = time.Second * 60
 const DefaultRequestURL = "http://127.0.0.1:8000/request"
 
@@ -26,8 +26,9 @@ type VersionChecker struct {
 	effectiveHeight  uint64
 	priority         uint64
 	noticeContent    string
-	filesize         int64
+	fileSize         int64
 	downloadFilename string
+	localFileName    string
 	fileUpdateLists  *UpdateInfo
 }
 
@@ -41,47 +42,50 @@ func NewVersionChecker() *VersionChecker {
 func InitVersionChecker() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.DefaultLogger.Errorln("InitVersionChecker err:", err)
-			fmt.Println("InitVersionChecker err:", err)
+			log.DefaultLogger.Errorln("init version checker recover ,err:", err)
+			fmt.Println("init version checker recover err:", err)
 		}
 	}()
 	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", DefaultRequestURL)
 	vc := NewVersionChecker()
 	nm := NewNotifyManager()
 
-	ctiker := time.NewTicker(CheckVersioGap)
-
+	checkVersion(vc, nm)
+	ticker := time.NewTicker(CheckVersionGap)
 	for {
 		select {
-		case <-ctiker.C:
-			//Check if the local running program is the latest version
-			log.DefaultLogger.Infoln("start checkversion ...")
-			bl, err := vc.checkVersion()
-			if err != nil {
-				log.DefaultLogger.Errorln(err)
-				continue
-			}
+		case <-ticker.C:
+			checkVersion(vc, nm)
+		}
+	}
+}
 
-			if !bl {
-				timeOut := time.After(CheckVersioGap)
-				nm.versionChecker = vc
-				go nm.processOutput(timeOut)
+func checkVersion(vc *VersionChecker, nm *NotifyManager) {
+	//Check if the local running program is the latest version
+	log.DefaultLogger.Infoln("start check version ...")
+	bl, err := vc.checkVersion()
+	if err != nil {
+		log.DefaultLogger.Errorln(err)
+		return
+	}
 
-				//Check if the latest version has been downloaded locally
-				if isFileExist(UpdatePath+"/"+vc.version+"/"+vc.downloadFilename, vc.filesize) {
-					log.DefaultLogger.Errorln("The latest version has been downloaded locally, but not yet run")
-					fmt.Println("The latest version has been downloaded locally, but not yet run")
-					continue
-				}
-				log.DefaultLogger.Infoln("start download ...")
-				err := vc.download()
-				if err != nil {
-					log.DefaultLogger.Errorln(err)
-					fmt.Println(" DownLoad Err :", err)
-					continue
-				}
+	if !bl {
+		timeOut := time.After(CheckVersionGap)
+		nm.versionChecker = vc
+		go nm.processOutput(timeOut)
 
-			}
+		//Check if the latest version has been downloaded locally
+		if isFileExist(vc.localFileName) {
+			log.DefaultLogger.Errorln("The latest version has been downloaded locally, but not yet run")
+			fmt.Println("The latest version has been downloaded locally, but not yet run")
+			return
+		}
+		log.DefaultLogger.Infoln("start download ...")
+		err := vc.download()
+		if err != nil {
+			log.DefaultLogger.Errorln(err)
+			fmt.Println(" DownLoad Err :", err)
+			return
 		}
 	}
 }
@@ -113,7 +117,6 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 			return
 		default:
 			time.Sleep(time.Second * time.Duration(int64(gap)))
-			//output := fmt.Sprintf("The current Gzv program is not the latest version. It needs to be updated to the latest version %s as soon as possible\n", nm.versionChecker.version)
 			output := fmt.Sprintf("[ Version ] : %s \n "+
 				"[ EffectiveHeight ] : %d \n "+
 				"[ Priority ] : %d \n "+
@@ -122,7 +125,6 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 				nm.versionChecker.effectiveHeight,
 				nm.versionChecker.priority,
 				nm.versionChecker.noticeContent)
-			log.DefaultLogger.Errorln(fmt.Errorf(output))
 			fmt.Printf("\n================= New version notification ================= \n %v \n============================================================ \n\n", output)
 		}
 	}

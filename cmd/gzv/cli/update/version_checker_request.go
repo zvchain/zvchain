@@ -1,4 +1,4 @@
-package notify
+package update
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 )
 
 func (vc *VersionChecker) checkVersion() (bool, error) {
-	notice, err := requestVersion()
+	notice, err := vc.requestVersion()
 	if err != nil {
 		return NewVersion, err
 	}
@@ -31,7 +31,7 @@ func (vc *VersionChecker) checkVersion() (bool, error) {
 	return OldVersion, nil
 }
 
-func requestVersion() (*Notice, error) {
+func (vc *VersionChecker) requestVersion() (*Notice, error) {
 	resp, err := http.Get(RequestUrl)
 	if err != nil {
 		return nil, err

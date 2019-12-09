@@ -1,4 +1,4 @@
-package notify
+package update
 
 import (
 	"fmt"
@@ -7,7 +7,8 @@ import (
 
 func TestRequest(t *testing.T) {
 	RequestUrl = "http://127.0.0.1:8000/request"
-	no, err := requestVersion()
+	vc := NewVersionChecker()
+	no, err := vc.requestVersion()
 	if err != nil {
 		t.Error("err :", err)
 	}
