@@ -14,7 +14,7 @@ const UpdatePath = "update"
 const System = runtime.GOOS
 const CheckVersionGap = time.Hour
 const Timeout = time.Second * 60
-const DefaultRequestURL = "http://127.0.0.1:8000/request"
+const DefaultRequestURL = "http://47.110.159.248:8000/request"
 
 var (
 	RequestUrl string
