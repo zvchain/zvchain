@@ -38,7 +38,7 @@ type BlockProvider interface {
 
 func (chain *FullBlockChain) Replay(provider BlockProvider, out io.Writer) error {
 	begin := chain.Height() + 1
-	const step = 100
+	const step = 200
 	for {
 		t := time.Now()
 		blocks := provider.Provide(begin, begin+step)

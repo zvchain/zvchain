@@ -307,15 +307,43 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 // size tracking.
 func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	// If the node's already cached, skip
-	if _, ok := db.nodes[hash]; ok {
+	entry := db.nodes[hash]
+	if entry != nil && entry.node != nil {
 		return
 	}
 	// Create the cached entry for this node
-	entry := &cachedNode{
-		node:      simplifyNode(node),
-		size:      uint16(len(blob)),
-		flushPrev: db.newest,
+	if entry == nil {
+		entry = &cachedNode{
+			node:      simplifyNode(node),
+			size:      uint16(len(blob)),
+			flushPrev: db.newest,
+		}
+	} else {
+		oldChilds := entry.childs()
+		entry.node = simplifyNode(node)
+		newChilds := entry.childs()
+
+		for _, c1 := range oldChilds {
+			find := false
+			for _, c2 := range newChilds {
+				if c1 == c2 {
+					find = true
+					break
+				}
+			}
+			if !find {
+				for _, c1 := range oldChilds {
+					fmt.Println("old", c1.Hex())
+				}
+				for _, c2 := range newChilds {
+					fmt.Println("old", c2.Hex())
+				}
+				panic(fmt.Sprintf("new node child differs from old,node %v", hash.Hex()))
+			}
+		}
+		fmt.Println("ok")
 	}
+
 	for _, child := range entry.childs() {
 		if c := db.nodes[child]; c != nil {
 			c.parents++
@@ -782,8 +810,8 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
 	if !db.enableGc {
-		db.uncache(node)
 	}
+	db.uncache(node)
 	//memcacheCommitTimeTimer.Update(time.Since(start))
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))
@@ -802,7 +830,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
-	if !ok {
+	if !ok || node.node == nil {
 		return nil
 	}
 	for _, child := range node.childs() {
@@ -851,7 +879,8 @@ func (db *NodeDatabase) uncache(hash common.Hash) {
 	for _, child := range node.childs() {
 		db.uncache(child)
 	}
-	delete(db.nodes, hash)
+	//delete(db.nodes, hash)
+	node.node = nil
 	db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 	if node.children != nil {
 		db.nodesSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
