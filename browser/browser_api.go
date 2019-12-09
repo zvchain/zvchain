@@ -13,7 +13,6 @@ import (
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/middleware/types"
-	"github.com/zvchain/zvchain/tvm"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -49,7 +48,6 @@ type DBMmanagement struct {
 }
 
 func NewDBMmanagement(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *DBMmanagement {
-	tvm.ContractTransferData = make(chan *tvm.ContractTransfer, 500)
 	tablMmanagement := &DBMmanagement{}
 	tablMmanagement.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
 
@@ -243,14 +241,13 @@ func (tm *DBMmanagement) CreateOrUpdateStakeMapping(stakeList map[string]map[str
 			tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Find(&stakeMapping)
 			if len(stakeMapping) > 0 {
 				// update
-				err := tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Updates(
+				tm.storage.GetDB().Model(&models.StakeMapping{}).Where("source = ? and target = ?", src, trgt).Updates(
 					map[string]interface{}{
 						"prps_act_stake": v2.PrpsActStake,
 						"prps_frz_stake": v2.PrpsFrzStake,
 						"verf_act_stake": v2.VerfActStake,
 						"verf_frz_stake": v2.VerfFrzStake,
-					}).Error
-				fmt.Println(err)
+					})
 
 			} else {
 				//create

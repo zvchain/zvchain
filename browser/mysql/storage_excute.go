@@ -4,30 +4,40 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/tidwall/gjson"
 	"github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
+	"github.com/zvchain/zvchain/browser/util"
+	"github.com/zvchain/zvchain/cmd/gzv/cli"
+	common2 "github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/core"
+	"github.com/zvchain/zvchain/tvm"
+	"math/big"
 	"sort"
+	"strings"
 	"time"
 )
 
 const (
-	Blockrewardtopheight     = "block_reward.top_block_height"
-	Blocktopheight           = "block.top_block_height"
-	BlockStakeMappingHeight  = "block.stake_mapping_height"
-	Blockcurblockheight      = "block.cur_block_height"
-	BlockDeleteCount         = "block.delete_count"
-	Blockcurtranheight       = "block.cur_tran_height"
-	BlockSupplementCurHeight = "block.supp_cur_height"
-	BlockSupplementAimHeight = "block.supp_aim_height"
-
-	GroupTopHeight        = "group.top_group_height"
-	PrepareGroupTopHeight = "group.top_prepare_group_height"
-	DismissGropHeight     = "group.top_dismiss_group_height"
-	LIMIT                 = 20
-	ACCOUNTDBNAME         = "account_lists"
-	RECENTMINEBLOCKS      = "recent_mine_blocks"
-	MAXCONFIRMREWARDCOUNT = 1000
+	Blockrewardtopheight                       = "block_reward.top_block_height"
+	Blocktopheight                             = "block.top_block_height"
+	BlockStakeMappingHeight                    = "block.stake_mapping_height"
+	Blockcurblockheight                        = "block.cur_block_height"
+	BlockDeleteCount                           = "block.delete_count"
+	Blockcurtranheight                         = "block.cur_tran_height"
+	BlockSupplementCurHeight                   = "block.supp_cur_height"
+	BlockSupplementAimHeight                   = "block.supp_aim_height"
+	BlockSupplementProposalrewardprocessHeight = "block.pro_reward_process_height"
+	BlockSupplementProposalrewardEndHeight     = "block.pro_reward_end_height"
+	GroupTopHeight                             = "group.top_group_height"
+	PrepareGroupTopHeight                      = "group.top_prepare_group_height"
+	DismissGropHeight                          = "group.top_dismiss_group_height"
+	LIMIT                                      = 20
+	ACCOUNTDBNAME                              = "account_lists"
+	RECENTMINEBLOCKS                           = "recent_mine_blocks"
+	MAXCONFIRMREWARDCOUNT                      = 1000
+	MINERLISTDBNAME                            = "miner_lists"
 )
 
 func (storage *Storage) MapToJson(mapdata map[string]interface{}) string {
@@ -327,7 +337,6 @@ func errors(error error) bool {
 		return false
 	}
 	return true
-
 }
 
 func (storage *Storage) AddBlockHeightSystemconfig(sys *models.Sys) bool {
@@ -478,12 +487,55 @@ func (storage *Storage) MinConfirmBlockRewardHeight() uint64 {
 		return 0
 	}
 	rewards := make([]models.Reward, 0, 0)
-	storage.db.Limit(1).Order("id ASC").Find(&rewards)
+	storage.db.Limit(1).Order("block_height ASC").Find(&rewards)
 	if len(rewards) > 0 {
 		return rewards[0].BlockHeight
 	}
 	return 0
 }
+
+func (storage *Storage) MinConfirmBlockReward() string {
+	if storage.db == nil {
+		return ""
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Limit(1).Find(&rewards)
+	if len(rewards) > 0 {
+		return rewards[0].NodeId
+	}
+	return ""
+}
+
+func (storage *Storage) MinBlockHeightverReward() uint64 {
+	if storage.db == nil {
+		return 0
+	}
+	rewards := make([]models.Reward, 0, 0)
+	storage.db.Unscoped().Limit(1).Where("type = 0").Order("block_height DESC").Find(&rewards)
+	if len(rewards) > 0 {
+		return rewards[0].BlockHeight
+	}
+	return 0
+}
+
+func (storage *Storage) MinToMaxAccountverReward(off uint64, limit uint64) []models.RewardHeightAddress {
+	if storage.db == nil {
+		return nil
+	}
+	s := make([]models.RewardHeightAddress, 0, 0)
+	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("verify_count > 0").Order("verify_count ASC").Select("address").Scan(&s)
+	return s
+}
+
+func (storage *Storage) MinToMaxAccountproposalReward(off uint64, limit uint64) []models.RewardHeightAddress {
+	if storage.db == nil {
+		return nil
+	}
+	s := make([]models.RewardHeightAddress, 0, 0)
+	storage.db.Unscoped().Model(models.AccountList{}).Offset(off).Limit(limit).Where("proposal_count > 0 and verify_count = 0").Order("proposal_count ASC").Select("address").Scan(&s)
+	return s
+}
+
 func (storage *Storage) MaxConfirmBlockRewardHeight() uint64 {
 	if storage.db == nil {
 		return 0
@@ -628,6 +680,43 @@ func (storage *Storage) AddContractTransaction(contract *models.ContractTransact
 	storage.db.Create(&contract)
 	return true
 }
+
+func (storage *Storage) IsDbTokenContract(contract string) bool {
+	token := make([]models.TokenContract, 0, 0)
+	storage.db.Where("contract_addr = ?", contract).Find(&token)
+	if len(token) < 1 {
+		return false
+	}
+	return true
+}
+
+func (storage *Storage) UpdateTokenUser(contract string, addr string, value string) {
+	if value == "" {
+		return
+	}
+	//token := make([]models.TokenContract, 0, 0)
+	//storage.db.Where("contract_addr = ?", contract).Find(&token)
+	//if len(token) < 1 {
+	//	return
+	//}
+
+	users := make([]models.TokenContractUser, 0, 0)
+	storage.db.Where("address =? and contract_addr = ?", addr, contract).Find(&users)
+	if len(users) > 0 {
+		value := getUseValue(contract, addr)
+		storage.db.Model(&models.TokenContractUser{}).
+			Where("contract_addr = ? and address = ? ", contract, addr).
+			Update("value", value)
+	} else {
+		user := &models.TokenContractUser{
+			ContractAddr: contract,
+			Address:      addr,
+			Value:        value,
+		}
+		storage.db.Create(&user)
+	}
+
+}
 func (storage *Storage) AddContractCallTransaction(contract *models.ContractCallTransaction) bool {
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
@@ -642,6 +731,71 @@ func (storage *Storage) AddContractCallTransaction(contract *models.ContractCall
 	return true
 }
 
+func (storage *Storage) Reward2blocktest() []int {
+	total := make([]int, 0)
+	times := time.Now()
+	for i := 0; i < 10; i++ {
+		rows, _ := storage.db.Model(models.Reward{}).Where("type = ? and node_id = ? ", 0, "zv7765c91258b248aa0ddcadc5c9287210afd145984a20bda67fc204c9de8b3491").Offset(i * 5000).Limit(5000).Select("block_height").Rows()
+		defer rows.Close()
+		s := make([]int, 0, 0)
+		var addr int
+		for rows.Next() {
+			rows.Scan(&addr)
+			s = append(s, addr)
+		}
+		total = append(total, s...)
+		if len(s) < 5000 {
+			break
+		}
+	}
+	sort.Ints(total)
+	fmt.Println("cost:", time.Since(times))
+	return total
+}
+
+func (storage *Storage) GetExistminerBlock(address string, typeId uint64) ([]*models.MinerToBlock, int) {
+	miners := make([]*models.MinerToBlock, 0)
+	storage.db.Limit(1).Where("type = ? and address = ? ", typeId, address).
+		Order("sequence desc").Find(&miners)
+	count := MAXCONFIRMREWARDCOUNT
+	if len(miners) > 0 {
+		dbcount := miners[0].BlockCnts
+		if dbcount < MAXCONFIRMREWARDCOUNT {
+			count = MAXCONFIRMREWARDCOUNT - dbcount
+		}
+	}
+	return miners, count
+}
+
+func (storage *Storage) AddminerBlock(address string, heights []int, typeId uint64, miners []*models.MinerToBlock) bool {
+	if len(heights) < 1 {
+		return true
+	}
+	heightuint64 := make([]uint64, 0)
+	for _, h := range heights {
+		heightuint64 = append(heightuint64, uint64(h))
+	}
+	isSuccess := false
+	tx := storage.db.Begin()
+
+	if !errors(upMinerBlocks(tx, address, heightuint64, typeId, miners)) {
+		return false
+	}
+
+	//if !errors(DeleteRewardByIds(tx, ids)) {
+	//	return false
+	//}
+
+	defer func() {
+		if isSuccess {
+			tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+	}()
+	isSuccess = true
+	return isSuccess
+}
 func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 
 	rewards := make([]*models.Reward, 0)
@@ -657,7 +811,6 @@ func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 			return false
 		}
 	}
-
 	if !errors(DeleteRewardByHeight(tx, height)) {
 		return false
 	}
@@ -672,6 +825,68 @@ func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 	isSuccess = true
 	return isSuccess
 
+}
+
+func upMinerBlocks(tx *gorm.DB,
+	addr string,
+	heights []uint64,
+	typeId uint64, rewards []*models.MinerToBlock) error {
+	if addr == "" || len(heights) < 0 || typeId < 0 {
+		return nil
+	}
+	if len(rewards) > 0 && rewards[0].BlockCnts < MAXCONFIRMREWARDCOUNT {
+		mapData := make(map[string]interface{})
+		blockVerHeights := make([]uint64, 0)
+		if err := json.Unmarshal([]byte(rewards[0].BlockIDs), &blockVerHeights); err != nil {
+			return err
+		}
+		blockVerHeights = append(blockVerHeights, heights...)
+		//blockVerHeights = append(blockVerHeights, height)
+		//blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
+		updateVerString, err := json.Marshal(blockVerHeights)
+		if err != nil {
+			return err
+		}
+		mapData["block_ids"] = updateVerString
+		mapData["block_cnts"] = len(blockVerHeights)
+
+		erraccount := upAccountConfirmCount(tx, typeId, rewards[0].Sequence, uint64(len(blockVerHeights)), addr)
+		if erraccount != nil {
+			return erraccount
+		}
+
+		return tx.Model(&models.MinerToBlock{}).
+			Where("id = ?", rewards[0].ID).
+			Updates(mapData).Error
+
+	} else {
+		sequence := uint64(0)
+		if len(rewards) > 0 && rewards[0].BlockCnts >= MAXCONFIRMREWARDCOUNT {
+			sequence = rewards[0].Sequence + 1
+		}
+		MineBlock := models.MinerToBlock{
+			Address: addr,
+		}
+		problockList := make([]uint64, 0)
+		if len(heights) > 0 {
+			problockList = append(problockList, heights...)
+			byteProBlocks, err := json.Marshal(problockList)
+			if err != nil {
+				return err
+			}
+			proBlockString := string(byteProBlocks)
+			MineBlock.BlockIDs = proBlockString
+			MineBlock.Sequence = sequence
+			MineBlock.BlockCnts = len(problockList)
+			MineBlock.Type = typeId
+			erraccount := upAccountConfirmCount(tx, typeId, sequence, uint64(len(problockList)), addr)
+			if erraccount != nil {
+				return erraccount
+			}
+
+		}
+		return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
+	}
 }
 
 func upMinerBlock(tx *gorm.DB, addr string,
@@ -700,10 +915,10 @@ func upMinerBlock(tx *gorm.DB, addr string,
 		mapData["block_ids"] = updateVerString
 		mapData["block_cnts"] = len(blockVerHeights)
 
-		//erraccount := upAccountConfirmCount(tx, typeId, rewards[0].Sequence, uint64(len(blockVerHeights)), addr)
-		//if erraccount != nil {
-		//	return erraccount
-		//}
+		erraccount := upAccountConfirmCount(tx, typeId, rewards[0].Sequence, uint64(len(blockVerHeights)), addr)
+		if erraccount != nil {
+			return erraccount
+		}
 
 		return tx.Model(&models.MinerToBlock{}).
 			Where("id = ?", rewards[0].ID).
@@ -729,10 +944,10 @@ func upMinerBlock(tx *gorm.DB, addr string,
 			MineBlock.Sequence = sequence
 			MineBlock.BlockCnts = len(problockList)
 			MineBlock.Type = typeId
-			//erraccount := upAccountConfirmCount(tx, typeId, sequence, uint64(len(problockList)), addr)
-			//if erraccount != nil {
-			//	return erraccount
-			//}
+			erraccount := upAccountConfirmCount(tx, typeId, sequence, uint64(len(problockList)), addr)
+			if erraccount != nil {
+				return erraccount
+			}
 
 		}
 		return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
@@ -744,22 +959,39 @@ func upAccountConfirmCount(tx *gorm.DB,
 	sequence uint64,
 	size uint64,
 	addr string) error {
-	mapAccountData := make(map[string]interface{})
-	if typeId == 0 {
-		mapAccountData["verify_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+
+	minerlist := make([]*models.MinerList, 0)
+	tx.Limit(1).Where("address = ?", addr).Find(&minerlist)
+	if len(minerlist) > 0 {
+		mapAccountData := make(map[string]interface{})
+		if typeId == 0 {
+			mapAccountData["verify_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+		} else {
+			mapAccountData["proposal_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+
+		}
+		err := tx.Table(MINERLISTDBNAME).
+			Where("address = ?", addr).
+			Updates(mapAccountData).Error
+		if err != nil {
+			return err
+		}
+		return nil
 	} else {
-		mapAccountData["proposal_confirm_count"] = sequence*MAXCONFIRMREWARDCOUNT + size
+		miner := models.MinerList{
+			Address: addr,
+		}
+		if typeId == 0 {
+			miner.VerifyConfirmCount = sequence*MAXCONFIRMREWARDCOUNT + size
+		} else {
+			miner.ProposalConfirmCount = sequence*MAXCONFIRMREWARDCOUNT + size
+		}
+		return tx.Model(models.MinerList{}).Create(&miner).Error
 
 	}
 
-	err := tx.Table(ACCOUNTDBNAME).
-		Where("address = ?", addr).
-		Updates(mapAccountData).Error
-	if err != nil {
-		return err
-	}
-	return nil
 }
+
 func (storage *Storage) AddBlock(block *models.Block) bool {
 	//fmt.Println("[Storage] add block ")
 	if storage.db == nil {
@@ -821,6 +1053,210 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	fmt.Println("[Storage]  AddTransactions cost: ", time.Since(timeBegin))
 
 	return true
+}
+
+func (storage *Storage) AddTokenContract(tran *models.Transaction, log *models.Log) {
+	tokenContracts := make([]*models.TokenContract, 0)
+	storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).Find(&tokenContracts)
+	if log != nil {
+		source := gjson.Get(log.Data, "args.0").String()
+		target := gjson.Get(log.Data, "args.1").String()
+		value := gjson.Get(log.Data, "args.2").Raw
+		browserlog.BrowserLog.Info("AddTokenContract,", source, ",", target, ",", value)
+		if source == "" || target == "" {
+			return
+		}
+		realValue := &big.Int{}
+		realValue.SetString(value, 10)
+		if len(tokenContracts) == 0 {
+			if !cli.IsTokenContract(common2.StringToAddress(tran.ContractAddress)) {
+				return
+			}
+			browserlog.BrowserLog.Info("IsTokenContract,", tran.ContractAddress)
+
+			//create
+			chain := core.BlockChainImpl
+			db, err := chain.LatestAccountDB()
+			if err != nil {
+				browserlog.BrowserLog.Error("AddTokenContract: ", err)
+				return
+			}
+
+			// 查看balanceOf
+			iter := db.DataIterator(common2.StringToAddress(log.Address), []byte{})
+			if iter == nil {
+				return
+			}
+			//balanceOf := make(map[string]interface{})
+			for iter.Next() {
+				if strings.HasPrefix(string(iter.Key[:]), "balanceOf@") {
+					realAddr := strings.TrimPrefix(string(iter.Key[:]), "balanceOf@")
+					if util.ValidateAddress(realAddr) {
+						value := tvm.VmDataConvert(iter.Value[:])
+						if value != nil {
+							var valuestring string
+							if value1, ok := value.(int64); ok {
+								valuestring = big.NewInt(value1).String()
+							} else if value2, ok := value.(*big.Int); ok {
+								valuestring = value2.String()
+							}
+							storage.UpdateTokenUser(log.Address, realAddr, valuestring)
+						}
+					}
+				}
+			}
+
+			tokenContract := models.TokenContract{}
+			//mapInterface := make(map[string]interface{})
+			keyMap := []string{"name", "symbol", "decimal"}
+			for times, key := range keyMap {
+				data := db.GetData(common2.StringToAddress(log.Address), []byte(key))
+				if v, ok := tvm.VmDataConvert(data).(string); ok {
+					switch times {
+					case 0:
+						tokenContract.Name = v
+					case 1:
+						tokenContract.Symbol = v
+					}
+				}
+				if v, ok := tvm.VmDataConvert(data).(int64); ok {
+					switch times {
+					case 2:
+						tokenContract.Decimal = v
+					}
+				}
+			}
+			tokenContract.ContractAddr = log.Address
+			if util.ValidateAddress(source) && util.ValidateAddress(target) {
+				if source == target {
+					tokenContract.HolderNum = 1
+				} else {
+					tokenContract.HolderNum = 2
+				}
+			}
+
+			src := ""
+			storage.db.Model(models.Transaction{}).Select("source").Where("contract_address = ? ", tran.Target).Row().Scan(&src)
+			tokenContract.Creator = src
+			tokenContract.TransferTimes = 1
+			storage.db.Create(&tokenContract)
+
+		} else { //update
+			storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).UpdateColumn("transfer_times", gorm.Expr("transfer_times + ?", 1))
+			users := make([]*models.TokenContractUser, 0)
+			storage.db.Model(models.TokenContractUser{}).Where("address = ?", target).Find(&users)
+			if len(users) == 0 {
+				storage.db.Model(models.TokenContract{}).Where("contract_addr = ?", log.Address).UpdateColumn("holder_num", gorm.Expr("holder_num + ?", 1))
+			}
+		}
+		contract := &models.TokenContractTransaction{
+			ContractAddr: log.Address,
+			Source:       source,
+			Target:       target,
+			Value:        realValue.String(),
+			TxHash:       tran.Hash,
+			TxType:       0,
+			Status:       0,
+			BlockHeight:  tran.BlockHeight,
+			CurTime:      tran.CurTime,
+		}
+		fmt.Println("AddTokenTran", contract)
+		//update tokenContractTx and tokenContractUser
+		storage.AddTokenTran(contract)
+	}
+
+}
+
+func (storage *Storage) AddTokenTran(tokenContract *models.TokenContractTransaction) bool {
+	fmt.Println("AddTokenTran,", tokenContract)
+
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	tx := storage.db.Begin()
+	isSuccess := true
+	defer func() {
+		if isSuccess {
+			tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+	}()
+
+	if !errors(tx.Create(&tokenContract).Error) {
+		isSuccess = false
+		return isSuccess
+	}
+	isSuccess = storage.AddTokenUser(tx, tokenContract)
+	return isSuccess
+}
+
+func getUseValue(tokenaddr string, useraddr string) string {
+	if tokenaddr == "" && useraddr == "" {
+		return big.NewInt(0).String()
+	}
+	key := fmt.Sprintf("balanceOf@%s", useraddr)
+	resultData, _ := common.QueryAccountData(tokenaddr, key, 0)
+	result := resultData.(map[string]interface{})
+	if result["value"] != nil {
+		if value, ok := result["value"].(int64); ok {
+			return big.NewInt(value).String()
+		} else if value, ok := result["value"].(*big.Int); ok {
+			return value.String()
+		}
+	}
+	return big.NewInt(0).String()
+}
+
+/*
+ add tokencontract user info
+*/
+func (storage *Storage) AddTokenUser(tx *gorm.DB, tokenContract *models.TokenContractTransaction) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	isSuccess := true
+
+	addressList := []string{tokenContract.Source, tokenContract.Target}
+	users := make([]models.TokenContractUser, 0, 0)
+	tx.Where("address in (?) and contract_addr = ?", addressList, tokenContract.ContractAddr).Find(&users)
+	createUser := make([]string, 0)
+	set := &util.Set{}
+	if len(users) > 0 {
+		for _, user := range users {
+			set.Add(user.Address)
+			value := getUseValue(tokenContract.ContractAddr, user.Address)
+			if !errors(tx.Model(&models.TokenContractUser{}).
+				Where("contract_addr = ? and address = ? ", tokenContract.ContractAddr, user.Address).Update("value", value).Error) {
+				isSuccess = false
+				return isSuccess
+			}
+		}
+		for _, user := range addressList {
+			if _, ok := set.M[user]; !ok {
+				createUser = append(createUser, user)
+			}
+		}
+	} else {
+		createUser = addressList
+	}
+	if len(createUser) > 0 {
+		for _, user := range createUser {
+			user := &models.TokenContractUser{
+				ContractAddr: tokenContract.ContractAddr,
+				Address:      user,
+				Value:        getUseValue(tokenContract.ContractAddr, user),
+			}
+			if !errors(tx.Create(&user).Error) {
+				isSuccess = false
+				return isSuccess
+			}
+		}
+	}
+	return isSuccess
+
 }
 
 func (storage *Storage) AddLogs(receipts []*models.Receipt, trans []*models.Transaction, old bool) bool {
@@ -1006,11 +1442,14 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, cu
 	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
 	logSql := fmt.Sprintf("DELETE  FROM logs WHERE block_number > %d", preHeight)
 	contractTransSql := fmt.Sprintf("DELETE  FROM contract_transactions WHERE block_height > %d", preHeight)
+	tokenTransSql := fmt.Sprintf("DELETE  FROM token_contract_transactions WHERE block_height > %d", preHeight)
+
 	blockCount := storage.db.Exec(blockSql)
 	transactionCount := storage.db.Exec(transactionSql)
 	storage.db.Exec(receiptSql)
 	storage.db.Exec(logSql)
 	go storage.db.Exec(contractTransSql)
+	go storage.db.Exec(tokenTransSql)
 
 	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
 		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)
@@ -1038,7 +1477,7 @@ func (storage *Storage) DeleteForkReward(preHeight uint64, localHeight uint64) (
 	sql3 := fmt.Sprintf("UPDATE block_to_miners SET `reward_height` = null,`verf_node_ids`=null, `verf_node_cnts`=null, `verf_reward`=null, `verf_total_gas_fee`=null  WHERE (`reward_height` > %d)", preHeight)
 	if storage.db.Exec(sql2).Error == nil && storage.db.Exec(sql3).Error == nil {
 		tx.Commit()
-		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners success. preHeight:", preHeight, "localHeight", localHeight)
+		browserlog.BrowserLog.Info("[DeleteForkReward] commit block_to_miners success. preHeight:", preHeight, "localHeight", localHeight)
 	} else {
 		tx.Rollback()
 		browserlog.BrowserLog.Info("[DeleteForkReward] roll back block_to_miners fail. preHeight:", preHeight, "localHeight", localHeight)
@@ -1057,6 +1496,20 @@ func (storage *Storage) ExistRewardBlockHeight(blockHeight int) bool {
 		return true
 	}
 	return false
+}
+
+func (storage *Storage) DeleteRewardByIds(ids []uint64) error {
+
+	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+		if err := recover(); err != nil {
+			fmt.Println(err) // 这里的err其实就是panic传入的内容
+		}
+	}()
+	//verifySql := fmt.Sprintf("DELETE FROM rewards WHERE block_height = %d ", height)
+	//fmt.Println("DeleteRewardByHeight,", ids)
+	return storage.db.Unscoped().Where("id in (?)", ids).Delete(&models.Reward{}).Error
+	//return tx.Exec(verifySql).Error
+
 }
 
 func DeleteRewardByHeight(tx *gorm.DB, height uint64) error {

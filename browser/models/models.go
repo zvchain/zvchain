@@ -28,33 +28,38 @@ type PoolStake struct {
 	From    string `json:"from" gorm:"index"`
 }
 
+type MinerList struct {
+	gorm.Model
+	Address              string `json:"address" gorm:"unique_index"`
+	ProposalConfirmCount uint64 `json:"proposal_confirm_count" gorm:"index;default:0"`
+	VerifyConfirmCount   uint64 `json:"verify_confirm_count" gorm:"index;default:0"`
+}
 type AccountList struct {
 	gorm.Model
-	Address              string  `json:"address" gorm:"unique_index"`
-	RoleType             uint64  `json:"role_type" gorm:"index;default:10"` // user default role_type value
-	ProposalStake        uint64  `json:"proposal_stake" gorm:"index"`
-	VerifyStake          uint64  `json:"verify_stake" gorm:"index"`
-	TotalStake           uint64  `json:"total_stake" gorm:"index"`
-	StakeToOther         uint64  `json:"stake_to_other" gorm:"index"`
-	OtherStake           uint64  `json:"other_stake" gorm:"index"` // meams stake from other
-	Group                string  `json:"group"`
-	WorkGroup            uint64  `json:"work_group" gorm:"index"`
-	DismissGroup         uint64  `json:"dismiss_group" gorm:"index"`
-	PrepareGroup         uint64  `json:"prepare_group" gorm:"index"`
-	TotalTransaction     uint64  `json:"total_transaction"`
-	Rewards              float64 `json:"rewards"`
-	Status               int8    `json:"status" gorm:"index;default:-1"`
-	VerifyStatus         int8    `json:"verify_status" gorm:"index;default:-1"`
-	StakeFrom            string  `json:"stake_from"`
-	Balance              float64 `json:"balance"`
-	TotalBalance         float64 `json:"total_balance"`
-	ExtraData            string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
-	ProposalCount        uint64  `json:"proposal_count" gorm:"index;default:0"`
-	VerifyCount          uint64  `json:"verify_count" gorm:"index;default:0"`
-	ProposalConfirmCount uint64  `json:"proposal_confirm_count" gorm:"index;default:0"`
-	VerifyConfirmCount   uint64  `json:"verify_confirm_count" gorm:"index;default:0"`
-	ProposalFrozenStake  uint64  `json:"proposal_frozen_stake"`
-	VerifyFrozenStake    uint64  `json:"verify_frozen_stake"`
+	Address          string  `json:"address" gorm:"unique_index"`
+	RoleType         uint64  `json:"role_type" gorm:"index;default:10"` // user default role_type value
+	ProposalStake    uint64  `json:"proposal_stake" gorm:"index"`
+	VerifyStake      uint64  `json:"verify_stake" gorm:"index"`
+	TotalStake       uint64  `json:"total_stake" gorm:"index"`
+	StakeToOther     uint64  `json:"stake_to_other" gorm:"index"`
+	OtherStake       uint64  `json:"other_stake" gorm:"index"` // meams stake from other
+	Group            string  `json:"group"`
+	WorkGroup        uint64  `json:"work_group" gorm:"index"`
+	DismissGroup     uint64  `json:"dismiss_group" gorm:"index"`
+	PrepareGroup     uint64  `json:"prepare_group" gorm:"index"`
+	TotalTransaction uint64  `json:"total_transaction"`
+	Rewards          float64 `json:"rewards"`
+	Status           int8    `json:"status" gorm:"index;default:-1"`
+	VerifyStatus     int8    `json:"verify_status" gorm:"index;default:-1"`
+	StakeFrom        string  `json:"stake_from"`
+	Balance          float64 `json:"balance"`
+	TotalBalance     float64 `json:"total_balance"`
+	ExtraData        string  `json:"extra_data" gorm:"type:TEXT;size:65000"` // roletype extra data
+	ProposalCount    uint64  `json:"proposal_count" gorm:"index;default:0"`
+	VerifyCount      uint64  `json:"verify_count" gorm:"index;default:0"`
+
+	ProposalFrozenStake uint64 `json:"proposal_frozen_stake"`
+	VerifyFrozenStake   uint64 `json:"verify_frozen_stake"`
 }
 
 type RecentMineBlock struct {
@@ -98,6 +103,37 @@ type ContractCallTransaction struct {
 	BlockHeight  uint64     `json:"block_height"`
 	CurTime      *time.Time `json:"cur_time" gorm:"index"`
 	Status       uint64     `json:"status"`
+}
+
+type TokenContract struct {
+	gorm.Model
+	ContractAddr  string `json:"contract_addr" gorm:"index"`
+	Creator       string `json:"creator" gorm:"index"`
+	Name          string `json:"name"`
+	Symbol        string `json:"symbol"`
+	Decimal       int64  `json:"decimal"`
+	HolderNum     uint64 `json:"holder_num"`
+	TransferTimes uint64 `json:"transfer_times"`
+}
+
+type TokenContractTransaction struct {
+	gorm.Model
+	ContractAddr string    `json:"contract_addr" gorm:"index"`
+	Source       string    `json:"source" gorm:"index"`
+	Target       string    `json:"target" gorm:"index"`
+	Value        string    `json:"value"`
+	TxHash       string    `json:"tx_hash" gorm:"index"`
+	TxType       uint64    `json:"tx_type"`
+	Status       uint64    `json:"status"`
+	BlockHeight  uint64    `json:"block_height"`
+	CurTime      time.Time `json:"cur_time" gorm:"index"`
+}
+
+type TokenContractUser struct {
+	gorm.Model
+	ContractAddr string `json:"contract_addr" gorm:"index"`
+	Address      string `json:"address" gorm:"index"`
+	Value        string `json:"value" gorm:"index"`
 }
 
 type Group struct {
@@ -155,10 +191,10 @@ type Reward struct {
 
 type MinerToBlock struct {
 	gorm.Model
+	Type      uint64 `json:"type" gorm:"unique_index:idx_addr_seq" `
 	Address   string `json:"address" gorm:"unique_index:idx_addr_seq"`
 	BlockIDs  string `json:"block_ids" gorm:"type:TEXT"`
 	BlockCnts int    `json:"block_cnts"`
-	Type      uint64 `json:"type" gorm:"unique_index:idx_addr_seq" `
 	Sequence  uint64 `json:"sequence" gorm:"unique_index:idx_addr_seq"`
 }
 
@@ -192,6 +228,11 @@ type TempTransaction struct {
 
 	ExtraData string `json:"extra_data"`
 	Status    uint   `json:"status"`
+}
+
+type TempDeployToken struct {
+	gorm.Model
+	TxHash string `json:"tx_hash" gorm:"index"`
 }
 
 type Transaction struct {

@@ -27,6 +27,7 @@ import (
 	time2 "github.com/zvchain/zvchain/middleware/time"
 
 	"github.com/zvchain/zvchain/monitor"
+	"github.com/zvchain/zvchain/tvm"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -309,6 +310,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
+			tvm.SetTokenContractMapToLdb(block.Header.Hash.Hex(), block.Header.Height)
 			chain.successOnChainCallBack(block)
 		}
 	}()

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -201,4 +202,47 @@ func TestParseABI(t *testing.T) {
 		fmt.Println(v.FuncName)
 		fmt.Println(len(v.Args))
 	}
+}
+
+var Str = `{"code":"TransferEvent = Event(\"transfer\")\nclass Token(object):\n    def __init__(self):\n^        self.name = \n^        self.symbol = \n^        self.decimal = \n^        self.totalSupply = \n        self.balanceOf = zdict()\n        self.allowance = zdict()\n        self.balanceOf[msg.sender] = self.totalSupply\n\n    def _transfer(self, _from, _to, _value):\n        if _to not in self.balanceOf:\n            self.balanceOf[_to] = 0\n        if _from not in self.balanceOf:\n            self.balanceOf[_from] = 0\n        # Whether the account balance meets the transfer amount\n        if self.balanceOf[_from] < _value:\n            return False\n        # Check if the transfer amount is legal\n        if _value <= 0:\n            return False\n        # Transfer\n        self.balanceOf[_from] -= _value\n        self.balanceOf[_to] += _value\n        return True\n\n    @register.public(str, int)\n    def transfer(self, _to, _value):\n        if self._transfer(msg.sender, _to, _value):\n            TransferEvent.emit(msg.sender, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(str, int)\n    def approve(self, _spender, _value):\n        if _value <= 0:\n            raise Exception('')\n        if msg.sender not in self.allowance:\n            self.allowance[msg.sender] = zdict()\n        self.allowance[msg.sender][_spender] = _value\n\n    @register.public(str, str, int)\n    def transfer_from(self, _from, _to, _value):\n        if _value > self.allowance[_from][msg.sender]:\n            raise Exception('')\n        self.allowance[_from][msg.sender] -= _value\n        if self._transfer(_from, _to, _value):\n            TransferEvent.emit(_from, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(int)\n    def burn(self, _value):\n        if _value <= 0:\n            raise Exception('')\n        if self.balanceOf[msg.sender] < _value:\n            raise Exception('')\n        self.balanceOf[msg.sender] -= _value\n        self.totalSupply -= _value","contract_name":"Token"}`
+var Str2 = `{"code":"TransferEvent = Event(\"transfer\")\nclass Token(object):\n    def __init__(self):\n        self.name = \\"[0-9a-zA-Z]{1,64}\\"\n        self.symbol = \\"[0-9a-zA-Z]{1,16}\\"\n^        self.decimal = [1-9]{1}$\n^        self.totalSupply = [1-9][0-9]{0,11}$\n        self.balanceOf = zdict()\n        self.allowance = zdict()\n        self.balanceOf[msg.sender] = self.totalSupply\n\n    def _transfer(self, _from, _to, _value):\n        if _to not in self.balanceOf:\n            self.balanceOf[_to] = 0\n        if _from not in self.balanceOf:\n            self.balanceOf[_from] = 0\n        # Whether the account balance meets the transfer amount\n        if self.balanceOf[_from] < _value:\n            return False\n        # Check if the transfer amount is legal\n        if _value <= 0:\n            return False\n        # Transfer\n        self.balanceOf[_from] -= _value\n        self.balanceOf[_to] += _value\n        return True\n\n    @register.public(str, int)\n    def transfer(self, _to, _value):\n        if self._transfer(msg.sender, _to, _value):\n            TransferEvent.emit(msg.sender, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(str, int)\n    def approve(self, _spender, _value):\n        if _value <= 0:\n            raise Exception('')\n        if msg.sender not in self.allowance:\n            self.allowance[msg.sender] = zdict()\n        self.allowance[msg.sender][_spender] = _value\n\n    @register.public(str, str, int)\n    def transfer_from(self, _from, _to, _value):\n        if _value > self.allowance[_from][msg.sender]:\n            raise Exception('')\n        self.allowance[_from][msg.sender] -= _value\n        if self._transfer(_from, _to, _value):\n            TransferEvent.emit(_from, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(int)\n    def burn(self, _value):\n        if _value <= 0:\n            raise Exception('')\n        if self.balanceOf[msg.sender] < _value:\n            raise Exception('')\n        self.balanceOf[msg.sender] -= _value\n        self.totalSupply -= _value","contract_name":"Token"}`
+
+var addrReg = regexp.MustCompile(Str)
+
+func ValidateAddress(str string) bool {
+	return addrReg.MatchString(str)
+}
+
+var str2 = `{"code":"TransferEvent = Event(\"transfer\")\nclass Token(object):\n    def __init__(self):\n        self.name = \"xcd\"\n        self.symbol = \"AD\"\n        self.decimal = 0\n        self.totalSupply = 9999999999999\n        self.balanceOf = zdict()\n        self.allowance = zdict()\n        self.balanceOf[msg.sender] = self.totalSupply\n\n    def _transfer(self, _from, _to, _value):\n        if _to not in self.balanceOf:\n            self.balanceOf[_to] = 0\n        if _from not in self.balanceOf:\n            self.balanceOf[_from] = 0\n        # Whether the account balance meets the transfer amount\n        if self.balanceOf[_from] < _value:\n            return False\n        # Check if the transfer amount is legal\n        if _value <= 0:\n            return False\n        # Transfer\n        self.balanceOf[_from] -= _value\n        self.balanceOf[_to] += _value\n        return True\n\n    @register.public(str, int)\n    def transfer(self, _to, _value):\n        if self._transfer(msg.sender, _to, _value):\n            TransferEvent.emit(msg.sender, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(str, int)\n    def approve(self, _spender, _value):\n        if _value <= 0:\n            raise Exception('')\n        if msg.sender not in self.allowance:\n            self.allowance[msg.sender] = zdict()\n        self.allowance[msg.sender][_spender] = _value\n\n    @register.public(str, str, int)\n    def transfer_from(self, _from, _to, _value):\n        if _value > self.allowance[_from][msg.sender]:\n            raise Exception('')\n        self.allowance[_from][msg.sender] -= _value\n        if self._transfer(_from, _to, _value):\n            TransferEvent.emit(_from, _to, _value)\n        else:\n            raise Exception(\"\")\n\n    @register.public(int)\n    def burn(self, _value):\n        if _value <= 0:\n            raise Exception('')\n        if self.balanceOf[msg.sender] < _value:\n            raise Exception('')\n        self.balanceOf[msg.sender] -= _value\n        self.totalSupply -= _value","contract_name":"Token"}`
+
+var addrReg3 = regexp.MustCompile("^[1-9][0-9]{0,11}$")
+
+func Test_ABC(t *testing.T) {
+	res2 := strings.Split(Str, "\\n")
+	res3 := strings.Split(str2, "\\n")
+	for k, v1 := range res2 {
+		//fmt.Println(v1)
+		//var addrReg = regexp.MustCompile("^"+v1+"$")
+		if k < 3 || k > 6 {
+			fmt.Println(v1 == res3[k])
+			//fmt.Println(res3[k])
+		} else if k >= 3 && k <= 6 {
+			addrReg = regexp.MustCompile(v1)
+			//fmt.Println(str)
+			res := ValidateAddress(res3[k])
+			fmt.Println(res)
+		}
+	}
+}
+
+func Test_ABCD(t *testing.T) {
+	res := ValidateAddress(str2)
+	fmt.Println(res)
+
+}
+
+func TestErr(t *testing.T) {
+	err1 := fmt.Errorf("this address is not a token address")
+	err2 := fmt.Errorf("this address is not a token address")
+	fmt.Println(err1.Error() == err2.Error())
 }

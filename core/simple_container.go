@@ -108,9 +108,11 @@ func (s *pendingContainer) push(tx *types.Transaction, stateNonce uint64) (added
 			if existSource.(*orderByNonceTx).item.GasPrice.Cmp(tx.GasPrice.Value()) < 0 {
 				//replace the existing one
 				deleted := s.waitingMap[*tx.Source].Delete(existSource)
+				s.size = s.size - len(deleted)
 				if len(deleted) > 0 {
 					Logger.Debugf("replace tx by high price: old=%v, new=%v", deleted[0].(*orderByNonceTx).item.Hash.Hex(), tx.Hash.Hex())
 				}
+				s.size++
 				s.waitingMap[*tx.Source].Insert(newTxNode)
 				evicted = existSource.(*orderByNonceTx).item
 				conflicted = tx
@@ -199,7 +201,7 @@ func (s *pendingContainer) peek(f func(tx *types.Transaction) bool) {
 }
 
 func (s *pendingContainer) asSlice(limit int) []*types.Transaction {
-	slice := make([]*types.Transaction, 0, s.size)
+	slice := make([]*types.Transaction, 0)
 	count := 0
 	for _, txSkip := range s.waitingMap {
 		for iter1 := txSkip.IterAtPosition(0); iter1.Next(); {

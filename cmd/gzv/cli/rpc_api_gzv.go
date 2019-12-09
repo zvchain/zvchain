@@ -387,7 +387,7 @@ func (api *RpcGzvImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 	account.Nonce = accountDb.GetNonce(address)
 	account.CodeHash = accountDb.GetCodeHash(address).Hex()
 	account.Code = string(accountDb.GetCode(address)[:])
-
+	fmt.Println("accountCode:", account.Code)
 	account.Type = 0
 	if len(account.Code) > 0 {
 		account.Type = 1

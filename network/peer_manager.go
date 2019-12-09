@@ -207,12 +207,19 @@ func (pm *PeerManager) broadcast(packet *bytes.Buffer, code uint32) {
 	}
 }
 
-func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCount int) {
+func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCount int, blacklist []string) {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
-	Logger.Infof("broadcast random total peer size:%v, code:%v, max count:%v", len(pm.peers), code, maxCount)
+	Logger.Infof("broadcast random total peer size:%v, code:%v, max count:%v,blacklist size:%v", len(pm.peers), code, maxCount, len(blacklist))
+
+	blacklistNodes := make(map[string]bool)
+
+	for _, nodeIDStr := range blacklist {
+		blacklistNodes[nodeIDStr] = true
+	}
 
 	availablePeers := make([]*Peer, 0)
+	sendPeers := make([]*Peer, 0)
 
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
@@ -225,15 +232,19 @@ func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCou
 	}
 
 	if len(availablePeers) <= maxCount {
-		for _, p := range availablePeers {
-			p.write(packet, code)
-		}
+		sendPeers = availablePeers
 	} else {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		randomNodes := r.Perm(peerSize)
 
 		for i := 0; i < maxCount; i++ {
 			p := availablePeers[randomNodes[i]]
+			sendPeers = append(sendPeers, p)
+		}
+	}
+
+	for _, p := range sendPeers {
+		if !blacklistNodes[p.ID.GetHexString()] {
 			p.write(packet, code)
 		}
 	}
