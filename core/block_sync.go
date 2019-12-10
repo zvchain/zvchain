@@ -516,16 +516,11 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 			bs.logger.Errorf("recv block lower than reqHeight: %v %v", blocks[0].Header.Height, peer.SyncingHeight)
 			return nil
 		}
-		peerTop := bs.getSyncingPeerTopBlock(source)
 		localTop := newTopBlockInfo(bs.chain.QueryTopBlock())
 
-		if peerTop == nil {
-			bs.logger.Debugf("peer top is nil, and won't process:%v", source)
-			return fmt.Errorf("peer top is nil")
-		}
 		// First compare weights
-		if localTop.MoreWeight(peerTop.Top.BW) {
-			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.Top.BH.Hash.Hex(), peerTop.Top.BH.Height, peerTop.Top.BH.TotalQN)
+		if localTop.MoreWeight(peer.Top.BW) {
+			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peer.Top.BH.Hash.Hex(), peer.Top.BH.Height, peer.Top.BH.TotalQN)
 			return nil
 		}
 
@@ -549,7 +544,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 
 		// The weight is still low, continue to synchronize (must add blocks
 		// is successful, otherwise it will cause an infinite loop)
-		if allSuccess && peerTop.Top.BW.MoreWeight(&localTop.BlockWeight) {
+		if allSuccess && peer.Top.BW.MoreWeight(&localTop.BlockWeight) {
 			bs.syncComplete(source, false)
 			complete = true
 			go bs.trySyncRoutine()
