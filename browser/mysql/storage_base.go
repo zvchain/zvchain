@@ -45,6 +45,7 @@ type Storage struct {
 	statisticsblockLastUpdate string
 	statisticstranLastUpdate  string
 }
+
 type SlaveStorage struct {
 	db           *gorm.DB
 	dbAddr       string

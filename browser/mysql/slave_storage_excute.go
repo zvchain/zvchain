@@ -8,7 +8,7 @@ func (storage *SlaveStorage) SlaveRewardDatas(address string, typeId uint64, max
 	total := make([]int, 0)
 	idPrimarys := make([]uint64, 0)
 
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 20; i++ {
 		list := make([]models.RewardHeightAndId, 0)
 		storage.db.Model(&models.Reward{}).Where("type = ? and node_id = ? ", typeId, address).Offset(i * 5000).Limit(5000).Select("block_height,id").Scan(&list)
 		//defer rows.Close()

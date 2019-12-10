@@ -167,8 +167,7 @@ func (crontab *Crontab) fetchConfirmRewardsToMinerBlock() {
 	if !atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 0, 1) {
 		return
 	}
-	//crontab.ConfirmRewardsToMinerBlock()
-	crontab.Reward2MinerBlockByAddress()
+	crontab.ConfirmRewardsToMinerBlock()
 	atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 1, 0)
 
 }
