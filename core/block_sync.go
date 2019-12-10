@@ -26,6 +26,7 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
@@ -77,6 +78,7 @@ type blockSyncer struct {
 	syncNeightborTimeout uint32
 
 	notifyCounters *lru.Cache
+	requestTime    time.Time
 }
 
 type topBlockInfo struct {
@@ -363,7 +365,7 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 	}
 
 	notify.BUS.Publish(notify.BlockSync, &syncMessage{CandidateInfo: candInfo})
-
+	bs.requestTime = time.Now()
 	bs.requestBlock(candInfo)
 	return true
 }
@@ -518,6 +520,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
 			return nil
 		}
+		bs.logger.Debugf("sync block from %v, height=%v, len = %v, cost=%v", source, blocks[0].Header.Height, len(blocks), time.Since(bs.requestTime))
 
 		allSuccess := true
 		hasAddBlack := false
