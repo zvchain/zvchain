@@ -1,6 +1,9 @@
 package log
 
-import "os"
+import (
+	"os"
+	"time"
+)
 
 func Init() {
 	RusPlus = New()
@@ -31,5 +34,6 @@ func Init() {
 	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, DefaultMaxFiles, Level)
 	PerformLogger = RusPlus.Logger(logsDir+"perform", MaxFileSize, DefaultMaxFiles, Level)
 	MeterLogger = RusPlus.Logger(logsDir+"meter", MaxFileSize, DefaultMaxFiles, Level)
+	Recorder = TimeRecorder{t: make(map[string]time.Time)}
 	InitElk(logsDir)
 }
