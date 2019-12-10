@@ -15,6 +15,7 @@ const System = runtime.GOOS
 const CheckVersionGap = time.Hour
 const Timeout = time.Second * 60
 const DefaultRequestURL = "http://47.110.159.248:8000/request"
+const DefaultNotifyGap = 5
 
 var (
 	RequestUrl string
@@ -24,7 +25,7 @@ type VersionChecker struct {
 	version          string
 	notifyGap        uint64
 	effectiveHeight  uint64
-	priority         uint64
+	required         string
 	noticeContent    string
 	fileSize         int64
 	downloadFilename string
@@ -34,6 +35,7 @@ type VersionChecker struct {
 
 func NewVersionChecker() *VersionChecker {
 	versionChecker := &VersionChecker{
+		notifyGap:       DefaultNotifyGap,
 		fileUpdateLists: &UpdateInfo{},
 	}
 	return versionChecker
@@ -119,11 +121,11 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 			time.Sleep(time.Second * time.Duration(int64(gap)))
 			output := fmt.Sprintf("[ Version ] : %s \n "+
 				"[ EffectiveHeight ] : %d \n "+
-				"[ Priority ] : %d \n "+
+				"[ Required ] : %s \n "+
 				"[ Contents ] : %v \n ",
 				nm.versionChecker.version,
 				nm.versionChecker.effectiveHeight,
-				nm.versionChecker.priority,
+				nm.versionChecker.required,
 				nm.versionChecker.noticeContent)
 			fmt.Printf("\n================= New version notification ================= \n %v \n============================================================ \n\n", output)
 		}

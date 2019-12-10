@@ -25,6 +25,8 @@ func TestVerifyMd5(t *testing.T) {
 	targetPath := "updateTest"
 	targetHash := "dcaf21af4112339d33a4e700479dc89b"
 	durl := "https://developer.zvchain.io/zip/gzv_mac_v1.0.5.zip"
+	//durl = "https://developer.zvchain.io/zip/gzv_linux_v1.0.5.zip"
+	//durl = "https://developer.zvchain.io/zip/gzv_windows_v1.0.5.zip"
 
 	clent := new(http.Client)
 	uri, err := url.ParseRequestURI(durl)

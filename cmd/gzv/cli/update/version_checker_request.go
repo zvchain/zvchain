@@ -22,9 +22,12 @@ func (vc *VersionChecker) checkVersion() (bool, error) {
 	}
 
 	vc.version = notice.Version
+	if notice.NotifyGap == 0 {
+		notice.NotifyGap = DefaultNotifyGap
+	}
 	vc.notifyGap = notice.NotifyGap
 	vc.effectiveHeight = notice.EffectiveHeight
-	vc.priority = notice.Priority
+	vc.required = notice.Required
 	vc.noticeContent = notice.NoticeContent
 	vc.fileUpdateLists = notice.UpdateInfos
 
@@ -73,9 +76,9 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 			notice.EffectiveHeight = uint64(eh)
 		}
 
-		pr, ok := n["priority"].(float64)
+		pr, ok := n["required"].(string)
 		if ok {
-			notice.EffectiveHeight = uint64(pr)
+			notice.Required = pr
 		}
 
 		nc, ok := n["notice_content"].(string)
@@ -110,16 +113,15 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 
 		md5, ok := list["package_md5"].(string)
 		if ok {
-			notice.UpdateInfos.Packagemd5 = md5
+			notice.UpdateInfos.PackageMd5 = md5
 		}
 
 		updateFileList, ok := list["file_list"].([]interface{})
 		if ok {
 			for _, file := range updateFileList {
-				notice.UpdateInfos.Filelist = append(notice.UpdateInfos.Filelist, file.(string))
+				notice.UpdateInfos.FileList = append(notice.UpdateInfos.FileList, file.(string))
 			}
 		}
-		fmt.Printf("VersionInfo : %v [%v] \n", notice, notice.UpdateInfos)
 	}
 
 	return notice, err
