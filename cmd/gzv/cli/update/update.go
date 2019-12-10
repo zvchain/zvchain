@@ -12,7 +12,9 @@ const oldVersion = false
 const newVersion = true
 const updatePath = "update"
 const system = runtime.GOOS
-const checkVersionGap = time.Hour
+const checkVersionGap = time.Minute * 5
+
+//const checkVersionGap = time.Hour
 const timeout = time.Second * 60
 const defaultRequestURL = "http://47.110.159.248:8000/request"
 const defaultNotifyGap = 5
