@@ -74,16 +74,18 @@ type BlockChainConfig struct {
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
 type FullBlockChain struct {
-	blocks       *tasdb.PrefixedDatabase
-	blockHeight  *tasdb.PrefixedDatabase
-	txDb         *tasdb.PrefixedDatabase
-	stateDb      *tasdb.PrefixedDatabase
-	dirtyStateDb *tasdb.PrefixedDatabase
-	cacheDb      *tasdb.PrefixedDatabase
-	batch        tasdb.Batch
-	triegc       *prque.Prque // Priority queue mapping block numbers to tries to gc
-	stateCache   account.AccountDatabase
-
+	blocks          *tasdb.PrefixedDatabase
+	blockHeight     *tasdb.PrefixedDatabase
+	txDb            *tasdb.PrefixedDatabase
+	stateDb         *tasdb.PrefixedDatabase
+	dirtyStateDb    *tasdb.PrefixedDatabase
+	cacheDb         *tasdb.PrefixedDatabase
+	batch           tasdb.Batch
+	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
+	stateCache      account.AccountDatabase
+	running         int32 // running must be called atomically
+	procInterrupt   int32 // interrupt signaler for block processing
+	wg              sync.WaitGroup
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -211,7 +213,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	if trieGc{
+	if trieGc {
 		dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
 		if err != nil {
 			Logger.Errorf("new dirty state datasource error:%v", err)
@@ -245,7 +247,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
 	err = chain.FixTrieDataFromDB(latestBH)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	if nil != latestBH {

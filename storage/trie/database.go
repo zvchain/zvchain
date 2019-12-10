@@ -464,11 +464,10 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-
-func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob) error{
+func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob) error {
 	batch := db.diskdb.NewBatch()
-	if len(dirtyBlobs) > 0{
-		for _,vl := range dirtyBlobs{
+	if len(dirtyBlobs) > 0 {
+		for _, vl := range dirtyBlobs {
 			if err := batch.Put(vl.Key[:], vl.Raw); err != nil {
 				return err
 			}
@@ -480,7 +479,6 @@ func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob) error{
 	return nil
 }
 
-
 func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*storeBlob) {
 	err = rlp.DecodeBytes(data, &dirtyBlobs)
 	if err != nil {
@@ -489,14 +487,18 @@ func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*s
 	return nil, dirtyBlobs
 }
 
-func (db *NodeDatabase) CanPersistent(persistentCount int)bool {
+func (db *NodeDatabase) LastGcHeight() uint64 {
+	return db.lastGcHeight
+}
+
+func (db *NodeDatabase) CanPersistent(persistentCount int) bool {
 	return db.lastGcCount >= uint64(persistentCount)
 }
 
-func (db *NodeDatabase) StoreGcData(height,currentHeight,cpHeight,gcCount uint64) {
+func (db *NodeDatabase) StoreGcData(height, currentHeight, cpHeight, gcCount uint64) {
 	db.lastGcHeight = height
 	db.lastGcCount += gcCount
-	log.CropLogger.Debugf("store gc height is %v,curHeight is %v,cphHeight is %v,cur gc count is %v",height,currentHeight,cpHeight,gcCount)
+	log.CropLogger.Debugf("store gc height is %v,curHeight is %v,cphHeight is %v,cur gc count is %v", height, currentHeight, cpHeight, gcCount)
 }
 
 func (db *NodeDatabase) ResetGcCount() {
@@ -715,7 +717,6 @@ func (db *NodeDatabase) ClearFromNodes(height uint64, limit common.StorageSize) 
 	log.CropLogger.Debugf("Clear nodes from memory clear ,height is %v,clear count %v,clear size %v,cost %v,total flush nodes %v,total flush size %v,total flush time is %v,live node %v,live size %v",
 		height, nodes-len(db.nodes), storage-db.nodesSize, time.Since(start), db.flushnodes, db.flushsize, db.flushtime, len(db.nodes), db.nodesSize)
 }
-
 
 // Commit iterates over all the children of a particular node, writes them out
 // to disk, forcefully tearing down all references in both directions.

@@ -28,13 +28,16 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 )
-const TriesInMemory uint64 = types.EpochLength * 4 + 20
-var(
-	GcMode = true
-	maxTriesInMemory = 300
+
+const TriesInMemory uint64 = types.EpochLength*4 + 20
+
+var (
+	GcMode               = true
+	maxTriesInMemory     = 300
 	everyClearFromMemory = 1
-	persistenceCount = 3000
+	persistenceCount     = 3000
 )
+
 type newTopMessage struct {
 	bh *types.BlockHeader
 }
@@ -55,45 +58,45 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
 	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
-	if trieGc{
+	if trieGc {
 		err = triedb.InsertFullToDirtyDb(root, dirtyState)
-		if  err != nil{
-			return fmt.Errorf("insert full dirty nodes failed,err is %v",err)
+		if err != nil {
+			return fmt.Errorf("insert full dirty nodes failed,err is %v", err)
 		}
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, -int64(b.Header.Height))
 		cp := chain.latestCP.Load()
 		limit := common.StorageSize(common.GlobalConf.GetInt(gc, "max_tries_memory", maxTriesInMemory) * 1024 * 1024)
 		nodes, _ := triedb.Size()
-		if nodes > limit{
+		if nodes > limit {
 			clear := common.StorageSize(common.GlobalConf.GetInt(gc, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024)
-			triedb.ClearFromNodes(b.Header.Height,limit - clear)
+			triedb.ClearFromNodes(b.Header.Height, limit-clear)
 		}
-		if cp != nil{
-			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height,TriesInMemory)
+		if cp != nil {
+			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
 			if len(cropItems) > 0 {
-				for _,vl := range cropItems{
-					triedb.Dereference(uint64(-vl.Priority),vl.Value.(common.Hash))
+				for _, vl := range cropItems {
+					triedb.Dereference(uint64(-vl.Priority), vl.Value.(common.Hash))
 				}
 				curCropMaxHeight := uint64(-cropItems[0].Priority)
-				triedb.StoreGcData(curCropMaxHeight,b.Header.Height,cp.(*types.BlockHeader).Height,uint64(len(cropItems)))
+				triedb.StoreGcData(curCropMaxHeight, b.Header.Height, cp.(*types.BlockHeader).Height, uint64(len(cropItems)))
 				persistentCount := common.GlobalConf.GetInt(gc, "persistence_count", persistenceCount)
-				if triedb.CanPersistent(persistentCount){
-					bh :=chain.queryBlockHeaderCeil(curCropMaxHeight + 1)
-					if bh != nil{
+				if triedb.CanPersistent(persistentCount) {
+					bh := chain.queryBlockHeaderCeil(curCropMaxHeight + 1)
+					if bh != nil {
 						err = triedb.Commit(bh.StateTree, false)
 						if err != nil {
 							return fmt.Errorf("trie commit error:%s", err.Error())
 						}
 						triedb.ResetGcCount()
 						err = dirtyState.StoreStatePersistentHeight(bh.Height)
-						if err != nil{
+						if err != nil {
 							return fmt.Errorf("StoreTriePersistentHeight error:%s", err.Error())
 						}
 						go chain.DeleteDirtyTrie(bh.Height)
-						log.CropLogger.Debugf("persistent height is %v,current height is %v,cp height is %v",bh.Height,b.Header.Height,cp.(*types.BlockHeader).Height)
-					}else{
-						log.CoreLogger.Warnf("persistent find ceil head is nil,height is %v",curCropMaxHeight)
+						log.CropLogger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
+					} else {
+						log.CoreLogger.Warnf("persistent find ceil head is nil,height is %v", curCropMaxHeight)
 					}
 				}
 			}
@@ -132,6 +135,8 @@ func (chain *FullBlockChain) saveBlockTxs(blockHash common.Hash, dataBytes []byt
 
 // commitBlock persist a block in a batch
 func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostState) (ok bool, err error) {
+	chain.wg.Add(1)
+	defer chain.wg.Done()
 	traceLog := monitor.NewPerformTraceLogger("commitBlock", block.Header.Hash, block.Header.Height)
 	traceLog.SetParent("addBlockOnChain")
 	defer traceLog.Log("")
@@ -218,6 +223,8 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 }
 
 func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
+	chain.wg.Add(1)
+	defer chain.wg.Done()
 	if !chain.isAdjusting {
 		chain.isAdjusting = true
 		defer func() {
@@ -390,7 +397,6 @@ func (chain *FullBlockChain) queryBlockHash(height uint64) *common.Hash {
 	}
 	return nil
 }
-
 
 func (chain *FullBlockChain) queryBlockHeaderCeil(height uint64) *types.BlockHeader {
 	hash := chain.queryBlockHashCeil(height)

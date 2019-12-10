@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -258,12 +259,11 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
-
 func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
 	beginHeight := lastDeleteHeight
 	endHeight := persistenceHeight
-	if endHeight <= beginHeight{
+	if endHeight <= beginHeight {
 		return
 	}
 	begin := time.Now()
@@ -284,13 +284,52 @@ func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 	}
 }
 
+func (chain *FullBlockChain) Stop() {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	if !trieGc {
+		return
+	}
+	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
+		return
+	}
+	atomic.StoreInt32(&chain.procInterrupt, 1)
+	chain.wg.Wait()
+	begin := time.Now()
+	cp := chain.latestCP.Load()
+	if chain.triegc.Empty() || cp == nil {
+		return
+	}
+	fmt.Printf("stop process begin...")
+	triedb := chain.stateCache.TrieDB()
+	var commitHeight uint64 = 0
+	defer func() {
+		fmt.Printf("stop success,commit height %v,cost %v", commitHeight, time.Since(begin))
+	}()
+
+	if triedb.LastGcHeight() > 0 {
+		bh := chain.queryBlockHeaderCeil(triedb.LastGcHeight() + 1)
+		if bh != nil {
+			err := triedb.Commit(bh.StateTree, false)
+			if err != nil {
+				fmt.Printf("trie commit error:%s", err.Error())
+				return
+			}
+			commitHeight = bh.Height
+			err = dirtyState.StoreStatePersistentHeight(bh.Height)
+			if err != nil {
+				fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
+			}
+		}
+	}
+}
+
 func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
-	if !trieGc  || top == nil{
+	if !trieGc || top == nil {
 		return nil
 	}
 	lastStateHeight := dirtyState.GetStatePersistentHeight()
-	if lastStateHeight < top.Height || (top.Height == 0 && lastStateHeight == 0){
+	if lastStateHeight < top.Height || (top.Height == 0 && lastStateHeight == 0) {
 		start := time.Now()
 		defer func() {
 			log.CropLogger.Debugf("fix dirty state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
@@ -303,7 +342,6 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 			if bh == nil {
 				continue
 			}
-
 			data := dirtyState.GetDirtyByRoot(bh.StateTree)
 			if len(data) == 0 {
 				log.CropLogger.Debugf("get dirty state data nil,height is %v，root is %v", bh.Height, bh.StateTree.Hex())
@@ -320,6 +358,9 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
+	if atomic.LoadInt32(&chain.procInterrupt) == 1 {
+		return types.AddBlockExisted, nil
+	}
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
