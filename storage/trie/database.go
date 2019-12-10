@@ -338,7 +338,7 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	}
 	db.nodes[hash] = entry
 	if db.enableGc {
-		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: blob})
+		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: entry.rlp()})
 	}
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {

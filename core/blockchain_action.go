@@ -290,7 +290,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 		return nil
 	}
 	lastStateHeight := dirtyState.GetStatePersistentHeight()
-	if lastStateHeight < top.Height {
+	if lastStateHeight < top.Height || (top.Height == 0 && lastStateHeight == 0){
 		start := time.Now()
 		defer func() {
 			log.CropLogger.Debugf("fix dirty state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
