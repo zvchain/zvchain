@@ -846,6 +846,9 @@ func TestStatProposalRate(t *testing.T) {
 		statFunc(beforeZIP, b)
 	}
 	afterZIP := make(map[string]int)
+	if chain.latestBlock == nil {
+		return
+	}
 	for b := params.GetChainConfig().ZIP001; b <= chain.Height(); b++ {
 		statFunc(afterZIP, b)
 	}
