@@ -21,7 +21,6 @@ require (
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/minio/sha256-simd v0.1.0
-	github.com/mitchellh/mapstructure v1.1.2
 	github.com/peterh/liner v1.1.0
 	github.com/pmylund/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/rs/cors v1.6.0

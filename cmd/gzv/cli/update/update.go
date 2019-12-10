@@ -8,13 +8,14 @@ import (
 	"time"
 )
 
-const OldVersion = false
-const NewVersion = true
-const UpdatePath = "update"
-const System = runtime.GOOS
-const CheckVersionGap = time.Hour
-const Timeout = time.Second * 60
-const DefaultRequestURL = "http://47.110.159.248:8000/request"
+const oldVersion = false
+const newVersion = true
+const updatePath = "update"
+const system = runtime.GOOS
+const checkVersionGap = time.Hour
+const timeout = time.Second * 60
+const defaultRequestURL = "http://47.110.159.248:8000/request"
+const defaultNotifyGap = 5
 
 var (
 	RequestUrl string
@@ -24,7 +25,7 @@ type VersionChecker struct {
 	version          string
 	notifyGap        uint64
 	effectiveHeight  uint64
-	priority         uint64
+	required         string
 	noticeContent    string
 	fileSize         int64
 	downloadFilename string
@@ -34,6 +35,7 @@ type VersionChecker struct {
 
 func NewVersionChecker() *VersionChecker {
 	versionChecker := &VersionChecker{
+		notifyGap:       defaultNotifyGap,
 		fileUpdateLists: &UpdateInfo{},
 	}
 	return versionChecker
@@ -46,12 +48,12 @@ func InitVersionChecker() {
 			fmt.Println("init version checker recover err:", err)
 		}
 	}()
-	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", DefaultRequestURL)
+	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", defaultRequestURL)
 	vc := NewVersionChecker()
 	nm := NewNotifyManager()
 
 	checkVersion(vc, nm)
-	ticker := time.NewTicker(CheckVersionGap)
+	ticker := time.NewTicker(checkVersionGap)
 	for {
 		select {
 		case <-ticker.C:
@@ -70,7 +72,7 @@ func checkVersion(vc *VersionChecker, nm *NotifyManager) {
 	}
 
 	if !bl {
-		timeOut := time.After(CheckVersionGap)
+		timeOut := time.After(checkVersionGap)
 		nm.versionChecker = vc
 		go nm.processOutput(timeOut)
 
@@ -119,11 +121,11 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 			time.Sleep(time.Second * time.Duration(int64(gap)))
 			output := fmt.Sprintf("[ Version ] : %s \n "+
 				"[ EffectiveHeight ] : %d \n "+
-				"[ Priority ] : %d \n "+
+				"[ Required ] : %s \n "+
 				"[ Contents ] : %v \n ",
 				nm.versionChecker.version,
 				nm.versionChecker.effectiveHeight,
-				nm.versionChecker.priority,
+				nm.versionChecker.required,
 				nm.versionChecker.noticeContent)
 			fmt.Printf("\n================= New version notification ================= \n %v \n============================================================ \n\n", output)
 		}

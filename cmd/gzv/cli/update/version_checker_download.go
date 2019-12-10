@@ -20,12 +20,12 @@ func (vc *VersionChecker) download() error {
 		durl       = vc.fileUpdateLists.PackageUrl
 		err        error
 		res        *http.Response
-		targetFile = UpdatePath + "/" + vc.version + "/"
-		targetPath = UpdatePath + "/" + vc.version
+		targetFile = updatePath + "/" + vc.version + "/"
+		targetPath = updatePath + "/" + vc.version
 	)
 
 	clent := new(http.Client)
-	clent.Timeout = Timeout
+	clent.Timeout = timeout
 
 	uri, err := url.ParseRequestURI(durl)
 	if err != nil {
@@ -60,7 +60,7 @@ func (vc *VersionChecker) download() error {
 		return err
 	}
 
-	err = CheckMD5(targetFile+filename, vc.fileUpdateLists.Packagemd5)
+	err = CheckMD5(targetFile+filename, vc.fileUpdateLists.PackageMd5)
 	if err != nil {
 		os.Remove(targetFile + filename)
 		return fmt.Errorf("Failed to checkMD5, downloaded file has been removed ,err : %v \n", err)
