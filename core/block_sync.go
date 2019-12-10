@@ -50,6 +50,7 @@ const (
 	tickerSendLocalTop         = "send_local_top"
 	tickerSyncNeighbor         = "sync_neightbor"
 	tickerSyncTimeout          = "sync_timeout"
+	tickerSyncNodeID           = "sync_node_id"
 	configSyncNeightborTimeout = "block_sync_timeout"
 )
 
@@ -79,6 +80,7 @@ type blockSyncer struct {
 
 	notifyCounters *lru.Cache
 	requestTime    time.Time
+	syncNodeID     string
 }
 
 type topBlockInfo struct {
@@ -100,6 +102,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 		syncingPeers:         make(map[string]uint64),
 		notifyCounters:       common.MustNewLRUCache(notifyCounterCacheSize),
 		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
+		syncNodeID:           common.GlobalConf.GetString(configSec, tickerSyncNodeID, ""),
 	}
 }
 
@@ -371,6 +374,9 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 }
 
 func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo) {
+	if len(bs.syncNodeID) > 0 {
+		ci.Candidate = bs.syncNodeID
+	}
 	id := ci.Candidate
 	height := ci.ReqHeight
 	if _, ok := bs.syncingPeers[id]; ok {

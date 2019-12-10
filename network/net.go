@@ -754,10 +754,14 @@ func (nc *NetCore) handleNeighbors(req *MsgNeighbors, p *Peer) error {
 }
 
 func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
+
+	Logger.Debugf("[handleData]session:%v, packetSize:%v, code:%v ",
+		p.sessionID, len(packet), req.MessageCode)
 	if expired(req.Expiration) {
 		Logger.Infof("message expired!")
 		return errExpired
 	}
+
 	srcNodeID := NodeID{}
 	srcNodeID.SetBytes(req.SrcNodeID)
 
