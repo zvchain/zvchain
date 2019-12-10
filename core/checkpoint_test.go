@@ -327,6 +327,9 @@ func init() {
 func TestCheckpoint_init(t *testing.T) {
 	gr := initGroupReader4CPTest(5)
 	br := initChainReader4CPTest(gr)
+	if br == nil {
+		return
+	}
 	for h := uint64(1); h < 1000; h++ {
 		addRandomBlock(br, h)
 	}
