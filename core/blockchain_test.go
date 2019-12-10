@@ -46,9 +46,15 @@ import (
 )
 
 var source = "100"
-
+const testDbFolder = "test_db_output"
 func init() {
 	log.ELKLogger.SetLevel(logrus.ErrorLevel)
+	_, err := ioutil.ReadDir(testDbFolder)
+	if err != nil {
+		return
+	}
+	os.RemoveAll(testDbFolder)
+
 }
 
 func TestPath(t *testing.T) {
@@ -559,6 +565,7 @@ func initContext4Test(t *testing.T) error {
 	common.InitConf("../tas_config_all.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
+	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
 	network.Logger = log.P2PLogger
 	err := middleware.InitMiddleware()
 	if err != nil {

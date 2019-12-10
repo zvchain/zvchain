@@ -24,7 +24,6 @@ import (
 	"github.com/zvchain/zvchain/storage/trie"
 	"math/big"
 	"math/rand"
-	"os"
 	"testing"
 )
 
@@ -326,7 +325,7 @@ func init() {
 
 func TestCheckpoint_init(t *testing.T) {
 	gr := initGroupReader4CPTest(5)
-	br := initChainReader4CPTest(gr)
+	br := initChainReader4CPTest(gr,t)
 	if br == nil {
 		return
 	}
@@ -338,9 +337,12 @@ func TestCheckpoint_init(t *testing.T) {
 	cp.init()
 }
 
-func initChainReader4CPTest(gr activatedGroupReader) *FullBlockChain {
+func initChainReader4CPTest(gr activatedGroupReader,t *testing.T) *FullBlockChain {
 	common.InitConf("test1.ini")
-	common.GlobalConf.SetString(configSec, "db_blocks", "d_b")
+	common.GlobalConf.SetString(configSec, "db_blocks", testDbFolder+"/"+t.Name())
+	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
+	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
+
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
 	clearTicker()
 	Logger = logrus.StandardLogger()
@@ -364,13 +366,9 @@ func initChainReader4CPTest(gr activatedGroupReader) *FullBlockChain {
 }
 
 func TestCheckpoint_checkAndUpdate(t *testing.T) {
-	os.RemoveAll("d_b")
-	defer func() {
-		os.RemoveAll("d_b")
-	}()
 	epochNum := 20
 	gr := initGroupReader4CPTest(epochNum)
-	br := initChainReader4CPTest(gr)
+	br := initChainReader4CPTest(gr,t)
 	if br == nil {
 		return
 	}
@@ -395,12 +393,9 @@ func TestCheckpoint_checkAndUpdate(t *testing.T) {
 }
 
 func TestCheckpoint_CheckPointOf(t *testing.T) {
-	defer func() {
-		os.RemoveAll("d_b")
-	}()
 	epochNum := 20
 	gr := initGroupReader4CPTest(epochNum)
-	br := initChainReader4CPTest(gr)
+	br := initChainReader4CPTest(gr,t)
 	Logger = logrus.StandardLogger()
 	if br == nil {
 		return
