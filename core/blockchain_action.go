@@ -258,6 +258,67 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
+
+func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
+	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
+	beginHeight := lastDeleteHeight
+	endHeight := persistenceHeight
+	if endHeight <= beginHeight{
+		return
+	}
+	begin := time.Now()
+	defer func() {
+		log.CropLogger.Debugf("delete dirty trie from db success,height is %v-%v,cost=%v", beginHeight, endHeight, time.Since(begin))
+	}()
+	log.CropLogger.Debugf("begin delete dirty trie from db,height is %v-%v", beginHeight, endHeight)
+	for i := beginHeight; i < endHeight; i++ {
+		bh := chain.queryBlockHeaderByHeight(i)
+		if bh == nil {
+			continue
+		}
+		err := dirtyState.DeleteDirtyTrie(bh.StateTree, bh.Height)
+		if err != nil {
+			log.CoreLogger.Error(err)
+			break
+		}
+	}
+}
+
+func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
+	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
+	if !trieGc  || top == nil{
+		return nil
+	}
+	lastStateHeight := dirtyState.GetStatePersistentHeight()
+	if lastStateHeight < top.Height {
+		start := time.Now()
+		defer func() {
+			log.CropLogger.Debugf("fix dirty state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
+		}()
+		log.CropLogger.Debugf("begin fix dirty state data,from %v-%v \n", lastStateHeight, top.Height)
+		triedb := chain.stateCache.TrieDB()
+
+		for i := lastStateHeight; i <= top.Height; i++ {
+			bh := chain.queryBlockHeaderByHeight(i)
+			if bh == nil {
+				continue
+			}
+
+			data := dirtyState.GetDirtyByRoot(bh.StateTree)
+			if len(data) == 0 {
+				log.CropLogger.Debugf("get dirty state data nil,height is %v，root is %v", bh.Height, bh.StateTree.Hex())
+				continue
+			}
+			err, caches := triedb.DecodeStoreBlob(data)
+			if err != nil {
+				return err
+			}
+			triedb.CommitDirtyToDb(caches)
+		}
+	}
+	return nil
+}
+
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
 	begin := time.Now()
 
