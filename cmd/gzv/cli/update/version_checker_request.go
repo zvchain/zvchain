@@ -11,19 +11,19 @@ import (
 func (vc *VersionChecker) checkVersion() (bool, error) {
 	notice, err := vc.requestVersion()
 	if err != nil {
-		return NewVersion, err
+		return newVersion, err
 	}
 	if notice == nil {
-		return NewVersion, fmt.Errorf("Request version returned empty\n")
+		return newVersion, fmt.Errorf("Request version returned empty\n")
 	}
 
 	if notice.Version == common.GzvVersion {
-		return NewVersion, nil
+		return newVersion, nil
 	}
 
 	vc.version = notice.Version
 	if notice.NotifyGap == 0 {
-		notice.NotifyGap = DefaultNotifyGap
+		notice.NotifyGap = defaultNotifyGap
 	}
 	vc.notifyGap = notice.NotifyGap
 	vc.effectiveHeight = notice.EffectiveHeight
@@ -31,7 +31,7 @@ func (vc *VersionChecker) checkVersion() (bool, error) {
 	vc.noticeContent = notice.NoticeContent
 	vc.fileUpdateLists = notice.UpdateInfos
 
-	return OldVersion, nil
+	return oldVersion, nil
 }
 
 func (vc *VersionChecker) requestVersion() (*Notice, error) {
@@ -88,7 +88,7 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 
 		list := make(map[string]interface{}, 0)
 
-		switch System {
+		switch system {
 		case "darwin":
 			list, ok = n["update_for_darwin"].(map[string]interface{})
 			if !ok {

@@ -20,12 +20,12 @@ func (vc *VersionChecker) download() error {
 		durl       = vc.fileUpdateLists.PackageUrl
 		err        error
 		res        *http.Response
-		targetFile = UpdatePath + "/" + vc.version + "/"
-		targetPath = UpdatePath + "/" + vc.version
+		targetFile = updatePath + "/" + vc.version + "/"
+		targetPath = updatePath + "/" + vc.version
 	)
 
 	clent := new(http.Client)
-	clent.Timeout = Timeout
+	clent.Timeout = timeout
 
 	uri, err := url.ParseRequestURI(durl)
 	if err != nil {

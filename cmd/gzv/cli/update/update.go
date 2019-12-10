@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-const OldVersion = false
-const NewVersion = true
-const UpdatePath = "update"
-const System = runtime.GOOS
-const CheckVersionGap = time.Hour
-const Timeout = time.Second * 60
-const DefaultRequestURL = "http://47.110.159.248:8000/request"
-const DefaultNotifyGap = 5
+const oldVersion = false
+const newVersion = true
+const updatePath = "update"
+const system = runtime.GOOS
+const checkVersionGap = time.Hour
+const timeout = time.Second * 60
+const defaultRequestURL = "http://47.110.159.248:8000/request"
+const defaultNotifyGap = 5
 
 var (
 	RequestUrl string
@@ -35,7 +35,7 @@ type VersionChecker struct {
 
 func NewVersionChecker() *VersionChecker {
 	versionChecker := &VersionChecker{
-		notifyGap:       DefaultNotifyGap,
+		notifyGap:       defaultNotifyGap,
 		fileUpdateLists: &UpdateInfo{},
 	}
 	return versionChecker
@@ -48,12 +48,12 @@ func InitVersionChecker() {
 			fmt.Println("init version checker recover err:", err)
 		}
 	}()
-	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", DefaultRequestURL)
+	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", defaultRequestURL)
 	vc := NewVersionChecker()
 	nm := NewNotifyManager()
 
 	checkVersion(vc, nm)
-	ticker := time.NewTicker(CheckVersionGap)
+	ticker := time.NewTicker(checkVersionGap)
 	for {
 		select {
 		case <-ticker.C:
@@ -72,7 +72,7 @@ func checkVersion(vc *VersionChecker, nm *NotifyManager) {
 	}
 
 	if !bl {
-		timeOut := time.After(CheckVersionGap)
+		timeOut := time.After(checkVersionGap)
 		nm.versionChecker = vc
 		go nm.processOutput(timeOut)
 
