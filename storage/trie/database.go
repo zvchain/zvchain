@@ -395,7 +395,7 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	node := db.nodes[hash]
 	db.lock.RUnlock()
 
-	if node != nil {
+	if node != nil && node.node != nil {
 		return node.obj(hash, cachegen), nil
 	}
 	atomic.AddUint64(&db.miss, 1)
