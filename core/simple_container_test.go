@@ -263,7 +263,7 @@ func TestEvicted(t *testing.T) {
 	checkPendingSize(t)
 }
 
-func checkPendingSize(t *testing.T){
+func checkPendingSize(t *testing.T) {
 	if container == nil {
 		return
 	}

@@ -167,10 +167,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        fileCacheSize,
-		BlockCacheCapacity:            blockCacheSize * opt.MiB,
-		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
+		OpenFilesCacheCapacity: fileCacheSize,
+		BlockCacheCapacity:     blockCacheSize * opt.MiB,
+		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)

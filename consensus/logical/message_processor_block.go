@@ -259,7 +259,7 @@ func (p *Processor) OnMessageCast(ccm *model.ConsensusCastMessage) (err error) {
 func (p *Processor) verifyCachedMsg(hash common.Hash) {
 	verifys := p.blockContexts.getVerifyMsgCache(hash)
 	if verifys != nil {
-		copyMsgs :=verifys.getVerifyMsgs()
+		copyMsgs := verifys.getVerifyMsgs()
 		for _, vmsg := range copyMsgs {
 			if vmsg == nil {
 				continue
