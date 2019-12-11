@@ -155,7 +155,7 @@ func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
 
 	err := db.db.db.Stats(dbStats)
 	if err != nil {
-		logger.Error("failed to get leveldb stats", err)
+		logger.Info("failed to get leveldb stats", err)
 	} else {
 
 		LevelSizes := dbStats.LevelSizes[:0]
