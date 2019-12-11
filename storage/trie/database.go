@@ -710,7 +710,7 @@ func (db *NodeDatabase) ClearFromNodes(height uint64, limit common.StorageSize) 
 	db.flushtime += time.Since(start)
 
 	log.CropLogger.Debugf("Clear nodes from memory clear ,height is %v,clear count %v,clear size %v,cost %v,total flush nodes %v,total flush size %v,total flush time is %v,live node %v,live size %v",
-		height, nodes-len(db.nodes), storage-db.nodesSize, time.Since(start), db.flushnodes, db.flushsize, db.flushtime, len(db.nodes), db.nodesSize)
+		height, nodes-len(db.nodes), storage-db.nodesSize, time.Since(start), db.flushnodes, db.flushsize, db.flushtime, len(db.nodes), db.nodesSize/(1024*1024))
 }
 
 // BatchDeleteDirtyState delete history state node if open gc mode
