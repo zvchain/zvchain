@@ -77,41 +77,43 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 	}
 
 	if res.Data == nil {
-		return nil, fmt.Errorf("version response is empty\n")
+		return nil, fmt.Errorf("version response is empty")
 	}
 
 	if n, ok := res.Data.(map[string]interface{})["data"].(map[string]interface{}); ok {
 
-		v, ok := n["version"].(string)
-		if ok {
-			notice.Version = v
+		notice.Version, ok = n["version"].(string)
+		if !ok || n["version"] == "" {
+			return nil, fmt.Errorf("version assertion err")
 		}
 
-		ng, ok := n["notify_gap"].(string)
-		if ok {
-			notice.NotifyGap = ng
+		notice.NotifyGap, ok = n["notify_gap"].(string)
+		if !ok || n["notify_gap"] == "" {
+			return nil, fmt.Errorf("notify_gap assertion err")
 		}
 
-		eh, ok := n["effective_height"].(string)
-		if ok {
-			notice.EffectiveHeight = eh
+		notice.EffectiveHeight, ok = n["effective_height"].(string)
+		if !ok || n["effective_height"] == "" {
+			return nil, fmt.Errorf("effective_height assertion err")
 		}
 
-		pr, ok := n["required"].(string)
-		if ok {
-			notice.Required = pr
+		notice.Required, ok = n["required"].(string)
+		if !ok || n["required"] == "" {
+			return nil, fmt.Errorf("required assertion err")
 		}
 
-		nc, ok := n["notice_content"].(string)
-		if ok {
-			notice.NoticeContent = nc
+		notice.NoticeContent, ok = n["notice_content"].(string)
+		if !ok || n["notice_content"] == "" {
+			return nil, fmt.Errorf("notice_content assertion err")
 		}
 
-		if wl, ok := n["white_list"].([]interface{}); ok {
-			for _, list := range wl {
-				if _, ok := list.(string); ok {
-					notice.WhiteList = append(notice.WhiteList, list.(string))
-				}
+		wl, ok := n["white_list"].([]interface{})
+		if !ok || n["white_list"] == nil {
+			return nil, fmt.Errorf("white_list assertion err")
+		}
+		for _, wlist := range wl {
+			if _, ok := wlist.(string); ok {
+				notice.WhiteList = append(notice.WhiteList, wlist.(string))
 			}
 		}
 
@@ -146,11 +148,12 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 		}
 
 		updateFileList, ok := list["file_list"].([]interface{})
-		if ok {
-			for _, file := range updateFileList {
-				if _, ok := file.(string); ok {
-					notice.UpdateInfos.FileList = append(notice.UpdateInfos.FileList, file.(string))
-				}
+		if !ok || list["file_list"] == nil {
+			return nil, fmt.Errorf("file_list assertion err")
+		}
+		for _, file := range updateFileList {
+			if _, ok := file.(string); ok {
+				notice.UpdateInfos.FileList = append(notice.UpdateInfos.FileList, file.(string))
 			}
 		}
 	}
