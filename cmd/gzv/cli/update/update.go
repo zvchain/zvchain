@@ -15,7 +15,7 @@ const updatePath = "update"
 const system = runtime.GOOS
 const checkVersionGap = time.Hour
 const timeout = time.Second * 60
-const defaultRequestURL = "http://47.110.159.248:8000/request"
+const defaultRequestURL = "https://update.zvchain.io:8000/request"
 const defaultNotifyGap = "5"
 
 var (
@@ -37,6 +37,8 @@ type VersionChecker struct {
 func NewVersionChecker() *VersionChecker {
 	versionChecker := &VersionChecker{
 		//notifyGap:       defaultNotifyGap,
+		notifyGap:       &big.Int{},
+		effectiveHeight: &big.Int{},
 		fileUpdateLists: &UpdateInfo{},
 	}
 	return versionChecker
