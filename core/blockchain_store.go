@@ -30,7 +30,7 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 )
 
-const TriesInMemory uint64 = types.EpochLength * 4
+const TriesInMemory uint64 = types.EpochLength * 4 + 20
 
 var (
 	GcMode               = true
