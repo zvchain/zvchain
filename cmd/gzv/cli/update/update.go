@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
+	"math/big"
 	"runtime"
 	"time"
 )
@@ -15,7 +16,7 @@ const system = runtime.GOOS
 const checkVersionGap = time.Hour
 const timeout = time.Second * 60
 const defaultRequestURL = "http://47.110.159.248:8000/request"
-const defaultNotifyGap = 5
+const defaultNotifyGap = "5"
 
 var (
 	RequestUrl string
@@ -23,8 +24,8 @@ var (
 
 type VersionChecker struct {
 	version          string
-	notifyGap        uint64
-	effectiveHeight  uint64
+	notifyGap        *big.Int
+	effectiveHeight  *big.Int
 	required         string
 	noticeContent    string
 	fileSize         int64
@@ -35,7 +36,7 @@ type VersionChecker struct {
 
 func NewVersionChecker() *VersionChecker {
 	versionChecker := &VersionChecker{
-		notifyGap:       defaultNotifyGap,
+		//notifyGap:       defaultNotifyGap,
 		fileUpdateLists: &UpdateInfo{},
 	}
 	return versionChecker
@@ -85,7 +86,7 @@ func checkVersion(vc *VersionChecker, nm *NotifyManager) {
 		log.DefaultLogger.Infoln("start download ...")
 		err := vc.download()
 		if err != nil {
-			log.DefaultLogger.Errorln(err)
+			log.DefaultLogger.Errorln("====download:", err)
 			fmt.Println(" DownLoad Err :", err)
 			return
 		}
@@ -118,7 +119,7 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 		case <-timeout:
 			return
 		default:
-			time.Sleep(time.Second * time.Duration(int64(gap)))
+			time.Sleep(time.Second * time.Duration(gap.Uint64()))
 			output := fmt.Sprintf("[ Version ] : %s \n "+
 				"[ EffectiveHeight ] : %d \n "+
 				"[ Required ] : %s \n "+

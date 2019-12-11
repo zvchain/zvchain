@@ -9,10 +9,11 @@ type UpdateInfo struct {
 
 type Notice struct {
 	Version         string      `json:"version"`
-	NotifyGap       uint64      `json:"notify_gap"`
-	EffectiveHeight uint64      `json:"effective_height"`
+	NotifyGap       string      `json:"notify_gap"`
+	EffectiveHeight string      `json:"effective_height"`
 	Required        string      `json:"required"`
 	NoticeContent   string      `json:"notice_content"`
+	WhiteList       []string    `json:"white_list"`
 	UpdateInfos     *UpdateInfo `json:"update_info"`
 }
 

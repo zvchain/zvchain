@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 )
 
@@ -16,22 +17,42 @@ func (vc *VersionChecker) checkVersion() (bool, error) {
 	if notice == nil {
 		return newVersion, fmt.Errorf("Request version returned empty\n")
 	}
+	if notice.Version == "" {
+		return newVersion, fmt.Errorf("the version is empty")
+	}
 
 	if notice.Version == common.GzvVersion {
 		return newVersion, nil
 	}
 
 	vc.version = notice.Version
-	if notice.NotifyGap == 0 {
+	if notice.NotifyGap == "0" {
 		notice.NotifyGap = defaultNotifyGap
 	}
-	vc.notifyGap = notice.NotifyGap
-	vc.effectiveHeight = notice.EffectiveHeight
+	ng := new(big.Int)
+	ng.SetString(notice.NotifyGap, 10)
+	vc.notifyGap = ng
+
+	eh := new(big.Int)
+	eh.SetString(notice.EffectiveHeight, 10)
+	vc.effectiveHeight = eh
+
 	vc.required = notice.Required
 	vc.noticeContent = notice.NoticeContent
 	vc.fileUpdateLists = notice.UpdateInfos
 
-	return oldVersion, nil
+	if len(notice.WhiteList) < 1 {
+		return newVersion, fmt.Errorf("white list is empty")
+	}
+	for _, list := range notice.WhiteList {
+		if notice.Version == list && notice.Version != common.GzvVersion {
+			return oldVersion, nil
+		}
+		if list != common.GzvVersion {
+			continue
+		}
+	}
+	return newVersion, nil
 }
 
 func (vc *VersionChecker) requestVersion() (*Notice, error) {
@@ -66,14 +87,14 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 			notice.Version = v
 		}
 
-		ng, ok := n["notify_gap"].(float64)
+		ng, ok := n["notify_gap"].(string)
 		if ok {
-			notice.NotifyGap = uint64(ng)
+			notice.NotifyGap = ng
 		}
 
-		eh, ok := n["effective_height"].(float64)
+		eh, ok := n["effective_height"].(string)
 		if ok {
-			notice.EffectiveHeight = uint64(eh)
+			notice.EffectiveHeight = eh
 		}
 
 		pr, ok := n["required"].(string)
@@ -84,6 +105,14 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 		nc, ok := n["notice_content"].(string)
 		if ok {
 			notice.NoticeContent = nc
+		}
+
+		if wl, ok := n["white_list"].([]interface{}); ok {
+			for _, list := range wl {
+				if _, ok := list.(string); ok {
+					notice.WhiteList = append(notice.WhiteList, list.(string))
+				}
+			}
 		}
 
 		list := make(map[string]interface{}, 0)
@@ -119,7 +148,9 @@ func (vc *VersionChecker) requestVersion() (*Notice, error) {
 		updateFileList, ok := list["file_list"].([]interface{})
 		if ok {
 			for _, file := range updateFileList {
-				notice.UpdateInfos.FileList = append(notice.UpdateInfos.FileList, file.(string))
+				if _, ok := file.(string); ok {
+					notice.UpdateInfos.FileList = append(notice.UpdateInfos.FileList, file.(string))
+				}
 			}
 		}
 	}
