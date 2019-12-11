@@ -6,6 +6,7 @@ import (
 	"github.com/zvchain/zvchain/log"
 	"math/big"
 	"runtime"
+	"runtime/debug"
 	"time"
 )
 
@@ -17,7 +18,7 @@ const checkVersionGap = time.Minute * 5
 
 //const checkVersionGap = time.Hour
 const timeout = time.Second * 60
-const defaultRequestURL = "http://47.110.159.248:8000/request"
+const defaultRequestURL = "https://update.zvchain.io:8000/request"
 const defaultNotifyGap = "5"
 
 var (
@@ -39,6 +40,8 @@ type VersionChecker struct {
 func NewVersionChecker() *VersionChecker {
 	versionChecker := &VersionChecker{
 		//notifyGap:       defaultNotifyGap,
+		notifyGap:       &big.Int{},
+		effectiveHeight: &big.Int{},
 		fileUpdateLists: &UpdateInfo{},
 	}
 	return versionChecker
@@ -48,7 +51,8 @@ func InitVersionChecker() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.DefaultLogger.Errorln("init version checker recover ,err:", err)
-			fmt.Println("init version checker recover err:", err)
+			s := debug.Stack()
+			log.DefaultLogger.Errorln(string(s))
 		}
 	}()
 	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", defaultRequestURL)
@@ -112,6 +116,8 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.DefaultLogger.Errorln("processOutput err:", err)
+			s := debug.Stack()
+			log.DefaultLogger.Errorln(string(s))
 		}
 	}()
 
