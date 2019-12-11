@@ -49,7 +49,8 @@ func InitVersionChecker() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.DefaultLogger.Errorln("init version checker recover ,err:", err)
-			debug.PrintStack()
+			s := debug.Stack()
+			log.DefaultLogger.Errorln(string(s))
 		}
 	}()
 	RequestUrl = common.GlobalConf.GetString("gzv", "url_for_version_request", defaultRequestURL)
@@ -113,7 +114,8 @@ func (nm *NotifyManager) processOutput(timeout <-chan time.Time) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.DefaultLogger.Errorln("processOutput err:", err)
-			debug.PrintStack()
+			s := debug.Stack()
+			log.DefaultLogger.Errorln(string(s))
 		}
 	}()
 
