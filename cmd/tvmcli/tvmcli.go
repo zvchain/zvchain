@@ -40,7 +40,7 @@ type Transaction struct {
 }
 
 func (Transaction) GetGasLimit() uint64 { return TransactionGasLimitMax }
-func (Transaction) GetValue() uint64    { return 0 }
+func (Transaction) GetValue() uint64    { return 500 }
 func (Transaction) Operator() *common.Address {
 	address := common.StringToAddress("zvc2f067dba80c53cfdd956f86a61dd3aaf5abbba5609572636719f054247d8103")
 	return &address
@@ -213,6 +213,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 		fmt.Println(transactionError.Message)
 	}
 	fmt.Println("gas: ", TransactionGasLimitMax-controller.VM.Gas())
+
 	fmt.Printf("%d logs: \n", len(logs))
 	for _, log := range logs {
 		fmt.Printf("		string: %s, data: %s\n", log.String(), string(log.Data))

@@ -20,7 +20,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"flag"
 	"fmt"
 	"testing"
 )
@@ -28,9 +27,9 @@ import (
 var dumpEnc bool
 
 func init() {
-	flDump := flag.Bool("dump", false, "write encrypted test message to file")
-	flag.Parse()
-	dumpEnc = *flDump
+	//flDump := flag.Bool("dump", false, "write encrypted test message to file")
+	//flag.Parse()
+	//dumpEnc = *flDump
 }
 
 // Ensure the KDF generates appropriately sized keys.

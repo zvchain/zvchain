@@ -37,8 +37,8 @@ function buildp2p() {
     fi
 }
 
-git submodule sync
-git submodule update --init
+#git submodule sync
+#git submodule update --init
 if [[ $1x = "gzv"x ]]; then
     echo building gzv ...
     buildtvm

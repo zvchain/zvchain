@@ -57,12 +57,18 @@ func _callContract(contractAddress string, abiJSON string) {
 }
 
 func TestTvmCli_Call(t *testing.T) {
-	contractAddress := _deployContract("Token", "erc20.py")
+	contractAddress := _deployContract("Distribution", "erc20.py")
 	abiJson := `{
-	"func_name": "balance_of",
-		"args": ["zv6c63b15aac9b94927681f5fb1a7343888dece14e3160b3633baa9e0d540228cd"]
+	"func_name": "init_distribution_list",
+		"args": ["1", {"zvede238caaaaca16c1473bb66fcd605cb9c3c88992c7d1053130e2de65fa5fd7a": 100, "zvede238caaaaca16c1473bb66fcd605cb9c3c88992c7d1053130e2de65fa5fd7b": 100}]
 }`
 	_callContract(contractAddress, abiJson)
+
+//	abiJson = `{
+//	"func_name": "deposit",
+//		"args": ["1"]
+//}`
+//	_callContract(contractAddress, abiJson)
 }
 
 func TestTvmCli_QueryData(t *testing.T) {
