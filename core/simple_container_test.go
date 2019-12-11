@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -108,7 +109,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t1)
 	_ = container.push(t2)
 	_ = container.push(t3)
-
+	checkPendingSize(t)
 	rs := make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
@@ -124,7 +125,7 @@ func Test_push(t *testing.T) {
 	if container.get(t2.Hash) != nil {
 		t.Error("clear replaced tx fail")
 	}
-
+	checkPendingSize(t)
 	container = newSimpleContainer(10, 3, BlockChainImpl)
 
 	_ = container.push(t2)
@@ -146,6 +147,7 @@ func Test_push(t *testing.T) {
 	if container.get(t2.Hash) != nil {
 		t.Error("clear replaced tx fail")
 	}
+	checkPendingSize(t)
 }
 
 func Test_simpleContainer_forEach(t *testing.T) {
@@ -186,7 +188,7 @@ func Test_simpleContainer_forEach(t *testing.T) {
 	fmt.Println(len(executed))
 	printPending()
 	printQueue()
-
+	checkPendingSize(t)
 }
 
 func Test_eachForSync(t *testing.T) {
@@ -203,6 +205,7 @@ func Test_eachForSync(t *testing.T) {
 	for i := 50; i < 70; i++ {
 		_ = container.push(genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7fe"+strconv.Itoa(i), uint64(i), types.NewBigInt(20000), gasLimit, &addr1))
 	}
+	checkPendingSize(t)
 	var count = 0
 	container.eachForSync(func(tx *types.Transaction) bool {
 		count++
@@ -210,6 +213,63 @@ func Test_eachForSync(t *testing.T) {
 	})
 	if count != maxSyncCountPreSource {
 		t.Fatalf("expect %d, but got %d", maxSyncCountPreSource, count)
+	}
+	checkPendingSize(t)
+}
+
+func TestEvicted(t *testing.T) {
+	err := initContext4Test(t)
+	common.GlobalConf.SetInt(configSec, "tx_timeout_duration", 10)
+	defer clearSelf(t)
+	if err != nil {
+		t.Fatalf("failed to initContext4Test")
+	}
+
+	container = newSimpleContainer(200, 80, BlockChainImpl)
+	txs := make([]*types.Transaction, 0)
+
+	for i := 1; i < 51; i++ {
+		tx := genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7ff"+strconv.Itoa(i), uint64(i), types.NewBigInt(20000), gasLimit, &addr1)
+		txs = append(txs, tx)
+		_ = container.push(tx)
+	}
+
+	for i := 0; i < 10; i++ {
+		execute(t, *txs[i])
+	}
+	checkPendingSize(t)
+	var count = len(container.asSlice(1000))
+
+	if count != 50 {
+		t.Errorf("push error, count expect 50 but got %d", count)
+	}
+
+	container.clearRoute()
+	count = len(container.asSlice(1000))
+
+	if count != 40 {
+		t.Errorf("clearRoute nonce error, count expect 40 but got %d", count)
+	}
+	time.Sleep(time.Second * 5)
+	tx := genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda700"+strconv.Itoa(1), uint64(1), types.NewBigInt(20000), gasLimit, &addr2)
+	_ = container.push(tx)
+	container.clearRoute()
+	time.Sleep(time.Second * 5)
+	container.clearRoute()
+	count = len(container.asSlice(1000))
+	if count != 1 {
+		t.Errorf("clearRoute timeout error, count expect 0 but got %d", count)
+	}
+	checkPendingSize(t)
+}
+
+func checkPendingSize(t *testing.T) {
+	if container == nil {
+		return
+	}
+	count := len(container.asSlice(1000))
+	if count != container.pending.size {
+		t.Errorf("pending size error. size = %d, count = %d", container.pending.size, count)
 	}
 }
 

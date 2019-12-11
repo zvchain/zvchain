@@ -18,14 +18,16 @@ package core
 import (
 	"errors"
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"math"
 	"math/rand"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/zvchain/zvchain/middleware/notify"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	zvtime "github.com/zvchain/zvchain/middleware/time"
@@ -34,16 +36,20 @@ import (
 )
 
 const (
-	sendLocalTopInterval       = 3   // Interval of sending local top block to neighbor
-	syncNeightborsInterval     = 3   // Interval of requesting synchronize block from neighbor
-	syncNeightborTimeout       = 5   // Timeout of requesting synchronize block from neighbor
-	blockSyncCandidatePoolSize = 100 // Size of candidate peer pool for block synchronize
+	sendLocalTopInterval        = 3   // Interval of sending local top block to neighbor
+	syncNeightborsInterval      = 3   // Interval of requesting synchronize block from neighbor
+	defaultSyncNeightborTimeout = 5   // Timeout of requesting synchronize block from neighbor
+	blockSyncCandidatePoolSize  = 100 // Size of candidate peer pool for block synchronize
+
+	notifyCounterCacheSize         = 20   // size of LRU cache for notify counters
+	notifyCounterCacheSizePerBlock = 1024 // size of LRU cache for per block notify counter
 )
 
 const (
-	tickerSendLocalTop = "send_local_top"
-	tickerSyncNeighbor = "sync_neightbor"
-	tickerSyncTimeout  = "sync_timeout"
+	tickerSendLocalTop         = "send_local_top"
+	tickerSyncNeighbor         = "sync_neightbor"
+	tickerSyncTimeout          = "sync_timeout"
+	configSyncNeightborTimeout = "block_sync_timeout"
 )
 
 var (
@@ -62,12 +68,15 @@ type blockSyncer struct {
 	chain *FullBlockChain
 
 	candidatePool map[string]*types.CandidateBlockHeader
-	syncingPeers  map[string]uint64
+	syncingPeers  map[string]*types.SyncingPeerTop
 
 	ticker *ticker.GlobalTicker
 
-	lock   sync.RWMutex
-	logger *logrus.Logger
+	lock                 sync.RWMutex
+	logger               *logrus.Logger
+	syncNeightborTimeout uint32
+
+	notifyCounters *lru.Cache
 }
 
 type topBlockInfo struct {
@@ -84,9 +93,11 @@ func newTopBlockInfo(topBH *types.BlockHeader) *topBlockInfo {
 
 func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 	return &blockSyncer{
-		candidatePool: make(map[string]*types.CandidateBlockHeader),
-		chain:         chain,
-		syncingPeers:  make(map[string]uint64),
+		candidatePool:        make(map[string]*types.CandidateBlockHeader),
+		chain:                chain,
+		syncingPeers:         make(map[string]*types.SyncingPeerTop),
+		notifyCounters:       common.MustNewLRUCache(notifyCounterCacheSize),
+		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
 	}
 }
 
@@ -106,11 +117,13 @@ func InitBlockSyncer(chain *FullBlockChain) {
 	notify.BUS.Subscribe(notify.BlockReq, blockSync.blockReqHandler)
 	notify.BUS.Subscribe(notify.BlockResponse, blockSync.blockResponseMsgHandler)
 
+	blockSync.logger.Debugf("init block syncer,block sync timeout:%v", blockSync.syncNeightborTimeout)
+
 }
 
 func (bs *blockSyncer) isSyncing() bool {
-	bs.lock.RLock()
-	defer bs.lock.RUnlock()
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
 
 	const (
 		blockBuffer = 50
@@ -228,9 +241,9 @@ func (bs *blockSyncer) addBlackWithOutLock(candidateID string) {
 }
 
 func (bs *blockSyncer) addBlackWithLock(candidateID string) {
-	bs.lock.RLock()
+	bs.lock.Lock()
 	delete(bs.candidatePool, candidateID)
-	bs.lock.RUnlock()
+	bs.lock.Unlock()
 	bs.addBlackProcess(candidateID)
 }
 
@@ -261,9 +274,19 @@ func (bs *blockSyncer) getPeerTopBlock(id string) *types.CandidateBlockHeader {
 	return nil
 }
 
-func (bs *blockSyncer) detectLowFork() (string, *types.BlockHeader) {
+func (bs *blockSyncer) getSyncingPeerTopBlock(id string) *types.SyncingPeerTop {
 	bs.lock.RLock()
 	defer bs.lock.RUnlock()
+	tb, ok := bs.syncingPeers[id]
+	if ok {
+		return tb
+	}
+	return nil
+}
+
+func (bs *blockSyncer) detectLowFork() (string, *types.BlockHeader) {
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
 	localTop := bs.chain.QueryTopBlock()
 
 	// Find a node in the candidate pool that is more than one epoch heights lower than the local
@@ -337,7 +360,7 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 	}
 
 	for syncID, h := range bs.syncingPeers {
-		if h == beginHeight {
+		if h.SyncingHeight == beginHeight {
 			bs.logger.Debugf("height %v in syncing from %v", beginHeight, syncID)
 			return false
 		}
@@ -351,11 +374,11 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 
 	notify.BUS.Publish(notify.BlockSync, &syncMessage{CandidateInfo: candInfo})
 
-	bs.requestBlock(candInfo)
+	bs.requestBlock(candInfo, candidateTop)
 	return true
 }
 
-func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo) {
+func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo, top *types.CandidateBlockHeader) {
 	id := ci.Candidate
 	height := ci.ReqHeight
 	if _, ok := bs.syncingPeers[id]; ok {
@@ -378,11 +401,11 @@ func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo) {
 	message := network.Message{Code: network.ReqBlock, Body: body}
 	network.GetNetInstance().Send(id, message)
 
-	bs.syncingPeers[id] = ci.ReqHeight
+	bs.syncingPeers[id] = &types.SyncingPeerTop{top, ci.ReqHeight}
 
 	bs.chain.ticker.RegisterOneTimeRoutine(bs.syncTimeoutRoutineName(id), func() bool {
 		return bs.syncComplete(id, true)
-	}, syncNeightborTimeout)
+	}, bs.syncNeightborTimeout)
 }
 
 func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
@@ -397,7 +420,14 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 		return false
 	}
 	message := network.Message{Code: network.BlockInfoNotifyMsg, Body: body}
-	network.GetNetInstance().TransmitToNeighbor(message)
+
+	counter := bs.getOrAddNotifyCounter(top)
+	blacklist := make([]string, 0)
+	for _, nodeStr := range counter.Keys() {
+		blacklist = append(blacklist, nodeStr.(string))
+	}
+
+	network.GetNetInstance().TransmitToNeighbor(message, blacklist)
 	return true
 }
 
@@ -421,6 +451,7 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) error {
 	bs.logger.Debugf("recv block notify from %v, header %v %v", bnm.Source(), blockHeader.Height, blockHeader.Hash)
 
 	bs.addCandidatePool(source, blockHeader)
+	bs.notifyCounterAdd(source, blockHeader)
 	return nil
 }
 
@@ -454,7 +485,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 
 	bs.lock.RLock()
 	// Maybe sync timeout and discard the response
-	reqHeight, ok := bs.syncingPeers[source]
+	peer, ok := bs.syncingPeers[source]
 	bs.lock.RUnlock()
 
 	if !ok {
@@ -481,20 +512,15 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		bs.logger.Debugf("Rcv block response nil from:%s", source)
 	} else {
 		bs.logger.Debugf("blockResponseMsgHandler rcv from %s! [%v-%v]", source, blocks[0].Header.Height, blocks[len(blocks)-1].Header.Height)
-		if blocks[0].Header.Height < reqHeight {
-			bs.logger.Errorf("recv block lower than reqHeight: %v %v", blocks[0].Header.Height, reqHeight)
+		if blocks[0].Header.Height < peer.SyncingHeight {
+			bs.logger.Errorf("recv block lower than reqHeight: %v %v", blocks[0].Header.Height, peer.SyncingHeight)
 			return nil
 		}
-		peerTop := bs.getPeerTopBlock(source)
 		localTop := newTopBlockInfo(bs.chain.QueryTopBlock())
 
-		if peerTop == nil {
-			bs.logger.Debugf("peer top is nil, and won't process:%v", source)
-			return fmt.Errorf("peer top is nil")
-		}
 		// First compare weights
-		if localTop.MoreWeight(peerTop.BW) {
-			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
+		if localTop.MoreWeight(peer.Top.BW) {
+			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peer.Top.BH.Hash.Hex(), peer.Top.BH.Height, peer.Top.BH.TotalQN)
 			return nil
 		}
 
@@ -518,7 +544,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 
 		// The weight is still low, continue to synchronize (must add blocks
 		// is successful, otherwise it will cause an infinite loop)
-		if allSuccess && peerTop != nil && peerTop.BW.MoreWeight(&localTop.BlockWeight) {
+		if allSuccess && peer.Top.BW.MoreWeight(&localTop.BlockWeight) {
 			bs.syncComplete(source, false)
 			complete = true
 			go bs.trySyncRoutine()
@@ -532,7 +558,7 @@ func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader
 	defer bs.lock.Unlock()
 
 	cbh := types.NewCandidateBlockHeader(header)
-	if len(bs.candidatePool) < blockSyncCandidatePoolSize {
+	if len(bs.candidatePool) < blockSyncCandidatePoolSize || bs.candidatePool[source] != nil {
 		bs.candidatePool[source] = cbh
 		return
 	}
@@ -542,6 +568,28 @@ func (bs *blockSyncer) addCandidatePool(source string, header *types.BlockHeader
 			bs.candidatePool[source] = cbh
 		}
 	}
+}
+
+func (bs *blockSyncer) notifyCounterAdd(source string, header *types.BlockHeader) {
+	top := bs.chain.QueryTopBlock()
+	if top.Height == 0 {
+		return
+	}
+
+	if header.Height >= top.Height {
+		counter := bs.getOrAddNotifyCounter(header)
+		counter.Add(source, nil)
+	}
+
+}
+
+func (bs *blockSyncer) getOrAddNotifyCounter(header *types.BlockHeader) *lru.Cache {
+	v, exit := bs.notifyCounters.Get(header.Hash)
+	if !exit {
+		v = common.MustNewLRUCache(notifyCounterCacheSizePerBlock)
+		bs.notifyCounters.ContainsOrAdd(header.Hash, v)
+	}
+	return v.(*lru.Cache)
 }
 
 func (bs *blockSyncer) blockReqHandler(msg notify.Message) error {

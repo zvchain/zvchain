@@ -16,11 +16,13 @@
 package core
 
 import (
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
 	"sync"
 
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
+
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/notify"
@@ -228,14 +230,18 @@ func (fp *forkProcessor) timeoutTickerName() string {
 }
 
 func (fp *forkProcessor) findAncestorRequest(topHash common.Hash) {
-
+	ctx := fp.syncCtx
+	if ctx == nil {
+		fp.logger.Debugf("ctx is nil: topHash=%v", topHash)
+		return
+	}
 	chainPieceInfo := fp.getLocalPieceInfo(topHash)
 	if len(chainPieceInfo) == 0 {
 		fp.reset()
 		return
 	}
 
-	reqCnt := peerManagerImpl.getPeerReqBlockCount(fp.syncCtx.target)
+	reqCnt := peerManagerImpl.getPeerReqBlockCount(ctx.target)
 
 	pieceReq := &findAncestorPieceReq{
 		ChainPiece: chainPieceInfo,
@@ -248,12 +254,12 @@ func (fp *forkProcessor) findAncestorRequest(topHash common.Hash) {
 		fp.reset()
 		return
 	}
-	fp.logger.Debugf("req piece from %v, reqCnt %v", fp.syncCtx.target, reqCnt)
+	fp.logger.Debugf("req piece from %v, reqCnt %v", ctx.target, reqCnt)
 
 	message := network.Message{Code: network.ForkFindAncestorReq, Body: body}
-	fp.msgSender.Send(fp.syncCtx.target, message)
+	fp.msgSender.Send(ctx.target, message)
 
-	fp.syncCtx.lastReqPiece = pieceReq
+	ctx.lastReqPiece = pieceReq
 
 	// Start ticker
 	fp.chain.ticker.RegisterOneTimeRoutine(fp.timeoutTickerName(), func() bool {
@@ -585,16 +591,21 @@ func (fp *forkProcessor) allBlocksReceived() {
 	pre := first
 	blocks = blocks[1:]
 	// Ensure blocks are chained and heights are legal
-	for _, block := range blocks {
+	for i, block := range blocks {
 		if pre.Hash != block.Header.PreHash {
 			fp.logger.Errorf("blocks not chained: %v %v", pre.Height, block.Header.Height)
 			return
 		}
 		if block.Header.Height >= fp.syncCtx.requestChainSliceEndHeight {
-			fp.logger.Errorf("receives block higher than expect height: %v, expect %v", block.Header.Height, fp.syncCtx.requestChainSliceEndHeight)
-			return
+			fp.logger.Warnf("receives block higher than expect height: %v, expect %v", block.Header.Height, fp.syncCtx.requestChainSliceEndHeight)
+			blocks = blocks[:i]
+			break
 		}
 		pre = block.Header
+	}
+	if len(blocks) == 0 {
+		fp.logger.Warnf("no blocks left")
+		return
 	}
 	pre = first
 	// Checks the blocks legality

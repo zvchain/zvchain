@@ -34,7 +34,8 @@ type Server struct {
 	netCore *NetCore
 	config  *NetworkConfig
 
-	consensusHandler MsgHandler
+	consensusHandler  MsgHandler
+	maxBroadcastCount int
 }
 
 func (s *Server) Send(id string, msg Message) error {
@@ -80,14 +81,14 @@ func (s *Server) SpreadToGroup(groupID string, groupMembers []string, msg Messag
 	return nil
 }
 
-func (s *Server) TransmitToNeighbor(msg Message) error {
+func (s *Server) TransmitToNeighbor(msg Message, blacklist []string) error {
 	bytes, err := marshalMessage(msg)
 	if err != nil {
 		Logger.Errorf("Marshal message error:%s", err.Error())
 		return err
 	}
 
-	s.netCore.broadcastRandom(bytes, msg.Code, -1, 256)
+	s.netCore.broadcastRandom(bytes, msg.Code, -1, s.maxBroadcastCount, blacklist)
 
 	return nil
 }
@@ -159,7 +160,6 @@ func (s *Server) handleMessage(b []byte, from string, chainID uint16, protocolVe
 	}
 	message.ChainID = chainID
 	message.ProtocolVersion = protocolVersion
-	Logger.Debugf("Receive message from %s,code:%d,msg size:%d,hash:%s, chainID:%v,protocolVersion:%v", from, message.Code, len(b), message.Hash(), chainID, protocolVersion)
 	statistics.AddCount("Server.handleMessage", message.Code, uint64(len(b)))
 	s.netCore.flowMeter.recv(int64(message.Code), int64(len(b)))
 

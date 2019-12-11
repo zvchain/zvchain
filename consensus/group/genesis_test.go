@@ -161,3 +161,9 @@ func TestGenerateGenesisGroup(t *testing.T) {
 	ioutil.WriteFile("genesis_group.info", jsonBytes, 0666)
 	ioutil.WriteFile("genesis_msk.info", []byte(mskString), 0666)
 }
+
+func TestGenerateGenesis(t *testing.T) {
+
+	g := genGenesisStaticGroupInfo("")
+	t.Log(g)
+}

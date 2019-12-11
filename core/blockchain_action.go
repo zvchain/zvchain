@@ -22,6 +22,10 @@ import (
 	"math"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
+	time2 "github.com/zvchain/zvchain/middleware/time"
+
 	"github.com/zvchain/zvchain/monitor"
 
 	"github.com/zvchain/zvchain/common"
@@ -168,7 +172,21 @@ func (chain *FullBlockChain) verifyTxs(block *types.Block) (txs txSlice, ok bool
 // 		2, the same height block with a larger QN value on the chain, then we should discard it
 // 		3, need adjust the blockchain, there will be a fork
 func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) types.AddBlockResult {
+	begin := time.Now()
 	ret, _ := chain.addBlockOnChain(source, b)
+	if ret == types.AddBlockSucc {
+		log.ELKLogger.WithFields(logrus.Fields{
+			"blockHash":      b.Header.Hash.Hex(),
+			"caster":         common.BytesToAddress(b.Header.Castor).AddrPrefixString(),
+			"height":         b.Header.Height,
+			"logType":        "doAddOnChain",
+			"now":            time2.TSInstance.Now().UTC(),
+			"cost":           time.Since(begin).Milliseconds(),
+			"sinceLastBlock": log.Recorder.End(b.Header.PreHash.Hex()),
+			"version":        common.GzvVersion,
+		}).Info("doAddOnChain success")
+		log.Recorder.Start(b.Header.Hash.Hex())
+	}
 	return ret
 }
 
@@ -499,9 +517,16 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
 		rawBlock := value.(*types.Block)
 		Logger.Debugf("Get rawBlock from future blocks,hash:%s,height:%d", rawBlock.Header.Hash.Hex(), rawBlock.Header.Height)
-		chain.addBlockOnChain("", rawBlock)
+		chain.AddBlockOnChain("", rawBlock)
 		chain.futureRawBlocks.Remove(b.Header.Hash)
 	}
+	log.ELKLogger.WithFields(logrus.Fields{
+		"txNum":    chain.transactionPool.TxNum(),
+		"queueNum": chain.transactionPool.TxQueueNum(),
+		"now":      time2.TSInstance.Now().UTC(),
+		"logType":  "txPoolLog",
+		"version":  common.GzvVersion,
+	}).Info("transaction pool log")
 	return nil
 }
 

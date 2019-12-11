@@ -449,14 +449,14 @@ func (nc *NetCore) broadcast(data []byte, code uint32, broadcast bool, msgDigest
 
 }
 
-func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int) {
+func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int, blacklist []string) {
 	dataType := DataType_DataGlobalRandom
 
 	packet, _, err := nc.encodeDataPacket(data, dataType, code, "", nil, relayCount)
 	if err != nil {
 		return
 	}
-	nc.peerManager.broadcastRandom(packet, code, maxCount)
+	nc.peerManager.broadcastRandom(packet, code, maxCount, blacklist)
 	nc.bufferPool.freeBuffer(packet)
 	return
 }
@@ -475,7 +475,7 @@ func (nc *NetCore) groupBroadcast(ID string, data []byte, code uint32, broadcast
 }
 
 func (nc *NetCore) groupBroadcastWithMembers(ID string, data []byte, code uint32, msgDigest MsgDigest, groupMembers []string, relayCount int32) {
-	msg := nc.genDataMessage(data, DataType_DataGroup, code, ID, nil, relayCount)
+	msg := nc.genDataMessage(data, DataType_DataGroup, code, ID, msgDigest, relayCount)
 	if msg == nil {
 		return
 	}
@@ -557,8 +557,7 @@ func (nc *NetCore) genDataMessage(data []byte,
 		RelayCount:   relayCount,
 		MessageInfo:  encodeMessageInfo(nc.chainID, nc.protocolVersion),
 		Expiration:   nc.expirationTime()}
-	Logger.Debugf("genDataMessage  DataType:%v messageId:%X ,BizMessageID:%v ,RelayCount:%v code:%v",
-		msgData.DataType, msgData.MessageID, msgData.BizMessageID, msgData.RelayCount, code)
+
 	return msgData
 }
 
@@ -762,11 +761,6 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 	srcNodeID := NodeID{}
 	srcNodeID.SetBytes(req.SrcNodeID)
 
-	Logger.Infof("data from:%v, len:%v, DataType:%v, messageId:%X, BizMessageID:%v, "+
-		"RelayCount:%v, unhandledDataMsg:%v, code:%v,messageInfo:%v",
-		srcNodeID.GetHexString(), len(req.Data), req.DataType, req.MessageID, req.BizMessageID,
-		req.RelayCount, nc.unhandledDataMsg, req.MessageCode, req.MessageInfo)
-
 	statistics.AddCount("net.handleData", uint32(req.DataType), uint64(len(req.Data)))
 	if req.DataType == DataType_DataNormal {
 		nc.onHandleDataMessage(req, srcNodeID)
@@ -826,8 +820,6 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 		}
 
 		if dataBuffer != nil {
-			Logger.Debugf("Forwarded message DataType:%v messageId:%X  SrcNodeId：%v RelayCount:%v",
-				req.DataType, req.MessageID, srcNodeID.GetHexString(), req.RelayCount)
 			if req.DataType == DataType_DataGroup || req.DataType == DataType_DataGroupColumn {
 				nc.groupManager.onBroadcast(req.GroupID, req)
 			} else if req.DataType == DataType_DataGlobal {
@@ -860,7 +852,6 @@ func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 	}
 
 	if netServerInstance != nil {
-		Logger.Infof("handled message id:%v from :%v", data.MessageID, fromID.GetHexString())
 		netServerInstance.handleMessage(data.Data, fromID.GetHexString(), chainID, protocolVersion)
 	}
 

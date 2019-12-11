@@ -23,6 +23,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/zvchain/zvchain/storage/trie"
+
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -74,6 +76,7 @@ type FullBlockChain struct {
 	blockHeight *tasdb.PrefixedDatabase
 	txDb        *tasdb.PrefixedDatabase
 	stateDb     *tasdb.PrefixedDatabase
+	cacheDb     *tasdb.PrefixedDatabase
 	batch       tasdb.Batch
 
 	stateCache account.AccountDatabase
@@ -154,15 +157,20 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.initMessageHandler()
 
+	// get the level db file cache size from config
+	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
+	// get the level db block cache size from config
+	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
+	// get the level db write cache size from config
+	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
+
+	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
+
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        100,
-		BlockCacheCapacity:            16 * opt.MiB,
-		WriteBuffer:                   512 * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
-		CompactionTableSize:           4 * opt.MiB,
-		CompactionTableSizeMultiplier: 2,
-		CompactionTotalSize:           16 * opt.MiB,
-		BlockSize:                     64 * opt.KiB,
+		OpenFilesCacheCapacity: fileCacheSize,
+		BlockCacheCapacity:     blockCacheSize * opt.MiB,
+		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
@@ -240,12 +248,47 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
-	initMinerManager()
+
+	// db cache enabled
+	if iteratorNodeCacheSize > 0 {
+		cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
+		if err != nil {
+			Logger.Errorf("new cache datasource error:%v", err)
+			return err
+		}
+		cacheDB, err := cacheDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new cache db error:%v", err)
+			return err
+		}
+		chain.cacheDb = cacheDB
+		trie.CreateNodeCache(iteratorNodeCacheSize, cacheDB)
+		initMinerManager(cacheDB)
+	} else {
+		initMinerManager(nil)
+	}
+
 	GroupManagerImpl.InitManager(MinerManagerImpl, chain.consensusHelper.GenerateGenesisInfo())
 
 	chain.cpChecker.init()
 
+	initStakeGetter(MinerManagerImpl, chain)
+
+	chain.LogDbStats()
 	return nil
+}
+
+func (chain *FullBlockChain) LogDbStats() {
+	dbInterval := common.GlobalConf.GetInt(configSec, "meter_db_interval", 0)
+	if dbInterval <= 0 {
+		return
+	}
+	tc := time.NewTicker(time.Duration(dbInterval) * time.Second)
+	go func() {
+		for range tc.C {
+			chain.stateDb.LogStats(log.MeterLogger)
+		}
+	}()
 }
 
 func (chain *FullBlockChain) buildCache(size int) {
@@ -274,7 +317,7 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	block.Header = &types.BlockHeader{
 		Height:     0,
 		ExtraData:  common.Sha256([]byte("zv")),
-		CurTime:    time2.TimeToTimeStamp(time.Date(2019, 4, 25, 0, 0, 0, 0, time.UTC)),
+		CurTime:    time2.TimeToTimeStamp(time.Date(2019, 9, 28, 0, 0, 0, 0, time.UTC)),
 		ProveValue: []byte{},
 		Elapsed:    0,
 		TotalQN:    0,
@@ -357,6 +400,9 @@ func (chain *FullBlockChain) Close() {
 
 	if chain.stateDb != nil {
 		chain.stateDb.Close()
+	}
+	if chain.cacheDb != nil {
+		chain.cacheDb.Close()
 	}
 
 }

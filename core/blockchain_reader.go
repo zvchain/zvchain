@@ -238,12 +238,33 @@ func (chain *FullBlockChain) GetNonce(address common.Address) uint64 {
 	return chain.latestStateDB.GetNonce(common.BytesToAddress(address.Bytes()))
 }
 
+func (chain *FullBlockChain) getAccountDBByHash(hash common.Hash) (types.AccountDB, error) {
+	header := chain.latestBlock
+	if header == nil || hash != header.Hash {
+		header := chain.queryBlockHeaderByHash(hash)
+		if header == nil {
+			return nil, fmt.Errorf("no data of hash %v", hash)
+		}
+	}
+	return account.NewAccountDB(header.StateTree, chain.stateCache)
+}
+
 // GetAccountDBByHash returns account database with specified block hash
 func (chain *FullBlockChain) GetAccountDBByHash(hash common.Hash) (types.AccountDB, error) {
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
-	header := chain.queryBlockHeaderByHash(hash)
+	return chain.getAccountDBByHash(hash)
+}
+
+func (chain *FullBlockChain) accountDBAt(height uint64) (types.AccountDB, error) {
+	header := chain.latestBlock
+	if header == nil || height < header.Height {
+		header = chain.queryBlockHeaderByHeightFloor(height)
+		if header == nil {
+			return nil, fmt.Errorf("no data at height %v", height)
+		}
+	}
 	return account.NewAccountDB(header.StateTree, chain.stateCache)
 }
 
@@ -252,14 +273,7 @@ func (chain *FullBlockChain) AccountDBAt(height uint64) (types.AccountDB, error)
 	chain.rwLock.RLock()
 	defer chain.rwLock.RUnlock()
 
-	header := chain.latestBlock
-	if height < header.Height {
-		header = chain.queryBlockHeaderByHeightFloor(height)
-		if header == nil {
-			return nil, fmt.Errorf("no data at height %v", height)
-		}
-	}
-	return account.NewAccountDB(header.StateTree, chain.stateCache)
+	return chain.accountDBAt(height)
 }
 
 // BatchGetBlocksAfterHeight query blocks after the specified height
@@ -304,5 +318,8 @@ func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.B
 }
 
 func (chain *FullBlockChain) IsSyncing() bool {
+	if blockSync == nil {
+		return true
+	}
 	return blockSync.isSyncing()
 }

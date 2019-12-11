@@ -96,6 +96,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/params"
 	"strconv"
 	"unsafe"
 
@@ -129,7 +130,11 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 
 	// prepare vm environment
 	remainGas := controller.VM.Gas()
-	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.VM.Logs)
+	var blockHeight uint64 = 0
+	if controller.BlockHeader != nil {
+		blockHeight = controller.BlockHeader.Height
+	}
+	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.VM.Logs, blockHeight)
 	oneVM.SetGas(remainGas)
 	finished := controller.StoreVMContext(oneVM)
 	defer func() {
@@ -211,12 +216,13 @@ type TVM struct {
 }
 
 // NewTVM new a TVM instance
-func NewTVM(sender *common.Address, contract *Contract) *TVM {
+func NewTVM(sender *common.Address, contract *Contract, blockHeight uint64) *TVM {
+	C.tvm_set_gas(100000)
 	C.tvm_start()
-	return NewTVMForRetainContext(sender, contract, make([]*types.Log, 0))
+	return NewTVMForRetainContext(sender, contract, make([]*types.Log, 0), blockHeight)
 }
 
-func NewTVMForRetainContext(sender *common.Address, contract *Contract, logs []*types.Log) *TVM {
+func NewTVMForRetainContext(sender *common.Address, contract *Contract, logs []*types.Log, blockHeight uint64) *TVM {
 	tvm := &TVM{
 		contract,
 		sender,
@@ -228,6 +234,8 @@ func NewTVMForRetainContext(sender *common.Address, contract *Contract, logs []*
 		bridgeInit()
 	}
 	C.tvm_set_gas(1000000)
+
+	C.ZIP002 = C._Bool(params.GetChainConfig().IsZIP002(blockHeight))
 
 	return tvm
 }
