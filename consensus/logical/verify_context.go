@@ -240,7 +240,7 @@ func (vc *VerifyContext) PrepareSlot(bh *types.BlockHeader) (*SlotContext, error
 				consensusLogger.Debugf("too many proposals, do replace: castor %v, exist %v, coming %v", sc.castor.GetAddrString(), bh.Hash.Hex(), v.Hex())
 				vc.proposers[sc.castor.GetAddrString()] = bh.Hash
 				delete(vc.slots, v)
-			}else{
+			} else {
 				return nil, fmt.Errorf("too many proposals, return error: castor %v, exist %v, coming %v", sc.castor.GetAddrString(), bh.Hash.Hex(), v.Hex())
 			}
 		}
