@@ -46,14 +46,14 @@ import (
 )
 
 var source = "100"
-const testDbFolder = "test_db_output"
+const testOutPut = "test_tmp_output"
 func init() {
 	log.ELKLogger.SetLevel(logrus.ErrorLevel)
-	_, err := ioutil.ReadDir(testDbFolder)
+	_, err := ioutil.ReadDir(testOutPut)
 	if err != nil {
 		return
 	}
-	os.RemoveAll(testDbFolder)
+	os.RemoveAll(testOutPut)
 
 }
 
@@ -538,20 +538,6 @@ func clearSelf(t *testing.T) {
 		BlockChainImpl.Close()
 		BlockChainImpl = nil
 	}
-
-	dir, err := ioutil.ReadDir(".")
-	if err != nil {
-		return
-	}
-	for _, d := range dir {
-		if d.IsDir() && d.Name() == t.Name() {
-			fmt.Printf("deleting folder: %s \n", d.Name())
-			err = os.RemoveAll(d.Name())
-			if err != nil {
-				fmt.Println("error while removing /s", d.Name())
-			}
-		}
-	}
 }
 
 func clearTicker() {
@@ -563,7 +549,7 @@ func clearTicker() {
 
 func initContext4Test(t *testing.T) error {
 	common.InitConf("../tas_config_all.ini")
-	common.GlobalConf.SetString(configSec, "db_blocks", t.Name())
+	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
 	network.Logger = log.P2PLogger
