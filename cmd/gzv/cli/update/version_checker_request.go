@@ -45,7 +45,7 @@ func (vc *VersionChecker) checkVersion() (bool, error) {
 		return newVersion, fmt.Errorf("white list is empty")
 	}
 	for _, list := range notice.WhiteList {
-		if notice.Version == list && notice.Version != common.GzvVersion {
+		if common.GzvVersion == list && notice.Version != common.GzvVersion {
 			return oldVersion, nil
 		}
 		if list != common.GzvVersion {
