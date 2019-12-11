@@ -29,12 +29,15 @@ func (vc *VersionChecker) download() error {
 
 	uri, err := url.ParseRequestURI(durl)
 	if err != nil {
-		return fmt.Errorf("URL err")
+		return err
 	}
 	filename := path.Base(uri.Path)
 	vc.downloadFilename = filename
 
 	res, err = clent.Get(durl)
+	if res.Status != "200 OK" {
+		return fmt.Errorf("URL response err")
+	}
 	if err != nil {
 		return err
 	}
@@ -96,7 +99,6 @@ func isFolderExist(path string) bool {
 func isFileExist(filepath string) bool {
 	info, err := os.Stat(filepath)
 	if os.IsNotExist(err) {
-		fmt.Println(info)
 		return false
 	}
 	log.DefaultLogger.Infof("Installation package already exists : %v , %v , %v \n", info.Name(), info.Size(), info.ModTime())
