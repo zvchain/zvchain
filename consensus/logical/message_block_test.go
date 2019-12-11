@@ -40,6 +40,9 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 	case "ok":
 		bh.CurTime = time.TimeToTimeStamp(now) - 40
 		bh.Hash = bh.GenHash()
+	case "doubleProposals":
+		bh.CurTime = time.TimeToTimeStamp(now) - 38
+		bh.Hash = bh.GenHash()
 	case "Hash":
 		bh.Hash = common.HexToHash("0x01")
 	case "Height":
@@ -189,7 +192,6 @@ func GenTestBH(param string, value ...interface{}) types.BlockHeader {
 		bh.Elapsed = int32(bh.CurTime - (time.TimeToTimeStamp(now) - 5*1e3))
 		bh.Hash = bh.GenHash()
 	}
-
 	return bh
 }
 
@@ -235,6 +237,24 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 				},
 			},
 			expected: "success",
+			clean: func() {
+				bl := GenTestBH("ok")
+				if processorTest.blockContexts.getVctxByHeight(bl.Height) != nil {
+					processorTest.blockContexts.getVctxByHeight(bl.Height).signedBlockHashs.Remove(bl.Hash)
+				}
+			},
+		},
+		{
+			name: "doubleProposals",
+			args: args{
+				msg: &model.ConsensusCastMessage{
+					BH: GenTestBH("doubleProposals"),
+					BaseSignedMessage: model.BaseSignedMessage{
+						SI: model.GenSignData(GenTestBHHash("doubleProposals"), pt.ids[1], pt.msk[1]),
+					},
+				},
+			},
+			expected: "too many proposals",
 			clean: func() {
 				bl := GenTestBH("ok")
 				if processorTest.blockContexts.getVctxByHeight(bl.Height) != nil {
@@ -615,7 +635,9 @@ func TestProcessor_OnMessageCast(t *testing.T) {
 				t.Errorf("wanted {%s}; got {%s}", tt.expected, msg)
 			}
 
-			if msg == nil && tt.expected != "success" {
+			// case of "too many proposals" depending on the number value of block hash, and it is no controllable.
+			// both "too many proposals" and "success" are acceptable
+			if msg == nil && tt.expected != "success" && tt.expected != "too many proposals" {
 				t.Errorf("wanted {%s}; got success", tt.expected)
 			}
 

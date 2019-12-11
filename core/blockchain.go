@@ -18,8 +18,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/common/prque"
-	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -28,8 +26,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/zvchain/zvchain/common/prque"
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/storage/trie"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/zvchain/zvchain/common"
@@ -72,16 +72,16 @@ type BlockChainConfig struct {
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
 type FullBlockChain struct {
-	blocks            *tasdb.PrefixedDatabase
-	blockHeight       *tasdb.PrefixedDatabase
-	txDb              *tasdb.PrefixedDatabase
-	stateDb           *tasdb.PrefixedDatabase
-	cacheDb           *tasdb.PrefixedDatabase
-	dirtyStateDb      *tasdb.PrefixedDatabase
-	batch             tasdb.Batch
-	triegc            *prque.Prque // Priority queue mapping block numbers to tries to gc
-	stateCache        account.AccountDatabase
-	running int32         // running must be called atomically
+	blocks          *tasdb.PrefixedDatabase
+	blockHeight     *tasdb.PrefixedDatabase
+	txDb            *tasdb.PrefixedDatabase
+	stateDb         *tasdb.PrefixedDatabase
+	cacheDb         *tasdb.PrefixedDatabase
+	dirtyStateDb    *tasdb.PrefixedDatabase
+	batch           tasdb.Batch
+	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
+	stateCache      account.AccountDatabase
+	running         int32 // running must be called atomically
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -89,8 +89,8 @@ type FullBlockChain struct {
 	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
-	wg            sync.WaitGroup
-	rwLock sync.RWMutex // Read-write lock
+	wg           sync.WaitGroup
+	rwLock       sync.RWMutex // Read-write lock
 
 	mu      sync.Mutex // Mutex lock
 	batchMu sync.Mutex // Batch mutex for add block on blockchain
@@ -160,7 +160,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.initMessageHandler()
 
 	// get the level db file cache size from config
-	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 500)
+	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
 	// get the level db block cache size from config
 	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
 	// get the level db write cache size from config
@@ -169,14 +169,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        fileCacheSize,
-		BlockCacheCapacity:            blockCacheSize * opt.MiB,
-		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
-		CompactionTableSize:           4 * opt.MiB,
-		CompactionTableSizeMultiplier: 2,
-		CompactionTotalSize:           16 * opt.MiB,
-		BlockSize:                     64 * opt.KiB,
+		OpenFilesCacheCapacity: fileCacheSize,
+		BlockCacheCapacity:     blockCacheSize * opt.MiB,
+		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
@@ -214,7 +210,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	}
 
 	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
-	if trieGc{
+	if trieGc {
 		dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
 		if err != nil {
 			Logger.Errorf("new dirty state datasource error:%v", err)
@@ -247,11 +243,11 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
 	err = chain.resetBlockHeight()
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	err = chain.FixTrieDataFromDB()
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	latestBH := chain.loadCurrentBlock()
@@ -303,7 +299,21 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	initStakeGetter(MinerManagerImpl, chain)
 
+	chain.LogDbStats()
 	return nil
+}
+
+func (chain *FullBlockChain) LogDbStats() {
+	dbInterval := common.GlobalConf.GetInt(configSec, "meter_db_interval", 0)
+	if dbInterval <= 0 {
+		return
+	}
+	tc := time.NewTicker(time.Duration(dbInterval) * time.Second)
+	go func() {
+		for range tc.C {
+			chain.stateDb.LogStats(log.MeterLogger)
+		}
+	}()
 }
 
 func (chain *FullBlockChain) buildCache(size int) {
@@ -420,7 +430,7 @@ func (chain *FullBlockChain) Close() {
 		chain.cacheDb.Close()
 	}
 
-	if chain.dirtyStateDb != nil{
+	if chain.dirtyStateDb != nil {
 		chain.dirtyStateDb.Close()
 	}
 

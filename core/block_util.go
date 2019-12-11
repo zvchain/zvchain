@@ -121,7 +121,7 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Addres
 	}
 	jsonBytes, err := json.Marshal(contract)
 	if err != nil {
-		panic("deploy FoundationContract error")
+		panic(fmt.Sprintf("deploy FoundationContract error: %s", err.Error()))
 	}
 	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(txRaw.GetSource()[:], common.Uint64ToByte(nonce))))
 	stateDB.CreateAccount(contractAddress)
@@ -131,7 +131,7 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Addres
 	controller.VM.SetGas(500000)
 	_, _, transactionError := controller.Deploy(&contract)
 	if transactionError != nil {
-		panic("deploy FoundationContract error")
+		panic(fmt.Sprintf("deploy FoundationContract error: %s", transactionError.Message))
 	}
 	return contract.ContractAddress
 }

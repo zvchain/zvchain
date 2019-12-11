@@ -228,7 +228,7 @@ func (g *Group) genConnectNodes() {
 
 	Logger.Infof("[group][genConnectNodes] curIndex: %v", g.curIndex)
 	for i := 0; i < len(g.members); i++ {
-		Logger.Infof("[group][genConnectNodes] members ID: %v", g.members[i].GetHexString())
+		Logger.Debugf("[group][genConnectNodes] members ID: %v", g.members[i].GetHexString())
 	}
 
 	g.rowSize = groupRowSize(groupSize)
@@ -241,30 +241,30 @@ func (g *Group) genConnectNodes() {
 
 	for i := 0; i < g.rowSize; i++ {
 		index := g.rowIndex*g.rowSize + i
-		Logger.Infof("[group][genConnectNodes] row, i : %v ,index:%v", i, index)
+		Logger.Debugf("[group][genConnectNodes] row, i : %v ,index:%v", i, index)
 		if index >= groupSize {
 			break
 		}
 		if index != g.curIndex {
 			g.rowNodes = append(g.rowNodes, g.members[index])
 			g.needConnectNodes = append(g.needConnectNodes, g.members[index])
-			Logger.Infof("[group][genConnectNodes] row member ID: %v", g.members[index].GetHexString())
+			Logger.Debugf("[group][genConnectNodes] row member ID: %v", g.members[index].GetHexString())
 		}
 	}
 
 	for i := 0; i < g.rowCount; i++ {
 		index := i*g.rowSize + g.columnIndex
-		Logger.Infof("[group][genConnectNodes] column, i : %v ,index:%v", i, index)
+		Logger.Debugf("[group][genConnectNodes] column, i : %v ,index:%v", i, index)
 		if index >= groupSize {
 			break
 		}
 		if index != g.curIndex {
 			g.columnNodes = append(g.columnNodes, g.members[index])
 			g.needConnectNodes = append(g.needConnectNodes, g.members[index])
-			Logger.Infof("[group][genConnectNodes] column member ID: %v", g.members[index].GetHexString())
+			Logger.Debugf("[group][genConnectNodes] column member ID: %v", g.members[index].GetHexString())
 		}
 	}
-	Logger.Infof("[group][genConnectNodes] row size: %v, row count:%v,"+
+	Logger.Debugf("[group][genConnectNodes] row size: %v, row count:%v,"+
 		" row Index:%v column index:%v rowNodesCount:%v, columnNodesCount:%v",
 		g.rowSize, g.rowCount, g.rowIndex, g.columnIndex, len(g.rowNodes), len(g.columnNodes))
 
@@ -386,7 +386,7 @@ func (g *Group) Broadcast(msg *MsgData) {
 			rowMsgNodes = append(rowMsgNodes, g.rowNodes[i])
 		}
 	}
-	Logger.Infof("[group] Broadcast ID:%v, groupSendCount:%v, group msg count:%v, row msg count:%v ", g.ID, groupSendCount, len(groupMsgNodes), len(rowMsgNodes))
+	Logger.Debugf("[group] Broadcast ID:%v, groupSendCount:%v, group msg count:%v, row msg count:%v ", g.ID, groupSendCount, len(groupMsgNodes), len(rowMsgNodes))
 
 	if len(groupMsgNodes) > 0 {
 		g.sendGroupMessage(DataType_DataGroup, groupMsgNodes, msg)
