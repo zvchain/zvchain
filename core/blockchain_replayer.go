@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-type replayer interface {
+type Replayer interface {
 	Replay(provider BlockProvider, out io.Writer) error
 }
 
@@ -34,38 +34,6 @@ type replayer interface {
 type BlockProvider interface {
 	Provide(begin, end uint64) []*types.Block
 	Height() uint64
-}
-
-func (chain *FullBlockChain) Replay(provider BlockProvider, out io.Writer) error {
-	begin := chain.Height() + 1
-	const step = 200
-	for {
-		t := time.Now()
-		blocks := provider.Provide(begin, begin+step)
-
-		if len(blocks) == 0 {
-			begin += step
-			continue
-		}
-		for _, b := range blocks {
-			ret, err := chain.addBlockOnChain("", b)
-			if ret != types.AddBlockSucc {
-				return fmt.Errorf("replay block %v %v error:%v", b.Header.Hash, b.Header.Height, err)
-			}
-		}
-		begin = blocks[len(blocks)-1].Header.Height + 1
-		top := provider.Height()
-		if top <= begin {
-			break
-		}
-
-		cost := time.Since(t)
-		bps := float64(len(blocks)) / cost.Seconds()
-		remainT := time.Duration(float64(top-begin)/bps) * time.Second
-
-		out.Write([]byte(fmt.Sprintf("replay block %v finished, bps %v, remain %v\n", begin-1, bps, remainT.String())))
-	}
-	return nil
 }
 
 type localBlockProvider struct {
@@ -134,4 +102,80 @@ func (p *localBlockProvider) Provide(begin, end uint64) []*types.Block {
 
 func (p *localBlockProvider) Height() uint64 {
 	return p.top
+}
+
+type fastReplayer struct {
+	blocksCh chan []*types.Block
+	finishCh chan struct{}
+	provider BlockProvider
+	chain    *FullBlockChain
+	out      io.Writer
+}
+
+func NewFastReplayer(bp BlockProvider, chain *FullBlockChain, out io.Writer) Replayer {
+	return &fastReplayer{
+		blocksCh: make(chan []*types.Block, 1),
+		finishCh: make(chan struct{}),
+		provider: bp,
+		chain:    chain,
+		out:      out,
+	}
+}
+
+func (fr *fastReplayer) produce(begin uint64) {
+	const step = 100
+	for {
+		blocks := fr.provider.Provide(begin, begin+step)
+
+		if len(blocks) == 0 {
+			begin += step
+			continue
+		}
+		begin = blocks[len(blocks)-1].Header.Height + 1
+		top := fr.provider.Height()
+
+		fr.blocksCh <- blocks
+
+		if top <= begin {
+			fr.finishCh <- struct{}{}
+			break
+		}
+	}
+}
+
+func (fr *fastReplayer) consume() error {
+	begin := time.Now()
+	cnt := 0
+	for {
+		select {
+		case blocks := <-fr.blocksCh:
+			t := time.Now()
+			if len(blocks) == 0 {
+				continue
+			}
+			for _, b := range blocks {
+				ret, err := fr.chain.addBlockOnChain("", b)
+				if ret != types.AddBlockSucc {
+					return fmt.Errorf("consume block %v %v error:%v", b.Header.Hash, b.Header.Height, err)
+				}
+			}
+			cnt += len(blocks)
+			cost := time.Since(t)
+			bps := float64(len(blocks)) / cost.Seconds()
+			top := fr.provider.Height()
+			last := blocks[len(blocks)-1].Header.Height + 1
+			remainT := time.Duration(float64(top-last)/bps) * time.Second
+
+			fr.out.Write([]byte(fmt.Sprintf("consume block %v finished, bps %v, remain %v\n", last-1, bps, remainT.String())))
+		case <-fr.finishCh:
+			fr.out.Write([]byte(fmt.Sprintf("consume total %v blocks finished, cost %v", cnt, time.Since(begin).String())))
+			break
+		}
+	}
+	return nil
+}
+
+func (fr *fastReplayer) Replay(provider BlockProvider, out io.Writer) error {
+	go fr.produce(fr.chain.Height() + 1)
+	return fr.consume()
 }

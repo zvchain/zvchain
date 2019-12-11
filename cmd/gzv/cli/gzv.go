@@ -287,7 +287,9 @@ func (gzv *Gzv) Run() {
 			os.Exit(-1)
 		}
 
-		err = core.BlockChainImpl.Replay(provider, os.Stdout)
+		replayer := core.NewFastReplayer(provider, core.BlockChainImpl, os.Stdout)
+
+		err = replayer.Replay(provider, os.Stdout)
 		if err != nil {
 			output("replay error", err)
 			os.Exit(0)
@@ -365,7 +367,7 @@ func (gzv *Gzv) coreInit() error {
 	}
 
 	common.GlobalConf.SetString(Section, "miner", gzv.account.Address)
-	fmt.Println("Your Miner Address:", gzv.account.Address)
+	output("Your Miner Address:", gzv.account.Address)
 
 	sk := common.HexToSecKey(gzv.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
