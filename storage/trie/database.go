@@ -52,15 +52,15 @@ type DatabaseReader interface {
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
 type NodeDatabase struct {
-	diskdb tasdb.Database // Persistent storage for matured trie nodes
-
-	nodes    map[common.Hash]*cachedNode // Data and references relationships of a node
-	cache    *fastcache.Cache
-	hit      uint64
-	total    uint64
-	hitSize  uint64
-	miss     uint64
-	missSize uint64
+	diskdb      tasdb.Database              // Persistent storage for matured trie nodes
+	curSequence uint64                      // Record node max curSequence,only add
+	nodes       map[common.Hash]*cachedNode // Data and references relationships of a node
+	cache       *fastcache.Cache
+	hit         uint64
+	total       uint64
+	hitSize     uint64
+	miss        uint64
+	missSize    uint64
 
 	oldest common.Hash // Oldest tracked node, flush-list head
 	newest common.Hash // Newest tracked node, flush-list tail
@@ -130,12 +130,12 @@ func (n rawShortNode) fstring(ind string) string     { panic("this should never 
 // cachedNode is all the information we know about a single cached node in the
 // memory database write layer.
 type cachedNode struct {
-	node node   // Cached collapsed trie node, or raw rlp data
-	size uint16 // Byte size of the useful cached data
-
+	node     node                   // Cached collapsed trie node, or raw rlp data
+	size     uint16                 // Byte size of the useful cached data
+	sequence uint64                 // record current postion
 	parents  uint16                 // Number of live nodes referencing this one
 	children map[common.Hash]uint16 // External children referenced by this node
-
+	committed  bool					 // True if committed
 	flushPrev common.Hash // Previous node in the flush-list
 	flushNext common.Hash // Next node in the flush-list
 }
@@ -307,50 +307,24 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 // size tracking.
 func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	// If the node's already cached, skip
-	entry := db.nodes[hash]
-	if entry != nil && entry.node != nil {
+	if _, ok := db.nodes[hash]; ok {
 		return
 	}
 	// Create the cached entry for this node
-	if entry == nil {
-		entry = &cachedNode{
-			node:      simplifyNode(node),
-			size:      uint16(len(blob)),
-			flushPrev: db.newest,
-		}
-	} else {
-		oldChilds := entry.childs()
-		entry.node = simplifyNode(node)
-		newChilds := entry.childs()
-
-		for _, c1 := range oldChilds {
-			find := false
-			for _, c2 := range newChilds {
-				if c1 == c2 {
-					find = true
-					break
-				}
-			}
-			if !find {
-				for _, c1 := range oldChilds {
-					fmt.Println("old", c1.Hex())
-				}
-				for _, c2 := range newChilds {
-					fmt.Println("old", c2.Hex())
-				}
-				panic(fmt.Sprintf("new node child differs from old,node %v", hash.Hex()))
-			}
-		}
-		fmt.Println("ok")
+	entry := &cachedNode{
+		node:      simplifyNode(node),
+		size:      uint16(len(blob)),
+		flushPrev: db.newest,
+		sequence:  db.curSequence,
 	}
-
+	db.curSequence++
 	for _, child := range entry.childs() {
 		if c := db.nodes[child]; c != nil {
 			c.parents++
 		}
 	}
 	db.nodes[hash] = entry
-	db.cache.Set(hash.Bytes(), blob)
+	db.cache.Set(hash.Bytes(),blob)
 
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
@@ -395,7 +369,7 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	node := db.nodes[hash]
 	db.lock.RUnlock()
 
-	if node != nil && node.node != nil {
+	if node != nil {
 		return node.obj(hash, cachegen), nil
 	}
 	atomic.AddUint64(&db.miss, 1)
@@ -581,7 +555,9 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, dirty
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			db.dereference(hash, child, dirtyStates)
+			if n, ok := db.nodes[hash];ok && node.sequence > n.sequence{
+				db.dereference(hash, child, dirtyStates)
+			}
 		}
 		if db.enableGc {
 			*dirtyStates = append(*dirtyStates, &child)
@@ -810,8 +786,8 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
 	if !db.enableGc {
+		db.uncache(node)
 	}
-	db.uncache(node)
 	//memcacheCommitTimeTimer.Update(time.Since(start))
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))
@@ -830,7 +806,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
-	if !ok || node.node == nil {
+	if !ok || node.committed{
 		return nil
 	}
 	for _, child := range node.childs() {
@@ -850,6 +826,7 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 		}
 		batch.Reset()
 	}
+	node.committed = true
 	return nil
 }
 
@@ -879,8 +856,7 @@ func (db *NodeDatabase) uncache(hash common.Hash) {
 	for _, child := range node.childs() {
 		db.uncache(child)
 	}
-	//delete(db.nodes, hash)
-	node.node = nil
+	delete(db.nodes, hash)
 	db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
 	if node.children != nil {
 		db.nodesSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
