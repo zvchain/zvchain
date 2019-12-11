@@ -17,11 +17,10 @@ package core
 
 import (
 	"fmt"
-	"github.com/Workiva/go-datastructures/threadsafe/err"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
-	time2"github.com/zvchain/zvchain/middleware/time"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
 	"time"
