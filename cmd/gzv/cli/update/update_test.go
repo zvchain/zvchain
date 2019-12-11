@@ -12,7 +12,7 @@ import (
 )
 
 func TestRequest(t *testing.T) {
-	RequestUrl = "https://update.zvchain.io:8000/request"
+	RequestUrl = "https://update.zvchain.io:8888/request"
 	vc := NewVersionChecker()
 	no, err := vc.requestVersion()
 	if err != nil {

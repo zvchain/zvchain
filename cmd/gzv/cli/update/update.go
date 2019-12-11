@@ -16,7 +16,7 @@ const updatePath = "update"
 const system = runtime.GOOS
 const checkVersionGap = time.Hour
 const timeout = time.Second * 60
-const defaultRequestURL = "https://update.zvchain.io:8000/request"
+const defaultRequestURL = "https://update.zvchain.io:8888/request"
 const defaultNotifyGap = "5"
 
 var (
