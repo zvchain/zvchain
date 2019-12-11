@@ -17,12 +17,14 @@ package core
 
 import (
 	"fmt"
+	"github.com/Workiva/go-datastructures/threadsafe/err"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
-	"github.com/zvchain/zvchain/middleware/time"
+	time2"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -50,6 +52,14 @@ func (msg *newTopMessage) GetData() interface{} {
 }
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
+	begin := time.Now()
+	defer func(){
+		end := time.Now()
+		cost := (end.UnixNano() - begin.UnixNano())/1e6
+		if cost > 500{
+			log.CropLogger.Warn("save block state cost %v",cost)
+		}
+	}()
 	root, err := state.Commit(true)
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
@@ -61,7 +71,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	}
 	if chain.config.pruneMode {
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
-		chain.triegc.Push(root, -int64(b.Header.Height))
+		chain.triegc.Push(root, int64(b.Header.Height))
 		cp := chain.latestCP.Load()
 		limit := common.StorageSize(common.GlobalConf.GetInt(gc, "max_tries_memory", maxTriesInMemory) * 1024 * 1024)
 		nodes, _ := triedb.Size()
@@ -74,7 +84,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			if len(cropItems) > 0 {
 				dirtyStates := []*common.Hash{}
 				for _, vl := range cropItems {
-					triedb.Dereference(uint64(-vl.Priority), vl.Value.(common.Hash), &dirtyStates)
+					triedb.Dereference(uint64(vl.Priority), vl.Value.(common.Hash), &dirtyStates)
 				}
 				go triedb.BatchDeleteDirtyState(dirtyStates)
 			}
@@ -278,7 +288,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.transactionPool.BackToPool(recoverTxs)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"removedHeight": len(removeBlocks),
-		"now":           time.TSInstance.Now().UTC(),
+		"now":           time2.TSInstance.Now().UTC(),
 		"logType":       "resetTop",
 		"version":       common.GzvVersion,
 	}).Info("resetTop")

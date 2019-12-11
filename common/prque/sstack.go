@@ -92,7 +92,7 @@ func (s *sstack) Len() int {
 // Compares the priority of two elements of the stack (higher is first).
 // Required by sort.Interface.
 func (s *sstack) Less(i, j int) bool {
-	return (s.blocks[i/blockSize][i%blockSize].Priority - s.blocks[j/blockSize][j%blockSize].Priority) < 0
+	return (s.blocks[i/blockSize][i%blockSize].Priority - s.blocks[j/blockSize][j%blockSize].Priority) > 0
 }
 
 // Swaps two elements in the stack. Required by sort.Interface.
