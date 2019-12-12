@@ -22,6 +22,9 @@ import (
 const (
 	Blockrewardtopheight                       = "block_reward.top_block_height"
 	Blocktopheight                             = "block.top_block_height"
+	FetchAccountMaxBlockTop                    = "block.max_fetch_account_block_height"
+	FetchAccountCurID                          = "block.cur_fetch_account_id"
+	FetchAccountMaxID                          = "block.max_fetch_account_id"
 	BlockStakeMappingHeight                    = "block.stake_mapping_height"
 	Blockcurblockheight                        = "block.cur_block_height"
 	BlockDeleteCount                           = "block.delete_count"
@@ -571,6 +574,78 @@ func (storage *Storage) TopBlockHeight() (uint64, bool) {
 	if len(sys) > 0 {
 		//storage.topBlockHigh = sys[0].Value
 		return sys[0].Value, true
+	}
+	return 0, false
+}
+
+func (storage *Storage) SuppAccountMaxBlockTop() (uint64, error) {
+	if storage.db != nil {
+		sys := make([]models.Sys, 0, 1)
+		storage.db.Limit(1).Where("variable = ?", FetchAccountMaxBlockTop).Find(&sys)
+		if len(sys) > 0 {
+			return sys[0].Value, nil
+		}
+		return 0, nil
+	}
+	return 0, fmt.Errorf("db is nil")
+}
+
+func (storage *Storage) SetSuppAccountMaxBlockTop(height uint64) (uint64, bool) {
+	sys := &models.Sys{
+		Variable: FetchAccountMaxBlockTop,
+		SetBy:    "dan",
+		Value:    height,
+	}
+	if storage.AddObjects(&sys) {
+		return height, true
+	}
+	return 0, false
+}
+
+func (storage *Storage) SuppAccountCurID() (uint64, error) {
+	if storage.db != nil {
+		sys := make([]models.Sys, 0, 1)
+		storage.db.Limit(1).Where("variable = ?", FetchAccountCurID).Find(&sys)
+		if len(sys) > 0 {
+			return sys[0].Value, nil
+		}
+		return 0, nil
+	}
+	return 0, fmt.Errorf("db is nil")
+}
+
+func (storage *Storage) SetSuppAccountCurID(id uint64) (uint64, bool) {
+	sys := &models.Sys{
+		Variable: FetchAccountCurID,
+		SetBy:    "dan",
+		Value:    id,
+	}
+	if storage.AddObjects(&sys) {
+		return id, true
+	}
+	return 0, false
+}
+
+func (storage *Storage) SuppAccountMaxID() (uint64, error) {
+	if storage.db != nil {
+		sys := make([]models.Sys, 0, 1)
+		storage.db.Limit(1).Where("variable = ?", FetchAccountMaxID).Find(&sys)
+		if len(sys) > 0 {
+			return sys[0].Value, nil
+		}
+		return 0, nil
+	}
+	return 0, fmt.Errorf("db is nil")
+}
+
+func (storage *Storage) SetSuppAccountMaxID(id uint64) (uint64, bool) {
+	sys := &models.Sys{
+		Variable: FetchAccountMaxID,
+		SetBy:    "dan",
+		Value:    id,
+	}
+	if storage.AddObjects(&sys) {
+		return id, true
 	}
 	return 0, false
 }
