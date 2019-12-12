@@ -16,9 +16,7 @@
 package core
 
 import (
-	"fmt"
 	"github.com/zvchain/zvchain/storage/account"
-	"os"
 )
 
 type verifier interface {
@@ -34,30 +32,7 @@ func (chain *FullBlockChain) Verifier(h uint64) verifier {
 	return db.(*account.AccountDB)
 }
 
-func (chain *FullBlockChain) IntegrityVerify(height uint64) (bool, error) {
-	wch := make(chan string)
-	defer close(wch)
-
-	f, err := os.OpenFile("account_data_1", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	go func() {
-		for {
-			select {
-			case s := <-wch:
-				_, err := f.WriteString(s + "\n")
-				if err != nil {
-					fmt.Println("write---------------- ", err)
-				}
-			}
-		}
-	}()
-	cb := func(stat *account.VerifyStat) {
-		wch <- stat.String()
-	}
+func (chain *FullBlockChain) IntegrityVerify(height uint64, cb account.VerifyAccountIntegrityCallback) (bool, error) {
 	v := chain.Verifier(height)
 	if v != nil {
 		return v.VerifyIntegrity(cb)

@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/trie"
@@ -574,6 +575,7 @@ type VerifyStat struct {
 	DataSize  uint64
 	KeySize   uint64
 	CodeSize  uint64
+	Cost      time.Duration
 }
 
 func (vs *VerifyStat) String() string {
@@ -587,8 +589,8 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback) (bool, 
 		if err := rlp.DecodeBytes(value, &account); err != nil {
 			return err
 		}
+		begin := time.Now()
 		vs := &VerifyStat{Account: account, Addr: common.BytesToAddress(key)}
-		fmt.Printf("verify %v\n", common.BytesToAddress(key).AddrPrefixString())
 		if account.Root != emptyData && !bytes.Equal(key, common.RewardStoreAddr.Bytes()) {
 			trie, err := trie.NewTrie(account.Root, adb.db.TrieDB())
 			if err != nil {
@@ -607,6 +609,7 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback) (bool, 
 		if code != emptyCode {
 			vs.CodeSize = uint64(len(value))
 		}
+		vs.Cost = time.Since(begin)
 		cb(vs)
 		return nil
 	})

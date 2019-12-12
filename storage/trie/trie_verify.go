@@ -21,6 +21,11 @@ import (
 
 type VerifyLeafCallback func(key []byte, value []byte) error
 
+// VerifyIntegrity is a debug method to iterate over the entire trie stored in
+// the disk and check whether every node is reachable from the meta root. The goal
+// is to find any errors that might cause trie nodes missing during prune
+//
+// This method is extremely CPU and disk intensive, and time consuming, only use when must.
 func (t *Trie) VerifyIntegrity(onleaf VerifyLeafCallback) (bool, error) {
 	return t.verifyIntegrity(t.root, []byte{}, onleaf)
 }

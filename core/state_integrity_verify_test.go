@@ -15,15 +15,45 @@
 
 package core
 
-import "testing"
+import (
+	"fmt"
+	"github.com/zvchain/zvchain/storage/account"
+	"os"
+	"testing"
+)
 
 func TestFullBlockChain_IntegrityVerify(t *testing.T) {
+	wch := make(chan string)
+	defer close(wch)
+
+	f, err := os.OpenFile("account_data_1", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	go func() {
+		for {
+			select {
+			case s := <-wch:
+				_, err := f.WriteString(s + "\n")
+				if err != nil {
+					fmt.Println("write---------------- ", err)
+				}
+			}
+		}
+	}()
+	cb := func(stat *account.VerifyStat) {
+		wch <- stat.String()
+	}
+
 	chain, _ := newBlockChainByDB("/Volumes/NORELSYS/d_b_175w")
 	if chain == nil {
 		return
 	}
 	top := chain.Height()
-	ok, err := chain.IntegrityVerify(top)
+	fmt.Println(top)
+	ok, err := chain.IntegrityVerify(top, cb)
 	if !ok {
 		t.Errorf("verify fail %v", err)
 	}

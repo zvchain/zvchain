@@ -16,24 +16,52 @@ package group
 
 import (
 	lru "github.com/hashicorp/golang-lru"
+	"sync/atomic"
 
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 )
 
+type hitMeter struct {
+	total uint64
+	hit   uint64
+}
+
+func (m *hitMeter) increase(hit bool) {
+	nv := atomic.AddUint64(&m.total, 1)
+	// Overflows and reset
+	if nv == 0 {
+		m.hit = uint64(0)
+	}
+	if hit {
+		atomic.AddUint64(&m.hit, 1)
+	}
+
+	if nv%200 == 0 {
+		logger.Debugf("group cache hit %v/%v(%v)", m.hit, nv, m.hitRate())
+	}
+}
+
+func (m *hitMeter) hitRate() float64 {
+	if m.total == 0 {
+		return 0
+	}
+	return float64(m.hit) / float64(m.total)
+}
+
 type pool struct {
-	chain         chainReader
-	genesis       *group     // genesis group
-	cachedBySeed  *lru.Cache // cache for groups. kv: types.SeedI -> types.GroupI
-	cachedByEpoch *lru.Cache // cached for groups in one epoch: epoch.end() -> []*group
+	chain        chainReader
+	genesis      *group     // genesis group
+	cachedBySeed *lru.Cache // cache for groups. kv: types.SeedI -> types.GroupI
+	meter        *hitMeter
 }
 
 func newPool(chain chainReader) *pool {
 	return &pool{
-		chain:         chain,
-		cachedBySeed:  common.MustNewLRUCache(120),
-		cachedByEpoch: common.MustNewLRUCache(types.GroupLiveEpochs * 2),
+		chain:        chain,
+		cachedBySeed: common.MustNewLRUCache(120),
+		meter:        &hitMeter{},
 	}
 }
 
@@ -89,16 +117,28 @@ func (p *pool) getSkipCount(db types.AccountDB, seed common.Hash) uint16 {
 	return common.ByteToUInt16(bs)
 }
 
-// invalidate the groups create at the given epoch when blocks rollback
-func (p *pool) invalidateEpochGroupCache(ep types.Epoch) {
-	p.cachedByEpoch.Remove(ep.End())
-}
-
 func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
-	if g, ok := p.cachedBySeed.Get(seed); ok {
-		return g.(*group)
-	}
+	var (
+		hit = false
+		v   interface{}
+	)
+	defer func() {
+		p.meter.increase(hit)
+	}()
 
+	// Get from cache
+	if v, hit = p.cachedBySeed.Get(seed); hit {
+		return v.(*group)
+	}
+	// Get from db
+	if db == nil {
+		adb, err := p.chain.LatestAccountDB()
+		if err != nil {
+			logger.Error("failed to get last db", err)
+			return nil
+		}
+		db = adb
+	}
 	byteData := db.GetData(common.HashToAddress(seed), groupDataKey)
 	if byteData != nil {
 		var gr group
@@ -113,74 +153,34 @@ func (p *pool) get(db types.AccountDB, seed common.Hash) *group {
 	return nil
 }
 
-func (p *pool) iterateByHeight(height uint64, iterFunc func(g *group) bool) {
-	db, err := p.chain.AccountDBAt(height)
+// iterateGroups visit the groups from top to beginning(genesis group excluded)
+func (p *pool) iterateGroups(iterFunc func(g *group) bool) {
+	db, err := p.chain.LatestAccountDB()
 	if err != nil {
 		logger.Error("failed to get last db", err)
 		return
 	}
 
-	for current := p.getTopGroup(db); current != nil; current = p.get(db, current.HeaderD.PreSeed) {
+	for current := p.getTopGroup(db); current != nil && current.Header().WorkHeight() > 0; current = p.get(db, current.HeaderD.PreSeed) {
 		if !iterFunc(current) {
 			break
 		}
-		// The genesis group visited
-		if current.Header().WorkHeight() == 0 {
-			break
-		}
 	}
-}
-
-func (p *pool) getGroupsByHeightRange(start, end uint64) []*group {
-	startDB, err := p.chain.AccountDBAt(start)
-	if err != nil {
-		logger.Errorf("get account db fail at %v %v", start, err)
-		return nil
-	}
-	startTopSeed := p.getTopGroupSeed(startDB)
-
-	rs := make([]*group, 0)
-
-	p.iterateByHeight(end, func(g *group) bool {
-		if g.HeaderD.Seed() != startTopSeed {
-			rs = append(rs, g)
-			return true
-		} else {
-			return false
-		}
-	})
-
-	return rs
-}
-
-func (p *pool) getGroupsByEpoch(ep types.Epoch) []*group {
-	currEp := types.EpochAt(p.chain.Height())
-	if ep.Start() > currEp.Start() {
-		return []*group{}
-	}
-	if ep.Start() < currEp.Start() {
-		if v, ok := p.cachedByEpoch.Get(ep.End()); ok {
-			return v.([]*group)
-		}
-	}
-	gs := p.getGroupsByHeightRange(ep.Start(), ep.End())
-	// groups of the epoch cached iff the epoch is completed
-	if ep.Start() < currEp.Start() {
-		p.cachedByEpoch.Add(ep.End(), gs)
-	}
-	return gs
 }
 
 func (p *pool) groupsAfter(height uint64, limit int) []types.GroupI {
 	rs := make([]types.GroupI, 0)
 
-	p.iterateByHeight(common.MaxUint64, func(g *group) bool {
+	p.iterateGroups(func(g *group) bool {
 		if g.Header().GroupHeight() < height {
 			return false
 		}
 		rs = append(rs, g)
 		return true
 	})
+	if height == 0 {
+		rs = append(rs, p.genesis)
+	}
 	rs = revert(rs)
 	if limit < len(rs) {
 		return rs[0:limit]

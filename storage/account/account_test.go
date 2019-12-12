@@ -34,7 +34,7 @@ type StateSuite struct {
 func setUp() *StateSuite {
 	s := new(StateSuite)
 	s.db, _ = tasdb.NewMemDatabase()
-	s.state, _ = NewAccountDB(common.Hash{}, NewDatabase(s.db))
+	s.state, _ = NewAccountDB(common.Hash{}, NewDatabase(s.db, false))
 	return s
 }
 

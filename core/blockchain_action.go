@@ -268,8 +268,13 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
 
 	defer func() {
+		end := time.Now()
+		cost := (end.UnixNano() - begin.UnixNano()) / 1e6
+		if cost > 1000 {
+			log.CoreLogger.Debugf("addBlockOnchain expired,height is %v,cost time %v", block.Header.Height, cost)
+		}
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
+		Logger.Debugf("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
 	}()
 
 	if block == nil {
@@ -313,7 +318,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
-			chain.successOnChainCallBack(block)
+			chain.successOnChainCallBack(block, time.Since(begin))
 		}
 	}()
 
@@ -503,7 +508,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlic
 	return true, eps
 }
 
-func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
+func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block, t time.Duration) {
 	notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: remoteBlock})
 }
 
@@ -514,6 +519,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
 		chain.latestCP.Store(latestCP)
 	}
+
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
 		rawBlock := value.(*types.Block)
 		Logger.Debugf("Get rawBlock from future blocks,hash:%s,height:%d", rawBlock.Header.Hash.Hex(), rawBlock.Header.Height)
@@ -527,6 +533,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		"logType":  "txPoolLog",
 		"version":  common.GzvVersion,
 	}).Info("transaction pool log")
+
 	return nil
 }
 
@@ -588,11 +595,15 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 		chain.isAdjusting = false
 	}()
 
-	for _, b := range addBlocks {
+	chain.AddChainSlice(source, addBlocks, callback)
+	return nil
+}
+
+func (chain *FullBlockChain) AddChainSlice(source string, chainSlice []*types.Block, cb batchAddBlockCallback) {
+	for _, b := range chainSlice {
 		ret := chain.AddBlockOnChain(source, b)
-		if !callback(b, ret) {
+		if !cb(b, ret) {
 			break
 		}
 	}
-	return nil
 }

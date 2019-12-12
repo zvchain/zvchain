@@ -17,16 +17,25 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/middleware/time"
+	"github.com/zvchain/zvchain/middleware/notify"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
+)
+
+const TriesInMemory uint64 = types.EpochLength*4 + 20
+
+var (
+	GcMode               = true
+	maxTriesInMemory     = 300
+	everyClearFromMemory = 1
 )
 
 type newTopMessage struct {
@@ -42,15 +51,43 @@ func (msg *newTopMessage) GetData() interface{} {
 }
 
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
+	begin := time.Now()
+	defer func() {
+		end := time.Now()
+		cost := (end.UnixNano() - begin.UnixNano()) / 1e6
+		if cost > 500 {
+			log.CoreLogger.Debugf("save block state cost %v,height is %v", cost, b.Header.Height)
+		}
+	}()
 	root, err := state.Commit(true)
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
-
 	triedb := chain.stateCache.TrieDB()
 	err = triedb.Commit(root, false)
 	if err != nil {
 		return fmt.Errorf("trie commit error:%s", err.Error())
+	}
+	if chain.config.pruneMode {
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+		chain.triegc.Push(root, int64(b.Header.Height))
+		cp := chain.latestCP.Load()
+		limit := common.StorageSize(common.GlobalConf.GetInt(gc, "max_tries_memory", maxTriesInMemory) * 1024 * 1024)
+		nodes, _ := triedb.Size()
+		if nodes > limit {
+			clear := common.StorageSize(common.GlobalConf.GetInt(gc, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024)
+			triedb.ClearFromNodes(b.Header.Height, limit-clear)
+		}
+		if cp != nil {
+			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
+			if len(cropItems) > 0 {
+				dirtyStates := []*common.Hash{}
+				for _, vl := range cropItems {
+					triedb.Dereference(uint64(vl.Priority), vl.Value.(common.Hash), &dirtyStates)
+				}
+				go triedb.BatchDeleteDirtyState(dirtyStates)
+			}
+		}
 	}
 	return nil
 }
@@ -250,7 +287,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.transactionPool.BackToPool(recoverTxs)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"removedHeight": len(removeBlocks),
-		"now":           time.TSInstance.Now().UTC(),
+		"now":           time2.TSInstance.Now().UTC(),
 		"logType":       "resetTop",
 		"version":       common.GzvVersion,
 	}).Info("resetTop")
@@ -575,6 +612,35 @@ func (chain *FullBlockChain) batchGetBlocksBetween(begin, end uint64) []*types.B
 		}
 		hash := common.BytesToHash(iter.Value())
 		b := chain.queryBlockByHash(hash)
+		if b == nil {
+			break
+		}
+
+		blocks = append(blocks, b)
+		if !iter.Next() {
+			break
+		}
+	}
+	return blocks
+}
+
+// batchGetBlockHeadersBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) batchGetBlockHeadersBetween(begin, end uint64) []*types.BlockHeader {
+	blocks := make([]*types.BlockHeader, 0)
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(begin)) {
+		return blocks
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height >= end {
+			break
+		}
+		hash := common.BytesToHash(iter.Value())
+		b := chain.queryBlockHeaderByHash(hash)
 		if b == nil {
 			break
 		}

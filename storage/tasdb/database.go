@@ -67,6 +67,10 @@ func getInstance(file string, options *opt.Options) (*LDBDatabase, error) {
 	return instanceInner, err
 }
 
+func (db *PrefixedDatabase) GetDB() *leveldb.DB {
+	return db.db.db
+}
+
 // Close close db connection
 func (db *PrefixedDatabase) Close() {
 	db.db.Close()
