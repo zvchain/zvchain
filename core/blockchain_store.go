@@ -55,11 +55,11 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	triedb := chain.stateCache.TrieDB()
 	triedb.ResetNodeCache()
 	begin := time.Now()
-	defer func(){
+	defer func() {
 		end := time.Now()
-		cost := (end.UnixNano() - begin.UnixNano())/1e6
-		if cost > 500{
-			log.CoreLogger.Debugf("save block state cost %v,height is %v",cost,b.Header.Height)
+		cost := (end.UnixNano() - begin.UnixNano()) / 1e6
+		if cost > 500 {
+			log.CoreLogger.Debugf("save block state cost %v,height is %v", cost, b.Header.Height)
 		}
 	}()
 	root, err := state.Commit(true)

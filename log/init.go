@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"sync"
 )
 
 func Init() {
@@ -34,5 +35,6 @@ func Init() {
 	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, DefaultMaxFiles, Level)
 	PerformLogger = RusPlus.Logger(logsDir+"perform", MaxFileSize, DefaultMaxFiles, Level)
 	MeterLogger = RusPlus.Logger(logsDir+"meter", MaxFileSize, DefaultMaxFiles, Level)
+	Recorder = TimeRecorder{m: sync.Map{}}
 	InitElk(logsDir)
 }

@@ -47,8 +47,16 @@ import (
 
 var source = "100"
 
+const testOutPut = "test_tmp_output"
+
 func init() {
 	log.ELKLogger.SetLevel(logrus.ErrorLevel)
+	_, err := ioutil.ReadDir(testOutPut)
+	if err != nil {
+		return
+	}
+	os.RemoveAll(testOutPut)
+
 }
 
 func TestPath(t *testing.T) {
@@ -532,20 +540,6 @@ func clearSelf(t *testing.T) {
 		BlockChainImpl.Close()
 		BlockChainImpl = nil
 	}
-
-	dir, err := ioutil.ReadDir(".")
-	if err != nil {
-		return
-	}
-	for _, d := range dir {
-		if d.IsDir() && d.Name() == t.Name() {
-			fmt.Printf("deleting folder: %s \n", d.Name())
-			err = os.RemoveAll(d.Name())
-			if err != nil {
-				fmt.Println("error while removing /s", d.Name())
-			}
-		}
-	}
 }
 
 func clearTicker() {
@@ -557,8 +551,9 @@ func clearTicker() {
 
 func initContext4Test(t *testing.T) error {
 	common.InitConf("../tas_config_all.ini")
-	common.GlobalConf.SetString(configSec, "db_blocks", t.Name())
+	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
+	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
 	network.Logger = log.P2PLogger
 	err := middleware.InitMiddleware()
 	if err != nil {
@@ -751,6 +746,9 @@ func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerCo
 }
 
 func newBlockChainByDB(db string) (*FullBlockChain, error) {
+	if _, err := os.Stat(db); err != nil && os.IsNotExist(err) {
+		return nil, err
+	}
 	chain := &FullBlockChain{
 		config: &BlockChainConfig{
 			dbfile:      db,
@@ -772,14 +770,10 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 	}
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        100,
-		BlockCacheCapacity:            16 * opt.MiB,
-		WriteBuffer:                   16 * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
-		CompactionTableSize:           4 * opt.MiB,
-		CompactionTableSizeMultiplier: 2,
-		CompactionTotalSize:           16 * opt.MiB,
-		BlockSize:                     64 * opt.KiB,
+		OpenFilesCacheCapacity: 100,
+		BlockCacheCapacity:     16 * opt.MiB,
+		WriteBuffer:            16 * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 		//ReadOnly:                      true,
 	}
 
@@ -811,7 +805,7 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 		return nil, err
 	}
 
-	chain.stateCache = account.NewDatabase(chain.stateDb,false)
+	chain.stateCache = account.NewDatabase(chain.stateDb, false)
 
 	latestBH := chain.loadCurrentBlock()
 	chain.latestBlock = latestBH
@@ -846,6 +840,9 @@ func TestStatProposalRate(t *testing.T) {
 		statFunc(beforeZIP, b)
 	}
 	afterZIP := make(map[string]int)
+	if chain.latestBlock == nil {
+		return
+	}
 	for b := params.GetChainConfig().ZIP001; b <= chain.Height(); b++ {
 		statFunc(afterZIP, b)
 	}

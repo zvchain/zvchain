@@ -37,7 +37,7 @@ import (
 // Used for testing
 func newEmpty() *Trie {
 	db, _ := tasdb.NewMemDatabase()
-	trie, _ := NewTrie(common.Hash{}, NewDatabase(db,0,false))
+	trie, _ := NewTrie(common.Hash{}, NewDatabase(db, 0, false))
 	return trie
 }
 
@@ -80,13 +80,15 @@ func TestGCInsert(t *testing.T) {
 	nd.Reference(root4, common.Hash{})
 
 	// begin gc height 1
-	nd.Dereference(1,root1)
 
-	fmt.Printf("before size= %v \n",nd.nodes)
+	nd.Dereference(1, root1)
+
+
+	fmt.Printf("before size= %v \n", nd.nodes)
 	// commit height 4
 	nd.Commit(root4, false)
 
-	fmt.Printf("after size= %v \n",nd.nodes)
+	fmt.Printf("after size= %v \n", nd.nodes)
 
 	nd.diskdb.Close()
 
@@ -121,7 +123,7 @@ func TestNull(t *testing.T) {
 
 func TestMissingRoot(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
-	trie, err := NewTrie(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(db,0,false))
+	trie, err := NewTrie(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(db, 0, false))
 	if trie != nil {
 		t.Error("NewTrie returned non-nil trie for invalid root")
 	}
@@ -135,7 +137,7 @@ func TestMissingNodeMemonly(t *testing.T) { testMissingNode(t, true) }
 
 func testMissingNode(t *testing.T, memonly bool) {
 	diskdb, _ := tasdb.NewMemDatabase()
-	triedb := NewDatabase(diskdb,0,false)
+	triedb := NewDatabase(diskdb, 0, false)
 
 	trie, _ := NewTrie(common.Hash{}, triedb)
 	updateString(trie, "120000", "qwerqwerqwerqwerqwerqwerqwerqwer")
@@ -397,7 +399,7 @@ func TestCacheUnload(t *testing.T) {
 	// The branch containing it is loaded from DB exactly two times:
 	// in the 0th and 6th iteration.
 	db := &countingDB{Database: trie.db.diskdb, gets: make(map[string]int)}
-	trie, _ = NewTrie(root, NewDatabase(db,0,false))
+	trie, _ = NewTrie(root, NewDatabase(db, 0, false))
 	trie.SetCacheLimit(5)
 	for i := 0; i < 12; i++ {
 		getString(trie, key1)
@@ -466,7 +468,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 
 func runRandTest(rt randTest) bool {
 	db, _ := tasdb.NewMemDatabase()
-	triedb := NewDatabase(db,0,false)
+	triedb := NewDatabase(db, 0, false)
 
 	tr, _ := NewTrie(common.Hash{}, triedb)
 	values := make(map[string]string) // tracks content of the trie
@@ -652,7 +654,7 @@ func tempDB() (string, *NodeDatabase) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
-	return dir, NewDatabase(diskdb,0,false)
+	return dir, NewDatabase(diskdb, 0, false)
 }
 
 func newDbFromDir(dir string) *NodeDatabase {
@@ -660,7 +662,7 @@ func newDbFromDir(dir string) *NodeDatabase {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
-	return NewDatabase(diskdb,0,false)
+	return NewDatabase(diskdb, 0, false)
 }
 
 func getString(trie *Trie, k string) []byte {

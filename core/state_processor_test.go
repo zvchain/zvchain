@@ -58,7 +58,7 @@ func initExecutor() {
 	if err != nil {
 		panic(fmt.Sprintf("Init block chain error! Error:%s", err.Error()))
 	}
-	accountdb = account.NewDatabase(statedb,false)
+	accountdb = account.NewDatabase(statedb, false)
 	Logger = log.DefaultLogger
 
 	executor = &stateProcessor{

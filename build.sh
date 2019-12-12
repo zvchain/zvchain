@@ -44,6 +44,7 @@ if [[ $1x = "gzv"x ]]; then
     buildtvm
     buildp2p
 
+    go clean -cache $basepath/cmd/gzv &&
     go build -o ${output_dir}/gzv $basepath/cmd/gzv &&
     echo build gzv successfully...
 
@@ -60,6 +61,7 @@ elif [[ $1x = "all"x ]]; then
     rm $basepath/network/p2p_api.h $basepath/network/libp2pcore.a
     buildtvm
     buildp2p
+    go clean -cache $basepath/cmd/gzv &&
     go build -o ${output_dir}/gzv $basepath/cmd/gzv &&
     go build -o ${output_dir}/tvmcli $basepath/cmd/tvmcli &&
     echo cleaned

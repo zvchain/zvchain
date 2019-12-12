@@ -62,17 +62,7 @@ func getInstance(file string, options *opt.Options) (*LDBDatabase, error) {
 		err           error
 	)
 
-	defaultConfig := &databaseConfig{
-		database: DefaultFile,
-		cache:    128,
-		handler:  1024,
-	}
-
-	if nil == common.GlobalConf {
-		instanceInner, err = NewLDBDatabase(defaultConfig.database, options)
-	} else {
-		instanceInner, err = NewLDBDatabase(file, options)
-	}
+	instanceInner, err = NewLDBDatabase(file, options)
 
 	return instanceInner, err
 }
@@ -159,7 +149,7 @@ func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
 
 	err := db.db.db.Stats(dbStats)
 	if err != nil {
-		logger.Error("failed to get leveldb stats", err)
+		logger.Info("failed to get leveldb stats", err)
 	} else {
 
 		LevelSizes := dbStats.LevelSizes[:0]

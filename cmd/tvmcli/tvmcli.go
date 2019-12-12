@@ -119,7 +119,7 @@ func (t *TvmCli) init() {
 	}
 	fmt.Println(currentPath)
 	t.db, _ = tasdb.NewLDBDatabase(currentPath+"/db", nil)
-	t.database = account.NewDatabase(t.db,false)
+	t.database = account.NewDatabase(t.db, false)
 
 	if Exists(currentPath + "/settings.ini") {
 		t.settings = common.NewConfINIManager(currentPath + "/settings.ini")
@@ -241,7 +241,7 @@ func (t *TvmCli) ExportAbi(contractName string, contractCode string) {
 		Code:         contractCode,
 		//ContractAddress: &contractAddress,
 	}
-	vm := tvm.NewTVM(nil, &contract,0)
+	vm := tvm.NewTVM(nil, &contract, 0)
 	defer func() {
 		vm.DelTVM()
 	}()
