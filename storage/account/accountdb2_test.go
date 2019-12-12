@@ -16,7 +16,9 @@
 package account
 
 import (
+	"fmt"
 	"math/big"
+	"os"
 	"testing"
 
 	"github.com/zvchain/zvchain/common"
@@ -87,4 +89,72 @@ func TestAccountDB_SetCode(t *testing.T) {
 	if string(sta) != "code" {
 		t.Errorf("wrong value: %s,expect value code", sta)
 	}
+}
+
+func TestRef(t *testing.T) {
+	db, _ := tasdb.NewLDBDatabase("test", nil)
+	defer db.Close()
+	triedb := NewDatabase(db)
+	state, _ := NewAccountDB(common.Hash{}, triedb)
+
+	state.SetBalance(common.BytesToAddress([]byte("11")), new(big.Int).SetInt64(1))
+	state.SetBalance(common.BytesToAddress([]byte("12")), new(big.Int).SetInt64(2))
+
+	r, e := state.Commit(true)
+	if e != nil {
+		t.Fatalf("state commit err %v", e)
+	}
+	//e = triedb.TrieDB().Commit(r, false)
+	//if e != nil {
+	//	t.Fatalf("db commit err %v", e)
+	//}
+	fmt.Println("============1================")
+	state, _ = NewAccountDB(r, triedb)
+	state.SetBalance(common.BytesToAddress([]byte("12")), new(big.Int).SetInt64(3))
+	r, e = state.Commit(true)
+	if e != nil {
+		t.Fatalf("state commit err %v", e)
+	}
+
+	state, _ = NewAccountDB(r, triedb)
+	state.SetBalance(common.BytesToAddress([]byte("12")), new(big.Int).SetInt64(2))
+	_, e = state.Commit(true)
+	if e != nil {
+		t.Fatalf("state commit err %v", e)
+	}
+}
+
+func TestAccountDB_VerifyIntegrity(t *testing.T) {
+	if _, err := os.Stat("test"); err != nil && os.IsNotExist(err) {
+		return
+	}
+	db, _ := tasdb.NewLDBDatabase("test", nil)
+	defer db.Close()
+	triedb := NewDatabase(db)
+	state, e := NewAccountDB(common.HexToHash("0x6ab6fc80af640edcd71798d39d453fe3590cf85fa9813430dfca9af8b670c475"), triedb)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	//state.SetBalance(common.BytesToAddress([]byte("11234322")), new(big.Int).SetInt64(1))
+	//state.SetBalance(common.BytesToAddress([]byte("1234234")), new(big.Int).SetInt64(2))
+	//
+	//state.SetData(common.BytesToAddress([]byte("11234322")), []byte("data1"), []byte("value243rt32tr3wt"))
+	//state.SetData(common.BytesToAddress([]byte("11234322")), []byte("data2"), []byte("value243rt32tr3wt"))
+	//state.SetData(common.BytesToAddress([]byte("1343345454")), []byte("dddd"), []byte("value243rt32tr3wt"))
+	//
+	//state.SetCode(common.BytesToAddress([]byte("contract")), []byte("python"))
+	//
+	//r, e := state.Commit(true)
+	//if e != nil {
+	//	t.Fatalf("state commit err %v", e)
+	//}
+	//e = triedb.TrieDB().Commit(r, false)
+	//if e != nil {
+	//	t.Fatalf("db commit err %v", e)
+	//}
+	//
+	//t.Log(r.Hex())
+
+	state.VerifyIntegrity()
 }

@@ -62,17 +62,7 @@ func getInstance(file string, options *opt.Options) (*LDBDatabase, error) {
 		err           error
 	)
 
-	defaultConfig := &databaseConfig{
-		database: DefaultFile,
-		cache:    128,
-		handler:  1024,
-	}
-
-	if nil == common.GlobalConf {
-		instanceInner, err = NewLDBDatabase(defaultConfig.database, options)
-	} else {
-		instanceInner, err = NewLDBDatabase(file, options)
-	}
+	instanceInner, err = NewLDBDatabase(file, options)
 
 	return instanceInner, err
 }

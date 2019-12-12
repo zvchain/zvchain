@@ -77,6 +77,10 @@ type Trie interface {
 	// NodeIterator returns an iterator that returns nodes of the trie. Iteration
 	// starts at the key after the given start key.
 	NodeIterator(startKey []byte) trie.NodeIterator
+
+	// VerifyIntegrity
+	// checks the reachability and integrity of all nodes of the trie
+	VerifyIntegrity(onleaf trie.VerifyLeafCallback) (bool, error)
 }
 
 // NewDatabase creates a backing store for state. The returned database

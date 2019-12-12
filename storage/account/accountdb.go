@@ -16,6 +16,8 @@
 package account
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
@@ -196,9 +198,9 @@ func (adb *AccountDB) GetCodeHash(addr common.Address) common.Hash {
 }
 
 // GetStateObject returns stateobject's interface.
-func (adb *AccountDB) GetStateObject(a common.Address)AccAccesser{
+func (adb *AccountDB) GetStateObject(a common.Address) AccAccesser {
 	data := adb.getAccountObject(a)
-	if data == nil{
+	if data == nil {
 		return nil
 	}
 	return data
@@ -561,4 +563,51 @@ func (adb *AccountDB) Commit(deleteEmptyObjects bool) (root common.Hash, err err
 		return nil
 	})
 	return root, err
+}
+
+type VerifyAccountIntegrityCallback func(stat *VerifyStat)
+
+type VerifyStat struct {
+	Addr      common.Address
+	Account   Account
+	DataCount uint64
+	DataSize  uint64
+	KeySize   uint64
+	CodeSize  uint64
+}
+
+func (vs *VerifyStat) String() string {
+	s, _ := json.Marshal(vs)
+	return string(s)
+}
+
+func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback) (bool, error) {
+	return adb.trie.VerifyIntegrity(func(key []byte, value []byte) error {
+		var account Account
+		if err := rlp.DecodeBytes(value, &account); err != nil {
+			return err
+		}
+		vs := &VerifyStat{Account: account, Addr: common.BytesToAddress(key)}
+		fmt.Printf("verify %v\n", common.BytesToAddress(key).AddrPrefixString())
+		if account.Root != emptyData && !bytes.Equal(key, common.RewardStoreAddr.Bytes()) {
+			trie, err := trie.NewTrie(account.Root, adb.db.TrieDB())
+			if err != nil {
+				return err
+			}
+			if ok, err := trie.VerifyIntegrity(func(k []byte, v []byte) error {
+				vs.DataCount++
+				vs.DataSize += uint64(len(v))
+				vs.KeySize += uint64(len(k))
+				return nil
+			}); !ok {
+				return err
+			}
+		}
+		code := common.BytesToHash(account.CodeHash)
+		if code != emptyCode {
+			vs.CodeSize = uint64(len(value))
+		}
+		cb(vs)
+		return nil
+	})
 }
