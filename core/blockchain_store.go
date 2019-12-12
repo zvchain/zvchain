@@ -83,9 +83,9 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
 			if len(cropItems) > 0 {
 				for _, vl := range cropItems {
-					triedb.Dereference(uint64(-vl.Priority), vl.Value.(common.Hash))
+					triedb.Dereference(uint64(vl.Priority), vl.Value.(common.Hash))
 				}
-				curCropMaxHeight := uint64(-cropItems[0].Priority)
+				curCropMaxHeight := uint64(cropItems[0].Priority)
 				triedb.StoreGcData(curCropMaxHeight, b.Header.Height, cp.(*types.BlockHeader).Height, uint64(len(cropItems)))
 				persistentCount := common.GlobalConf.GetInt(gc, "persistence_count", persistenceCount)
 				if triedb.CanPersistent(persistentCount) {
