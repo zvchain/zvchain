@@ -267,7 +267,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 		end := time.Now()
 		cost := (end.UnixNano() - begin.UnixNano())/1e6
 		if cost > 1000{
-			log.CoreLogger.Debugf("addBlockOnchain expired,cost time %v",cost)
+			log.CoreLogger.Debugf("addBlockOnchain expired,height is %v,cost time %v",block.Header.Height,cost)
 		}
 		traceLog.Log("ret=%v, err=%v", ret, err)
 		Logger.Debugf("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
