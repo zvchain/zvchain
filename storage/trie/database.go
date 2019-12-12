@@ -57,6 +57,11 @@ type readMeter struct {
 	hitSize   uint64
 }
 
+// DirtyStateReader wraps the Get and Has method of a backing store for the dirty trie.
+type DirtyStateReader interface {
+	StoreDirtyTrie(root common.Hash, nb []byte) error
+}
+
 // NodeDatabase is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
@@ -87,6 +92,11 @@ type NodeDatabase struct {
 
 	lock     sync.RWMutex
 	enableGc bool // enableGc crop dirty state if true
+	lock            sync.RWMutex
+	commitFullNodes []*storeBlob // CommitFullNodes strores commit nodes every time
+	enableGc        bool         // enableGc crop dirty state if true
+	lastGcHeight    uint64
+	lastGcCount     uint64
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
@@ -296,6 +306,28 @@ func (db *NodeDatabase) DiskDB() DatabaseReader {
 	return db.diskdb
 }
 
+// ResetNodeCache make new slice before commit.
+func (db *NodeDatabase) ResetNodeCache() {
+	if db.enableGc {
+		db.commitFullNodes = []*storeBlob{}
+	}
+}
+
+// InsertFullToDirtyDb insert nodes to dirty db
+func (db *NodeDatabase) InsertFullToDirtyDb(root common.Hash, dbReader DirtyStateReader) error {
+	if db.commitFullNodes != nil && len(db.commitFullNodes) > 0 {
+		dts, err := rlp.EncodeToBytes(db.commitFullNodes)
+		if err != nil {
+			return fmt.Errorf("encode error，error is %v", err)
+		}
+		err = dbReader.StoreDirtyTrie(root, dts)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // InsertBlob writes a new reference tracked blob to the memory database if it's
 // yet unknown. This method should only be used for non-trie nodes that require
 // reference counting, since trie nodes are garbage collected directly through
@@ -330,7 +362,9 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 		}
 	}
 	db.nodes[hash] = entry
-
+	if db.enableGc {
+		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: entry.rlp()})
+	}
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
 		db.oldest, db.newest = hash, hash
@@ -508,13 +542,54 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
+func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob) error {
+	batch := db.diskdb.NewBatch()
+	if len(dirtyBlobs) > 0 {
+		for _, vl := range dirtyBlobs {
+			if err := batch.Put(vl.Key[:], vl.Raw); err != nil {
+				return err
+			}
+		}
+	}
+	if err := batch.Write(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*storeBlob) {
+	err = rlp.DecodeBytes(data, &dirtyBlobs)
+	if err != nil {
+		err = fmt.Errorf("decode storeBlob error,error is %v", err)
+	}
+	return nil, dirtyBlobs
+}
+
+func (db *NodeDatabase) LastGcHeight() uint64 {
+	return db.lastGcHeight
+}
+
+func (db *NodeDatabase) CanPersistent(persistentCount int) bool {
+	return db.lastGcCount >= uint64(persistentCount)
+}
+
+func (db *NodeDatabase) StoreGcData(height, currentHeight, cpHeight, gcCount uint64) {
+	db.lastGcHeight = height
+	db.lastGcCount += gcCount
+	log.CropLogger.Debugf("store gc height is %v,curHeight is %v,cphHeight is %v,cur gc count is %v", height, currentHeight, cpHeight, gcCount)
+}
+
+func (db *NodeDatabase) ResetGcCount() {
+	db.lastGcCount = 0
+}
+
 // Dereference removes an existing reference from a root node.
-func (db *NodeDatabase) Dereference(height uint64, root common.Hash, dirtyStates *[]*common.Hash) {
+func (db *NodeDatabase) Dereference(height uint64, root common.Hash) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	db.dereference(root, common.Hash{}, dirtyStates)
+	db.dereference(root, common.Hash{})
 
 	db.gcnodes += uint64(nodes - len(db.nodes))
 	db.gcsize += storage - db.nodesSize
@@ -529,7 +604,7 @@ func (db *NodeDatabase) Dereference(height uint64, root common.Hash, dirtyStates
 }
 
 // dereference is the private locked version of Dereference.
-func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, dirtyStates *[]*common.Hash) {
+func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -568,12 +643,7 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash, dirty
 		}
 		// Dereference all children and delete the node
 		for _, hash := range node.childs() {
-			if n, ok := db.nodes[hash]; ok && node.sequence > n.sequence {
-				db.dereference(hash, child, dirtyStates)
-			}
-		}
-		if db.enableGc {
-			*dirtyStates = append(*dirtyStates, &child)
+			db.dereference(hash, child)
 		}
 		delete(db.nodes, child)
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
@@ -726,29 +796,6 @@ func (db *NodeDatabase) ClearFromNodes(height uint64, limit common.StorageSize) 
 		height, nodes-len(db.nodes), storage-db.nodesSize, time.Since(start), db.flushnodes, db.flushsize, db.flushtime, len(db.nodes), db.nodesSize/(1024*1024))
 }
 
-// BatchDeleteDirtyState delete history state node if open gc mode
-func (db *NodeDatabase) BatchDeleteDirtyState(hashs []*common.Hash) {
-	if len(hashs) == 0 {
-		return
-	}
-	begin := time.Now()
-	batch := db.diskdb.NewBatch()
-	defer func() {
-		log.CropLogger.Debugf("batch delete size = %v,cost=%v", len(hashs), time.Since(begin))
-	}()
-	for _, hash := range hashs {
-		err := batch.Delete(hash[:])
-		if err != nil {
-			log.CoreLogger.Errorf("batch delete state error,err is %v", err)
-			return
-		}
-	}
-	err := batch.Write()
-	if err != nil {
-		log.CoreLogger.Errorf("batch delete write state error,err is %v", err)
-	}
-}
-
 // Commit iterates over all the children of a particular node, writes them out
 // to disk, forcefully tearing down all references in both directions.
 //
@@ -798,9 +845,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 
 	db.preimages = make(map[common.Hash][]byte)
 	db.preimagesSize = 0
-	if !db.enableGc {
-		db.uncache(node)
-	}
+	db.uncache(node)
 	//memcacheCommitTimeTimer.Update(time.Since(start))
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))

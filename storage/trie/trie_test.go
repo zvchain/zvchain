@@ -80,7 +80,7 @@ func TestGCInsert(t *testing.T) {
 	nd.Reference(root4, common.Hash{})
 
 	// begin gc height 1
-	nd.Dereference(1,root1,nil)
+	nd.Dereference(1,root1)
 
 	fmt.Printf("before size= %v \n",nd.nodes)
 	// commit height 4
