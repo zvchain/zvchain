@@ -67,7 +67,6 @@ type DirtyStateReader interface {
 // periodically flush a couple tries to disk, garbage collecting the remainder.
 type NodeDatabase struct {
 	diskdb      tasdb.Database              // Persistent storage for matured trie nodes
-	curSequence uint64                      // Record node max curSequence,only add
 	nodes       map[common.Hash]*cachedNode // Data and references relationships of a node
 	cache       *fastcache.Cache
 	meter       *readMeter // meter about node hit or cache hit
@@ -144,10 +143,8 @@ func (n rawShortNode) fstring(ind string) string     { panic("this should never 
 type cachedNode struct {
 	node      node                   // Cached collapsed trie node, or raw rlp data
 	size      uint16                 // Byte size of the useful cached data
-	sequence  uint64                 // record current postion
 	parents   uint16                 // Number of live nodes referencing this one
 	children  map[common.Hash]uint16 // External children referenced by this node
-	committed bool                   // True if committed
 	flushPrev common.Hash            // Previous node in the flush-list
 	flushNext common.Hash            // Next node in the flush-list
 }
@@ -350,9 +347,7 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 		node:      simplifyNode(node),
 		size:      uint16(len(blob)),
 		flushPrev: db.newest,
-		sequence:  db.curSequence,
 	}
-	db.curSequence++
 	for _, child := range entry.childs() {
 		if c := db.nodes[child]; c != nil {
 			c.parents++
@@ -861,7 +856,7 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
-	if !ok || node.committed {
+	if !ok {
 		return nil
 	}
 	for _, child := range node.childs() {
@@ -881,7 +876,6 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 		}
 		batch.Reset()
 	}
-	node.committed = true
 	return nil
 }
 
