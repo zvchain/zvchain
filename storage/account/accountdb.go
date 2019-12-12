@@ -16,7 +16,6 @@
 package account
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/log"
@@ -591,7 +590,7 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback) (bool, 
 		}
 		begin := time.Now()
 		vs := &VerifyStat{Account: account, Addr: common.BytesToAddress(key)}
-		if account.Root != emptyData && !bytes.Equal(key, common.RewardStoreAddr.Bytes()) {
+		if account.Root != emptyData {
 			trie, err := trie.NewTrie(account.Root, adb.db.TrieDB())
 			if err != nil {
 				return err
