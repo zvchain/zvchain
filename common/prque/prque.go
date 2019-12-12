@@ -71,7 +71,7 @@ func (p *Prque) GetCropHeights(cpHeight, minSize uint64) []*Item {
 	}
 	root, h := p.Pop()
 	p.Push(root, h)
-	if uint64(-h) < cpHeight {
+	if uint64(h) < cpHeight {
 		return nil
 	}
 	backList := []*Item{}
@@ -81,11 +81,11 @@ func (p *Prque) GetCropHeights(cpHeight, minSize uint64) []*Item {
 
 	for !p.Empty() {
 		root, h = p.Pop()
-		if uint64(-h) >= cpHeight {
+		if uint64(h) >= cpHeight {
 			backList = append(backList, &Item{root, h})
 		} else {
-			if _, ok := temp[uint64(-h)]; !ok {
-				temp[uint64(-h)] = struct{}{}
+			if _, ok := temp[uint64(h)]; !ok {
+				temp[uint64(h)] = struct{}{}
 				count++
 			}
 			if count <= minSize {
