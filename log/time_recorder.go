@@ -28,6 +28,6 @@ func (recorder *TimeRecorder) End(id string) int64 {
 		return 0
 	} else {
 		start := v.(time.Time)
-		return time.Since(start).Milliseconds()
+		return time.Since(start).Nanoseconds() / 1e6
 	}
 }
