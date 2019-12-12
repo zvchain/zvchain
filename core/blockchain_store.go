@@ -56,7 +56,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		end := time.Now()
 		cost := (end.UnixNano() - begin.UnixNano())/1e6
 		if cost > 500{
-			log.CoreLogger.Debugf("save block state cost %v",cost)
+			log.CoreLogger.Debugf("save block state cost %v,height is %v",cost,b.Header.Height)
 		}
 	}()
 	root, err := state.Commit(true)
