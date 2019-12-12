@@ -89,9 +89,6 @@ type NodeDatabase struct {
 	childrenSize  common.StorageSize // Storage size of the external children tracking
 	nodesSize     common.StorageSize // Storage size of the nodes cache (exc. flushlist)
 	preimagesSize common.StorageSize // Storage size of the preimages cache
-
-	lock     sync.RWMutex
-	enableGc bool // enableGc crop dirty state if true
 	lock            sync.RWMutex
 	commitFullNodes []*storeBlob // CommitFullNodes strores commit nodes every time
 	enableGc        bool         // enableGc crop dirty state if true
