@@ -38,6 +38,7 @@ const (
 var (
 	GlobalCP                         uint64
 	FinishSyncSupplementBlockToMiner bool = false
+	FinishSyncFetchOldAccounts       bool = false
 	SupplementBlockToMinerHeight     uint64
 )
 
@@ -68,14 +69,16 @@ type Crontab struct {
 	isInited          bool
 	isInitedReward    bool
 
-	isFetchingPoolvotes  int32
-	isConfirmBlockReward int32
-	rpcExplore           *Explore
-	transfer             *Transfer
-	fetcher              *common2.Fetcher
-	isFetchingBlocks     bool
-	initdata             chan *models.ForkNotify
-	initRewarddata       chan *models.ForkNotify
+	isFetchingPoolvotes               int32
+	isFetchingBlockToMiner            int32
+	isFetchingOldTxCountToAccountList int32
+	isConfirmBlockReward              int32
+	rpcExplore                        *Explore
+	transfer                          *Transfer
+	fetcher                           *common2.Fetcher
+	isFetchingBlocks                  bool
+	initdata                          chan *models.ForkNotify
+	initRewarddata                    chan *models.ForkNotify
 
 	isFetchingVerfications bool
 }
@@ -130,6 +133,7 @@ func (crontab *Crontab) loop() {
 	//go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
 	go crontab.fetchConfirmRewardsToMinerBlock()
+	go crontab.fetchOldTxCountToAccountList()
 
 	for {
 		select {
@@ -138,6 +142,8 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchBlockRewards()
 			go crontab.fetchGroups()
 			go crontab.UpdateCheckPoint()
+			go crontab.fetchOldTxCountToAccountList()
+
 			//go crontab.fetchOldBlockToMiner()
 
 		case <-check30Min.C:
@@ -282,12 +288,89 @@ func (crontab *Crontab) fetchGroups() {
 //uopdate invalid guard and pool
 func (crontab *Crontab) fetchOldBlockToMiner() {
 
-	if !atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&crontab.isFetchingBlockToMiner, 0, 1) {
 		return
 	}
 	crontab.supplementBlockToMiner()
-	atomic.CompareAndSwapInt32(&crontab.isFetchingPoolvotes, 1, 0)
+	atomic.CompareAndSwapInt32(&crontab.isFetchingBlockToMiner, 1, 0)
 
+}
+
+func (crontab *Crontab) fetchOldTxCountToAccountList() {
+
+	if !atomic.CompareAndSwapInt32(&crontab.isFetchingOldTxCountToAccountList, 0, 1) {
+		return
+	}
+	crontab.supplementOldTxCountToAccountList()
+	atomic.CompareAndSwapInt32(&crontab.isFetchingOldTxCountToAccountList, 1, 0)
+
+}
+
+func (crontab *Crontab) supplementOldTxCountToAccountList() {
+	if FinishSyncFetchOldAccounts {
+		return
+	}
+	accountCurId, err := crontab.storage.SuppAccountCurID()
+	if err != nil {
+		return
+	}
+	// sys中无此变量
+	if accountCurId == 0 {
+		var success bool
+		if accountCurId, success = crontab.storage.SetSuppAccountCurID(0); !success {
+			return
+		}
+	}
+
+	accountMaxId, err := crontab.storage.SuppAccountMaxID()
+	if err != nil {
+		return
+	}
+	// sys中无此变量
+	if accountMaxId == 0 {
+		var success bool
+		crontab.storage.GetDB().Model(&models.AccountList{}).Select("id").Order("id desc").Row().Scan(&accountMaxId)
+		if accountMaxId, success = crontab.storage.SetSuppAccountMaxID(accountMaxId); !success {
+			return
+		}
+	}
+
+	topHeight, err := crontab.storage.SuppAccountMaxBlockTop()
+	if err != nil {
+		return
+	}
+	// sys中无此变量
+	if topHeight == 0 {
+		topHeight, _ = crontab.storage.TopBlockHeight()
+		var success bool
+		if topHeight, success = crontab.storage.SetSuppAccountMaxBlockTop(topHeight); !success {
+			return
+		}
+	}
+	accounts := make([]*models.AccountList, 0)
+	crontab.storage.GetDB().Model(&models.AccountList{}).Order("id asc").Where("id between ? and  ?", accountCurId+1, accountMaxId).Find(&accounts)
+	fmt.Println(unsafe.Sizeof(accounts))
+
+	for _, account := range accounts {
+		var txCount uint64
+		sql := fmt.Sprintf("select count(1) from transactions where source <> '%s' and target = '%s' and block_height <= %d", account.Address, account.Address, topHeight)
+		crontab.storage.GetDB().Raw(sql).Row().Scan(&txCount)
+		updateAccount := map[string]interface{}{
+			"total_transaction": gorm.Expr("total_transaction + ?", txCount),
+		}
+		updateSys := map[string]interface{}{
+			"value": account.ID,
+		}
+		tx := crontab.storage.GetDB().Begin()
+		if tx.Model(&models.AccountList{}).Where("address = ?", account.Address).Updates(updateAccount).Error == nil &&
+			tx.Model(&models.Sys{}).Where("variable = ?", mysql.FetchAccountCurID).Updates(updateSys).Error == nil {
+			tx.Commit()
+		} else {
+			tx.Rollback()
+			return
+		}
+	}
+	FinishSyncFetchOldAccounts = true
 }
 
 func (crontab *Crontab) supplementBlockToMiner() {

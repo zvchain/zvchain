@@ -303,21 +303,25 @@ func (tm *DBMmanagement) excuteAccounts() {
 					}
 				}
 
+				var source, target string
 				if tx.Source != nil {
+					source = tx.Source.AddrPrefixString()
 					//account list
-					if _, exists := AddressCacheList[tx.Source.AddrPrefixString()]; exists {
-						AddressCacheList[tx.Source.AddrPrefixString()] += 1
+					if _, exists := AddressCacheList[source]; exists {
+						AddressCacheList[source] += 1
 					} else {
-						AddressCacheList[tx.Source.AddrPrefixString()] = 1
+						AddressCacheList[source] = 1
 					}
 					//if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeReduce{
-					var target string
+
 					if tx.Target != nil {
 						target = tx.Target.AddrPrefixString()
-						if _, exists := AddressCacheList[target]; exists {
-							AddressCacheList[target] += 0
-						} else {
-							AddressCacheList[target] = 0
+						if source != target {
+							if _, exists := AddressCacheList[target]; exists {
+								AddressCacheList[target] += 1
+							} else {
+								AddressCacheList[target] = 1
+							}
 						}
 					}
 
