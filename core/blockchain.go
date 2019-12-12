@@ -215,7 +215,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	if trieGc {
+	if chain.config.pruneMode {
 		dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
 		if err != nil {
 			Logger.Errorf("new dirty state datasource error:%v", err)

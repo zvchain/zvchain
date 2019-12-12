@@ -33,7 +33,6 @@ import (
 const TriesInMemory uint64 = types.EpochLength*4 + 20
 
 var (
-	GcMode               = true
 	maxTriesInMemory     = 300
 	everyClearFromMemory = 1
 	persistenceCount     = 3000

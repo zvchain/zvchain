@@ -289,8 +289,7 @@ func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 }
 
 func (chain *FullBlockChain) Stop() {
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
-	if !trieGc {
+	if !chain.config.pruneMode {
 		return
 	}
 	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
@@ -328,8 +327,7 @@ func (chain *FullBlockChain) Stop() {
 }
 
 func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
-	trieGc := common.GlobalConf.GetBool(configSec, "gcmode", GcMode)
-	if !trieGc || top == nil {
+	if !chain.config.pruneMode || top == nil {
 		return nil
 	}
 	lastStateHeight := dirtyState.GetStatePersistentHeight()
