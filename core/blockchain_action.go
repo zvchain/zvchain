@@ -338,7 +338,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 		}()
 		log.CropLogger.Debugf("begin fix dirty state data,from %v-%v \n", lastStateHeight, top.Height)
 		triedb := chain.stateCache.TrieDB()
-
+		repeatKey := make(map[common.Hash]struct{})
 		for i := lastStateHeight; i <= top.Height; i++ {
 			bh := chain.queryBlockHeaderByHeight(i)
 			if bh == nil {
@@ -353,7 +353,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 			if err != nil {
 				return err
 			}
-			triedb.CommitDirtyToDb(caches)
+			triedb.CommitDirtyToDb(caches,repeatKey)
 		}
 	}
 	return nil

@@ -339,7 +339,10 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 // size tracking.
 func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	// If the node's already cached, skip
-	if _, ok := db.nodes[hash]; ok {
+	if n, ok := db.nodes[hash]; ok {
+		if db.enableGc {
+			db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: n.rlp()})
+		}
 		return
 	}
 	// Create the cached entry for this node
@@ -534,10 +537,15 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob) error {
+func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob,repeatKey map[common.Hash]struct{}) error {
 	batch := db.diskdb.NewBatch()
 	if len(dirtyBlobs) > 0 {
 		for _, vl := range dirtyBlobs {
+			_,ok:= repeatKey[vl.Key]
+			if ok{
+				continue
+			}
+			repeatKey[vl.Key] = struct{}{}
 			if err := batch.Put(vl.Key[:], vl.Raw); err != nil {
 				return err
 			}
