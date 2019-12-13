@@ -83,7 +83,7 @@ type Trie interface {
 	// is to find any errors that might cause trie nodes missing during prune
 	//
 	// This method is extremely CPU and disk intensive, and time consuming, only use when must.
-	VerifyIntegrity(onleaf trie.VerifyLeafCallback) (bool, error)
+	VerifyIntegrity(onleaf trie.ExtLeafCallback, resolve trie.ResolveNodeCallback) (bool, error)
 }
 
 // NewDatabase creates a backing store for state. The returned database

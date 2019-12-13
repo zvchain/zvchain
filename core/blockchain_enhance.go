@@ -21,10 +21,33 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
+	"github.com/zvchain/zvchain/storage/trie"
 	"io"
 	"time"
 )
+
+type verifier interface {
+	VerifyIntegrity(cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback) (bool, error)
+}
+
+func (chain *FullBlockChain) Verifier(h uint64) verifier {
+	db, err := chain.AccountDBAt(h)
+	if err != nil {
+		Logger.Errorf("get account db error at %v, err %v", h, err)
+		return nil
+	}
+	return db.(*account.AccountDB)
+}
+
+func (chain *FullBlockChain) IntegrityVerify(height uint64, cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback) (bool, error) {
+	v := chain.Verifier(height)
+	if v != nil {
+		return v.VerifyIntegrity(cb, resolve)
+	}
+	return true, nil
+}
 
 type Replayer interface {
 	Replay(provider BlockProvider, out io.Writer) error
@@ -166,9 +189,9 @@ func (fr *fastReplayer) consume() error {
 			last := blocks[len(blocks)-1].Header.Height + 1
 			remainT := time.Duration(float64(top-last)/bps) * time.Second
 
-			fr.out.Write([]byte(fmt.Sprintf("consume block %v finished, bps %v, remain %v\n", last-1, bps, remainT.String())))
+			fr.out.Write([]byte(fmt.Sprintf("replay block %v finished, bps %v, remain %v\n", last-1, bps, remainT.String())))
 		case <-fr.finishCh:
-			fr.out.Write([]byte(fmt.Sprintf("consume total %v blocks finished, cost %v", cnt, time.Since(begin).String())))
+			fr.out.Write([]byte(fmt.Sprintf("replay total %v blocks finished, cost %v", cnt, time.Since(begin).String())))
 			break
 		}
 	}

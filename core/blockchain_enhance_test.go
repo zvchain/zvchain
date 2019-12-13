@@ -16,26 +16,37 @@
 package core
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/storage/account"
+	"os"
+	"testing"
 )
 
-type verifier interface {
-	VerifyIntegrity(cb account.VerifyAccountIntegrityCallback) (bool, error)
-}
+func TestFullBlockChain_IntegrityVerify(t *testing.T) {
+	wch := make(chan string)
+	defer close(wch)
 
-func (chain *FullBlockChain) Verifier(h uint64) verifier {
-	db, err := chain.AccountDBAt(h)
+	f, err := os.OpenFile("account_data_2", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		Logger.Errorf("get account db error at %v, err %v", h, err)
-		return nil
+		panic(err)
 	}
-	return db.(*account.AccountDB)
-}
 
-func (chain *FullBlockChain) IntegrityVerify(height uint64, cb account.VerifyAccountIntegrityCallback) (bool, error) {
-	v := chain.Verifier(height)
-	if v != nil {
-		return v.VerifyIntegrity(cb)
+	cb := func(stat *account.VerifyStat) {
+		_, err := f.WriteString(stat.String() + "\n")
+		if err != nil {
+			fmt.Println("write---------------- ", err)
+		}
+		fmt.Printf("key %v, items %v, cost %v\n", stat.Addr.AddrPrefixString(), stat.DataCount, stat.Cost.String())
 	}
-	return true, nil
+
+	chain, _ := newBlockChainByDB("/Volumes/Untitled/db2")
+	if chain == nil {
+		return
+	}
+	top := chain.Height()
+	fmt.Println(top)
+	ok, err := chain.IntegrityVerify(543224, cb, nil)
+	if !ok {
+		t.Errorf("verify fail %v", err)
+	}
 }
