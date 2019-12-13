@@ -79,7 +79,7 @@ type ForkNotify struct {
 }
 type Sys struct {
 	gorm.Model
-	Variable string `json:"variable"`
+	Variable string `json:"variable" gorm:"unique_index"`
 	Value    uint64 `json:"value"`
 	SetBy    string `json:"set_by"`
 }

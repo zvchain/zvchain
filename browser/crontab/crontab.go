@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/browser"
 	common2 "github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
@@ -330,7 +331,7 @@ func (crontab *Crontab) supplementOldTxCountToAccountList() {
 	// sys中无此变量
 	if accountMaxId == 0 {
 		var success bool
-		crontab.storage.GetDB().Model(&models.AccountList{}).Select("id").Order("id desc").Row().Scan(&accountMaxId)
+		crontab.storage.GetDB().Model(&models.AccountList{}).Limit(1).Select("id").Order("id desc").Row().Scan(&accountMaxId)
 		if accountMaxId, success = crontab.storage.SetSuppAccountMaxID(accountMaxId); !success {
 			return
 		}
@@ -363,11 +364,21 @@ func (crontab *Crontab) supplementOldTxCountToAccountList() {
 			"value": account.ID,
 		}
 		tx := crontab.storage.GetDB().Begin()
-		if tx.Model(&models.AccountList{}).Where("address = ?", account.Address).Updates(updateAccount).Error == nil &&
+		if tx.Model(&models.AccountList{}).Where("id = ?", account.ID).Updates(updateAccount).Error == nil &&
 			tx.Model(&models.Sys{}).Where("variable = ?", mysql.FetchAccountCurID).Updates(updateSys).Error == nil {
 			tx.Commit()
+			browserlog.BrowserLog.WithFields(logrus.Fields{
+				"update":     "success",
+				"address":    account.Address,
+				"countDelta": txCount,
+			}).Info("[supplementOldTxCountToAccountList]", "success update account,commit")
 		} else {
 			tx.Rollback()
+			browserlog.BrowserLog.WithFields(logrus.Fields{
+				"update":     "fail",
+				"address":    account.Address,
+				"countDelta": txCount,
+			}).Info("[supplementOldTxCountToAccountList]", "success update account,rollback")
 			return
 		}
 	}
