@@ -116,7 +116,7 @@ func (crontab *Crontab) loop() {
 	var (
 		check10Sec = time.NewTicker(check10SecInterval)
 		check30Min = time.NewTicker(check30MinInterval)
-		//check1Hour = time.NewTicker(check1HourInterval)
+		check1Hour = time.NewTicker(check1HourInterval)
 	)
 	defer check10Sec.Stop()
 	go crontab.fetchOldLogs()
@@ -133,7 +133,7 @@ func (crontab *Crontab) loop() {
 	go crontab.SearchTempDeployToken()
 	//go crontab.supplementProposalReward()
 	go crontab.fetchOldBlockToMiner()
-	//go crontab.fetchConfirmRewardsToMinerBlock()
+	go crontab.fetchConfirmRewardsToMinerBlock()
 	go crontab.fetchOldTxCountToAccountList()
 
 	for {
@@ -150,8 +150,8 @@ func (crontab *Crontab) loop() {
 		case <-check30Min.C:
 			go crontab.UpdateTurnOver()
 			go crontab.SearchTempDeployToken()
-			//case <-check1Hour.C:
-			//go crontab.fetchConfirmRewardsToMinerBlock()
+		case <-check1Hour.C:
+			go crontab.fetchConfirmRewardsToMinerBlock()
 
 		}
 	}
@@ -174,8 +174,7 @@ func (crontab *Crontab) fetchConfirmRewardsToMinerBlock() {
 	if !atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 0, 1) {
 		return
 	}
-	//crontab.ConfirmRewardsToMinerBlock()
-	crontab.Reward2MinerBlockByAddress()
+	crontab.ConfirmRewardsToMinerBlock()
 	atomic.CompareAndSwapInt32(&crontab.isConfirmBlockReward, 1, 0)
 
 }
