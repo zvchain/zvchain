@@ -109,7 +109,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			}
 		}
 	}else{
-		err = triedb.Commit(b.Header.StateTree, false)
+		err = triedb.Commit(root, false)
 		if err != nil {
 			return fmt.Errorf("trie commit error:%s", err.Error())
 		}
