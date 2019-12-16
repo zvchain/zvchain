@@ -214,10 +214,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
-	GroupManagerImpl = group.NewManager(chain, helper)
-	chain.checkFastMode()
-
 	latestBH := chain.loadCurrentBlock()
+
+	GroupManagerImpl = group.NewManager(chain, helper)
+
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
 	sp := newStateProcessor(chain)
 	sp.addPostProcessor(GroupManagerImpl.RegularCheck)
@@ -248,6 +248,8 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.forkProcessor = initForkProcessor(chain, helper)
 
 	BlockChainImpl = chain
+
+	chain.checkTrustDb()
 
 	// db cache enabled
 	if iteratorNodeCacheSize > 0 {
