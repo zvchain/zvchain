@@ -812,7 +812,7 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 }
 
 func TestStatProposalRate(t *testing.T) {
-	params.InitChainConfig(1)
+	params.InitChainConfig(1,"")
 	common.InitConf("test1.ini")
 	chain, err := newBlockChainByDB("d_b")
 	if err != nil {

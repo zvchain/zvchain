@@ -33,4 +33,5 @@ type minerConfig struct {
 	resetHash         string
 	cors              string
 	privateKey        string
+	trustHash         string
 }

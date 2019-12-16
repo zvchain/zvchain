@@ -214,10 +214,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.stateCache = account.NewDatabase(chain.stateDb)
 
-	latestBH := chain.loadCurrentBlock()
-
 	GroupManagerImpl = group.NewManager(chain, helper)
+	chain.checkFastMode()
 
+	latestBH := chain.loadCurrentBlock()
 	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
 	sp := newStateProcessor(chain)
 	sp.addPostProcessor(GroupManagerImpl.RegularCheck)
@@ -242,7 +242,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 			return err
 		}
 	} else {
-		chain.insertGenesisBlock()
+		chain.insertGenesisBlock(true)
 	}
 
 	chain.forkProcessor = initForkProcessor(chain, helper)
@@ -307,7 +307,7 @@ func (chain *FullBlockChain) buildCache(size int) {
 
 // insertGenesisBlock creates the genesis block and some necessary information，
 // and commit it
-func (chain *FullBlockChain) insertGenesisBlock() {
+func (chain *FullBlockChain) insertGenesisBlock(commit bool) *types.Block {
 	stateDB, err := account.NewAccountDB(common.Hash{}, chain.stateCache)
 	if nil != err {
 		panic("Init block chain error:" + err.Error())
@@ -352,13 +352,14 @@ func (chain *FullBlockChain) insertGenesisBlock() {
 	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
 	block.Header.Hash = block.Header.GenHash()
-
-	ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
-	if !ok {
-		panic("insert genesis block fail, err=" + err.Error())
+	if commit {
+		ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
+		if !ok {
+			panic("insert genesis block fail, err=" + err.Error())
+		}
 	}
-
 	Logger.Debugf("GenesisBlock %+v", block.Header)
+	return block
 }
 
 // Clear clear blockchain all data. Not used now, should remove it latter

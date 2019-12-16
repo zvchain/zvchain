@@ -24,6 +24,8 @@ type ChainConfig struct {
 	// Chain id identifies the current chain
 	ChainId uint16
 
+	TrustHash string
+
 	// zip001 makes the block weight comparision more fair and random
 	ZIP001 uint64
 
@@ -36,8 +38,9 @@ var config = &ChainConfig{
 	ZIP002: 960388, // effect at : 2019-10-31 14:00:00
 }
 
-func InitChainConfig(chainId uint16) {
+func InitChainConfig(chainId uint16, trustHash string) {
 	config.ChainId = chainId
+	config.TrustHash = trustHash
 }
 
 func GetChainConfig() *ChainConfig {

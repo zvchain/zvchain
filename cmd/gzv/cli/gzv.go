@@ -18,14 +18,15 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/update"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/params"
-	"os"
-	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
@@ -66,7 +67,7 @@ var globalGzv *Gzv
 
 // miner start miner node
 func (gzv *Gzv) miner(cfg *minerConfig) error {
-	params.InitChainConfig(cfg.chainID)
+	params.InitChainConfig(cfg.chainID, cfg.trustHash)
 	gzv.config = cfg
 	gzv.runtimeInit()
 	err := gzv.fullInit()
@@ -182,6 +183,7 @@ func (gzv *Gzv) Run() {
 	natAddr := mineCmd.Flag("nat", "nat server address").Default("natproxy.zvchain.io").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("3100").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
+	trustHash := mineCmd.Flag("trusthash", "the trust point block hash for running a downloaded db").Short('t').Default("").String()
 
 	clearCmd := app.Command("clear", "Clear the data of blockchain")
 
@@ -235,6 +237,7 @@ func (gzv *Gzv) Run() {
 			resetHash:         *reset,
 			cors:              *cors,
 			privateKey:        *privKey,
+			trustHash:         *trustHash,
 		}
 		// Start miner
 		err := gzv.miner(cfg)
