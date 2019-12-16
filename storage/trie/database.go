@@ -876,7 +876,9 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 	if err := batch.Put(hash[:], v); err != nil {
 		return err
 	}
-	db.cache.Set(hash.Bytes(), v)
+	if db.cache != nil{
+		db.cache.Set(hash.Bytes(), v)
+	}
 	// If we've reached an optimal batch size, commit and start over
 	if batch.ValueSize() >= tasdb.IdealBatchSize {
 		if err := batch.Write(); err != nil {

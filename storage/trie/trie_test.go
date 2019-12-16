@@ -111,9 +111,15 @@ func TestReaptNodeCropRestart(t *testing.T) {
 	db2.Dereference(3, root3)
 
 	trie, _ = NewTrie(root6, db2)
-	fmt.Printf("value1 is %s \n",string(trie.Get([]byte("pabc111111111111111111111111111111111111111"))))
-	fmt.Printf("value2 is %s\n",string(trie.Get([]byte("zabc111111111111111111111111111111111111111"))))
 
+	v1 := string(trie.Get([]byte("pabc111111111111111111111111111111111111111")))
+	if v1 != "pabc11111111111111111111111111111111111111111111111111"{
+		t.Fatalf("need %v,but got %v","pabc11111111111111111111111111111111111111111111111111",v1)
+	}
+	v2 := string(trie.Get([]byte("zabc111111111111111111111111111111111111111")))
+	if v2 != "pabc1111333333111111111111111111111111111111111"{
+		t.Fatalf("need %v,but got %v","pabc1111333333111111111111111111111111111111111",v2)
+	}
 }
 
 func TestReaptNodeCropInMemory(t *testing.T) {
@@ -180,8 +186,14 @@ func TestReaptNodeCropInMemory(t *testing.T) {
 	nd.Dereference(3, root3)
 
 	trie, _ = NewTrie(root6, nd)
-	fmt.Printf("value1 is %s \n",string(trie.Get([]byte("pabc111111111111111111111111111111111111111"))))
-	fmt.Printf("value2 is %s\n",string(trie.Get([]byte("zabc111111111111111111111111111111111111111"))))
+	v1 := string(trie.Get([]byte("pabc111111111111111111111111111111111111111")))
+	if v1 != "pabc11111111111111111111111111111111111111111111111111"{
+		t.Fatalf("need %v,but got %v","pabc11111111111111111111111111111111111111111111111111",v1)
+	}
+	v2 := string(trie.Get([]byte("zabc111111111111111111111111111111111111111")))
+	if v2 != "pabc1111333333111111111111111111111111111111111"{
+		t.Fatalf("need %v,but got %v","pabc1111333333111111111111111111111111111111111",v2)
+	}
 }
 
 func TestGCInsert(t *testing.T) {
