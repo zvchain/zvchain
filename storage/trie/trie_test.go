@@ -43,61 +43,148 @@ func newTrieFromMemDB(root common.Hash) (*Trie, error) {
 	return trie, err
 }
 
-func TestGCInsert(t *testing.T) {
+func TestReaptNodeCropRestart(t *testing.T) {
 	dir, nd := tempDB()
 	defer func() {
 		os.Remove(dir)
 	}()
+
+	fmt.Printf("==================================height 1=============================\n ")
 	// height = 1
 	trie, _ := NewTrie(common.Hash{}, nd)
-	trie.Update([]byte("t1"), []byte("t1value"))
-	trie.Update([]byte("t2"), []byte("t2value"))
-	trie.Update([]byte("t3"), []byte("t3value"))
-	trie.Update([]byte("t4"), []byte("t4value"))
+	trie.Update([]byte("pabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("xab222222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdfdfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
 	root1, _ := trie.Commit(nil)
 	nd.Reference(root1, common.Hash{})
+	nd.Commit(root1, false)
 
-	// height = 2
+	fmt.Printf("==================================height 2=============================\n ")
+
+	//// height = 2
 	trie, _ = NewTrie(root1, nd)
-	trie.Update([]byte("t1"), []byte("t1value1"))
-	trie.Update([]byte("t2"), []byte("t2value1"))
-	trie.Update([]byte("t5"), []byte("t5value"))
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("x11ab22221212222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdf2221dfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
 	root2, _ := trie.Commit(nil)
 	nd.Reference(root2, common.Hash{})
-
-	// height = 3
-	trie, _ = NewTrie(root2, nd)
-	trie.Update([]byte("t1"), []byte("t1value2"))
-	trie.Update([]byte("t3"), []byte("t3value1"))
-	root3, _ := trie.Commit(nil)
-	nd.Reference(root3, common.Hash{})
-
-	// height = 4
-	trie, _ = NewTrie(root2, nd)
-	trie.Update([]byte("t1"), []byte("t1value3"))
-	trie.Update([]byte("t3"), []byte("t3value2"))
-	root4, _ := trie.Commit(nil)
-	nd.Reference(root4, common.Hash{})
-
-	// begin gc height 1
-	nd.Dereference(1, root1, nil)
-
-	fmt.Printf("before size= %v \n", nd.nodes)
-	// commit height 4
-	nd.Commit(root4, false)
-
-	fmt.Printf("after size= %v \n", nd.nodes)
-
+	nd.Commit(root2, false)
 	nd.diskdb.Close()
 
-	//shut down
+	fmt.Printf("==================================restart=============================\n ")
+	fmt.Printf("==================================height 3=============================\n ")
+
 	db2 := newDbFromDir(dir)
+	trie, _ = NewTrie(root2, db2)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root3, _ := trie.Commit(nil)
+	db2.Reference(root3, common.Hash{})
+	db2.Commit(root3, false)
+
+	fmt.Printf("==================================height 4=============================\n ")
+	trie, _ = NewTrie(root3, db2)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	root4, _ := trie.Commit(nil)
+	db2.Reference(root4, common.Hash{})
+	db2.Commit(root4, false)
+
+
+	fmt.Printf("==================================height 5=============================\n ")
 	trie, _ = NewTrie(root4, db2)
-	vl := trie.Get([]byte("t5"))
-	if string(vl) != "t5value" {
-		t.Fatalf("expect %s,but got %s", "t5value", vl)
-	}
-	db2.diskdb.Close()
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root5, _ := trie.Commit(nil)
+	db2.Reference(root5, common.Hash{})
+	db2.Commit(root5, false)
+
+	fmt.Printf("==================================height 6=============================\n ")
+	trie, _ = NewTrie(root5, db2)
+	trie.Update([]byte("333334343"), []byte("3232323232323"))
+	root6, _ := trie.Commit(nil)
+	db2.Reference(root6, common.Hash{})
+	db2.Commit(root6, false)
+
+	dirtyStates := []*common.Hash{}
+	db2.Dereference(5, root5, &dirtyStates)
+	db2.Dereference(4, root4, &dirtyStates)
+	db2.Dereference(3, root3, &dirtyStates)
+	db2.BatchDeleteDirtyState(dirtyStates)
+
+	trie, _ = NewTrie(root6, db2)
+	fmt.Printf("value1 is %s \n",string(trie.Get([]byte("pabc111111111111111111111111111111111111111"))))
+	fmt.Printf("value2 is %s\n",string(trie.Get([]byte("zabc111111111111111111111111111111111111111"))))
+
+}
+
+func TestReaptNodeCropInMemory(t *testing.T) {
+	dir, nd := tempDB()
+	defer func() {
+		os.Remove(dir)
+	}()
+
+	fmt.Printf("==================================height 1=============================\n ")
+	// height = 1
+	trie, _ := NewTrie(common.Hash{}, nd)
+	trie.Update([]byte("pabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("xab222222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdfdfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
+	root1, _ := trie.Commit(nil)
+	nd.Reference(root1, common.Hash{})
+	nd.Commit(root1, false)
+
+	fmt.Printf("==================================height 2=============================\n ")
+
+	//// height = 2
+	trie, _ = NewTrie(root1, nd)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("x11ab22221212222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdf2221dfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
+	root2, _ := trie.Commit(nil)
+	nd.Reference(root2, common.Hash{})
+	nd.Commit(root2, false)
+
+	fmt.Printf("==================================height 3=============================\n ")
+
+	trie, _ = NewTrie(root2, nd)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root3, _ := trie.Commit(nil)
+	nd.Reference(root3, common.Hash{})
+	nd.Commit(root3, false)
+
+	fmt.Printf("==================================height 4=============================\n ")
+	trie, _ = NewTrie(root3, nd)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	root4, _ := trie.Commit(nil)
+	nd.Reference(root4, common.Hash{})
+	nd.Commit(root4, false)
+
+
+	fmt.Printf("==================================height 5=============================\n ")
+	trie, _ = NewTrie(root4, nd)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root5, _ := trie.Commit(nil)
+	nd.Reference(root5, common.Hash{})
+	nd.Commit(root5, false)
+
+	fmt.Printf("==================================height 6=============================\n ")
+	trie, _ = NewTrie(root5, nd)
+	trie.Update([]byte("333334343"), []byte("3232323232323"))
+	root6, _ := trie.Commit(nil)
+	nd.Reference(root6, common.Hash{})
+	nd.Commit(root6, false)
+
+	dirtyStates := []*common.Hash{}
+	nd.Dereference(5, root5, &dirtyStates)
+	nd.Dereference(4, root4, &dirtyStates)
+	nd.Dereference(3, root3, &dirtyStates)
+	nd.BatchDeleteDirtyState(dirtyStates)
+
+	trie, _ = NewTrie(root6, nd)
+	fmt.Printf("value1 is %s \n",string(trie.Get([]byte("pabc111111111111111111111111111111111111111"))))
+	fmt.Printf("value2 is %s\n",string(trie.Get([]byte("zabc111111111111111111111111111111111111111"))))
 }
 
 func TestEmptyTrie(t *testing.T) {
