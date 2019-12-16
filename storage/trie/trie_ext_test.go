@@ -23,14 +23,14 @@ import (
 )
 
 // Used for testing
-func newEmptyFromDB(dir string) *Trie {
+func newTrieFromDB(dir string, root common.Hash) *Trie {
 	db, _ := tasdb.NewLDBDatabase(dir, nil)
-	trie, _ := NewTrie(common.Hash{}, NewDatabase(db))
+	trie, _ := NewTrie(root, NewDatabase(db, 0, "", false))
 	return trie
 }
 
 func TestTrie_VerifyIntegrity(t *testing.T) {
-	trie := newEmptyFromDB("test_trie")
+	trie := newTrieFromDB("test_trie", common.Hash{})
 
 	trie.TryUpdate([]byte("1"), []byte("abc"))
 	trie.TryUpdate([]byte("12"), []byte("abcd"))
@@ -40,8 +40,6 @@ func TestTrie_VerifyIntegrity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root1 := root
-
 	err = trie.db.Commit(root, false)
 	if err != nil {
 		t.Fatal("commit error", err)
@@ -77,7 +75,7 @@ func TestTrie_VerifyIntegrity(t *testing.T) {
 		t.Fatal("commit error", err)
 	}
 
-	ok, err := trie.VerifyIntegrity(root1)
+	ok, err := trie.VerifyIntegrity(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,8 +86,8 @@ func TestTrie_VerifyIntegrity_FromFile(t *testing.T) {
 	if _, err := os.Stat("test_trie"); err != nil && os.IsNotExist(err) {
 		return
 	}
-	trie := newEmptyFromDB("test_trie")
-	ok, err := trie.VerifyIntegrity(common.HexToHash("0x30d38a45ef853e4ea2477074b7a39d2608441e2268812dd0a35ba3413694656d"))
+	trie := newTrieFromDB("test_trie", common.HexToHash("0x30d38a45ef853e4ea2477074b7a39d2608441e2268812dd0a35ba3413694656d"))
+	ok, err := trie.VerifyIntegrity(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,11 +101,11 @@ func TestTrie_VerifyIntegrity_AfterDropKey(t *testing.T) {
 	if _, err := os.Stat("test_trie"); err != nil && os.IsNotExist(err) {
 		return
 	}
-	trie := newEmptyFromDB("test_trie")
+	trie := newTrieFromDB("test_trie", common.HexToHash("0x30d38a45ef853e4ea2477074b7a39d2608441e2268812dd0a35ba3413694656d"))
 
 	trie.db.diskdb.Delete(common.FromHex("0x79cf1279aa2a59f07e5bf539e6f63a86983c2341d9b851b16d55bb0e6cc539d3"))
 
-	ok, _ := trie.VerifyIntegrity(common.HexToHash("0x30d38a45ef853e4ea2477074b7a39d2608441e2268812dd0a35ba3413694656d"), nil)
+	ok, _ := trie.VerifyIntegrity(nil, nil)
 
 	if ok {
 		t.Fatalf("verify fail:should be missing node")

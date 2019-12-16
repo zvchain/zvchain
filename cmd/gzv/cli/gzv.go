@@ -186,13 +186,15 @@ func (gzv *Gzv) Run() {
 	clearCmd := app.Command("clear", "Clear the data of blockchain")
 
 	replayCmd := app.Command("replay", "replay the existing blocks")
-	srcDir := replayCmd.Flag("src", "directory of data to be pruned").Required().String()
-	destDir := replayCmd.Flag("dest", "directory of pruned-data").String()
+	srcDir := replayCmd.Flag("src", "directory of database for replaying").Required().String()
+	destDir := replayCmd.Flag("dest", "directory of database for storing the replayed data").String()
 
 	pruneCmd := app.Command("prune", "fully prune state data offline")
 	srcDB := pruneCmd.Flag("db", "database directory for pruning").Required().String()
 	memSize := pruneCmd.Flag("mem", "memory size for store node data, default is 256MB").Default("256").Int()
 	outFile := pruneCmd.Flag("out", "file for output the pruning process, default is stdout").Default("").String()
+	cacheDir := pruneCmd.Flag("cachedir", "directory for loading cache data, ignored if onlyverify is specified").Default("").String()
+	verifiy := pruneCmd.Flag("onlyverify", "whether to only verify the integrity of the specified database, specially pruned-database").Default("false").Bool()
 
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -308,11 +310,19 @@ func (gzv *Gzv) Run() {
 		output("replay finished")
 
 	case pruneCmd.FullCommand():
-		tailor, err := core.NewOfflineTailor(*srcDB, *memSize, *outFile)
+		log.Init()
+		tailor, err := core.NewOfflineTailor(*srcDB, *memSize, *cacheDir, *outFile, *verifiy)
 		if err != nil {
 			output("start fail %v", err)
 		}
-		tailor.Pruning()
+		if *verifiy {
+			err := tailor.Verify()
+			if err != nil {
+				output("verify fail %v", err)
+			}
+		} else {
+			tailor.Pruning()
+		}
 		os.Exit(0)
 	}
 	<-quitChan

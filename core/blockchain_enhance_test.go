@@ -39,13 +39,14 @@ func TestFullBlockChain_IntegrityVerify(t *testing.T) {
 		fmt.Printf("key %v, items %v, cost %v\n", stat.Addr.AddrPrefixString(), stat.DataCount, stat.Cost.String())
 	}
 
-	chain, _ := newBlockChainByDB("/Volumes/Untitled/db2")
+	chain, _ := newBlockChainByDB("/Volumes/darren-sata/d_b_20191211")
+	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, 300, "/Users/pxf/go_lib/src/github.com/zvchain/zvchain/local_test/cache-store")
 	if chain == nil {
 		return
 	}
 	top := chain.Height()
 	fmt.Println(top)
-	ok, err := chain.IntegrityVerify(543224, cb, nil)
+	ok, err := chain.IntegrityVerify(19700, cb, nil)
 	if !ok {
 		t.Errorf("verify fail %v", err)
 	}

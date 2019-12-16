@@ -33,7 +33,7 @@ type checkErrorFn func() error
 //
 // This method is extremely CPU and disk intensive, and time consuming, only use when must.
 func (t *Trie) VerifyIntegrity(onleaf ExtLeafCallback, resolve ResolveNodeCallback) (bool, error) {
-	return t.verifyIntegrity(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, false, nil)
+	return t.verifyIntegrity(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, true, nil)
 }
 
 func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback) (bool, error) {
@@ -106,6 +106,7 @@ func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCall
 		}
 	case hashNode:
 		hash := common.BytesToHash(n)
+
 		var (
 			resolvedNode node
 			data         []byte

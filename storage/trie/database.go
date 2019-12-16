@@ -17,12 +17,16 @@
 package trie
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/zvchain/zvchain/log"
 	"io"
+	"os"
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -65,6 +69,7 @@ type NodeDatabase struct {
 	curSequence uint64                      // Record node max curSequence,only add
 	nodes       map[common.Hash]*cachedNode // Data and references relationships of a node
 	cache       *fastcache.Cache
+	cacheDir    string     // Directory for storing the cached data
 	meter       *readMeter // meter about node hit or cache hit
 
 	oldest common.Hash // Oldest tracked node, flush-list head
@@ -276,17 +281,34 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb tasdb.Database, cacheSize int, gcEnable bool) *NodeDatabase {
+func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable bool) *NodeDatabase {
 	var cache *fastcache.Cache
-	if cacheSize > 0 {
+	if cacheDir != "" {
+		_, err := os.Stat(cacheDir)
+		if err == nil {
+			begin := time.Now()
+			c, err := fastcache.LoadFromFile(cacheDir)
+			if err == nil {
+				cache = c
+				stat := &fastcache.Stats{}
+				c.UpdateStats(stat)
+				log.CoreLogger.Infof("load cache from file %v success, size %vMB, entry count %v, cost %v", cacheDir, stat.BytesSize/1024.0/1024.0, stat.EntriesCount, time.Since(begin).String())
+			} else {
+				log.CoreLogger.Errorf("load cache dir %v error %v", cacheDir, err)
+			}
+		}
+	}
+	if cache == nil && cacheSize > 0 {
 		cache = fastcache.New(cacheSize * 1024 * 1024)
 	}
+
 	return &NodeDatabase{
 		diskdb:    diskdb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
 		preimages: make(map[common.Hash][]byte),
 		enableGc:  gcEnable,
 		cache:     cache,
+		cacheDir:  cacheDir,
 		meter:     &readMeter{},
 	}
 }
@@ -360,14 +382,20 @@ func (db *NodeDatabase) tryGetFromCache(hash common.Hash) []byte {
 	atomic.AddUint64(&db.meter.readCount, 1)
 	if db.cache != nil {
 		meter := db.meter
+		if meter.readCount%3000 == 0 {
+			stat := &fastcache.Stats{}
+			db.cache.UpdateStats(stat)
+			log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
+				meter.readCount, stat.BytesSize/1024/1024.0, meter.cacheHit, float64(meter.cacheHit)/float64(meter.readCount), meter.nodeHit, float64(meter.nodeHit)/float64(meter.readCount), meter.hitSize/1024.0/1024.0,
+				float64(meter.miss)/float64(meter.readCount), meter.missSize/1024.0/1024.0)
+
+			s, _ := json.Marshal(stat)
+			str := strings.ReplaceAll(string(s), "\"", "")
+			log.CoreLogger.Infof("fastcache meter %v", str)
+		}
 		if enc := db.cache.Get(nil, hash[:]); enc != nil {
 			atomic.AddUint64(&meter.cacheHit, 1)
 			atomic.AddUint64(&meter.hitSize, uint64(len(enc)))
-			if meter.readCount%1000 == 0 {
-				log.CoreLogger.Infof("fastcache total %v, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
-					meter.readCount, meter.cacheHit, float64(meter.cacheHit)/float64(meter.readCount), meter.nodeHit, float64(meter.nodeHit)/float64(meter.readCount), meter.hitSize/1024.0/1024.0,
-					float64(meter.miss)/float64(meter.readCount), meter.missSize/1024.0/1024.0)
-			}
 			return enc
 		}
 	}
@@ -930,4 +958,35 @@ func (db *NodeDatabase) accumulate(hash common.Hash, reachable map[common.Hash]s
 	for _, child := range node.childs() {
 		db.accumulate(child, reachable)
 	}
+}
+
+func (db *NodeDatabase) printPath(root common.Hash, height uint64, rets []common.Hash) {
+	node, ok := db.nodes[root]
+	if !ok {
+		return
+	}
+	if root.Hex() == "0x3b479abb8f2487e1a0ada92bc5ba9abf880f8af9c63e9304b22030abe9fc4aaa" {
+		rets = append(rets, root)
+		fmt.Println(height, rets)
+		return
+	}
+
+	for _, child := range node.childs() {
+		temp := make([]common.Hash, len(rets))
+		copy(temp, rets)
+		db.printPath(child, height, append(temp, root))
+	}
+}
+
+func (db *NodeDatabase) SaveCache() error {
+	if db.cache == nil || db.cacheDir == "" {
+		return nil
+	}
+	stat := &fastcache.Stats{}
+	db.cache.UpdateStats(stat)
+	begin := time.Now()
+	log.CoreLogger.Infof("start to save cache to file...")
+	err := db.cache.SaveToFileConcurrent(db.cacheDir, runtime.NumCPU())
+	log.CoreLogger.Infof("save cache to file %v success, size %vMB, entry count %v, cost %v", db.cacheDir, stat.BytesSize/1024.0/1024.0, stat.EntriesCount, time.Since(begin).String())
+	return err
 }

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -33,10 +34,12 @@ type OfflineTailor struct {
 	dataSource string
 	memSize    int
 	outFile    string
+	onlyVerify bool
 
 	start        time.Time
 	chain        *FullBlockChain
 	out          io.Writer
+	checkpoint   uint64
 	usedNodes    map[common.Hash]struct{}
 	incUsedNodes uint64
 	usedSize     uint64
@@ -47,9 +50,9 @@ type OfflineTailor struct {
 	lock sync.RWMutex
 }
 
-func NewOfflineTailor(dir string, mem int, out string) (*OfflineTailor, error) {
+func NewOfflineTailor(dbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
 	config := &BlockChainConfig{
-		dbfile:      dir,
+		dbfile:      dbDir,
 		block:       "bh",
 		blockHeight: "hi",
 		state:       "st",
@@ -91,16 +94,29 @@ func NewOfflineTailor(dir string, mem int, out string) (*OfflineTailor, error) {
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return nil, err
 	}
-	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem)
+	if onlyVerify {
+		// Won't load cache data from file in only verify mode，
+		// Just in case the problem that the node was erased is covered up
+		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, "")
+	} else {
+		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, cacheDir)
+	}
 	chain.latestBlock = chain.loadCurrentBlock()
-	//chain.LatestCheckPoint()
+
+	cpChecker := newCpChecker(nil, chain)
+	cp, err := cpChecker.calcCheckPointWithoutGroup(chain.Height())
+	if err != nil {
+		return nil, fmt.Errorf("fail to get latest checkpoint, err %v", err)
+	}
 
 	tailor := &OfflineTailor{
-		dataSource: dir,
+		dataSource: dbDir,
 		memSize:    mem,
 		chain:      chain,
 		outFile:    out,
 		usedNodes:  make(map[common.Hash]struct{}),
+		checkpoint: cp,
+		onlyVerify: onlyVerify,
 	}
 	if out == "" {
 		tailor.out = os.Stdout
@@ -146,17 +162,33 @@ func (t *OfflineTailor) nodeUsed(hash common.Hash) bool {
 }
 
 func (t *OfflineTailor) collectUsedNodes() error {
-	//latestCP := t.chain.LatestCheckPoint()
-	const noPruneBlock = 480
+	const noPruneBlock = TriesInMemory
 
-	h := t.chain.Height()
+	top := t.chain.Height()
+	if top <= noPruneBlock {
+		return fmt.Errorf("height less than %v, won't prune", noPruneBlock)
+	}
+	// Find the all heights to be collect nodes
+	collectBlockHeights := make([]uint64, 0)
 	cnt := uint64(0)
-	begin := time.Now()
-	for cnt < noPruneBlock {
-		if !t.chain.hasHeight(h) {
-			h--
-			continue
+	for s := top; cnt < noPruneBlock; s-- {
+		if t.chain.hasHeight(s) {
+			collectBlockHeights = append(collectBlockHeights, s)
+			if s <= t.checkpoint {
+				cnt++
+			}
 		}
+		if s == 0 {
+			break
+		}
+	}
+	if uint64(len(collectBlockHeights)) < noPruneBlock {
+		return fmt.Errorf("real heights less than %v, won't prune", noPruneBlock)
+	}
+	t.info("all blocks need to collect using nodes: %v(%v-%v)", len(collectBlockHeights), collectBlockHeights[len(collectBlockHeights)-1], collectBlockHeights[0])
+	begin := time.Now()
+	for i := len(collectBlockHeights) - 1; i >= 0; i-- {
+		h := collectBlockHeights[i]
 		t.info("start collect block %v", h)
 		b := time.Now()
 		t.incUsedNodes = 0
@@ -166,14 +198,6 @@ func (t *OfflineTailor) collectUsedNodes() error {
 		}
 		s, c := t.usedNodeStat()
 		t.info("collect %v finish, totalNodes %v, incNodes %v, totalSize %vMB, cost %v", h, c, t.incUsedNodes, float64(s)/1024/1024, time.Since(b).String())
-		//if h <= latestCP.Height {
-		//	cnt++
-		//}
-		cnt++
-		if h == 0 {
-			break
-		}
-		h--
 	}
 	s, c := t.usedNodeStat()
 	t.info("collect nodes finished, cost %v, usedNode %v, size %vMB, start erasing...", time.Since(begin).String(), c, float64(s)/1024/1024)
@@ -181,27 +205,25 @@ func (t *OfflineTailor) collectUsedNodes() error {
 }
 
 func (t *OfflineTailor) eraseBatch(batch tasdb.Batch, cnt, size uint64, start, thisRoundBegin time.Time) {
-	if batch.ValueSize() > 10240 {
-		writeBegin := time.Now()
-		if err := batch.Write(); err != nil {
-			t.info("write batch error %v", err)
-			return
-		}
-		thisRoundCost := time.Since(thisRoundBegin)
-		atomic.AddUint64(&t.accumulatePrunedNodes, cnt)
-		atomic.AddUint64(&t.accumulatePrunedSize, size)
-
-		rtSpeed := float64(size) / 1024 / 1024 / thisRoundCost.Seconds()
-		totalCost := time.Since(start)
-
-		t.info("erasing nodes %v, size %vKB, speed %.2fMB/s, realtimeSpeed %.2fMB/s, totalCost %v, writeCost %v", t.accumulatePrunedNodes, float64(t.accumulatePrunedSize/1024/1024), float64(t.accumulatePrunedSize)/1024/1024/totalCost.Seconds(), rtSpeed,
-			time.Since(thisRoundBegin).String(), time.Since(writeBegin).String())
-
-		batch.Reset()
-		cnt = 0
-		size = 0
-		thisRoundBegin = time.Now()
+	writeBegin := time.Now()
+	if err := batch.Write(); err != nil {
+		t.info("write batch error %v", err)
+		return
 	}
+	thisRoundCost := time.Since(thisRoundBegin)
+	atomic.AddUint64(&t.accumulatePrunedNodes, cnt)
+	atomic.AddUint64(&t.accumulatePrunedSize, size)
+
+	rtSpeed := float64(size) / 1024 / 1024 / thisRoundCost.Seconds()
+	totalCost := time.Since(start)
+
+	t.info("erasing nodes %v, size %vMB, speed %.2fMB/s, realtimeSpeed %.2fMB/s, totalCost %v, writeCost %v", t.accumulatePrunedNodes, float64(t.accumulatePrunedSize/1024/1024), float64(t.accumulatePrunedSize)/1024/1024/totalCost.Seconds(), rtSpeed,
+		time.Since(thisRoundBegin).String(), time.Since(writeBegin).String())
+
+	batch.Reset()
+	cnt = 0
+	size = 0
+	thisRoundBegin = time.Now()
 }
 
 func (t *OfflineTailor) eraseNodes() {
@@ -218,7 +240,7 @@ func (t *OfflineTailor) eraseNodes() {
 			size += uint64(len(iter.Value()))
 			batch.Delete(iter.Key())
 		}
-		if batch.ValueSize() > 1024 {
+		if batch.ValueSize() > 50000 {
 			t.eraseBatch(batch, cnt, size, start, begin)
 
 			batch.Reset()
@@ -236,7 +258,49 @@ func (t *OfflineTailor) eraseNodes() {
 
 func (t *OfflineTailor) Pruning() {
 	err := t.collectUsedNodes()
+	t.chain.stateCache.TrieDB().SaveCache()
 	if err == nil {
 		t.eraseNodes()
+		prefix := getBlockChainConfig().state
+		t.info("start compaction...")
+		begin := time.Now()
+		t.chain.blocks.GetDB().CompactRange(util.Range{Start: append([]byte(prefix), 0x00), Limit: append([]byte(prefix), 0xff)})
+		t.info("compaction finished, cost %v", time.Since(begin).String())
 	}
+}
+
+func (t *OfflineTailor) Verify() error {
+	const noPruneBlock = TriesInMemory
+
+	// Find the all heights to be verified
+	verifyBlockHeights := make([]uint64, 0)
+	cnt := uint64(0)
+	for s := t.chain.Height(); cnt < noPruneBlock; s-- {
+		if t.chain.hasHeight(s) {
+			verifyBlockHeights = append(verifyBlockHeights, s)
+			if s <= t.checkpoint {
+				cnt++
+			}
+		}
+		if s == 0 {
+			break
+		}
+	}
+
+	t.info("all blocks need to verify: %v(%v-%v)", len(verifyBlockHeights), verifyBlockHeights[len(verifyBlockHeights)-1], verifyBlockHeights[0])
+	begin := time.Now()
+	for i := len(verifyBlockHeights) - 1; i >= 0; i-- {
+		h := verifyBlockHeights[i]
+		t.info("start verify block %v", h)
+		b := time.Now()
+		if _, err := t.chain.IntegrityVerify(h, func(stat *account.VerifyStat) {
+			t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, codeSize %v, cost %v", stat.Addr, h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize, stat.CodeSize, stat.Cost.String())
+		}, nil); err != nil {
+			t.info("verify block %v fail, err %v", h, err)
+			return err
+		}
+		t.info("verify %v finish, cost %v", h, time.Since(b).String())
+	}
+	t.info("verify nodes finished, cost %v", time.Since(begin).String())
+	return nil
 }
