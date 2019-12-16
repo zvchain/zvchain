@@ -43,6 +43,147 @@ func newEmpty() *Trie {
 
 var dataMap = make(map[string]interface{})
 
+
+func TestReaptNodeCropRestart(t *testing.T) {
+	dir, nd := tempDB()
+	defer func() {
+		os.Remove(dir)
+	}()
+
+	fmt.Printf("==================================height 1=============================\n ")
+	// height = 1
+	trie, _ := NewTrie(common.Hash{}, nd)
+	trie.Update([]byte("pabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("xab222222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdfdfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
+	root1, _ := trie.Commit(nil)
+	nd.Reference(root1, common.Hash{})
+	nd.Commit(root1, false)
+
+	fmt.Printf("==================================height 2=============================\n ")
+
+	//// height = 2
+	trie, _ = NewTrie(root1, nd)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("x11ab22221212222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdf2221dfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
+	root2, _ := trie.Commit(nil)
+	nd.Reference(root2, common.Hash{})
+	nd.Commit(root2, false)
+	nd.diskdb.Close()
+
+	fmt.Printf("==================================restart=============================\n ")
+	fmt.Printf("==================================height 3=============================\n ")
+
+	db2 := newDbFromDir(dir)
+	trie, _ = NewTrie(root2, db2)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root3, _ := trie.Commit(nil)
+	db2.Reference(root3, common.Hash{})
+	db2.Commit(root3, false)
+
+	fmt.Printf("==================================height 4=============================\n ")
+	trie, _ = NewTrie(root3, db2)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	root4, _ := trie.Commit(nil)
+	db2.Reference(root4, common.Hash{})
+	db2.Commit(root4, false)
+
+
+	fmt.Printf("==================================height 5=============================\n ")
+	trie, _ = NewTrie(root4, db2)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root5, _ := trie.Commit(nil)
+	db2.Reference(root5, common.Hash{})
+	db2.Commit(root5, false)
+
+	fmt.Printf("==================================height 6=============================\n ")
+	trie, _ = NewTrie(root5, db2)
+	trie.Update([]byte("333334343"), []byte("3232323232323"))
+	root6, _ := trie.Commit(nil)
+	db2.Reference(root6, common.Hash{})
+	db2.Commit(root6, false)
+
+	db2.Dereference(5, root5)
+	db2.Dereference(4, root4)
+	db2.Dereference(3, root3)
+
+	trie, _ = NewTrie(root6, db2)
+	fmt.Printf("value1 is %s \n",string(trie.Get([]byte("pabc111111111111111111111111111111111111111"))))
+	fmt.Printf("value2 is %s\n",string(trie.Get([]byte("zabc111111111111111111111111111111111111111"))))
+
+}
+
+func TestReaptNodeCropInMemory(t *testing.T) {
+	dir, nd := tempDB()
+	defer func() {
+		os.Remove(dir)
+	}()
+
+	fmt.Printf("==================================height 1=============================\n ")
+	// height = 1
+	trie, _ := NewTrie(common.Hash{}, nd)
+	trie.Update([]byte("pabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("xab222222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdfdfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
+	root1, _ := trie.Commit(nil)
+	nd.Reference(root1, common.Hash{})
+	nd.Commit(root1, false)
+
+	fmt.Printf("==================================height 2=============================\n ")
+
+	//// height = 2
+	trie, _ = NewTrie(root1, nd)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	trie.Update([]byte("x11ab22221212222222222222222"), []byte("ssssssssssssssssssssssssss"))
+	trie.Update([]byte("dsdf2221dfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
+	root2, _ := trie.Commit(nil)
+	nd.Reference(root2, common.Hash{})
+	nd.Commit(root2, false)
+
+	fmt.Printf("==================================height 3=============================\n ")
+
+	trie, _ = NewTrie(root2, nd)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root3, _ := trie.Commit(nil)
+	nd.Reference(root3, common.Hash{})
+	nd.Commit(root3, false)
+
+	fmt.Printf("==================================height 4=============================\n ")
+	trie, _ = NewTrie(root3, nd)
+	trie.SetCacheLimit(100)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
+	root4, _ := trie.Commit(nil)
+	nd.Reference(root4, common.Hash{})
+	nd.Commit(root4, false)
+
+
+	fmt.Printf("==================================height 5=============================\n ")
+	trie, _ = NewTrie(root4, nd)
+	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
+	root5, _ := trie.Commit(nil)
+	nd.Reference(root5, common.Hash{})
+	nd.Commit(root5, false)
+
+	fmt.Printf("==================================height 6=============================\n ")
+	trie, _ = NewTrie(root5, nd)
+	trie.Update([]byte("333334343"), []byte("3232323232323"))
+	root6, _ := trie.Commit(nil)
+	nd.Reference(root6, common.Hash{})
+	nd.Commit(root6, false)
+
+	nd.Dereference(5, root5)
+	nd.Dereference(4, root4)
+	nd.Dereference(3, root3)
+
+	trie, _ = NewTrie(root6, nd)
+	fmt.Printf("value1 is %s \n",string(trie.Get([]byte("pabc111111111111111111111111111111111111111"))))
+	fmt.Printf("value2 is %s\n",string(trie.Get([]byte("zabc111111111111111111111111111111111111111"))))
+}
+
 func TestGCInsert(t *testing.T) {
 	dir, nd := tempDB()
 	defer func() {
@@ -654,7 +795,7 @@ func tempDB() (string, *NodeDatabase) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
-	return dir, NewDatabase(diskdb, 0, false)
+	return dir, NewDatabase(diskdb, 0, true)
 }
 
 func newDbFromDir(dir string) *NodeDatabase {
@@ -662,7 +803,7 @@ func newDbFromDir(dir string) *NodeDatabase {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
-	return NewDatabase(diskdb, 0, false)
+	return NewDatabase(diskdb, 0, true)
 }
 
 func getString(trie *Trie, k string) []byte {
