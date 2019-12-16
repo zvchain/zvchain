@@ -19,8 +19,8 @@ package trie
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/syndtr/goleveldb/leveldb/errors"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -34,14 +34,14 @@ import (
 	"github.com/zvchain/zvchain/storage/tasdb"
 )
 
-// Used for testing
-func newEmpty() *Trie {
-	db, _ := tasdb.NewMemDatabase()
-	trie, _ := NewTrie(common.Hash{}, NewDatabase(db, 0, false))
-	return trie
-}
-
 var dataMap = make(map[string]interface{})
+
+// Used for testing
+func newTrieFromMemDB(root common.Hash) (*Trie, error) {
+	db, _ := tasdb.NewMemDatabase()
+	trie, err := NewTrie(root, NewDatabase(db, 0, "", false))
+	return trie, err
+}
 
 
 func TestReaptNodeCropRestart(t *testing.T) {
@@ -122,7 +122,7 @@ func TestReaptNodeCropRestart(t *testing.T) {
 	}
 }
 
-func TestReaptNodeCropInMemory(t *testing.T) {
+func TestReaptNodeCropInMemory(t *testing.T){
 	dir, nd := tempDB()
 	defer func() {
 		os.Remove(dir)
@@ -196,64 +196,6 @@ func TestReaptNodeCropInMemory(t *testing.T) {
 	}
 }
 
-func TestGCInsert(t *testing.T) {
-	dir, nd := tempDB()
-	defer func() {
-		os.Remove(dir)
-	}()
-	// height = 1
-	trie, _ := NewTrie(common.Hash{}, nd)
-	trie.Update([]byte("t1"), []byte("t1value"))
-	trie.Update([]byte("t2"), []byte("t2value"))
-	trie.Update([]byte("t3"), []byte("t3value"))
-	trie.Update([]byte("t4"), []byte("t4value"))
-	root1, _ := trie.Commit(nil)
-	nd.Reference(root1, common.Hash{})
-
-	// height = 2
-	trie, _ = NewTrie(root1, nd)
-	trie.Update([]byte("t1"), []byte("t1value1"))
-	trie.Update([]byte("t2"), []byte("t2value1"))
-	trie.Update([]byte("t5"), []byte("t5value"))
-	root2, _ := trie.Commit(nil)
-	nd.Reference(root2, common.Hash{})
-
-	// height = 3
-	trie, _ = NewTrie(root2, nd)
-	trie.Update([]byte("t1"), []byte("t1value2"))
-	trie.Update([]byte("t3"), []byte("t3value1"))
-	root3, _ := trie.Commit(nil)
-	nd.Reference(root3, common.Hash{})
-
-	// height = 4
-	trie, _ = NewTrie(root2, nd)
-	trie.Update([]byte("t1"), []byte("t1value3"))
-	trie.Update([]byte("t3"), []byte("t3value2"))
-	root4, _ := trie.Commit(nil)
-	nd.Reference(root4, common.Hash{})
-
-	// begin gc height 1
-
-	nd.Dereference(1, root1)
-
-
-	fmt.Printf("before size= %v \n", nd.nodes)
-	// commit height 4
-	nd.Commit(root4, false)
-
-	fmt.Printf("after size= %v \n", nd.nodes)
-
-	nd.diskdb.Close()
-
-	//shut down
-	db2 := newDbFromDir(dir)
-	trie, _ = NewTrie(root4, db2)
-	vl := trie.Get([]byte("t5"))
-	if string(vl) != "t5value" {
-		t.Fatalf("expect %s,but got %s", "t5value", vl)
-	}
-	db2.diskdb.Close()
-}
 
 func TestEmptyTrie(t *testing.T) {
 	var trie Trie
@@ -275,8 +217,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestMissingRoot(t *testing.T) {
-	db, _ := tasdb.NewMemDatabase()
-	trie, err := NewTrie(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(db, 0, false))
+	trie, err := newTrieFromMemDB(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"))
 	if trie != nil {
 		t.Error("NewTrie returned non-nil trie for invalid root")
 	}
@@ -285,14 +226,14 @@ func TestMissingRoot(t *testing.T) {
 	}
 }
 
-func TestMissingNodeDisk(t *testing.T)    { testMissingNode(t, false) }
+func TestMissingNodeDisk(t *testing.T) { testMissingNode(t, false) }
 func TestMissingNodeMemonly(t *testing.T) { testMissingNode(t, true) }
 
 func testMissingNode(t *testing.T, memonly bool) {
-	diskdb, _ := tasdb.NewMemDatabase()
-	triedb := NewDatabase(diskdb, 0, false)
 
-	trie, _ := NewTrie(common.Hash{}, triedb)
+	trie, _ := newTrieFromMemDB(common.Hash{})
+	triedb := trie.db
+	diskdb := trie.db.diskdb
 	updateString(trie, "120000", "qwerqwerqwerqwerqwerqwerqwerqwer")
 	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")
 	root, _ := trie.Commit(nil)
@@ -360,9 +301,8 @@ func testMissingNode(t *testing.T, memonly bool) {
 	}
 }
 
-func TestInsert(t *testing.T) {
-	trie := newEmpty()
-
+func TestInsert(t *testing.T){
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	updateString(trie, "doe", "reindeer")
 	updateString(trie, "dog", "puppy")
 	updateString(trie, "dogglesworth", "cat")
@@ -373,7 +313,7 @@ func TestInsert(t *testing.T) {
 		t.Errorf("exp %x got %x", exp, root)
 	}
 
-	trie = newEmpty()
+	trie, _ = newTrieFromMemDB(common.Hash{})
 	updateString(trie, "A", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
 	exp = common.HexToHash("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab")
@@ -386,8 +326,8 @@ func TestInsert(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
-	trie := newEmpty()
+func TestGet(t *testing.T){
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	updateString(trie, "doe", "reindeer")
 	updateString(trie, "dog", "puppy")
 	updateString(trie, "dogglesworth", "cat")
@@ -411,7 +351,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	trie := newEmpty()
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	vals := []struct{ k, v string }{
 		{"do", "verb"},
 		{"ether", "wookiedoo"},
@@ -438,7 +378,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestEmptyValues(t *testing.T) {
-	trie := newEmpty()
+	trie, _ := newTrieFromMemDB(common.Hash{})
 
 	vals := []struct{ k, v string }{
 		{"do", "verb"},
@@ -462,7 +402,7 @@ func TestEmptyValues(t *testing.T) {
 }
 
 func TestReplication(t *testing.T) {
-	trie := newEmpty()
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	vals := []struct{ k, v string }{
 		{"do", "verb"},
 		{"ether", "wookiedoo"},
@@ -519,7 +459,7 @@ func TestReplication(t *testing.T) {
 }
 
 func TestLargeValue(t *testing.T) {
-	trie := newEmpty()
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	trie.Update([]byte("key1"), []byte{99, 99, 99, 99})
 	trie.Update([]byte("key2"), bytes.Repeat([]byte{1}, 32))
 	trie.Hash()
@@ -539,7 +479,7 @@ func (db *countingDB) Get(key []byte) ([]byte, error) {
 // certain number of commit operations.
 func TestCacheUnload(t *testing.T) {
 	// Create test trie with two branches.
-	trie := newEmpty()
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	key1 := "---------------------------------"
 	key2 := "---some other branch"
 	updateString(trie, key1, "this is the branch of key1.")
@@ -552,7 +492,7 @@ func TestCacheUnload(t *testing.T) {
 	// The branch containing it is loaded from DB exactly two times:
 	// in the 0th and 6th iteration.
 	db := &countingDB{Database: trie.db.diskdb, gets: make(map[string]int)}
-	trie, _ = NewTrie(root, NewDatabase(db, 0, false))
+	trie, _ = newTrieFromMemDB(common.Hash{})
 	trie.SetCacheLimit(5)
 	for i := 0; i < 12; i++ {
 		getString(trie, key1)
@@ -620,10 +560,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 }
 
 func runRandTest(rt randTest) bool {
-	db, _ := tasdb.NewMemDatabase()
-	triedb := NewDatabase(db, 0, false)
-
-	tr, _ := NewTrie(common.Hash{}, triedb)
+	tr, _ := newTrieFromMemDB(common.Hash{})
 	values := make(map[string]string) // tracks content of the trie
 
 	for i, step := range rt {
@@ -650,14 +587,14 @@ func runRandTest(rt randTest) bool {
 				rt[i].err = err
 				return false
 			}
-			newtr, err := NewTrie(hash, triedb)
+			newtr, _ := newTrieFromMemDB(hash)
 			if err != nil {
 				rt[i].err = err
 				return false
 			}
 			tr = newtr
 		case opItercheckhash:
-			checktr, _ := NewTrie(common.Hash{}, triedb)
+			checktr, _ := newTrieFromMemDB(common.Hash{})
 			it := NewIterator(tr.NodeIterator(nil))
 			for it.Next() {
 				checktr.Update(it.Key, it.Value)
@@ -754,7 +691,7 @@ func benchGet(b *testing.B, commit bool) {
 }
 
 func benchUpdate(b *testing.B, e binary.ByteOrder) *Trie {
-	trie := newEmpty()
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	k := make([]byte, 32)
 	for i := 0; i < b.N; i++ {
 		e.PutUint64(k, uint64(i))
@@ -789,7 +726,7 @@ func BenchmarkHash(b *testing.B) {
 		accounts[i], _ = rlp.EncodeToBytes([]interface{}{nonce, balance, root, code})
 	}
 	// Insert the accounts into the trie and hash it
-	trie := newEmpty()
+	trie, _ := newTrieFromMemDB(common.Hash{})
 	for i := 0; i < len(addresses); i++ {
 		trie.Update(common.Sha256(addresses[i][:]), accounts[i])
 	}
@@ -798,7 +735,7 @@ func BenchmarkHash(b *testing.B) {
 	trie.Hash()
 }
 
-func tempDB() (string, *NodeDatabase) {
+func tempDB() (string, *NodeDatabase){
 	dir, err := ioutil.TempDir("", "trie-bench")
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
@@ -807,16 +744,18 @@ func tempDB() (string, *NodeDatabase) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
-	return dir, NewDatabase(diskdb, 0, true)
+	return dir, NewDatabase(diskdb, 0, "", true)
 }
 
 func newDbFromDir(dir string) *NodeDatabase {
-	diskdb, err := tasdb.NewLDBDatabase(dir, nil)
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary database: %v", err))
+	diskdb,err := tasdb.NewLDBDatabase(dir, nil)
+		if err != nil {
+			panic(fmt.Sprintf("can't create temporary database: %v", err))
+		}
+		return NewDatabase(diskdb, 0, "", true)
 	}
-	return NewDatabase(diskdb, 0, true)
-}
+
+
 
 func getString(trie *Trie, k string) []byte {
 	return trie.Get([]byte(k))

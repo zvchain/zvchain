@@ -582,7 +582,7 @@ func (vs *VerifyStat) String() string {
 	return string(s)
 }
 
-func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback) (bool, error) {
+func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback) (bool, error) {
 	return adb.trie.VerifyIntegrity(func(key []byte, value []byte) error {
 		var account Account
 		if err := rlp.DecodeBytes(value, &account); err != nil {
@@ -591,25 +591,30 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback) (bool, 
 		begin := time.Now()
 		vs := &VerifyStat{Account: account, Addr: common.BytesToAddress(key)}
 		if account.Root != emptyData {
-			trie, err := trie.NewTrie(account.Root, adb.db.TrieDB())
+			t, err := trie.NewTrie(account.Root, adb.db.TrieDB())
 			if err != nil {
 				return err
 			}
-			if ok, err := trie.VerifyIntegrity(func(k []byte, v []byte) error {
+			if ok, err := t.VerifyIntegrity(func(k []byte, v []byte) error {
 				vs.DataCount++
 				vs.DataSize += uint64(len(v))
 				vs.KeySize += uint64(len(k))
 				return nil
-			}); !ok {
+			}, resolve); !ok {
 				return err
 			}
 		}
 		code := common.BytesToHash(account.CodeHash)
 		if code != emptyCode {
 			vs.CodeSize = uint64(len(value))
+			if resolve != nil {
+				resolve(code, value)
+			}
 		}
 		vs.Cost = time.Since(begin)
-		cb(vs)
+		if cb != nil {
+			cb(vs)
+		}
 		return nil
-	})
+	}, resolve)
 }

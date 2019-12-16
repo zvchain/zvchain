@@ -83,20 +83,20 @@ type Trie interface {
 	// is to find any errors that might cause trie nodes missing during prune
 	//
 	// This method is extremely CPU and disk intensive, and time consuming, only use when must.
-	VerifyIntegrity(onleaf trie.VerifyLeafCallback) (bool, error)
+	VerifyIntegrity(onleaf trie.ExtLeafCallback, resolve trie.ResolveNodeCallback) (bool, error)
 }
 
 // NewDatabase creates a backing store for state. The returned database
 // is safe for concurrent use and retains a lot of collapsed RLP trie nodes in a
 // large memory cache.
 func NewDatabase(db tasdb.Database, gcEnable bool) AccountDatabase {
-	return NewDatabaseWithCache(db, gcEnable, 0)
+	return NewDatabaseWithCache(db, gcEnable, 0, "")
 }
 
-func NewDatabaseWithCache(db tasdb.Database, gcEnable bool, cacheSize int) AccountDatabase {
+func NewDatabaseWithCache(db tasdb.Database, gcEnable bool, cacheSize int, cacheDir string) AccountDatabase {
 	csc, _ := lru.New(codeSizeCacheSize)
 	return &storageDB{
-		db:            trie.NewDatabase(db, cacheSize, gcEnable),
+		db:            trie.NewDatabase(db, cacheSize, cacheDir, gcEnable),
 		codeSizeCache: csc,
 	}
 }

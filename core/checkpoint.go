@@ -308,3 +308,54 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 	}
 	return 0
 }
+
+// calcCheckPointWithoutGroup calculates checkpoint without reading groupinfo.
+// used for checkpoint calculation when doing fully-pruning offline
+func (cp *cpChecker) calcCheckPointWithoutGroup(h uint64) (uint64, error) {
+	if h <= cpBlockBuffer {
+		return 0, nil
+	}
+	h -= cpBlockBuffer
+	if h > cp.querier.Height() {
+		h = cp.querier.Height()
+	} else {
+		h = cp.querier.QueryBlockHeaderFloor(h).Height
+	}
+
+	for scan := 0; scan < cpMaxScanEpochs; {
+		ep := types.EpochAt(h)
+		ctx := newCpContext(ep, nil)
+		// Get the accountDB of end of the epoch
+		db, err := cp.querier.AccountDBAt(h)
+		if err != nil {
+			Logger.Errorf("get account db at %v error:%v", h, err)
+			return 0, err
+		}
+		// Get the group epoch start with the given accountDB
+		gEp := cp.getGroupEpoch(db)
+		// If epoch of the given db not equal to current epoch, means that the whole current epoch was skipped
+		if gEp.Equal(ctx.epoch) {
+			votes := cp.getGroupVotes(db)
+
+			validVotes := make([]int, 0)
+			for _, v := range votes {
+				if v > 0 {
+					validVotes = append(validVotes, int(v))
+				}
+			}
+			ctx.threshold = cpGroupThreshold(len(votes))
+			// cp found
+			if len(validVotes) >= ctx.threshold {
+				sort.Ints(validVotes)
+				thresholdHeight := uint64(validVotes[len(validVotes)-ctx.threshold]) + ctx.epoch.Start() - 1
+				return thresholdHeight, nil
+			}
+		}
+		if ep.Start() == 0 {
+			break
+		}
+		h = ep.Start() - 1
+		scan++
+	}
+	return 0, nil
+}

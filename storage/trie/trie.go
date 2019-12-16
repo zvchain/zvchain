@@ -412,8 +412,7 @@ func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 	if node, _ := t.db.node(hash, t.cachegen); node != nil {
 		return node, nil
 	}
-	log.CropLogger.Errorf("missing node %v \n",hash.Hex())
-	return nil, &MissingNodeError{NodeHash: hash, Path: prefix}
+	return nil, &MissingNodeError{NodeHash: hash, Path: hexToKeybytes(prefix)}
 }
 
 func (t *Trie) resolveHashAndGetRawBytes(n hashNode, prefix []byte) (node, []byte, error) {
