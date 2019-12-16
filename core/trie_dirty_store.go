@@ -13,7 +13,7 @@ var (
 	curHeightStore  = "cur_height_store"
 	dirtyTrie       = "dt"
 	lastDirtyTrieHeight   = "ldt"
-	GcMode          = true
+	GcMode          = false
 )
 
 var dirtyState *dirtyStateStore
