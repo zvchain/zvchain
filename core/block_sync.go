@@ -25,6 +25,7 @@ import (
 	"github.com/zvchain/zvchain/middleware/notify"
 	"math"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,7 +51,8 @@ const (
 	tickerSendLocalTop         = "send_local_top"
 	tickerSyncNeighbor         = "sync_neightbor"
 	tickerSyncTimeout          = "sync_timeout"
-	tickerSyncNodeID           = "sync_node_id"
+	preferSyncNodes            = "prefer_sync_nodes"
+	preferNotifyNodes          = "prefer_notify_nodes"
 	configSyncNeightborTimeout = "block_sync_timeout"
 )
 
@@ -78,9 +80,10 @@ type blockSyncer struct {
 	logger               *logrus.Logger
 	syncNeightborTimeout uint32
 
-	notifyCounters *lru.Cache
-	requestTime    time.Time
-	syncNodeID     string
+	notifyCounters    *lru.Cache
+	requestTime       time.Time
+	preferSyncNodes   map[string]bool
+	preferNotifyNodes map[string]bool
 }
 
 type topBlockInfo struct {
@@ -102,7 +105,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 		syncingPeers:         make(map[string]uint64),
 		notifyCounters:       common.MustNewLRUCache(notifyCounterCacheSize),
 		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
-		syncNodeID:           common.GlobalConf.GetString(configSec, tickerSyncNodeID, ""),
+		//syncNodeID:           common.GlobalConf.GetString(configSec, tickerSyncNodeID, ""),
 	}
 }
 
@@ -110,6 +113,7 @@ func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 // and also subscribe these events to handle requests from neighbors
 func InitBlockSyncer(chain *FullBlockChain) {
 	blockSync = newBlockSyncer(chain)
+	blockSync.loadPreferNodes()
 	blockSync.ticker = blockSync.chain.ticker
 	blockSync.logger = log.BlockSyncLogger
 	blockSync.ticker.RegisterPeriodicRoutine(tickerSendLocalTop, blockSync.notifyLocalTopBlockRoutine, sendLocalTopInterval)
@@ -123,6 +127,35 @@ func InitBlockSyncer(chain *FullBlockChain) {
 	notify.BUS.Subscribe(notify.BlockResponse, blockSync.blockResponseMsgHandler)
 
 	blockSync.logger.Debugf("init block syncer,block sync timeout:%v", blockSync.syncNeightborTimeout)
+
+}
+
+func (bs *blockSyncer) loadPreferNodes() {
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
+
+	syncNodesString := common.GlobalConf.GetString(configSec, preferSyncNodes, "")
+
+	syncNodes := strings.Split(syncNodesString, ",")
+
+	bs.preferSyncNodes = make(map[string]bool, 0)
+
+	for _, id := range syncNodes {
+		if len(id) > 0 {
+			bs.preferSyncNodes[id] = true
+		}
+	}
+
+	notifyNodesString := common.GlobalConf.GetString(configSec, preferNotifyNodes, "")
+	notifyNodes := strings.Split(notifyNodesString, ",")
+	bs.preferNotifyNodes = make(map[string]bool, 0)
+
+	for _, id := range notifyNodes {
+		if len(id) > 0 {
+			bs.preferNotifyNodes[id] = true
+		}
+	}
+	fmt.Printf("loadPreferNodes ,sync nodes:%v,notify nodes:%v", bs.preferSyncNodes, bs.preferNotifyNodes)
 
 }
 
@@ -209,6 +242,25 @@ func (bs *blockSyncer) getCandidate() (string, *types.CandidateBlockHeader) {
 		return "", nil
 	}
 
+	if bs.preferSyncNodes != nil {
+		localTop := bs.chain.QueryTopBlock()
+
+		if maxWeightBlock.BH.Height-localTop.Height > types.EpochLength {
+			for id, _ := range bs.preferSyncNodes {
+				if bs.checkBlockHeaderAndAddBlack(id, maxWeightBlock.BH) {
+					return id, maxWeightBlock
+				}
+			}
+		}
+
+		for _, id := range maxWeightCandidates {
+			if bs.preferSyncNodes[id] {
+				if bs.checkBlockHeaderAndAddBlack(id, maxWeightBlock.BH) {
+					return id, maxWeightBlock
+				}
+			}
+		}
+	}
 	// Randomly select one of the equal weight nodes for block synchronization,
 	// in case all nodes select the same node and cause excessive load on the selected node.
 	rnd := rand.Int31n(int32(len(maxWeightCandidates)))
@@ -374,9 +426,7 @@ func (bs *blockSyncer) syncFrom(from string) bool {
 }
 
 func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo) {
-	if len(bs.syncNodeID) > 0 {
-		ci.Candidate = bs.syncNodeID
-	}
+
 	id := ci.Candidate
 	height := ci.ReqHeight
 	if _, ok := bs.syncingPeers[id]; ok {
@@ -423,6 +473,11 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	blacklist := make([]string, 0)
 	for _, nodeStr := range counter.Keys() {
 		blacklist = append(blacklist, nodeStr.(string))
+	}
+	for nodeStr, _ := range bs.preferNotifyNodes {
+		blacklist = append(blacklist, nodeStr)
+		bs.logger.Debugf("prefer Send local %d-%v, %v to %v", top.TotalQN, top.Height, top.Hash.Hex(), nodeStr)
+		network.GetNetInstance().Send(nodeStr, message)
 	}
 
 	network.GetNetInstance().TransmitToNeighbor(message, blacklist)
@@ -526,8 +581,9 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 			bs.logger.Debugf("sync block from %v, local top hash %v, height %v, totalQN %v, peerTop hash %v, height %v, totalQN %v", source, localTop.Hash.Hex(), localTop.Height, localTop.TotalQN, peerTop.BH.Hash.Hex(), peerTop.BH.Height, peerTop.BH.TotalQN)
 			return nil
 		}
+		//if time.Since(bs.requestTime) > time.Second*2 {
 		bs.logger.Debugf("sync block from %v, height=%v, len = %v, cost=%v", source, blocks[0].Header.Height, len(blocks), time.Since(bs.requestTime))
-
+		//}
 		allSuccess := true
 		hasAddBlack := false
 		err := bs.chain.batchAddBlockOnChain(source, false, blocks, func(b *types.Block, ret types.AddBlockResult) bool {
