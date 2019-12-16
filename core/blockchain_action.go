@@ -263,6 +263,18 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
+func (chain *FullBlockChain) DeleteDirtyRoots(dirtyRoots []common.Hash) {
+	if len(dirtyRoots) > 0 {
+		for _, root := range dirtyRoots {
+			err := dirtyState.DeleteDirtyRoot(root)
+			if err != nil {
+				log.CoreLogger.Errorf("DeleteDirtyRoots error,err is %v", err)
+				break
+			}
+		}
+	}
+}
+
 func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
 	beginHeight := lastDeleteHeight
@@ -304,9 +316,14 @@ func (chain *FullBlockChain) Stop() {
 	}
 	fmt.Printf("stop process begin...")
 	triedb := chain.stateCache.TrieDB()
-	var commitHeight uint64 = 0
+	var commitHeight uint64 = common.MaxUint64
 	defer func() {
-		fmt.Printf("stop success,commit height %v,cost %v", commitHeight, time.Since(begin))
+		if commitHeight == common.MaxUint64 {
+			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
+		} else {
+			fmt.Printf("stop success,commit height %v,cost %v", commitHeight, time.Since(begin))
+		}
+
 	}()
 
 	if triedb.LastGcHeight() > 0 {
@@ -327,7 +344,7 @@ func (chain *FullBlockChain) Stop() {
 }
 
 func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
-	if !chain.config.pruneMode || top == nil {
+	if top == nil {
 		return nil
 	}
 	lastStateHeight := dirtyState.GetStatePersistentHeight()
@@ -346,15 +363,15 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 			}
 			data := dirtyState.GetDirtyByRoot(bh.StateTree)
 			if len(data) == 0 {
-				log.CropLogger.Debugf("get dirty state data nil,height is %v，root is %v", bh.Height, bh.StateTree.Hex())
 				continue
 			}
 			err, caches := triedb.DecodeStoreBlob(data)
 			if err != nil {
 				return err
 			}
-			triedb.CommitDirtyToDb(caches,repeatKey)
+			triedb.CommitDirtyToDb(caches, repeatKey)
 		}
+		dirtyState.StoreStatePersistentHeight(top.Height)
 	}
 	return nil
 }

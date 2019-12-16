@@ -35,7 +35,7 @@ const TriesInMemory uint64 = types.EpochLength*4 + 20
 var (
 	maxTriesInMemory     = 300
 	everyClearFromMemory = 1
-	persistenceCount     = 3000
+	persistenceCount     = 4000
 )
 
 type newTopMessage struct {
@@ -108,7 +108,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 				}
 			}
 		}
-	}else{
+	} else {
 		err = triedb.Commit(root, false)
 		if err != nil {
 			return fmt.Errorf("trie commit error:%s", err.Error())
@@ -267,7 +267,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	recoverTxs := make([]*types.Transaction, 0)
 	delReceipts := make([]common.Hash, 0)
 	removeBlocks := make([]*types.BlockHeader, 0)
-
+	removeRoots := make([]common.Hash, 0)
 	for curr.Hash != block.Hash {
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
@@ -287,7 +287,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 			recoverTxs = append(recoverTxs, types.NewTransaction(rawTx, tHash))
 			delReceipts = append(delReceipts, tHash)
 		}
-
+		removeRoots = append(removeRoots, curr.Hash)
 		chain.removeTopBlock(curr.Hash)
 		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
@@ -311,6 +311,10 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	if err = chain.batch.Write(); err != nil {
 		return err
 	}
+	if chain.config.pruneMode {
+		chain.DeleteDirtyRoots(removeRoots)
+	}
+
 	chain.updateLatestBlock(state, block)
 
 	chain.transactionPool.BackToPool(recoverTxs)

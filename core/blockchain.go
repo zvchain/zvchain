@@ -215,20 +215,19 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	if chain.config.pruneMode {
-		dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
-		if err != nil {
-			Logger.Errorf("new dirty state datasource error:%v", err)
-			return err
-		}
-		dirtyStateDb, err := dirtyStateDs.NewPrefixDatabase("")
-		if err != nil {
-			Logger.Errorf("new dirty state db error:%v", err)
-			return err
-		}
-		chain.dirtyStateDb = dirtyStateDb
-		initDirtyStore(chain.dirtyStateDb)
+	dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
+	if err != nil {
+		Logger.Errorf("new dirty state datasource error:%v", err)
+		return err
 	}
+	dirtyStateDb, err := dirtyStateDs.NewPrefixDatabase("")
+	if err != nil {
+		Logger.Errorf("new dirty state db error:%v", err)
+		return err
+	}
+	chain.dirtyStateDb = dirtyStateDb
+	initDirtyStore(chain.dirtyStateDb)
+
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
@@ -304,6 +303,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.LogDbStats()
 	return nil
+}
+
+func (chain *FullBlockChain) IsPruneMode() bool {
+	return common.GlobalConf.GetBool(configSec, "prune_mode", false)
 }
 
 func (chain *FullBlockChain) LogDbStats() {
