@@ -297,7 +297,7 @@ func (gzv *Gzv) Run() {
 		}
 		provider, err := core.NewLocalBlockProvider(*srcDir)
 		if err != nil {
-			output("new local block provider error %v", err)
+			output("new local block provider error", err)
 			os.Exit(-1)
 		}
 
@@ -314,12 +314,12 @@ func (gzv *Gzv) Run() {
 		log.Init()
 		tailor, err := core.NewOfflineTailor(*srcDB, *memSize, *cacheDir, *outFile, *verifiy)
 		if err != nil {
-			output("start fail %v", err)
+			output("start fail", err)
 		}
 		if *verifiy {
 			err := tailor.Verify()
 			if err != nil {
-				output("verify fail %v", err)
+				output("verify fail", err)
 			}
 		} else {
 			tailor.Pruning()
