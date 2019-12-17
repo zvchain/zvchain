@@ -29,7 +29,7 @@ import (
 )
 
 type verifier interface {
-	VerifyIntegrity(cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback) (bool, error)
+	VerifyIntegrity(cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error)
 }
 
 func (chain *FullBlockChain) Verifier(h uint64) verifier {
@@ -41,10 +41,10 @@ func (chain *FullBlockChain) Verifier(h uint64) verifier {
 	return db.(*account.AccountDB)
 }
 
-func (chain *FullBlockChain) IntegrityVerify(height uint64, cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback) (bool, error) {
+func (chain *FullBlockChain) IntegrityVerify(height uint64, cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error) {
 	v := chain.Verifier(height)
 	if v != nil {
-		return v.VerifyIntegrity(cb, resolve)
+		return v.VerifyIntegrity(cb, resolve, checkHash)
 	}
 	return true, nil
 }
