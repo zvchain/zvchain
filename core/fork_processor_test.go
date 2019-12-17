@@ -208,6 +208,7 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 
 func clearDatas() {
 	os.RemoveAll(chainPath1)
+	os.RemoveAll("dirty_db")
 	os.RemoveAll(chainPath2)
 	os.RemoveAll("logs")
 }
