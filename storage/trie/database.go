@@ -433,7 +433,7 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
-		fmt.Println(err, enc)
+		log.CoreLogger.Errorf("get from disk error, key %v, err %v", hash.Hex(), err)
 		return nil, nil
 	}
 	db.addToCache(hash, enc)
