@@ -105,7 +105,7 @@ func Keccak256Hash(data ...[]byte) (h common.Hash) {
 // printing/logging in tests (-check.vv does not work)
 func TestSnapshot2(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
-	state, _ := NewAccountDB(common.Hash{}, NewDatabase(db))
+	state, _ := NewAccountDB(common.Hash{}, NewDatabase(db,false))
 
 	stateobjaddr0 := "so0"
 	stateobjaddr1 := "so1"

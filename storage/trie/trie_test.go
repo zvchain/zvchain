@@ -19,8 +19,8 @@ package trie
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/syndtr/goleveldb/leveldb/errors"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
