@@ -16,12 +16,14 @@
 package account
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
 	"math/big"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/trie"
@@ -196,9 +198,9 @@ func (adb *AccountDB) GetCodeHash(addr common.Address) common.Hash {
 }
 
 // GetStateObject returns stateobject's interface.
-func (adb *AccountDB) GetStateObject(a common.Address)AccAccesser{
+func (adb *AccountDB) GetStateObject(a common.Address) AccAccesser {
 	data := adb.getAccountObject(a)
-	if data == nil{
+	if data == nil {
 		return nil
 	}
 	return data
@@ -561,4 +563,58 @@ func (adb *AccountDB) Commit(deleteEmptyObjects bool) (root common.Hash, err err
 		return nil
 	})
 	return root, err
+}
+
+type VerifyAccountIntegrityCallback func(stat *VerifyStat)
+
+type VerifyStat struct {
+	Addr      common.Address
+	Account   Account
+	DataCount uint64
+	DataSize  uint64
+	KeySize   uint64
+	CodeSize  uint64
+	Cost      time.Duration
+}
+
+func (vs *VerifyStat) String() string {
+	s, _ := json.Marshal(vs)
+	return string(s)
+}
+
+func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback) (bool, error) {
+	return adb.trie.VerifyIntegrity(func(key []byte, value []byte) error {
+		var account Account
+		if err := rlp.DecodeBytes(value, &account); err != nil {
+			return err
+		}
+		begin := time.Now()
+		vs := &VerifyStat{Account: account, Addr: common.BytesToAddress(key)}
+		if account.Root != emptyData {
+			t, err := trie.NewTrie(account.Root, adb.db.TrieDB())
+			if err != nil {
+				return err
+			}
+			if ok, err := t.VerifyIntegrity(func(k []byte, v []byte) error {
+				vs.DataCount++
+				vs.DataSize += uint64(len(v))
+				vs.KeySize += uint64(len(k))
+				return nil
+			}, resolve); !ok {
+				return err
+			}
+		}
+		code := common.BytesToHash(account.CodeHash)
+		if code != emptyCode {
+			vs.CodeSize = uint64(len(value))
+			if resolve != nil {
+				resolve(code, value)
+			}
+		}
+		vs.Cost = time.Since(begin)
+		if cb != nil {
+			cb(vs)
+		}
+		return nil
+	}, resolve)
 }

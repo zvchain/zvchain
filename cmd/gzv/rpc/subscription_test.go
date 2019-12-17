@@ -105,7 +105,7 @@ func (s *NotificationTestService) HangSubscription(ctx context.Context, val int)
 }
 
 func TestNotifications(t *testing.T) {
-	server := NewServer()
+	server := NewServer(false)
 	service := &NotificationTestService{}
 
 	if err := server.RegisterName("eth", service); err != nil {
@@ -227,7 +227,7 @@ func waitForMessages(t *testing.T, in *json.Decoder, successes chan<- jsonSucces
 func TestSubscriptionMultipleNamespaces(t *testing.T) {
 	var (
 		namespaces             = []string{"eth", "shh", "bzz"}
-		server                 = NewServer()
+		server                 = NewServer(false)
 		service                = NotificationTestService{}
 		clientConn, serverConn = net.Pipe()
 

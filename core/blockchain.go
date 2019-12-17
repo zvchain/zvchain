@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common/prque"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -43,6 +44,7 @@ import (
 const (
 	blockStatusKey = "bcurrent"
 	configSec      = "chain"
+	gc             = "gc"
 )
 
 var (
@@ -68,19 +70,24 @@ type BlockChainConfig struct {
 	reward      string
 	tx          string
 	receipt     string
+	// Whether running node in pruning mode
+	pruneMode bool
 }
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
 type FullBlockChain struct {
-	blocks      *tasdb.PrefixedDatabase
-	blockHeight *tasdb.PrefixedDatabase
-	txDb        *tasdb.PrefixedDatabase
-	stateDb     *tasdb.PrefixedDatabase
-	cacheDb     *tasdb.PrefixedDatabase
-	batch       tasdb.Batch
-
-	stateCache account.AccountDatabase
-
+	blocks          *tasdb.PrefixedDatabase
+	blockHeight     *tasdb.PrefixedDatabase
+	txDb            *tasdb.PrefixedDatabase
+	stateDb         *tasdb.PrefixedDatabase
+	dirtyStateDb    *tasdb.PrefixedDatabase
+	cacheDb         *tasdb.PrefixedDatabase
+	batch           tasdb.Batch
+	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
+	stateCache      account.AccountDatabase
+	running         int32 // running must be called atomically
+	procInterrupt   int32 // interrupt signaler for block processing
+	wg              sync.WaitGroup
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -131,8 +138,9 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		reward: "nu",
 
-		tx:      "tx",
-		receipt: "rc",
+		tx:        "tx",
+		receipt:   "rc",
+		pruneMode: common.GlobalConf.GetBool(configSec, "prune_mode", false),
 	}
 }
 
@@ -145,6 +153,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		isAdjusting:      false,
 		consensusHelper:  helper,
 		ticker:           ticker.NewGlobalTicker("chain"),
+		triegc:           prque.NewPrque(),
 		ts:               time2.TSInstance,
 		futureRawBlocks:  common.MustNewLRUCache(100),
 		verifiedBlocks:   common.MustNewLRUCache(10),
@@ -157,14 +166,14 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.initMessageHandler()
 
+	conf := common.GlobalConf.GetSectionManager(configSec)
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
 	// get the level db block cache size from config
-	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
+	blockCacheSize := conf.GetInt("db_block_cache", 512)
 	// get the level db write cache size from config
 	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
-
-	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
+	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
 
 	options := &opt.Options{
 		OpenFilesCacheCapacity: fileCacheSize,
@@ -206,13 +215,26 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
+	dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
+	if err != nil {
+		Logger.Errorf("new dirty state datasource error:%v", err)
+		return err
+	}
+	dirtyStateDb, err := dirtyStateDs.NewPrefixDatabase("")
+	if err != nil {
+		Logger.Errorf("new dirty state db error:%v", err)
+		return err
+	}
+	chain.dirtyStateDb = dirtyStateDb
+	initDirtyStore(chain.dirtyStateDb)
+
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
-	chain.stateCache = account.NewDatabase(chain.stateDb)
+	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, chain.config.pruneMode, stateCacheSize, conf.GetString("state_cache_dir", "state_cache"))
 
 	latestBH := chain.loadCurrentBlock()
 
@@ -225,7 +247,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-
+	err = chain.FixTrieDataFromDB(latestBH)
+	if err != nil {
+		return err
+	}
 	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
@@ -241,6 +266,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 			Logger.Error(err)
 			return err
 		}
+		fmt.Printf("db height is %v at %v\n", latestBH.Height, latestBH.CurTime.Local().String())
 	} else {
 		chain.insertGenesisBlock(true)
 	}
@@ -252,6 +278,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.checkTrustDb()
 
 	// db cache enabled
+	iteratorNodeCacheSize := 30000
 	if iteratorNodeCacheSize > 0 {
 		cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
 		if err != nil {
@@ -278,6 +305,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.LogDbStats()
 	return nil
+}
+
+func (chain *FullBlockChain) IsPruneMode() bool {
+	return common.GlobalConf.GetBool(configSec, "prune_mode", false)
 }
 
 func (chain *FullBlockChain) LogDbStats() {

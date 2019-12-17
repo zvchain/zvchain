@@ -37,7 +37,7 @@ func deleteString(trie *trie.Trie, k string) {
 }
 func TestExpandTrie(t *testing.T) {
 	diskdb, _ := tasdb.NewMemDatabase()
-	triedb := NewDatabase(diskdb)
+	triedb := NewDatabase(diskdb, false)
 	trie1, _ := trie.NewTrie(common.Hash{}, triedb.TrieDB())
 
 	for i := 0; i < 100; i++ {

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -262,14 +263,135 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
+func (chain *FullBlockChain) DeleteDirtyRoots(dirtyRoots []common.Hash) {
+	if len(dirtyRoots) > 0 {
+		for _, root := range dirtyRoots {
+			err := dirtyState.DeleteDirtyRoot(root)
+			if err != nil {
+				log.CoreLogger.Errorf("DeleteDirtyRoots error,err is %v", err)
+				break
+			}
+		}
+	}
+}
+
+func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
+	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
+	beginHeight := lastDeleteHeight
+	endHeight := persistenceHeight
+	if endHeight <= beginHeight {
+		return
+	}
+	begin := time.Now()
+	defer func() {
+		log.CropLogger.Debugf("delete dirty trie from db success,height is %v-%v,cost=%v", beginHeight, endHeight, time.Since(begin))
+	}()
+	log.CropLogger.Debugf("begin delete dirty trie from db,height is %v-%v", beginHeight, endHeight)
+	for i := beginHeight; i < endHeight; i++ {
+		bh := chain.queryBlockHeaderByHeight(i)
+		if bh == nil {
+			continue
+		}
+		err := dirtyState.DeleteDirtyTrie(bh.StateTree, bh.Height)
+		if err != nil {
+			log.CoreLogger.Error(err)
+			break
+		}
+	}
+}
+
+func (chain *FullBlockChain) Stop() {
+	if !chain.config.pruneMode {
+		return
+	}
+	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
+		return
+	}
+	atomic.StoreInt32(&chain.procInterrupt, 1)
+	chain.wg.Wait()
+	begin := time.Now()
+	cp := chain.latestCP.Load()
+	if chain.triegc.Empty() || cp == nil {
+		return
+	}
+	fmt.Printf("stop process begin...")
+	triedb := chain.stateCache.TrieDB()
+	var commitHeight uint64 = common.MaxUint64
+	defer func() {
+		if commitHeight == common.MaxUint64 {
+			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
+		} else {
+			fmt.Printf("stop success,commit height %v,cost %v", commitHeight, time.Since(begin))
+		}
+
+	}()
+
+	if triedb.LastGcHeight() > 0 {
+		bh := chain.queryBlockHeaderCeil(triedb.LastGcHeight() + 1)
+		if bh != nil {
+			err := triedb.Commit(bh.StateTree, false)
+			if err != nil {
+				fmt.Printf("trie commit error:%s", err.Error())
+				return
+			}
+			commitHeight = bh.Height
+			err = dirtyState.StoreStatePersistentHeight(bh.Height)
+			if err != nil {
+				fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
+			}
+		}
+	}
+}
+
+func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
+	if top == nil {
+		return nil
+	}
+	lastStateHeight := dirtyState.GetStatePersistentHeight()
+	if lastStateHeight < top.Height || (top.Height == 0 && lastStateHeight == 0) {
+		start := time.Now()
+		defer func() {
+			log.CropLogger.Debugf("fix dirty state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
+		}()
+		log.CropLogger.Debugf("begin fix dirty state data,from %v-%v \n", lastStateHeight, top.Height)
+		triedb := chain.stateCache.TrieDB()
+		repeatKey := make(map[common.Hash]struct{})
+		for i := lastStateHeight; i <= top.Height; i++ {
+			bh := chain.queryBlockHeaderByHeight(i)
+			if bh == nil {
+				continue
+			}
+			data := dirtyState.GetDirtyByRoot(bh.StateTree)
+			if len(data) == 0 {
+				continue
+			}
+			err, caches := triedb.DecodeStoreBlob(data)
+			if err != nil {
+				return err
+			}
+			triedb.CommitDirtyToDb(caches, repeatKey)
+		}
+		dirtyState.StoreStatePersistentHeight(top.Height)
+	}
+	return nil
+}
+
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
+	if atomic.LoadInt32(&chain.procInterrupt) == 1 {
+		return types.AddBlockExisted, nil
+	}
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
 
 	defer func() {
+		end := time.Now()
+		cost := (end.UnixNano() - begin.UnixNano()) / 1e6
+		if cost > 1000 {
+			log.CoreLogger.Debugf("addBlockOnchain expired,height is %v,cost time %v", block.Header.Height, cost)
+		}
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
+		Logger.Debugf("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
 	}()
 
 	if block == nil {
@@ -313,7 +435,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
-			chain.successOnChainCallBack(block)
+			chain.successOnChainCallBack(block, time.Since(begin))
 		}
 	}()
 
@@ -503,7 +625,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlic
 	return true, eps
 }
 
-func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
+func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block, t time.Duration) {
 	notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: remoteBlock})
 }
 
@@ -514,6 +636,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
 		chain.latestCP.Store(latestCP)
 	}
+
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
 		rawBlock := value.(*types.Block)
 		Logger.Debugf("Get rawBlock from future blocks,hash:%s,height:%d", rawBlock.Header.Hash.Hex(), rawBlock.Header.Height)
@@ -527,6 +650,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		"logType":  "txPoolLog",
 		"version":  common.GzvVersion,
 	}).Info("transaction pool log")
+
 	return nil
 }
 
@@ -588,11 +712,15 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 		chain.isAdjusting = false
 	}()
 
-	for _, b := range addBlocks {
+	chain.AddChainSlice(source, addBlocks, callback)
+	return nil
+}
+
+func (chain *FullBlockChain) AddChainSlice(source string, chainSlice []*types.Block, cb batchAddBlockCallback) {
+	for _, b := range chainSlice {
 		ret := chain.AddBlockOnChain(source, b)
-		if !callback(b, ret) {
+		if !cb(b, ret) {
 			break
 		}
 	}
-	return nil
 }
