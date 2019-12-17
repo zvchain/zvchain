@@ -38,7 +38,7 @@ type OfflineTailor struct {
 
 	start        time.Time
 	chain        *FullBlockChain
-	out          io.Writer
+	out          io.WriteCloser
 	checkpoint   uint64
 	usedNodes    map[common.Hash]struct{}
 	incUsedNodes uint64
@@ -257,6 +257,7 @@ func (t *OfflineTailor) eraseNodes() {
 }
 
 func (t *OfflineTailor) Pruning() {
+	defer t.out.Close()
 	err := t.collectUsedNodes()
 	t.chain.stateCache.TrieDB().SaveCache()
 	if err == nil {
@@ -271,6 +272,7 @@ func (t *OfflineTailor) Pruning() {
 
 func (t *OfflineTailor) Verify() error {
 	const noPruneBlock = TriesInMemory
+	defer t.out.Close()
 
 	// Find the all heights to be verified
 	verifyBlockHeights := make([]uint64, 0)
