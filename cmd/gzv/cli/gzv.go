@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
+	"github.com/zvchain/zvchain/cmd/gzv/cli/update"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/params"
@@ -158,6 +159,7 @@ func (gzv *Gzv) Run() {
 
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 	disableReport := mineCmd.Flag("disablereport", "disable report.").Default("false").Bool()
+	disableNotice := mineCmd.Flag("disableNotice", "disable version upgrade notifications .").Default("false").Bool()
 
 	cors := mineCmd.Flag("cors", "set cors host, set 'all' allow any host").Default("").String()
 	super := mineCmd.Flag("super", "start super node").Bool()
@@ -244,6 +246,11 @@ func (gzv *Gzv) Run() {
 		if !*disableReport {
 			go report.StartReport(gzv.account.Pk, common.GzvVersion, int(*chainID))
 		}
+
+		if !*disableNotice {
+			go update.InitVersionChecker()
+		}
+
 		log.ELKLogger.WithFields(logrus.Fields{
 			"now":     time2.TSInstance.Now().UTC(),
 			"logType": "versionLog",

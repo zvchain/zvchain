@@ -305,6 +305,11 @@ type CandidateBlockHeader struct {
 	BH *BlockHeader
 }
 
+type SyncingPeerTop struct {
+	Top           *CandidateBlockHeader
+	SyncingHeight uint64
+}
+
 type PvFunc func(pvBytes []byte) *big.Int
 
 var (
