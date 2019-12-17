@@ -59,6 +59,8 @@ type readMeter struct {
 	miss      uint64
 	missSize  uint64
 	hitSize   uint64
+	lastOut   time.Time
+	start     time.Time
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
@@ -309,7 +311,7 @@ func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable
 		enableGc:  gcEnable,
 		cache:     cache,
 		cacheDir:  cacheDir,
-		meter:     &readMeter{},
+		meter:     &readMeter{start: time.Now()},
 	}
 }
 
@@ -376,13 +378,14 @@ func (db *NodeDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 
 func (db *NodeDatabase) tryGetFromCache(hash common.Hash) []byte {
 	// reset the meter if read count > 2000000, for more accuracy statistic about recent db read
-	if db.meter.readCount >= 2000000 {
-		db.meter = &readMeter{}
+	if time.Since(db.meter.start).Minutes() > 1 {
+		db.meter = &readMeter{start: time.Now()}
 	}
 	atomic.AddUint64(&db.meter.readCount, 1)
 	if db.cache != nil {
 		meter := db.meter
-		if meter.readCount%3000 == 0 {
+		if time.Since(meter.lastOut).Seconds() > 2 {
+			meter.lastOut = time.Now()
 			stat := &fastcache.Stats{}
 			db.cache.UpdateStats(stat)
 			log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
@@ -430,6 +433,7 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
+		fmt.Println(err, enc)
 		return nil, nil
 	}
 	db.addToCache(hash, enc)

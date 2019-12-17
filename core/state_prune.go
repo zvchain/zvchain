@@ -69,10 +69,14 @@ func NewOfflineTailor(dbDir string, mem int, cacheDir string, out string, onlyVe
 	}
 
 	options := &opt.Options{
-		WriteBuffer: 128 * opt.MiB,
-		Filter:      filter.NewBloomFilter(10),
+		Filter:                 filter.NewBloomFilter(10),
+		OpenFilesCacheCapacity: 40000,
 	}
-
+	if onlyVerify {
+		options.ReadOnly = true
+	} else {
+		options.WriteBuffer = 128 * opt.MiB
+	}
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
 	if err != nil {
 		return nil, err

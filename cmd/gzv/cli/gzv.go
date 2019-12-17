@@ -318,7 +318,7 @@ func (gzv *Gzv) Run() {
 		if *verifiy {
 			err := tailor.Verify()
 			if err != nil {
-				output("verify fail %v", err)
+				output("verify fail ", err)
 			}
 		} else {
 			tailor.Pruning()
