@@ -192,7 +192,7 @@ func (t *OfflineTailor) collectUsedNodes() error {
 		t.info("start collect block %v", h)
 		b := time.Now()
 		t.incUsedNodes = 0
-		if _, err := t.chain.IntegrityVerify(h, nil, t.resolveCallback); err != nil {
+		if _, err := t.chain.IntegrityVerify(h, nil, t.resolveCallback, false); err != nil {
 			t.info("verify block %v fail, err %v", h, err)
 			return err
 		}
@@ -295,7 +295,7 @@ func (t *OfflineTailor) Verify() error {
 		b := time.Now()
 		if _, err := t.chain.IntegrityVerify(h, func(stat *account.VerifyStat) {
 			t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, codeSize %v, cost %v", stat.Addr, h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize, stat.CodeSize, stat.Cost.String())
-		}, nil); err != nil {
+		}, nil, false); err != nil {
 			t.info("verify block %v fail, err %v", h, err)
 			return err
 		}

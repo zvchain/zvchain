@@ -582,7 +582,7 @@ func (vs *VerifyStat) String() string {
 	return string(s)
 }
 
-func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback) (bool, error) {
+func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error) {
 	return adb.trie.VerifyIntegrity(func(key []byte, value []byte) error {
 		var account Account
 		if err := rlp.DecodeBytes(value, &account); err != nil {
@@ -600,7 +600,7 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve
 				vs.DataSize += uint64(len(v))
 				vs.KeySize += uint64(len(k))
 				return nil
-			}, resolve); !ok {
+			}, resolve, checkHash); !ok {
 				return err
 			}
 		}
@@ -616,5 +616,5 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve
 			cb(vs)
 		}
 		return nil
-	}, resolve)
+	}, resolve, checkHash)
 }

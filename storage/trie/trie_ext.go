@@ -16,10 +16,13 @@
 package trie
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/common"
 	"sync"
 	"sync/atomic"
+
+	"github.com/zvchain/zvchain/common"
 )
 
 type ExtLeafCallback func(key []byte, value []byte) error
@@ -32,11 +35,11 @@ type checkErrorFn func() error
 // is to find any errors that might cause trie nodes missing during prune
 //
 // This method is extremely CPU and disk intensive, and time consuming, only use when must.
-func (t *Trie) VerifyIntegrity(onleaf ExtLeafCallback, resolve ResolveNodeCallback) (bool, error) {
-	return t.verifyIntegrity(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, true, nil)
+func (t *Trie) VerifyIntegrity(onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
+	return t.verifyIntegrity(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, true, nil, checkHash)
 }
 
-func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback) (bool, error) {
+func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
 	wg := sync.WaitGroup{}
 	errV := atomic.Value{}
 
@@ -52,7 +55,7 @@ func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, on
 			wg.Add(1)
 			go func(n node) {
 				defer wg.Done()
-				if ok, err := t.verifyIntegrity(n, append(accumulateKey, byte(i)), onleaf, resolve, false, stopCheckFn); !ok {
+				if ok, err := t.verifyIntegrity(n, append(accumulateKey, byte(i)), onleaf, resolve, false, stopCheckFn, checkHash); !ok {
 					errV.Store(err)
 					return
 				}
@@ -67,7 +70,7 @@ func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, on
 	return false, err.(error)
 }
 
-func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, concurrent bool, errCheckFn checkErrorFn) (ok bool, err error) {
+func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, concurrent bool, errCheckFn checkErrorFn, checkHash bool) (ok bool, err error) {
 	if errCheckFn != nil {
 		if e := errCheckFn(); e != nil {
 			return false, e
@@ -85,20 +88,20 @@ func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCall
 		}
 		return true, nil
 	case *shortNode:
-		ok, err = t.verifyIntegrity(n.Val, append(accumulateKey, n.Key...), onleaf, resolve, false, errCheckFn)
+		ok, err = t.verifyIntegrity(n.Val, append(accumulateKey, n.Key...), onleaf, resolve, false, errCheckFn, checkHash)
 		if !ok {
 			return
 		}
 	case *fullNode:
 		if concurrent {
-			ok, err = t.verifyFullNodeConcurrently(n, accumulateKey, onleaf, resolve)
+			ok, err = t.verifyFullNodeConcurrently(n, accumulateKey, onleaf, resolve, checkHash)
 			if !ok {
 				return
 			}
 		} else {
 			for i, child := range n.Children {
 				if child != nil {
-					if ok, err = t.verifyIntegrity(child, append(accumulateKey, byte(i)), onleaf, resolve, false, errCheckFn); !ok {
+					if ok, err = t.verifyIntegrity(child, append(accumulateKey, byte(i)), onleaf, resolve, false, errCheckFn, checkHash); !ok {
 						return
 					}
 				}
@@ -119,11 +122,17 @@ func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCall
 			}
 			resolvedNode = r
 			data = bs
+			if checkHash {
+				hasher := newHasher(0, 0, nil)
+				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
+					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
+				}
+			}
 		}
 		if resolve != nil {
 			resolve(common.BytesToHash(n), data)
 		}
-		if ok, err = t.verifyIntegrity(resolvedNode, accumulateKey, onleaf, resolve, concurrent, errCheckFn); !ok {
+		if ok, err = t.verifyIntegrity(resolvedNode, accumulateKey, onleaf, resolve, concurrent, errCheckFn, checkHash); !ok {
 			return
 		}
 	default:

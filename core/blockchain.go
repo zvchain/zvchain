@@ -438,7 +438,9 @@ func (chain *FullBlockChain) Close() {
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
 	}
-
+	if chain.dirtyStateDb!= nil{
+		chain.dirtyStateDb.Close()
+	}
 }
 
 // GetRewardManager returns the reward manager
