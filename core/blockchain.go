@@ -218,7 +218,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
-	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, chain.config.pruneMode, stateCacheSize, "")
+	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, chain.config.pruneMode, stateCacheSize, conf.GetString("state_cache_dir", "state_cache"))
 
 	latestBH := chain.loadCurrentBlock()
 
@@ -399,6 +399,9 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
+	// Persist cache data
+	chain.stateCache.TrieDB().SaveCache()
+
 	if chain.blocks != nil {
 		chain.blocks.Close()
 	}
@@ -412,7 +415,6 @@ func (chain *FullBlockChain) Close() {
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
 	}
-
 }
 
 // GetRewardManager returns the reward manager
