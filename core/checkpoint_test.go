@@ -348,7 +348,7 @@ func TestCheckpoint_init(t *testing.T) {
 func initChainReader4CPTest(gr activatedGroupReader, t *testing.T) *FullBlockChain {
 	common.InitConf("test1.ini")
 
-	common.GlobalConf.SetString(configSec, "dirty_db", testOutPut+"/"+"dirty_db")
+	common.GlobalConf.SetString(configSec, "small_db", testOutPut+"/"+"small_db")
 	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
