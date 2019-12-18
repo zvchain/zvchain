@@ -125,6 +125,7 @@ func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCall
 			if checkHash {
 				hasher := newHasher(0, 0, nil)
 				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
+					fmt.Printf("hash check failed:  %v", common.Bytes2Hex(n))
 					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
 				}
 			}

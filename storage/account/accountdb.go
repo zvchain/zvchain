@@ -17,6 +17,7 @@ package account
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
@@ -606,6 +607,17 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve
 		}
 		code := common.BytesToHash(account.CodeHash)
 		if code != emptyCode {
+			if checkHash {
+				data, err := adb.db.TrieDB().Node(code)
+				if err != nil {
+					return err
+				}
+				codeHash := sha3.Sum256(data)
+				if codeHash != code {
+					fmt.Printf("contract code validation fail %v", code)
+					return errors.New(fmt.Sprintf("contract code validation fail %v", code))
+				}
+			}
 			vs.CodeSize = uint64(len(value))
 			if resolve != nil {
 				resolve(code, value)

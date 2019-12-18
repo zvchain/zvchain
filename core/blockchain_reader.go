@@ -241,7 +241,7 @@ func (chain *FullBlockChain) GetNonce(address common.Address) uint64 {
 func (chain *FullBlockChain) getAccountDBByHash(hash common.Hash) (types.AccountDB, error) {
 	header := chain.latestBlock
 	if header == nil || hash != header.Hash {
-		header := chain.queryBlockHeaderByHash(hash)
+		header = chain.queryBlockHeaderByHash(hash)
 		if header == nil {
 			return nil, fmt.Errorf("no data of hash %v", hash)
 		}
