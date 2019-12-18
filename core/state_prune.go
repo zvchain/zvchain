@@ -21,6 +21,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/core/group"
+	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"io"
@@ -50,7 +52,7 @@ type OfflineTailor struct {
 	lock sync.RWMutex
 }
 
-func NewOfflineTailor(dbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
+func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
 	config := &BlockChainConfig{
 		dbfile:      dbDir,
 		block:       "bh",
@@ -106,12 +108,15 @@ func NewOfflineTailor(dbDir string, mem int, cacheDir string, out string, onlyVe
 		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, cacheDir)
 	}
 	chain.latestBlock = chain.loadCurrentBlock()
-
-	cpChecker := newCpChecker(nil, chain)
-	cp, err := cpChecker.calcCheckPointWithoutGroup(chain.Height())
-	if err != nil {
-		return nil, fmt.Errorf("fail to get latest checkpoint, err %v", err)
+	if chain.latestBlock == nil {
+		return nil, fmt.Errorf("get latest block nil")
 	}
+
+	groupManager := group.NewManager(chain, nil)
+	groupManager.InitManager(nil, genesisGroup)
+
+	cpChecker := newCpChecker(groupManager, chain)
+	cp := cpChecker.checkpointAt(chain.Height())
 
 	tailor := &OfflineTailor{
 		dataSource: dbDir,
@@ -131,6 +136,7 @@ func NewOfflineTailor(dbDir string, mem int, cacheDir string, out string, onlyVe
 		}
 		tailor.out = f
 	}
+	tailor.info("chain data dir %v, height %v, checkpoint %v", dbDir, chain.Height(), cp)
 
 	return tailor, nil
 }
@@ -201,7 +207,9 @@ func (t *OfflineTailor) collectUsedNodes() error {
 			return err
 		}
 		s, c := t.usedNodeStat()
-		t.info("collect %v finish, totalNodes %v, incNodes %v, totalSize %vMB, cost %v", h, c, t.incUsedNodes, float64(s)/1024/1024, time.Since(b).String())
+		cost := time.Since(b)
+		remain := cost * time.Duration(i)
+		t.info("collect %v finish, totalNodes %v, incNodes %v, totalSize %vMB, cost %v, remain %v", h, c, t.incUsedNodes, float64(s)/1024/1024, cost.String(), remain.String())
 	}
 	s, c := t.usedNodeStat()
 	t.info("collect nodes finished, cost %v, usedNode %v, size %vMB, start erasing...", time.Since(begin).String(), c, float64(s)/1024/1024)
@@ -232,6 +240,7 @@ func (t *OfflineTailor) eraseBatch(batch tasdb.Batch, cnt, size uint64, start, t
 
 func (t *OfflineTailor) eraseNodes() {
 	iter := t.chain.stateDb.NewIterator()
+	defer iter.Release()
 	batch := t.chain.stateDb.NewBatch()
 	cnt := uint64(0)
 	size := uint64(0)
@@ -260,17 +269,23 @@ func (t *OfflineTailor) eraseNodes() {
 	t.info("erasing finished, cost %v, prune nodes %v, size %vMB, speed %vMB/s", time.Since(start).String(), t.accumulatePrunedNodes, float64(t.accumulatePrunedSize/1024/1024), float64(t.accumulatePrunedSize)/1024/1024/cost.Seconds())
 }
 
+func (t *OfflineTailor) Compaction() {
+	begin := time.Now()
+	rangeStart := []byte(t.chain.config.state)
+	rangeEnd := append(rangeStart[:len(rangeStart)-1], rangeStart[len(rangeStart)-1]+1)
+
+	t.info("start compaction range %v-%v", rangeStart, rangeEnd)
+	t.chain.blocks.GetDB().CompactRange(util.Range{Start: rangeStart, Limit: rangeEnd})
+	t.info("compaction finished, cost %v", time.Since(begin).String())
+}
+
 func (t *OfflineTailor) Pruning() {
 	defer t.out.Close()
 	err := t.collectUsedNodes()
 	t.chain.stateCache.TrieDB().SaveCache()
 	if err == nil {
 		t.eraseNodes()
-		prefix := getBlockChainConfig().state
-		t.info("start compaction...")
-		begin := time.Now()
-		t.chain.blocks.GetDB().CompactRange(util.Range{Start: append([]byte(prefix), 0x00), Limit: append([]byte(prefix), 0xff)})
-		t.info("compaction finished, cost %v", time.Since(begin).String())
+		t.Compaction()
 	}
 }
 
@@ -300,12 +315,15 @@ func (t *OfflineTailor) Verify() error {
 		t.info("start verify block %v", h)
 		b := time.Now()
 		if _, err := t.chain.IntegrityVerify(h, func(stat *account.VerifyStat) {
-			t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, codeSize %v, cost %v", stat.Addr, h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize, stat.CodeSize, stat.Cost.String())
+			if i == len(verifyBlockHeights)-1 {
+				t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, nodeCount %v, nodeSize %v, codeSize %v, cost %v", stat.Addr, h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize,
+					stat.NodeCount, stat.NodeSize, stat.CodeSize, stat.Cost.String())
+			}
 		}, nil); err != nil {
 			t.info("verify block %v fail, err %v", h, err)
 			return err
 		}
-		t.info("verify %v finish, cost %v", h, time.Since(b).String())
+		t.info("verify %v finish, cost %v, remain %v", h, time.Since(b).String(), (time.Since(b) * time.Duration(i)).String())
 	}
 	t.info("verify nodes finished, cost %v", time.Since(begin).String())
 	return nil

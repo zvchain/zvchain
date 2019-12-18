@@ -572,6 +572,8 @@ type VerifyStat struct {
 	Account   Account
 	DataCount uint64
 	DataSize  uint64
+	NodeSize  uint64
+	NodeCount uint64
 	KeySize   uint64
 	CodeSize  uint64
 	Cost      time.Duration
@@ -590,6 +592,7 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve
 		}
 		begin := time.Now()
 		vs := &VerifyStat{Account: account, Addr: common.BytesToAddress(key)}
+		// Verify the sub tree of the account
 		if account.Root != emptyData {
 			t, err := trie.NewTrie(account.Root, adb.db.TrieDB())
 			if err != nil {
@@ -600,15 +603,26 @@ func (adb *AccountDB) VerifyIntegrity(cb VerifyAccountIntegrityCallback, resolve
 				vs.DataSize += uint64(len(v))
 				vs.KeySize += uint64(len(k))
 				return nil
-			}, resolve); !ok {
+			}, func(hash common.Hash, data []byte) {
+				if resolve != nil {
+					resolve(hash, data)
+				}
+				vs.NodeSize += uint64(len(data))
+				vs.NodeCount++
+			}); !ok {
 				return err
 			}
 		}
-		code := common.BytesToHash(account.CodeHash)
-		if code != emptyCode {
-			vs.CodeSize = uint64(len(value))
+		codeHash := common.BytesToHash(account.CodeHash)
+		// Verify the contract code of the account
+		if codeHash != emptyCode {
+			code, err := adb.db.TrieDB().Node(codeHash)
+			if err != nil {
+				return fmt.Errorf("get code %v err %v", codeHash.Hex(), err)
+			}
+			vs.CodeSize = uint64(len(code))
 			if resolve != nil {
-				resolve(code, value)
+				resolve(codeHash, code)
 			}
 		}
 		vs.Cost = time.Since(begin)
