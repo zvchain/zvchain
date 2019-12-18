@@ -325,11 +325,18 @@ func TestActiveGroupReader(t *testing.T) {
 
 func init() {
 	Logger = logrus.StandardLogger()
+	os.RemoveAll(testOutPut)
+}
+
+func TestPathCp(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
 }
 
 func TestCheckpoint_init(t *testing.T) {
 	gr := initGroupReader4CPTest(5)
 	br := initChainReader4CPTest(gr, t)
+	defer clearSelf(t)
 	for h := uint64(1); h < 1000; h++ {
 		addRandomBlock(br, h)
 	}
@@ -376,6 +383,7 @@ func TestCheckpoint_checkAndUpdate(t *testing.T) {
 	if br == nil {
 		return
 	}
+	defer clearSelf(t)
 	Logger = logrus.StandardLogger()
 	top := br.Height()
 	for h := uint64(1); h < uint64(epochNum*types.EpochLength); h += uint64(rand.Int31n(2)) + 1 {
@@ -404,6 +412,7 @@ func TestCheckpoint_CheckPointOf(t *testing.T) {
 	if br == nil {
 		return
 	}
+	defer clearSelf(t)
 	top := br.Height()
 	for h := uint64(1); h < uint64(epochNum*types.EpochLength); h += uint64(rand.Int31n(2)) + 1 {
 		if h > top {
@@ -493,10 +502,6 @@ func TestCheckpoint_calc(t *testing.T) {
 	}
 }
 
-func TestPathCp(t *testing.T) {
-	_, filename, _, _ := runtime.Caller(0)
-	fmt.Println("Current test filename: " + filename)
-}
 
 func TestCheckpoint_calcWithoutGroup(t *testing.T) {
 	common.InitConf("test1.ini")

@@ -149,6 +149,10 @@ func forkChain(heightLimit uint64, forkLength uint64, chain *FullBlockChain) {
 
 	buildChain(heightLimit, chain)
 }
+func TestPathFork(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
+}
 
 func TestBuildChain(t *testing.T) {
 	clearDatas()
@@ -191,10 +195,7 @@ func TestForkChain(t *testing.T) {
 	forkChain(chain.Height(), 3, chain)
 }
 
-func TestPathFork(t *testing.T) {
-	_, filename, _, _ := runtime.Caller(0)
-	fmt.Println("Current test filename: " + filename)
-}
+
 
 func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, chain2 *FullBlockChain) {
 	chain1 = initChain(chainPath1, id1)
