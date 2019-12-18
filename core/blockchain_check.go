@@ -11,8 +11,8 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 )
 
-var skipCheckBlockNum uint64 = 1000 * 10000 // how many blocks exceed the trust block to skip the checking
-var stateValidateBlockNum = 1        // how many blocks need to validate the state tree
+var skipCheckBlockNum uint64 = 980 // how many blocks exceed the trust block to skip the checking
+var stateValidateBlockNum = 1      // how many blocks need to validate the state tree
 
 func (chain *FullBlockChain) checkTrustDb() *types.BlockHeader {
 	hs := params.GetChainConfig().TrustHash
@@ -160,15 +160,15 @@ func doDoubleConfirm(topHeight uint64, trustHeight uint64) bool {
 		}
 		return string(b)
 	}
-	printToConsole(fmt.Sprintf("Your current top height is %d and the turst block height %d", topHeight, trustHeight))
+	printToConsole(fmt.Sprintf("Your current local top %d is higher than trust block over %d blocks", topHeight, topHeight-trustHeight))
 	for {
-		printToConsole(fmt.Sprintf("Do you want to reset the top to the trust block and validate the database? (It is highly recommend to choose [Y] if you copied this database from internet and run it first time)  [Y/n]"))
+		printToConsole(fmt.Sprintf("Are you sure you want to reset to the trust block and validate the database? [Y/n]"))
 		cmd := scanLine()
 		if cmd == "" || cmd == "Y" || cmd == "y" {
 			Logger.Debugln("user choose Y to continue validation")
 			return true
 		} else if cmd == "N" || cmd == "n" {
-			printToConsole("You choose to skip the trust block validation. You can remove the -t or --trustHash option from the starting command parameters.")
+			printToConsole("You choose to skip the trust block validation. You can remove the -t or --trustHash option from the starting command parameters next time.")
 			return false
 		}
 	}
