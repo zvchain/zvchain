@@ -77,7 +77,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		nodes, _ := triedb.Size()
 		if nodes > limit {
 			clear := common.StorageSize(common.GlobalConf.GetInt(gc, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024)
-			triedb.ClearFromNodes(b.Header.Height, limit-clear)
+			triedb.Cap(b.Header.Height, limit-clear)
 		}
 		if cp != nil {
 			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height, TriesInMemory)

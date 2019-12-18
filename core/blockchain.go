@@ -422,6 +422,7 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
+	chain.Stop()
 	if chain.blocks != nil {
 		chain.blocks.Close()
 	}

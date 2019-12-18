@@ -90,7 +90,7 @@ func initChain(dataPath string, id string) *FullBlockChain {
 		Logger.Panicf("init chain error:%v", err)
 	}
 	chain := BlockChainImpl
-
+	notify.BUS = notify.NewBus()
 	Logger = logrus.StandardLogger()
 	// mock the tvm stateProc
 	tvm := newStateProcessor(chain)
