@@ -16,6 +16,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
@@ -28,6 +29,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -189,12 +191,18 @@ func TestForkChain(t *testing.T) {
 	forkChain(chain.Height(), 3, chain)
 }
 
+func TestPathFork(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
+}
+
 func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, chain2 *FullBlockChain) {
 	chain1 = initChain(chainPath1, id1)
 	buildChain(chain1Limit, chain1)
 	Logger.Infof("chain1 top:%v %v", chain1.QueryTopBlock().Height, chain1.QueryTopBlock().Hash)
 
 	os.RemoveAll(chainPath2)
+	os.RemoveAll("dirty_db")
 	err := exec.Command("cp", "-rf", chainPath1, chainPath2).Run()
 	if err != nil {
 		Logger.Error(err)
@@ -208,6 +216,8 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 
 func clearDatas() {
 	os.RemoveAll(chainPath1)
+	os.RemoveAll("d_cache")
+	os.RemoveAll("dirty_db")
 	os.RemoveAll(chainPath2)
 	os.RemoveAll("logs")
 }

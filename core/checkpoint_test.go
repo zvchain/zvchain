@@ -20,12 +20,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/trie"
 	"math/big"
 	"math/rand"
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -338,11 +340,14 @@ func TestCheckpoint_init(t *testing.T) {
 
 func initChainReader4CPTest(gr activatedGroupReader, t *testing.T) *FullBlockChain {
 	common.InitConf("test1.ini")
+
+	common.GlobalConf.SetString(configSec, "dirty_db", testOutPut+"/"+"dirty_db")
 	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
 
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
+	notify.BUS = notify.NewBus()
 	clearTicker()
 	Logger = logrus.StandardLogger()
 	if err != nil {
@@ -486,6 +491,11 @@ func TestCheckpoint_calc(t *testing.T) {
 		fmt.Printf("check %v\n", h)
 		ep = ep.Next()
 	}
+}
+
+func TestPathCp(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
 }
 
 func TestCheckpoint_calcWithoutGroup(t *testing.T) {
