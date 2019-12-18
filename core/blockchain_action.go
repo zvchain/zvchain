@@ -181,7 +181,7 @@ func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) type
 			"height":         b.Header.Height,
 			"logType":        "doAddOnChain",
 			"now":            time2.TSInstance.Now().UTC(),
-			"cost":           time.Since(begin).Milliseconds(),
+			"cost":           time.Since(begin).Nanoseconds() / 1e6,
 			"sinceLastBlock": log.Recorder.End(b.Header.PreHash.Hex()),
 			"version":        common.GzvVersion,
 		}).Info("doAddOnChain success")
