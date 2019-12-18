@@ -84,6 +84,7 @@ func (s *msgSender4Test) Send(id string, msg network.Message) error {
 func initChain(dataPath string,smallPath, id string) *FullBlockChain {
 	common.InitConf("test1.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
+	common.GlobalConf.SetString(configSec, "small_db", smallPath)
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
 	clearTicker()
