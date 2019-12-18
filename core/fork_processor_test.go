@@ -16,6 +16,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
@@ -28,6 +29,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -187,6 +189,11 @@ func TestForkChain(t *testing.T) {
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
 	forkChain(chain.Height(), 3, chain)
+}
+
+func TestPathFork(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
 }
 
 func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, chain2 *FullBlockChain) {

@@ -27,6 +27,7 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -490,6 +491,11 @@ func TestCheckpoint_calc(t *testing.T) {
 		fmt.Printf("check %v\n", h)
 		ep = ep.Next()
 	}
+}
+
+func TestPathCp(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
 }
 
 func TestCheckpoint_calcWithoutGroup(t *testing.T) {
