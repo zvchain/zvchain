@@ -226,7 +226,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		return err
 	}
 	chain.smallStateDb = smallStateDb
-	initDirtyStore(chain.smallStateDb)
+	initSmallStore(chain.smallStateDb)
 
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()

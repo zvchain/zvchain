@@ -266,7 +266,7 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 func (chain *FullBlockChain) DeleteDirtyRoots(dirtyRoots []common.Hash) {
 	if len(dirtyRoots) > 0 {
 		for _, root := range dirtyRoots {
-			err := dirtyState.DeleteDirtyRoot(root)
+			err := smallState.DeleteDirtyRoot(root)
 			if err != nil {
 				log.CoreLogger.Errorf("DeleteDirtyRoots error,err is %v", err)
 				break
@@ -276,7 +276,7 @@ func (chain *FullBlockChain) DeleteDirtyRoots(dirtyRoots []common.Hash) {
 }
 
 func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
-	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
+	lastDeleteHeight := smallState.GetLastDeleteDirtyTrieHeight()
 	beginHeight := lastDeleteHeight
 	endHeight := persistenceHeight
 	if endHeight <= beginHeight {
@@ -292,7 +292,7 @@ func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 		if bh == nil {
 			continue
 		}
-		err := dirtyState.DeleteDirtyTrie(bh.StateTree, bh.Height)
+		err := smallState.DeleteDirtyTrie(bh.StateTree, bh.Height)
 		if err != nil {
 			log.CoreLogger.Error(err)
 			break
@@ -335,7 +335,7 @@ func (chain *FullBlockChain) Stop() {
 				return
 			}
 			commitHeight = bh.Height
-			err = dirtyState.StoreStatePersistentHeight(bh.Height)
+			err = smallState.StoreStatePersistentHeight(bh.Height)
 			if err != nil {
 				fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
 			}
@@ -347,7 +347,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 	if top == nil {
 		return nil
 	}
-	lastStateHeight := dirtyState.GetStatePersistentHeight()
+	lastStateHeight := smallState.GetStatePersistentHeight()
 	if lastStateHeight < top.Height || (top.Height == 0 && lastStateHeight == 0) {
 		start := time.Now()
 		defer func() {
@@ -361,7 +361,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 			if bh == nil {
 				continue
 			}
-			data := dirtyState.GetDirtyByRoot(bh.StateTree)
+			data := smallState.GetDirtyByRoot(bh.StateTree)
 			if len(data) == 0 {
 				continue
 			}
@@ -371,7 +371,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 			}
 			triedb.CommitDirtyToDb(caches, repeatKey)
 		}
-		dirtyState.StoreStatePersistentHeight(top.Height)
+		smallState.StoreStatePersistentHeight(top.Height)
 	}
 	return nil
 }
