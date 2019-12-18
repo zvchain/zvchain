@@ -195,6 +195,7 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 	Logger.Infof("chain1 top:%v %v", chain1.QueryTopBlock().Height, chain1.QueryTopBlock().Hash)
 
 	os.RemoveAll(chainPath2)
+	os.RemoveAll("dirty_db")
 	err := exec.Command("cp", "-rf", chainPath1, chainPath2).Run()
 	if err != nil {
 		Logger.Error(err)
@@ -208,6 +209,7 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 
 func clearDatas() {
 	os.RemoveAll(chainPath1)
+	os.RemoveAll("d_cache")
 	os.RemoveAll("dirty_db")
 	os.RemoveAll(chainPath2)
 	os.RemoveAll("logs")
