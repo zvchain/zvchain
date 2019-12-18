@@ -11,8 +11,8 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 )
 
-const skipCheckBlockNum = 1000 * 10000 // how many blocks exceed the trust block to skip the checking
-const stateValidateBlockNum = 1        // how many blocks need to validate the state tree
+var skipCheckBlockNum uint64 = 1000 * 10000 // how many blocks exceed the trust block to skip the checking
+var stateValidateBlockNum = 1        // how many blocks need to validate the state tree
 
 func (chain *FullBlockChain) checkTrustDb() *types.BlockHeader {
 	hs := params.GetChainConfig().TrustHash
