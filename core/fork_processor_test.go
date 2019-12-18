@@ -55,6 +55,8 @@ var (
 	smallPath2 = "sm_d_b2"
 	id1        = "1"
 	id2        = "2"
+	db_cache1 = "db_cache1"
+	db_cache2 = "db_cache2"
 )
 
 type msgSender4Test struct {
@@ -81,9 +83,10 @@ func (s *msgSender4Test) Send(id string, msg network.Message) error {
 	return nil
 }
 
-func initChain(dataPath string,smallPath, id string) *FullBlockChain {
+func initChain(dataPath string,smallPath, db_cache,id string) *FullBlockChain {
 	common.InitConf("test1.ini")
 	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
+	common.GlobalConf.SetString(configSec, "db_cache", db_cache)
 	common.GlobalConf.SetString(configSec, "small_db", smallPath)
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
@@ -163,7 +166,7 @@ func TestBuildChain(t *testing.T) {
 		clearSelf(t)
 		clearDatas()
 	}()
-	chain := initChain(chainPath1,smallPath1, id1)
+	chain := initChain(chainPath1,smallPath1, db_cache1,id1)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
 	buildChain(400, chain)
@@ -176,7 +179,7 @@ func TestScanBlocks(t *testing.T) {
 		clearSelf(t)
 		clearDatas()
 	}()
-	chain := initChain(chainPath1,smallPath1, id1)
+	chain := initChain(chainPath1,smallPath1,db_cache1, id1)
 	for h := uint64(3990); h <= chain.Height(); h++ {
 		b := chain.QueryBlockHeaderByHeight(h)
 		if b == nil {
@@ -186,7 +189,7 @@ func TestScanBlocks(t *testing.T) {
 	}
 	clearSelf(t)
 	t.Log("============================================")
-	chain = initChain(chainPath2,smallPath2, id2)
+	chain = initChain(chainPath2,smallPath2,db_cache2, id2)
 	for h := uint64(3990); h <= chain.Height(); h++ {
 		b := chain.QueryBlockHeaderByHeight(h)
 		if b == nil {
@@ -197,7 +200,7 @@ func TestScanBlocks(t *testing.T) {
 }
 
 func TestForkChain(t *testing.T) {
-	chain := initChain(chainPath2,smallPath2, id2)
+	chain := initChain(chainPath2,smallPath2,db_cache2, id2)
 	defer func(){
 		clearSelf(t)
 		clearDatas()
@@ -210,7 +213,7 @@ func TestForkChain(t *testing.T) {
 
 
 func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, chain2 *FullBlockChain) {
-	chain1 = initChain(chainPath1,smallPath1, id1)
+	chain1 = initChain(chainPath1,smallPath1,db_cache1, id1)
 	buildChain(chain1Limit, chain1)
 	Logger.Infof("chain1 top:%v %v", chain1.QueryTopBlock().Height, chain1.QueryTopBlock().Hash)
 
@@ -221,7 +224,7 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 		Logger.Error(err)
 	}
 
-	chain2 = initChain(chainPath2,smallPath2, id2)
+	chain2 = initChain(chainPath2,smallPath2, db_cache2,id2)
 	forkChain(chain2Limit, forkLength, chain2)
 	Logger.Infof("chain2 top:%v %v", chain2.QueryTopBlock().Height, chain2.QueryTopBlock().Hash)
 	return
@@ -229,7 +232,8 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 
 func clearDatas() {
 	os.RemoveAll(chainPath1)
-	os.RemoveAll("d_cache")
+	os.RemoveAll(db_cache1)
+	os.RemoveAll(db_cache2)
 	os.RemoveAll(smallPath1)
 	os.RemoveAll(smallPath2)
 	os.RemoveAll(chainPath2)
@@ -242,7 +246,7 @@ func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
 		clearSelf(t)
 		clearDatas()
 	}()
-	chain := initChain(chainPath1,smallPath1, id1)
+	chain := initChain(chainPath1,smallPath1,db_cache1, id1)
 	buildChain(1000, chain)
 
 	fp := chain.forkProcessor
@@ -275,7 +279,7 @@ func TestForkProcess_OnFindAncestorReq_BadMessage(t *testing.T) {
 		clearSelf(t)
 		clearDatas()
 	}()
-	chain := initChain(chainPath1, smallPath1,id1)
+	chain := initChain(chainPath1, smallPath1,db_cache1,id1)
 	buildChain(1000, chain)
 
 	randBytes := make([]byte, rand.Int31n(100))
@@ -295,7 +299,7 @@ func TestForkProcess_OnFindAncestorResponse_Found_GoodMessage(t *testing.T) {
 		clearSelf(t)
 		clearDatas()
 	}()
-	chain := initChain(chainPath1,smallPath1, id1)
+	chain := initChain(chainPath1,smallPath1,db_cache1, id1)
 	ctx := &forkSyncContext{
 		target:       id2,
 		lastReqPiece: &findAncestorPieceReq{},
@@ -326,8 +330,8 @@ func TestForkProcess_OnFindAncestorResponse_Found_GoodMessage(t *testing.T) {
 func TestForkProcess_OnFindAncestorResponse_NotFound_GoodMessage(t *testing.T) {
 	clearDatas()
 	defer clearDatas()
-	chain := initChain(chainPath1,smallPath1, id1)
-	_ = initChain(chainPath2,smallPath2, id2)
+	chain := initChain(chainPath1,smallPath1, db_cache1,id1)
+	_ = initChain(chainPath2,smallPath2,db_cache2, id2)
 
 	ctx := &forkSyncContext{
 		target:       id2,
@@ -359,8 +363,8 @@ func TestForkProcess_OnFindAncestorResponse_NotFound_GoodMessage(t *testing.T) {
 func TestForkProcess_OnChainSliceReq_GoodMessage(t *testing.T) {
 	clearDatas()
 	defer clearDatas()
-	chain := initChain(chainPath1, smallPath1,id1)
-	_ = initChain(chainPath2,smallPath2, id2)
+	chain := initChain(chainPath1, smallPath1,db_cache1,id1)
+	_ = initChain(chainPath2,smallPath2, db_cache2,id2)
 
 	fp := chain.forkProcessor
 
@@ -383,8 +387,8 @@ func TestForkProcess_OnChainSliceReq_GoodMessage(t *testing.T) {
 
 func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
 	defer clearSelf(t)
-	chain := initChain(chainPath1,smallPath1, id1)
-	_ = initChain(chainPath2, smallPath2,id2)
+	chain := initChain(chainPath1,smallPath1,db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2,db_cache2,id2)
 
 	fp := chain.forkProcessor
 
@@ -408,8 +412,8 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
 func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
 	defer clearDatas()
 	clearDatas()
-	chain := initChain(chainPath1,smallPath1, id1)
-	_ = initChain(chainPath2, smallPath2,id2)
+	chain := initChain(chainPath1,smallPath1,db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2,db_cache2,id2)
 
 	fp := chain.forkProcessor
 
@@ -425,9 +429,9 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
 
 func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
 	defer clearDatas()
-	chain := initChain(chainPath1, smallPath1,id1)
+	chain := initChain(chainPath1, smallPath1,db_cache1,id1)
 	buildChain(400, chain)
-	_ = initChain(chainPath2, smallPath2,id2)
+	_ = initChain(chainPath2, smallPath2,db_cache2,id2)
 
 	fp := chain.forkProcessor
 
@@ -465,8 +469,8 @@ func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
 
 func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
 	defer clearDatas()
-	chain := initChain(chainPath1,smallPath1, id1)
-	_ = initChain(chainPath2,smallPath2, id2)
+	chain := initChain(chainPath1,smallPath1, db_cache1,id1)
+	_ = initChain(chainPath2,smallPath2, db_cache2,id2)
 
 	fp := chain.forkProcessor
 
@@ -498,8 +502,8 @@ func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
 
 func TestForkProcess_OnChainSliceResponse_BadMessage(t *testing.T) {
 	defer clearDatas()
-	chain := initChain(chainPath1,smallPath1, id1)
-	_ = initChain(chainPath2, smallPath2,id2)
+	chain := initChain(chainPath1,smallPath1,db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2,db_cache2,id2)
 
 	fp := chain.forkProcessor
 	ctx := &forkSyncContext{
