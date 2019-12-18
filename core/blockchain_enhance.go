@@ -199,7 +199,7 @@ func (fr *fastReplayer) consume() error {
 }
 
 func (fr *fastReplayer) Replay(provider BlockProvider, out io.Writer) error {
-	fr.out.Write([]byte(fmt.Sprintf("source chain height %v\n", fr.chain.Height())))
+	fr.out.Write([]byte(fmt.Sprintf("source chain height %v\n", fr.provider.Height())))
 	go fr.produce(fr.chain.Height() + 1)
 	return fr.consume()
 }
