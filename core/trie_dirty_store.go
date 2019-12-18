@@ -13,29 +13,29 @@ var (
 	lastDirtyTrieHeight = "ldt"
 )
 
-var dirtyState *dirtyStateStore
+var smallState *smallStateStore
 
-type dirtyStateStore struct {
+type smallStateStore struct {
 	db tasdb.Database
 }
 
-func initDirtyStore(db tasdb.Database) {
-	dirtyState = &dirtyStateStore{
+func initSmallStore(db tasdb.Database) {
+	smallState = &smallStateStore{
 		db: db,
 	}
 }
 
-func (store *dirtyStateStore) GetLastDeleteDirtyTrieHeight() uint64 {
+func (store *smallStateStore) GetLastDeleteDirtyTrieHeight() uint64 {
 	data, _ := store.db.Get([]byte(lastDirtyTrieHeight))
 	return common.ByteToUInt64(data)
 }
 
-func (store *dirtyStateStore) GetDirtyByRoot(root common.Hash) []byte {
+func (store *smallStateStore) GetDirtyByRoot(root common.Hash) []byte {
 	data, _ := store.db.Get(store.generateKey(root[:], dirtyTrie))
 	return data
 }
 
-func (store *dirtyStateStore) DeleteDirtyRoot(root common.Hash) error {
+func (store *smallStateStore) DeleteDirtyRoot(root common.Hash) error {
 	err := store.db.Delete(store.generateKey(root[:], dirtyTrie))
 	if err != nil {
 		return fmt.Errorf("delete dirty trie error %v", err)
@@ -43,7 +43,7 @@ func (store *dirtyStateStore) DeleteDirtyRoot(root common.Hash) error {
 	return nil
 }
 
-func (store *dirtyStateStore) DeleteDirtyTrie(root common.Hash, height uint64) error {
+func (store *smallStateStore) DeleteDirtyTrie(root common.Hash, height uint64) error {
 	err := store.db.Delete(store.generateKey(root[:], dirtyTrie))
 	if err != nil {
 		return fmt.Errorf("delete dirty trie error %v", err)
@@ -55,7 +55,7 @@ func (store *dirtyStateStore) DeleteDirtyTrie(root common.Hash, height uint64) e
 	return nil
 }
 
-func (store *dirtyStateStore) StoreDirtyTrie(root common.Hash, nb []byte) error {
+func (store *smallStateStore) StoreDirtyTrie(root common.Hash, nb []byte) error {
 	err := store.db.Put(store.generateKey(root[:], dirtyTrie), nb)
 	if err != nil {
 		return fmt.Errorf("store diry trie error %v", err)
@@ -63,7 +63,7 @@ func (store *dirtyStateStore) StoreDirtyTrie(root common.Hash, nb []byte) error 
 	return nil
 }
 
-func (store *dirtyStateStore) StoreStatePersistentHeight(height uint64) error {
+func (store *smallStateStore) StoreStatePersistentHeight(height uint64) error {
 	err := store.db.Put([]byte(trieHeightStore), common.UInt64ToByte(height))
 	if err != nil {
 		return fmt.Errorf("store trie pure copy info error %v", err)
@@ -71,13 +71,13 @@ func (store *dirtyStateStore) StoreStatePersistentHeight(height uint64) error {
 	return nil
 }
 
-func (store *dirtyStateStore) GetStatePersistentHeight() uint64 {
+func (store *smallStateStore) GetStatePersistentHeight() uint64 {
 	data, _ := store.db.Get([]byte(trieHeightStore))
 	return common.ByteToUInt64(data)
 }
 
 // generateKey generate a prefixed key
-func (store *dirtyStateStore) generateKey(raw []byte, prefix string) []byte {
+func (store *smallStateStore) generateKey(raw []byte, prefix string) []byte {
 	bytesBuffer := bytes.NewBuffer([]byte(prefix))
 	if raw != nil {
 		bytesBuffer.Write(raw)

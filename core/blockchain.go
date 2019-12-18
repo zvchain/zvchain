@@ -80,7 +80,7 @@ type FullBlockChain struct {
 	blockHeight     *tasdb.PrefixedDatabase
 	txDb            *tasdb.PrefixedDatabase
 	stateDb         *tasdb.PrefixedDatabase
-	dirtyStateDb    *tasdb.PrefixedDatabase
+	smallStateDb    *tasdb.PrefixedDatabase
 	cacheDb         *tasdb.PrefixedDatabase
 	batch           tasdb.Batch
 	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
@@ -215,18 +215,18 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "small_db"), nil)
+	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "small_db"), nil)
 	if err != nil {
-		Logger.Errorf("new dirty state datasource error:%v", err)
+		Logger.Errorf("new small state datasource error:%v", err)
 		return err
 	}
-	dirtyStateDb, err := dirtyStateDs.NewPrefixDatabase("")
+	smallStateDb, err := smallStateDs.NewPrefixDatabase("")
 	if err != nil {
-		Logger.Errorf("new dirty state db error:%v", err)
+		Logger.Errorf("new small state db error:%v", err)
 		return err
 	}
-	chain.dirtyStateDb = dirtyStateDb
-	initDirtyStore(chain.dirtyStateDb)
+	chain.smallStateDb = smallStateDb
+	initDirtyStore(chain.smallStateDb)
 
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
@@ -436,8 +436,8 @@ func (chain *FullBlockChain) Close() {
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
 	}
-	if chain.dirtyStateDb!= nil{
-		chain.dirtyStateDb.Close()
+	if chain.smallStateDb!= nil{
+		chain.smallStateDb.Close()
 	}
 }
 

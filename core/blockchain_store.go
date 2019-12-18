@@ -66,7 +66,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
 	if chain.config.pruneMode {
-		err = triedb.InsertFullToDirtyDb(root, dirtyState)
+		err = triedb.InsertFullToDirtyDb(root, smallState)
 		if err != nil {
 			return fmt.Errorf("insert full dirty nodes failed,err is %v", err)
 		}
@@ -96,7 +96,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 							return fmt.Errorf("trie commit error:%s", err.Error())
 						}
 						triedb.ResetGcCount()
-						err = dirtyState.StoreStatePersistentHeight(bh.Height)
+						err = smallState.StoreStatePersistentHeight(bh.Height)
 						if err != nil {
 							return fmt.Errorf("StoreTriePersistentHeight error:%s", err.Error())
 						}
