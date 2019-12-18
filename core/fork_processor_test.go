@@ -156,7 +156,10 @@ func TestPathFork(t *testing.T) {
 
 func TestBuildChain(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
+	defer func(){
+		clearSelf(t)
+		clearDatas()
+	}()
 	chain := initChain(chainPath1, id1)
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
@@ -166,7 +169,10 @@ func TestBuildChain(t *testing.T) {
 
 func TestScanBlocks(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
+	defer func(){
+		clearSelf(t)
+		clearDatas()
+	}()
 	chain := initChain(chainPath1, id1)
 	for h := uint64(3990); h <= chain.Height(); h++ {
 		b := chain.QueryBlockHeaderByHeight(h)
@@ -175,7 +181,7 @@ func TestScanBlocks(t *testing.T) {
 		}
 		t.Log(b.Height, b.Hash, b.Group, b.TotalQN)
 	}
-
+	clearSelf(t)
 	t.Log("============================================")
 	chain = initChain(chainPath2, id2)
 	for h := uint64(3990); h <= chain.Height(); h++ {
@@ -188,8 +194,11 @@ func TestScanBlocks(t *testing.T) {
 }
 
 func TestForkChain(t *testing.T) {
-	defer clearDatas()
 	chain := initChain(chainPath2, id2)
+	defer func(){
+		clearSelf(t)
+		clearDatas()
+	}()
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
 	forkChain(chain.Height(), 3, chain)
