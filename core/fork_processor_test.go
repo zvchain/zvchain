@@ -237,11 +237,12 @@ func clearDatas() {
 }
 
 func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
-	chain := initChain(chainPath1,smallPath1, id1)
+	clearDatas()
 	defer func(){
 		clearSelf(t)
 		clearDatas()
 	}()
+	chain := initChain(chainPath1,smallPath1, id1)
 	buildChain(1000, chain)
 
 	fp := chain.forkProcessor
@@ -269,11 +270,12 @@ func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
 }
 
 func TestForkProcess_OnFindAncestorReq_BadMessage(t *testing.T) {
-	chain := initChain(chainPath1, smallPath1,id1)
+	clearDatas()
 	defer func(){
 		clearSelf(t)
 		clearDatas()
 	}()
+	chain := initChain(chainPath1, smallPath1,id1)
 	buildChain(1000, chain)
 
 	randBytes := make([]byte, rand.Int31n(100))
@@ -288,11 +290,12 @@ func TestForkProcess_OnFindAncestorReq_BadMessage(t *testing.T) {
 }
 
 func TestForkProcess_OnFindAncestorResponse_Found_GoodMessage(t *testing.T) {
-	chain := initChain(chainPath1,smallPath1, id1)
+	clearDatas()
 	defer func(){
 		clearSelf(t)
 		clearDatas()
 	}()
+	chain := initChain(chainPath1,smallPath1, id1)
 	ctx := &forkSyncContext{
 		target:       id2,
 		lastReqPiece: &findAncestorPieceReq{},
