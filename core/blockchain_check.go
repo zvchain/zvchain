@@ -22,8 +22,8 @@ func (chain *FullBlockChain) checkTrustDb() *types.BlockHeader {
 		trustHash := common.HexToHash(hs)
 		trustBl := chain.queryBlockHeaderByHash(trustHash)
 		if trustBl == nil {
-			printToConsole("Can't find the trust block hash in database, skip the validation and start the syncing")
-			return nil
+			printToConsole("Can't find the trust block hash in database. Please set the right hash and restart the program!")
+			os.Exit(0)
 		}
 		printToConsole(fmt.Sprintf("Your trust point hash is %v and height is %v", trustBl.Hash, trustBl.Height))
 		// check executed
@@ -48,7 +48,6 @@ func (chain *FullBlockChain) checkTrustDb() *types.BlockHeader {
 		}
 		printToConsole("Validating block headers finish")
 
-		//validate state  tree
 		err = validateStateDb(chain, trustBl)
 		if err != nil {
 			Logger.Errorf("VerifyIntegrity failed: %v", err)
@@ -57,7 +56,14 @@ func (chain *FullBlockChain) checkTrustDb() *types.BlockHeader {
 			os.Exit(0)
 		}
 		printToConsole(fmt.Sprintf("Validating state tree finish, reset top to the trust point: %v and start syncing", trustBl.Height))
-		chain.ResetTop(trustBl)
+		err = chain.ResetTop(trustBl)
+		if err != nil {
+			Logger.Errorf("ResetTop failed: %v", err)
+			printToConsole(err.Error())
+			printToConsole("Failed to reset top to trust block! Please delete the directory d_b and restart the program!")
+			os.Exit(0)
+		}
+
 		return trustBl
 	}
 	return nil
