@@ -147,8 +147,6 @@ func (chain *FullBlockChain) saveBlockTxs(blockHash common.Hash, dataBytes []byt
 
 // commitBlock persist a block in a batch
 func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostState) (ok bool, err error) {
-	chain.wg.Add(1)
-	defer chain.wg.Done()
 	traceLog := monitor.NewPerformTraceLogger("commitBlock", block.Header.Hash, block.Header.Height)
 	traceLog.SetParent("addBlockOnChain")
 	defer traceLog.Log("")
@@ -177,7 +175,10 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
-
+	if atomic.LoadInt32(&chain.running) == 1 {
+		err = fmt.Errorf("in shutdown hook")
+		return
+	}
 	defer chain.batch.Reset()
 
 	// Commit state
@@ -235,8 +236,6 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 }
 
 func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
-	chain.wg.Add(1)
-	defer chain.wg.Done()
 	if !chain.isAdjusting {
 		chain.isAdjusting = true
 		defer func() {
@@ -247,6 +246,10 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	// Add read and write locks, block reading at this time
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
+
+	if atomic.LoadInt32(&chain.running) == 1 {
+		return fmt.Errorf("in shutdown hook")
+	}
 
 	if nil == block {
 		return fmt.Errorf("block is nil")

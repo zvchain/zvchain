@@ -304,11 +304,11 @@ func (chain *FullBlockChain) Stop() {
 	if !chain.config.pruneMode {
 		return
 	}
+	chain.rwLock.Lock()
+	defer chain.rwLock.Unlock()
 	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
 		return
 	}
-	atomic.StoreInt32(&chain.procInterrupt, 1)
-	chain.wg.Wait()
 	begin := time.Now()
 	cp := chain.latestCP.Load()
 	if chain.triegc.Empty() || cp == nil {
@@ -377,9 +377,6 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
-	if atomic.LoadInt32(&chain.procInterrupt) == 1 {
-		return types.AddBlockExisted, nil
-	}
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
@@ -697,7 +694,10 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 			pre := chain.QueryBlockHeaderByHash(firstBlock.Header.PreHash)
 			if pre != nil {
 				last := lastBlock.Header
-				chain.ResetTop(pre)
+				err := chain.ResetTop(pre)
+				if err != nil{
+					return fmt.Errorf("resetTop error,err is %v",err)
+				}
 				Logger.Debugf("batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
 			} else {
 				// There will fork, we have to deal with it

@@ -86,8 +86,6 @@ type FullBlockChain struct {
 	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
 	stateCache      account.AccountDatabase
 	running         int32 // running must be called atomically
-	procInterrupt   int32 // interrupt signaler for block processing
-	wg              sync.WaitGroup
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -452,10 +450,10 @@ func (chain *FullBlockChain) GetConsensusHelper() types.ConsensusHelper {
 }
 
 // ResetTop reset the current top block with parameter bh
-func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) {
+func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) error{
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
-	chain.resetTop(bh)
+	return chain.resetTop(bh)
 }
 
 // Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later
