@@ -117,7 +117,6 @@ func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCall
 		if hash != (common.Hash{}) && hash != emptyRoot {
 			r, bs, e := t.resolveHashAndGetRawBytes(n, accumulateKey)
 			if e != nil {
-				fmt.Println("missing", common.ToHex(n), common.ToHex(hexToKeybytes(accumulateKey)), string(hexToKeybytes(accumulateKey)))
 				return false, e
 			}
 			resolvedNode = r

@@ -211,11 +211,11 @@ func (cp *cpChecker) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
 	Logger.Debugf("cp group votes updated at %v, votes %v", bh.Height, votes)
 }
 
-func (cp *cpChecker) calcCheckpointByDB(db types.AccountDB, ctx *cpContext) (cpHeight uint64, found bool) {
+func (cp *cpChecker) calcCheckpointByDB(db types.AccountDB, ep types.Epoch, threshold int) (cpHeight uint64, found bool) {
 	// Get the group epoch start with the given accountDB
 	gEp := cp.getGroupEpoch(db)
 	// If epoch of the given db not equal to current epoch, means that the whole current epoch was skipped
-	if gEp.Equal(ctx.epoch) {
+	if gEp.Equal(ep) {
 		votes := cp.getGroupVotes(db)
 
 		validVotes := make([]int, 0)
@@ -225,26 +225,26 @@ func (cp *cpChecker) calcCheckpointByDB(db types.AccountDB, ctx *cpContext) (cpH
 			}
 		}
 		// cp found
-		if len(validVotes) >= ctx.threshold {
+		if len(validVotes) >= threshold {
 			sort.Ints(validVotes)
-			thresholdHeight := uint64(validVotes[len(validVotes)-ctx.threshold]) + ctx.epoch.Start() - 1
+			thresholdHeight := uint64(validVotes[len(validVotes)-threshold]) + ep.Start() - 1
 			return thresholdHeight, true
 		}
 	}
 	return 0, false
 }
 
-func (cp *cpChecker) calcCheckpointByBlocks(blocks []*types.BlockHeader, ctx *cpContext) (cpHeight uint64, found bool) {
+func (cp *cpChecker) calcCheckpointByBlocks(blocks []*types.BlockHeader, ep types.Epoch, threshold int) (cpHeight uint64, found bool) {
 	if len(blocks) == 0 {
 		return 0, false
 	}
 	votes := make(map[common.Hash]struct{})
 	for visit := len(blocks) - 1; visit >= 0; visit-- {
 		bh := blocks[visit]
-		if types.EpochAt(bh.Height).Equal(ctx.epoch) {
+		if types.EpochAt(bh.Height).Equal(ep) {
 			votes[bh.Group] = struct{}{}
 			// Threshold-group height found
-			if len(votes) >= ctx.threshold {
+			if len(votes) >= threshold {
 				return bh.Height, true
 			}
 		}
@@ -287,12 +287,12 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 					}
 					return 0
 				}
-				if h, found := cp.calcCheckpointByDB(db, ctx); found {
+				if h, found := cp.calcCheckpointByDB(db, ctx.epoch, ctx.threshold); found {
 					return h
 				}
 			} else {
 				blocks := cp.querier.BatchGetBlockHeadersBetween(ep.Start(), ep.End())
-				if h, found := cp.calcCheckpointByBlocks(blocks, ctx); found {
+				if h, found := cp.calcCheckpointByBlocks(blocks, ctx.epoch, ctx.threshold); found {
 					return h
 				}
 			}
@@ -307,55 +307,4 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 		scan++
 	}
 	return 0
-}
-
-// calcCheckPointWithoutGroup calculates checkpoint without reading groupinfo.
-// used for checkpoint calculation when doing fully-pruning offline
-func (cp *cpChecker) calcCheckPointWithoutGroup(h uint64) (uint64, error) {
-	if h <= cpBlockBuffer {
-		return 0, nil
-	}
-	h -= cpBlockBuffer
-	if h > cp.querier.Height() {
-		h = cp.querier.Height()
-	} else {
-		h = cp.querier.QueryBlockHeaderFloor(h).Height
-	}
-
-	for scan := 0; scan < cpMaxScanEpochs; {
-		ep := types.EpochAt(h)
-		ctx := newCpContext(ep, nil)
-		// Get the accountDB of end of the epoch
-		db, err := cp.querier.AccountDBAt(h)
-		if err != nil {
-			Logger.Errorf("get account db at %v error:%v", h, err)
-			return 0, err
-		}
-		// Get the group epoch start with the given accountDB
-		gEp := cp.getGroupEpoch(db)
-		// If epoch of the given db not equal to current epoch, means that the whole current epoch was skipped
-		if gEp.Equal(ctx.epoch) {
-			votes := cp.getGroupVotes(db)
-
-			validVotes := make([]int, 0)
-			for _, v := range votes {
-				if v > 0 {
-					validVotes = append(validVotes, int(v))
-				}
-			}
-			ctx.threshold = cpGroupThreshold(len(votes))
-			// cp found
-			if len(validVotes) >= ctx.threshold {
-				sort.Ints(validVotes)
-				thresholdHeight := uint64(validVotes[len(validVotes)-ctx.threshold]) + ctx.epoch.Start() - 1
-				return thresholdHeight, nil
-			}
-		}
-		if ep.Start() == 0 {
-			break
-		}
-		h = ep.Start() - 1
-		scan++
-	}
-	return 0, nil
 }
