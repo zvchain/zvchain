@@ -276,6 +276,8 @@ func (chain *FullBlockChain) DeleteSmallDbDatasByRoots(roots []common.Hash) {
 }
 
 func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
+	chain.smallStateDb.mu.Lock()
+	defer chain.smallStateDb.mu.Unlock()
 	lastDeleteHeight := chain.smallStateDb.GetLastDeleteHeight()
 	beginHeight := lastDeleteHeight
 	endHeight := persistenceHeight
@@ -343,7 +345,7 @@ func (chain *FullBlockChain) PersistentState() {
 	}
 }
 
-func (chain *FullBlockChain) FixSmallDatasFromBigDB(top *types.BlockHeader) error {
+func (chain *FullBlockChain) mergeSmallDbDatasToBigDB(top *types.BlockHeader) error {
 	if top == nil {
 		return nil
 	}

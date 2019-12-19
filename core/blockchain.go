@@ -138,7 +138,7 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		tx:        "tx",
 		receipt:   "rc",
-		pruneMode: common.GlobalConf.GetBool(configSec, "prune_mode", false),
+		pruneMode: common.GlobalConf.GetBool(configSec, "prune_mode", true),
 	}
 }
 
@@ -243,7 +243,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	err = chain.FixSmallDatasFromBigDB(latestBH)
+	err = chain.mergeSmallDbDatasToBigDB(latestBH)
 	if err != nil {
 		return err
 	}
