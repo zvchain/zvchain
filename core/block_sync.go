@@ -163,8 +163,6 @@ func (bs *blockSyncer) loadPreferNodes() {
 			bs.preferNotifyNodes[id] = true
 		}
 	}
-	fmt.Printf("loadPreferNodes ,notify nodes:%v", bs.preferNotifyNodes)
-
 }
 
 func (bs *blockSyncer) isSyncing() bool {
@@ -462,11 +460,6 @@ func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
 	blacklist := make([]string, 0)
 	for _, nodeStr := range counter.Keys() {
 		blacklist = append(blacklist, nodeStr.(string))
-	}
-	for nodeStr, _ := range bs.preferNotifyNodes {
-		blacklist = append(blacklist, nodeStr)
-		bs.logger.Debugf("prefer Send local %d-%v, %v to %v", top.TotalQN, top.Height, top.Hash.Hex(), nodeStr)
-		network.GetNetInstance().Send(nodeStr, message)
 	}
 
 	network.GetNetInstance().TransmitToNeighbor(message, blacklist)
