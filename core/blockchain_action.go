@@ -264,6 +264,10 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 }
 
 func (chain *FullBlockChain) DeleteSmallDbDatasByRoots(roots []common.Hash) {
+	begin := time.Now()
+	defer func(){
+		log.CropLogger.Debugf("resetTop delete small db size is %v,cost %v",len(roots),time.Since(begin))
+	}()
 	if len(roots) > 0 {
 		for _, root := range roots {
 			err := chain.smallStateDb.DeleteSmallDbDatasByRoot(root)
