@@ -64,45 +64,6 @@ func (p *Prque) Empty() bool {
 	return p.cont.Len() == 0
 }
 
-//// GetCropHeights returns first to cp height slice
-func (p *Prque) GetCropHeights(cpHeight, minSize uint64) []*Item {
-	if cpHeight <= minSize {
-		return nil
-	}
-	root, h := p.Pop()
-	p.Push(root, h)
-	if uint64(h) < cpHeight {
-		return nil
-	}
-	backList := []*Item{}
-	cropList := []*Item{}
-	var count uint64 = 0
-	temp := make(map[uint64]struct{})
-
-	for !p.Empty() {
-		root, h = p.Pop()
-		if uint64(h) >= cpHeight {
-			backList = append(backList, &Item{root, h})
-		} else {
-			if _, ok := temp[uint64(h)]; !ok {
-				temp[uint64(h)] = struct{}{}
-				count++
-			}
-			if count <= minSize {
-				backList = append(backList, &Item{root, h})
-			} else {
-				cropList = append(cropList, &Item{root, h})
-			}
-		}
-	}
-	if len(backList) > 0 {
-		for _, v := range backList {
-			p.Push(v.Value, v.Priority)
-		}
-	}
-
-	return cropList
-}
 
 // Returns the number of element in the priority queue.
 func (p *Prque) Size() int {

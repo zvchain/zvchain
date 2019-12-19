@@ -80,7 +80,7 @@ type FullBlockChain struct {
 	blockHeight     *tasdb.PrefixedDatabase
 	txDb            *tasdb.PrefixedDatabase
 	stateDb         *tasdb.PrefixedDatabase
-	smallStateDb    *tasdb.PrefixedDatabase
+	smallStateDb    *smallStateStore
 	cacheDb         *tasdb.PrefixedDatabase
 	batch           tasdb.Batch
 	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
@@ -223,9 +223,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("new small state db error:%v", err)
 		return err
 	}
-	chain.smallStateDb = smallStateDb
-	initSmallStore(chain.smallStateDb)
-
+	chain.smallStateDb = initSmallStore(smallStateDb)
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
@@ -245,7 +243,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	err = chain.FixTrieDataFromDB(latestBH)
+	err = chain.FixSmallDatasFromBigDB(latestBH)
 	if err != nil {
 		return err
 	}

@@ -63,9 +63,9 @@ type readMeter struct {
 	start     time.Time
 }
 
-// DirtyStateReader wraps the Get and Has method of a backing store for the dirty trie.
-type DirtyStateReader interface {
-	StoreDirtyTrie(root common.Hash, nb []byte) error
+// SmallDbReader wraps the Get and Has method of a backing store for the current block state's modify datas.
+type SmallDbReader interface {
+	StoreDataToSmallDb(root common.Hash, nb []byte) error
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
@@ -331,14 +331,14 @@ func (db *NodeDatabase) ResetNodeCache() {
 	}
 }
 
-// InsertFullToDirtyDb insert nodes to dirty db
-func (db *NodeDatabase) InsertFullToDirtyDb(root common.Hash, dbReader DirtyStateReader) error {
+// InsertStateDatasToSmallDb insert nodes to small db
+func (db *NodeDatabase) InsertStateDatasToSmallDb(root common.Hash, dbReader SmallDbReader) error {
 	if db.commitFullNodes != nil && len(db.commitFullNodes) > 0 {
 		dts, err := rlp.EncodeToBytes(db.commitFullNodes)
 		if err != nil {
 			return fmt.Errorf("encode error，error is %v", err)
 		}
-		err = dbReader.StoreDirtyTrie(root, dts)
+		err = dbReader.StoreDataToSmallDb(root, dts)
 		if err != nil {
 			return err
 		}
@@ -569,10 +569,10 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
+func (db *NodeDatabase) CommitStateDatasToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
 	batch := db.diskdb.NewBatch()
-	if len(dirtyBlobs) > 0 {
-		for _, vl := range dirtyBlobs {
+	if len(blobs) > 0 {
+		for _, vl := range blobs {
 			_, ok := repeatKey[vl.Key]
 			if ok {
 				continue
@@ -589,12 +589,12 @@ func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob, repeatKey map[c
 	return nil
 }
 
-func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*storeBlob) {
-	err = rlp.DecodeBytes(data, &dirtyBlobs)
+func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, blobs []*storeBlob) {
+	err = rlp.DecodeBytes(data, &blobs)
 	if err != nil {
 		err = fmt.Errorf("decode storeBlob error,error is %v", err)
 	}
-	return nil, dirtyBlobs
+	return nil, blobs
 }
 
 func (db *NodeDatabase) LastGcHeight() uint64 {

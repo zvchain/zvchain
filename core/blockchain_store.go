@@ -18,6 +18,7 @@ package core
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/common/prque"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
 	time2 "github.com/zvchain/zvchain/middleware/time"
@@ -50,6 +51,46 @@ func (msg *newTopMessage) GetData() interface{} {
 	return msg.bh
 }
 
+
+func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.Item {
+	if cpHeight <= minSize {
+		return nil
+	}
+	root, h := chain.triegc.Pop()
+	chain.triegc.Push(root, h)
+	if uint64(h) < cpHeight {
+		return nil
+	}
+	backList := []*prque.Item{}
+	cropList := []*prque.Item{}
+	var count uint64 = 0
+	temp := make(map[uint64]struct{})
+
+	for !chain.triegc.Empty() {
+		root, h = chain.triegc.Pop()
+		if uint64(h) >= cpHeight {
+			backList = append(backList, &prque.Item{root, h})
+		} else {
+			if _, ok := temp[uint64(h)]; !ok {
+				temp[uint64(h)] = struct{}{}
+				count++
+			}
+			if count <= minSize {
+				backList = append(backList, &prque.Item{root, h})
+			} else {
+				cropList = append(cropList, &prque.Item{root, h})
+			}
+		}
+	}
+	if len(backList) > 0 {
+		for _, v := range backList {
+			chain.triegc.Push(v.Value, v.Priority)
+		}
+	}
+
+	return cropList
+}
+
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
 	triedb := chain.stateCache.TrieDB()
 	triedb.ResetNodeCache()
@@ -66,9 +107,9 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
 	if chain.config.pruneMode {
-		err = triedb.InsertFullToDirtyDb(root, smallState)
+		err = triedb.InsertStateDatasToSmallDb(root, chain.smallStateDb)
 		if err != nil {
-			return fmt.Errorf("insert full dirty nodes failed,err is %v", err)
+			return fmt.Errorf("insert full state nodes failed,err is %v", err)
 		}
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
 		chain.triegc.Push(root, int64(b.Header.Height))
@@ -80,9 +121,10 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			triedb.Cap(b.Header.Height, limit-clear)
 		}
 		if cp != nil {
-			cropItems := chain.triegc.GetCropHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
+			cropItems := chain.getPruneHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
 			if len(cropItems) > 0 {
-				for _, vl := range cropItems {
+				for i:= len(cropItems) - 1;i>=0;i--{
+					vl := cropItems[i]
 					triedb.Dereference(uint64(vl.Priority), vl.Value.(common.Hash))
 				}
 				curCropMaxHeight := uint64(cropItems[0].Priority)
@@ -96,11 +138,11 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 							return fmt.Errorf("trie commit error:%s", err.Error())
 						}
 						triedb.ResetGcCount()
-						err = smallState.StoreStatePersistentHeight(bh.Height)
+						err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
 						if err != nil {
 							return fmt.Errorf("StoreTriePersistentHeight error:%s", err.Error())
 						}
-						go chain.DeleteDirtyTrie(bh.Height)
+						go chain.DeleteSmallDbByHeight(bh.Height)
 						log.CropLogger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
 					} else {
 						log.CoreLogger.Warnf("persistent find ceil head is nil,height is %v", curCropMaxHeight)
@@ -315,7 +357,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		return err
 	}
 	if chain.config.pruneMode {
-		chain.DeleteDirtyRoots(removeRoots)
+		chain.DeleteSmallDbDatasByRoots(removeRoots)
 	}
 
 	chain.updateLatestBlock(state, block)
