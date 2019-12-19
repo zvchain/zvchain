@@ -167,10 +167,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        fileCacheSize,
-		BlockCacheCapacity:            blockCacheSize * opt.MiB,
-		WriteBuffer:                   writeBufferSize * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
+		OpenFilesCacheCapacity: fileCacheSize,
+		BlockCacheCapacity:     blockCacheSize * opt.MiB,
+		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
@@ -279,7 +279,11 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 }
 
 func (chain *FullBlockChain) LogDbStats() {
-	tc := time.NewTicker(3 * time.Second)
+	dbInterval := common.GlobalConf.GetInt(configSec, "meter_db_interval", 0)
+	if dbInterval <= 0 {
+		return
+	}
+	tc := time.NewTicker(time.Duration(dbInterval) * time.Second)
 	go func() {
 		for range tc.C {
 			chain.stateDb.LogStats(log.MeterLogger)
