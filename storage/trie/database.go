@@ -687,20 +687,20 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 
 // Cap iteratively flushes old but still referenced trie nodes until the total
 // memory usage goes below the given threshold.
-func (db *NodeDatabase) Cap(limit common.StorageSize) error {
+func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
 	// by only uncaching existing data when the database write finalizes.
-	db.lock.RLock()
 
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
 	batch := db.diskdb.NewBatch()
 
-	// db.nodesSize only contains the useful data in the cache, but when reporting
+	// db.dirtiesSize only contains the useful data in the cache, but when reporting
 	// the total memory consumption, the maintenance metadata is also needed to be
-	// counted. For every useful node, we track 2 extra hashes as the flushlist.
-	size := db.nodesSize + common.StorageSize((len(db.nodes)-1)*2*common.HashLength)
+	// counted.
+	size := db.nodesSize + common.StorageSize((len(db.nodes)-1)*cachedNodeSize)
+	size += db.childrenSize - common.StorageSize(len(db.nodes[common.Hash{}].children)*(common.HashLength+2))
 
 	// If the preimage cache got large enough, push to disk. If it's still small
 	// leave for later to deduplicate writes.
@@ -709,12 +709,10 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 		for hash, preimage := range db.preimages {
 			if err := batch.Put(db.secureKey(hash[:]), preimage); err != nil {
 				//core.Logger.Error("Failed to commit preimage from trie database", "err", err)
-				db.lock.RUnlock()
 				return err
 			}
 			if batch.ValueSize() > tasdb.IdealBatchSize {
 				if err := batch.Write(); err != nil {
-					db.lock.RUnlock()
 					return err
 				}
 				batch.Reset()
@@ -727,32 +725,30 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.nodes[oldest]
 		if err := batch.Put(oldest[:], node.rlp()); err != nil {
-			db.lock.RUnlock()
 			return err
 		}
 		// If we exceeded the ideal batch size, commit and reset
-		if batch.ValueSize() >= tasdb.IdealBatchSize {
+			if batch.ValueSize() >= tasdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.DefaultLogger.Error("Failed to write flush list to disk", "err", err)
-				db.lock.RUnlock()
 				return err
 			}
 			batch.Reset()
 		}
 		// Iterate to the next flush item, or abort if the size cap was achieved. Size
-		// is the total size, including both the useful cached data (hash -> blob), as
-		// well as the flushlist metadata (2*hash). When flushing items from the cache,
-		// we need to reduce both.
-		size -= common.StorageSize(3*common.HashLength + int(node.size))
+		// is the total size, including the useful cached data (hash -> blob), the
+		// cache item metadata, as well as external children mappings.
+		size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
+		if node.children != nil {
+			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		}
 		oldest = node.flushNext
 	}
 	// Flush out any remainder data from the last batch
 	if err := batch.Write(); err != nil {
 		log.DefaultLogger.Error("Failed to write flush list to disk", "err", err)
-		db.lock.RUnlock()
 		return err
 	}
-	db.lock.RUnlock()
 
 	// Write successful, clear out the flushed data
 	db.lock.Lock()
@@ -768,6 +764,9 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 		db.oldest = node.flushNext
 
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
+		if node.children != nil {
+			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		}
 	}
 	if db.oldest != (common.Hash{}) {
 		db.nodes[db.oldest].flushPrev = common.Hash{}
@@ -780,52 +779,9 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 	//memcacheFlushSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheFlushNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
-	log.DefaultLogger.Debug("Persisted nodes from memory database", "nodes", nodes-len(db.nodes), "size", storage-db.nodesSize, "time", time.Since(start),
-		"flushnodes", db.flushnodes, "flushsize", db.flushsize, "flushtime", db.flushtime, "livenodes", len(db.nodes), "livesize", db.nodesSize)
-
-	return nil
-}
-
-func (db *NodeDatabase) ClearFromNodes(height uint64, limit common.StorageSize) {
-	db.lock.Lock()
-	defer db.lock.Unlock()
-	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	size := db.nodesSize + common.StorageSize((len(db.nodes)-1)*cachedNodeSize)
-	size += db.childrenSize - common.StorageSize(len(db.nodes[common.Hash{}].children)*(common.HashLength+2))
-	// Keep delete nodes from the flush-list until we're below allowance
-	oldest := db.oldest
-	for size > limit && oldest != (common.Hash{}) {
-		// Fetch the oldest referenced node and push into the batch
-		node := db.nodes[oldest]
-		// Iterate to the next flush item, or abort if the size cap was achieved. Size
-		// is the total size, including the useful cached data (hash -> blob), the
-		// cache item metadata, as well as external children mappings.
-		size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
-		if node.children != nil {
-			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
-		}
-		oldest = node.flushNext
-	}
-	for db.oldest != oldest {
-		node := db.nodes[db.oldest]
-		delete(db.nodes, db.oldest)
-		db.oldest = node.flushNext
-
-		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
-		if node.children != nil {
-			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
-		}
-	}
-	if db.oldest != (common.Hash{}) {
-		db.nodes[db.oldest].flushPrev = common.Hash{}
-	}
-
-	db.flushnodes += uint64(nodes - len(db.nodes))
-	db.flushsize += storage - db.nodesSize
-	db.flushtime += time.Since(start)
-
 	log.CropLogger.Debugf("Clear nodes from memory clear ,height is %v,clear count %v,clear size %v,cost %v,total flush nodes %v,total flush size %v,total flush time is %v,live node %v,live size %v",
 		height, nodes-len(db.nodes), storage-db.nodesSize, time.Since(start), db.flushnodes, db.flushsize, db.flushtime, len(db.nodes), db.nodesSize/(1024*1024))
+	return nil
 }
 
 // Commit iterates over all the children of a particular node, writes them out
