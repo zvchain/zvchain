@@ -300,7 +300,7 @@ func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
 	}
 }
 
-func (chain *FullBlockChain) Persistent() {
+func (chain *FullBlockChain) PersistentState() {
 	if !chain.config.pruneMode {
 		return
 	}

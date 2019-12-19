@@ -422,7 +422,7 @@ func (chain *FullBlockChain) Close() {
 	if chain.stateCache != nil{
 		chain.stateCache.TrieDB().SaveCache()
 	}
-	chain.Persistent()
+	chain.PersistentState()
 	if chain.blocks != nil {
 		chain.blocks.Close()
 	}
