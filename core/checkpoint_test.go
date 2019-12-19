@@ -489,48 +489,15 @@ func TestCheckpoint_calc(t *testing.T) {
 			t.Fatalf("new account db error %v at %v", err, h)
 		}
 		ctx := newCpContext(ep, cp.groupReader.GetActivatedGroupsAt(h))
-		cp1, f1 := cp.calcCheckpointByDB(db, ctx)
+		cp1, f1 := cp.calcCheckpointByDB(db, ctx.epoch, ctx.threshold)
 
 		blocks := cp.querier.BatchGetBlockHeadersBetween(ep.Start(), ep.End())
-		cp2, f2 := cp.calcCheckpointByBlocks(blocks, ctx)
+		cp2, f2 := cp.calcCheckpointByBlocks(blocks, ctx.epoch, ctx.threshold)
 
 		if cp1 != cp2 || f1 != f2 {
 			t.Fatalf("calc error at %v, cp1 %v %v, cp2 %v %v", h, cp1, f1, cp2, f2)
 		}
 		fmt.Printf("check %v\n", h)
 		ep = ep.Next()
-	}
-}
-
-
-func TestCheckpoint_calcWithoutGroup(t *testing.T) {
-	common.InitConf("test1.ini")
-	dataPath := "/Volumes/darren-sata/d_b_raw1"
-	_, err := os.Stat(dataPath)
-	if os.IsNotExist(err) {
-		t.Logf("data dir not exist")
-		return
-	}
-	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
-	err = initBlockChain(&consensusHelper4CheckpointTest{}, nil)
-	if err != nil {
-		t.Fatalf("init fail %v", err)
-	}
-	chain := BlockChainImpl
-	top := chain.Height()
-	t.Logf("height %v", top)
-
-	cp := chain.cpChecker
-	for h := top; top > 0; h -= uint64(rand.Int63n(10)) {
-		cp1 := cp.checkpointAt(h)
-		cp2, err := cp.calcCheckPointWithoutGroup(h)
-		if err != nil {
-			t.Fatalf("new account db error %v at %v", err, h)
-		}
-
-		if cp1 != cp2 {
-			t.Fatalf("calc error at %v, cp1 %v  cp2 %v", h, cp1, cp2)
-		}
-		fmt.Printf("check %v\n", h)
 	}
 }
