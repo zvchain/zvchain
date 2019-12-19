@@ -168,7 +168,7 @@ func doDoubleConfirm(topHeight uint64, trustHeight uint64) bool {
 			Logger.Debugln("user choose Y to continue validation")
 			return true
 		} else if cmd == "N" || cmd == "n" {
-			printToConsole("You choose to skip the trust block validation. You can remove the -t or --trustHash option from the starting command parameters next time.")
+			printToConsole("You choose to skip the trust block validation. You can remove the -t or --trusthash option from the starting command parameters next time.")
 			return false
 		}
 	}
