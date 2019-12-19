@@ -117,8 +117,7 @@ func (gzv *Gzv) exit(ctrlC <-chan bool, quit chan<- bool) {
 		return
 	}
 	fmt.Println("exiting...")
-	//core.BlockChainImpl.Close()
-	core.BlockChainImpl.Stop()
+	core.BlockChainImpl.Close()
 	//taslog.Close()
 	mediator.StopMiner()
 	if gzv.inited {
@@ -316,7 +315,9 @@ func (gzv *Gzv) Run() {
 
 	case pruneCmd.FullCommand():
 		log.Init()
-		tailor, err := core.NewOfflineTailor(*srcDB, *memSize, *cacheDir, *outFile, *verifiy)
+		helper := mediator.NewConsensusHelper(groupsig.ID{})
+		genesisGroup := helper.GenerateGenesisInfo()
+		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *memSize, *cacheDir, *outFile, *verifiy)
 		if err != nil {
 			output("start fail", err)
 		}

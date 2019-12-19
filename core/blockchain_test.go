@@ -524,7 +524,7 @@ func clearAllFolder() {
 	}
 	for _, d := range dir {
 		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || (strings.HasPrefix(d.Name(), "Test")) ||
-			strings.HasPrefix(d.Name(), "database"))  || strings.HasPrefix(d.Name(), "dirty_db"){
+			strings.HasPrefix(d.Name(), "database"))  || strings.HasPrefix(d.Name(), "small_db"){
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {

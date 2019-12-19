@@ -59,22 +59,24 @@ type readMeter struct {
 	miss      uint64
 	missSize  uint64
 	hitSize   uint64
+	lastOut   time.Time
+	start     time.Time
 }
 
-// DirtyStateReader wraps the Get and Has method of a backing store for the dirty trie.
-type DirtyStateReader interface {
-	StoreDirtyTrie(root common.Hash, nb []byte) error
+// SmallDbReader wraps the Get and Has method of a backing store for the current block state's modify datas.
+type SmallDbReader interface {
+	StoreDataToSmallDb(root common.Hash, nb []byte) error
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
 type NodeDatabase struct {
-	diskdb      tasdb.Database              // Persistent storage for matured trie nodes
-	nodes       map[common.Hash]*cachedNode // Data and references relationships of a node
-	cache       *fastcache.Cache
-	cacheDir    string     // Directory for storing the cached data
-	meter       *readMeter // meter about node hit or cache hit
+	diskdb   tasdb.Database              // Persistent storage for matured trie nodes
+	nodes    map[common.Hash]*cachedNode // Data and references relationships of a node
+	cache    *fastcache.Cache
+	cacheDir string     // Directory for storing the cached data
+	meter    *readMeter // meter about node hit or cache hit
 
 	oldest common.Hash // Oldest tracked node, flush-list head
 	newest common.Hash // Newest tracked node, flush-list tail
@@ -90,9 +92,9 @@ type NodeDatabase struct {
 	flushnodes uint64             // Nodes flushed since last commit
 	flushsize  common.StorageSize // Data storage flushed since last commit
 
-	childrenSize  common.StorageSize // Storage size of the external children tracking
-	nodesSize     common.StorageSize // Storage size of the nodes cache (exc. flushlist)
-	preimagesSize common.StorageSize // Storage size of the preimages cache
+	childrenSize    common.StorageSize // Storage size of the external children tracking
+	nodesSize       common.StorageSize // Storage size of the nodes cache (exc. flushlist)
+	preimagesSize   common.StorageSize // Storage size of the preimages cache
 	lock            sync.RWMutex
 	commitFullNodes []*storeBlob // CommitFullNodes strores commit nodes every time
 	enableGc        bool         // enableGc crop dirty state if true
@@ -313,7 +315,7 @@ func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable
 		enableGc:  gcEnable,
 		cache:     cache,
 		cacheDir:  cacheDir,
-		meter:     &readMeter{},
+		meter:     &readMeter{start: time.Now()},
 	}
 }
 
@@ -329,14 +331,14 @@ func (db *NodeDatabase) ResetNodeCache() {
 	}
 }
 
-// InsertFullToDirtyDb insert nodes to dirty db
-func (db *NodeDatabase) InsertFullToDirtyDb(root common.Hash, dbReader DirtyStateReader) error {
+// InsertStateDatasToSmallDb insert nodes to small db
+func (db *NodeDatabase) InsertStateDatasToSmallDb(root common.Hash, dbReader SmallDbReader) error {
 	if db.commitFullNodes != nil && len(db.commitFullNodes) > 0 {
 		dts, err := rlp.EncodeToBytes(db.commitFullNodes)
 		if err != nil {
 			return fmt.Errorf("encode error，error is %v", err)
 		}
-		err = dbReader.StoreDirtyTrie(root, dts)
+		err = dbReader.StoreDataToSmallDb(root, dts)
 		if err != nil {
 			return err
 		}
@@ -405,13 +407,14 @@ func (db *NodeDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 
 func (db *NodeDatabase) tryGetFromCache(hash common.Hash) []byte {
 	// reset the meter if read count > 2000000, for more accuracy statistic about recent db read
-	if db.meter.readCount >= 2000000 {
-		db.meter = &readMeter{}
+	if time.Since(db.meter.start).Minutes() > 1 {
+		db.meter = &readMeter{start: time.Now()}
 	}
 	atomic.AddUint64(&db.meter.readCount, 1)
 	if db.cache != nil {
 		meter := db.meter
-		if meter.readCount%3000 == 0 {
+		if time.Since(meter.lastOut).Seconds() > 2 {
+			meter.lastOut = time.Now()
 			stat := &fastcache.Stats{}
 			db.cache.UpdateStats(stat)
 			log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
@@ -459,6 +462,7 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
+		log.CoreLogger.Errorf("get from disk error, key %v, err %v", hash.Hex(), err)
 		return nil, nil
 	}
 	db.addToCache(hash, enc)
@@ -565,12 +569,12 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob,repeatKey map[common.Hash]struct{}) error {
+func (db *NodeDatabase) CommitStateDatasToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
 	batch := db.diskdb.NewBatch()
-	if len(dirtyBlobs) > 0 {
-		for _, vl := range dirtyBlobs {
-			_,ok:= repeatKey[vl.Key]
-			if ok{
+	if len(blobs) > 0 {
+		for _, vl := range blobs {
+			_, ok := repeatKey[vl.Key]
+			if ok {
 				continue
 			}
 			repeatKey[vl.Key] = struct{}{}
@@ -585,12 +589,12 @@ func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob,repeatKey map[co
 	return nil
 }
 
-func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, dirtyBlobs []*storeBlob) {
-	err = rlp.DecodeBytes(data, &dirtyBlobs)
+func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, blobs []*storeBlob) {
+	err = rlp.DecodeBytes(data, &blobs)
 	if err != nil {
 		err = fmt.Errorf("decode storeBlob error,error is %v", err)
 	}
-	return nil, dirtyBlobs
+	return nil, blobs
 }
 
 func (db *NodeDatabase) LastGcHeight() uint64 {
@@ -683,20 +687,20 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 
 // Cap iteratively flushes old but still referenced trie nodes until the total
 // memory usage goes below the given threshold.
-func (db *NodeDatabase) Cap(limit common.StorageSize) error {
+func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
 	// by only uncaching existing data when the database write finalizes.
-	db.lock.RLock()
 
 	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
 	batch := db.diskdb.NewBatch()
 
-	// db.nodesSize only contains the useful data in the cache, but when reporting
+	// db.dirtiesSize only contains the useful data in the cache, but when reporting
 	// the total memory consumption, the maintenance metadata is also needed to be
-	// counted. For every useful node, we track 2 extra hashes as the flushlist.
-	size := db.nodesSize + common.StorageSize((len(db.nodes)-1)*2*common.HashLength)
+	// counted.
+	size := db.nodesSize + common.StorageSize((len(db.nodes)-1)*cachedNodeSize)
+	size += db.childrenSize - common.StorageSize(len(db.nodes[common.Hash{}].children)*(common.HashLength+2))
 
 	// If the preimage cache got large enough, push to disk. If it's still small
 	// leave for later to deduplicate writes.
@@ -705,12 +709,10 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 		for hash, preimage := range db.preimages {
 			if err := batch.Put(db.secureKey(hash[:]), preimage); err != nil {
 				//core.Logger.Error("Failed to commit preimage from trie database", "err", err)
-				db.lock.RUnlock()
 				return err
 			}
 			if batch.ValueSize() > tasdb.IdealBatchSize {
 				if err := batch.Write(); err != nil {
-					db.lock.RUnlock()
 					return err
 				}
 				batch.Reset()
@@ -723,32 +725,30 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.nodes[oldest]
 		if err := batch.Put(oldest[:], node.rlp()); err != nil {
-			db.lock.RUnlock()
 			return err
 		}
 		// If we exceeded the ideal batch size, commit and reset
-		if batch.ValueSize() >= tasdb.IdealBatchSize {
+			if batch.ValueSize() >= tasdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.DefaultLogger.Error("Failed to write flush list to disk", "err", err)
-				db.lock.RUnlock()
 				return err
 			}
 			batch.Reset()
 		}
 		// Iterate to the next flush item, or abort if the size cap was achieved. Size
-		// is the total size, including both the useful cached data (hash -> blob), as
-		// well as the flushlist metadata (2*hash). When flushing items from the cache,
-		// we need to reduce both.
-		size -= common.StorageSize(3*common.HashLength + int(node.size))
+		// is the total size, including the useful cached data (hash -> blob), the
+		// cache item metadata, as well as external children mappings.
+		size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
+		if node.children != nil {
+			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		}
 		oldest = node.flushNext
 	}
 	// Flush out any remainder data from the last batch
 	if err := batch.Write(); err != nil {
 		log.DefaultLogger.Error("Failed to write flush list to disk", "err", err)
-		db.lock.RUnlock()
 		return err
 	}
-	db.lock.RUnlock()
 
 	// Write successful, clear out the flushed data
 	db.lock.Lock()
@@ -764,6 +764,9 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 		db.oldest = node.flushNext
 
 		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
+		if node.children != nil {
+			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		}
 	}
 	if db.oldest != (common.Hash{}) {
 		db.nodes[db.oldest].flushPrev = common.Hash{}
@@ -776,52 +779,9 @@ func (db *NodeDatabase) Cap(limit common.StorageSize) error {
 	//memcacheFlushSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheFlushNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
-	log.DefaultLogger.Debug("Persisted nodes from memory database", "nodes", nodes-len(db.nodes), "size", storage-db.nodesSize, "time", time.Since(start),
-		"flushnodes", db.flushnodes, "flushsize", db.flushsize, "flushtime", db.flushtime, "livenodes", len(db.nodes), "livesize", db.nodesSize)
-
-	return nil
-}
-
-func (db *NodeDatabase) ClearFromNodes(height uint64, limit common.StorageSize) {
-	db.lock.Lock()
-	defer db.lock.Unlock()
-	nodes, storage, start := len(db.nodes), db.nodesSize, time.Now()
-	size := db.nodesSize + common.StorageSize((len(db.nodes)-1)*cachedNodeSize)
-	size += db.childrenSize - common.StorageSize(len(db.nodes[common.Hash{}].children)*(common.HashLength+2))
-	// Keep delete nodes from the flush-list until we're below allowance
-	oldest := db.oldest
-	for size > limit && oldest != (common.Hash{}) {
-		// Fetch the oldest referenced node and push into the batch
-		node := db.nodes[oldest]
-		// Iterate to the next flush item, or abort if the size cap was achieved. Size
-		// is the total size, including the useful cached data (hash -> blob), the
-		// cache item metadata, as well as external children mappings.
-		size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
-		if node.children != nil {
-			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
-		}
-		oldest = node.flushNext
-	}
-	for db.oldest != oldest {
-		node := db.nodes[db.oldest]
-		delete(db.nodes, db.oldest)
-		db.oldest = node.flushNext
-
-		db.nodesSize -= common.StorageSize(common.HashLength + int(node.size))
-		if node.children != nil {
-			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
-		}
-	}
-	if db.oldest != (common.Hash{}) {
-		db.nodes[db.oldest].flushPrev = common.Hash{}
-	}
-
-	db.flushnodes += uint64(nodes - len(db.nodes))
-	db.flushsize += storage - db.nodesSize
-	db.flushtime += time.Since(start)
-
 	log.CropLogger.Debugf("Clear nodes from memory clear ,height is %v,clear count %v,clear size %v,cost %v,total flush nodes %v,total flush size %v,total flush time is %v,live node %v,live size %v",
 		height, nodes-len(db.nodes), storage-db.nodesSize, time.Since(start), db.flushnodes, db.flushsize, db.flushtime, len(db.nodes), db.nodesSize/(1024*1024))
+	return nil
 }
 
 // Commit iterates over all the children of a particular node, writes them out
@@ -904,7 +864,7 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 	if err := batch.Put(hash[:], v); err != nil {
 		return err
 	}
-	if db.cache != nil{
+	if db.cache != nil {
 		db.cache.Set(hash.Bytes(), v)
 	}
 	// If we've reached an optimal batch size, commit and start over

@@ -80,14 +80,12 @@ type FullBlockChain struct {
 	blockHeight     *tasdb.PrefixedDatabase
 	txDb            *tasdb.PrefixedDatabase
 	stateDb         *tasdb.PrefixedDatabase
-	dirtyStateDb    *tasdb.PrefixedDatabase
+	smallStateDb    *smallStateStore
 	cacheDb         *tasdb.PrefixedDatabase
 	batch           tasdb.Batch
 	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
 	stateCache      account.AccountDatabase
 	running         int32 // running must be called atomically
-	procInterrupt   int32 // interrupt signaler for block processing
-	wg              sync.WaitGroup
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -215,19 +213,17 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	dirtyStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "dirty_db", "dirty_db"), nil)
+	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "small_db"), nil)
 	if err != nil {
-		Logger.Errorf("new dirty state datasource error:%v", err)
+		Logger.Errorf("new small state datasource error:%v", err)
 		return err
 	}
-	dirtyStateDb, err := dirtyStateDs.NewPrefixDatabase("")
+	smallStateDb, err := smallStateDs.NewPrefixDatabase("")
 	if err != nil {
-		Logger.Errorf("new dirty state db error:%v", err)
+		Logger.Errorf("new small state db error:%v", err)
 		return err
 	}
-	chain.dirtyStateDb = dirtyStateDb
-	initDirtyStore(chain.dirtyStateDb)
-
+	chain.smallStateDb = initSmallStore(smallStateDb)
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
@@ -247,7 +243,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	err = chain.FixTrieDataFromDB(latestBH)
+	err = chain.FixSmallDatasFromBigDB(latestBH)
 	if err != nil {
 		return err
 	}
@@ -425,6 +421,10 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
+	// Persist cache data
+	chain.stateCache.TrieDB().SaveCache()
+
+	chain.Stop()
 	if chain.blocks != nil {
 		chain.blocks.Close()
 	}
@@ -438,8 +438,8 @@ func (chain *FullBlockChain) Close() {
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
 	}
-	if chain.dirtyStateDb!= nil{
-		chain.dirtyStateDb.Close()
+	if chain.smallStateDb!= nil{
+		chain.smallStateDb.Close()
 	}
 }
 
@@ -454,10 +454,10 @@ func (chain *FullBlockChain) GetConsensusHelper() types.ConsensusHelper {
 }
 
 // ResetTop reset the current top block with parameter bh
-func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) {
+func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) error{
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
-	chain.resetTop(bh)
+	return chain.resetTop(bh)
 }
 
 // Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later

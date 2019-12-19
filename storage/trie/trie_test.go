@@ -560,9 +560,11 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 }
 
 func runRandTest(rt randTest) bool {
-	tr, _ := newTrieFromMemDB(common.Hash{})
-	values := make(map[string]string) // tracks content of the trie
+	db, _ := tasdb.NewMemDatabase()
+	triedb := NewDatabase(db,0,"",false)
 
+	tr, _ := NewTrie(common.Hash{}, triedb)
+	values := make(map[string]string) // tracks content of the trie
 	for i, step := range rt {
 		switch step.op {
 		case opUpdate:
@@ -587,14 +589,14 @@ func runRandTest(rt randTest) bool {
 				rt[i].err = err
 				return false
 			}
-			newtr, _ := newTrieFromMemDB(hash)
+			newtr, err := NewTrie(hash, triedb)
 			if err != nil {
 				rt[i].err = err
 				return false
 			}
 			tr = newtr
 		case opItercheckhash:
-			checktr, _ := newTrieFromMemDB(common.Hash{})
+			checktr, _ := NewTrie(common.Hash{}, triedb)
 			it := NewIterator(tr.NodeIterator(nil))
 			for it.Next() {
 				checktr.Update(it.Key, it.Value)

@@ -263,20 +263,20 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
-func (chain *FullBlockChain) DeleteDirtyRoots(dirtyRoots []common.Hash) {
-	if len(dirtyRoots) > 0 {
-		for _, root := range dirtyRoots {
-			err := dirtyState.DeleteDirtyRoot(root)
+func (chain *FullBlockChain) DeleteSmallDbDatasByRoots(roots []common.Hash) {
+	if len(roots) > 0 {
+		for _, root := range roots {
+			err := chain.smallStateDb.DeleteSmallDbDatasByRoot(root)
 			if err != nil {
-				log.CoreLogger.Errorf("DeleteDirtyRoots error,err is %v", err)
+				log.CoreLogger.Errorf("DeleteSmallDbDatasByRoots error,err is %v", err)
 				break
 			}
 		}
 	}
 }
 
-func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
-	lastDeleteHeight := dirtyState.GetLastDeleteDirtyTrieHeight()
+func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
+	lastDeleteHeight := chain.smallStateDb.GetLastDeleteHeight()
 	beginHeight := lastDeleteHeight
 	endHeight := persistenceHeight
 	if endHeight <= beginHeight {
@@ -284,15 +284,15 @@ func (chain *FullBlockChain) DeleteDirtyTrie(persistenceHeight uint64) {
 	}
 	begin := time.Now()
 	defer func() {
-		log.CropLogger.Debugf("delete dirty trie from db success,height is %v-%v,cost=%v", beginHeight, endHeight, time.Since(begin))
+		log.CropLogger.Debugf("delete small db success,height is %v-%v,cost=%v", beginHeight, endHeight, time.Since(begin))
 	}()
-	log.CropLogger.Debugf("begin delete dirty trie from db,height is %v-%v", beginHeight, endHeight)
+	log.CropLogger.Debugf("begin delete small db,height is %v-%v", beginHeight, endHeight)
 	for i := beginHeight; i < endHeight; i++ {
 		bh := chain.queryBlockHeaderByHeight(i)
 		if bh == nil {
 			continue
 		}
-		err := dirtyState.DeleteDirtyTrie(bh.StateTree, bh.Height)
+		err := chain.smallStateDb.DeleteSmallDbDataByRoot(bh.StateTree, bh.Height)
 		if err != nil {
 			log.CoreLogger.Error(err)
 			break
@@ -304,11 +304,11 @@ func (chain *FullBlockChain) Stop() {
 	if !chain.config.pruneMode {
 		return
 	}
+	chain.rwLock.Lock()
+	defer chain.rwLock.Unlock()
 	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
 		return
 	}
-	atomic.StoreInt32(&chain.procInterrupt, 1)
-	chain.wg.Wait()
 	begin := time.Now()
 	cp := chain.latestCP.Load()
 	if chain.triegc.Empty() || cp == nil {
@@ -321,7 +321,7 @@ func (chain *FullBlockChain) Stop() {
 		if commitHeight == common.MaxUint64 {
 			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
 		} else {
-			fmt.Printf("stop success,commit height %v,cost %v", commitHeight, time.Since(begin))
+			fmt.Printf("stop success,commit height is %v,cp height is %v,local height is %v,cost %v", commitHeight,cp.(*types.BlockHeader).Height, chain.Height(),time.Since(begin))
 		}
 
 	}()
@@ -335,7 +335,7 @@ func (chain *FullBlockChain) Stop() {
 				return
 			}
 			commitHeight = bh.Height
-			err = dirtyState.StoreStatePersistentHeight(bh.Height)
+			err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
 			if err != nil {
 				fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
 			}
@@ -343,17 +343,17 @@ func (chain *FullBlockChain) Stop() {
 	}
 }
 
-func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
+func (chain *FullBlockChain) FixSmallDatasFromBigDB(top *types.BlockHeader) error {
 	if top == nil {
 		return nil
 	}
-	lastStateHeight := dirtyState.GetStatePersistentHeight()
+	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
 	if lastStateHeight < top.Height || (top.Height == 0 && lastStateHeight == 0) {
 		start := time.Now()
 		defer func() {
-			log.CropLogger.Debugf("fix dirty state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
+			log.CropLogger.Debugf("fix small state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
 		}()
-		log.CropLogger.Debugf("begin fix dirty state data,from %v-%v \n", lastStateHeight, top.Height)
+		log.CropLogger.Debugf("begin fix small state data,from %v-%v \n", lastStateHeight, top.Height)
 		triedb := chain.stateCache.TrieDB()
 		repeatKey := make(map[common.Hash]struct{})
 		for i := lastStateHeight; i <= top.Height; i++ {
@@ -361,7 +361,7 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 			if bh == nil {
 				continue
 			}
-			data := dirtyState.GetDirtyByRoot(bh.StateTree)
+			data := chain.smallStateDb.GetSmallDbDatasByRoot(bh.StateTree)
 			if len(data) == 0 {
 				continue
 			}
@@ -369,17 +369,20 @@ func (chain *FullBlockChain) FixTrieDataFromDB(top *types.BlockHeader) error {
 			if err != nil {
 				return err
 			}
-			triedb.CommitDirtyToDb(caches, repeatKey)
+			err = triedb.CommitStateDatasToBigDb(caches, repeatKey)
+			if err != nil{
+				return fmt.Errorf("commit from small db to big db error,err is %v",err)
+			}
 		}
-		dirtyState.StoreStatePersistentHeight(top.Height)
+		err := chain.smallStateDb.StoreStatePersistentHeight(top.Height)
+		if err != nil{
+			return fmt.Errorf("write persistentHeight to small db error,err is %v",err)
+		}
 	}
 	return nil
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
-	if atomic.LoadInt32(&chain.procInterrupt) == 1 {
-		return types.AddBlockExisted, nil
-	}
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
@@ -697,7 +700,10 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 			pre := chain.QueryBlockHeaderByHash(firstBlock.Header.PreHash)
 			if pre != nil {
 				last := lastBlock.Header
-				chain.ResetTop(pre)
+				err := chain.ResetTop(pre)
+				if err != nil{
+					return fmt.Errorf("resetTop error,err is %v",err)
+				}
 				Logger.Debugf("batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
 			} else {
 				// There will fork, we have to deal with it
