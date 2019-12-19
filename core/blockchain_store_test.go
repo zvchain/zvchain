@@ -102,7 +102,7 @@ func TestGetCropHeights(t *testing.T) {
 	que := prque.NewPrque()
 
 	chain := &FullBlockChain{
-		triegc:prque.NewPrque(),
+		triegc:que,
 	}
 	for i := 10; i >= 0; i-- {
 		que.Push(strconv.Itoa(i), int64(i))
@@ -121,8 +121,9 @@ func TestGetCropHeights(t *testing.T) {
 	if uint64(ht) != 10 {
 		t.Fatalf("expect data is 10,but got %v", ht)
 	}
+	que = prque.NewPrque()
 	chain = &FullBlockChain{
-		triegc:prque.NewPrque(),
+		triegc:que,
 	}
 	for i := 10; i >= 0; i-- {
 		que.Push(strconv.Itoa(i), int64(i))
@@ -138,8 +139,9 @@ func TestGetCropHeights(t *testing.T) {
 	if uint64(ht) != 10 {
 		t.Fatalf("expect data is 10,but got %v", ht)
 	}
+	que = prque.NewPrque()
 	chain = &FullBlockChain{
-		triegc:prque.NewPrque(),
+		triegc:que,
 	}
 	for i := 10; i >= 0; i-- {
 		que.Push(strconv.Itoa(i), int64(i))
