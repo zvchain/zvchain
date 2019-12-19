@@ -146,7 +146,7 @@ func NewFastReplayer(bp BlockProvider, chain *FullBlockChain, out io.Writer) Rep
 }
 
 func (fr *fastReplayer) produce(begin uint64) {
-	const step = 100
+	const step = 200
 	for {
 		blocks := fr.provider.Provide(begin, begin+step)
 
@@ -191,7 +191,7 @@ func (fr *fastReplayer) consume() error {
 
 			fr.out.Write([]byte(fmt.Sprintf("replay block %v finished, bps %v, remain %v\n", last-1, bps, remainT.String())))
 		case <-fr.finishCh:
-			fr.out.Write([]byte(fmt.Sprintf("replay total %v blocks finished, cost %v", cnt, time.Since(begin).String())))
+			fr.out.Write([]byte(fmt.Sprintf("replay total %v blocks finished, cost %v\n", cnt, time.Since(begin).String())))
 			break
 		}
 	}
@@ -199,6 +199,7 @@ func (fr *fastReplayer) consume() error {
 }
 
 func (fr *fastReplayer) Replay(provider BlockProvider, out io.Writer) error {
+	fr.out.Write([]byte(fmt.Sprintf("source chain height %v\n", fr.provider.Height())))
 	go fr.produce(fr.chain.Height() + 1)
 	return fr.consume()
 }

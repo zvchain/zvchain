@@ -422,6 +422,9 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
+	// Persist cache data
+	chain.stateCache.TrieDB().SaveCache()
+
 	if chain.blocks != nil {
 		chain.blocks.Close()
 	}
@@ -435,7 +438,7 @@ func (chain *FullBlockChain) Close() {
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
 	}
-	if chain.dirtyStateDb!= nil{
+	if chain.dirtyStateDb != nil {
 		chain.dirtyStateDb.Close()
 	}
 }

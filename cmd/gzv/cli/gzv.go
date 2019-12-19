@@ -312,7 +312,9 @@ func (gzv *Gzv) Run() {
 
 	case pruneCmd.FullCommand():
 		log.Init()
-		tailor, err := core.NewOfflineTailor(*srcDB, *memSize, *cacheDir, *outFile, *verifiy)
+		helper := mediator.NewConsensusHelper(groupsig.ID{})
+		genesisGroup := helper.GenerateGenesisInfo()
+		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *memSize, *cacheDir, *outFile, *verifiy)
 		if err != nil {
 			output("start fail", err)
 		}

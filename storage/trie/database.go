@@ -59,6 +59,8 @@ type readMeter struct {
 	miss      uint64
 	missSize  uint64
 	hitSize   uint64
+	lastOut   time.Time
+	start     time.Time
 }
 
 // DirtyStateReader wraps the Get and Has method of a backing store for the dirty trie.
@@ -70,11 +72,11 @@ type DirtyStateReader interface {
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
 type NodeDatabase struct {
-	diskdb      tasdb.Database              // Persistent storage for matured trie nodes
-	nodes       map[common.Hash]*cachedNode // Data and references relationships of a node
-	cache       *fastcache.Cache
-	cacheDir    string     // Directory for storing the cached data
-	meter       *readMeter // meter about node hit or cache hit
+	diskdb   tasdb.Database              // Persistent storage for matured trie nodes
+	nodes    map[common.Hash]*cachedNode // Data and references relationships of a node
+	cache    *fastcache.Cache
+	cacheDir string     // Directory for storing the cached data
+	meter    *readMeter // meter about node hit or cache hit
 
 	oldest common.Hash // Oldest tracked node, flush-list head
 	newest common.Hash // Newest tracked node, flush-list tail
@@ -90,9 +92,9 @@ type NodeDatabase struct {
 	flushnodes uint64             // Nodes flushed since last commit
 	flushsize  common.StorageSize // Data storage flushed since last commit
 
-	childrenSize  common.StorageSize // Storage size of the external children tracking
-	nodesSize     common.StorageSize // Storage size of the nodes cache (exc. flushlist)
-	preimagesSize common.StorageSize // Storage size of the preimages cache
+	childrenSize    common.StorageSize // Storage size of the external children tracking
+	nodesSize       common.StorageSize // Storage size of the nodes cache (exc. flushlist)
+	preimagesSize   common.StorageSize // Storage size of the preimages cache
 	lock            sync.RWMutex
 	commitFullNodes []*storeBlob // CommitFullNodes strores commit nodes every time
 	enableGc        bool         // enableGc crop dirty state if true
@@ -313,7 +315,7 @@ func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable
 		enableGc:  gcEnable,
 		cache:     cache,
 		cacheDir:  cacheDir,
-		meter:     &readMeter{},
+		meter:     &readMeter{start: time.Now()},
 	}
 }
 
@@ -405,13 +407,14 @@ func (db *NodeDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 
 func (db *NodeDatabase) tryGetFromCache(hash common.Hash) []byte {
 	// reset the meter if read count > 2000000, for more accuracy statistic about recent db read
-	if db.meter.readCount >= 2000000 {
-		db.meter = &readMeter{}
+	if time.Since(db.meter.start).Minutes() > 1 {
+		db.meter = &readMeter{start: time.Now()}
 	}
 	atomic.AddUint64(&db.meter.readCount, 1)
 	if db.cache != nil {
 		meter := db.meter
-		if meter.readCount%3000 == 0 {
+		if time.Since(meter.lastOut).Seconds() > 2 {
+			meter.lastOut = time.Now()
 			stat := &fastcache.Stats{}
 			db.cache.UpdateStats(stat)
 			log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
@@ -459,6 +462,7 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
+		log.CoreLogger.Errorf("get from disk error, key %v, err %v", hash.Hex(), err)
 		return nil, nil
 	}
 	db.addToCache(hash, enc)
@@ -565,12 +569,12 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob,repeatKey map[common.Hash]struct{}) error {
+func (db *NodeDatabase) CommitDirtyToDb(dirtyBlobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
 	batch := db.diskdb.NewBatch()
 	if len(dirtyBlobs) > 0 {
 		for _, vl := range dirtyBlobs {
-			_,ok:= repeatKey[vl.Key]
-			if ok{
+			_, ok := repeatKey[vl.Key]
+			if ok {
 				continue
 			}
 			repeatKey[vl.Key] = struct{}{}
@@ -904,7 +908,7 @@ func (db *NodeDatabase) commit(hash common.Hash, batch tasdb.Batch) error {
 	if err := batch.Put(hash[:], v); err != nil {
 		return err
 	}
-	if db.cache != nil{
+	if db.cache != nil {
 		db.cache.Set(hash.Bytes(), v)
 	}
 	// If we've reached an optimal batch size, commit and start over
