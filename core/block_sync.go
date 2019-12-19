@@ -18,14 +18,17 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
+	"strings"
+	"sync"
+	"time"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/notify"
-	"math"
-	"math/rand"
-	"sync"
 
 	"github.com/gogo/protobuf/proto"
 	tas_middleware_pb "github.com/zvchain/zvchain/middleware/pb"
@@ -36,20 +39,23 @@ import (
 )
 
 const (
-	sendLocalTopInterval        = 3   // Interval of sending local top block to neighbor
-	syncNeightborsInterval      = 3   // Interval of requesting synchronize block from neighbor
-	defaultSyncNeightborTimeout = 5   // Timeout of requesting synchronize block from neighbor
-	blockSyncCandidatePoolSize  = 100 // Size of candidate peer pool for block synchronize
+	sendLocalTopInterval       = 3   // Interval of sending local top block to neighbor
+	syncNeighborsInterval      = 3   // Interval of requesting synchronize block from neighbor
+	defaultSyncNeighborTimeout = 5   // Timeout of requesting synchronize block from neighbor
+	blockSyncCandidatePoolSize = 100 // Size of candidate peer pool for block synchronize
 
 	notifyCounterCacheSize         = 20   // size of LRU cache for notify counters
 	notifyCounterCacheSizePerBlock = 1024 // size of LRU cache for per block notify counter
 )
 
 const (
-	tickerSendLocalTop         = "send_local_top"
-	tickerSyncNeighbor         = "sync_neightbor"
-	tickerSyncTimeout          = "sync_timeout"
-	configSyncNeightborTimeout = "block_sync_timeout"
+	tickerSendLocalTop        = "send_local_top"
+	tickerSyncNeighbor        = "sync_neighbor"
+	tickerSyncTimeout         = "sync_timeout"
+	configSyncNeighborTimeout = "block_sync_timeout"
+
+	configBlockNotifyNodes  = "block_notify_nodes"
+	configBlockNotifyEnable = "block_notify_enable"
 )
 
 var (
@@ -72,11 +78,15 @@ type blockSyncer struct {
 
 	ticker *ticker.GlobalTicker
 
-	lock                 sync.RWMutex
-	logger               *logrus.Logger
-	syncNeightborTimeout uint32
+	lock                sync.RWMutex
+	logger              *logrus.Logger
+	syncNeighborTimeout uint32
 
 	notifyCounters *lru.Cache
+	requestTime    time.Time
+
+	blockNotifyEnable bool
+	blockNotifyNodes  []string
 }
 
 type topBlockInfo struct {
@@ -93,11 +103,12 @@ func newTopBlockInfo(topBH *types.BlockHeader) *topBlockInfo {
 
 func newBlockSyncer(chain *FullBlockChain) *blockSyncer {
 	return &blockSyncer{
-		candidatePool:        make(map[string]*types.CandidateBlockHeader),
-		chain:                chain,
-		syncingPeers:         make(map[string]*types.SyncingPeerTop),
-		notifyCounters:       common.MustNewLRUCache(notifyCounterCacheSize),
-		syncNeightborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeightborTimeout, defaultSyncNeightborTimeout)),
+		candidatePool:       make(map[string]*types.CandidateBlockHeader),
+		chain:               chain,
+		syncingPeers:        make(map[string]*types.SyncingPeerTop),
+		notifyCounters:      common.MustNewLRUCache(notifyCounterCacheSize),
+		syncNeighborTimeout: uint32(common.GlobalConf.GetInt(configSec, configSyncNeighborTimeout, defaultSyncNeighborTimeout)),
+		blockNotifyEnable:   common.GlobalConf.GetBool(configSec, configBlockNotifyEnable, false),
 	}
 }
 
@@ -110,14 +121,51 @@ func InitBlockSyncer(chain *FullBlockChain) {
 	blockSync.ticker.RegisterPeriodicRoutine(tickerSendLocalTop, blockSync.notifyLocalTopBlockRoutine, sendLocalTopInterval)
 	blockSync.ticker.StartTickerRoutine(tickerSendLocalTop, false)
 
-	blockSync.ticker.RegisterPeriodicRoutine(tickerSyncNeighbor, blockSync.trySyncRoutine, syncNeightborsInterval)
+	blockSync.ticker.RegisterPeriodicRoutine(tickerSyncNeighbor, blockSync.trySyncRoutine, syncNeighborsInterval)
 	blockSync.ticker.StartTickerRoutine(tickerSyncNeighbor, false)
 
 	notify.BUS.Subscribe(notify.BlockInfoNotify, blockSync.topBlockInfoNotifyHandler)
 	notify.BUS.Subscribe(notify.BlockReq, blockSync.blockReqHandler)
 	notify.BUS.Subscribe(notify.BlockResponse, blockSync.blockResponseMsgHandler)
 
-	blockSync.logger.Debugf("init block syncer,block sync timeout:%v", blockSync.syncNeightborTimeout)
+	blockSync.logger.Debugf("init block syncer,block sync timeout:%v", blockSync.syncNeighborTimeout)
+	blockSync.loadNotifyNodes()
+	blockSync.logger.Debugf("block notify enable:%v , nodes:%v", blockSync.blockNotifyEnable, blockSync.blockNotifyNodes)
+	if blockSync.blockNotifyEnable && len(blockSync.blockNotifyNodes) > 0 {
+		notify.BUS.Subscribe(notify.BlockAddSucc, blockSync.onBlockAddSuccess)
+	}
+}
+
+func (bs *blockSyncer) onBlockAddSuccess(message notify.Message) error {
+
+	bs.logger.Debugf("notify new block, size:%v ", len(bs.blockNotifyNodes))
+	b := message.GetData().(*types.Block)
+	body, e := types.MarshalBlock(b)
+	if e != nil {
+		bs.logger.Errorf("Discard send ConsensusBlockMessage because of marshal error:%s", e.Error())
+		return e
+	}
+	blockMsg := network.Message{Code: network.NewBlockMsg, Body: body}
+
+	for _, nodeStr := range bs.blockNotifyNodes {
+		network.GetNetInstance().Send(nodeStr, blockMsg)
+	}
+	return nil
+}
+
+func (bs *blockSyncer) loadNotifyNodes() {
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
+
+	notifyNodesString := common.GlobalConf.GetString(configSec, configBlockNotifyNodes, "")
+	notifyNodes := strings.Split(notifyNodesString, ",")
+	bs.blockNotifyNodes = make([]string, 0)
+
+	for _, id := range notifyNodes {
+		if len(id) > 0 {
+			bs.blockNotifyNodes = append(bs.blockNotifyNodes, id)
+		}
+	}
 
 }
 
@@ -405,7 +453,7 @@ func (bs *blockSyncer) requestBlock(ci *SyncCandidateInfo, top *types.CandidateB
 
 	bs.chain.ticker.RegisterOneTimeRoutine(bs.syncTimeoutRoutineName(id), func() bool {
 		return bs.syncComplete(id, true)
-	}, bs.syncNeightborTimeout)
+	}, bs.syncNeighborTimeout)
 }
 
 func (bs *blockSyncer) notifyLocalTopBlockRoutine() bool {
@@ -440,7 +488,7 @@ func (bs *blockSyncer) topBlockInfoNotifyHandler(msg notify.Message) error {
 	}
 	blockHeader, e := unMarshalTopBlockInfo(bnm.Body())
 	if e != nil {
-		err := fmt.Errorf("Discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
+		err := fmt.Errorf("discard BlockInfoNotifyMessage because of unmarshal error:%s", e.Error())
 		bs.logger.Error(err)
 		return err
 	}
@@ -501,7 +549,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 
 	blockResponse, e := unMarshalBlockMsgResponse(m.Body())
 	if e != nil {
-		err := fmt.Errorf("Discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
+		err := fmt.Errorf("discard block response msg because unMarshalBlockMsgResponse error:%s", e.Error())
 		bs.logger.Error(err)
 		return err
 	}
@@ -527,7 +575,7 @@ func (bs *blockSyncer) blockResponseMsgHandler(msg notify.Message) error {
 		allSuccess := true
 		hasAddBlack := false
 		err := bs.chain.batchAddBlockOnChain(source, false, blocks, func(b *types.Block, ret types.AddBlockResult) bool {
-			bs.logger.Debugf("sync block from %v, hash=%v,height=%v,addResult=%v", source, b.Header.Hash.Hex(), b.Header.Height, ret)
+			bs.logger.Debugf("sync block from %v, hash=%v,height=%v,addResult=%v,cost=%v", source, b.Header.Hash.Hex(), b.Header.Height, ret, time.Since(bs.requestTime))
 			if ret == types.AddBlockSucc || ret == types.AddBlockExisted {
 				return true
 			}
@@ -622,12 +670,12 @@ func responseBlocks(targetID string, blocks []*types.Block) {
 }
 
 func marshalBlockMsgResponse(bmr *blockResponseMessage) ([]byte, error) {
-	pbblocks := make([]*tas_middleware_pb.Block, 0)
+	pbBlocks := make([]*tas_middleware_pb.Block, 0)
 	for _, b := range bmr.Blocks {
 		pb := types.BlockToPb(b)
-		pbblocks = append(pbblocks, pb)
+		pbBlocks = append(pbBlocks, pb)
 	}
-	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbblocks}
+	message := tas_middleware_pb.BlockResponseMsg{Blocks: pbBlocks}
 	return proto.Marshal(&message)
 }
 
