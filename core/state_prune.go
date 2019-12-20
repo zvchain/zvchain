@@ -362,6 +362,10 @@ func (t *OfflineTailor) Export() error {
 	}
 	t.chain.Close()
 
+	err := zipit(t.chain.config.dbfile, "db_export")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
