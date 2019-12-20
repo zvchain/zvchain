@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/tasdb"
+	"sync"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 
 type smallStateStore struct {
 	db tasdb.Database
+	mu      sync.Mutex // Mutex lock
 }
 
 func initSmallStore(db tasdb.Database) *smallStateStore{

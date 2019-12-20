@@ -138,7 +138,7 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		tx:        "tx",
 		receipt:   "rc",
-		pruneMode: common.GlobalConf.GetBool(configSec, "prune_mode", false),
+		pruneMode: common.GlobalConf.GetBool(configSec, "prune_mode", true),
 	}
 }
 
@@ -243,7 +243,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	err = chain.FixSmallDatasFromBigDB(latestBH)
+	err = chain.mergeSmallDbDatasToBigDB(latestBH)
 	if err != nil {
 		return err
 	}
@@ -419,9 +419,10 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
 	// Persist cache data
-	chain.stateCache.TrieDB().SaveCache()
-
-	chain.Stop()
+	if chain.stateCache != nil{
+		chain.stateCache.TrieDB().SaveCache()
+	}
+	chain.PersistentState()
 	if chain.blocks != nil {
 		chain.blocks.Close()
 	}

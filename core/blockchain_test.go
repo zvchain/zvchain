@@ -551,6 +551,7 @@ func clearTicker() {
 
 func initContext4Test(t *testing.T) error {
 	common.InitConf("../tas_config_all.ini")
+	common.GlobalConf.SetBool(configSec, "prune_mode", false)
 	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)

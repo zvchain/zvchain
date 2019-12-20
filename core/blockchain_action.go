@@ -264,6 +264,10 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 }
 
 func (chain *FullBlockChain) DeleteSmallDbDatasByRoots(roots []common.Hash) {
+	begin := time.Now()
+	defer func(){
+		log.CropLogger.Debugf("resetTop delete small db size is %v,cost %v",len(roots),time.Since(begin))
+	}()
 	if len(roots) > 0 {
 		for _, root := range roots {
 			err := chain.smallStateDb.DeleteSmallDbDatasByRoot(root)
@@ -276,6 +280,8 @@ func (chain *FullBlockChain) DeleteSmallDbDatasByRoots(roots []common.Hash) {
 }
 
 func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
+	chain.smallStateDb.mu.Lock()
+	defer chain.smallStateDb.mu.Unlock()
 	lastDeleteHeight := chain.smallStateDb.GetLastDeleteHeight()
 	beginHeight := lastDeleteHeight
 	endHeight := persistenceHeight
@@ -300,7 +306,7 @@ func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
 	}
 }
 
-func (chain *FullBlockChain) Stop() {
+func (chain *FullBlockChain) PersistentState() {
 	if !chain.config.pruneMode {
 		return
 	}
@@ -343,7 +349,7 @@ func (chain *FullBlockChain) Stop() {
 	}
 }
 
-func (chain *FullBlockChain) FixSmallDatasFromBigDB(top *types.BlockHeader) error {
+func (chain *FullBlockChain) mergeSmallDbDatasToBigDB(top *types.BlockHeader) error {
 	if top == nil {
 		return nil
 	}

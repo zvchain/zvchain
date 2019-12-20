@@ -63,8 +63,8 @@ type readMeter struct {
 	start     time.Time
 }
 
-// SmallDbReader wraps the Get and Has method of a backing store for the current block state's modify datas.
-type SmallDbReader interface {
+// SmallDbWriter wraps the Get and Has method of a backing store for the current block state's modify datas.
+type SmallDbWriter interface {
 	StoreDataToSmallDb(root common.Hash, nb []byte) error
 }
 
@@ -332,13 +332,13 @@ func (db *NodeDatabase) ResetNodeCache() {
 }
 
 // InsertStateDatasToSmallDb insert nodes to small db
-func (db *NodeDatabase) InsertStateDatasToSmallDb(root common.Hash, dbReader SmallDbReader) error {
+func (db *NodeDatabase) InsertStateDatasToSmallDb(root common.Hash, smallDbWriter SmallDbWriter) error {
 	if db.commitFullNodes != nil && len(db.commitFullNodes) > 0 {
 		dts, err := rlp.EncodeToBytes(db.commitFullNodes)
 		if err != nil {
 			return fmt.Errorf("encode error，error is %v", err)
 		}
-		err = dbReader.StoreDataToSmallDb(root, dts)
+		err = smallDbWriter.StoreDataToSmallDb(root, dts)
 		if err != nil {
 			return err
 		}

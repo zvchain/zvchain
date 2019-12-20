@@ -85,6 +85,7 @@ func (s *msgSender4Test) Send(id string, msg network.Message) error {
 
 func initChain(dataPath string,smallPath, db_cache,id string) *FullBlockChain {
 	common.InitConf("test1.ini")
+	common.GlobalConf.SetBool(configSec, "prune_mode", false)
 	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
 	common.GlobalConf.SetString(configSec, "db_cache", db_cache)
 	common.GlobalConf.SetString(configSec, "small_db", smallPath)
