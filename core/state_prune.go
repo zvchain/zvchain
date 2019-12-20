@@ -52,7 +52,7 @@ type OfflineTailor struct {
 	lock sync.RWMutex
 }
 
-func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
+func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
 	config := &BlockChainConfig{
 		dbfile:      dbDir,
 		block:       "bh",
@@ -107,9 +107,28 @@ func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, mem int, ca
 	} else {
 		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, cacheDir)
 	}
+
 	chain.latestBlock = chain.loadCurrentBlock()
 	if chain.latestBlock == nil {
 		return nil, fmt.Errorf("get latest block nil")
+	}
+
+	if sdbDir != "" {
+		smallStateDs, err := tasdb.NewDataSource(sdbDir, nil)
+		if err != nil {
+			Logger.Errorf("new small state datasource error:%v", err)
+			return nil, err
+		}
+		smallStateDb, err := smallStateDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new small state db error:%v", err)
+			return nil, err
+		}
+		chain.smallStateDb = initSmallStore(smallStateDb)
+		err = chain.FixSmallDatasFromBigDB(chain.latestBlock)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	groupManager := group.NewManager(chain, nil)
@@ -272,7 +291,9 @@ func (t *OfflineTailor) eraseNodes() {
 func (t *OfflineTailor) Compaction() {
 	begin := time.Now()
 	rangeStart := []byte(t.chain.config.state)
-	rangeEnd := append(rangeStart[:len(rangeStart)-1], rangeStart[len(rangeStart)-1]+1)
+	rangeEnd := make([]byte, len(rangeStart))
+	copy(rangeEnd, rangeStart)
+	rangeEnd[len(rangeEnd)-1] = rangeEnd[len(rangeEnd)-1] + 1
 
 	t.info("start compaction range %v-%v", rangeStart, rangeEnd)
 	t.chain.blocks.GetDB().CompactRange(util.Range{Start: rangeStart, Limit: rangeEnd})

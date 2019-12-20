@@ -191,6 +191,7 @@ func (gzv *Gzv) Run() {
 
 	pruneCmd := app.Command("prune", "fully prune state data offline")
 	srcDB := pruneCmd.Flag("db", "database directory for pruning").Required().String()
+	srcSmallDB := pruneCmd.Flag("sdb", "small database directory for pruning which stores for the pruning mode").Default("").String()
 	memSize := pruneCmd.Flag("mem", "memory size for store node data, default is 256MB").Default("256").Int()
 	outFile := pruneCmd.Flag("out", "file for output the pruning process, default is stdout").Default("").String()
 	cacheDir := pruneCmd.Flag("cachedir", "directory for loading cache data, ignored if onlyverify is specified").Default("").String()
@@ -313,7 +314,7 @@ func (gzv *Gzv) Run() {
 		log.Init()
 		helper := mediator.NewConsensusHelper(groupsig.ID{})
 		genesisGroup := helper.GenerateGenesisInfo()
-		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *memSize, *cacheDir, *outFile, *verifiy)
+		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *srcSmallDB, *memSize, *cacheDir, *outFile, *verifiy)
 		if err != nil {
 			output("start fail", err)
 		}
