@@ -213,7 +213,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "small_db"), nil)
+	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "d_small"), nil)
 	if err != nil {
 		Logger.Errorf("new small state datasource error:%v", err)
 		return err
@@ -456,6 +456,69 @@ func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) error{
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
 	return chain.resetTop(bh)
+}
+
+// ResetNil reset the current top block with parameter bh,if parameter bh state  not exists,then find last restart point
+func (chain *FullBlockChain) ResetNil(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
+	localHeight := chain.Height()
+	fmt.Printf("prepare reset to %v,local height is %v \n",bh.Height,localHeight)
+	chain.mu.Lock()
+	defer chain.mu.Unlock()
+
+	lastRestartHeader,err := chain.findLastRestartPoint(bh)
+	if err != nil{
+		return nil,err
+	}
+	fmt.Printf("begin reset block,target height is %v \n",lastRestartHeader.Height)
+	err = chain.resetTop(lastRestartHeader)
+	if err != nil{
+		return nil,fmt.Errorf("reset nil error,err is %v",err)
+	}
+	return lastRestartHeader,nil
+}
+
+// FindLastRestartPoint find last restart point,find 980 blocks state from cp height if state exists
+func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
+	// find latest no prune block
+	for _, err := chain.accountDBAt(bh.Height);err != nil;{
+		preHash := bh.PreHash
+		bh = chain.queryBlockHeaderByHash(preHash)
+		if bh == nil{
+			return nil,fmt.Errorf("find block hash not exists,block hash is %v",)
+		}
+		if bh.Height == 0 {
+			return bh,nil
+		}
+	}
+	cp := chain.cpChecker.checkpointAt(bh.Height)
+	if cp == 0{
+		subHeightCount := 5 * cpMaxScanEpochs * types.EpochLength
+		if bh.Height <= uint64(subHeightCount){
+			return chain.queryBlockHeaderByHeight(0),nil
+		}
+		nextHeight := bh.Height - uint64(subHeightCount)
+		nextBh := chain.queryBlockHeaderByHeightFloor(nextHeight)
+		if nextBh == nil{
+			return chain.queryBlockHeaderByHeight(0),nil
+		}
+		return chain.findLastRestartPoint(nextBh)
+	}else{
+		lastBh := chain.queryBlockHeaderByHeightFloor(cp)
+		var cnt  uint64 = 0
+		for cnt < TriesInMemory{
+			if lastBh == nil{
+				return chain.queryBlockHeaderByHeight(0),nil
+			}
+			_, err = chain.accountDBAt(lastBh.Height)
+			if err == nil{
+				cnt++
+				lastBh = chain.queryBlockHeaderByHash(lastBh.PreHash)
+			}else{
+				return chain.findLastRestartPoint(lastBh)
+			}
+		}
+	}
+	return bh,nil
 }
 
 // Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later

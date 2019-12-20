@@ -105,7 +105,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
-	if chain.config.pruneMode {
+	if chain.config.pruneMode && b.Header.Height > 0 {
 		err = triedb.InsertStateDatasToSmallDb(root, chain.smallStateDb)
 		if err != nil {
 			return fmt.Errorf("insert full state nodes failed,err is %v", err)

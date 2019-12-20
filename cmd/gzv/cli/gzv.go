@@ -506,8 +506,12 @@ func (gzv *Gzv) fullInit() error {
 		if bh == nil {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
-		core.BlockChainImpl.ResetTop(bh)
-		output(fmt.Sprintf("reset local top to block:%v-%v", bh.Height, bh.Hash.Hex()))
+		var resetBh *types.BlockHeader
+		resetBh,err = core.BlockChainImpl.ResetNil(bh)
+		if err != nil{
+			return err
+		}
+		output(fmt.Sprintf("reset local top to block:%v-%v", resetBh.Height, resetBh.Hash.Hex()))
 	}
 
 	enableTraceLog := common.GlobalConf.GetBool(Section, "enable_trace_log", false)
