@@ -480,7 +480,8 @@ func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.
 // FindLastRestartPoint find last restart point,find 980 blocks state from cp height if state exists
 func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
 	// find latest no prune block
-	for _, err := chain.accountDBAt(bh.Height);err != nil;{
+	_,e := chain.accountDBAt(bh.Height)
+	for ;e != nil;{
 		preHash := bh.PreHash
 		bh = chain.queryBlockHeaderByHash(preHash)
 		if bh == nil{
@@ -489,6 +490,7 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 		if bh.Height == 0 {
 			return bh,nil
 		}
+		_,e = chain.accountDBAt(bh.Height)
 	}
 	cp := chain.cpChecker.checkpointAt(bh.Height)
 	if cp == 0{
@@ -518,7 +520,7 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 			}
 		}
 	}
-	return bh,nil
+	return chain.queryBlockHeaderByHeightFloor(cp),nil
 }
 
 // Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later
