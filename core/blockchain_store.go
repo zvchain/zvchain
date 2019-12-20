@@ -56,8 +56,7 @@ func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.
 	if cpHeight <= minSize {
 		return nil
 	}
-	root, h := chain.triegc.Pop()
-	chain.triegc.Push(root, h)
+	root, h := chain.triegc.Peek()
 	if uint64(h) < cpHeight {
 		return nil
 	}
