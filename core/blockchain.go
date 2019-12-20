@@ -458,8 +458,8 @@ func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) error{
 	return chain.resetTop(bh)
 }
 
-// ResetNil reset the current top block with parameter bh,if parameter bh state  not exists,then find last restart point
-func (chain *FullBlockChain) ResetNil(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
+// ResetNear reset the current top block with parameter bh,if parameter bh state  not exists,then find last restart point
+func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
 	localHeight := chain.Height()
 	fmt.Printf("prepare reset to %v,local height is %v \n",bh.Height,localHeight)
 	chain.mu.Lock()

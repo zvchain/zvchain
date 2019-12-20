@@ -508,7 +508,7 @@ func (gzv *Gzv) fullInit() error {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
 		var resetBh *types.BlockHeader
-		resetBh,err = core.BlockChainImpl.ResetNil(bh)
+		resetBh,err = core.BlockChainImpl.ResetNear(bh)
 		if err != nil{
 			return err
 		}
