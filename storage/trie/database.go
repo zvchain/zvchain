@@ -788,7 +788,7 @@ func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 // to disk, forcefully tearing down all references in both directions.
 //
 // As a side effect, all pre-images accumulated up to this point are also written.
-func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
+func (db *NodeDatabase) Commit(height uint64,node common.Hash, report bool) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -838,8 +838,8 @@ func (db *NodeDatabase) Commit(node common.Hash, report bool) error {
 	//memcacheCommitSizeMeter.Mark(int64(storage - db.nodesSize))
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
-	log.DefaultLogger.Debug("Persisted trie from memory database", "nodes", nodes-len(db.nodes)+int(db.flushnodes), "size", storage-db.nodesSize+db.flushsize, "time", time.Since(start)+db.flushtime,
-		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.nodes), "livesize", db.nodesSize)
+	log.CropLogger.Debugf("Persisted trie from memory database,height is %v,nodes is %v,cost %v,size is %v,gcnodes is %v,gcsize is %v,livenodes is %v,livesize is %v",
+		height,nodes-len(db.nodes)+int(db.flushnodes),time.Since(start),storage-db.nodesSize+db.flushsize,db.gcnodes,db.gcsize,len(db.nodes),db.nodesSize)
 
 	// Reset the garbage collection statistics
 	db.gcnodes, db.gcsize, db.gctime = 0, 0, 0

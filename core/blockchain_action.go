@@ -335,7 +335,7 @@ func (chain *FullBlockChain) PersistentState() {
 	if triedb.LastGcHeight() > 0 {
 		bh := chain.queryBlockHeaderCeil(triedb.LastGcHeight() + 1)
 		if bh != nil {
-			err := triedb.Commit(bh.StateTree, false)
+			err := triedb.Commit(bh.Height,bh.StateTree, false)
 			if err != nil {
 				fmt.Printf("trie commit error:%s", err.Error())
 				return

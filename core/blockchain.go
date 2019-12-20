@@ -474,14 +474,29 @@ func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.
 	if err != nil{
 		return nil,fmt.Errorf("reset nil error,err is %v",err)
 	}
+	err = chain.smallStateDb.StoreStatePersistentHeight(lastRestartHeader.Height)
+	if err != nil{
+		return nil, fmt.Errorf("resetNear write persistentHeight to small db error,err is %v",err)
+	}
 	return lastRestartHeader,nil
 }
 
-// FindLastRestartPoint find last restart point,find 980 blocks state from cp height if state exists
+// FindLastRestartPoint find last restart point,find 980 blocks state from parameter bh if state exists
 func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
-	// find latest no prune block
-	_,e := chain.accountDBAt(bh.Height)
-	for ;e != nil;{
+	var (
+		cnt uint64 = 0
+		beginBh = bh
+	)
+	for cnt < TriesInMemory{
+		_,e := chain.accountDBAt(bh.Height)
+		if e != nil{
+			cnt = 0
+		}else{
+			if cnt == 0{
+				beginBh = bh
+			}
+			cnt++
+		}
 		preHash := bh.PreHash
 		bh = chain.queryBlockHeaderByHash(preHash)
 		if bh == nil{
@@ -492,35 +507,7 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 		}
 		_,e = chain.accountDBAt(bh.Height)
 	}
-	cp := chain.cpChecker.checkpointAt(bh.Height)
-	if cp == 0{
-		subHeightCount := 5 * cpMaxScanEpochs * types.EpochLength
-		if bh.Height <= uint64(subHeightCount){
-			return chain.queryBlockHeaderByHeight(0),nil
-		}
-		nextHeight := bh.Height - uint64(subHeightCount)
-		nextBh := chain.queryBlockHeaderByHeightFloor(nextHeight)
-		if nextBh == nil{
-			return chain.queryBlockHeaderByHeight(0),nil
-		}
-		return chain.findLastRestartPoint(nextBh)
-	}else{
-		lastBh := chain.queryBlockHeaderByHeightFloor(cp)
-		var cnt  uint64 = 0
-		for cnt < TriesInMemory{
-			if lastBh == nil{
-				return chain.queryBlockHeaderByHeight(0),nil
-			}
-			_, err = chain.accountDBAt(lastBh.Height)
-			if err == nil{
-				cnt++
-				lastBh = chain.queryBlockHeaderByHash(lastBh.PreHash)
-			}else{
-				return chain.findLastRestartPoint(lastBh)
-			}
-		}
-	}
-	return chain.queryBlockHeaderByHeightFloor(cp),nil
+	return beginBh,nil
 }
 
 // Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later
