@@ -500,7 +500,7 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 		preHash := bh.PreHash
 		bh = chain.queryBlockHeaderByHash(preHash)
 		if bh == nil{
-			return nil,fmt.Errorf("find block hash not exists,block hash is %v",)
+			return nil,fmt.Errorf("find block hash not exists,block hash is %v",preHash)
 		}
 		if bh.Height == 0 {
 			return bh,nil
