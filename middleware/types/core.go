@@ -356,7 +356,15 @@ func (bw *BlockWeight) Cmp(bw2 *BlockWeight) int {
 			return cmp
 		}
 	}
-	return bw.PV.Cmp(bw2.PV)
+	pvCmp := bw.PV.Cmp(bw2.PV)
+	if pvCmp != 0 {
+		return pvCmp
+	}
+
+	//Consider a case where a proposer raised two block in the same height, Compare hash value when pvs are equal
+	bigH := bw.Hash.Big()
+	bigH2 := bw2.Hash.Big()
+	return bigH.Cmp(bigH2)
 }
 
 func NewCandidateBlockHeader(bh *BlockHeader) *CandidateBlockHeader {
