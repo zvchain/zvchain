@@ -63,16 +63,19 @@ func initMinerManager(storeDB tasdb.Database) {
 		proposalMinerData: common.MustNewLRUCache(10000),
 		store:             initCacheStore(storeDB),
 	}
-	MinerManagerImpl.store.loadMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)
-	MinerManagerImpl.store.loadMiners(types.MinerTypeVerify, MinerManagerImpl.verifyMinerData)
 
-	ticker := time.NewTicker(300 * time.Second)
-	go func() {
-		for range ticker.C {
-			MinerManagerImpl.store.storeMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)
-			MinerManagerImpl.store.storeMiners(types.MinerTypeVerify, MinerManagerImpl.verifyMinerData)
-		}
-	}()
+	if storeDB != nil {
+		MinerManagerImpl.store.loadMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)
+		MinerManagerImpl.store.loadMiners(types.MinerTypeVerify, MinerManagerImpl.verifyMinerData)
+
+		ticker := time.NewTicker(300 * time.Second)
+		go func() {
+			for range ticker.C {
+				MinerManagerImpl.store.storeMiners(types.MinerTypeProposal, MinerManagerImpl.proposalMinerData)
+				MinerManagerImpl.store.storeMiners(types.MinerTypeVerify, MinerManagerImpl.verifyMinerData)
+			}
+		}()
+	}
 }
 
 // GuardNodesCheck check guard nodes is expired

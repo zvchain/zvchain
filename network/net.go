@@ -449,14 +449,14 @@ func (nc *NetCore) broadcast(data []byte, code uint32, broadcast bool, msgDigest
 
 }
 
-func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int) {
+func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int, blacklist []string) {
 	dataType := DataType_DataGlobalRandom
 
 	packet, _, err := nc.encodeDataPacket(data, dataType, code, "", nil, relayCount)
 	if err != nil {
 		return
 	}
-	nc.peerManager.broadcastRandom(packet, code, maxCount)
+	nc.peerManager.broadcastRandom(packet, code, maxCount, blacklist)
 	nc.bufferPool.freeBuffer(packet)
 	return
 }
@@ -672,7 +672,10 @@ func (nc *NetCore) handlePing(req *MsgPing, p *Peer) error {
 
 	ip := net.ParseIP(req.From.IP)
 	port := int(req.From.Port)
-
+	if ip != nil && port > 0 {
+		p.IP = ip
+		p.Port = port
+	}
 	p.chainID = uint16(req.ChainID)
 
 	from := net.UDPAddr{IP: net.ParseIP(req.From.IP), Port: int(req.From.Port)}
