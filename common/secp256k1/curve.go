@@ -62,6 +62,7 @@ type BitCurve struct {
 	B       *big.Int // the constant of the BitCurve equation
 	Gx, Gy  *big.Int // (x,y) of the base point
 	BitSize int      // the size of the underlying field
+	Name    string   //Curve name
 }
 
 func (BitCurve *BitCurve) Params() *elliptic.CurveParams {
@@ -72,6 +73,7 @@ func (BitCurve *BitCurve) Params() *elliptic.CurveParams {
 		Gx:      BitCurve.Gx,
 		Gy:      BitCurve.Gy,
 		BitSize: BitCurve.BitSize,
+		Name:    BitCurve.Name,
 	}
 }
 
@@ -229,9 +231,9 @@ func (BitCurve *BitCurve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, 
 	// Do the multiplication in C, updating point.
 	point := make([]byte, 64)
 	Bxbytes := Bx.Bytes()
-	copy(point[:32], Bxbytes)
+	copy(point[32-len(Bxbytes):32], Bxbytes)
 	Bybytes := By.Bytes()
-	copy(point[32:], Bybytes)
+	copy(point[64-len(Bybytes):64], Bybytes)
 	//math.ReadBits(Bx, point[:32])
 	//math.ReadBits(By, point[32:])
 	pointPtr := (*C.uchar)(unsafe.Pointer(&point[0]))
@@ -267,9 +269,9 @@ func (BitCurve *BitCurve) Marshal(x, y *big.Int) []byte {
 	ret[0] = 4 // uncompressed point flag
 
 	xBytes := x.Bytes()
-	copy(ret[1:1+byteLen], xBytes)
+	copy(ret[1+byteLen-len(xBytes):1+byteLen], xBytes)
 	yBytes := y.Bytes()
-	copy(ret[1+byteLen:], yBytes)
+	copy(ret[1+2*byteLen-len(yBytes):1+2*byteLen], yBytes)
 	return ret
 }
 
@@ -300,6 +302,7 @@ func init() {
 	theCurve.Gx, _ = new(big.Int).SetString("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16)
 	theCurve.Gy, _ = new(big.Int).SetString("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16)
 	theCurve.BitSize = 256
+	theCurve.Name = "S256"
 }
 
 // S256 returns a BitCurve which implements secp256k1.
