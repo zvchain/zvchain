@@ -33,7 +33,7 @@ func TestAccountDB_AddBalance(t *testing.T) {
 	state.AddBalance(common.BytesToAddress([]byte("2")), big.NewInt(1))
 	state.SubBalance(common.BytesToAddress([]byte("1")), big.NewInt(2))
 	root, _ := state.Commit(true)
-	triedb.TrieDB().Commit(root, true)
+	triedb.TrieDB().Commit(0,root, true)
 	state, _ = NewAccountDB(root, triedb)
 	balance := state.GetBalance(common.BytesToAddress([]byte("1")))
 	if balance.Cmp(big.NewInt(999998)) != 0 {
@@ -57,7 +57,7 @@ func TestAccountDB_SetData(t *testing.T) {
 	state.RevertToSnapshot(snapshot)
 	state.SetData(common.BytesToAddress([]byte("2")), []byte("cc"), []byte("v4"))
 	root, _ := state.Commit(false)
-	triedb.TrieDB().Commit(root, false)
+	triedb.TrieDB().Commit(0,root, false)
 
 	state, _ = NewAccountDB(root, triedb)
 	sta := state.GetData(common.BytesToAddress([]byte("1")), []byte("aa"))
@@ -81,7 +81,7 @@ func TestAccountDB_SetCode(t *testing.T) {
 	state, _ := NewAccountDB(common.Hash{}, triedb)
 	state.SetCode(common.BytesToAddress([]byte("2")), []byte("code"))
 	root, _ := state.Commit(false)
-	triedb.TrieDB().Commit(root, false)
+	triedb.TrieDB().Commit(0,root, false)
 
 	state, _ = NewAccountDB(root, triedb)
 	sta := state.GetCode(common.BytesToAddress([]byte("2")))

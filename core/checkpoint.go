@@ -291,7 +291,7 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 					return h
 				}
 			} else {
-				blocks := cp.querier.BatchGetBlockHeadersBetween(ep.Start(), ep.End())
+				blocks := cp.querier.BatchGetBlockHeadersBetween(ep.Start(), h+1)
 				if h, found := cp.calcCheckpointByBlocks(blocks, ctx.epoch, ctx.threshold); found {
 					return h
 				}

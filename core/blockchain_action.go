@@ -335,7 +335,7 @@ func (chain *FullBlockChain) PersistentState() {
 	if triedb.LastGcHeight() > 0 {
 		bh := chain.queryBlockHeaderCeil(triedb.LastGcHeight() + 1)
 		if bh != nil {
-			err := triedb.Commit(bh.StateTree, false)
+			err := triedb.Commit(bh.Height,bh.StateTree, false)
 			if err != nil {
 				fmt.Printf("trie commit error:%s", err.Error())
 				return
@@ -354,7 +354,10 @@ func (chain *FullBlockChain) mergeSmallDbDatasToBigDB(top *types.BlockHeader) er
 		return nil
 	}
 	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
-	if lastStateHeight < top.Height || (top.Height == 0 && lastStateHeight == 0) {
+	if lastStateHeight == 0{
+		return nil
+	}
+	if lastStateHeight < top.Height{
 		start := time.Now()
 		defer func() {
 			log.CropLogger.Debugf("fix small state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
