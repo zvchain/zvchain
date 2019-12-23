@@ -206,7 +206,7 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	//addr := "123"
 	state.SetBalance(common.StringToAddress(contract), big.NewInt(100))
 	hash, _ := state.Commit(false)
-	tvmCli.database.TrieDB().Commit(hash, false)
+	tvmCli.database.TrieDB().Commit(0,hash, false)
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
 
 	abiJson := fmt.Sprintf(`{
@@ -271,7 +271,7 @@ func TestTvmCli_Set_Data_Error(t *testing.T) {
 	state := getState(tvmCli)
 	key := "123"
 	hash, _ := state.Commit(false)
-	tvmCli.database.TrieDB().Commit(hash, false)
+	tvmCli.database.TrieDB().Commit(0,hash, false)
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
 
 	abiJson := fmt.Sprintf(`{

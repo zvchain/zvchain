@@ -58,7 +58,7 @@ func TestReaptNodeCropRestart(t *testing.T) {
 	trie.Update([]byte("dsdfdfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
 	root1, _ := trie.Commit(nil)
 	nd.Reference(root1, common.Hash{})
-	nd.Commit(root1, false)
+	nd.Commit(0,root1, false)
 
 	fmt.Printf("==================================height 2=============================\n ")
 
@@ -69,7 +69,7 @@ func TestReaptNodeCropRestart(t *testing.T) {
 	trie.Update([]byte("dsdf2221dfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
 	root2, _ := trie.Commit(nil)
 	nd.Reference(root2, common.Hash{})
-	nd.Commit(root2, false)
+	nd.Commit(0,root2, false)
 	nd.diskdb.Close()
 
 	fmt.Printf("==================================restart=============================\n ")
@@ -81,7 +81,7 @@ func TestReaptNodeCropRestart(t *testing.T) {
 	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
 	root3, _ := trie.Commit(nil)
 	db2.Reference(root3, common.Hash{})
-	db2.Commit(root3, false)
+	db2.Commit(0,root3, false)
 
 	fmt.Printf("==================================height 4=============================\n ")
 	trie, _ = NewTrie(root3, db2)
@@ -89,7 +89,7 @@ func TestReaptNodeCropRestart(t *testing.T) {
 	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
 	root4, _ := trie.Commit(nil)
 	db2.Reference(root4, common.Hash{})
-	db2.Commit(root4, false)
+	db2.Commit(0,root4, false)
 
 
 	fmt.Printf("==================================height 5=============================\n ")
@@ -97,14 +97,14 @@ func TestReaptNodeCropRestart(t *testing.T) {
 	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
 	root5, _ := trie.Commit(nil)
 	db2.Reference(root5, common.Hash{})
-	db2.Commit(root5, false)
+	db2.Commit(0,root5, false)
 
 	fmt.Printf("==================================height 6=============================\n ")
 	trie, _ = NewTrie(root5, db2)
 	trie.Update([]byte("333334343"), []byte("3232323232323"))
 	root6, _ := trie.Commit(nil)
 	db2.Reference(root6, common.Hash{})
-	db2.Commit(root6, false)
+	db2.Commit(0,root6, false)
 
 	db2.Dereference(5, root5)
 	db2.Dereference(4, root4)
@@ -136,7 +136,7 @@ func TestReaptNodeCropInMemory(t *testing.T){
 	trie.Update([]byte("dsdfdfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
 	root1, _ := trie.Commit(nil)
 	nd.Reference(root1, common.Hash{})
-	nd.Commit(root1, false)
+	nd.Commit(0,root1, false)
 
 	fmt.Printf("==================================height 2=============================\n ")
 
@@ -147,7 +147,7 @@ func TestReaptNodeCropInMemory(t *testing.T){
 	trie.Update([]byte("dsdf2221dfdfdfdfdfdfdfdfsasa"), []byte("11211111111111111111111111111"))
 	root2, _ := trie.Commit(nil)
 	nd.Reference(root2, common.Hash{})
-	nd.Commit(root2, false)
+	nd.Commit(0,root2, false)
 
 	fmt.Printf("==================================height 3=============================\n ")
 
@@ -156,7 +156,7 @@ func TestReaptNodeCropInMemory(t *testing.T){
 	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
 	root3, _ := trie.Commit(nil)
 	nd.Reference(root3, common.Hash{})
-	nd.Commit(root3, false)
+	nd.Commit(0,root3, false)
 
 	fmt.Printf("==================================height 4=============================\n ")
 	trie, _ = NewTrie(root3, nd)
@@ -164,7 +164,7 @@ func TestReaptNodeCropInMemory(t *testing.T){
 	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc11111111111111111111111111111111111111111111111111"))
 	root4, _ := trie.Commit(nil)
 	nd.Reference(root4, common.Hash{})
-	nd.Commit(root4, false)
+	nd.Commit(0,root4, false)
 
 
 	fmt.Printf("==================================height 5=============================\n ")
@@ -172,14 +172,14 @@ func TestReaptNodeCropInMemory(t *testing.T){
 	trie.Update([]byte("zabc111111111111111111111111111111111111111"), []byte("pabc1111333333111111111111111111111111111111111"))
 	root5, _ := trie.Commit(nil)
 	nd.Reference(root5, common.Hash{})
-	nd.Commit(root5, false)
+	nd.Commit(0,root5, false)
 
 	fmt.Printf("==================================height 6=============================\n ")
 	trie, _ = NewTrie(root5, nd)
 	trie.Update([]byte("333334343"), []byte("3232323232323"))
 	root6, _ := trie.Commit(nil)
 	nd.Reference(root6, common.Hash{})
-	nd.Commit(root6, false)
+	nd.Commit(0,root6, false)
 
 	nd.Dereference(5, root5)
 	nd.Dereference(4, root4)
@@ -238,7 +238,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")
 	root, _ := trie.Commit(nil)
 	if !memonly {
-		triedb.Commit(root, true)
+		triedb.Commit(0,root, true)
 	}
 
 	trie, _ = NewTrie(root, triedb)
@@ -486,7 +486,7 @@ func TestCacheUnload(t *testing.T) {
 	updateString(trie, key2, "this is the branch of key2.")
 
 	root, _ := trie.Commit(nil)
-	trie.db.Commit(root, true)
+	trie.db.Commit(0,root, true)
 
 	// Commit the trie repeatedly and access key1.
 	// The branch containing it is loaded from DB exactly two times:
