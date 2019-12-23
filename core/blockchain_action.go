@@ -195,6 +195,11 @@ func (chain *FullBlockChain) AddBlock(b *types.Block) (types.AddBlockResult, err
 }
 
 func (chain *FullBlockChain) consensusVerifyBlock(bh *types.BlockHeader) (bool, error) {
+	begin := time.Now()
+	defer func() {
+		Logger.Debugf("consensusVerify cost %v", time.Since(begin).String())
+	}()
+
 	if chain.Height() == 0 {
 		return true, nil
 	}
@@ -209,14 +214,11 @@ func (chain *FullBlockChain) consensusVerifyBlock(bh *types.BlockHeader) (bool, 
 		return false, fmt.Errorf("pre block lower than latest cp: pre %v, cp %v, comming %v-%v", pre.Height, latestCP.Height, bh.Height, bh.Hash)
 	}
 
-	begin := time.Now()
-
 	result, err := chain.GetConsensusHelper().VerifyNewBlock(bh, pre)
 	if err != nil {
 		Logger.Errorf("consensusVerifyBlock error:%s", err.Error())
 		return false, err
 	}
-	Logger.Debugf("consensusVerify cost %v", time.Since(begin).String())
 	return result, err
 }
 

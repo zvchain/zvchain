@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/consensus/mediator"
 	"github.com/zvchain/zvchain/consensus/model"
 	"github.com/zvchain/zvchain/core"
@@ -67,6 +68,7 @@ func addBlock(chain *core.FullBlockChain, h uint64) (types.AddBlockResult, error
 	if err := chain.UpdateLatestBlock(pre); err != nil {
 		return -1, err
 	}
+	group.GroupRoutine.UpdateContext(pre)
 	return chain.AddBlock(b)
 }
 
@@ -76,7 +78,12 @@ func TestFullBlockChain_AddBlockOnChain(t *testing.T) {
 	}
 	chain := core.BlockChainImpl
 
-	h := uint64(2486177)
+	h := uint64(2486176)
 	ret, err := addBlock(chain, h)
 	t.Log(ret, err)
+
+	h = uint64(2486177)
+	ret, err = addBlock(chain, h)
+	t.Log(ret, err)
+
 }

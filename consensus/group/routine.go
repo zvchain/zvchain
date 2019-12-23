@@ -92,7 +92,7 @@ func InitRoutine(reader minerReader, chain types.BlockChain, provider groupConte
 		groupFilter:   joinedFilter,
 	}
 	top := chain.QueryTopBlock()
-	GroupRoutine.updateContext(top)
+	GroupRoutine.UpdateContext(top)
 
 	go GroupRoutine.store.loop()
 	go checker.stat.loop()
@@ -119,7 +119,7 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) error {
 func (routine *createRoutine) onNewTopBlock(bh *types.BlockHeader) error {
 	routine.store.blockAddCh <- bh.Height
 
-	routine.updateContext(bh)
+	routine.UpdateContext(bh)
 	ok, err := routine.checkAndSendEncryptedPiecePacket(bh)
 	if err != nil {
 		logger.Errorf("check and send encrypted piece error:%v at %v-%v", err, bh.Height, bh.Hash)
@@ -148,7 +148,7 @@ func (routine *createRoutine) onNewTopBlock(bh *types.BlockHeader) error {
 }
 
 // UpdateEra updates the era info base on current block header
-func (routine *createRoutine) updateContext(bh *types.BlockHeader) {
+func (routine *createRoutine) UpdateContext(bh *types.BlockHeader) {
 	routine.lock.Lock()
 	defer routine.lock.Unlock()
 
