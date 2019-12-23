@@ -1,5 +1,14 @@
 package update
 
+//func TestRequest(t *testing.T) {
+//	RequestUrl = "http://47.110.159.248:8000/request"
+//	vc := NewVersionChecker()
+//	no, err := vc.requestVersion()
+//	if err != nil {
+//		t.Error("err :", err)
+//	}
+//	fmt.Println("no ===>", no)
+//}
 //
 //func TestVerifyMd5(t *testing.T) {
 //	targetFile := "updateTest" + "/"
@@ -59,10 +68,10 @@ package update
 //	vc.fileUpdateLists.PackageUrl = "https://developer.zvchain.io/zip/gzv_mac_v1.0.5.zip"
 //	vc.fileUpdateLists.PackageMd5 = "dcaf21af4112339d33a4e700479dc89b"
 //	vc.fileUpdateLists.FileList = []string{"gzv"}
-//	//err := vc.download()
-//	//if err != nil {
-//	//	t.Fatal(err)
-//	//}
+//	err := vc.download()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
 //}
 //
 //func TestCompare(t *testing.T) {
