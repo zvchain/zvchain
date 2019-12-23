@@ -17,9 +17,9 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
@@ -60,6 +60,15 @@ func (chain *FullBlockChain) saveCurrentBlock(hash common.Hash) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (chain *FullBlockChain) UpdateLatestBlock(header *types.BlockHeader) error {
+	state, err := chain.AccountDBAt(header.Height)
+	if err != nil {
+		return err
+	}
+	chain.updateLatestBlock(state.(*account.AccountDB), header)
 	return nil
 }
 

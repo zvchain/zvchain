@@ -501,6 +501,7 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 		//errs[i] = err
 
 	}
+	Logger.Debugf("execute all txs size %v, cost %v", len(transactions), time.Since(beginTime).String())
 	//ts.AddStat("executeLoop", time.Since(b))
 	castorTotalRewards := rm.calculateGasFeeCastorRewards(gasFee)
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
@@ -515,11 +516,15 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
+	beginTime = time.Now()
+
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)
 	}
-
+	Logger.Debugf("execute all proc cost %v", time.Since(beginTime).String())
+	beginTime = time.Now()
 	state = accountDB.IntermediateRoot(true)
+	Logger.Debugf("IntermediateRoot cost %v", time.Since(beginTime).String())
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
 }

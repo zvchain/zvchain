@@ -190,6 +190,10 @@ func (chain *FullBlockChain) AddBlockOnChain(source string, b *types.Block) type
 	return ret
 }
 
+func (chain *FullBlockChain) AddBlock(b *types.Block) (types.AddBlockResult, error) {
+	return chain.addBlockOnChain("", b)
+}
+
 func (chain *FullBlockChain) consensusVerifyBlock(bh *types.BlockHeader) (bool, error) {
 	if chain.Height() == 0 {
 		return true, nil
@@ -205,11 +209,14 @@ func (chain *FullBlockChain) consensusVerifyBlock(bh *types.BlockHeader) (bool, 
 		return false, fmt.Errorf("pre block lower than latest cp: pre %v, cp %v, comming %v-%v", pre.Height, latestCP.Height, bh.Height, bh.Hash)
 	}
 
+	begin := time.Now()
+
 	result, err := chain.GetConsensusHelper().VerifyNewBlock(bh, pre)
 	if err != nil {
 		Logger.Errorf("consensusVerifyBlock error:%s", err.Error())
 		return false, err
 	}
+	Logger.Debugf("consensusVerify cost %v", time.Since(begin).String())
 	return result, err
 }
 
@@ -230,7 +237,10 @@ func (chain *FullBlockChain) processFutureBlock(b *types.Block, source string) {
 }
 
 func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool, error) {
-
+	begin := time.Now()
+	defer func() {
+		Logger.Debugf("validateBlock cost %v", time.Since(begin).String())
+	}()
 	if b == nil {
 		return false, fmt.Errorf("block is nil")
 	}
@@ -286,7 +296,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	topBlock := chain.getLatestBlock()
 	Logger.Debugf("coming block:hash=%v, preH=%v, height=%v,totalQn:%d, Local tophash=%v, topPreHash=%v, height=%v,totalQn:%d", block.Header.Hash, block.Header.PreHash, block.Header.Height, block.Header.TotalQN, topBlock.Hash, topBlock.PreHash, topBlock.Height, topBlock.TotalQN)
 
-	if chain.HasBlock(bh.Hash) {
+	if !chain.config.noExistCheck && chain.HasBlock(bh.Hash) {
 		return types.AddBlockExisted, ErrBlockExist
 	}
 	if ok, e := chain.validateBlock(source, block); !ok {
@@ -319,7 +329,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 
 	topBlock = chain.getLatestBlock()
 
-	if chain.HasBlock(bh.Hash) {
+	if !chain.config.noExistCheck && chain.HasBlock(bh.Hash) {
 		ret = types.AddBlockExisted
 		err = ErrBlockExist
 		return
@@ -400,6 +410,9 @@ func (chain *FullBlockChain) transitAndCommit(block *types.Block, tSlice txSlice
 		return
 	}
 
+	if chain.config.nonRWMode {
+		return true, nil
+	}
 	// Commit to DB
 	return chain.commitBlock(block, ps)
 }

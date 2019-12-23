@@ -68,6 +68,9 @@ type BlockChainConfig struct {
 	reward      string
 	tx          string
 	receipt     string
+
+	noExistCheck bool
+	nonRWMode    bool
 }
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
@@ -131,8 +134,10 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		reward: "nu",
 
-		tx:      "tx",
-		receipt: "rc",
+		tx:           "tx",
+		receipt:      "rc",
+		nonRWMode:    true,
+		noExistCheck: true,
 	}
 }
 
@@ -171,6 +176,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		BlockCacheCapacity:     blockCacheSize * opt.MiB,
 		WriteBuffer:            writeBufferSize * opt.MiB, // Two of these are used internally
 		Filter:                 filter.NewBloomFilter(10),
+	}
+	if chain.config.nonRWMode {
+		options.ReadOnly = true
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
