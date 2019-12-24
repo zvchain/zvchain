@@ -41,11 +41,12 @@ const (
 	OptionSubscriptions = 1 << iota // Support pub sub
 )
 
-func NewServer() *Server {
+func NewServer(isPruneMode bool) *Server {
 	server := &Server{
-		services: make(serviceRegistry),
-		codecs:   set.New(set.ThreadSafe),
-		run:      1,
+		services:    make(serviceRegistry),
+		codecs:      set.New(set.ThreadSafe),
+		run:         1,
+		isPruneMode: isPruneMode,
 	}
 
 	rpcService := &RPCService{server}
@@ -278,8 +279,13 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 		arguments = append(arguments, req.args...)
 	}
 
+	if s.isPruneMode && IsNotSuppotedMethod(req.callb.method.Name) {
+		res := codec.CreateErrorResponse(&req.id, &callbackError{"prune mode not support this method"})
+		return res, nil
+	}
 	// execute RPC method and return result
 	reply := req.callb.method.Func.Call(arguments)
+
 	if len(reply) == 0 {
 		return codec.CreateResponse(req.id, nil), nil
 	}

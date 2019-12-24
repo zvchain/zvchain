@@ -17,16 +17,26 @@ package core
 
 import (
 	"fmt"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/common/prque"
 	"github.com/zvchain/zvchain/log"
-	"github.com/zvchain/zvchain/middleware/time"
+	"github.com/zvchain/zvchain/middleware/notify"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 	"github.com/zvchain/zvchain/monitor"
 	"sync/atomic"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
+)
+
+const TriesInMemory uint64 = types.EpochLength*4 + 20
+
+var (
+	maxTriesInMemory     = 300
+	everyClearFromMemory = 1
+	persistenceCount     = 4000
 )
 
 type newTopMessage struct {
@@ -41,16 +51,109 @@ func (msg *newTopMessage) GetData() interface{} {
 	return msg.bh
 }
 
+
+func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.Item {
+	if cpHeight <= minSize {
+		return nil
+	}
+	root, h := chain.triegc.Peek()
+	if uint64(h) < cpHeight {
+		return nil
+	}
+	backList := []*prque.Item{}
+	cropList := []*prque.Item{}
+	var count uint64 = 0
+	temp := make(map[uint64]struct{})
+
+	for !chain.triegc.Empty() {
+		root, h = chain.triegc.Pop()
+		if uint64(h) >= cpHeight {
+			backList = append(backList, &prque.Item{root, h})
+		} else {
+			if _, ok := temp[uint64(h)]; !ok {
+				temp[uint64(h)] = struct{}{}
+				count++
+			}
+			if count <= minSize {
+				backList = append(backList, &prque.Item{root, h})
+			} else {
+				cropList = append(cropList, &prque.Item{root, h})
+			}
+		}
+	}
+	if len(backList) > 0 {
+		for _, v := range backList {
+			chain.triegc.Push(v.Value, v.Priority)
+		}
+	}
+
+	return cropList
+}
+
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
+	triedb := chain.stateCache.TrieDB()
+	triedb.ResetNodeCache()
+	begin := time.Now()
+	defer func() {
+		end := time.Now()
+		cost := (end.UnixNano() - begin.UnixNano()) / 1e6
+		if cost > 500 {
+			log.CoreLogger.Debugf("save block state cost %v,height is %v", cost, b.Header.Height)
+		}
+	}()
 	root, err := state.Commit(true)
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
-
-	triedb := chain.stateCache.TrieDB()
-	err = triedb.Commit(root, false)
-	if err != nil {
-		return fmt.Errorf("trie commit error:%s", err.Error())
+	if chain.config.pruneMode && b.Header.Height > 0 {
+		err = triedb.InsertStateDatasToSmallDb(root, chain.smallStateDb)
+		if err != nil {
+			return fmt.Errorf("insert full state nodes failed,err is %v", err)
+		}
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+		chain.triegc.Push(root, int64(b.Header.Height))
+		cp := chain.latestCP.Load()
+		limit := common.StorageSize(common.GlobalConf.GetInt(gc, "max_tries_memory", maxTriesInMemory) * 1024 * 1024)
+		nodes, _ := triedb.Size()
+		if nodes > limit {
+			clear := common.StorageSize(common.GlobalConf.GetInt(gc, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024)
+			triedb.Cap(b.Header.Height, limit-clear)
+		}
+		if cp != nil {
+			cropItems := chain.getPruneHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
+			if len(cropItems) > 0 {
+				for i:= len(cropItems) - 1;i>=0;i--{
+					vl := cropItems[i]
+					triedb.Dereference(uint64(vl.Priority), vl.Value.(common.Hash))
+				}
+				curCropMaxHeight := uint64(cropItems[0].Priority)
+				triedb.StoreGcData(curCropMaxHeight, b.Header.Height, cp.(*types.BlockHeader).Height, uint64(len(cropItems)))
+				persistentCount := common.GlobalConf.GetInt(gc, "persistence_count", persistenceCount)
+				if triedb.CanPersistent(persistentCount) {
+					bh := chain.queryBlockHeaderCeil(curCropMaxHeight + 1)
+					if bh != nil {
+						err = triedb.Commit(bh.Height,bh.StateTree, false)
+						if err != nil {
+							return fmt.Errorf("trie commit error:%s", err.Error())
+						}
+						triedb.ResetGcCount()
+						err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
+						if err != nil {
+							return fmt.Errorf("StoreTriePersistentHeight error:%s", err.Error())
+						}
+						go chain.DeleteSmallDbByHeight(bh.Height)
+						log.CropLogger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
+					} else {
+						log.CoreLogger.Warnf("persistent find ceil head is nil,height is %v", curCropMaxHeight)
+					}
+				}
+			}
+		}
+	} else {
+		err = triedb.Commit(b.Header.Height,root, false)
+		if err != nil {
+			return fmt.Errorf("trie commit error:%s", err.Error())
+		}
 	}
 	return nil
 }
@@ -113,7 +216,10 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
-
+	if atomic.LoadInt32(&chain.running) == 1 {
+		err = fmt.Errorf("in shutdown hook")
+		return
+	}
 	defer chain.batch.Reset()
 
 	// Commit state
@@ -182,6 +288,10 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
 
+	if atomic.LoadInt32(&chain.running) == 1 {
+		return fmt.Errorf("in shutdown hook")
+	}
+
 	if nil == block {
 		return fmt.Errorf("block is nil")
 	}
@@ -201,7 +311,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	recoverTxs := make([]*types.Transaction, 0)
 	delReceipts := make([]common.Hash, 0)
 	removeBlocks := make([]*types.BlockHeader, 0)
-
+	removeRoots := make([]common.Hash, 0)
 	for curr.Hash != block.Hash {
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
@@ -221,7 +331,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 			recoverTxs = append(recoverTxs, types.NewTransaction(rawTx, tHash))
 			delReceipts = append(delReceipts, tHash)
 		}
-
+		removeRoots = append(removeRoots, curr.Hash)
 		chain.removeTopBlock(curr.Hash)
 		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
@@ -245,12 +355,16 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	if err = chain.batch.Write(); err != nil {
 		return err
 	}
+	if chain.config.pruneMode {
+		chain.DeleteSmallDbDatasByRoots(removeRoots)
+	}
+
 	chain.updateLatestBlock(state, block)
 
 	chain.transactionPool.BackToPool(recoverTxs)
 	log.ELKLogger.WithFields(logrus.Fields{
 		"removedHeight": len(removeBlocks),
-		"now":           time.TSInstance.Now().UTC(),
+		"now":           time2.TSInstance.Now().UTC(),
 		"logType":       "resetTop",
 		"version":       common.GzvVersion,
 	}).Info("resetTop")
@@ -340,6 +454,14 @@ func (chain *FullBlockChain) queryBlockHash(height uint64) *common.Hash {
 	if result != nil {
 		hash := common.BytesToHash(result)
 		return &hash
+	}
+	return nil
+}
+
+func (chain *FullBlockChain) queryBlockHeaderCeil(height uint64) *types.BlockHeader {
+	hash := chain.queryBlockHashCeil(height)
+	if hash != nil {
+		return chain.queryBlockHeaderByHash(*hash)
 	}
 	return nil
 }
@@ -575,6 +697,35 @@ func (chain *FullBlockChain) batchGetBlocksBetween(begin, end uint64) []*types.B
 		}
 		hash := common.BytesToHash(iter.Value())
 		b := chain.queryBlockByHash(hash)
+		if b == nil {
+			break
+		}
+
+		blocks = append(blocks, b)
+		if !iter.Next() {
+			break
+		}
+	}
+	return blocks
+}
+
+// batchGetBlockHeadersBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) batchGetBlockHeadersBetween(begin, end uint64) []*types.BlockHeader {
+	blocks := make([]*types.BlockHeader, 0)
+	iter := chain.blockHeight.NewIterator()
+	defer iter.Release()
+
+	// No higher block after the specified block height
+	if !iter.Seek(common.UInt64ToByte(begin)) {
+		return blocks
+	}
+	for {
+		height := common.ByteToUInt64(iter.Key())
+		if height >= end {
+			break
+		}
+		hash := common.BytesToHash(iter.Value())
+		b := chain.queryBlockHeaderByHash(hash)
 		if b == nil {
 			break
 		}

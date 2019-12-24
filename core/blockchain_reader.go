@@ -317,6 +317,13 @@ func (chain *FullBlockChain) BatchGetBlocksBetween(begin, end uint64) []*types.B
 	return chain.batchGetBlocksBetween(begin, end)
 }
 
+// BatchGetBlockHeadersBetween query blocks of the height range [start, end)
+func (chain *FullBlockChain) BatchGetBlockHeadersBetween(begin, end uint64) []*types.BlockHeader {
+	chain.rwLock.RLock()
+	defer chain.rwLock.RUnlock()
+	return chain.batchGetBlockHeadersBetween(begin, end)
+}
+
 func (chain *FullBlockChain) IsSyncing() bool {
 	if blockSync == nil {
 		return true

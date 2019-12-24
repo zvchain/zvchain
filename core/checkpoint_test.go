@@ -16,14 +16,18 @@
 package core
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/trie"
 	"math/big"
 	"math/rand"
+	"os"
+	"runtime"
 	"testing"
 )
 
@@ -321,11 +325,18 @@ func TestActiveGroupReader(t *testing.T) {
 
 func init() {
 	Logger = logrus.StandardLogger()
+	os.RemoveAll(testOutPut)
+}
+
+func TestPathCp(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
 }
 
 func TestCheckpoint_init(t *testing.T) {
 	gr := initGroupReader4CPTest(5)
-	br := initChainReader4CPTest(gr,t)
+	br := initChainReader4CPTest(gr, t)
+	defer clearSelf(t)
 	for h := uint64(1); h < 1000; h++ {
 		addRandomBlock(br, h)
 	}
@@ -334,13 +345,16 @@ func TestCheckpoint_init(t *testing.T) {
 	cp.init()
 }
 
-func initChainReader4CPTest(gr activatedGroupReader,t *testing.T) *FullBlockChain {
+func initChainReader4CPTest(gr activatedGroupReader, t *testing.T) *FullBlockChain {
 	common.InitConf("test1.ini")
+
+	common.GlobalConf.SetString(configSec, "small_db", testOutPut+"/"+"small_db")
 	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
 
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
+	notify.BUS = notify.NewBus()
 	clearTicker()
 	Logger = logrus.StandardLogger()
 	if err != nil {
@@ -365,10 +379,11 @@ func initChainReader4CPTest(gr activatedGroupReader,t *testing.T) *FullBlockChai
 func TestCheckpoint_checkAndUpdate(t *testing.T) {
 	epochNum := 20
 	gr := initGroupReader4CPTest(epochNum)
-	br := initChainReader4CPTest(gr,t)
+	br := initChainReader4CPTest(gr, t)
 	if br == nil {
 		return
 	}
+	defer clearSelf(t)
 	Logger = logrus.StandardLogger()
 	top := br.Height()
 	for h := uint64(1); h < uint64(epochNum*types.EpochLength); h += uint64(rand.Int31n(2)) + 1 {
@@ -392,11 +407,12 @@ func TestCheckpoint_checkAndUpdate(t *testing.T) {
 func TestCheckpoint_CheckPointOf(t *testing.T) {
 	epochNum := 20
 	gr := initGroupReader4CPTest(epochNum)
-	br := initChainReader4CPTest(gr,t)
+	br := initChainReader4CPTest(gr, t)
 	Logger = logrus.StandardLogger()
 	if br == nil {
 		return
 	}
+	defer clearSelf(t)
 	top := br.Height()
 	for h := uint64(1); h < uint64(epochNum*types.EpochLength); h += uint64(rand.Int31n(2)) + 1 {
 		if h > top {
@@ -428,5 +444,60 @@ func TestCheckpoint_CheckPointOf(t *testing.T) {
 			t.Errorf("checkpoint error at %v, cp1 %v, cp2 %v", h, cp.Height, cp2.Height)
 			br.cpChecker.checkPointOf(blocks)
 		}
+	}
+}
+
+type consensusHelper4CheckpointTest struct {
+	ConsensusHelperImpl4Test
+}
+
+func (helper *consensusHelper4CheckpointTest) GenerateGenesisInfo() *types.GenesisInfo {
+	info := &types.GenesisInfo{}
+	g := newGroup4CPTest(0, common.MaxUint64)
+	g.h.seed = common.HexToHash("0x6861736820666f72207a76636861696e27732067656e657369732067726f7570")
+	info.Group = g
+	info.VrfPKs = make([][]byte, 0)
+	info.Pks = make([][]byte, 0)
+	info.VrfPKs = append(info.VrfPKs, common.FromHex("vrfPks"))
+	info.Pks = append(info.Pks, common.FromHex("Pks"))
+	return info
+}
+
+func TestCheckpoint_calc(t *testing.T) {
+	common.InitConf("test1.ini")
+	dataPath := "/Users/pxf/Desktop/d_b"
+	_, err := os.Stat(dataPath)
+	if os.IsNotExist(err) {
+		t.Logf("data dir not exist")
+		return
+	}
+	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
+	err = initBlockChain(&consensusHelper4CheckpointTest{}, nil)
+	if err != nil {
+		t.Fatalf("init fail %v", err)
+	}
+	chain := BlockChainImpl
+	top := chain.Height()
+	t.Logf("height %v", top)
+
+	cp := chain.cpChecker
+	ep := types.EpochAt(240)
+	for ep.Start() < top {
+		h := ep.End() - 1
+		db, err := chain.AccountDBAt(h)
+		if err != nil {
+			t.Fatalf("new account db error %v at %v", err, h)
+		}
+		ctx := newCpContext(ep, cp.groupReader.GetActivatedGroupsAt(h))
+		cp1, f1 := cp.calcCheckpointByDB(db, ctx.epoch, ctx.threshold)
+
+		blocks := cp.querier.BatchGetBlockHeadersBetween(ep.Start(), ep.End())
+		cp2, f2 := cp.calcCheckpointByBlocks(blocks, ctx.epoch, ctx.threshold)
+
+		if cp1 != cp2 || f1 != f2 {
+			t.Fatalf("calc error at %v, cp1 %v %v, cp2 %v %v", h, cp1, f1, cp2, f2)
+		}
+		fmt.Printf("check %v\n", h)
+		ep = ep.Next()
 	}
 }

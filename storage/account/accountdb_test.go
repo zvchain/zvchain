@@ -34,7 +34,7 @@ import (
 func TestUpdateLeaks(t *testing.T) {
 	// Create an empty state database
 	db, _ := tasdb.NewMemDatabase()
-	state, _ := NewAccountDB(common.Hash{}, NewDatabase(db))
+	state, _ := NewAccountDB(common.Hash{}, NewDatabase(db, false))
 
 	// Update it with some accounts
 	for i := byte(0); i < 255; i++ {
@@ -60,8 +60,8 @@ func TestIntermediateLeaks(t *testing.T) {
 	// Create two state databases, one transitioning to the final state, the other final from the beginning
 	transDb, _ := tasdb.NewMemDatabase()
 	finalDb, _ := tasdb.NewMemDatabase()
-	transState, _ := NewAccountDB(common.Hash{}, NewDatabase(transDb))
-	finalState, _ := NewAccountDB(common.Hash{}, NewDatabase(finalDb))
+	transState, _ := NewAccountDB(common.Hash{}, NewDatabase(transDb, false))
+	finalState, _ := NewAccountDB(common.Hash{}, NewDatabase(finalDb, false))
 
 	modify := func(state *AccountDB, addr common.Address, i, tweak byte) {
 		state.SetBalance(addr, big.NewInt(int64(11*i)+int64(tweak)))
@@ -256,7 +256,7 @@ func (test *snapshotTest) run() bool {
 	// Run all actions and create snapshots.
 	var (
 		db, _        = tasdb.NewMemDatabase()
-		state, _     = NewAccountDB(common.Hash{}, NewDatabase(db))
+		state, _     = NewAccountDB(common.Hash{}, NewDatabase(db, false))
 		snapshotRevs = make([]int, len(test.snapshots))
 		sindex       = 0
 	)

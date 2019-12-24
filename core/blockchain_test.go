@@ -46,7 +46,9 @@ import (
 )
 
 var source = "100"
+
 const testOutPut = "test_tmp_output"
+
 func init() {
 	log.ELKLogger.SetLevel(logrus.ErrorLevel)
 	_, err := ioutil.ReadDir(testOutPut)
@@ -522,7 +524,7 @@ func clearAllFolder() {
 	}
 	for _, d := range dir {
 		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || (strings.HasPrefix(d.Name(), "Test")) ||
-			strings.HasPrefix(d.Name(), "database")) {
+			strings.HasPrefix(d.Name(), "database"))  || strings.HasPrefix(d.Name(), "small_db"){
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
@@ -549,6 +551,7 @@ func clearTicker() {
 
 func initContext4Test(t *testing.T) error {
 	common.InitConf("../tas_config_all.ini")
+	common.GlobalConf.SetBool(configSec, "prune_mode", false)
 	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
@@ -744,6 +747,9 @@ func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerCo
 }
 
 func newBlockChainByDB(db string) (*FullBlockChain, error) {
+	if _, err := os.Stat(db); err != nil && os.IsNotExist(err) {
+		return nil, err
+	}
 	chain := &FullBlockChain{
 		config: &BlockChainConfig{
 			dbfile:      db,
@@ -765,14 +771,10 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 	}
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity:        100,
-		BlockCacheCapacity:            16 * opt.MiB,
-		WriteBuffer:                   16 * opt.MiB, // Two of these are used internally
-		Filter:                        filter.NewBloomFilter(10),
-		CompactionTableSize:           4 * opt.MiB,
-		CompactionTableSizeMultiplier: 2,
-		CompactionTotalSize:           16 * opt.MiB,
-		BlockSize:                     64 * opt.KiB,
+		OpenFilesCacheCapacity: 100,
+		BlockCacheCapacity:     16 * opt.MiB,
+		WriteBuffer:            16 * opt.MiB, // Two of these are used internally
+		Filter:                 filter.NewBloomFilter(10),
 		//ReadOnly:                      true,
 	}
 
@@ -804,7 +806,7 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 		return nil, err
 	}
 
-	chain.stateCache = account.NewDatabase(chain.stateDb)
+	chain.stateCache = account.NewDatabase(chain.stateDb, false)
 
 	latestBH := chain.loadCurrentBlock()
 	chain.latestBlock = latestBH

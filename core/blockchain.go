@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/zvchain/zvchain/common/prque"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -43,6 +44,7 @@ import (
 const (
 	blockStatusKey = "bcurrent"
 	configSec      = "chain"
+	gc             = "gc"
 )
 
 var (
@@ -68,19 +70,22 @@ type BlockChainConfig struct {
 	reward      string
 	tx          string
 	receipt     string
+	// Whether running node in pruning mode
+	pruneMode bool
 }
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
 type FullBlockChain struct {
-	blocks      *tasdb.PrefixedDatabase
-	blockHeight *tasdb.PrefixedDatabase
-	txDb        *tasdb.PrefixedDatabase
-	stateDb     *tasdb.PrefixedDatabase
-	cacheDb     *tasdb.PrefixedDatabase
-	batch       tasdb.Batch
-
-	stateCache account.AccountDatabase
-
+	blocks          *tasdb.PrefixedDatabase
+	blockHeight     *tasdb.PrefixedDatabase
+	txDb            *tasdb.PrefixedDatabase
+	stateDb         *tasdb.PrefixedDatabase
+	smallStateDb    *smallStateStore
+	cacheDb         *tasdb.PrefixedDatabase
+	batch           tasdb.Batch
+	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
+	stateCache      account.AccountDatabase
+	running         int32 // running must be called atomically
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -131,8 +136,9 @@ func getBlockChainConfig() *BlockChainConfig {
 
 		reward: "nu",
 
-		tx:      "tx",
-		receipt: "rc",
+		tx:        "tx",
+		receipt:   "rc",
+		pruneMode: common.GlobalConf.GetBool(configSec, "prune_mode", true),
 	}
 }
 
@@ -145,6 +151,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		isAdjusting:      false,
 		consensusHelper:  helper,
 		ticker:           ticker.NewGlobalTicker("chain"),
+		triegc:           prque.NewPrque(),
 		ts:               time2.TSInstance,
 		futureRawBlocks:  common.MustNewLRUCache(100),
 		verifiedBlocks:   common.MustNewLRUCache(10),
@@ -157,14 +164,14 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.initMessageHandler()
 
+	conf := common.GlobalConf.GetSectionManager(configSec)
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
 	// get the level db block cache size from config
-	blockCacheSize := common.GlobalConf.GetInt(configSec, "db_block_cache", 512)
+	blockCacheSize := conf.GetInt("db_block_cache", 512)
 	// get the level db write cache size from config
 	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
-
-	iteratorNodeCacheSize := common.GlobalConf.GetInt(configSec, "db_node_cache", 30000)
+	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
 
 	options := &opt.Options{
 		OpenFilesCacheCapacity: fileCacheSize,
@@ -206,13 +213,24 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
+	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "d_small"), nil)
+	if err != nil {
+		Logger.Errorf("new small state datasource error:%v", err)
+		return err
+	}
+	smallStateDb, err := smallStateDs.NewPrefixDatabase("")
+	if err != nil {
+		Logger.Errorf("new small state db error:%v", err)
+		return err
+	}
+	chain.smallStateDb = initSmallStore(smallStateDb)
 	chain.rewardManager = NewRewardManager()
 	chain.batch = chain.blocks.CreateLDBBatch()
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
-	chain.stateCache = account.NewDatabase(chain.stateDb)
+	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, chain.config.pruneMode, stateCacheSize, conf.GetString("state_cache_dir", "state_cache"))
 
 	latestBH := chain.loadCurrentBlock()
 
@@ -225,7 +243,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-
+	err = chain.mergeSmallDbDatasToBigDB(latestBH)
+	if err != nil {
+		return err
+	}
 	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
@@ -241,6 +262,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 			Logger.Error(err)
 			return err
 		}
+		fmt.Printf("db height is %v at %v\n", latestBH.Height, latestBH.CurTime.Local().String())
 	} else {
 		chain.insertGenesisBlock()
 	}
@@ -250,6 +272,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	BlockChainImpl = chain
 
 	// db cache enabled
+	iteratorNodeCacheSize := 30000
 	if iteratorNodeCacheSize > 0 {
 		cacheDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "db_cache", "d_cache"), nil)
 		if err != nil {
@@ -276,6 +299,10 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.LogDbStats()
 	return nil
+}
+
+func (chain *FullBlockChain) IsPruneMode() bool {
+	return common.GlobalConf.GetBool(configSec, "prune_mode", false)
 }
 
 func (chain *FullBlockChain) LogDbStats() {
@@ -391,6 +418,11 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
+	// Persist cache data
+	if chain.stateCache != nil{
+		chain.stateCache.TrieDB().SaveCache()
+	}
+	chain.PersistentState()
 	if chain.blocks != nil {
 		chain.blocks.Close()
 	}
@@ -404,7 +436,9 @@ func (chain *FullBlockChain) Close() {
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
 	}
-
+	if chain.smallStateDb!= nil{
+		chain.smallStateDb.Close()
+	}
 }
 
 // GetRewardManager returns the reward manager
@@ -418,10 +452,62 @@ func (chain *FullBlockChain) GetConsensusHelper() types.ConsensusHelper {
 }
 
 // ResetTop reset the current top block with parameter bh
-func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) {
+func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) error{
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
-	chain.resetTop(bh)
+	return chain.resetTop(bh)
+}
+
+// ResetNear reset the current top block with parameter bh,if parameter bh state  not exists,then find last restart point
+func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
+	localHeight := chain.Height()
+	fmt.Printf("prepare reset to %v,local height is %v \n",bh.Height,localHeight)
+	chain.mu.Lock()
+	defer chain.mu.Unlock()
+
+	lastRestartHeader,err := chain.findLastRestartPoint(bh)
+	if err != nil{
+		return nil,err
+	}
+	fmt.Printf("begin reset block,target height is %v \n",lastRestartHeader.Height)
+	err = chain.resetTop(lastRestartHeader)
+	if err != nil{
+		return nil,fmt.Errorf("reset nil error,err is %v",err)
+	}
+	err = chain.smallStateDb.StoreStatePersistentHeight(lastRestartHeader.Height)
+	if err != nil{
+		return nil, fmt.Errorf("resetNear write persistentHeight to small db error,err is %v",err)
+	}
+	return lastRestartHeader,nil
+}
+
+// FindLastRestartPoint find last restart point,find 980 blocks state from parameter bh if state exists
+func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
+	var (
+		cnt uint64 = 0
+		beginBh = bh
+	)
+	for cnt < TriesInMemory{
+		_,e := chain.accountDBAt(bh.Height)
+		if e != nil{
+			cnt = 0
+		}else{
+			if cnt == 0{
+				beginBh = bh
+			}
+			cnt++
+		}
+		preHash := bh.PreHash
+		bh = chain.queryBlockHeaderByHash(preHash)
+		if bh == nil{
+			return nil,fmt.Errorf("find block hash not exists,block hash is %v",preHash)
+		}
+		if bh.Height == 0 {
+			return bh,nil
+		}
+		_,e = chain.accountDBAt(bh.Height)
+	}
+	return beginBh,nil
 }
 
 // Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later
