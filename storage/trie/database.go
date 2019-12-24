@@ -687,7 +687,7 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 
 // Cap iteratively flushes old but still referenced trie nodes until the total
 // memory usage goes below the given threshold.
-func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
+func (db *NodeDatabase) Cap(height uint64, limit common.StorageSize) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -728,7 +728,7 @@ func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 			return err
 		}
 		// If we exceeded the ideal batch size, commit and reset
-			if batch.ValueSize() >= tasdb.IdealBatchSize {
+		if batch.ValueSize() >= tasdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.DefaultLogger.Error("Failed to write flush list to disk", "err", err)
 				return err
@@ -924,7 +924,7 @@ func (db *NodeDatabase) Size() (common.StorageSize, common.StorageSize) {
 	return db.nodesSize + db.childrenSize + metadataSize - metarootRefs, db.preimagesSize
 }
 
-// verifyIntegrity is a debug method to iterate over the entire trie stored in
+// traverse is a debug method to iterate over the entire trie stored in
 // memory and check whether every node is reachable from the meta root. The goal
 // is to find any errors that might cause memory leaks and or trie nodes to go
 // missing.

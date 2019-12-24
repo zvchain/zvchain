@@ -16,6 +16,7 @@
 package trie
 
 import (
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"testing"
@@ -24,11 +25,15 @@ import (
 // Used for testing
 func newTrieFromDB(dir string, root common.Hash) *Trie {
 	db, _ := tasdb.NewLDBDatabase(dir, nil)
+	return newTrieWithDB(db, root)
+}
+
+func newTrieWithDB(db tasdb.Database, root common.Hash) *Trie {
 	trie, _ := NewTrie(root, NewDatabase(db, 0, "", false))
 	return trie
 }
 
-func TestTrie_VerifyIntegrity(t *testing.T) {
+func TestTrie_Traverse(t *testing.T) {
 	trie := newTrieFromDB("test_trie", common.Hash{})
 
 	trie.TryUpdate([]byte("1"), []byte("abc"))
@@ -74,7 +79,7 @@ func TestTrie_VerifyIntegrity(t *testing.T) {
 		t.Fatal("commit error", err)
 	}
 
-	ok, err := trie.VerifyIntegrity(nil, nil,false)
+	ok, err := trie.Traverse(nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,4 +115,25 @@ func TestTrie_VerifyIntegrity_AfterDropKey(t *testing.T) {
 	//	t.Fatalf("verify fail:should be missing node")
 	//}
 	//t.Log("success ", ok)
+}
+
+func TestTrie_Traverse2(t *testing.T) {
+	trie := newTrieFromDB("test_trie", common.Hash{})
+
+	trie.TryUpdate([]byte("1"), []byte("abc"))
+	trie.TryUpdate([]byte("12"), []byte("abcd"))
+	trie.TryUpdate([]byte("123"), []byte("abcdef"))
+
+	root, err := trie.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	trie2 := newTrieWithDB(trie.db.diskdb, root)
+
+	trie2.Traverse(func(key []byte, value []byte) error {
+		fmt.Println(string(key), string(value))
+		return nil
+	}, nil, false)
+
 }

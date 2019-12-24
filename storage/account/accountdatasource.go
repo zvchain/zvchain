@@ -78,12 +78,12 @@ type Trie interface {
 	// starts at the key after the given start key.
 	NodeIterator(startKey []byte) trie.NodeIterator
 
-	// VerifyIntegrity is a debug method to iterate over the entire trie stored in
+	// Traverse is a debug method to iterate over the entire trie stored in
 	// the disk and check whether every node is reachable from the meta root. The goal
 	// is to find any errors that might cause trie nodes missing during prune
 	//
 	// This method is extremely CPU and disk intensive, and time consuming, only use when must.
-	VerifyIntegrity(onleaf trie.ExtLeafCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error)
+	Traverse(onleaf trie.ExtLeafCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error)
 }
 
 // NewDatabase creates a backing store for state. The returned database

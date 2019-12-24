@@ -30,16 +30,16 @@ type ResolveNodeCallback func(hash common.Hash, data []byte)
 
 type checkErrorFn func() error
 
-// VerifyIntegrity is a debug method to iterate over the entire trie stored in
+// Traverse is a debug method to iterate over the entire trie stored in
 // the disk and check whether every node is reachable from the meta root. The goal
 // is to find any errors that might cause trie nodes missing during prune
 //
 // This method is extremely CPU and disk intensive, and time consuming, only use when must.
-func (t *Trie) VerifyIntegrity(onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
-	return t.verifyIntegrity(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, true, nil, checkHash)
+func (t *Trie) Traverse(onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
+	return t.traverse(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, true, nil, checkHash)
 }
 
-func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
+func (t *Trie) traverseFullNodeConcurrently(fn *fullNode, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
 	wg := sync.WaitGroup{}
 	errV := atomic.Value{}
 
@@ -55,7 +55,7 @@ func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, on
 			wg.Add(1)
 			go func(n node) {
 				defer wg.Done()
-				if ok, err := t.verifyIntegrity(n, append(accumulateKey, byte(i)), onleaf, resolve, false, stopCheckFn, checkHash); !ok {
+				if ok, err := t.traverse(n, append(accumulateKey, byte(i)), onleaf, resolve, false, stopCheckFn, checkHash); !ok {
 					errV.Store(err)
 					return
 				}
@@ -70,7 +70,7 @@ func (t *Trie) verifyFullNodeConcurrently(fn *fullNode, accumulateKey []byte, on
 	return false, err.(error)
 }
 
-func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, concurrent bool, errCheckFn checkErrorFn, checkHash bool) (ok bool, err error) {
+func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, concurrent bool, errCheckFn checkErrorFn, checkHash bool) (ok bool, err error) {
 	if errCheckFn != nil {
 		if e := errCheckFn(); e != nil {
 			return false, e
@@ -88,20 +88,20 @@ func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCall
 		}
 		return true, nil
 	case *shortNode:
-		ok, err = t.verifyIntegrity(n.Val, append(accumulateKey, n.Key...), onleaf, resolve, false, errCheckFn, checkHash)
+		ok, err = t.traverse(n.Val, append(accumulateKey, n.Key...), onleaf, resolve, false, errCheckFn, checkHash)
 		if !ok {
 			return
 		}
 	case *fullNode:
 		if concurrent {
-			ok, err = t.verifyFullNodeConcurrently(n, accumulateKey, onleaf, resolve, checkHash)
+			ok, err = t.traverseFullNodeConcurrently(n, accumulateKey, onleaf, resolve, checkHash)
 			if !ok {
 				return
 			}
 		} else {
 			for i, child := range n.Children {
 				if child != nil {
-					if ok, err = t.verifyIntegrity(child, append(accumulateKey, byte(i)), onleaf, resolve, false, errCheckFn, checkHash); !ok {
+					if ok, err = t.traverse(child, append(accumulateKey, byte(i)), onleaf, resolve, false, errCheckFn, checkHash); !ok {
 						return
 					}
 				}
@@ -129,13 +129,70 @@ func (t *Trie) verifyIntegrity(nd node, accumulateKey []byte, onleaf ExtLeafCall
 			}
 		}
 		if resolve != nil {
-			resolve(common.BytesToHash(n), data)
+			resolve(hash, data)
 		}
-		if ok, err = t.verifyIntegrity(resolvedNode, accumulateKey, onleaf, resolve, concurrent, errCheckFn, checkHash); !ok {
+		if ok, err = t.traverse(resolvedNode, accumulateKey, onleaf, resolve, concurrent, errCheckFn, checkHash); !ok {
 			return
 		}
 	default:
 		panic(fmt.Sprintf("%T: invalid n: %v", n, n))
 	}
 	return true, nil
+}
+
+// TraverseKey traverses the path of the given key in the trie tree,
+// An error is returned when the specified path cannot be found or some node is missing
+func (t *Trie) TraverseKey(key []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (ok bool, err error) {
+	key = keybytesToHex(key)
+	return t.traverseKey(hashNode(t.originalRoot.Bytes()), key, 0, onleaf, resolve, checkHash)
+}
+
+func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (ok bool, err error) {
+	switch n := (origNode).(type) {
+	case nil:
+		return true, nil
+	case valueNode:
+		if onleaf != nil {
+			uKey := hexToKeybytes(key)
+			if e := onleaf(uKey, n); e != nil {
+				return false, e
+			}
+		}
+		return true, nil
+	case *shortNode:
+		if len(key)-pos < len(n.Key) || !bytes.Equal(n.Key, key[pos:pos+len(n.Key)]) {
+			// key not found in trie
+			return false, fmt.Errorf("key not found %x", key)
+		}
+		return t.traverseKey(n.Val, key, pos+len(n.Key), onleaf, resolve, checkHash)
+	case *fullNode:
+		return t.traverseKey(n.Children[key[pos]], key, pos+1, onleaf, resolve, checkHash)
+	case hashNode:
+		hash := common.BytesToHash(n)
+
+		var (
+			resolvedNode node
+			data         []byte
+		)
+		if hash != (common.Hash{}) && hash != emptyRoot {
+			r, bs, e := t.resolveHashAndGetRawBytes(n, key[:pos])
+			if e != nil {
+				return false, e
+			}
+			resolvedNode = r
+			data = bs
+			if checkHash {
+				hasher := newHasher(0, 0, nil)
+				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
+					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
+				}
+			}
+		}
+		if resolve != nil {
+			resolve(hash, data)
+		}
+		return t.traverseKey(resolvedNode, key, pos, onleaf, resolve, checkHash)
+	default:
+		panic(fmt.Sprintf("%T: invalid node: %v", origNode, origNode))
+	}
 }
