@@ -353,10 +353,12 @@ func (chain *FullBlockChain) mergeSmallDbDatasToBigDB(top *types.BlockHeader) er
 	if top == nil {
 		return nil
 	}
-	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
-	if lastStateHeight == 0{
+	// check small db has state data,if nil,then return
+	hasStateData := chain.smallStateDb.HasStateData()
+	if !hasStateData{
 		return nil
 	}
+	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
 	if lastStateHeight < top.Height{
 		start := time.Now()
 		defer func() {
