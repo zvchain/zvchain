@@ -182,6 +182,7 @@ func (gzv *Gzv) Run() {
 	natAddr := mineCmd.Flag("nat", "nat server address").Default("natproxy.zvchain.io").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("3100").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
+	importFile := mineCmd.Flag("import", "the archive file for importing").String()
 
 	clearCmd := app.Command("clear", "Clear the data of blockchain")
 
@@ -247,6 +248,7 @@ func (gzv *Gzv) Run() {
 			resetHash:         *reset,
 			cors:              *cors,
 			privateKey:        *privKey,
+			importFile:*importFile,
 		}
 		gzv.config = cfg
 
@@ -476,6 +478,13 @@ func (gzv *Gzv) fullInit() error {
 	helper := mediator.NewConsensusHelper(minerInfo.ID)
 	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
 		genesisMembers = append(genesisMembers, common.ToAddrHex(mem.ID()))
+	}
+	if cfg.importFile != ""{
+		err := core.ImportFromArchive(cfg.importFile, helper)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(0)
+		}
 	}
 
 	netCfg := network.NetworkConfig{
