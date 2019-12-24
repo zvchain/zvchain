@@ -243,7 +243,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
-	err = chain.mergeSmallDbDatasToBigDB(latestBH)
+	err = chain.mergeSmallDbDataToBigDB(latestBH)
 	if err != nil {
 		return err
 	}

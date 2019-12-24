@@ -65,7 +65,7 @@ type readMeter struct {
 
 // SmallDbWriter wraps the Get and Has method of a backing store for the current block state's modify datas.
 type SmallDbWriter interface {
-	StoreDataToSmallDb(root common.Hash, nb []byte) error
+	StoreDataToSmallDb(height uint64,root common.Hash, nb []byte) error
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
@@ -332,13 +332,13 @@ func (db *NodeDatabase) ResetNodeCache() {
 }
 
 // InsertStateDatasToSmallDb insert nodes to small db
-func (db *NodeDatabase) InsertStateDatasToSmallDb(root common.Hash, smallDbWriter SmallDbWriter) error {
+func (db *NodeDatabase) InsertStateDatasToSmallDb(height uint64,root common.Hash, smallDbWriter SmallDbWriter) error {
 	if db.commitFullNodes != nil && len(db.commitFullNodes) > 0 {
 		dts, err := rlp.EncodeToBytes(db.commitFullNodes)
 		if err != nil {
 			return fmt.Errorf("encode error，error is %v", err)
 		}
-		err = smallDbWriter.StoreDataToSmallDb(root, dts)
+		err = smallDbWriter.StoreDataToSmallDb(height,root, dts)
 		if err != nil {
 			return err
 		}
@@ -569,7 +569,7 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-func (db *NodeDatabase) CommitStateDatasToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
+func (db *NodeDatabase) CommitStateDataToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
 	batch := db.diskdb.NewBatch()
 	if len(blobs) > 0 {
 		for _, vl := range blobs {
