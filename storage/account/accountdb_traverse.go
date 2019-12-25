@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
 	"github.com/zvchain/zvchain/storage/trie"
 	"sync"
@@ -130,7 +129,6 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 					return err
 				}
 			} else { // Only traverse the specified keys of the sub tree
-				log.CoreLogger.Debugf("key of %v %v", vs.Addr.Hash().Hex(), keys)
 				for _, key := range keys {
 					if ok, err := t.TraverseKey(key, leafCb, resolveCb, config.CheckHash); !ok {
 						return err

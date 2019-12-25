@@ -76,3 +76,14 @@ func TestAccountDB_Traverse(t *testing.T) {
 		}
 	}
 }
+
+func TestSlice(t *testing.T) {
+	a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	fmt.Printf("%p %p %p %p\n", a, a[1:], a[2:], a[:2])
+
+	a = append(a, 10)
+	b := a[5:]
+	b[0] = 444
+
+	fmt.Printf("%p %v %v\n ", b, b, a)
+}
