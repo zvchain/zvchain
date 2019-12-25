@@ -519,7 +519,7 @@ func (gzv *Gzv) fullInit() error {
 	if enableTraceLog {
 		monitor.InitPerformTraceLogger()
 	}
-
+	ShowVersionInfo()
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
 	ok := mediator.ConsensusInit(minerInfo, common.GlobalConf)
@@ -530,6 +530,11 @@ func (gzv *Gzv) fullInit() error {
 		monitor.InitLogService(id)
 	}
 	return nil
+}
+
+func ShowVersionInfo(){
+	output("your version is",common.GzvVersion)
+	output("prune mode",core.BlockChainImpl.IsPruneMode())
 }
 
 func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
