@@ -321,7 +321,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 }
 
 func (chain *FullBlockChain) IsPruneMode() bool {
-	return common.GlobalConf.GetBool(configSec, "prune_mode", false)
+	return chain.config.pruneMode
 }
 
 func (chain *FullBlockChain) LogDbStats() {

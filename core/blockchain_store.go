@@ -99,8 +99,6 @@ func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.
 
 func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error {
 	triedb := chain.stateCache.TrieDB()
-	// make new slice before commit.
-	triedb.ResetNodeCache()
 	// insert current block's node to small db,it will generate one record,use rlp encode (key is root,value is node1,node2,node3...convert to bytes)
 	err := triedb.InsertStateDataToSmallDb(b.Header.Height, root, chain.smallStateDb)
 	if err != nil {
@@ -170,6 +168,8 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
 	triedb := chain.stateCache.TrieDB()
 	begin := time.Now()
+	// make new slice before commit.
+	triedb.ResetNodeCache()
 	defer func() {
 		end := time.Now()
 		cost := (end.UnixNano() - begin.UnixNano()) / 1e6

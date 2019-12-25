@@ -373,7 +373,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) err
 	if !hasStateData {
 		return nil
 	}
-	var beginHeight uint64 = 0
+	var beginHeight uint64 = common.MaxUint64
 	// get the last persistent height from small db
 	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
 	if lastStateHeight < top.Height {
@@ -382,7 +382,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) err
 	} else if lastStateHeight > top.Height {
 		beginHeight = 1
 	}
-	if beginHeight == 0 {
+	if beginHeight == common.MaxUint64 {
 		return nil
 	}
 	start := time.Now()

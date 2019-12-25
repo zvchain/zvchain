@@ -614,7 +614,7 @@ func (db *NodeDatabase) CanPersistent(persistentCount int) bool {
 func (db *NodeDatabase) StorePruneData(height, currentHeight, cpHeight, pruneCount uint64) {
 	db.lastPruneHeight = height
 	db.lastPruneCount += pruneCount
-	log.CropLogger.Debugf("store gc height is %v,curHeight is %v,cphHeight is %v,cur gc count is %v", height, currentHeight, cpHeight, pruneCount)
+	log.CropLogger.Debugf("store prune height is %v,curHeight is %v,cphHeight is %v,cur prune count is %v,total prune count is %v", height, currentHeight, cpHeight, pruneCount,db.lastPruneCount)
 }
 
 func (db *NodeDatabase) ResetPruneCount() {
