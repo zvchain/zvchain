@@ -90,7 +90,11 @@ func (store *smallStateStore) StoreStatePersistentHeight(height uint64) error {
 func (store *smallStateStore) HasStateData() bool {
 	iter := store.db.NewIterator()
 	defer iter.Release()
-	return iter.Seek([]byte(smallDbRootDatas))
+	hasValue := iter.Seek([]byte(smallDbRootDatas))
+	if !hasValue{
+		return false
+	}
+	return bytes.HasPrefix(iter.Key(),[]byte(smallDbRootDatas))
 }
 
 func (store *smallStateStore) GetStatePersistentHeight() uint64 {
