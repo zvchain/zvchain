@@ -136,8 +136,7 @@ type FullBlockChain struct {
 	cpChecker *cpChecker
 }
 
-func getPruneConfig() *PruneConfig {
-	pruneMode := common.GlobalConf.GetBool(configSec, "prune_mode", true)
+func getPruneConfig(pruneMode bool) *PruneConfig {
 	if !pruneMode {
 		return nil
 	}
@@ -151,7 +150,7 @@ func getPruneConfig() *PruneConfig {
 	if everyClearFromMem <= 0 {
 		panic("config clear_tries_memory must be more than 0")
 	}
-	if persistenceCt < 0 {
+	if persistenceCt <= 0 {
 		panic("config persistence_count must be more than 0")
 	}
 	if maxTriesInMem <= everyClearFromMem{
@@ -165,6 +164,7 @@ func getPruneConfig() *PruneConfig {
 }
 
 func getBlockChainConfig() *BlockChainConfig {
+	pruneMode:= common.GlobalConf.GetBool(configSec, "prune_mode", true)
 	return &BlockChainConfig{
 		dbfile:      common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
 		block:       "bh",
@@ -173,8 +173,7 @@ func getBlockChainConfig() *BlockChainConfig {
 		reward:      "nu",
 		tx:          "tx",
 		receipt:     "rc",
-		pruneMode:   common.GlobalConf.GetBool(configSec, "prune_mode", true),
-		pruneConfig: getPruneConfig(),
+		pruneConfig: getPruneConfig(pruneMode),
 	}
 }
 
