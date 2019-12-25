@@ -106,7 +106,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
 	if chain.config.pruneMode && b.Header.Height > 0 {
-		err = triedb.InsertStateDatasToSmallDb(root, chain.smallStateDb)
+		err = triedb.InsertStateDatasToSmallDb(b.Header.Height,root, chain.smallStateDb)
 		if err != nil {
 			return fmt.Errorf("insert full state nodes failed,err is %v", err)
 		}
@@ -119,7 +119,7 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 			clear := common.StorageSize(common.GlobalConf.GetInt(gc, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024)
 			triedb.Cap(b.Header.Height, limit-clear)
 		}
-		if cp != nil {
+		if cp != nil && !chain.triegc.Empty(){
 			cropItems := chain.getPruneHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
 			if len(cropItems) > 0 {
 				for i:= len(cropItems) - 1;i>=0;i--{

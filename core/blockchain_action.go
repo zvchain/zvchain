@@ -282,6 +282,7 @@ func (chain *FullBlockChain) DeleteSmallDbDatasByRoots(roots []common.Hash) {
 func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
 	chain.smallStateDb.mu.Lock()
 	defer chain.smallStateDb.mu.Unlock()
+	// from small db get last delete height
 	lastDeleteHeight := chain.smallStateDb.GetLastDeleteHeight()
 	beginHeight := lastDeleteHeight
 	endHeight := persistenceHeight
@@ -349,7 +350,7 @@ func (chain *FullBlockChain) PersistentState() {
 	}
 }
 
-func (chain *FullBlockChain) mergeSmallDbDatasToBigDB(top *types.BlockHeader) error {
+func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) error {
 	if top == nil {
 		return nil
 	}
@@ -358,16 +359,25 @@ func (chain *FullBlockChain) mergeSmallDbDatasToBigDB(top *types.BlockHeader) er
 	if !hasStateData{
 		return nil
 	}
+	var (
+		beginHeight uint64 = 0
+	)
 	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
 	if lastStateHeight < top.Height{
+		beginHeight = lastStateHeight
+	// if big db is be deleted
+	}else if lastStateHeight > top.Height{
+		beginHeight = 1
+	}
+	if beginHeight > 0{
 		start := time.Now()
 		defer func() {
-			log.CropLogger.Debugf("fix small state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
+			log.CropLogger.Debugf("fix small state data success,top is %v,from %v-%v,cost %v \n", top.Height,beginHeight, top.Height, time.Since(start))
 		}()
-		log.CropLogger.Debugf("begin fix small state data,from %v-%v \n", lastStateHeight, top.Height)
+		log.CropLogger.Debugf("begin fix small state data,top is %v,from %v-%v \n", top.Height,beginHeight, top.Height)
 		triedb := chain.stateCache.TrieDB()
 		repeatKey := make(map[common.Hash]struct{})
-		for i := lastStateHeight; i <= top.Height; i++ {
+		for i := beginHeight; i <= top.Height; i++ {
 			bh := chain.queryBlockHeaderByHeight(i)
 			if bh == nil {
 				continue
@@ -380,7 +390,7 @@ func (chain *FullBlockChain) mergeSmallDbDatasToBigDB(top *types.BlockHeader) er
 			if err != nil {
 				return err
 			}
-			err = triedb.CommitStateDatasToBigDb(caches, repeatKey)
+			err = triedb.CommitStateDataToBigDb(caches, repeatKey)
 			if err != nil{
 				return fmt.Errorf("commit from small db to big db error,err is %v",err)
 			}
