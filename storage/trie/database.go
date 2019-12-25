@@ -65,7 +65,7 @@ type readMeter struct {
 
 // SmallDbWriter wraps the Get and Has method of a backing store for the current block state's modify datas.
 type SmallDbWriter interface {
-	StoreDataToSmallDb(height uint64,root common.Hash, nb []byte) error
+	StoreDataToSmallDb(height uint64, root common.Hash, nb []byte) error
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
@@ -97,9 +97,9 @@ type NodeDatabase struct {
 	preimagesSize   common.StorageSize // Storage size of the preimages cache
 	lock            sync.RWMutex
 	commitFullNodes []*storeBlob // CommitFullNodes strores commit nodes every time
-	enableGc        bool         // enableGc crop dirty state if true
-	lastGcHeight    uint64
-	lastGcCount     uint64
+	enablePrune     bool         // enablePrune crop dirty state if true
+	lastPruneHeight uint64
+	lastPruneCount  uint64
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
@@ -287,7 +287,7 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable bool) *NodeDatabase {
+func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, pruneEnable bool) *NodeDatabase {
 	var cache *fastcache.Cache
 	if cacheDir != "" {
 		_, err := os.Stat(cacheDir)
@@ -309,13 +309,13 @@ func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable
 	}
 
 	return &NodeDatabase{
-		diskdb:    diskdb,
-		nodes:     map[common.Hash]*cachedNode{{}: {}},
-		preimages: make(map[common.Hash][]byte),
-		enableGc:  gcEnable,
-		cache:     cache,
-		cacheDir:  cacheDir,
-		meter:     &readMeter{start: time.Now()},
+		diskdb:      diskdb,
+		nodes:       map[common.Hash]*cachedNode{{}: {}},
+		preimages:   make(map[common.Hash][]byte),
+		enablePrune: pruneEnable,
+		cache:       cache,
+		cacheDir:    cacheDir,
+		meter:       &readMeter{start: time.Now()},
 	}
 }
 
@@ -326,23 +326,26 @@ func (db *NodeDatabase) DiskDB() DatabaseReader {
 
 // ResetNodeCache make new slice before commit.
 func (db *NodeDatabase) ResetNodeCache() {
-	if db.enableGc {
+	if db.enablePrune {
 		db.commitFullNodes = []*storeBlob{}
 	}
 }
 
-// InsertStateDatasToSmallDb insert nodes to small db
-func (db *NodeDatabase) InsertStateDatasToSmallDb(height uint64,root common.Hash, smallDbWriter SmallDbWriter) error {
-	if db.commitFullNodes != nil && len(db.commitFullNodes) > 0 {
-		dts, err := rlp.EncodeToBytes(db.commitFullNodes)
-		if err != nil {
-			return fmt.Errorf("encode error，error is %v", err)
-		}
-		err = smallDbWriter.StoreDataToSmallDb(height,root, dts)
-		if err != nil {
-			return err
-		}
+// InsertStateDatasToSmallDb insert nodes to small db,generate one record(use rlp)
+func (db *NodeDatabase) InsertStateDataToSmallDb(height uint64, root common.Hash, smallDbWriter SmallDbWriter) error {
+	if db.commitFullNodes == nil || len(db.commitFullNodes) == 0 {
+		return nil
 	}
+	dts, err := rlp.EncodeToBytes(db.commitFullNodes)
+	if err != nil {
+		return fmt.Errorf("encode error，error is %v", err)
+	}
+	// store root data and height to small db
+	err = smallDbWriter.StoreDataToSmallDb(height, root, dts)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -364,7 +367,7 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	// If the node's already cached, skip
 	if n, ok := db.nodes[hash]; ok {
-		if db.enableGc {
+		if db.enablePrune {
 			db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: n.rlp()})
 		}
 		return
@@ -381,7 +384,7 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 		}
 	}
 	db.nodes[hash] = entry
-	if db.enableGc {
+	if db.enablePrune {
 		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: entry.rlp()})
 	}
 	// Update the flush-list endpoints
@@ -568,19 +571,22 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 		db.childrenSize += common.HashLength + 2 // uint16 counter
 	}
 }
-
+// CommitStateDataToBigDb is for cold start
+// Commit the state data to big db
 func (db *NodeDatabase) CommitStateDataToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
+	if len(blobs) == 0 {
+		return nil
+	}
 	batch := db.diskdb.NewBatch()
-	if len(blobs) > 0 {
-		for _, vl := range blobs {
-			_, ok := repeatKey[vl.Key]
-			if ok {
-				continue
-			}
-			repeatKey[vl.Key] = struct{}{}
-			if err := batch.Put(vl.Key[:], vl.Raw); err != nil {
-				return err
-			}
+	for _, vl := range blobs {
+		// if the key has committed,then return
+		_, ok := repeatKey[vl.Key]
+		if ok {
+			continue
+		}
+		repeatKey[vl.Key] = struct{}{}
+		if err := batch.Put(vl.Key[:], vl.Raw); err != nil {
+			return err
 		}
 	}
 	if err := batch.Write(); err != nil {
@@ -597,22 +603,22 @@ func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, blobs []*storeB
 	return nil, blobs
 }
 
-func (db *NodeDatabase) LastGcHeight() uint64 {
-	return db.lastGcHeight
+func (db *NodeDatabase) LastPruneHeight() uint64 {
+	return db.lastPruneHeight
 }
-
+// CanPersistent check can persistent if prune block count more than persistentCount
 func (db *NodeDatabase) CanPersistent(persistentCount int) bool {
-	return db.lastGcCount >= uint64(persistentCount)
+	return db.lastPruneCount >= uint64(persistentCount)
 }
 
-func (db *NodeDatabase) StoreGcData(height, currentHeight, cpHeight, gcCount uint64) {
-	db.lastGcHeight = height
-	db.lastGcCount += gcCount
-	log.CropLogger.Debugf("store gc height is %v,curHeight is %v,cphHeight is %v,cur gc count is %v", height, currentHeight, cpHeight, gcCount)
+func (db *NodeDatabase) StorePruneData(height, currentHeight, cpHeight, pruneCount uint64) {
+	db.lastPruneHeight = height
+	db.lastPruneCount += pruneCount
+	log.CropLogger.Debugf("store gc height is %v,curHeight is %v,cphHeight is %v,cur gc count is %v", height, currentHeight, cpHeight, pruneCount)
 }
 
-func (db *NodeDatabase) ResetGcCount() {
-	db.lastGcCount = 0
+func (db *NodeDatabase) ResetPruneCount() {
+	db.lastPruneCount = 0
 }
 
 // Dereference removes an existing reference from a root node.
@@ -687,7 +693,7 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 
 // Cap iteratively flushes old but still referenced trie nodes until the total
 // memory usage goes below the given threshold.
-func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
+func (db *NodeDatabase) Cap(height uint64, limit common.StorageSize) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -728,7 +734,7 @@ func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 			return err
 		}
 		// If we exceeded the ideal batch size, commit and reset
-			if batch.ValueSize() >= tasdb.IdealBatchSize {
+		if batch.ValueSize() >= tasdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.DefaultLogger.Error("Failed to write flush list to disk", "err", err)
 				return err
@@ -788,7 +794,7 @@ func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 // to disk, forcefully tearing down all references in both directions.
 //
 // As a side effect, all pre-images accumulated up to this point are also written.
-func (db *NodeDatabase) Commit(height uint64,node common.Hash, report bool) error {
+func (db *NodeDatabase) Commit(height uint64, node common.Hash, report bool) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -839,7 +845,7 @@ func (db *NodeDatabase) Commit(height uint64,node common.Hash, report bool) erro
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
 	log.CropLogger.Debugf("Persisted trie from memory database,height is %v,nodes is %v,cost %v,size is %v,gcnodes is %v,gcsize is %v,livenodes is %v,livesize is %v",
-		height,nodes-len(db.nodes)+int(db.flushnodes),time.Since(start),storage-db.nodesSize+db.flushsize,db.gcnodes,db.gcsize,len(db.nodes),db.nodesSize)
+		height, nodes-len(db.nodes)+int(db.flushnodes), time.Since(start), storage-db.nodesSize+db.flushsize, db.gcnodes, db.gcsize, len(db.nodes), db.nodesSize)
 
 	// Reset the garbage collection statistics
 	db.gcnodes, db.gcsize, db.gctime = 0, 0, 0

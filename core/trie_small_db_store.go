@@ -31,12 +31,14 @@ func (store *smallStateStore) GetLastDeleteHeight() uint64 {
 	return common.ByteToUInt64(data)
 }
 
-func (store *smallStateStore) GetSmallDbDatasByRoot(root common.Hash) []byte {
+// GetSmallDbDataByRoot will get the data by root key from small db
+func (store *smallStateStore) GetSmallDbDataByRoot(root common.Hash) []byte {
 	data, _ := store.db.Get(store.generateKey(root[:], smallDbRootDatas))
 	return data
 }
 
-func (store *smallStateStore) DeleteSmallDbDatasByRoot(root common.Hash) error {
+// DeleteSmallDbDataByRootWithoutStoreHeight only delete root key from small db
+func (store *smallStateStore) DeleteSmallDbDataByRootWithoutStoreHeight(root common.Hash) error {
 	err := store.db.Delete(store.generateKey(root[:], smallDbRootDatas))
 	if err != nil {
 		return fmt.Errorf("delete dirty trie error %v", err)
@@ -44,6 +46,7 @@ func (store *smallStateStore) DeleteSmallDbDatasByRoot(root common.Hash) error {
 	return nil
 }
 
+// DeleteSmallDbDataByRoot will delete root key and then store the current height to small db
 func (store *smallStateStore) DeleteSmallDbDataByRoot(root common.Hash, height uint64) error {
 	err := store.db.Delete(store.generateKey(root[:], smallDbRootDatas))
 	if err != nil {
@@ -56,8 +59,9 @@ func (store *smallStateStore) DeleteSmallDbDataByRoot(root common.Hash, height u
 	return nil
 }
 
+// store current root data and height  to small db
 func (store *smallStateStore) StoreDataToSmallDb(height uint64, root common.Hash, nb []byte) error {
-	// if small db data is nil,delete height reset to current height,because from no prune mode to prune mode will scale too much blocks
+	// if small db data is empty,delete height reset to current height,because from no prune mode to prune mode will scale too much blocks
 	if !store.hasStored && !store.HasStateData() {
 		err := store.db.Put([]byte(lastDeleteHeight), common.UInt64ToByte(height))
 		if err != nil {
@@ -72,6 +76,8 @@ func (store *smallStateStore) StoreDataToSmallDb(height uint64, root common.Hash
 	return nil
 }
 
+// StoreStatePersistentHeight store the persistent height to small db
+// This height is used for cold start
 func (store *smallStateStore) StoreStatePersistentHeight(height uint64) error {
 	err := store.db.Put([]byte(persistentHeight), common.UInt64ToByte(height))
 	if err != nil {
@@ -80,6 +86,7 @@ func (store *smallStateStore) StoreStatePersistentHeight(height uint64) error {
 	return nil
 }
 
+// HasStateData check the small db exists data
 func (store *smallStateStore) HasStateData() bool {
 	iter := store.db.NewIterator()
 	defer iter.Release()
