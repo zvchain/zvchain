@@ -373,7 +373,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) err
 	if !hasStateData {
 		return nil
 	}
-	var beginHeight uint64 = common.MaxUint64
+	var beginHeight uint64 = 0
 	// get the last persistent height from small db
 	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
 	if lastStateHeight < top.Height {
@@ -381,10 +381,10 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) err
 		// if big db is be deleted,but small db not be deleted,we will compensate it
 	} else if lastStateHeight > top.Height {
 		beginHeight = 1
-	}
-	if beginHeight == common.MaxUint64 {
+	} else {
 		return nil
 	}
+
 	start := time.Now()
 	defer func() {
 		log.CropLogger.Debugf("fix small state data success,top is %v,from %v-%v,cost %v \n", top.Height, beginHeight, top.Height, time.Since(start))
