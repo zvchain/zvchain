@@ -542,7 +542,6 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 		if bh.Height == 0 {
 			return bh, nil
 		}
-		_, e = chain.accountDBAt(bh.Height)
 	}
 	return beginBh, nil
 }
