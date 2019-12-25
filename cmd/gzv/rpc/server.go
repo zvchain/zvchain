@@ -279,7 +279,7 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 		arguments = append(arguments, req.args...)
 	}
 
-	if s.isPruneMode && IsNotSuppotedMethod(req.callb.method.Name) {
+	if s.isPruneMode && IsNotSupportedMethod(req.callb.method.Name) {
 		res := codec.CreateErrorResponse(&req.id, &callbackError{"prune mode not support this method"})
 		return res, nil
 	}

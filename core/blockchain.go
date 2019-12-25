@@ -44,7 +44,7 @@ import (
 const (
 	blockStatusKey = "bcurrent"
 	configSec      = "chain"
-	gc             = "gc"
+	prune          = "prune"
 )
 
 var (
@@ -72,6 +72,17 @@ type BlockChainConfig struct {
 	receipt     string
 	// Whether running node in pruning mode
 	pruneMode bool
+	// pruning mode config
+	pruneConfig *PruneConfig
+}
+
+type PruneConfig struct {
+	// max trie state memory limit,if over this value,will commit to big db and clear memory
+	maxTriesInMemory common.StorageSize
+	// if trie state over maxTriesInMemory,will commit to big db and clear memory size
+	everyClearFromMemory common.StorageSize
+	// prune count over this value,will commit next height block
+	persistenceCount int
 }
 
 // FullBlockChain manages chain imports, reverts, chain reorganisations.
@@ -126,19 +137,26 @@ type FullBlockChain struct {
 }
 
 func getBlockChainConfig() *BlockChainConfig {
+	var pruneConfig *PruneConfig
+	pruneMode := common.GlobalConf.GetBool(configSec, "prune_mode", true)
+	if pruneMode {
+		pruneConfig = &PruneConfig{
+			maxTriesInMemory:     common.StorageSize(common.GlobalConf.GetInt(prune, "max_tries_memory", maxTriesInMemory) * 1024 * 1024),
+			everyClearFromMemory: common.StorageSize(common.GlobalConf.GetInt(prune, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024),
+			persistenceCount:     common.GlobalConf.GetInt(prune, "persistence_count", persistenceCount),
+		}
+	}
+
 	return &BlockChainConfig{
-		dbfile: common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
-		block:  "bh",
-
+		dbfile:      common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
+		block:       "bh",
 		blockHeight: "hi",
-
-		state: "st",
-
-		reward: "nu",
-
-		tx:        "tx",
-		receipt:   "rc",
-		pruneMode: common.GlobalConf.GetBool(configSec, "prune_mode", true),
+		state:       "st",
+		reward:      "nu",
+		tx:          "tx",
+		receipt:     "rc",
+		pruneMode:   pruneMode,
+		pruneConfig: pruneConfig,
 	}
 }
 
@@ -243,6 +261,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
+	// merge small db state data to big db
 	err = chain.mergeSmallDbDataToBigDB(latestBH)
 	if err != nil {
 		return err
@@ -302,7 +321,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 }
 
 func (chain *FullBlockChain) IsPruneMode() bool {
-	return common.GlobalConf.GetBool(configSec, "prune_mode", false)
+	return chain.config.pruneMode
 }
 
 func (chain *FullBlockChain) LogDbStats() {
@@ -419,7 +438,7 @@ func (chain *FullBlockChain) compareBlockWeight(bh1 *types.BlockHeader, bh2 *typ
 // Close the open levelDb files
 func (chain *FullBlockChain) Close() {
 	// Persist cache data
-	if chain.stateCache != nil{
+	if chain.stateCache != nil {
 		chain.stateCache.TrieDB().SaveCache()
 	}
 	chain.PersistentState()
@@ -436,7 +455,7 @@ func (chain *FullBlockChain) Close() {
 	if chain.cacheDb != nil {
 		chain.cacheDb.Close()
 	}
-	if chain.smallStateDb!= nil{
+	if chain.smallStateDb != nil {
 		chain.smallStateDb.Close()
 	}
 }
@@ -452,62 +471,63 @@ func (chain *FullBlockChain) GetConsensusHelper() types.ConsensusHelper {
 }
 
 // ResetTop reset the current top block with parameter bh
-func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) error{
+func (chain *FullBlockChain) ResetTop(bh *types.BlockHeader) error {
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
 	return chain.resetTop(bh)
 }
 
 // ResetNear reset the current top block with parameter bh,if parameter bh state  not exists,then find last restart point
-func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
+func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.BlockHeader, err error) {
 	localHeight := chain.Height()
-	fmt.Printf("prepare reset to %v,local height is %v \n",bh.Height,localHeight)
+	fmt.Printf("prepare reset to %v,local height is %v \n", bh.Height, localHeight)
 	chain.mu.Lock()
 	defer chain.mu.Unlock()
 
-	lastRestartHeader,err := chain.findLastRestartPoint(bh)
-	if err != nil{
-		return nil,err
+	lastRestartHeader, err := chain.findLastRestartPoint(bh)
+	if err != nil {
+		return nil, err
 	}
-	fmt.Printf("begin reset block,target height is %v \n",lastRestartHeader.Height)
+	fmt.Printf("begin reset block,target height is %v \n", lastRestartHeader.Height)
 	err = chain.resetTop(lastRestartHeader)
-	if err != nil{
-		return nil,fmt.Errorf("reset nil error,err is %v",err)
+	if err != nil {
+		return nil, fmt.Errorf("reset nil error,err is %v", err)
 	}
 	err = chain.smallStateDb.StoreStatePersistentHeight(lastRestartHeader.Height)
-	if err != nil{
-		return nil, fmt.Errorf("resetNear write persistentHeight to small db error,err is %v",err)
+	if err != nil {
+		return nil, fmt.Errorf("resetNear write persistentHeight to small db error,err is %v", err)
 	}
-	return lastRestartHeader,nil
+	return lastRestartHeader, nil
 }
 
 // FindLastRestartPoint find last restart point,find 980 blocks state from parameter bh if state exists
-func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restartBh *types.BlockHeader,err error){
+func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restartBh *types.BlockHeader, err error) {
 	var (
-		cnt uint64 = 0
-		beginBh = bh
+		cnt     uint64 = 0
+		beginBh        = bh
 	)
-	for cnt < TriesInMemory{
-		_,e := chain.accountDBAt(bh.Height)
-		if e != nil{
+	for cnt < TriesInMemory {
+		_, e := chain.accountDBAt(bh.Height)
+		// if err not nil,then reset count
+		if e != nil {
 			cnt = 0
-		}else{
-			if cnt == 0{
+		} else {
+			if cnt == 0 {
 				beginBh = bh
 			}
 			cnt++
 		}
 		preHash := bh.PreHash
 		bh = chain.queryBlockHeaderByHash(preHash)
-		if bh == nil{
-			return nil,fmt.Errorf("find block hash not exists,block hash is %v",preHash)
+		if bh == nil {
+			return nil, fmt.Errorf("find block hash not exists,block hash is %v", preHash)
 		}
 		if bh.Height == 0 {
-			return bh,nil
+			return bh, nil
 		}
-		_,e = chain.accountDBAt(bh.Height)
+		_, e = chain.accountDBAt(bh.Height)
 	}
-	return beginBh,nil
+	return beginBh, nil
 }
 
 // Remove removes the block and blocks after it from the chain. Only used in a debug file, should be removed later
