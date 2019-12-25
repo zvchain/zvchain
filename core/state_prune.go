@@ -211,13 +211,15 @@ func (t *OfflineTailor) loadAllGroupSeeds(h uint64) error {
 	if err != nil {
 		return err
 	} else {
+		if len(seeds) <= 1 {
+			return nil
+		}
 		// Ignore top group which may be created at the epoch of the given height
 		if len(seeds) > 0 {
 			seeds = seeds[1:]
 		}
 		for _, s := range seeds {
 			t.groupSeeds[common.HashToAddress(s)] = struct{}{}
-			t.info("group %v keys %v", s.Hex(), common.HashToAddress(s).Hash().Hex(), t.groupKeys)
 		}
 	}
 	t.info("load group seeds finished, height %v, size %v, cost %v", h, len(t.groupSeeds), time.Since(begin))
@@ -270,6 +272,7 @@ func (t *OfflineTailor) collectUsedNodes() error {
 
 	t.info("all blocks need to collect using nodes: %v(%v-%v)", len(collectBlockHeights), firstHeight, collectBlockHeights[0])
 	begin := time.Now()
+	firstCost := time.Duration(0)
 	for i := len(collectBlockHeights) - 1; i >= 0; i-- {
 		h := collectBlockHeights[i]
 		t.info("start collect block %v", h)
@@ -281,7 +284,12 @@ func (t *OfflineTailor) collectUsedNodes() error {
 		}
 		s, c := t.usedNodeStat()
 		cost := time.Since(b)
-		remain := cost * time.Duration(i)
+		var remain time.Duration
+		if i == len(collectBlockHeights)-1 {
+			firstCost = cost
+		} else {
+			remain = (time.Since(begin) - firstCost) / time.Duration(len(collectBlockHeights)-i-1) * time.Duration(i)
+		}
 		t.info("collect %v finish, totalNodes %v, incNodes %v, totalSize %vMB, cost %v, remain %v", h, c, t.incUsedNodes, float64(s)/1024/1024, cost.String(), remain.String())
 	}
 	s, c := t.usedNodeStat()
@@ -397,6 +405,7 @@ func (t *OfflineTailor) Verify() error {
 
 	t.info("all blocks need to verify: %v(%v-%v)", len(verifyBlockHeights), firstHeight, verifyBlockHeights[0])
 	begin := time.Now()
+	var firstCost time.Duration
 	for i := len(verifyBlockHeights) - 1; i >= 0; i-- {
 		h := verifyBlockHeights[i]
 		t.info("start verify block %v", h)
@@ -411,7 +420,13 @@ func (t *OfflineTailor) Verify() error {
 			t.info("verify block %v fail, err %v", h, err)
 			return err
 		}
-		t.info("verify %v finish, cost %v, remain %v", h, time.Since(b).String(), (time.Since(b) * time.Duration(i)).String())
+		var remain time.Duration
+		if i == len(verifyBlockHeights)-1 {
+			firstCost = time.Since(b)
+		} else {
+			remain = (time.Since(begin) - firstCost) / time.Duration(len(verifyBlockHeights)-i-1) * time.Duration(i)
+		}
+		t.info("verify %v finish, cost %v, remain %v", h, time.Since(b).String(), remain.String())
 	}
 	t.info("verify nodes finished, cost %v", time.Since(begin).String())
 	return nil

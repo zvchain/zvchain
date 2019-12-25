@@ -20,6 +20,8 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"math/big"
+	"math/rand"
+	"sync"
 	"testing"
 )
 
@@ -28,11 +30,14 @@ func TestAccountDB_Traverse(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
 	state, _ := NewAccountDB(common.Hash{}, NewDatabase(db, false))
 
+	input := make(map[common.Address]*big.Int)
 	//// Update it with some accounts
-	for i := byte(0); i < 2; i++ {
-		addr := common.BytesToAddress(common.Sha256([]byte{i}))
-		state.AddBalance(addr, big.NewInt(int64(i)))
-		fmt.Println(addr.Hash().Hex(), i)
+	for i := 0; i < 10200; i++ {
+		addr := common.BytesToAddress(common.Sha256([]byte{byte(i)}))
+		balance := big.NewInt(rand.Int63())
+		state.SetBalance(addr, balance)
+		input[addr] = balance
+		fmt.Println(addr.Hash().Hex(), balance)
 	}
 
 	root, _ := state.Commit(true)
@@ -47,9 +52,27 @@ func TestAccountDB_Traverse(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	output := make(map[common.Address]*big.Int)
+	mu := sync.Mutex{}
 	state2.Traverse(&TraverseConfig{
 		VisitAccountCb: func(stat *TraverseStat) {
 			t.Logf("visit %v, balance %v", stat.Addr.Hash().Hex(), stat.Account.Balance)
+			mu.Lock()
+			output[stat.Addr] = stat.Account.Balance
+			mu.Unlock()
 		},
 	})
+
+	if len(input) != len(output) {
+		t.Fatalf("len error")
+	}
+	for addr, balance := range input {
+		balance2, ok := output[addr]
+		if !ok {
+			t.Fatalf("addr traverse error %v", addr.Hash().Hex())
+		}
+		if balance.Cmp(balance2) != 0 {
+			t.Fatalf("addr traverse balance error %v %v %v", addr.Hash().Hex(), balance, balance2)
+		}
+	}
 }

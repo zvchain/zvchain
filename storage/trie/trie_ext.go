@@ -53,13 +53,13 @@ func (t *Trie) traverseFullNodeConcurrently(fn *fullNode, accumulateKey []byte, 
 	for i, child := range fn.Children {
 		if child != nil {
 			wg.Add(1)
-			go func(n node) {
+			go func(idx byte) {
 				defer wg.Done()
-				if ok, err := t.traverse(n, append(accumulateKey, byte(i)), onleaf, resolve, false, stopCheckFn, checkHash); !ok {
+				if ok, err := t.traverse(fn.Children[idx], append(accumulateKey, idx), onleaf, resolve, false, stopCheckFn, checkHash); !ok {
 					errV.Store(err)
 					return
 				}
-			}(child)
+			}(byte(i))
 		}
 	}
 	wg.Wait()

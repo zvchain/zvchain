@@ -137,3 +137,32 @@ func TestTrie_Traverse2(t *testing.T) {
 	}, nil, false)
 
 }
+
+func TestTrie_TraverseKey(t *testing.T) {
+	trie := newTrieFromDB("test_trie", common.Hash{})
+
+	trie.TryUpdate([]byte("1"), []byte("abc"))
+	trie.TryUpdate([]byte("12"), []byte("abcd"))
+	trie.TryUpdate([]byte("123"), []byte("abcdef"))
+	trie.TryUpdate([]byte("123"), []byte("abcde23f"))
+
+	root, err := trie.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = trie.db.Commit(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	trie2 := newTrieWithDB(trie.db.diskdb, root)
+
+	ok, err := trie2.TraverseKey([]byte{}, func(key []byte, value []byte) error {
+		fmt.Println(string(key), string(value))
+		return nil
+	}, nil, false)
+	if !ok {
+		t.Fatalf("traverse %v", err)
+	}
+}

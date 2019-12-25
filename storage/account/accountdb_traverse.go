@@ -117,6 +117,7 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 		}
 
 		// Traverse the sub tree of the account if needed
+		// Those traversed root won't traverse again
 		if account.Root != emptyData && config.needTraverse(account.Root) {
 			t, err := trie.NewTrie(account.Root, adb.db.TrieDB())
 			if err != nil {
@@ -128,7 +129,7 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 				if ok, err := t.Traverse(leafCb, resolveCb, config.CheckHash); !ok {
 					return err
 				}
-			} else {
+			} else { // Only traverse the specified keys of the sub tree
 				log.CoreLogger.Debugf("key of %v %v", vs.Addr.Hash().Hex(), keys)
 				for _, key := range keys {
 					if ok, err := t.TraverseKey(key, leafCb, resolveCb, config.CheckHash); !ok {
@@ -140,7 +141,7 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 		}
 
 		codeHash := common.BytesToHash(account.CodeHash)
-		// Verify the contract code of the account
+		// Check the contract code of the account
 		if codeHash != emptyCode {
 			code, err := adb.db.TrieDB().Node(codeHash)
 			if err != nil {
