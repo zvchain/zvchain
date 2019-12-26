@@ -254,7 +254,7 @@ func (chain *FullBlockChain) commitBlock(block *types.Block, ps *executePostStat
 
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
-	if atomic.LoadInt32(&chain.running) == 1 {
+	if atomic.LoadInt32(&chain.shutdowning) == 1 {
 		err = fmt.Errorf("in shutdown hook")
 		return
 	}
@@ -326,7 +326,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
 
-	if atomic.LoadInt32(&chain.running) == 1 {
+	if atomic.LoadInt32(&chain.shutdowning) == 1 {
 		return fmt.Errorf("in shutdown hook")
 	}
 
