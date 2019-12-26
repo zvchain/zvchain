@@ -22,6 +22,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core/group"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -62,6 +63,7 @@ type OfflineTailor struct {
 }
 
 func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
+	Logger = log.CoreLogger
 	config := &BlockChainConfig{
 		dbfile:      dbDir,
 		block:       "bh",
@@ -411,7 +413,7 @@ func (t *OfflineTailor) Verify() error {
 		t.info("start verify block %v", h)
 
 		traverseConfig.VisitAccountCb = func(stat *account.TraverseStat) {
-			t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, nodeCount %v, nodeSize %v, codeSize %v, cost %v", stat.Addr.Hash().Hex(), h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize,
+			t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, nodeCount %v, nodeSize %v, codeSize %v, cost %v", stat.Addr.AddrPrefixString(), h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize,
 				stat.NodeCount, stat.NodeSize, stat.CodeSize, stat.Cost.String())
 		}
 
