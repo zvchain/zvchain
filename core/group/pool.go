@@ -168,6 +168,21 @@ func (p *pool) iterateGroups(iterFunc func(g *group) bool) {
 	}
 }
 
+// getAllGroupSeedsByHeight iterates all groups from the given block height to genesis group.
+// It's expensive and time consuming, don't call it unless you know what you are doing!
+func (p *pool) getAllGroupSeedsByHeight(h uint64) ([]common.Hash, error) {
+	db, err := p.chain.AccountDBAt(h)
+	if err != nil {
+		logger.Errorf("failed to get db at %v, err %v", h, err)
+		return nil, err
+	}
+	seeds := make([]common.Hash, 0)
+	for current := p.getTopGroup(db); current != nil; current = p.get(db, current.HeaderD.PreSeed) {
+		seeds = append(seeds, current.Header().Seed())
+	}
+	return seeds, nil
+}
+
 func (p *pool) groupsAfter(height uint64, limit int) []types.GroupI {
 	rs := make([]types.GroupI, 0)
 

@@ -91,10 +91,10 @@ func (store *smallStateStore) HasStateData() bool {
 	iter := store.db.NewIterator()
 	defer iter.Release()
 	hasValue := iter.Seek([]byte(smallDbRootDatas))
-	if !hasValue{
+	if !hasValue {
 		return false
 	}
-	return bytes.HasPrefix(iter.Key(),[]byte(smallDbRootDatas))
+	return bytes.HasPrefix(iter.Key(), []byte(smallDbRootDatas))
 }
 
 func (store *smallStateStore) GetStatePersistentHeight() uint64 {

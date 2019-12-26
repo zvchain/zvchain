@@ -66,8 +66,8 @@ func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.
 	if uint64(h) < cpHeight {
 		return nil
 	}
-	backList := []*prque.Item{}// record need back to queue items
-	cropList := []*prque.Item{}// record need prune items
+	backList := []*prque.Item{} // record need back to queue items
+	cropList := []*prque.Item{} // record need prune items
 	var count uint64 = 0
 	temp := make(map[uint64]struct{})
 

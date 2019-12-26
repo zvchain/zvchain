@@ -277,3 +277,14 @@ func (m *Manager) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[com
 	}
 	return ret, nil
 }
+
+// GetAllGroupSeedsByHeight iterates all groups from the given block height to genesis group.
+// It's expensive and time consuming, don't call it unless you know what you are doing!
+// It's called by the offline tailor or verifier for pruning mode currently
+func (m *Manager) GetAllGroupSeedsByHeight(h uint64) ([]common.Hash, error) {
+	return m.poolImpl.getAllGroupSeedsByHeight(h)
+}
+
+func (m *Manager) GroupKey() []byte {
+	return groupDataKey
+}
