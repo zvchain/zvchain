@@ -380,9 +380,9 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) err
 	}
 	start := time.Now()
 	defer func() {
-		log.CropLogger.Debugf("merge small state data success,from %v-%v,cost %v \n",top.Height, time.Since(start))
+		log.CropLogger.Debugf("merge small state data success,from %v-%v,cost %v \n",lastStateHeight,top.Height, time.Since(start))
 	}()
-	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",top.Height)
+	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",lastStateHeight,top.Height)
 	triedb := chain.stateCache.TrieDB()
 	repeatKey := make(map[common.Hash]struct{})
 	for i := lastStateHeight; i <= top.Height; i++ {
