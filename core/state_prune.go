@@ -33,7 +33,7 @@ import (
 	"time"
 )
 
-type groupReader interface {
+type groupSeedReader interface {
 	GetAllGroupSeedsByHeight(h uint64) ([]common.Hash, error)
 	GroupKey() []byte
 }
@@ -46,7 +46,7 @@ type OfflineTailor struct {
 
 	start        time.Time
 	chain        *FullBlockChain
-	groupReader  groupReader
+	groupReader  groupSeedReader
 	out          io.WriteCloser
 	checkpoint   uint64
 	usedNodes    map[common.Hash]struct{}
@@ -111,34 +111,35 @@ func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir stri
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return nil, err
 	}
-	if onlyVerify {
-		// Won't load cache data from file in only verify mode，
-		// Just in case the problem that the node was erased is covered up
-		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, "")
-	} else {
-		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, cacheDir)
-	}
 
 	chain.latestBlock = chain.loadCurrentBlock()
 	if chain.latestBlock == nil {
 		return nil, fmt.Errorf("get latest block nil")
 	}
 
-	if sdbDir != "" {
-		smallStateDs, err := tasdb.NewDataSource(sdbDir, nil)
-		if err != nil {
-			Logger.Errorf("new small state datasource error:%v", err)
-			return nil, err
-		}
-		smallStateDb, err := smallStateDs.NewPrefixDatabase("")
-		if err != nil {
-			Logger.Errorf("new small state db error:%v", err)
-			return nil, err
-		}
-		chain.smallStateDb = initSmallStore(smallStateDb)
-		err = chain.mergeSmallDbDataToBigDB(chain.latestBlock)
-		if err != nil {
-			return nil, err
+	if onlyVerify {
+		// Won't load cache data from file in only verify mode，
+		// Just in case the problem that the node was erased is covered up
+		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, "")
+	} else {
+		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, cacheDir)
+		// Should merge small db to chain db before pruning
+		if sdbDir != "" {
+			smallStateDs, err := tasdb.NewDataSource(sdbDir, nil)
+			if err != nil {
+				Logger.Errorf("new small state datasource error:%v", err)
+				return nil, err
+			}
+			smallStateDb, err := smallStateDs.NewPrefixDatabase("")
+			if err != nil {
+				Logger.Errorf("new small state db error:%v", err)
+				return nil, err
+			}
+			chain.smallStateDb = initSmallStore(smallStateDb)
+			err = chain.mergeSmallDbDataToBigDB(chain.latestBlock)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
