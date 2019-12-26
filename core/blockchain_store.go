@@ -34,9 +34,9 @@ import (
 const TriesInMemory uint64 = types.EpochLength*4 + 20
 
 var (
-	maxTriesInMemory     = 300
-	everyClearFromMemory = 1
-	persistenceCount     = 4000
+	defaultMaxTriesInMemory     = 300
+	defaultEveryClearFromMemory = 1
+	defaultPersistenceCount     = 4000
 )
 
 type newTopMessage struct {
@@ -51,17 +51,23 @@ func (msg *newTopMessage) GetData() interface{} {
 	return msg.bh
 }
 
-
 func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.Item {
+	// if no blocks to prune then return
+	if chain.triegc.Empty() {
+		return nil
+	}
+	// if checkpoint's height less than minSize then return
 	if cpHeight <= minSize {
 		return nil
 	}
+	// if the first height to be pruned  lower than checkpoint,then return
+	// first height is highest height
 	root, h := chain.triegc.Peek()
 	if uint64(h) < cpHeight {
 		return nil
 	}
-	backList := []*prque.Item{}
-	cropList := []*prque.Item{}
+	backList := []*prque.Item{} // record need back to queue items
+	cropList := []*prque.Item{} // record need prune items
 	var count uint64 = 0
 	temp := make(map[uint64]struct{})
 
@@ -70,6 +76,7 @@ func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.
 		if uint64(h) >= cpHeight {
 			backList = append(backList, &prque.Item{root, h})
 		} else {
+			// check height is repeat,if repeated can not add
 			if _, ok := temp[uint64(h)]; !ok {
 				temp[uint64(h)] = struct{}{}
 				count++
@@ -90,10 +97,79 @@ func (chain *FullBlockChain) getPruneHeights(cpHeight, minSize uint64) []*prque.
 	return cropList
 }
 
+func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error {
+	triedb := chain.stateCache.TrieDB()
+	// insert current block's node to small db,it will generate one record,use rlp encode (key is root,value is node1,node2,node3...convert to bytes)
+	err := triedb.InsertStateDataToSmallDb(b.Header.Height, root, chain.smallStateDb)
+	if err != nil {
+		return fmt.Errorf("insert full state nodes failed,err is %v", err)
+	}
+	// metadata reference to keep trie alive
+	triedb.Reference(root, common.Hash{})
+	// push root and height to queue,take it out in the order of first highest
+	chain.triegc.Push(root, int64(b.Header.Height))
+	limit := chain.config.pruneConfig.maxTriesInMemory
+	nodeSize, _ := triedb.Size()
+	// if nodes memory over memory limit,first commit to big db,then clear the specified memory
+	if nodeSize > limit {
+		clear := chain.config.pruneConfig.everyClearFromMemory
+		triedb.Cap(b.Header.Height, limit-clear)
+	}
+	// Keep the config of TriesInMemory's blocks forward of the check point,can not be pruned
+	cp := chain.latestCP.Load()
+	if cp == nil {
+		return nil
+	}
+	items := chain.getPruneHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
+	if len(items) == 0 {
+		return nil
+	}
+	// the items are taken in the order of large to small by height. We need to start prune from small to large
+	for i := len(items) - 1; i >= 0; i-- {
+		vl := items[i]
+		// begin prune from memory
+		triedb.Dereference(uint64(vl.Priority), vl.Value.(common.Hash))
+	}
+	curPruneMaxHeight := uint64(items[0].Priority)
+	// record the highest pruned height,and total prune block's count
+	triedb.StorePruneData(curPruneMaxHeight, b.Header.Height, cp.(*types.BlockHeader).Height, uint64(len(items)))
+	persistentCount := chain.config.pruneConfig.persistenceCount
+	// if prune block's count over the config of persistent Count,it will persistent highest height + 1 block to big db
+	if !triedb.CanPersistent(persistentCount) {
+		return nil
+	}
+	// find persistent height. from highest height + 1 ,because this height is not be pruned,we must ensure the block for persistent block have root
+	bh := chain.queryBlockHeaderCeil(curPruneMaxHeight + 1)
+	if bh == nil {
+		log.CoreLogger.Warnf("persistent find ceil head is nil,height is %v", curPruneMaxHeight)
+		return nil
+	}
+	// commit from memory to big db,and clear all of memory
+	err = triedb.Commit(bh.Height, bh.StateTree, false)
+	if err != nil {
+		return fmt.Errorf("trie commit error:%s", err.Error())
+	}
+	// only reset prune block's count
+	triedb.ResetPruneCount()
+
+	// store the persistent height to small db,for cold start,we can from current height to top height's root data to big db,ensure data integrity
+	err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
+	if err != nil {
+		return fmt.Errorf("StoreTriePersistentHeight error:%s", err.Error())
+	}
+	// from last delete small db height to current height's data can be deleted
+	// this method will record current delete height to small db
+	go chain.DeleteSmallDbByHeight(bh.Height)
+	log.CropLogger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
+
+	return nil
+}
+
 func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.AccountDB) error {
 	triedb := chain.stateCache.TrieDB()
-	triedb.ResetNodeCache()
 	begin := time.Now()
+	// make new slice before commit.
+	triedb.ResetNodeCache()
 	defer func() {
 		end := time.Now()
 		cost := (end.UnixNano() - begin.UnixNano()) / 1e6
@@ -105,52 +181,14 @@ func (chain *FullBlockChain) saveBlockState(b *types.Block, state *account.Accou
 	if err != nil {
 		return fmt.Errorf("state commit error:%s", err.Error())
 	}
+	// not prune if this block is genesisBlock,because it's possible to go back to genesisBlock
 	if chain.config.pruneMode && b.Header.Height > 0 {
-		err = triedb.InsertStateDatasToSmallDb(root, chain.smallStateDb)
+		err = chain.pruneBlocks(b, root)
 		if err != nil {
-			return fmt.Errorf("insert full state nodes failed,err is %v", err)
-		}
-		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
-		chain.triegc.Push(root, int64(b.Header.Height))
-		cp := chain.latestCP.Load()
-		limit := common.StorageSize(common.GlobalConf.GetInt(gc, "max_tries_memory", maxTriesInMemory) * 1024 * 1024)
-		nodes, _ := triedb.Size()
-		if nodes > limit {
-			clear := common.StorageSize(common.GlobalConf.GetInt(gc, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024)
-			triedb.Cap(b.Header.Height, limit-clear)
-		}
-		if cp != nil {
-			cropItems := chain.getPruneHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
-			if len(cropItems) > 0 {
-				for i:= len(cropItems) - 1;i>=0;i--{
-					vl := cropItems[i]
-					triedb.Dereference(uint64(vl.Priority), vl.Value.(common.Hash))
-				}
-				curCropMaxHeight := uint64(cropItems[0].Priority)
-				triedb.StoreGcData(curCropMaxHeight, b.Header.Height, cp.(*types.BlockHeader).Height, uint64(len(cropItems)))
-				persistentCount := common.GlobalConf.GetInt(gc, "persistence_count", persistenceCount)
-				if triedb.CanPersistent(persistentCount) {
-					bh := chain.queryBlockHeaderCeil(curCropMaxHeight + 1)
-					if bh != nil {
-						err = triedb.Commit(bh.StateTree, false)
-						if err != nil {
-							return fmt.Errorf("trie commit error:%s", err.Error())
-						}
-						triedb.ResetGcCount()
-						err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
-						if err != nil {
-							return fmt.Errorf("StoreTriePersistentHeight error:%s", err.Error())
-						}
-						go chain.DeleteSmallDbByHeight(bh.Height)
-						log.CropLogger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
-					} else {
-						log.CoreLogger.Warnf("persistent find ceil head is nil,height is %v", curCropMaxHeight)
-					}
-				}
-			}
+			return err
 		}
 	} else {
-		err = triedb.Commit(root, false)
+		err = triedb.Commit(b.Header.Height, root, false)
 		if err != nil {
 			return fmt.Errorf("trie commit error:%s", err.Error())
 		}
@@ -356,7 +394,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		return err
 	}
 	if chain.config.pruneMode {
-		chain.DeleteSmallDbDatasByRoots(removeRoots)
+		chain.DeleteSmallDbDataByRoots(removeRoots)
 	}
 
 	chain.updateLatestBlock(state, block)
