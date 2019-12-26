@@ -174,6 +174,7 @@ func getBlockChainConfig() *BlockChainConfig {
 		tx:          "tx",
 		receipt:     "rc",
 		pruneConfig: getPruneConfig(pruneMode),
+		pruneMode:pruneMode,
 	}
 }
 
@@ -248,7 +249,17 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "d_small"), nil)
+
+	var sdbOptions *opt.Options
+	if chain.config.pruneMode {
+		writeBufferSize := common.GlobalConf.GetInt(prune, "sdb_write_cache", 64)
+		sdbOptions = &opt.Options{
+			WriteBuffer: writeBufferSize * opt.MiB, // Two of these are used internally
+			BlockSize:   400 * opt.KiB,  // max one value is near 400K
+		}
+	}
+
+	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "d_small"), sdbOptions)
 	if err != nil {
 		Logger.Errorf("new small state datasource error:%v", err)
 		return err
