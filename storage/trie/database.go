@@ -453,11 +453,11 @@ func (db *NodeDatabase) meterPrint() {
 
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
-func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
+func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte, error) {
 	// Retrieve the node from the clean cache if available
 	bs := db.tryGetFromCache(hash)
 	if bs != nil {
-		return mustDecodeNode(hash[:], bs, cachegen), bs
+		return mustDecodeNode(hash[:], bs, cachegen), bs, nil
 	}
 	// Retrieve the node from cache if available
 	db.lock.RLock()
@@ -466,16 +466,16 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 
 	if node != nil {
 		atomic.AddUint64(&db.meter.nodeHit, 1)
-		return node.obj(hash, cachegen), nil
+		return node.obj(hash, cachegen), nil, nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
 		log.CoreLogger.Errorf("get from disk error, key %v, err %v", hash.Hex(), err)
-		return nil, nil
+		return nil, nil, err
 	}
 	db.addToCache(hash, enc)
-	return mustDecodeNode(hash[:], enc, cachegen), enc
+	return mustDecodeNode(hash[:], enc, cachegen), enc, nil
 }
 
 // Node retrieves an encoded cached trie node from memory. If it cannot be found
