@@ -153,18 +153,18 @@ func getPruneConfig(pruneMode bool) *PruneConfig {
 	if persistenceCt <= 0 {
 		panic("config persistence_count must be more than 0")
 	}
-	if maxTriesInMem <= everyClearFromMem{
+	if maxTriesInMem <= everyClearFromMem {
 		panic("config max_tries_memory must be more than clear_tries_memory config")
 	}
 	return &PruneConfig{
-		maxTriesInMemory:maxTriesInMem,
-		everyClearFromMemory:everyClearFromMem,
-		persistenceCount:persistenceCt,
+		maxTriesInMemory:     maxTriesInMem,
+		everyClearFromMemory: everyClearFromMem,
+		persistenceCount:     persistenceCt,
 	}
 }
 
 func getBlockChainConfig() *BlockChainConfig {
-	pruneMode:= common.GlobalConf.GetBool(configSec, "prune_mode", true)
+	pruneMode := common.GlobalConf.GetBool(configSec, "prune_mode", true)
 	return &BlockChainConfig{
 		dbfile:      common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
 		block:       "bh",
@@ -203,7 +203,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
 	// get the level db block cache size from config
-	blockCacheSize := conf.GetInt("db_block_cache", 512)
+	blockCacheSize := conf.GetInt("db_block_cache", 64)
 	// get the level db write cache size from config
 	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
 	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
