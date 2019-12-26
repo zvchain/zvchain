@@ -62,7 +62,7 @@ type OfflineTailor struct {
 	lock sync.RWMutex
 }
 
-func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
+func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir string, mem int, cacheDir string, out string, onlyVerify bool, maxOpenFiles int) (*OfflineTailor, error) {
 	Logger = log.CoreLogger
 	config := &BlockChainConfig{
 		dbfile:      dbDir,
@@ -83,7 +83,7 @@ func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir stri
 
 	options := &opt.Options{
 		Filter:                 filter.NewBloomFilter(10),
-		OpenFilesCacheCapacity: 40000,
+		OpenFilesCacheCapacity: maxOpenFiles,
 	}
 	if onlyVerify {
 		options.ReadOnly = true
