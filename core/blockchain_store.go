@@ -34,9 +34,9 @@ import (
 const TriesInMemory uint64 = types.EpochLength*4 + 20
 
 var (
-	maxTriesInMemory     = 300
-	everyClearFromMemory = 1
-	persistenceCount     = 4000
+	defaultMaxTriesInMemory     = 300
+	defaultEveryClearFromMemory = 1
+	defaultPersistenceCount     = 4000
 )
 
 type newTopMessage struct {

@@ -136,17 +136,35 @@ type FullBlockChain struct {
 	cpChecker *cpChecker
 }
 
-func getBlockChainConfig() *BlockChainConfig {
-	var pruneConfig *PruneConfig
-	pruneMode := common.GlobalConf.GetBool(configSec, "prune_mode", true)
-	if pruneMode {
-		pruneConfig = &PruneConfig{
-			maxTriesInMemory:     common.StorageSize(common.GlobalConf.GetInt(prune, "max_tries_memory", maxTriesInMemory) * 1024 * 1024),
-			everyClearFromMemory: common.StorageSize(common.GlobalConf.GetInt(prune, "clear_tries_memory", everyClearFromMemory) * 1024 * 1024),
-			persistenceCount:     common.GlobalConf.GetInt(prune, "persistence_count", persistenceCount),
-		}
+func getPruneConfig(pruneMode bool) *PruneConfig {
+	if !pruneMode {
+		return nil
 	}
+	maxTriesInMem := common.StorageSize(common.GlobalConf.GetInt(prune, "max_tries_memory", defaultMaxTriesInMemory) * 1024 * 1024)
+	everyClearFromMem := common.StorageSize(common.GlobalConf.GetInt(prune, "clear_tries_memory", defaultEveryClearFromMemory) * 1024 * 1024)
+	persistenceCt := common.GlobalConf.GetInt(prune, "persistence_count", defaultPersistenceCount)
 
+	if maxTriesInMem <= 0 {
+		panic("config max_tries_memory must be more than 0")
+	}
+	if everyClearFromMem <= 0 {
+		panic("config clear_tries_memory must be more than 0")
+	}
+	if persistenceCt <= 0 {
+		panic("config persistence_count must be more than 0")
+	}
+	if maxTriesInMem <= everyClearFromMem{
+		panic("config max_tries_memory must be more than clear_tries_memory config")
+	}
+	return &PruneConfig{
+		maxTriesInMemory:maxTriesInMem,
+		everyClearFromMemory:everyClearFromMem,
+		persistenceCount:persistenceCt,
+	}
+}
+
+func getBlockChainConfig() *BlockChainConfig {
+	pruneMode:= common.GlobalConf.GetBool(configSec, "prune_mode", true)
 	return &BlockChainConfig{
 		dbfile:      common.GlobalConf.GetString(configSec, "db_blocks", "d_b"),
 		block:       "bh",
@@ -155,8 +173,7 @@ func getBlockChainConfig() *BlockChainConfig {
 		reward:      "nu",
 		tx:          "tx",
 		receipt:     "rc",
-		pruneMode:   pruneMode,
-		pruneConfig: pruneConfig,
+		pruneConfig: getPruneConfig(pruneMode),
 	}
 }
 
@@ -525,7 +542,6 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 		if bh.Height == 0 {
 			return bh, nil
 		}
-		_, e = chain.accountDBAt(bh.Height)
 	}
 	return beginBh, nil
 }
