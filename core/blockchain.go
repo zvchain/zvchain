@@ -545,13 +545,13 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 			}
 			cnt++
 		}
+		if bh.Height == 0 {
+			return bh, nil
+		}
 		preHash := bh.PreHash
 		bh = chain.queryBlockHeaderByHash(preHash)
 		if bh == nil {
 			return nil, fmt.Errorf("find block hash not exists,block hash is %v", preHash)
-		}
-		if bh.Height == 0 {
-			return bh, nil
 		}
 	}
 	return beginBh, nil
