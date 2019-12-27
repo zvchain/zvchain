@@ -524,7 +524,7 @@ func clearAllFolder() {
 	}
 	for _, d := range dir {
 		if d.IsDir() && (strings.HasPrefix(d.Name(), "d_") || (strings.HasPrefix(d.Name(), "Test")) ||
-			strings.HasPrefix(d.Name(), "database"))  || strings.HasPrefix(d.Name(), "small_db"){
+			strings.HasPrefix(d.Name(), "database")) || strings.HasPrefix(d.Name(), "small_db") {
 			fmt.Printf("deleting folder: %s \n", d.Name())
 			err = os.RemoveAll(d.Name())
 			if err != nil {
@@ -746,7 +746,7 @@ func (g *GroupCreateChecker4Test) CheckGroupCreatePunishment(ctx types.CheckerCo
 	return nil, fmt.Errorf("do not need punishment")
 }
 
-func newBlockChainByDB(db string) (*FullBlockChain, error) {
+func newBlockChainByDB(db string, readonly bool) (*FullBlockChain, error) {
 	if _, err := os.Stat(db); err != nil && os.IsNotExist(err) {
 		return nil, err
 	}
@@ -771,11 +771,11 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 	}
 
 	options := &opt.Options{
-		OpenFilesCacheCapacity: 100,
-		BlockCacheCapacity:     16 * opt.MiB,
+		OpenFilesCacheCapacity: 5000,
+		BlockCacheCapacity:     128 * opt.MiB,
 		WriteBuffer:            16 * opt.MiB, // Two of these are used internally
 		Filter:                 filter.NewBloomFilter(10),
-		//ReadOnly:                      true,
+		ReadOnly:               readonly,
 	}
 
 	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
@@ -816,7 +816,7 @@ func newBlockChainByDB(db string) (*FullBlockChain, error) {
 func TestStatProposalRate(t *testing.T) {
 	params.InitChainConfig(1)
 	common.InitConf("test1.ini")
-	chain, err := newBlockChainByDB("d_b")
+	chain, err := newBlockChainByDB("d_b", false)
 	if err != nil {
 		t.Log(err)
 		return

@@ -20,6 +20,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/groupsig"
+	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
@@ -28,6 +29,8 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"sort"
+	"sync"
 	"testing"
 )
 
@@ -500,4 +503,140 @@ func TestCheckpoint_calc(t *testing.T) {
 		fmt.Printf("check %v\n", h)
 		ep = ep.Next()
 	}
+}
+
+type checkpointI interface {
+	checkpointAt(h uint64) uint64
+}
+
+type originCpChecker struct {
+	cpChecker
+}
+
+func newOriginCpChecker(reader activatedGroupReader, querier blockQuerier) checkpointI {
+	return newCpChecker(reader, querier)
+}
+
+func (cp *originCpChecker) checkpointAt(h uint64) uint64 {
+	if h <= cpBlockBuffer {
+		return 0
+	}
+	h -= cpBlockBuffer
+	if h > cp.querier.Height() {
+		h = cp.querier.Height()
+	} else {
+		h = cp.querier.QueryBlockHeaderFloor(h).Height
+	}
+
+	for scan := 0; scan < cpMaxScanEpochs; scan++ {
+		ep := types.EpochAt(h)
+		ctx := newCpContext(ep, cp.groupReader.GetActivatedGroupsAt(ep.Start()))
+		if ctx.groupsEnough() {
+			// Get the accountDB of end of the epoch
+			db, err := cp.querier.AccountDBAt(h)
+			if err != nil {
+				Logger.Errorf("get account db at %v error:%v", h, err)
+				return 0
+			}
+			// Get the group epoch start with the given accountDB
+			gEp := cp.getGroupEpoch(db)
+			// If epoch of the given db not equal to current epoch, means that the whole current epoch was skipped
+			if gEp.Equal(ep) {
+				votes := cp.getGroupVotes(db)
+
+				validVotes := make([]int, 0)
+				for _, v := range votes {
+					if v > 0 {
+						validVotes = append(validVotes, int(v))
+					}
+				}
+				// cp found
+				if len(validVotes) >= ctx.threshold {
+					sort.Ints(validVotes)
+					thresholdHeight := uint64(validVotes[len(validVotes)-ctx.threshold]) + ctx.epoch.Start() - 1
+					return thresholdHeight
+				}
+			}
+		} else {
+			// Not enough groups
+			Logger.Debugf("not enough groups at %v-%v, groupsize %v, or not enough blocks %v", ep.Start(), ep.End(), ctx.groupSize(), h)
+		}
+		if ep.Start() == 0 {
+			break
+		}
+		h = ep.Start() - 1
+	}
+	return 0
+}
+
+func newCheckpointInstance(db string, origin bool) (checkpointI, uint64, error) {
+	chain, err := newBlockChainByDB(db, true)
+	if err != nil {
+		return nil, 0, err
+	}
+	gm := group.NewManager(chain, nil)
+	group := newGroup4CPTest(0, common.MaxUint64)
+	group.h.seed = common.HexToHash("0x6861736820666f72207a76636861696e27732067656e657369732067726f7570")
+
+	gm.InitManager(nil, &types.GenesisInfo{Group: group})
+	if origin {
+		return newOriginCpChecker(gm, chain), chain.Height(), nil
+	} else {
+		return newCpChecker(gm, chain), chain.Height(), nil
+	}
+}
+
+func compareCheckpoint(checker1, checker2 checkpointI, begin, end uint64) error {
+	for h := begin; h < end; h++ {
+		cp1 := checker1.checkpointAt(h)
+		cp2 := checker2.checkpointAt(h)
+		if cp1 != cp2 {
+			return fmt.Errorf("cp check error at %v, cp1 %v, cp2 %v\n", h, cp1, cp2)
+		}
+		fmt.Printf("height %v ok\n", h)
+	}
+	return nil
+}
+
+func TestCheckpointAt_Prune_nonPrune(t *testing.T) {
+	common.InitConf("zv.ini")
+	originChecker, originTop, err := newCheckpointInstance("/Volumes/darren-sata/d_b_raw2", true)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	pruneChecker, pruneTop, err := newCheckpointInstance("/Volumes/darren-sata/d_b_raw2_2", false)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	top := originTop
+	if pruneTop < top {
+		top = pruneTop
+	}
+	if top == 0 {
+		return
+	}
+	fmt.Println("compare height", top)
+	cpu := 1
+	step := top / uint64(cpu)
+	wg := sync.WaitGroup{}
+
+	for begin := uint64(1); begin < top; {
+		end := begin + step
+		if end > top {
+			end = top
+		}
+		wg.Add(1)
+		go func(s, e uint64) {
+			defer wg.Done()
+			fmt.Printf("compare height %v-%v start\n", s, e)
+			if err := compareCheckpoint(originChecker, pruneChecker, s, e); err != nil {
+				t.Fatal(err)
+			}
+		}(begin, end)
+		begin = end
+	}
+	wg.Wait()
+	t.Log("compare finish")
 }
