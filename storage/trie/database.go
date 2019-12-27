@@ -393,7 +393,9 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	}
 	db.nodes[hash] = entry
 	if db.enablePrune {
-		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: entry.rlp()})
+		tmp := make([]byte, len(blob))
+		copy(tmp,blob)
+		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: tmp})
 	}
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
