@@ -510,11 +510,13 @@ type checkpointI interface {
 }
 
 type originCpChecker struct {
-	cpChecker
+	*cpChecker
 }
 
 func newOriginCpChecker(reader activatedGroupReader, querier blockQuerier) checkpointI {
-	return newCpChecker(reader, querier)
+	return &originCpChecker{
+		cpChecker: newCpChecker(reader, querier),
+	}
 }
 
 func (cp *originCpChecker) checkpointAt(h uint64) uint64 {
@@ -586,10 +588,10 @@ func newCheckpointInstance(db string, origin bool) (checkpointI, uint64, error) 
 	}
 }
 
-func compareCheckpoint(checker1, checker2 checkpointI, begin, end uint64) error {
-	for h := begin; h < end; h++ {
-		cp1 := checker1.checkpointAt(h)
-		cp2 := checker2.checkpointAt(h)
+func compareCheckpoint(checker1, checker2 checkpointI, begin, end int64) error {
+	for h := begin; h > end; h-- {
+		cp1 := checker1.checkpointAt(uint64(h))
+		cp2 := checker2.checkpointAt(uint64(h))
 		if cp1 != cp2 {
 			return fmt.Errorf("cp check error at %v, cp1 %v, cp2 %v\n", h, cp1, cp2)
 		}
@@ -619,23 +621,23 @@ func TestCheckpointAt_Prune_nonPrune(t *testing.T) {
 	}
 	fmt.Println("compare height", top)
 	cpu := 1
-	step := top / uint64(cpu)
+	step := int64(top) / int64(cpu)
 	wg := sync.WaitGroup{}
 
-	for begin := uint64(1); begin < top; {
-		end := begin + step
-		if end > top {
-			end = top
+	for tp := int64(top); tp > 0; {
+		b := tp - step
+		if b <= 0 {
+			b = 0
 		}
 		wg.Add(1)
-		go func(s, e uint64) {
+		go func(s, e int64) {
 			defer wg.Done()
 			fmt.Printf("compare height %v-%v start\n", s, e)
 			if err := compareCheckpoint(originChecker, pruneChecker, s, e); err != nil {
 				t.Fatal(err)
 			}
-		}(begin, end)
-		begin = end
+		}(tp, b)
+		tp = b
 	}
 	wg.Wait()
 	t.Log("compare finish")
