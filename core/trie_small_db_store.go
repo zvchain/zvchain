@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	persistentHeight = "ph"
-	smallDbRootDatas = "dt"
-	lastDeleteHeight = "ldt"
+	persistentHeight = "ph"   // this key used be store persistent height to small db,for cold start
+	smallDbRootData = "dt"   // this key used be store root data to small db
+	lastDeleteHeight = "ldt"  // this key used be store last delete height to small db,for every delete data start point
 )
 
 type smallStateStore struct {
@@ -33,13 +33,13 @@ func (store *smallStateStore) GetLastDeleteHeight() uint64 {
 
 // GetSmallDbDataByRoot will get the data by root key from small db
 func (store *smallStateStore) GetSmallDbDataByRoot(root common.Hash) []byte {
-	data, _ := store.db.Get(store.generateKey(root[:], smallDbRootDatas))
+	data, _ := store.db.Get(store.generateKey(root[:], smallDbRootData))
 	return data
 }
 
 // DeleteSmallDbDataByRootWithoutStoreHeight only delete root key from small db
 func (store *smallStateStore) DeleteSmallDbDataByRootWithoutStoreHeight(root common.Hash) error {
-	err := store.db.Delete(store.generateKey(root[:], smallDbRootDatas))
+	err := store.db.Delete(store.generateKey(root[:], smallDbRootData))
 	if err != nil {
 		return fmt.Errorf("delete dirty trie error %v", err)
 	}
@@ -48,7 +48,7 @@ func (store *smallStateStore) DeleteSmallDbDataByRootWithoutStoreHeight(root com
 
 // DeleteSmallDbDataByRoot will delete root key and then store the current height to small db
 func (store *smallStateStore) DeleteSmallDbDataByRoot(root common.Hash, height uint64) error {
-	err := store.db.Delete(store.generateKey(root[:], smallDbRootDatas))
+	err := store.db.Delete(store.generateKey(root[:], smallDbRootData))
 	if err != nil {
 		return fmt.Errorf("delete state data from small db error %v", err)
 	}
@@ -68,7 +68,7 @@ func (store *smallStateStore) StoreDataToSmallDb(height uint64, root common.Hash
 			return fmt.Errorf("store last delete height error %v,height is %v", err, height)
 		}
 	}
-	err := store.db.Put(store.generateKey(root[:], smallDbRootDatas), nb)
+	err := store.db.Put(store.generateKey(root[:], smallDbRootData), nb)
 	if err != nil {
 		return fmt.Errorf("store state data to small db error %v", err)
 	}
@@ -90,11 +90,11 @@ func (store *smallStateStore) StoreStatePersistentHeight(height uint64) error {
 func (store *smallStateStore) HasStateData() bool {
 	iter := store.db.NewIterator()
 	defer iter.Release()
-	hasValue := iter.Seek([]byte(smallDbRootDatas))
+	hasValue := iter.Seek([]byte(smallDbRootData))
 	if !hasValue {
 		return false
 	}
-	return bytes.HasPrefix(iter.Key(), []byte(smallDbRootDatas))
+	return bytes.HasPrefix(iter.Key(), []byte(smallDbRootData))
 }
 
 func (store *smallStateStore) GetStatePersistentHeight() uint64 {

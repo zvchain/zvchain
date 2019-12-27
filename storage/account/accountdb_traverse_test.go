@@ -42,7 +42,7 @@ func TestAccountDB_Traverse(t *testing.T) {
 
 	root, _ := state.Commit(true)
 
-	err := state.db.TrieDB().Commit(root, false)
+	err := state.db.TrieDB().Commit(0,root, false)
 	if err != nil {
 		t.Fatal(err)
 	}

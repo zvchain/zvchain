@@ -20,12 +20,13 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/trie"
+	"io"
 	"log"
+	"sync/atomic"
 	"testing"
-	"time"
 )
 
-func traverseGroup(db types.AccountDB, seed common.Hash, cachedb *trie.NodeDatabase, onlyTraverKey []byte) error {
+func traverseGroup(i int, db types.AccountDB, seed common.Hash, cachedb *trie.NodeDatabase, onlyTraverKey []byte, out io.Writer) error {
 	obj := db.GetStateObject(common.HashToAddress(seed))
 	if obj == nil {
 		return fmt.Errorf("seed address object not exist")
@@ -37,17 +38,23 @@ func traverseGroup(db types.AccountDB, seed common.Hash, cachedb *trie.NodeDatab
 	}
 
 	var (
-		ok bool
+		ok        bool
+		keyCount  int32
+		valueSize int32
 	)
 
 	if len(onlyTraverKey) == 0 {
 		ok, err = trie.Traverse(func(key []byte, value []byte) error {
-			log.Printf("all traverse seed %v, key %v, valuesize %v", seed, string(key), len(value))
+			//out.Write([]byte(fmt.Sprintf("all traverse seed %v, key %v, valuesize %v", seed, string(key), len(value))))
+			atomic.AddInt32(&keyCount, 1)
+			atomic.AddInt32(&valueSize, int32(len(value)))
 			return nil
 		}, nil, false)
 	} else {
 		ok, err = trie.TraverseKey(onlyTraverKey, func(key []byte, value []byte) error {
-			log.Printf("only key traverse seed %v, key %v, valuesize %v", seed, string(key), len(value))
+			//out.Write([]byte(fmt.Sprintf("only key traverse seed %v, key %v, valuesize %v", seed, string(key), len(value))))
+			atomic.AddInt32(&keyCount, 1)
+			atomic.AddInt32(&valueSize, int32(len(value)))
 			return nil
 		}, nil, false)
 	}
@@ -55,12 +62,16 @@ func traverseGroup(db types.AccountDB, seed common.Hash, cachedb *trie.NodeDatab
 		return err
 	}
 
+	fmt.Printf("%v, traverse group %v success, key %v, vsize %v\n", i, seed, keyCount, valueSize)
+
 	return nil
 }
 
 func TestTraverseGroupAfterPrune(t *testing.T) {
+	common.InitConf("/Users/admin/Desktop/gzv-prune/zv.ini")
 	group := newGroup4CPTest(0, common.MaxUint64)
-	tailor, err := NewOfflineTailor(&types.GenesisInfo{Group: group}, "", "", 1024, "", "", true, 1024)
+	group.h.seed = common.HexToHash("0x6861736820666f72207a76636861696e27732067656e657369732067726f7570")
+	tailor, err := NewOfflineTailor(&types.GenesisInfo{Group: group}, "/Users/admin/Desktop/gzv-prune/d_b20191220_241w_pruned_opti", "", 1024, "", "", true, 1024)
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,19 +91,23 @@ func TestTraverseGroupAfterPrune(t *testing.T) {
 	var traverseKey []byte
 
 	for i := 0; i < len(groupSeeds); {
-		b := time.Now()
 		seed := groupSeeds[i]
-		if err = traverseGroup(db, seed, tailor.chain.stateCache.TrieDB(), traverseKey); err != nil {
+		if err = traverseGroup(i, db, seed, tailor.chain.stateCache.TrieDB(), traverseKey, tailor.out); err != nil {
 			if isMissingNodeError(err) && traverseKey == nil {
 				traverseKey = tailor.groupReader.GroupKey()
-				log.Printf("traverse group %v missing node, start traverse key %v", seed, traverseKey)
+				fmt.Printf("traverse group %v missing node, start traverse key %v\n", seed, traverseKey)
 				continue
 			} else {
 				t.Fatal(err)
 			}
 		}
+		if traverseKey != nil {
+			d := db.GetData(common.HashToAddress(seed), traverseKey)
+			if d == nil {
+				t.Fatalf("get group data nil %v", seed)
+			}
+		}
 		i++
-		log.Printf("traverse group %v success, cost %v", seed, time.Since(b).String())
 	}
 	t.Log("success")
 }

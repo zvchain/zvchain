@@ -96,7 +96,7 @@ type FullBlockChain struct {
 	batch           tasdb.Batch
 	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
 	stateCache      account.AccountDatabase
-	running         int32 // running must be called atomically
+	shutdowning     int32 // shutdowning must be called atomically
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -174,7 +174,7 @@ func getBlockChainConfig() *BlockChainConfig {
 		tx:          "tx",
 		receipt:     "rc",
 		pruneConfig: getPruneConfig(pruneMode),
-		pruneMode:pruneMode,
+		pruneMode:   pruneMode,
 	}
 }
 
@@ -255,7 +255,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		writeBufferSize := common.GlobalConf.GetInt(prune, "sdb_write_cache", 64)
 		sdbOptions = &opt.Options{
 			WriteBuffer: writeBufferSize * opt.MiB, // Two of these are used internally
-			BlockSize:   400 * opt.KiB,  // max one value is near 400K
+			BlockSize:   400 * opt.KiB,             // The maximum value is close to 400k
 		}
 	}
 

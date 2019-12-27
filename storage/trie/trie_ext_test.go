@@ -151,7 +151,7 @@ func TestTrie_TraverseKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = trie.db.Commit(root, false)
+	err = trie.db.Commit(0,root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
