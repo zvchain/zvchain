@@ -255,7 +255,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		writeBufferSize := common.GlobalConf.GetInt(prune, "sdb_write_cache", 64)
 		sdbOptions = &opt.Options{
 			WriteBuffer: writeBufferSize * opt.MiB, // Two of these are used internally
-			BlockSize:   400 * opt.KiB,             // The maximum value is close to 400k
+			BlockSize:   512 * opt.KiB,             // The maximum value is close to 512k
 		}
 	}
 
