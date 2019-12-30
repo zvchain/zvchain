@@ -23,16 +23,15 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
-	"github.com/zvchain/zvchain/storage/trie"
 	"io"
 	"time"
 )
 
-type verifier interface {
-	VerifyIntegrity(cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error)
+type traverser interface {
+	Traverse(config *account.TraverseConfig) (bool, error)
 }
 
-func (chain *FullBlockChain) Verifier(h uint64) verifier {
+func (chain *FullBlockChain) traverser(h uint64) traverser {
 	db, err := chain.AccountDBAt(h)
 	if err != nil {
 		Logger.Errorf("get account db error at %v, err %v", h, err)
@@ -41,10 +40,10 @@ func (chain *FullBlockChain) Verifier(h uint64) verifier {
 	return db.(*account.AccountDB)
 }
 
-func (chain *FullBlockChain) IntegrityVerify(height uint64, cb account.VerifyAccountIntegrityCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error) {
-	v := chain.Verifier(height)
+func (chain *FullBlockChain) Traverse(height uint64, config *account.TraverseConfig) (bool, error) {
+	v := chain.traverser(height)
 	if v != nil {
-		return v.VerifyIntegrity(cb, resolve, checkHash)
+		return v.Traverse(config)
 	}
 	return true, nil
 }

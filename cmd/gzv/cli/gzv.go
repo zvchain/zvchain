@@ -205,6 +205,13 @@ func (gzv *Gzv) Run() {
 
 	gzv.simpleInit(*configFile)
 
+	go func() {
+		http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
+		runtime.SetBlockProfileRate(1)
+		runtime.SetMutexProfileFraction(1)
+		runtime.MemProfileRate = 1024
+	}()
+
 	switch command {
 	case versionCmd.FullCommand():
 		fmt.Println("gzv Version:", common.GzvVersion)
@@ -217,12 +224,6 @@ func (gzv *Gzv) Run() {
 	case mineCmd.FullCommand():
 		log.Init()
 		common.InstanceIndex = *instanceIndex
-		go func() {
-			http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
-			runtime.SetBlockProfileRate(1)
-			runtime.SetMutexProfileFraction(1)
-			runtime.MemProfileRate = 1024
-		}()
 
 		types.InitMiddleware()
 
@@ -517,8 +518,8 @@ func (gzv *Gzv) fullInit() error {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
 		var resetBh *types.BlockHeader
-		resetBh,err = core.BlockChainImpl.ResetNear(bh)
-		if err != nil{
+		resetBh, err = core.BlockChainImpl.ResetNear(bh)
+		if err != nil {
 			return err
 		}
 		output(fmt.Sprintf("reset local top to block:%v-%v", resetBh.Height, resetBh.Hash.Hex()))
@@ -528,7 +529,7 @@ func (gzv *Gzv) fullInit() error {
 	if enableTraceLog {
 		monitor.InitPerformTraceLogger()
 	}
-
+	ShowVersionInfo()
 	// Print related content
 	ShowPubKeyInfo(minerInfo, id)
 	ok := mediator.ConsensusInit(minerInfo, common.GlobalConf)
@@ -539,6 +540,11 @@ func (gzv *Gzv) fullInit() error {
 		monitor.InitLogService(id)
 	}
 	return nil
+}
+
+func ShowVersionInfo() {
+	output("your version is", common.GzvVersion)
+	output("prune mode", core.BlockChainImpl.IsPruneMode())
 }
 
 func ShowPubKeyInfo(info model.SelfMinerDO, id string) {

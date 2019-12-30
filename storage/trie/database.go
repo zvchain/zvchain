@@ -17,7 +17,6 @@
 package trie
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/VictoriaMetrics/fastcache"
@@ -26,7 +25,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -59,13 +57,12 @@ type readMeter struct {
 	miss      uint64
 	missSize  uint64
 	hitSize   uint64
-	lastOut   time.Time
 	start     time.Time
 }
 
 // SmallDbWriter wraps the Get and Has method of a backing store for the current block state's modify datas.
 type SmallDbWriter interface {
-	StoreDataToSmallDb(root common.Hash, nb []byte) error
+	StoreDataToSmallDb(height uint64, root common.Hash, nb []byte) error
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
@@ -97,9 +94,9 @@ type NodeDatabase struct {
 	preimagesSize   common.StorageSize // Storage size of the preimages cache
 	lock            sync.RWMutex
 	commitFullNodes []*storeBlob // CommitFullNodes strores commit nodes every time
-	enableGc        bool         // enableGc crop dirty state if true
-	lastGcHeight    uint64
-	lastGcCount     uint64
+	enablePrune     bool         // enablePrune crop dirty state if true
+	lastPruneHeight uint64
+	lastPruneCount  uint64
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
@@ -287,7 +284,7 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable bool) *NodeDatabase {
+func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, pruneEnable bool) *NodeDatabase {
 	var cache *fastcache.Cache
 	if cacheDir != "" {
 		_, err := os.Stat(cacheDir)
@@ -308,15 +305,26 @@ func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, gcEnable
 		cache = fastcache.New(cacheSize * 1024 * 1024)
 	}
 
-	return &NodeDatabase{
-		diskdb:    diskdb,
-		nodes:     map[common.Hash]*cachedNode{{}: {}},
-		preimages: make(map[common.Hash][]byte),
-		enableGc:  gcEnable,
-		cache:     cache,
-		cacheDir:  cacheDir,
-		meter:     &readMeter{start: time.Now()},
+	db := &NodeDatabase{
+		diskdb:      diskdb,
+		nodes:       map[common.Hash]*cachedNode{{}: {}},
+		preimages:   make(map[common.Hash][]byte),
+		enablePrune: pruneEnable,
+		cache:       cache,
+		cacheDir:    cacheDir,
+		meter:       &readMeter{start: time.Now()},
 	}
+
+	if db.cache != nil {
+		go func() {
+			ticker := time.NewTicker(time.Second * 3)
+			for range ticker.C {
+				db.meterPrint()
+			}
+		}()
+	}
+
+	return db
 }
 
 // DiskDB retrieves the persistent storage backing the trie database.
@@ -326,23 +334,26 @@ func (db *NodeDatabase) DiskDB() DatabaseReader {
 
 // ResetNodeCache make new slice before commit.
 func (db *NodeDatabase) ResetNodeCache() {
-	if db.enableGc {
+	if db.enablePrune {
 		db.commitFullNodes = []*storeBlob{}
 	}
 }
 
-// InsertStateDatasToSmallDb insert nodes to small db
-func (db *NodeDatabase) InsertStateDatasToSmallDb(root common.Hash, smallDbWriter SmallDbWriter) error {
-	if db.commitFullNodes != nil && len(db.commitFullNodes) > 0 {
-		dts, err := rlp.EncodeToBytes(db.commitFullNodes)
-		if err != nil {
-			return fmt.Errorf("encode error，error is %v", err)
-		}
-		err = smallDbWriter.StoreDataToSmallDb(root, dts)
-		if err != nil {
-			return err
-		}
+// InsertStateDatasToSmallDb insert nodes to small db,generate one record(use rlp)
+func (db *NodeDatabase) InsertStateDataToSmallDb(height uint64, root common.Hash, smallDbWriter SmallDbWriter) error {
+	if db.commitFullNodes == nil || len(db.commitFullNodes) == 0 {
+		return nil
 	}
+	dts, err := rlp.EncodeToBytes(db.commitFullNodes)
+	if err != nil {
+		return fmt.Errorf("encode error，error is %v", err)
+	}
+	// store root data and height to small db
+	err = smallDbWriter.StoreDataToSmallDb(height, root, dts)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -364,7 +375,7 @@ func (db *NodeDatabase) InsertBlob(hash common.Hash, blob []byte) {
 func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	// If the node's already cached, skip
 	if n, ok := db.nodes[hash]; ok {
-		if db.enableGc {
+		if db.enablePrune {
 			db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: n.rlp()})
 		}
 		return
@@ -381,7 +392,7 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 		}
 	}
 	db.nodes[hash] = entry
-	if db.enableGc {
+	if db.enablePrune {
 		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: entry.rlp()})
 	}
 	// Update the flush-list endpoints
@@ -406,25 +417,9 @@ func (db *NodeDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 }
 
 func (db *NodeDatabase) tryGetFromCache(hash common.Hash) []byte {
-	// reset the meter if read count > 2000000, for more accuracy statistic about recent db read
-	if time.Since(db.meter.start).Minutes() > 1 {
-		db.meter = &readMeter{start: time.Now()}
-	}
 	atomic.AddUint64(&db.meter.readCount, 1)
 	if db.cache != nil {
 		meter := db.meter
-		if time.Since(meter.lastOut).Seconds() > 2 {
-			meter.lastOut = time.Now()
-			stat := &fastcache.Stats{}
-			db.cache.UpdateStats(stat)
-			log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
-				meter.readCount, stat.BytesSize/1024/1024.0, meter.cacheHit, float64(meter.cacheHit)/float64(meter.readCount), meter.nodeHit, float64(meter.nodeHit)/float64(meter.readCount), meter.hitSize/1024.0/1024.0,
-				float64(meter.miss)/float64(meter.readCount), meter.missSize/1024.0/1024.0)
-
-			s, _ := json.Marshal(stat)
-			str := strings.ReplaceAll(string(s), "\"", "")
-			log.CoreLogger.Infof("fastcache meter %v", str)
-		}
 		if enc := db.cache.Get(nil, hash[:]); enc != nil {
 			atomic.AddUint64(&meter.cacheHit, 1)
 			atomic.AddUint64(&meter.hitSize, uint64(len(enc)))
@@ -439,6 +434,20 @@ func (db *NodeDatabase) addToCache(hash common.Hash, data []byte) {
 	atomic.AddUint64(&db.meter.missSize, uint64(len(data)))
 	if db.cache != nil {
 		db.cache.Set(hash[:], data)
+	}
+}
+
+func (db *NodeDatabase) meterPrint() {
+	meter := db.meter
+	stat := &fastcache.Stats{}
+	db.cache.UpdateStats(stat)
+	log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, entrys %v, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
+		meter.readCount, stat.BytesSize/1024/1024.0, stat.EntriesCount, meter.cacheHit, float64(meter.cacheHit)/float64(meter.readCount), meter.nodeHit, float64(meter.nodeHit)/float64(meter.readCount), meter.hitSize/1024.0/1024.0,
+		float64(meter.miss)/float64(meter.readCount), meter.missSize/1024.0/1024.0)
+
+	// reset the meter if read count > 2000000, for more accuracy statistic about recent db read
+	if time.Since(db.meter.start).Minutes() > 1 {
+		db.meter = &readMeter{start: time.Now()}
 	}
 }
 
@@ -569,18 +578,22 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-func (db *NodeDatabase) CommitStateDatasToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
+// CommitStateDataToBigDb is for cold start
+// Commit the state data to big db
+func (db *NodeDatabase) CommitStateDataToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
+	if len(blobs) == 0 {
+		return nil
+	}
 	batch := db.diskdb.NewBatch()
-	if len(blobs) > 0 {
-		for _, vl := range blobs {
-			_, ok := repeatKey[vl.Key]
-			if ok {
-				continue
-			}
-			repeatKey[vl.Key] = struct{}{}
-			if err := batch.Put(vl.Key[:], vl.Raw); err != nil {
-				return err
-			}
+	for _, vl := range blobs {
+		// if the key has committed,then return
+		_, ok := repeatKey[vl.Key]
+		if ok {
+			continue
+		}
+		repeatKey[vl.Key] = struct{}{}
+		if err := batch.Put(vl.Key[:], vl.Raw); err != nil {
+			return err
 		}
 	}
 	if err := batch.Write(); err != nil {
@@ -597,22 +610,23 @@ func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, blobs []*storeB
 	return nil, blobs
 }
 
-func (db *NodeDatabase) LastGcHeight() uint64 {
-	return db.lastGcHeight
+func (db *NodeDatabase) LastPruneHeight() uint64 {
+	return db.lastPruneHeight
 }
 
+// CanPersistent check can persistent if prune block count more than persistentCount
 func (db *NodeDatabase) CanPersistent(persistentCount int) bool {
-	return db.lastGcCount >= uint64(persistentCount)
+	return db.lastPruneCount >= uint64(persistentCount)
 }
 
-func (db *NodeDatabase) StoreGcData(height, currentHeight, cpHeight, gcCount uint64) {
-	db.lastGcHeight = height
-	db.lastGcCount += gcCount
-	log.CropLogger.Debugf("store gc height is %v,curHeight is %v,cphHeight is %v,cur gc count is %v", height, currentHeight, cpHeight, gcCount)
+func (db *NodeDatabase) StorePruneData(height, currentHeight, cpHeight, pruneCount uint64) {
+	db.lastPruneHeight = height
+	db.lastPruneCount += pruneCount
+	log.CropLogger.Debugf("store prune height is %v,curHeight is %v,cphHeight is %v,cur prune count is %v,total prune count is %v", height, currentHeight, cpHeight, pruneCount, db.lastPruneCount)
 }
 
-func (db *NodeDatabase) ResetGcCount() {
-	db.lastGcCount = 0
+func (db *NodeDatabase) ResetPruneCount() {
+	db.lastPruneCount = 0
 }
 
 // Dereference removes an existing reference from a root node.
@@ -687,7 +701,7 @@ func (db *NodeDatabase) dereference(child common.Hash, parent common.Hash) {
 
 // Cap iteratively flushes old but still referenced trie nodes until the total
 // memory usage goes below the given threshold.
-func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
+func (db *NodeDatabase) Cap(height uint64, limit common.StorageSize) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -728,7 +742,7 @@ func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 			return err
 		}
 		// If we exceeded the ideal batch size, commit and reset
-			if batch.ValueSize() >= tasdb.IdealBatchSize {
+		if batch.ValueSize() >= tasdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.DefaultLogger.Error("Failed to write flush list to disk", "err", err)
 				return err
@@ -788,7 +802,7 @@ func (db *NodeDatabase) Cap(height uint64,limit common.StorageSize) error {
 // to disk, forcefully tearing down all references in both directions.
 //
 // As a side effect, all pre-images accumulated up to this point are also written.
-func (db *NodeDatabase) Commit(height uint64,node common.Hash, report bool) error {
+func (db *NodeDatabase) Commit(height uint64, node common.Hash, report bool) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -839,7 +853,7 @@ func (db *NodeDatabase) Commit(height uint64,node common.Hash, report bool) erro
 	//memcacheCommitNodesMeter.Mark(int64(nodes - len(db.nodes)))
 
 	log.CropLogger.Debugf("Persisted trie from memory database,height is %v,nodes is %v,cost %v,size is %v,gcnodes is %v,gcsize is %v,livenodes is %v,livesize is %v",
-		height,nodes-len(db.nodes)+int(db.flushnodes),time.Since(start),storage-db.nodesSize+db.flushsize,db.gcnodes,db.gcsize,len(db.nodes),db.nodesSize)
+		height, nodes-len(db.nodes)+int(db.flushnodes), time.Since(start), storage-db.nodesSize+db.flushsize, db.gcnodes, db.gcsize, len(db.nodes), db.nodesSize)
 
 	// Reset the garbage collection statistics
 	db.gcnodes, db.gcsize, db.gctime = 0, 0, 0
@@ -924,7 +938,7 @@ func (db *NodeDatabase) Size() (common.StorageSize, common.StorageSize) {
 	return db.nodesSize + db.childrenSize + metadataSize - metarootRefs, db.preimagesSize
 }
 
-// verifyIntegrity is a debug method to iterate over the entire trie stored in
+// traverse is a debug method to iterate over the entire trie stored in
 // memory and check whether every node is reachable from the meta root. The goal
 // is to find any errors that might cause memory leaks and or trie nodes to go
 // missing.
