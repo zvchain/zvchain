@@ -22,6 +22,7 @@ import (
 	"github.com/zvchain/zvchain/storage/trie"
 	"io"
 	"log"
+	"os"
 	"sync/atomic"
 	"testing"
 )
@@ -68,6 +69,10 @@ func traverseGroup(i int, db types.AccountDB, seed common.Hash, cachedb *trie.No
 }
 
 func TestTraverseGroupAfterPrune(t *testing.T) {
+	fi,_ := os.Stat("/Users/admin/Desktop")
+	if fi == nil{
+		return
+	}
 	common.InitConf("/Users/admin/Desktop/gzv-prune/zv.ini")
 	group := newGroup4CPTest(0, common.MaxUint64)
 	group.h.seed = common.HexToHash("0x6861736820666f72207a76636861696e27732067656e657369732067726f7570")
