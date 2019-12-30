@@ -15,7 +15,6 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/core/group"
-	"github.com/zvchain/zvchain/middleware/notify"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
@@ -97,7 +96,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string,
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
 	go server.ConsumeContractTransfer()
-	notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
+	//notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
 	server.blockRewardHeight = server.storage.TopBlockRewardHeight(mysql.Blockrewardtopheight)
 	confirmRewardHeight := server.storage.MinConfirmBlockRewardHeight()
@@ -108,8 +107,16 @@ func NewServer(dbAddr string, dbPort int, dbUser string,
 	if server.blockRewardHeight > 0 {
 		server.blockRewardHeight += 1
 	}
+	go server.HandleOnBlockSuccess()
 	go server.loop()
 	return server
+}
+
+func (crontab *Crontab) HandleOnBlockSuccess() {
+	for {
+		block := <-core.OnBlockSuccessChan
+		crontab.OnBlockAddSuccess(block)
+	}
 }
 
 func (crontab *Crontab) loop() {
@@ -924,8 +931,7 @@ func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string, curt
 	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
 }
 
-func (crontab *Crontab) OnBlockAddSuccess(message notify.Message) error {
-	block := message.GetData().(*types.Block)
+func (crontab *Crontab) OnBlockAddSuccess(block *types.Block) error {
 	bh := block.Header
 	preHash := bh.PreHash
 	preBlock := core.BlockChainImpl.QueryBlockByHash(preHash)
