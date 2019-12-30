@@ -18,14 +18,15 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/update"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/params"
-	"os"
-	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
@@ -182,7 +183,6 @@ func (gzv *Gzv) Run() {
 	natAddr := mineCmd.Flag("nat", "nat server address").Default("natproxy.zvchain.io").String()
 	natPort := mineCmd.Flag("natport", "nat server port").Default("3100").Uint16()
 	chainID := mineCmd.Flag("chainid", "chain id").Default("0").Uint16()
-	importFile := mineCmd.Flag("import", "the archive file for importing").String()
 
 	clearCmd := app.Command("clear", "Clear the data of blockchain")
 
@@ -197,6 +197,12 @@ func (gzv *Gzv) Run() {
 	outFile := pruneCmd.Flag("out", "file for output the pruning process, default is stdout").Default("").String()
 	cacheDir := pruneCmd.Flag("cachedir", "directory for loading cache data, ignored if onlyverify is specified").Default("").String()
 	verifiy := pruneCmd.Flag("onlyverify", "whether to only verify the integrity of the specified database, specially pruned-database").Default("false").Bool()
+
+	exportCmd := app.Command("export", "Export blockchain into file")
+	exportDist := exportCmd.Flag("file", "the output file to save the exported chain data").Short('o').Default("zvchain.data").String()
+
+	importCmd := app.Command("import", "Import blockchain from a file")
+	importDist := importCmd.Flag("file", "the archive file for importing").Short('i').Default("zvchain.data").String()
 
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -249,7 +255,6 @@ func (gzv *Gzv) Run() {
 			resetHash:         *reset,
 			cors:              *cors,
 			privateKey:        *privKey,
-			importFile:*importFile,
 		}
 		gzv.config = cfg
 
@@ -322,7 +327,7 @@ func (gzv *Gzv) Run() {
 			output("start fail", err)
 		}
 		if *verifiy {
-			err := tailor.Verify()
+			err := tailor.Verify(0, false)
 			if err != nil {
 				output("verify fail", err)
 			}
@@ -330,6 +335,25 @@ func (gzv *Gzv) Run() {
 			tailor.Pruning()
 		}
 		os.Exit(0)
+
+	case exportCmd.FullCommand():
+		log.Init()
+		helper := mediator.NewConsensusHelper(groupsig.ID{})
+		err := core.ExportChainData(*exportDist, helper)
+		if err != nil {
+			output(err.Error())
+		}
+		os.Exit(0)
+
+	case importCmd.FullCommand():
+		log.Init()
+		helper := mediator.NewConsensusHelper(groupsig.ID{})
+		err := core.ImportChainData(*importDist, helper)
+		if err != nil {
+			output(err.Error())
+		}
+		os.Exit(0)
+
 	}
 	<-quitChan
 }
@@ -479,13 +503,6 @@ func (gzv *Gzv) fullInit() error {
 	helper := mediator.NewConsensusHelper(minerInfo.ID)
 	for _, mem := range helper.GenerateGenesisInfo().Group.Members() {
 		genesisMembers = append(genesisMembers, common.ToAddrHex(mem.ID()))
-	}
-	if cfg.importFile != ""{
-		err := core.ImportFromArchive(cfg.importFile, helper)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(0)
-		}
 	}
 
 	netCfg := network.NetworkConfig{

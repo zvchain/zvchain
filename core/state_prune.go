@@ -18,6 +18,7 @@ package core
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -376,14 +377,19 @@ func (t *OfflineTailor) Pruning() {
 	}
 }
 
-func (t *OfflineTailor) Verify() error {
+func (t *OfflineTailor) Verify(topHeight uint64, checkHash bool) error {
 	const noPruneBlock = TriesInMemory
 	defer t.out.Close()
-
+	if topHeight == 0 {
+		topHeight = t.chain.Height()
+	}
+	if topHeight == math.MaxUint64 {
+		return fmt.Errorf("failed to find top block")
+	}
 	// Find the all heights to be verified
 	verifyBlockHeights := make([]uint64, 0)
 	cnt := uint64(0)
-	for s := t.chain.Height(); cnt < noPruneBlock; s-- {
+	for s := topHeight; cnt < noPruneBlock; s-- {
 		if t.chain.hasHeight(s) {
 			verifyBlockHeights = append(verifyBlockHeights, s)
 			if s <= t.checkpoint {
@@ -402,7 +408,7 @@ func (t *OfflineTailor) Verify() error {
 	t.loadAllGroupSeeds(firstHeight)
 
 	traverseConfig := &account.TraverseConfig{
-		CheckHash:           false,
+		CheckHash:           checkHash,
 		VisitedRoots:        make(map[common.Hash]struct{}),
 		SubTreeKeysProvider: t.subTreeConcernedKeys,
 	}
@@ -436,11 +442,10 @@ func (t *OfflineTailor) Verify() error {
 	return nil
 }
 
-func (t *OfflineTailor) Export() error {
+func (t *OfflineTailor) Export(dist string) error {
 	last := t.chain.getLatestBlock()
 	defer func() {
-		//t.chain.saveCurrentBlock(last.Hash)
-		t.chain.blocks.Put([]byte(blockStatusKey), last.Hash.Bytes())
+		_ = t.chain.blocks.Put([]byte(blockStatusKey), last.Hash.Bytes())
 	}()
 	// delete current block
 	err := t.chain.blocks.Delete([]byte(blockStatusKey))
@@ -448,21 +453,20 @@ func (t *OfflineTailor) Export() error {
 		return err
 	}
 
-	toPath := "db_export"
 	tpFile := filepath.Join(t.chain.config.dbfile, trustHashFile)
 	err = saveTrustHash(last.Hash, tpFile)
 	if err != nil {
 		return err
 	}
-	err = zipit(t.chain.config.dbfile, toPath)
+	err = zipit(t.chain.config.dbfile, dist)
 	if err != nil {
 		return err
 	}
-	printToConsole(fmt.Sprintf("export to %v success, current top hash is %v", toPath, last.Hash.Hex()))
+	t.info("Export success. The output file is: %v. The top hash is: %v", dist, last.Hash.Hex())
 	return nil
 }
 
-func saveTrustHash(trustHash common.Hash, filename string) error{
+func saveTrustHash(trustHash common.Hash, filename string) error {
 	f, err := os.Create(filename)
 	defer f.Close()
 	if err != nil {

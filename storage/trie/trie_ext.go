@@ -124,6 +124,7 @@ func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, r
 			if checkHash {
 				hasher := newHasher(0, 0, nil)
 				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
+					fmt.Printf("hash check failed:  %v", common.Bytes2Hex(n))
 					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
 				}
 			}
@@ -184,6 +185,7 @@ func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCal
 			if checkHash {
 				hasher := newHasher(0, 0, nil)
 				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
+					fmt.Printf("hash check failed:  %v", common.Bytes2Hex(n))
 					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
 				}
 			}

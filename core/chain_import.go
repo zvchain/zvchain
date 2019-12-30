@@ -26,6 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -35,17 +38,15 @@ import (
 	"github.com/zvchain/zvchain/storage/account"
 )
 
-var stateValidateBlockNum = 1      // how many blocks need to validate the state tree
 var trustHashFile = "tp"
 
-
-func ImportFromArchive(importFile string, helper types.ConsensusHelper) (err error) {
+func ImportChainData(importFile string, helper types.ConsensusHelper) (err error) {
 	dbFile := getBlockChainConfig().dbfile
+	// check file existing
 	dbExist, err := pathExists(dbFile)
 	if err != nil {
 		return err
 	}
-	importFile = "db_export"
 	archiveExist, err := pathExists(importFile)
 	if err != nil {
 		return err
@@ -55,46 +56,87 @@ func ImportFromArchive(importFile string, helper types.ConsensusHelper) (err err
 		return errors.New("importing file not exist")
 	}
 	if dbExist {
-		return errors.New(fmt.Sprintf("You have set the '--import' parameter in the start command. please delete the folder %v or remove the '--import' from the start command and try again.", dbFile))
+		return errors.New(fmt.Sprintf("You already have a database folder. please delete the folder %v try again.", dbFile))
 	}
 
-
+	//unzip the archive
 	targetDb := getBlockChainConfig().dbfile
 	defer func() {
 		if err != nil {
-			os.RemoveAll(targetDb)
+			_ = os.RemoveAll(targetDb)
 		}
 	}()
 	err = unzip(importFile, targetDb)
 	if err != nil {
 		return err
 	}
-	tpFile := filepath.Join(targetDb,  trustHashFile)
+	tpFile := filepath.Join(targetDb, trustHashFile)
 	trustHash, err := getTrustHash(tpFile)
 	if err != nil {
 		return err
 	}
-
-	chain, err := getMvpChain(helper)
+	err = confirmTrustHash(trustHash)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		chain.stateDb.Close()
-	}()
 
-	err = checkTrustDb(chain, trustHash)
+	//set top block
+	chain, err := getMvpChain(helper, false)
+	if err != nil {
+		return err
+	}
+	updateTopBlock(chain, trustHash)
+	chain.Close()
+
+	// check block headers and state db
+	err = checkTrustDb(helper, trustHash)
+	if err != nil {
+		return err
+	}
+
 	return
 }
 
+// getTrustHash returns the trust block hash from archive file
 func getTrustHash(dbPath string) (common.Hash, error) {
 	f, err := os.OpenFile(dbPath, os.O_RDONLY, 0600)
-	defer f.Close()
+	if f != nil {
+		defer f.Close()
+	}
 	if err != nil {
 		return common.EmptyHash, err
 	}
 	contentByte, _ := ioutil.ReadAll(f)
 	return common.BytesToHash(contentByte), nil
+}
+
+func confirmTrustHash(trustHash common.Hash) error {
+	scanLine := func() string {
+		var c byte
+		var err error
+		var b []byte
+		for err == nil {
+			_, err = fmt.Scanf("%c", &c)
+			if c != '\n' {
+				b = append(b, c)
+			} else {
+				break
+			}
+		}
+		return string(b)
+	}
+	printToConsole(fmt.Sprintf("You are importing the chain data from an archive file which may not be trustable. You should manual check below hash is existing in the main ZVChain. (eg. you can check the hash on the https://explorer.zvchain.io)"))
+	printToConsole(trustHash.Hex())
+	for {
+		printToConsole(fmt.Sprintf("Are you sure the above hash is on the main ZVchain? [N/y]"))
+		cmd := scanLine()
+		if cmd == "" || cmd == "N" || cmd == "n" {
+			printToConsole("You choose 'N'")
+			return errors.New("Illegal database! The import file is untrusted.")
+		} else if cmd == "Y" || cmd == "y" {
+			return nil
+		}
+	}
 }
 
 func pathExists(path string) (bool, error) {
@@ -108,7 +150,7 @@ func pathExists(path string) (bool, error) {
 	return false, err
 }
 
-func getMvpChain(helper types.ConsensusHelper) (*FullBlockChain, error) {
+func getMvpChain(helper types.ConsensusHelper, readOnly bool) (*FullBlockChain, error) {
 	chain := &FullBlockChain{
 		config:          getBlockChainConfig(),
 		init:            true,
@@ -119,12 +161,12 @@ func getMvpChain(helper types.ConsensusHelper) (*FullBlockChain, error) {
 
 	Logger = log.CoreLogger
 
-	//options := &opt.Options{
-	//	ReadOnly: true,
-	//	Filter:   filter.NewBloomFilter(10),
-	//}
+	options := &opt.Options{
+		ReadOnly: readOnly,
+		Filter:   filter.NewBloomFilter(10),
+	}
 
-	ds, err := tasdb.NewDataSource(chain.config.dbfile, nil)
+	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
 	if err != nil {
 		Logger.Errorf("new datasource error:%v", err)
 		return nil, err
@@ -152,7 +194,6 @@ func getMvpChain(helper types.ConsensusHelper) (*FullBlockChain, error) {
 		return nil, err
 	}
 
-
 	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
 
 	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, stateCacheSize, "")
@@ -166,95 +207,11 @@ func getMvpChain(helper types.ConsensusHelper) (*FullBlockChain, error) {
 	return chain, nil
 }
 
-//
-//func NewDbImporter(importFile string) (importer *DbImporter, err error) {
-//
-//	chain := &FullBlockChain{
-//		config:       getBlockChainConfig(),
-//		init:         true,
-//		isAdjusting:  false,
-//		topRawBlocks: common.MustNewLRUCache(20),
-//	}
-//
-//	Logger = log.CoreLogger
-//	//chain := &FullBlockChain{
-//	//	config:           getBlockChainConfig(),
-//	//	latestBlock:      nil,
-//	//	init:             true,
-//	//	isAdjusting:      false,
-//	//	consensusHelper:  helper,
-//	//	ticker:           ticker.NewGlobalTicker("chain"),
-//	//	triegc:           prque.NewPrque(),
-//	//	ts:               time2.TSInstance,
-//	//	futureRawBlocks:  common.MustNewLRUCache(100),
-//	//	verifiedBlocks:   common.MustNewLRUCache(10),
-//	//	topRawBlocks:     common.MustNewLRUCache(20),
-//	//	newBlockMessages: common.MustNewLRUCache(100),
-//	//	Account:          minerAccount,
-//	//}
-//
-//	options := &opt.Options{
-//		ReadOnly:true,
-//		Filter:                 filter.NewBloomFilter(10),
-//	}
-//
-//	ds, err := tasdb.NewDataSource(chain.config.dbfile, options)
-//	if err != nil {
-//		Logger.Errorf("new datasource error:%v", err)
-//		return
-//	}
-//
-//	chain.blocks, err = ds.NewPrefixDatabase(chain.config.block)
-//	if err != nil {
-//		Logger.Errorf("Init block chain error! Error:%s", err.Error())
-//		return
-//	}
-//
-//	chain.blockHeight, err = ds.NewPrefixDatabase(chain.config.blockHeight)
-//	if err != nil {
-//		Logger.Errorf("Init block chain error! Error:%s", err.Error())
-//		return
-//	}
-//	chain.txDb, err = ds.NewPrefixDatabase(chain.config.tx)
-//	if err != nil {
-//		Logger.Errorf("Init block chain error! Error:%s", err.Error())
-//		return
-//	}
-//	chain.stateDb, err = ds.NewPrefixDatabase(chain.config.state)
-//	if err != nil {
-//		Logger.Errorf("Init block chain error! Error:%s", err.Error())
-//		return
-//	}
-//
-//	receiptdb, err := ds.NewPrefixDatabase(chain.config.receipt)
-//	if err != nil {
-//		Logger.Errorf("Init block chain error! Error:%s", err.Error())
-//		return
-//	}
-//	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "d_small"), nil)
-//	if err != nil {
-//		Logger.Errorf("new small state datasource error:%v", err)
-//		return
-//	}
-//	smallStateDb, err := smallStateDs.NewPrefixDatabase("")
-//	if err != nil {
-//		Logger.Errorf("new small state db error:%v", err)
-//		return
-//	}
-//
-//
-//
-//	GroupManagerImpl = group.NewManager(chain, helper)
-//
-//	chain.cpChecker = newCpChecker(GroupManagerImpl, chain)
-//	sp := newStateProcessor(chain)
-//	chain.stateProc = sp
-//
-//	chain.insertGenesisBlock()
-//}
-
-
-func checkTrustDb(chain *FullBlockChain, trustHash common.Hash) (err error) {
+func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err error) {
+	chain, err := getMvpChain(helper, true)
+	if err != nil {
+		return err
+	}
 	trustBl := chain.queryBlockHeaderByHash(trustHash)
 	if trustBl == nil {
 		err = errors.New(printToConsole("Can't find the trust block hash in database. Please set the right hash and restart the program!"))
@@ -269,23 +226,16 @@ func checkTrustDb(chain *FullBlockChain, trustHash common.Hash) (err error) {
 		return
 	}
 	printToConsole("Validating block headers finish")
+	chain.Close()
 
-	err = validateStateDb(chain, trustBl)
+	err = validateStateDb(helper, trustBl)
 	if err != nil {
 		Logger.Errorf("VerifyIntegrity failed: %v", err)
 		printToConsole(err.Error())
-		err = errors.New(printToConsole("Illegal database! The import file is untrusted."))
+		err = errors.New("Illegal database! The import file is untrusted.")
 		return
 	}
-	printToConsole(fmt.Sprintf("Validating state tree finish, reset top to the trust point: %v and start syncing", trustBl.Height))
-	err = chain.blocks.Put([]byte(blockStatusKey), trustBl.Hash.Bytes())
-	if err != nil {
-		Logger.Errorf("ResetTop failed: %v", err)
-		printToConsole(err.Error())
-		err = errors.New(printToConsole("Failed to reset top to trust block!"))
-		return
-	}
-
+	printToConsole("Validating state tree finish")
 	return
 }
 
@@ -334,8 +284,7 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	}
 }
 
-func validateStateDb(chain *FullBlockChain, trustHash *types.BlockHeader) error {
-	printToConsole("Start validating state tree ...")
+func validateStateDb(helper types.ConsensusHelper, trustBl *types.BlockHeader) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -344,59 +293,43 @@ func validateStateDb(chain *FullBlockChain, trustHash *types.BlockHeader) error 
 			printToConsole("Validating state tree ...")
 		}
 	}()
-	start := time.Now()
-	Logger.Debugf("validateStateDb cost: %v ", time.Since(start))
 
-	currentHash := trustHash.Hash
-	for i := 0; i < stateValidateBlockNum; i++ {
-		current := chain.queryBlockHeaderByHash(currentHash)
-		db, err := account.NewAccountDB(current.StateTree, chain.stateCache)
-		if err != nil {
-			return err
-		}
-		printToConsole(fmt.Sprintf("Validating state tree for block height = %d, remaining %d blocks", current.Height, stateValidateBlockNum-i))
+	var configSec = "chain"
+	conf := common.GlobalConf.GetSectionManager(configSec)
+	dbFile := common.GlobalConf.GetString(configSec, "db_blocks", "d_b")
+	smallDbFile := common.GlobalConf.GetString(configSec, "small_db", "d_small")
+	cacheDir := conf.GetString("state_cache_dir", "state_cache")
+	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
+	genesisGroup := helper.GenerateGenesisInfo()
 
-		ok, err := db.VerifyIntegrity(nil, nil, true)
-		if !ok {
-			return fmt.Errorf("validate state fail, block height: %v", current.Height)
-		}
-		if err != nil {
-			return err
-		}
-		if current.Height == 0 {
-			return nil
-		}
-		currentHash = current.PreHash
+	sdbExist, err := pathExists(smallDbFile)
+	if err != nil {
+		return err
+	}
+	if !sdbExist {
+		smallDbFile = ""
+	}
+
+	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "importing.log", false)
+	if err != nil {
+		return err
+	}
+	defer tailor.chain.Close()
+
+	err = tailor.Verify(trustBl.Height, false)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func doDoubleConfirm(topHeight uint64, trustHeight uint64) bool {
-	scanLine := func() string {
-		var c byte
-		var err error
-		var b []byte
-		for err == nil {
-			_, err = fmt.Scanf("%c", &c)
-			if c != '\n' {
-				b = append(b, c)
-			} else {
-				break
-			}
-		}
-		return string(b)
-	}
-	printToConsole(fmt.Sprintf("Your current local top %d is higher than trust block over %d blocks", topHeight, topHeight-trustHeight))
-	for {
-		printToConsole(fmt.Sprintf("Are you sure you want to reset to the trust block and validate the database? [Y/n]"))
-		cmd := scanLine()
-		if cmd == "" || cmd == "Y" || cmd == "y" {
-			Logger.Debugln("user choose Y to continue validation")
-			return true
-		} else if cmd == "N" || cmd == "n" {
-			printToConsole("You choose to skip the trust block validation. You can remove the -t or --trusthash option from the starting command parameters next time.")
-			return false
-		}
+func updateTopBlock(chain *FullBlockChain, trustBl common.Hash) {
+	err := chain.blocks.Put([]byte(blockStatusKey), trustBl.Bytes())
+	if err != nil {
+		Logger.Errorf("ResetTop failed: %v", err)
+		printToConsole(err.Error())
+		err = errors.New(printToConsole("Failed to reset top to trust block!"))
+		return
 	}
 }
 
@@ -410,15 +343,7 @@ func zipit(source, target string) error {
 	archive := zip.NewWriter(zipfile)
 	defer archive.Close()
 
-	//info, err := os.Stat(source)
-	//if err != nil {
-	//	return nil
-	//}
-
 	var baseDir string
-	//if info.IsDir() {
-	//	//baseDir = filepath.Base(source)
-	//}
 
 	filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -500,7 +425,6 @@ func unzip(archive, target string) error {
 }
 
 func printToConsole(msg string) string {
-	//Logger.Debugln(msg)
 	fmt.Println(msg)
 	return msg
 }

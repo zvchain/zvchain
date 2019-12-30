@@ -18,12 +18,14 @@ package account
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/storage/rlp"
-	"github.com/zvchain/zvchain/storage/trie"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/storage/rlp"
+	"github.com/zvchain/zvchain/storage/sha3"
+	"github.com/zvchain/zvchain/storage/trie"
 )
 
 type VisitAccountCallback func(stat *TraverseStat)
@@ -144,6 +146,13 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 			code, err := adb.db.TrieDB().Node(codeHash)
 			if err != nil {
 				return fmt.Errorf("get code %v err %v", codeHash.Hex(), err)
+			}
+			if config.CheckHash {
+				calHash := sha3.Sum256(code)
+				if calHash != codeHash {
+					fmt.Printf("contract code validation fail %v", codeHash)
+					return fmt.Errorf("contract code validation fail %v", codeHash)
+				}
 			}
 			vs.CodeSize = uint64(len(code))
 			config.OnResolve(codeHash, code)
