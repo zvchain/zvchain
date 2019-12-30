@@ -53,10 +53,10 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	}
 
 	if !archiveExist {
-		return errors.New("importing file not exist")
+		return fmt.Errorf("importing file: %v not exist", importFile)
 	}
 	if dbExist {
-		return errors.New(fmt.Sprintf("You already have a database folder. please delete the folder %v try again.", dbFile))
+		return fmt.Errorf("You already have a database folder. please delete the folder %v try again.", dbFile)
 	}
 
 	//unzip the archive
