@@ -24,7 +24,7 @@ import (
 
 // Used for testing
 func newTrieFromDB(dir string, root common.Hash) *Trie {
-	db, _ := tasdb.NewLDBDatabase(dir, nil)
+	db, _ := tasdb.NewMemDatabase()
 	return newTrieWithDB(db, root)
 }
 
@@ -86,37 +86,6 @@ func TestTrie_Traverse(t *testing.T) {
 	t.Log("success ", ok, root.Hex())
 }
 
-func TestTrie_VerifyIntegrity_FromFile(t *testing.T) {
-	//if _, err := os.Stat("test_trie"); err != nil && os.IsNotExist(err) {
-	//	return
-	//}
-	//trie := newTrieFromDB("test_trie", common.HexToHash("0x30d38a45ef853e4ea2477074b7a39d2608441e2268812dd0a35ba3413694656d"))
-	//ok, err := trie.VerifyIntegrity(nil, nil,false)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//if !ok {
-	//	t.Fatalf("verify fail %v", err)
-	//}
-	//t.Log("success ", ok)
-}
-
-func TestTrie_VerifyIntegrity_AfterDropKey(t *testing.T) {
-	//if _, err := os.Stat("test_trie"); err != nil && os.IsNotExist(err) {
-	//	return
-	//}
-	//trie := newTrieFromDB("test_trie", common.HexToHash("0x30d38a45ef853e4ea2477074b7a39d2608441e2268812dd0a35ba3413694656d"))
-	//
-	//trie.db.diskdb.Delete(common.FromHex("0x79cf1279aa2a59f07e5bf539e6f63a86983c2341d9b851b16d55bb0e6cc539d3"))
-	//
-	//ok, _ := trie.VerifyIntegrity(nil, nil,false)
-	//
-	//if ok {
-	//	t.Fatalf("verify fail:should be missing node")
-	//}
-	//t.Log("success ", ok)
-}
-
 func TestTrie_Traverse2(t *testing.T) {
 	trie := newTrieFromDB("test_trie", common.Hash{})
 
@@ -125,6 +94,11 @@ func TestTrie_Traverse2(t *testing.T) {
 	trie.TryUpdate([]byte("123"), []byte("abcdef"))
 
 	root, err := trie.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = trie.db.Commit(0, root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,14 +125,14 @@ func TestTrie_TraverseKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = trie.db.Commit(0,root, false)
+	err = trie.db.Commit(0, root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	trie2 := newTrieWithDB(trie.db.diskdb, root)
 
-	ok, err := trie2.TraverseKey([]byte{}, func(key []byte, value []byte) error {
+	ok, err := trie2.TraverseKey([]byte("1"), func(key []byte, value []byte) error {
 		fmt.Println(string(key), string(value))
 		return nil
 	}, nil, false)
