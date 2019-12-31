@@ -37,7 +37,7 @@ func deleteString(trie *trie.Trie, k string) {
 }
 func TestExpandTrie(t *testing.T) {
 	diskdb, _ := tasdb.NewMemDatabase()
-	triedb := NewDatabase(diskdb)
+	triedb := NewDatabase(diskdb, false)
 	trie1, _ := trie.NewTrie(common.Hash{}, triedb.TrieDB())
 
 	for i := 0; i < 100; i++ {
@@ -49,7 +49,7 @@ func TestExpandTrie(t *testing.T) {
 	}
 
 	root, _ := trie1.Commit(nil)
-	triedb.TrieDB().Commit(root, false)
+	triedb.TrieDB().Commit(0, root, false)
 
 	for i := 0; i < 100; i++ {
 		vl := string(getString(trie1, strconv.Itoa(i)))

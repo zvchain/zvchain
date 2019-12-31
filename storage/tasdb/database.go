@@ -62,19 +62,13 @@ func getInstance(file string, options *opt.Options) (*LDBDatabase, error) {
 		err           error
 	)
 
-	defaultConfig := &databaseConfig{
-		database: DefaultFile,
-		cache:    128,
-		handler:  1024,
-	}
-
-	if nil == common.GlobalConf {
-		instanceInner, err = NewLDBDatabase(defaultConfig.database, options)
-	} else {
-		instanceInner, err = NewLDBDatabase(file, options)
-	}
+	instanceInner, err = NewLDBDatabase(file, options)
 
 	return instanceInner, err
+}
+
+func (db *PrefixedDatabase) GetDB() *leveldb.DB {
+	return db.db.db
 }
 
 // Close close db connection
@@ -487,7 +481,7 @@ func (db *MemDatabase) Get(key []byte) ([]byte, error) {
 	if entry, ok := db.db[string(key)]; ok {
 		return common.CopyBytes(entry), nil
 	}
-	return nil, errors.New("not found")
+	return nil, errors.ErrNotFound
 }
 
 func (db *MemDatabase) Keys() [][]byte {

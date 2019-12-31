@@ -74,7 +74,7 @@ func makeTestState() (AccountDatabase, common.Hash, []*testAccount) {
 	// Create an empty state
 
 	transDb, _ := tasdb.NewMemDatabase()
-	db := NewDatabase(transDb)
+	db := NewDatabase(transDb, false)
 	state, _ := NewAccountDB(common.Hash{}, db)
 
 	// Fill it with some arbitrary data

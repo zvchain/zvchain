@@ -17,15 +17,14 @@ package account
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/rlp"
+	"github.com/zvchain/zvchain/storage/trie"
+	"golang.org/x/crypto/sha3"
 	"math/big"
 	"sort"
 	"sync"
-
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/storage/trie"
-	"golang.org/x/crypto/sha3"
 )
 
 type revision struct {
@@ -196,9 +195,9 @@ func (adb *AccountDB) GetCodeHash(addr common.Address) common.Hash {
 }
 
 // GetStateObject returns stateobject's interface.
-func (adb *AccountDB) GetStateObject(a common.Address)AccAccesser{
+func (adb *AccountDB) GetStateObject(a common.Address) AccAccesser {
 	data := adb.getAccountObject(a)
-	if data == nil{
+	if data == nil {
 		return nil
 	}
 	return data

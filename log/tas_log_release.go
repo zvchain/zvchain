@@ -11,6 +11,7 @@ var RusPlus *Logrusplus
 var StdLogger = logrus.StandardLogger()
 
 var DefaultLogger = logrus.StandardLogger()
+var CropLogger = logrus.StandardLogger()
 var ConsensusLogger = logrus.StandardLogger()
 var ConsensusStdLogger = logrus.StandardLogger()
 var CoreLogger = logrus.StandardLogger()
