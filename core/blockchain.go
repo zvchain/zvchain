@@ -163,6 +163,20 @@ func getPruneConfig(pruneMode bool) *PruneConfig {
 	}
 }
 
+func getDefaultBigDbWriteCache(pruneMode bool) int {
+	if pruneMode {
+		return 64
+	}
+	return 256
+}
+
+func getDefaultBigDbReadCache(pruneMode bool) int {
+	if pruneMode {
+		return 64
+	}
+	return 256
+}
+
 func getBlockChainConfig() *BlockChainConfig {
 	pruneMode := common.GlobalConf.GetBool(configSec, "prune_mode", true)
 	return &BlockChainConfig{
@@ -204,9 +218,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
 	// get the level db block cache size from config
-	blockCacheSize := conf.GetInt("db_block_cache", 64)
+	blockCacheSize := conf.GetInt("db_block_cache", getDefaultBigDbReadCache(chain.config.pruneMode))
 	// get the level db write cache size from config
-	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
+	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", getDefaultBigDbWriteCache(chain.config.pruneMode))
 	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
 
 	options := &opt.Options{
