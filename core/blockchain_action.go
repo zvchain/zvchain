@@ -45,7 +45,12 @@ type executePostState struct {
 	ts         *common.TimeStatCtx
 }
 
-var OnBlockSuccessChan = make(chan *types.Block, 10000)
+type SimpleBlockHeader struct {
+	PreHash common.Hash
+	Height  uint64
+}
+
+var OnBlockSuccessChan = make(chan *SimpleBlockHeader, 10000)
 
 // CastBlock cast a block, current casters synchronization operation in the group
 func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, gSeed common.Hash) *types.Block {
@@ -317,7 +322,10 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
 			tvm.SetTokenContractMapToLdb(block.Header.Hash.Hex(), block.Header.Height)
-			OnBlockSuccessChan <- block
+			OnBlockSuccessChan <- &SimpleBlockHeader{
+				PreHash: block.Header.PreHash,
+				Height:  block.Header.Height,
+			}
 			chain.successOnChainCallBack(block)
 		}
 	}()

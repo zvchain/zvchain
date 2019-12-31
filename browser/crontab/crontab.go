@@ -114,8 +114,8 @@ func NewServer(dbAddr string, dbPort int, dbUser string,
 
 func (crontab *Crontab) HandleOnBlockSuccess() {
 	for {
-		block := <-core.OnBlockSuccessChan
-		crontab.OnBlockAddSuccess(block)
+		simpleBlockHeader := <-core.OnBlockSuccessChan
+		crontab.OnBlockAddSuccess(simpleBlockHeader)
 	}
 }
 
@@ -931,20 +931,20 @@ func (tm *Crontab) ConsumeContract(data *common2.ContractCall, hash string, curt
 	browserlog.BrowserLog.Info("for ConsumeContract:", util.ObjectTojson(data))
 }
 
-func (crontab *Crontab) OnBlockAddSuccess(block *types.Block) error {
-	bh := block.Header
-	preHash := bh.PreHash
+func (crontab *Crontab) OnBlockAddSuccess(simpleBlockHeader *core.SimpleBlockHeader) error {
+	preHash := simpleBlockHeader.PreHash
+	//preHash := bh.PreHash
 	preBlock := core.BlockChainImpl.QueryBlockByHash(preHash)
 	preHight := preBlock.Header.Height
-	browserlog.BrowserLog.Info("BrowserForkProcessor,pre:", preHight, bh.Height)
+	browserlog.BrowserLog.Info("BrowserForkProcessor,pre:", preHight, simpleBlockHeader.Height)
 	data := &models.ForkNotify{
 		PreHeight:   preHight,
-		LocalHeight: bh.Height,
+		LocalHeight: simpleBlockHeader.Height,
 	}
-	go crontab.Produce(data)
-	go crontab.ProduceReward(data)
-	go crontab.UpdateProtectNodeStatus()
-	crontab.GochanPunishment(bh.Height)
+	crontab.Produce(data)
+	crontab.ProduceReward(data)
+	//go crontab.UpdateProtectNodeStatus()
+	crontab.GochanPunishment(simpleBlockHeader.Height)
 
 	return nil
 }
