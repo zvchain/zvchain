@@ -1,7 +1,6 @@
 package rpc
 
 var PruneModeSupportMethods = map[string]struct{}{
-	"CheckPointAt":       {},
 	"MinerPoolInfo":      {},
 	"ProposalTotalStake": {},
 	"BalanceByHeight":    {},

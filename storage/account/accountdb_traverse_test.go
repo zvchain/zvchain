@@ -37,12 +37,11 @@ func TestAccountDB_Traverse(t *testing.T) {
 		balance := big.NewInt(rand.Int63())
 		state.SetBalance(addr, balance)
 		input[addr] = balance
-		fmt.Println(addr.Hash().Hex(), balance)
 	}
 
 	root, _ := state.Commit(true)
 
-	err := state.db.TrieDB().Commit(root, false)
+	err := state.db.TrieDB().Commit(0, root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +55,6 @@ func TestAccountDB_Traverse(t *testing.T) {
 	mu := sync.Mutex{}
 	state2.Traverse(&TraverseConfig{
 		VisitAccountCb: func(stat *TraverseStat) {
-			t.Logf("visit %v, balance %v", stat.Addr.Hash().Hex(), stat.Account.Balance)
 			mu.Lock()
 			output[stat.Addr] = stat.Account.Balance
 			mu.Unlock()

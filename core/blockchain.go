@@ -96,7 +96,7 @@ type FullBlockChain struct {
 	batch           tasdb.Batch
 	triegc          *prque.Prque // Priority queue mapping block numbers to tries to gc
 	stateCache      account.AccountDatabase
-	running         int32 // running must be called atomically
+	shutdowning     int32 // shutdowning must be called atomically
 	transactionPool types.TransactionPool
 
 	latestBlock   *types.BlockHeader // Latest block on chain
@@ -163,6 +163,20 @@ func getPruneConfig(pruneMode bool) *PruneConfig {
 	}
 }
 
+func getDefaultBigDbWriteCache(pruneMode bool)int{
+	if pruneMode{
+		return 64
+	}
+	return 256
+}
+
+func getDefaultBigDbReadCache(pruneMode bool)int{
+	if pruneMode{
+		return 64
+	}
+	return 256
+}
+
 func getBlockChainConfig() *BlockChainConfig {
 	pruneMode := common.GlobalConf.GetBool(configSec, "prune_mode", true)
 	return &BlockChainConfig{
@@ -174,6 +188,7 @@ func getBlockChainConfig() *BlockChainConfig {
 		tx:          "tx",
 		receipt:     "rc",
 		pruneConfig: getPruneConfig(pruneMode),
+		pruneMode:   pruneMode,
 	}
 }
 
@@ -203,9 +218,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	// get the level db file cache size from config
 	fileCacheSize := common.GlobalConf.GetInt(configSec, "db_file_cache", 5000)
 	// get the level db block cache size from config
-	blockCacheSize := conf.GetInt("db_block_cache", 512)
+	blockCacheSize := conf.GetInt("db_block_cache", getDefaultBigDbReadCache(chain.config.pruneMode))
 	// get the level db write cache size from config
-	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", 512)
+	writeBufferSize := common.GlobalConf.GetInt(configSec, "db_write_cache", getDefaultBigDbWriteCache(chain.config.pruneMode))
 	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
 
 	options := &opt.Options{
@@ -248,7 +263,17 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "d_small"), nil)
+
+	var sdbOptions *opt.Options
+	if chain.config.pruneMode {
+		writeBufferSize := common.GlobalConf.GetInt(prune, "sdb_write_cache", 64)
+		sdbOptions = &opt.Options{
+			WriteBuffer: writeBufferSize * opt.MiB, // Two of these are used internally
+			BlockSize:   512 * opt.KiB,             // The maximum value is close to 512k
+		}
+	}
+
+	smallStateDs, err := tasdb.NewDataSource(common.GlobalConf.GetString(configSec, "small_db", "d_small"), sdbOptions)
 	if err != nil {
 		Logger.Errorf("new small state datasource error:%v", err)
 		return err
@@ -537,13 +562,13 @@ func (chain *FullBlockChain) findLastRestartPoint(bh *types.BlockHeader) (restar
 			}
 			cnt++
 		}
+		if bh.Height == 0 {
+			return bh, nil
+		}
 		preHash := bh.PreHash
 		bh = chain.queryBlockHeaderByHash(preHash)
 		if bh == nil {
 			return nil, fmt.Errorf("find block hash not exists,block hash is %v", preHash)
-		}
-		if bh.Height == 0 {
-			return bh, nil
 		}
 	}
 	return beginBh, nil

@@ -197,6 +197,8 @@ func (gzv *Gzv) Run() {
 	outFile := pruneCmd.Flag("out", "file for output the pruning process, default is stdout").Default("").String()
 	cacheDir := pruneCmd.Flag("cachedir", "directory for loading cache data, ignored if onlyverify is specified").Default("").String()
 	verifiy := pruneCmd.Flag("onlyverify", "whether to only verify the integrity of the specified database, specially pruned-database").Default("false").Bool()
+	cpu := pruneCmd.Flag("cpu", "number of CPU cores used in the pruning process").Default("0").Int()
+	maxOpenFiles := pruneCmd.Flag("maxopenfiles", "max open files for the process").Default("10240").Int()
 
 	exportCmd := app.Command("export", "Export blockchain into file")
 	exportDist := exportCmd.Flag("file", "the output file to save the exported chain data").Short('o').Default("zvchain.data").String()
@@ -319,10 +321,17 @@ func (gzv *Gzv) Run() {
 		output("replay finished")
 
 	case pruneCmd.FullCommand():
+		cores := runtime.NumCPU()
+		use := cores
+		if *cpu > 0 {
+			runtime.GOMAXPROCS(*cpu)
+			use = *cpu
+		}
+		output("available cores", cores, "use cores", use)
 		log.Init()
 		helper := mediator.NewConsensusHelper(groupsig.ID{})
 		genesisGroup := helper.GenerateGenesisInfo()
-		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *srcSmallDB, *memSize, *cacheDir, *outFile, *verifiy)
+		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *srcSmallDB, *memSize, *cacheDir, *outFile, *verifiy, *maxOpenFiles)
 		if err != nil {
 			output("start fail", err)
 		}

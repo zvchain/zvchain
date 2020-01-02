@@ -265,9 +265,6 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 
 // DeleteSmallDbDataByRoots will delete root list if we reset tops
 func (chain *FullBlockChain) DeleteSmallDbDataByRoots(roots []common.Hash) {
-	if len(roots) == 0 {
-		return
-	}
 	begin := time.Now()
 	defer func() {
 		log.CropLogger.Debugf("resetTop delete small db size is %v,cost %v", len(roots), time.Since(begin))
@@ -320,7 +317,7 @@ func (chain *FullBlockChain) PersistentState() {
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
 	// prevent duplicate runs
-	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&chain.shutdowning, 0, 1) {
 		return
 	}
 	begin := time.Now()
@@ -365,34 +362,34 @@ func (chain *FullBlockChain) PersistentState() {
 // mergeSmallDbDataToBigDB is for cold start
 // Begin is last persistent height,end is top height,between two heights block state data from small db to big db
 func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) error {
-	if top == nil {
+	// get the last persistent height from small db
+	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
+	if top == nil && lastStateHeight == 0{
 		return nil
+	// if big db is deleted,but small db not be deleted,we not support this stage!
+	}else if top == nil && lastStateHeight > 0{
+		info := "db is damaged,suggest delete d_mall and try again"
+		fmt.Println(info)
+		return fmt.Errorf(info)
 	}
 	// check small db has state data,if nil,then return
 	hasStateData := chain.smallStateDb.HasStateData()
 	if !hasStateData {
 		return nil
 	}
-	var beginHeight uint64 = 0
-	// get the last persistent height from small db
-	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
-	if lastStateHeight < top.Height {
-		beginHeight = lastStateHeight
-		// if big db is be deleted,but small db not be deleted,we will compensate it
-	} else if lastStateHeight > top.Height {
-		beginHeight = 1
-	} else {
-		return nil
+	if lastStateHeight > top.Height{
+		info := "db is damaged,suggest delete d_mall and try again"
+		fmt.Println(info)
+		return fmt.Errorf(info)
 	}
-
 	start := time.Now()
 	defer func() {
-		log.CropLogger.Debugf("fix small state data success,top is %v,from %v-%v,cost %v \n", top.Height, beginHeight, top.Height, time.Since(start))
+		log.CropLogger.Debugf("merge small state data success,from %v-%v,cost %v \n",lastStateHeight,top.Height, time.Since(start))
 	}()
-	log.CropLogger.Debugf("begin fix small state data,top is %v,from %v-%v \n", top.Height, beginHeight, top.Height)
+	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",lastStateHeight,top.Height)
 	triedb := chain.stateCache.TrieDB()
 	repeatKey := make(map[common.Hash]struct{})
-	for i := beginHeight; i <= top.Height; i++ {
+	for i := lastStateHeight; i <= top.Height; i++ {
 		bh := chain.queryBlockHeaderByHeight(i)
 		if bh == nil {
 			continue
