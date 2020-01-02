@@ -92,7 +92,7 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 		return err
 	}
 	updateTopBlock(chain, trustHash)
-	chain.Close()
+	chain.stateDb.Close()
 
 	// check block headers and state db
 	err = checkTrustDb(helper, trustHash)
@@ -232,7 +232,7 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err erro
 		return
 	}
 	printToConsole("Validating block headers finish")
-	chain.Close()
+	chain.stateDb.Close()
 
 	err = validateStateDb(helper, trustBl)
 	if err != nil {
