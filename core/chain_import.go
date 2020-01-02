@@ -323,7 +323,7 @@ func validateStateDb(helper types.ConsensusHelper, trustBl *types.BlockHeader) e
 	}
 	defer tailor.chain.Close()
 
-	err = tailor.Verify(trustBl.Height, false)
+	err = tailor.Verify(trustBl.Height, true)
 	if err != nil {
 		return err
 	}
