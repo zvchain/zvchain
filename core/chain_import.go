@@ -41,6 +41,12 @@ import (
 var trustHashFile = "tp"
 
 func ImportChainData(importFile string, helper types.ConsensusHelper) (err error) {
+	begin := time.Now()
+	defer func() {
+		if err == nil {
+			printToConsole(fmt.Sprintf("Importing process success, costs %v.", time.Since(begin).String()))
+		}
+	}()
 	dbFile := getBlockChainConfig().dbfile
 	// check file existing
 	dbExist, err := pathExists(dbFile)
@@ -242,8 +248,6 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err erro
 func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	printToConsole("Start validating block headers ...")
 	genesisBl := chain.insertGenesisBlock(false)
-	currentHash := trustHash
-	var last *types.BlockHeader
 
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -253,35 +257,38 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 			printToConsole("validating block headers ...")
 		}
 	}()
+	trustBh := chain.queryBlockHeaderByHash(trustHash)
+	topHeight := trustBh.Height
 
-	for {
-		current := chain.queryBlockHeaderByHash(currentHash)
+	// check genesis block
+	last := chain.queryBlockHeaderByHeight(0)
+	if last.Hash != genesisBl.Header.Hash {
+		return fmt.Errorf("validate header fail, genesis block hash error: %v", last.Hash)
+	}
+
+	var indexHeight uint64 = 1
+	for ; indexHeight <= topHeight; indexHeight++ {
+		current := chain.queryBlockHeaderByHeight(indexHeight)
 		if current == nil {
-			return fmt.Errorf("validate header fail, miss block: %v", currentHash)
+			// no block in this height
+			continue
 		}
 
 		if current.Hash != current.GenHash() {
-			return fmt.Errorf("validate header fail, block hash error: %v", currentHash)
+			return fmt.Errorf("validate header fail, block hash error: %v", current.Hash)
 		}
 
-		if last != nil && last.Height <= current.Height {
-			return fmt.Errorf("validate header fail, block height error: %v", currentHash)
+		if current.PreHash != last.Hash {
+			return fmt.Errorf("validate header fail, pre hash error: %v", current.Hash)
 		}
-
-		if current.Height < 0 {
-			return fmt.Errorf("validate header fail, negative block height error: %v, %v", currentHash, current.Height)
-		}
-
-		if current.Height == 0 {
-			if current.Hash != genesisBl.Header.Hash {
-				return fmt.Errorf("validate header fail, genesis block hash error: %v", currentHash)
-			}
-			return
-		}
-
 		last = current
-		currentHash = current.PreHash
 	}
+
+	if last.Hash != trustHash {
+		return fmt.Errorf("validate header fail, last hash error: %v", last.Hash)
+	}
+
+	return nil
 }
 
 func validateStateDb(helper types.ConsensusHelper, trustBl *types.BlockHeader) error {
