@@ -317,7 +317,7 @@ func validateStateDb(helper types.ConsensusHelper, trustBl *types.BlockHeader) e
 		smallDbFile = ""
 	}
 
-	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "importing.log", false)
+	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "importing.log", false,10240)
 	if err != nil {
 		return err
 	}

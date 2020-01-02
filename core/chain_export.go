@@ -38,7 +38,7 @@ func ExportChainData(output string, helper types.ConsensusHelper) (err error) {
 		smallDbFile = ""
 	}
 
-	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "", false)
+	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "", false,10240)
 	if err != nil {
 		return err
 	}
