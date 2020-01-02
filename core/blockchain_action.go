@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -262,14 +263,173 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
+// DeleteSmallDbDataByRoots will delete root list if we reset tops
+func (chain *FullBlockChain) DeleteSmallDbDataByRoots(roots []common.Hash) {
+	begin := time.Now()
+	defer func() {
+		log.CropLogger.Debugf("resetTop delete small db size is %v,cost %v", len(roots), time.Since(begin))
+	}()
+	for _, root := range roots {
+		err := chain.smallStateDb.DeleteSmallDbDataByRootWithoutStoreHeight(root)
+		if err != nil {
+			log.CoreLogger.Errorf("DeleteSmallDbDataByRoots error,err is %v", err)
+			break
+		}
+	}
+}
+
+// from last delete small db height to current height's data can be deleted
+// this method will record current delete height to small db
+func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
+	chain.smallStateDb.mu.Lock()
+	defer chain.smallStateDb.mu.Unlock()
+	// from small db get last delete height
+	lastDeleteHeight := chain.smallStateDb.GetLastDeleteHeight()
+	beginHeight := lastDeleteHeight
+	endHeight := persistenceHeight
+	if endHeight <= beginHeight {
+		return
+	}
+	begin := time.Now()
+	defer func() {
+		log.CropLogger.Debugf("delete small db success,height is %v-%v,cost=%v", beginHeight, endHeight, time.Since(begin))
+	}()
+	log.CropLogger.Debugf("begin delete small db,height is %v-%v", beginHeight, endHeight)
+	for i := beginHeight; i < endHeight; i++ {
+		bh := chain.queryBlockHeaderByHeight(i)
+		if bh == nil {
+			continue
+		}
+		err := chain.smallStateDb.DeleteSmallDbDataByRoot(bh.StateTree, bh.Height)
+		if err != nil {
+			log.CoreLogger.Error(err)
+			break
+		}
+	}
+}
+
+// PersistentState when shut down it will be run
+// Take last prune height's next height block state to commit big db
+func (chain *FullBlockChain) PersistentState() {
+	if !chain.config.pruneMode {
+		return
+	}
+	chain.rwLock.Lock()
+	defer chain.rwLock.Unlock()
+	// prevent duplicate runs
+	if !atomic.CompareAndSwapInt32(&chain.shutdowning, 0, 1) {
+		return
+	}
+	begin := time.Now()
+	cp := chain.latestCP.Load()
+	if chain.triegc.Empty() || cp == nil {
+		return
+	}
+	fmt.Printf("stop process begin...")
+	triedb := chain.stateCache.TrieDB()
+	var commitHeight uint64 = common.MaxUint64
+	defer func() {
+		if commitHeight == common.MaxUint64 {
+			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
+		} else {
+			fmt.Printf("stop success,commit height is %v,cp height is %v,local height is %v,cost %v", commitHeight, cp.(*types.BlockHeader).Height, chain.Height(), time.Since(begin))
+		}
+
+	}()
+	// if we haven't started prune before,no save
+	if triedb.LastPruneHeight() == 0 {
+		return
+	}
+	bh := chain.queryBlockHeaderCeil(triedb.LastPruneHeight() + 1)
+	if bh == nil {
+		return
+	}
+	// only persistent last prune height's next height
+	err := triedb.Commit(bh.Height, bh.StateTree, false)
+	if err != nil {
+		fmt.Printf("trie commit error:%s", err.Error())
+		return
+	}
+	commitHeight = bh.Height
+	// record last persistent height to small db for cold start
+	err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
+	if err != nil {
+		fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
+	}
+
+}
+
+// mergeSmallDbDataToBigDB is for cold start
+// Begin is last persistent height,end is top height,between two heights block state data from small db to big db
+func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) error {
+	// get the last persistent height from small db
+	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
+	if top == nil && lastStateHeight == 0{
+		return nil
+	// if big db is deleted,but small db not be deleted,we not support this stage!
+	}else if top == nil && lastStateHeight > 0{
+		info := "db is damaged,suggest delete d_mall and try again"
+		fmt.Println(info)
+		return fmt.Errorf(info)
+	}
+	// check small db has state data,if nil,then return
+	hasStateData := chain.smallStateDb.HasStateData()
+	if !hasStateData {
+		return nil
+	}
+	if lastStateHeight > top.Height{
+		info := "db is damaged,suggest delete d_mall and try again"
+		fmt.Println(info)
+		return fmt.Errorf(info)
+	}
+	start := time.Now()
+	defer func() {
+		log.CropLogger.Debugf("merge small state data success,from %v-%v,cost %v \n",lastStateHeight,top.Height, time.Since(start))
+	}()
+	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",lastStateHeight,top.Height)
+	triedb := chain.stateCache.TrieDB()
+	repeatKey := make(map[common.Hash]struct{})
+	for i := lastStateHeight; i <= top.Height; i++ {
+		bh := chain.queryBlockHeaderByHeight(i)
+		if bh == nil {
+			continue
+		}
+		// get data by root from small db
+		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
+		if len(data) == 0 {
+			continue
+		}
+		err, caches := triedb.DecodeStoreBlob(data)
+		if err != nil {
+			return err
+		}
+		// commit data to big db
+		err = triedb.CommitStateDataToBigDb(caches, repeatKey)
+		if err != nil {
+			return fmt.Errorf("commit from small db to big db error,err is %v", err)
+		}
+	}
+	// when commit from small db to big db,we store the last persistent to small db
+	err := chain.smallStateDb.StoreStatePersistentHeight(top.Height)
+	if err != nil {
+		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
+	}
+	return nil
+}
+
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
 	begin := time.Now()
 
 	traceLog := monitor.NewPerformTraceLogger("addBlockOnChain", block.Header.Hash, block.Header.Height)
 
 	defer func() {
+		end := time.Now()
+		cost := (end.UnixNano() - begin.UnixNano()) / 1e6
+		if cost > 1000 {
+			log.CoreLogger.Debugf("addBlockOnchain expired,height is %v,cost time %v", block.Header.Height, cost)
+		}
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, err, time.Since(begin).String())
+		Logger.Debugf("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
 	}()
 
 	if block == nil {
@@ -313,7 +473,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
-			chain.successOnChainCallBack(block)
+			chain.successOnChainCallBack(block, time.Since(begin))
 		}
 	}()
 
@@ -503,7 +663,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlic
 	return true, eps
 }
 
-func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block) {
+func (chain *FullBlockChain) successOnChainCallBack(remoteBlock *types.Block, t time.Duration) {
 	notify.BUS.Publish(notify.BlockAddSucc, &notify.BlockOnChainSuccMessage{Block: remoteBlock})
 }
 
@@ -514,6 +674,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
 		chain.latestCP.Store(latestCP)
 	}
+
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {
 		rawBlock := value.(*types.Block)
 		Logger.Debugf("Get rawBlock from future blocks,hash:%s,height:%d", rawBlock.Header.Hash.Hex(), rawBlock.Header.Height)
@@ -527,6 +688,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 		"logType":  "txPoolLog",
 		"version":  common.GzvVersion,
 	}).Info("transaction pool log")
+
 	return nil
 }
 
@@ -573,7 +735,10 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 			pre := chain.QueryBlockHeaderByHash(firstBlock.Header.PreHash)
 			if pre != nil {
 				last := lastBlock.Header
-				chain.ResetTop(pre)
+				err := chain.ResetTop(pre)
+				if err != nil {
+					return fmt.Errorf("resetTop error,err is %v", err)
+				}
 				Logger.Debugf("batchAdd reset top:old %v %v %v, new %v %v %v, last %v %v %v", localTop.Hash, localTop.Height, localTop.TotalQN, pre.Hash, pre.Height, pre.TotalQN, last.Hash, last.Height, last.TotalQN)
 			} else {
 				// There will fork, we have to deal with it
@@ -588,11 +753,15 @@ func (chain *FullBlockChain) batchAddBlockOnChain(source string, canReset bool, 
 		chain.isAdjusting = false
 	}()
 
-	for _, b := range addBlocks {
+	chain.AddChainSlice(source, addBlocks, callback)
+	return nil
+}
+
+func (chain *FullBlockChain) AddChainSlice(source string, chainSlice []*types.Block, cb batchAddBlockCallback) {
+	for _, b := range chainSlice {
 		ret := chain.AddBlockOnChain(source, b)
-		if !callback(b, ret) {
+		if !cb(b, ret) {
 			break
 		}
 	}
-	return nil
 }

@@ -98,7 +98,7 @@ type BlockChain interface {
 	Version() int
 
 	// ResetTop reset the current top block with parameter bh
-	ResetTop(bh *BlockHeader)
+	ResetTop(bh *BlockHeader) error
 
 	// countBlocksInRange returns the count of block in a range of block height. the block with startHeight and endHeight
 	// will be included

@@ -119,7 +119,7 @@ func (t *TvmCli) init() {
 	}
 	fmt.Println(currentPath)
 	t.db, _ = tasdb.NewLDBDatabase(currentPath+"/db", nil)
-	t.database = account.NewDatabase(t.db)
+	t.database = account.NewDatabase(t.db, false)
 
 	if Exists(currentPath + "/settings.ini") {
 		t.settings = common.NewConfINIManager(currentPath + "/settings.ini")
@@ -139,7 +139,7 @@ func (t *TvmCli) init() {
 			state.SetBalance(accountAddress, big.NewInt(200))
 		}
 		hash, error := state.Commit(false)
-		t.database.TrieDB().Commit(hash, false)
+		t.database.TrieDB().Commit(0, hash, false)
 		if error != nil {
 			fmt.Println(error)
 			return
@@ -183,7 +183,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) (string, error
 	fmt.Println("gas: ", TransactionGasLimitMax-controller.VM.Gas())
 
 	hash, error := state.Commit(false)
-	t.database.TrieDB().Commit(hash, false)
+	t.database.TrieDB().Commit(0, hash, false)
 	if error != nil {
 		fmt.Println(error)
 	}
@@ -227,7 +227,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	}
 
 	hash, error := state.Commit(false)
-	t.database.TrieDB().Commit(hash, false)
+	t.database.TrieDB().Commit(0, hash, false)
 	if error != nil {
 		fmt.Println(error)
 	}

@@ -50,6 +50,10 @@ func (api *RpcDevImpl) ProposalTotalStake(height uint64) (uint64, error) {
 		return 0, fmt.Errorf("status error")
 
 	} else {
+		_, err := core.BlockChainImpl.AccountDBAt(height)
+		if err != nil {
+			return 0, fmt.Errorf("data is nil")
+		}
 		totalStake := core.MinerManagerImpl.GetProposalTotalStake(height)
 		return totalStake, nil
 	}
@@ -78,7 +82,7 @@ func (api *RpcDevImpl) BalanceByHeight(height uint64, account string) (float64, 
 	}
 	db, err := core.BlockChainImpl.AccountDBAt(height)
 	if err != nil {
-		return 0, fmt.Errorf("this height is invalid")
+		return 0, fmt.Errorf("data is nil")
 	}
 	b := db.GetBalance(common.StringToAddress(account))
 

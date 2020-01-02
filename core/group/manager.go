@@ -95,8 +95,7 @@ func (m *Manager) RegularCheck(db types.AccountDB, bh *types.BlockHeader) {
 
 // OnBlockRemove resets group with top block with parameter bh
 func (m *Manager) OnBlockRemove(bh *types.BlockHeader) {
-	ep := types.EpochAt(bh.Height)
-	m.poolImpl.invalidateEpochGroupCache(ep)
+
 }
 
 // Height returns count of current group number
@@ -120,41 +119,29 @@ func (m *Manager) ActiveGroupCount() int {
 }
 
 func (m *Manager) GetActivatedGroupsAt(height uint64) []types.GroupI {
-	startEpoch, endEpoch := types.CreateEpochsOfActivatedGroupsAt(height)
-
 	gis := make([]types.GroupI, 0)
-
-	for ep := startEpoch; ep.Start() < endEpoch.Start(); ep = ep.Next() {
-		gs := m.poolImpl.getGroupsByEpoch(ep)
-		for _, g := range gs {
+	m.poolImpl.iterateGroups(func(g *group) bool {
+		if g.HeaderD.activatedAt(height) {
 			gis = append(gis, g)
-			// ensure group activated, should not happen
-			if !g.HeaderD.activatedAt(height) {
-				logger.Panicf("group %v should be activated at %v, activate height %v", g.Header().Seed(), height, g.Header().WorkHeight())
-			}
 		}
-	}
+		return g.HeaderD.livedAt(height)
+	})
+	revert(gis)
 	// add genesis group
 	gis = append(gis, m.poolImpl.genesis)
 	return gis
 }
 
 func (m *Manager) GetLivedGroupsAt(height uint64) []types.GroupI {
-	startEpoch, _ := types.CreateEpochsOfActivatedGroupsAt(height)
-	currentEp := types.EpochAt(height)
-
 	gis := make([]types.GroupI, 0)
-
-	for ep := startEpoch; ep.Start() <= currentEp.Start(); ep = ep.Next() {
-		gs := m.poolImpl.getGroupsByEpoch(ep)
-		for _, g := range gs {
+	m.poolImpl.iterateGroups(func(g *group) bool {
+		lived := g.HeaderD.livedAt(height)
+		if lived {
 			gis = append(gis, g)
-			// ensure group lives, should not happen
-			if !g.HeaderD.livedAt(height) {
-				logger.Panicf("group %v should be lived at %v, life height %v-%v", g.Header().Seed(), height, g.Header().WorkHeight(), g.Header().DismissHeight())
-			}
 		}
-	}
+		return lived
+	})
+	revert(gis)
 	// add genesis group
 	gis = append(gis, m.poolImpl.genesis)
 	return gis
@@ -162,13 +149,7 @@ func (m *Manager) GetLivedGroupsAt(height uint64) []types.GroupI {
 
 // GetGroupBySeed returns group with given Seed
 func (m *Manager) GetGroupBySeed(seedHash common.Hash) types.GroupI {
-	db, err := m.chain.LatestAccountDB()
-	if err != nil {
-		logger.Error("failed to get last db")
-		return nil
-	}
-
-	gp := m.poolImpl.get(db, seedHash)
+	gp := m.poolImpl.get(nil, seedHash)
 	if gp == nil {
 		return nil
 	}
@@ -177,16 +158,11 @@ func (m *Manager) GetGroupBySeed(seedHash common.Hash) types.GroupI {
 
 // GetGroupBySeed returns group header with given Seed
 func (m *Manager) GetGroupHeaderBySeed(seedHash common.Hash) types.GroupHeaderI {
-	db, err := m.chain.LatestAccountDB()
-	if err != nil {
-		logger.Error("failed to get last db")
-		return nil
+	g := m.GetGroupBySeed(seedHash)
+	if g != nil {
+		return g.Header()
 	}
-	g := m.poolImpl.get(db, seedHash)
-	if g == nil {
-		return nil
-	}
-	return g.Header()
+	return nil
 }
 
 // MinerJoinedLivedGroupCountFilter returns function to check if the miners joined live group count less than the
@@ -300,4 +276,15 @@ func (m *Manager) GetGroupSkipCountsAt(h uint64, groups []types.GroupI) (map[com
 		}
 	}
 	return ret, nil
+}
+
+// GetAllGroupSeedsByHeight iterates all groups from the given block height to genesis group.
+// It's expensive and time consuming, don't call it unless you know what you are doing!
+// It's called by the offline tailor or verifier for pruning mode currently
+func (m *Manager) GetAllGroupSeedsByHeight(h uint64) ([]common.Hash, error) {
+	return m.poolImpl.getAllGroupSeedsByHeight(h)
+}
+
+func (m *Manager) GroupKey() []byte {
+	return groupDataKey
 }

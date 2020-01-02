@@ -2,6 +2,7 @@ package logical
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/consensus/group"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -348,6 +349,7 @@ func clear() {
 	fmt.Println("---clear---")
 	if core.BlockChainImpl != nil {
 		core.BlockChainImpl.Close()
+		group.GroupRoutine.Close()
 		core.BlockChainImpl = nil
 	}
 	common.GlobalConf = nil
@@ -514,7 +516,7 @@ func (g *GroupHeader4Test) Seed() common.Hash {
 	return common.EmptyHash
 }
 func (g *GroupHeader4Test) WorkHeight() uint64 {
-	return uint64(1)
+	return uint64(0)
 }
 func (g *GroupHeader4Test) DismissHeight() uint64 {
 	return uint64(1)
