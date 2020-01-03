@@ -378,8 +378,10 @@ func (t *OfflineTailor) Pruning() {
 	}
 }
 
-func (t *OfflineTailor) Verify(topHeight uint64, checkHash bool) error {
-	const noPruneBlock = TriesInMemory
+func (t *OfflineTailor) Verify(topHeight uint64, verifyBlNumber uint64, checkHash bool) error {
+	if verifyBlNumber == 0 {
+		verifyBlNumber = TriesInMemory
+	}
 	defer t.out.Close()
 	if topHeight == 0 {
 		topHeight = t.chain.Height()
@@ -390,7 +392,7 @@ func (t *OfflineTailor) Verify(topHeight uint64, checkHash bool) error {
 	// Find the all heights to be verified
 	verifyBlockHeights := make([]uint64, 0)
 	cnt := uint64(0)
-	for s := topHeight; cnt < noPruneBlock; s-- {
+	for s := topHeight; cnt < verifyBlNumber; s-- {
 		if t.chain.hasHeight(s) {
 			verifyBlockHeights = append(verifyBlockHeights, s)
 			if s <= t.checkpoint {

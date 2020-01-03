@@ -18,11 +18,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/zvchain/zvchain/common/prque"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/zvchain/zvchain/common/prque"
 
 	"github.com/zvchain/zvchain/storage/trie"
 
@@ -163,15 +164,15 @@ func getPruneConfig(pruneMode bool) *PruneConfig {
 	}
 }
 
-func getDefaultBigDbWriteCache(pruneMode bool)int{
-	if pruneMode{
+func getDefaultBigDbWriteCache(pruneMode bool) int {
+	if pruneMode {
 		return 64
 	}
 	return 256
 }
 
-func getDefaultBigDbReadCache(pruneMode bool)int{
-	if pruneMode{
+func getDefaultBigDbReadCache(pruneMode bool) int {
+	if pruneMode {
 		return 64
 	}
 	return 256
@@ -302,6 +303,9 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(chain.cpChecker.updateVotes)
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
+	if peekForImporting {
+		sp.addPostProcessor(addBlockSuccessForImporting)
+	}
 	chain.stateProc = sp
 	// merge small db state data to big db
 	err = chain.mergeSmallDbDataToBigDB(latestBH)
@@ -441,7 +445,7 @@ func (chain *FullBlockChain) insertGenesisBlock(commit bool) *types.Block {
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
 	block.Header.Hash = block.Header.GenHash()
 
-	if commit{
+	if commit {
 		ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
 		if !ok {
 			panic("insert genesis block fail, err=" + err.Error())

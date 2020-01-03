@@ -40,11 +40,30 @@ import (
 
 var trustHashFile = "tp"
 
+var peekForImporting = false
+var peekStartHeight uint64 = 0
+
+func EnableChainPeek() {
+	peekForImporting = true
+}
+
+func addBlockSuccessForImporting(db types.AccountDB, bh *types.BlockHeader) {
+	if peekStartHeight == 0 {
+		peekStartHeight = bh.Height
+	}
+	if bh.Height-peekStartHeight > TriesInMemory {
+		printToConsole(fmt.Sprintf("%d blocks added.", TriesInMemory))
+		printToConsole("The importing process end success")
+		os.Exit(0)
+	}
+}
+
 func ImportChainData(importFile string, helper types.ConsensusHelper) (err error) {
 	begin := time.Now()
 	defer func() {
 		if err == nil {
-			printToConsole(fmt.Sprintf("Importing process success, costs %v.", time.Since(begin).String()))
+			printToConsole(fmt.Sprintf("Import database finish, costs %v.", time.Since(begin).String()))
+			printToConsole(fmt.Sprintf("Will try to sync %v blocks from the network.", TriesInMemory))
 		}
 	}()
 	dbFile := getBlockChainConfig().dbfile
@@ -95,10 +114,10 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	chain.stateDb.Close()
 
 	// check block headers and state db
-	err = checkTrustDb(helper, trustHash)
-	if err != nil {
-		return err
-	}
+	//err = checkTrustDb(helper, trustHash)
+	//if err != nil {
+	//	return err
+	//}
 
 	return
 }
@@ -317,16 +336,18 @@ func validateStateDb(helper types.ConsensusHelper, trustBl *types.BlockHeader) e
 		smallDbFile = ""
 	}
 
-	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "importing.log", false,10240)
+	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "importing.log", false, 10240)
 	if err != nil {
 		return err
 	}
 	defer tailor.chain.Close()
 
-	err = tailor.Verify(trustBl.Height, true)
+	err = tailor.Verify(trustBl.Height, 1, true)
 	if err != nil {
 		return err
 	}
+	// sync blocks
+
 	return nil
 }
 

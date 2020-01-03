@@ -73,10 +73,7 @@ func (gzv *Gzv) miner(cfg *minerConfig) error {
 	if err != nil {
 		return err
 	}
-	err = gzv.startRPC()
-	if err != nil {
-		return err
-	}
+
 	ok := mediator.StartMiner()
 
 	fmt.Println("Syncing block and group info from ZV net.Waiting...")
@@ -205,6 +202,9 @@ func (gzv *Gzv) Run() {
 
 	importCmd := app.Command("import", "Import blockchain from a file")
 	importDist := importCmd.Flag("file", "the archive file for importing").Short('i').Default("zvchain.data").String()
+	importChainID := importCmd.Flag("chainid", "chain id").Default("1").Uint16()
+	importNatAddr := importCmd.Flag("nat", "nat server address").Default("natproxy.zvchain.io").String()
+	importNatPort := importCmd.Flag("natport", "nat server port").Default("3100").Uint16()
 
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -262,6 +262,12 @@ func (gzv *Gzv) Run() {
 
 		// Start miner
 		err := gzv.miner(cfg)
+		if err != nil {
+			output("initialize fail:", err)
+			log.DefaultLogger.Errorf("initialize fail:%v", err)
+			os.Exit(-1)
+		}
+		err = gzv.startRPC()
 		if err != nil {
 			output("initialize fail:", err)
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
@@ -336,7 +342,7 @@ func (gzv *Gzv) Run() {
 			output("start fail", err)
 		}
 		if *verifiy {
-			err := tailor.Verify(0, false)
+			err := tailor.Verify(0, 0, false)
 			if err != nil {
 				output("verify fail", err)
 			}
@@ -360,11 +366,74 @@ func (gzv *Gzv) Run() {
 		err := core.ImportChainData(*importDist, helper)
 		if err != nil {
 			output(err.Error())
+			os.Exit(1)
 		}
-		os.Exit(0)
 
+		if *natAddr != "" {
+			log.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
+		}
+
+		tmpFolder := createTmpFolder("tmp")
+		cfg := &minerConfig{
+			natIP:             *importNatAddr,
+			natPort:           *importNatPort,
+			applyRole:         *apply,
+			keystore:          tmpFolder + "/keystore",
+			enableMonitor:     *enableMonitor,
+			chainID:           *importChainID,
+			password:          *passWd,
+			autoCreateAccount: true,
+			privateKey:        *privKey,
+		}
+		peekChain(gzv, cfg, tmpFolder)
 	}
 	<-quitChan
+}
+
+func peekChain(gzv *Gzv, cfg *minerConfig, tmpFolder string) {
+	defer func() {
+		_ = os.RemoveAll(tmpFolder)
+		output("delete temp folder " + tmpFolder)
+	}()
+
+	// reset global config
+	common.GlobalConf = nil
+	gzv.simpleInit(tmpFolder + "/import.ini")
+	types.InitMiddleware()
+
+	core.EnableChainPeek()
+	gzv.config = cfg
+	common.GlobalConf.SetBool("chain", "prune_mode", false)
+	// Start miner
+	err := gzv.miner(cfg)
+	if err != nil {
+		output("Import fail, broken database")
+		log.DefaultLogger.Errorf("initialize fail:%v", err)
+		os.Exit(-1)
+	}
+}
+
+func createTmpFolder(prefix string) string {
+	createFolder := func(path string) string {
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			err := os.Mkdir(path, 0755)
+			if err != nil {
+				panic(err)
+			}
+			return path
+		}
+		return ""
+	}
+
+	for i := 1; ; i++ {
+		created := createFolder(prefix + strconv.Itoa(i))
+		if created != "" {
+			output("create temp folder " + created)
+			return created
+		}
+	}
+
 }
 
 // ClearBlock delete local blockchain data
