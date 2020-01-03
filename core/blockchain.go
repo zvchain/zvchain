@@ -304,9 +304,18 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
 	// merge small db state data to big db
-	err = chain.mergeSmallDbDataToBigDB(latestBH)
+	newTop,err := chain.mergeSmallDbDataToBigDB(latestBH)
 	if err != nil {
 		return err
+	}
+	if newTop != nil{
+		// resetTop need latestBlock
+		chain.latestBlock = latestBH
+		err = chain.resetTop(newTop)
+		if err != nil{
+			return fmt.Errorf("merge state data reset top failed,error is %v",err)
+		}
+		latestBH = newTop
 	}
 	if nil != latestBH {
 		if !chain.versionValidate() {

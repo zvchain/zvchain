@@ -361,26 +361,27 @@ func (chain *FullBlockChain) PersistentState() {
 
 // mergeSmallDbDataToBigDB is for cold start
 // Begin is last persistent height,end is top height,between two heights block state data from small db to big db
-func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) error {
+// This method maybe return blockHeader to reset,when pow off
+func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*types.BlockHeader,error) {
 	// get the last persistent height from small db
 	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
 	if top == nil && lastStateHeight == 0{
-		return nil
+		return nil,nil
 	// if big db is deleted,but small db not be deleted,we not support this stage!
 	}else if top == nil && lastStateHeight > 0{
 		info := "db is damaged,suggest delete d_mall and try again"
 		fmt.Println(info)
-		return fmt.Errorf(info)
+		return nil,fmt.Errorf(info)
 	}
 	// check small db has state data,if nil,then return
 	hasStateData := chain.smallStateDb.HasStateData()
 	if !hasStateData {
-		return nil
+		return nil,nil
 	}
 	if lastStateHeight > top.Height{
 		info := "db is damaged,suggest delete d_mall and try again"
 		fmt.Println(info)
-		return fmt.Errorf(info)
+		return nil,fmt.Errorf(info)
 	}
 	start := time.Now()
 	defer func() {
@@ -389,6 +390,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) err
 	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",lastStateHeight,top.Height)
 	triedb := chain.stateCache.TrieDB()
 	repeatKey := make(map[common.Hash]struct{})
+	var lastMergeHt *types.BlockHeader
 	for i := lastStateHeight; i <= top.Height; i++ {
 		bh := chain.queryBlockHeaderByHeight(i)
 		if bh == nil {
@@ -396,25 +398,27 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) err
 		}
 		// get data by root from small db
 		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
+		// if it is found to be empty,we can sure power off,need to reset top to lastMergeHt
 		if len(data) == 0 {
-			continue
+			return lastMergeHt,nil
 		}
+		lastMergeHt = bh
 		err, caches := triedb.DecodeStoreBlob(data)
 		if err != nil {
-			return err
+			return nil,err
 		}
 		// commit data to big db
 		err = triedb.CommitStateDataToBigDb(caches, repeatKey)
 		if err != nil {
-			return fmt.Errorf("commit from small db to big db error,err is %v", err)
+			return nil,fmt.Errorf("commit from small db to big db error,err is %v", err)
 		}
 	}
 	// when commit from small db to big db,we store the last persistent to small db
 	err := chain.smallStateDb.StoreStatePersistentHeight(top.Height)
 	if err != nil {
-		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
+		return nil,fmt.Errorf("write persistentHeight to small db error,err is %v", err)
 	}
-	return nil
+	return nil,nil
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
