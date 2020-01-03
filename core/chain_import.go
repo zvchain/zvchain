@@ -114,10 +114,10 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	chain.stateDb.Close()
 
 	// check block headers and state db
-	//err = checkTrustDb(helper, trustHash)
-	//if err != nil {
-	//	return err
-	//}
+	err = checkTrustDb(helper, trustHash)
+	if err != nil {
+		return err
+	}
 
 	return
 }
