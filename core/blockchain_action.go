@@ -390,7 +390,11 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",lastStateHeight,top.Height)
 	triedb := chain.stateCache.TrieDB()
 	repeatKey := make(map[common.Hash]struct{})
-	var lastMergeHt *types.BlockHeader
+	var (
+		lastMergeHt *types.BlockHeader
+		needResetTop bool
+	)
+
 	for i := lastStateHeight; i <= top.Height; i++ {
 		bh := chain.queryBlockHeaderByHeight(i)
 		if bh == nil {
@@ -400,7 +404,9 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
 		// if it is found to be empty,we can sure power off,need to reset top to lastMergeHt
 		if len(data) == 0 {
-			return lastMergeHt,nil
+			top =  lastMergeHt
+			needResetTop  = true
+			break
 		}
 		lastMergeHt = bh
 		err, caches := triedb.DecodeStoreBlob(data)
@@ -417,6 +423,9 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	err := chain.smallStateDb.StoreStatePersistentHeight(top.Height)
 	if err != nil {
 		return nil,fmt.Errorf("write persistentHeight to small db error,err is %v", err)
+	}
+	if needResetTop{
+		return top,nil
 	}
 	return nil,nil
 }
