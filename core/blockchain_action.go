@@ -387,28 +387,39 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	triedb := chain.stateCache.TrieDB()
 	repeatKey := make(map[common.Hash]struct{})
 	var (
-		lastMergeHt  *types.BlockHeader
 		needResetTop bool
-		newTop       = top
+		newTop       *types.BlockHeader
 	)
 
-	// from top to lastStateHeight in small db,avoid getting useless data multiple times from small db
+	// this iterator is for power off,find the block to reset top
 	for i := top.Height; i >= lastStateHeight; i-- {
+		bh := chain.queryBlockHeaderByHeight(i)
+		if bh == nil {
+			continue
+		}
+		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
+		// if data is nil,we can sure power off, set needResetTop true first
+		if len(data) == 0 {
+			needResetTop = true
+			continue
+		} else {
+			newTop = bh
+			break
+		}
+	}
+	if newTop == nil || lastStateHeight > newTop.Height {
+		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")
+	}
+
+	// from top to lastStateHeight in small db,avoid getting useless data multiple times from small db
+	for i := newTop.Height; i >= lastStateHeight; i-- {
 		bh := chain.queryBlockHeaderByHeight(i)
 		if bh == nil {
 			continue
 		}
 		// get data by root from small db
 		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
-		// if data is nil and lastMergeHt is nil,we can sure power off, set needResetTop true first
-		if len(data) == 0 && lastMergeHt == nil {
-			needResetTop = true
-			continue
-			// in this case,means need reset top to newTop
-		} else if needResetTop && newTop == top {
-			newTop = bh
-			// it's means there's really no data
-		} else if len(data) == 0 {
+		if len(data) == 0 {
 			break
 		}
 		err, caches := triedb.DecodeStoreBlob(data)
@@ -420,7 +431,6 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		if err != nil {
 			return nil, fmt.Errorf("commit from small db to big db error,err is %v", err)
 		}
-		lastMergeHt = bh
 	}
 	// when commit from small db to big db,we store the last persistent to small db
 	err := chain.smallStateDb.StoreStatePersistentHeight(newTop.Height)
