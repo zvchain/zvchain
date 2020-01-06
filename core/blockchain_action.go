@@ -417,7 +417,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		if bh == nil {
 			continue
 		}
-		// get data by root from small db
+		// get data by root from small db,indicates that the previous version is non pruned
 		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
 		if len(data) == 0 {
 			break
