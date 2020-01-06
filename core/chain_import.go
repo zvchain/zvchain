@@ -266,7 +266,7 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err erro
 
 func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	printToConsole("Start validating block headers ...")
-	genesisBl := chain.insertGenesisBlock(false)
+	genesisBl, _ := chain.createGenesisBlock()
 
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()

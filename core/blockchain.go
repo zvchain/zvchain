@@ -329,7 +329,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		}
 		fmt.Printf("db height is %v at %v\n", latestBH.Height, latestBH.CurTime.Local().String())
 	} else {
-		chain.insertGenesisBlock(true)
+		chain.insertGenesisBlock()
 	}
 
 	chain.forkProcessor = initForkProcessor(chain, helper)
@@ -399,7 +399,15 @@ func (chain *FullBlockChain) buildCache(size int) {
 
 // insertGenesisBlock creates the genesis block and some necessary information，
 // and commit it
-func (chain *FullBlockChain) insertGenesisBlock(commit bool) *types.Block {
+func (chain *FullBlockChain) insertGenesisBlock(){
+	block, stateDB := chain.createGenesisBlock()
+	ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
+	if !ok {
+		panic("insert genesis block fail, err=" + err.Error())
+	}
+}
+
+func (chain *FullBlockChain) createGenesisBlock() (*types.Block,*account.AccountDB)  {
 	stateDB, err := account.NewAccountDB(common.Hash{}, chain.stateCache)
 	if nil != err {
 		panic("Init block chain error:" + err.Error())
@@ -444,16 +452,7 @@ func (chain *FullBlockChain) insertGenesisBlock(commit bool) *types.Block {
 	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
 	block.Header.Hash = block.Header.GenHash()
-
-	if commit {
-		ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
-		if !ok {
-			panic("insert genesis block fail, err=" + err.Error())
-		}
-	}
-
-	Logger.Debugf("GenesisBlock %+v", block.Header)
-	return block
+	return block, stateDB
 }
 
 // Clear clear blockchain all data. Not used now, should remove it latter
