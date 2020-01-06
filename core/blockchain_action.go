@@ -362,72 +362,75 @@ func (chain *FullBlockChain) PersistentState() {
 // mergeSmallDbDataToBigDB is for cold start
 // Begin is last persistent height,end is top height,between two heights block state data from small db to big db
 // This method maybe return blockHeader to reset,when pow off
-func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*types.BlockHeader,error) {
+func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*types.BlockHeader, error) {
 	// get the last persistent height from small db
 	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
-	if top == nil && lastStateHeight == 0{
-		return nil,nil
-	// if big db is deleted,but small db not be deleted,we not support this stage!
-	}else if top == nil && lastStateHeight > 0{
-		info := "db is damaged,suggest delete d_mall and try again"
-		fmt.Println(info)
-		return nil,fmt.Errorf(info)
+	if top == nil && lastStateHeight == 0 {
+		return nil, nil
+		// if big db is deleted,but small db not be deleted,we not support this stage!
+	} else if top == nil && lastStateHeight > 0 {
+		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")
 	}
 	// check small db has state data,if nil,then return
 	hasStateData := chain.smallStateDb.HasStateData()
 	if !hasStateData {
-		return nil,nil
+		return nil, nil
 	}
-	if lastStateHeight > top.Height{
-		info := "db is damaged,suggest delete d_mall and try again"
-		fmt.Println(info)
-		return nil,fmt.Errorf(info)
+	if lastStateHeight > top.Height {
+		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")
 	}
 	start := time.Now()
 	defer func() {
-		log.CropLogger.Debugf("merge small state data success,from %v-%v,cost %v \n",lastStateHeight,top.Height, time.Since(start))
+		log.CropLogger.Debugf("merge small state data success,from %v-%v,cost %v \n", lastStateHeight, top.Height, time.Since(start))
 	}()
-	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",lastStateHeight,top.Height)
+	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n", lastStateHeight, top.Height)
 	triedb := chain.stateCache.TrieDB()
 	repeatKey := make(map[common.Hash]struct{})
 	var (
-		lastMergeHt *types.BlockHeader
+		lastMergeHt  *types.BlockHeader
 		needResetTop bool
+		newTop       = top
 	)
 
-	for i := lastStateHeight; i <= top.Height; i++ {
+	// from top to lastStateHeight in small db,avoid getting useless data multiple times from small db
+	for i := top.Height; i >= lastStateHeight; i-- {
 		bh := chain.queryBlockHeaderByHeight(i)
 		if bh == nil {
 			continue
 		}
 		// get data by root from small db
 		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
-		// if it is found to be empty,we can sure power off,need to reset top to lastMergeHt
-		if len(data) == 0 {
-			top =  lastMergeHt
-			needResetTop  = true
+		// if data is nil and lastMergeHt is nil,we can sure power off, set needResetTop true first
+		if len(data) == 0 && lastMergeHt == nil {
+			needResetTop = true
+			continue
+			// in this case,means need reset top to newTop
+		} else if needResetTop && newTop == top {
+			newTop = bh
+			// it's means there's really no data
+		} else if len(data) == 0 {
 			break
 		}
-		lastMergeHt = bh
 		err, caches := triedb.DecodeStoreBlob(data)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
 		// commit data to big db
 		err = triedb.CommitStateDataToBigDb(caches, repeatKey)
 		if err != nil {
-			return nil,fmt.Errorf("commit from small db to big db error,err is %v", err)
+			return nil, fmt.Errorf("commit from small db to big db error,err is %v", err)
 		}
+		lastMergeHt = bh
 	}
 	// when commit from small db to big db,we store the last persistent to small db
-	err := chain.smallStateDb.StoreStatePersistentHeight(top.Height)
+	err := chain.smallStateDb.StoreStatePersistentHeight(newTop.Height)
 	if err != nil {
-		return nil,fmt.Errorf("write persistentHeight to small db error,err is %v", err)
+		return nil, fmt.Errorf("write persistentHeight to small db error,err is %v", err)
 	}
-	if needResetTop{
-		return top,nil
+	if needResetTop {
+		return newTop, nil
 	}
-	return nil,nil
+	return nil, nil
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
