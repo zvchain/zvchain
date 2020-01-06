@@ -393,7 +393,8 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	)
 
 	// from top to lastStateHeight in small db,avoid getting useless data multiple times from small db
-	for i := top.Height; i >= lastStateHeight; i-- {
+	// i>0 because genesisBlock not pruned,so small db don't contains 0's state data
+	for i := top.Height; i >= lastStateHeight && i > 0; i-- {
 		bh := chain.queryBlockHeaderByHeight(i)
 		if bh == nil {
 			continue
