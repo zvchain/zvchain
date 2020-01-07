@@ -27,8 +27,8 @@ func initSmallStore(db tasdb.Database) *smallStateStore {
 // DeleteSmallDbData delete from small db if reset top
 func (store *smallStateStore) DeleteSmallDbData(data map[uint64]common.Hash) error {
 	batch := store.db.NewBatch()
-	for k, v := range data {
-		err := batch.Delete(store.generateKey(v[:], k, smallDbRootData))
+	for k, _ := range data {
+		err := batch.Delete(store.generateKey(k, smallDbRootData))
 		if err != nil {
 			return err
 		}
@@ -36,9 +36,33 @@ func (store *smallStateStore) DeleteSmallDbData(data map[uint64]common.Hash) err
 	return batch.Write()
 }
 
+func (store *smallStateStore) GetDeleteKeysByHeight(height uint64) ([][]byte,uint64) {
+	var startHeight uint64
+	iter := store.db.NewIterator()
+	deleteKeys := [][]byte{}
+	for iter.Next() {
+		delHeight := store.GetHeight(iter.Key())
+		// if db height >= persistenceHeight then break,key is dt(2 bytes)+height(8 bytes)+data
+		if delHeight >= height {
+			break
+		}
+		if startHeight == 0 {
+			startHeight = delHeight
+		}
+		tmp := make([]byte,len(iter.Key()))
+		copy(tmp,iter.Key())
+		deleteKeys = append(deleteKeys, tmp)
+	}
+	return deleteKeys,startHeight
+}
+
+
+func (store *smallStateStore) GetIterator() iterator.Iterator{
+	return store.db.NewIterator()
+}
+
 // DeleteSmallDbDataByKey delete data when cold start after merge data from small db
 func (store *smallStateStore) DeleteSmallDbDataByKey(deleteKeys [][]byte) error {
-	var count int
 	batch := store.db.NewBatch()
 	for _, k := range deleteKeys {
 		err := batch.Delete(k)
@@ -46,14 +70,11 @@ func (store *smallStateStore) DeleteSmallDbDataByKey(deleteKeys [][]byte) error 
 			err = fmt.Errorf("delete small db failed,error is %v", err)
 			return err
 		}
-		count++
-		// about 86K data per submission
-		if count%2000 == 0 {
-			err = batch.Write()
-			if err != nil {
-				err = fmt.Errorf("delete small db failed,error is %v", err)
-				return err
+		if batch.ValueSize() > tasdb.IdealBatchSize {
+			if err := batch.Write(); err != nil {
+				return fmt.Errorf("delete small db failed,error is %v", err)
 			}
+			batch.Reset()
 		}
 	}
 	err := batch.Write()
@@ -65,20 +86,16 @@ func (store *smallStateStore) DeleteSmallDbDataByKey(deleteKeys [][]byte) error 
 }
 
 // store current root data and height  to small db
-func (store *smallStateStore) StoreDataToSmallDb(height uint64, root common.Hash, nb []byte) error {
-	err := store.db.Put(store.generateKey(root[:], height, smallDbRootData), nb)
+func (store *smallStateStore) StoreDataToSmallDb(height uint64, nb []byte) error {
+	err := store.db.Put(store.generateKey(height, smallDbRootData), nb)
 	if err != nil {
 		return fmt.Errorf("store state data to small db error %v", err)
 	}
 	return nil
 }
 
-func (store *smallStateStore) GetIterator() iterator.Iterator {
-	return store.db.NewIterator()
-}
-
 func (store *smallStateStore) GetHeight(key []byte) uint64 {
-	return common.ByteToUInt64(key[2:10])
+	return common.ByteToUInt64(key[2:])
 }
 
 func (store *smallStateStore) GetStatePersistentHeight() uint64 {
@@ -92,12 +109,9 @@ func (store *smallStateStore) GetStatePersistentHeight() uint64 {
 }
 
 // generateKey generate a prefixed key
-func (store *smallStateStore) generateKey(raw []byte, height uint64, prefix string) []byte {
+func (store *smallStateStore) generateKey(height uint64, prefix string) []byte {
 	bytesBuffer := bytes.NewBuffer([]byte(prefix))
 	bytesBuffer.Write(common.Uint64ToByte(height))
-	if raw != nil {
-		bytesBuffer.Write(raw)
-	}
 	return bytesBuffer.Bytes()
 }
 

@@ -269,23 +269,7 @@ func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) err
 	defer chain.smallStateDb.mu.Unlock()
 	log.CropLogger.Debugf("begin delete small db,persistenceHeight is %v", persistenceHeight)
 	now := time.Now()
-	var beginHeight uint64
-	iter := chain.smallStateDb.GetIterator()
-	deleteKeys := [][]byte{}
-	for iter.Next() {
-		delHeight := chain.smallStateDb.GetHeight(iter.Key())
-		// if db height >= persistenceHeight then break,key is dt(2 bytes)+height(8 bytes)+data
-		if delHeight >= persistenceHeight {
-			break
-		}
-		// it only record to logs
-		if beginHeight == 0 {
-			beginHeight = delHeight
-		}
-		tmp := make([]byte,len(iter.Key()))
-		copy(tmp,iter.Key())
-		deleteKeys = append(deleteKeys, tmp)
-	}
+	deleteKeys,beginHeight:=chain.smallStateDb.GetDeleteKeysByHeight(persistenceHeight)
 	if len(deleteKeys) == 0 {
 		return nil
 	}
@@ -312,7 +296,7 @@ func (chain *FullBlockChain) PersistentState() {
 	}
 	begin := time.Now()
 	cp := chain.latestCP.Load()
-	if chain.triegc.Empty() || cp == nil {
+	if cp == nil {
 		return
 	}
 	fmt.Printf("stop process begin...")
@@ -381,6 +365,10 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	deleteKeys := [][]byte{}
 	for iter.Next() {
 		lastKey = iter.Key()
+		// if power off,big db height > small db height,we not need merge state from small to big
+		if chain.smallStateDb.GetHeight(lastKey) > top.Height{
+			break
+		}
 		err, caches := triedb.DecodeStoreBlob(iter.Value())
 		if err != nil {
 			return nil, err
