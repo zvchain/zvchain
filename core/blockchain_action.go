@@ -403,7 +403,9 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		if err != nil {
 			return nil, fmt.Errorf("commit from small db to big db error,err is %v", err)
 		}
-		deleteKeys = append(deleteKeys, iter.Key())
+		tmp := make([]byte,len(iter.Key()))
+		copy(tmp,iter.Key())
+		deleteKeys = append(deleteKeys,tmp)
 	}
 	if len(deleteKeys) == 0 {
 		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")
