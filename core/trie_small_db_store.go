@@ -42,7 +42,7 @@ func (store *smallStateStore) GetDeleteKeysByHeight(height uint64) ([][]byte, ui
 	deleteKeys := [][]byte{}
 	for iter.Next() {
 		delHeight := store.GetHeight(iter.Key())
-		// if db height >= persistenceHeight then break,key is dt(2 bytes)+height(8 bytes)+data
+		// if db height >= persistenceHeight then break,key is dt(2 bytes)+height(8 bytes)
 		if delHeight >= height {
 			break
 		}
