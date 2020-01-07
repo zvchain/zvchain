@@ -3,14 +3,13 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"sync"
 )
 
 var (
-	smallDbRootData = "dt" // this key used be store root data to small db
+	smallDbRootData = []byte("dt") // this key used be store root data to small db
 )
 
 type smallStateStore struct {
@@ -24,11 +23,23 @@ func initSmallStore(db tasdb.Database) *smallStateStore {
 	}
 }
 
-// DeleteSmallDbData delete from small db if reset top
-func (store *smallStateStore) DeleteSmallDbData(data []uint64) error {
+func (store *smallStateStore) iterateData(iterFunc func(key, value []byte) (bool, error)) error {
+	iter := store.db.NewIteratorWithPrefix(smallDbRootData)
+	defer iter.Release()
+
+	for iter.Next() {
+		if ok, err := iterFunc(iter.Key(), iter.Value()); !ok {
+			return err
+		}
+	}
+	return nil
+}
+
+// DeleteHeights delete from small db if reset top
+func (store *smallStateStore) DeleteHeights(heights []uint64) error {
 	batch := store.db.NewBatch()
-	for _, height := range data {
-		err := batch.Delete(store.generateKey(height, smallDbRootData))
+	for _, height := range heights {
+		err := batch.Delete(store.generateDataKey(height))
 		if err != nil {
 			return err
 		}
@@ -36,80 +47,54 @@ func (store *smallStateStore) DeleteSmallDbData(data []uint64) error {
 	return batch.Write()
 }
 
-func (store *smallStateStore) GetDeleteKeysByHeight(height uint64) ([][]byte, uint64) {
-	var startHeight uint64
-	iter := store.db.NewIterator()
-	deleteKeys := [][]byte{}
-	for iter.Next() {
-		delHeight := store.GetHeight(iter.Key())
-		// if db height >= persistenceHeight then break,key is dt(2 bytes)+height(8 bytes)+data
-		if delHeight >= height {
-			break
-		}
-		if startHeight == 0 {
-			startHeight = delHeight
-		}
-		tmp := make([]byte, len(iter.Key()))
-		copy(tmp, iter.Key())
-		deleteKeys = append(deleteKeys, tmp)
-	}
-	return deleteKeys, startHeight
-}
-
-func (store *smallStateStore) GetIterator() iterator.Iterator {
-	return store.db.NewIterator()
-}
-
-// DeleteSmallDbDataByKey delete data when cold start after merge data from small db
-func (store *smallStateStore) DeleteSmallDbDataByKey(deleteKeys [][]byte) error {
+// DeleteBefore iterates and deletes data from beginning to the given height
+func (store *smallStateStore) DeletePreviousOf(height uint64) (uint64, error) {
 	batch := store.db.NewBatch()
-	for _, k := range deleteKeys {
-		err := batch.Delete(k)
-		if err != nil {
-			err = fmt.Errorf("delete small db failed,error is %v", err)
-			return err
+	beginHeight := uint64(0)
+	err := store.iterateData(func(key, value []byte) (bool, error) {
+		delHeight := store.parseHeight(key)
+		if delHeight > height {
+			return false, nil
 		}
-		if batch.ValueSize() > tasdb.IdealBatchSize {
+		if beginHeight == 0 {
+			beginHeight = delHeight
+		}
+		if err := batch.Delete(key); err != nil {
+			return false, fmt.Errorf("delete error at %v, err %v", delHeight, err)
+		}
+		if batch.ValueSize() >= tasdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
-				return fmt.Errorf("delete small db failed,error is %v", err)
+				return false, err
 			}
 			batch.Reset()
 		}
-	}
-	err := batch.Write()
+		return true, nil
+	})
 	if err != nil {
-		err = fmt.Errorf("delete small db failed,error is %v", err)
-		return err
+		return beginHeight, err
 	}
-	return nil
+	if err := batch.Write(); err != nil {
+		return beginHeight, err
+	}
+	return beginHeight, nil
 }
 
 // store current root data and height  to small db
 func (store *smallStateStore) StoreDataToSmallDb(height uint64, nb []byte) error {
-	err := store.db.Put(store.generateKey(height, smallDbRootData), nb)
+	err := store.db.Put(store.generateDataKey(height), nb)
 	if err != nil {
 		return fmt.Errorf("store state data to small db error %v", err)
 	}
 	return nil
 }
 
-func (store *smallStateStore) GetHeight(key []byte) uint64 {
-	return common.ByteToUInt64(key[2:])
+func (store *smallStateStore) parseHeight(key []byte) uint64 {
+	return common.ByteToUInt64(key[len(smallDbRootData):])
 }
 
-func (store *smallStateStore) GetStatePersistentHeight() uint64 {
-	iter := store.db.NewIterator()
-	defer iter.Release()
-	hasValue := iter.Seek([]byte(smallDbRootData))
-	if !hasValue {
-		return 0
-	}
-	return store.GetHeight(iter.Key())
-}
-
-// generateKey generate a prefixed key
-func (store *smallStateStore) generateKey(height uint64, prefix string) []byte {
-	bytesBuffer := bytes.NewBuffer([]byte(prefix))
+// generateDataKey generate a prefixed key
+func (store *smallStateStore) generateDataKey(height uint64) []byte {
+	bytesBuffer := bytes.NewBuffer(smallDbRootData)
 	bytesBuffer.Write(common.Uint64ToByte(height))
 	return bytesBuffer.Bytes()
 }

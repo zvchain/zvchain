@@ -141,7 +141,7 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 	// find persistent height. from highest height + 1 ,because this height is not be pruned,we must ensure the block for persistent block have root
 	bh := chain.queryBlockHeaderCeil(curPruneMaxHeight + 1)
 	if bh == nil {
-		log.CoreLogger.Warnf("persistent find ceil head is nil,height is %v", curPruneMaxHeight)
+		Logger.Warnf("persistent find ceil head is nil,height is %v", curPruneMaxHeight)
 		return nil
 	}
 	// commit from memory to big db,and clear all of memory
@@ -154,7 +154,7 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 	// from last delete small db height to current height's data can be deleted
 	// this method will record current delete height to small db
 	go chain.DeleteSmallDbByHeight(bh.Height)
-	log.CropLogger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
+	Logger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
 
 	return nil
 }
@@ -343,7 +343,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	recoverTxs := make([]*types.Transaction, 0)
 	delReceipts := make([]common.Hash, 0)
 	removeBlocks := make([]*types.BlockHeader, 0)
-	removeSmallDbData := []uint64{}
+	removeSDBHeights := make([]uint64, 0)
 	for curr.Hash != block.Hash {
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
@@ -363,7 +363,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 			recoverTxs = append(recoverTxs, types.NewTransaction(rawTx, tHash))
 			delReceipts = append(delReceipts, tHash)
 		}
-		removeSmallDbData = append(removeSmallDbData, curr.Height)
+		removeSDBHeights = append(removeSDBHeights, curr.Height)
 		chain.removeTopBlock(curr.Hash)
 		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
@@ -388,10 +388,10 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		return err
 	}
 	if chain.config.pruneMode {
-		err = chain.smallStateDb.DeleteSmallDbData(removeSmallDbData)
+		err = chain.smallStateDb.DeleteHeights(removeSDBHeights)
 		// if this error ,not return,because it not the main flow
 		if err != nil {
-			log.CoreLogger.Errorf("reset top prune mode delete state data error,err is %v", err)
+			Logger.Errorf("reset top prune mode delete state data error,err is %v", err)
 		}
 	}
 
