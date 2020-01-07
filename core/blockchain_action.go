@@ -357,11 +357,11 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	iter := chain.smallStateDb.GetIterator()
 	deleteKeys := [][]byte{}
 	for iter.Next() {
-		lastKey = iter.Key()
 		// if power off,big db height > small db height,we not need merge state from small to big
-		if chain.smallStateDb.GetHeight(lastKey) > top.Height {
+		if chain.smallStateDb.GetHeight(iter.Key()) > top.Height {
 			break
 		}
+		lastKey = iter.Key()
 		err, caches := triedb.DecodeStoreBlob(iter.Value())
 		if err != nil {
 			return nil, err
