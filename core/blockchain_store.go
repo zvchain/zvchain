@@ -343,7 +343,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	recoverTxs := make([]*types.Transaction, 0)
 	delReceipts := make([]common.Hash, 0)
 	removeBlocks := make([]*types.BlockHeader, 0)
-	removeRoots := []uint64{}
+	removeSmallDbData := []uint64{}
 	for curr.Hash != block.Hash {
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
@@ -363,7 +363,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 			recoverTxs = append(recoverTxs, types.NewTransaction(rawTx, tHash))
 			delReceipts = append(delReceipts, tHash)
 		}
-		removeRoots = append(removeRoots, curr.Height)
+		removeSmallDbData = append(removeSmallDbData, curr.Height)
 		chain.removeTopBlock(curr.Hash)
 		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
@@ -388,7 +388,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		return err
 	}
 	if chain.config.pruneMode {
-		err = chain.smallStateDb.DeleteSmallDbData(removeRoots)
+		err = chain.smallStateDb.DeleteSmallDbData(removeSmallDbData)
 		// if this error ,not return,because it not the main flow
 		if err != nil {
 			log.CoreLogger.Errorf("reset top prune mode delete state data error,err is %v", err)
