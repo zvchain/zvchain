@@ -269,12 +269,12 @@ func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) err
 	defer chain.smallStateDb.mu.Unlock()
 	log.CropLogger.Debugf("begin delete small db,persistenceHeight is %v", persistenceHeight)
 	now := time.Now()
-	deleteKeys,beginHeight:=chain.smallStateDb.GetDeleteKeysByHeight(persistenceHeight)
+	deleteKeys, beginHeight := chain.smallStateDb.GetDeleteKeysByHeight(persistenceHeight)
 	if len(deleteKeys) == 0 {
 		return nil
 	}
 	err := chain.smallStateDb.DeleteSmallDbDataByKey(deleteKeys)
-	if err != nil{
+	if err != nil {
 		log.CoreLogger.Error(err)
 		return err
 	}
@@ -325,7 +325,7 @@ func (chain *FullBlockChain) PersistentState() {
 		return
 	}
 	err = chain.DeleteSmallDbByHeight(bh.Height)
-	if err != nil{
+	if err != nil {
 		fmt.Printf("trie commit delete small db error:%s", err.Error())
 		return
 	}
@@ -343,7 +343,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		return nil, nil
 	}
 	// if big db is deleted,but small db not be deleted,we not support this stage!
-	if top == nil  || lastStateHeight > top.Height{
+	if top == nil || lastStateHeight > top.Height {
 		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")
 	}
 	start := time.Now()
@@ -363,7 +363,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	for iter.Next() {
 		lastKey = iter.Key()
 		// if power off,big db height > small db height,we not need merge state from small to big
-		if chain.smallStateDb.GetHeight(lastKey) > top.Height{
+		if chain.smallStateDb.GetHeight(lastKey) > top.Height {
 			break
 		}
 		err, caches := triedb.DecodeStoreBlob(iter.Value())
@@ -374,9 +374,9 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		if err != nil {
 			return nil, fmt.Errorf("commit from small db to big db error,err is %v", err)
 		}
-		tmp := make([]byte,len(iter.Key()))
-		copy(tmp,iter.Key())
-		deleteKeys = append(deleteKeys,tmp)
+		tmp := make([]byte, len(iter.Key()))
+		copy(tmp, iter.Key())
+		deleteKeys = append(deleteKeys, tmp)
 	}
 	if len(deleteKeys) == 0 {
 		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")

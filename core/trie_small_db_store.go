@@ -25,10 +25,10 @@ func initSmallStore(db tasdb.Database) *smallStateStore {
 }
 
 // DeleteSmallDbData delete from small db if reset top
-func (store *smallStateStore) DeleteSmallDbData(data map[uint64]common.Hash) error {
+func (store *smallStateStore) DeleteSmallDbData(data []uint64) error {
 	batch := store.db.NewBatch()
-	for k, _ := range data {
-		err := batch.Delete(store.generateKey(k, smallDbRootData))
+	for _, height := range data {
+		err := batch.Delete(store.generateKey(height, smallDbRootData))
 		if err != nil {
 			return err
 		}
@@ -36,7 +36,7 @@ func (store *smallStateStore) DeleteSmallDbData(data map[uint64]common.Hash) err
 	return batch.Write()
 }
 
-func (store *smallStateStore) GetDeleteKeysByHeight(height uint64) ([][]byte,uint64) {
+func (store *smallStateStore) GetDeleteKeysByHeight(height uint64) ([][]byte, uint64) {
 	var startHeight uint64
 	iter := store.db.NewIterator()
 	deleteKeys := [][]byte{}
@@ -49,15 +49,14 @@ func (store *smallStateStore) GetDeleteKeysByHeight(height uint64) ([][]byte,uin
 		if startHeight == 0 {
 			startHeight = delHeight
 		}
-		tmp := make([]byte,len(iter.Key()))
-		copy(tmp,iter.Key())
+		tmp := make([]byte, len(iter.Key()))
+		copy(tmp, iter.Key())
 		deleteKeys = append(deleteKeys, tmp)
 	}
-	return deleteKeys,startHeight
+	return deleteKeys, startHeight
 }
 
-
-func (store *smallStateStore) GetIterator() iterator.Iterator{
+func (store *smallStateStore) GetIterator() iterator.Iterator {
 	return store.db.NewIterator()
 }
 
@@ -82,7 +81,7 @@ func (store *smallStateStore) DeleteSmallDbDataByKey(deleteKeys [][]byte) error 
 		err = fmt.Errorf("delete small db failed,error is %v", err)
 		return err
 	}
-	return batch.Write()
+	return nil
 }
 
 // store current root data and height  to small db
