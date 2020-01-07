@@ -282,7 +282,9 @@ func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) err
 		if beginHeight == 0 {
 			beginHeight = delHeight
 		}
-		deleteKeys = append(deleteKeys, iter.Key())
+		tmp := make([]byte,len(iter.Key()))
+		copy(tmp,iter.Key())
+		deleteKeys = append(deleteKeys, tmp)
 	}
 	if len(deleteKeys) == 0 {
 		return nil
