@@ -151,12 +151,6 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 	}
 	// only reset prune block's count
 	triedb.ResetPruneCount()
-
-	// store the persistent height to small db,for cold start,we can from current height to top height's root data to big db,ensure data integrity
-	err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
-	if err != nil {
-		return fmt.Errorf("StoreTriePersistentHeight error:%s", err.Error())
-	}
 	// from last delete small db height to current height's data can be deleted
 	// this method will record current delete height to small db
 	go chain.DeleteSmallDbByHeight(bh.Height)
@@ -349,7 +343,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	recoverTxs := make([]*types.Transaction, 0)
 	delReceipts := make([]common.Hash, 0)
 	removeBlocks := make([]*types.BlockHeader, 0)
-	removeRoots := make([]common.Hash, 0)
+	removeRoots := make(map[uint64]common.Hash)
 	for curr.Hash != block.Hash {
 		// Delete the old block header
 		if err = chain.saveBlockHeader(curr.Hash, nil); err != nil {
@@ -369,7 +363,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 			recoverTxs = append(recoverTxs, types.NewTransaction(rawTx, tHash))
 			delReceipts = append(delReceipts, tHash)
 		}
-		removeRoots = append(removeRoots, curr.Hash)
+		removeRoots[curr.Height] = curr.StateTree
 		chain.removeTopBlock(curr.Hash)
 		removeBlocks = append(removeBlocks, curr)
 		Logger.Debugf("remove block %v", curr.Hash.Hex())
@@ -394,7 +388,11 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		return err
 	}
 	if chain.config.pruneMode {
-		chain.DeleteSmallDbDataByRoots(removeRoots)
+		err = chain.smallStateDb.DeleteSmallDbData(removeRoots)
+		// if this error ,not return,because it not the main flow
+		if err != nil {
+			log.CoreLogger.Errorf("reset top prune mode delete state data error,err is %v", err)
+		}
 	}
 
 	chain.updateLatestBlock(state, block)

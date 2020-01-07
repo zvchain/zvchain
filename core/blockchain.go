@@ -163,15 +163,15 @@ func getPruneConfig(pruneMode bool) *PruneConfig {
 	}
 }
 
-func getDefaultBigDbWriteCache(pruneMode bool)int{
-	if pruneMode{
+func getDefaultBigDbWriteCache(pruneMode bool) int {
+	if pruneMode {
 		return 64
 	}
 	return 256
 }
 
-func getDefaultBigDbReadCache(pruneMode bool)int{
-	if pruneMode{
+func getDefaultBigDbReadCache(pruneMode bool) int {
+	if pruneMode {
 		return 64
 	}
 	return 256
@@ -304,9 +304,18 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
 	// merge small db state data to big db
-	err = chain.mergeSmallDbDataToBigDB(latestBH)
+	newTop, err := chain.mergeSmallDbDataToBigDB(latestBH)
 	if err != nil {
 		return err
+	}
+	if newTop != nil {
+		// resetTop need latestBlock
+		chain.latestBlock = latestBH
+		err = chain.resetTop(newTop)
+		if err != nil {
+			return fmt.Errorf("merge state data reset top failed,error is %v", err)
+		}
+		latestBH = newTop
 	}
 	if nil != latestBH {
 		if !chain.versionValidate() {
@@ -534,10 +543,6 @@ func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.
 	err = chain.resetTop(lastRestartHeader)
 	if err != nil {
 		return nil, fmt.Errorf("reset nil error,err is %v", err)
-	}
-	err = chain.smallStateDb.StoreStatePersistentHeight(lastRestartHeader.Height)
-	if err != nil {
-		return nil, fmt.Errorf("resetNear write persistentHeight to small db error,err is %v", err)
 	}
 	return lastRestartHeader, nil
 }
