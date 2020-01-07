@@ -330,7 +330,7 @@ func (chain *FullBlockChain) PersistentState() {
 // Begin is last persistent height,end is top height,between two heights block state data from small db to big db
 func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*types.BlockHeader, error) {
 	if top == nil {
-		return nil, fmt.Errorf("top is nil")
+		return nil, nil
 	}
 	var (
 		triedb     = chain.stateCache.TrieDB()
