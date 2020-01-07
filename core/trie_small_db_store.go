@@ -89,7 +89,7 @@ func (store *smallStateStore) StoreDataToSmallDb(height uint64, nb []byte) error
 }
 
 func (store *smallStateStore) parseHeight(key []byte) uint64 {
-	return common.ByteToUInt64(key[len(smallDbRootData):])
+	return common.ByteToUInt64(key)
 }
 
 // generateDataKey generate a prefixed key
