@@ -310,6 +310,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	}
 	if newTop != nil {
 		// resetTop need latestBlock
+		fmt.Printf("data loss due to last power off and reset top to height %v to fix db",newTop.Height)
 		chain.latestBlock = latestBH
 		err = chain.resetTop(newTop)
 		if err != nil {
