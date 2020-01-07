@@ -343,10 +343,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		return nil, nil
 	}
 	// if big db is deleted,but small db not be deleted,we not support this stage!
-	if top == nil {
-		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")
-	}
-	if lastStateHeight > top.Height {
+	if top == nil  || lastStateHeight > top.Height{
 		return nil, fmt.Errorf("db is damaged,suggest delete d_mall and try again")
 	}
 	start := time.Now()
