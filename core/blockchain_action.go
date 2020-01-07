@@ -295,10 +295,6 @@ func (chain *FullBlockChain) PersistentState() {
 		return
 	}
 	begin := time.Now()
-	cp := chain.latestCP.Load()
-	if cp == nil {
-		return
-	}
 	fmt.Printf("stop process begin...")
 	triedb := chain.stateCache.TrieDB()
 	var commitHeight uint64 = common.MaxUint64
@@ -306,7 +302,7 @@ func (chain *FullBlockChain) PersistentState() {
 		if commitHeight == common.MaxUint64 {
 			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
 		} else {
-			fmt.Printf("stop success,commit height is %v,cp height is %v,local height is %v,cost %v", commitHeight, cp.(*types.BlockHeader).Height, chain.Height(), time.Since(begin))
+			fmt.Printf("stop success,commit height is %v,local height is %v,cost %v", commitHeight, chain.Height(), time.Since(begin))
 		}
 
 	}()
