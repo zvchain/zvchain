@@ -289,29 +289,8 @@ func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) err
 	if len(deleteKeys) == 0 {
 		return nil
 	}
-	batch := chain.smallStateDb.GetBatch()
-	var count int
-	for _, k := range deleteKeys {
-		err := batch.Delete(k)
-		if err != nil {
-			err = fmt.Errorf("delete small db failed,error is %v", err)
-			log.CoreLogger.Error(err)
-			return err
-		}
-		count++
-		// about 86K data per submission
-		if count%2000 == 0 {
-			err = batch.Write()
-			if err != nil {
-				err = fmt.Errorf("delete small db failed,error is %v", err)
-				log.CoreLogger.Error(err)
-				return err
-			}
-		}
-	}
-	err := batch.Write()
-	if err != nil {
-		err = fmt.Errorf("delete small db failed,error is %v", err)
+	err := chain.smallStateDb.DeleteSmallDbDataByKey(deleteKeys)
+	if err != nil{
 		log.CoreLogger.Error(err)
 		return err
 	}
@@ -359,6 +338,11 @@ func (chain *FullBlockChain) PersistentState() {
 	err := triedb.Commit(bh.Height, bh.StateTree, false)
 	if err != nil {
 		fmt.Printf("trie commit error:%s", err.Error())
+		return
+	}
+	err = chain.DeleteSmallDbByHeight(bh.Height)
+	if err != nil{
+		fmt.Printf("trie commit delete small db error:%s", err.Error())
 		return
 	}
 	commitHeight = bh.Height

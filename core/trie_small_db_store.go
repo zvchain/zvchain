@@ -37,13 +37,29 @@ func (store *smallStateStore) DeleteSmallDbData(data map[uint64]common.Hash) err
 }
 
 // DeleteSmallDbDataByKey delete data when cold start after merge data from small db
-func (store *smallStateStore) DeleteSmallDbDataByKey(keys [][]byte) error {
+func (store *smallStateStore) DeleteSmallDbDataByKey(deleteKeys [][]byte) error {
+	var count int
 	batch := store.db.NewBatch()
-	for _, v := range keys {
-		err := batch.Delete(v)
+	for _, k := range deleteKeys {
+		err := batch.Delete(k)
 		if err != nil {
+			err = fmt.Errorf("delete small db failed,error is %v", err)
 			return err
 		}
+		count++
+		// about 86K data per submission
+		if count%2000 == 0 {
+			err = batch.Write()
+			if err != nil {
+				err = fmt.Errorf("delete small db failed,error is %v", err)
+				return err
+			}
+		}
+	}
+	err := batch.Write()
+	if err != nil {
+		err = fmt.Errorf("delete small db failed,error is %v", err)
+		return err
 	}
 	return batch.Write()
 }
@@ -55,10 +71,6 @@ func (store *smallStateStore) StoreDataToSmallDb(height uint64, root common.Hash
 		return fmt.Errorf("store state data to small db error %v", err)
 	}
 	return nil
-}
-
-func (store *smallStateStore) GetBatch() tasdb.Batch {
-	return store.db.NewBatch()
 }
 
 func (store *smallStateStore) GetIterator() iterator.Iterator {
