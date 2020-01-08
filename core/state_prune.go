@@ -136,7 +136,7 @@ func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir stri
 				return nil, err
 			}
 			chain.smallStateDb = initSmallStore(smallStateDb)
-			_, err = chain.mergeSmallDbDataToBigDB(chain.latestBlock)
+			err = chain.repairStateDatabase(chain.latestBlock)
 			if err != nil {
 				return nil, err
 			}

@@ -39,6 +39,9 @@ func (store *smallStateStore) iterateData(iterFunc func(key, value []byte) (bool
 
 // DeleteHeights delete from small db if reset top
 func (store *smallStateStore) DeleteHeights(heights []uint64) error {
+	if len(heights) == 0 {
+		return nil
+	}
 	batch := store.db.NewBatch()
 	for _, height := range heights {
 		err := batch.Delete(store.generateDataKey(common.Uint64ToByte(height)))

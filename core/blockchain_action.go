@@ -326,11 +326,10 @@ func (chain *FullBlockChain) PersistentState() {
 
 }
 
-// mergeSmallDbDataToBigDB is for cold start
-// Begin is last persistent height,end is top height,between two heights block state data from small db to big db
-func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*types.BlockHeader, error) {
+// repairStateDatabase try to repairs database since last shutdown
+func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 	if top == nil {
-		return nil, nil
+		return nil
 	}
 	var (
 		lastHeight uint64
@@ -340,30 +339,37 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 
 	start := time.Now()
 	defer func() {
-		Logger.Debugf("merge small state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
+		Logger.Debugf("repair state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
 	}()
-	Logger.Debugf("begin merge small state data,from %v-%v \n", lastHeight, top.Height)
+	Logger.Debugf("begin repair state data,from %v-%v \n", lastHeight, top.Height)
 
 	// Commit to big db
 	lastHeight, err = chain.smallStateDb.CommitToBigDB(chain, top.Height)
 	if err != nil {
 		Logger.Errorf("commit to big db error %v", err)
-		return nil, err
+		return err
+	}
+	// no data to commit
+	if lastHeight == 0 {
+		return nil
 	}
 
 	// delete previous data of last merged height
 	err = chain.DeleteSmallDbByHeight(lastHeight)
 	if err != nil {
-		return nil, fmt.Errorf("write persistentHeight to small db error,err is %v", err)
+		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
 	}
 
 	// may occur if power off,small db height less than big db height
 	// reset top is needed
 	if lastHeight < top.Height {
 		newTop = chain.queryBlockHeaderByHeight(lastHeight)
-		return newTop, nil
+		Logger.Infof("data loss due to last power off and reset top to height %v to fix db", newTop.Height)
+		// resetTop needs latestBlock
+		chain.latestBlock = top
+		return chain.resetTop(newTop)
 	}
-	return nil, nil
+	return nil
 }
 
 func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) (ret types.AddBlockResult, err error) {
