@@ -331,6 +331,7 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 	if top == nil {
 		return nil
 	}
+	chain.latestBlock = top
 	var (
 		lastHeight uint64
 		newTop     = top
@@ -366,7 +367,6 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 		newTop = chain.queryBlockHeaderByHeight(lastHeight)
 		Logger.Infof("data loss due to last power off and reset top to height %v to fix db", newTop.Height)
 		// resetTop needs latestBlock
-		chain.latestBlock = top
 		return chain.resetTop(newTop)
 	}
 	return nil
