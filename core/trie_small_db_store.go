@@ -81,6 +81,40 @@ func (store *smallStateStore) DeletePreviousOf(height uint64) (uint64, error) {
 	return beginHeight, nil
 }
 
+func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uint64) (uint64, error) {
+	var (
+		triedb     = chain.stateCache.TrieDB()
+		repeatKey  = make(map[common.Hash]struct{})
+		lastCommit uint64
+	)
+	// merge data to big db
+	err := store.iterateData(func(key, value []byte) (b bool, e error) {
+		height := store.parseHeightOfPrefixIterKey(key)
+		// if power off,big db height > small db height,we not need merge state from small to big
+		if height > topHeight {
+			return false, nil
+		}
+		// miss corresponding block, reset top is needed
+		if !chain.hasHeight(height) {
+			return false, nil
+		}
+		lastCommit = height
+		err, caches := triedb.DecodeStoreBlob(value)
+		if err != nil {
+			return false, err
+		}
+		err = triedb.CommitStateDataToBigDb(caches, repeatKey)
+		if err != nil {
+			return false, fmt.Errorf("commit from small db to big db error,err is %v", err)
+		}
+		return true, nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return lastCommit, nil
+}
+
 // store current root data and height  to small db
 func (store *smallStateStore) StoreDataToSmallDb(height uint64, nb []byte) error {
 	err := store.db.Put(store.generateDataKey(common.Uint64ToByte(height)), nb)

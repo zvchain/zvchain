@@ -333,10 +333,9 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 		return nil, nil
 	}
 	var (
-		triedb     = chain.stateCache.TrieDB()
-		repeatKey  = make(map[common.Hash]struct{})
 		lastHeight uint64
 		newTop     = top
+		err        error
 	)
 
 	start := time.Now()
@@ -345,32 +344,13 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 	}()
 	Logger.Debugf("begin merge small state data,from %v-%v \n", lastHeight, top.Height)
 
-	// merge data to big db
-	err := chain.smallStateDb.iterateData(func(key, value []byte) (b bool, e error) {
-		height := chain.smallStateDb.parseHeightOfPrefixIterKey(key)
-		// if power off,big db height > small db height,we not need merge state from small to big
-		if height > top.Height {
-			return false, nil
-		}
-		// miss corresponding block, reset top is needed
-		if !chain.hasHeight(height) {
-			return false, nil
-		}
-		lastHeight = height
-		err, caches := triedb.DecodeStoreBlob(value)
-		if err != nil {
-			return false, err
-		}
-		err = triedb.CommitStateDataToBigDb(caches, repeatKey)
-		if err != nil {
-			return false, fmt.Errorf("commit from small db to big db error,err is %v", err)
-		}
-		return true, nil
-	})
+	// Commit to big db
+	lastHeight, err = chain.smallStateDb.CommitToBigDB(chain, top.Height)
 	if err != nil {
-		Logger.Errorf("merge small db error %v", err)
+		Logger.Errorf("commit to big db error %v", err)
 		return nil, err
 	}
+
 	// delete previous data of last merged height
 	err = chain.DeleteSmallDbByHeight(lastHeight)
 	if err != nil {
