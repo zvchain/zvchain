@@ -347,7 +347,7 @@ func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) (*t
 
 	// merge data to big db
 	err := chain.smallStateDb.iterateData(func(key, value []byte) (b bool, e error) {
-		height := chain.smallStateDb.parseHeight(key)
+		height := chain.smallStateDb.parseHeightOfPrefixIterKey(key)
 		// if power off,big db height > small db height,we not need merge state from small to big
 		if height > top.Height {
 			return false, nil

@@ -52,7 +52,7 @@ func (store *smallStateStore) DeletePreviousOf(height uint64) (uint64, error) {
 	batch := store.db.NewBatch()
 	beginHeight := uint64(0)
 	err := store.iterateData(func(key, value []byte) (bool, error) {
-		delHeight := store.parseHeight(key)
+		delHeight := store.parseHeightOfPrefixIterKey(key)
 		if delHeight > height {
 			return false, nil
 		}
@@ -88,7 +88,8 @@ func (store *smallStateStore) StoreDataToSmallDb(height uint64, nb []byte) error
 	return nil
 }
 
-func (store *smallStateStore) parseHeight(key []byte) uint64 {
+// parseHeightOfPrefixIterKey parses height in the given iter key which doesn't contains prefix
+func (store *smallStateStore) parseHeightOfPrefixIterKey(key []byte) uint64 {
 	return common.ByteToUInt64(key)
 }
 
