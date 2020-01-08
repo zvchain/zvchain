@@ -263,49 +263,20 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
-// DeleteSmallDbDataByRoots will delete root list if we reset tops
-func (chain *FullBlockChain) DeleteSmallDbDataByRoots(roots []common.Hash) {
-	begin := time.Now()
-	defer func() {
-		log.CropLogger.Debugf("resetTop delete small db size is %v,cost %v", len(roots), time.Since(begin))
-	}()
-	for _, root := range roots {
-		err := chain.smallStateDb.DeleteSmallDbDataByRootWithoutStoreHeight(root)
-		if err != nil {
-			log.CoreLogger.Errorf("DeleteSmallDbDataByRoots error,err is %v", err)
-			break
-		}
-	}
-}
-
 // from last delete small db height to current height's data can be deleted
-// this method will record current delete height to small db
-func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
+func (chain *FullBlockChain) DeleteSmallDbByHeight(heightLimit uint64) error {
 	chain.smallStateDb.mu.Lock()
 	defer chain.smallStateDb.mu.Unlock()
-	// from small db get last delete height
-	lastDeleteHeight := chain.smallStateDb.GetLastDeleteHeight()
-	beginHeight := lastDeleteHeight
-	endHeight := persistenceHeight
-	if endHeight <= beginHeight {
-		return
+	Logger.Debugf("begin delete small db,height limit is %v", heightLimit)
+	now := time.Now()
+
+	if beginHeight, err := chain.smallStateDb.DeletePreviousOf(heightLimit); err != nil {
+		Logger.Errorf("delete previous of %v error %v", heightLimit, err)
+		return err
+	} else {
+		Logger.Debugf("delete small db success,height is %v-%v,cost=%v", beginHeight, heightLimit, time.Since(now))
 	}
-	begin := time.Now()
-	defer func() {
-		log.CropLogger.Debugf("delete small db success,height is %v-%v,cost=%v", beginHeight, endHeight, time.Since(begin))
-	}()
-	log.CropLogger.Debugf("begin delete small db,height is %v-%v", beginHeight, endHeight)
-	for i := beginHeight; i < endHeight; i++ {
-		bh := chain.queryBlockHeaderByHeight(i)
-		if bh == nil {
-			continue
-		}
-		err := chain.smallStateDb.DeleteSmallDbDataByRoot(bh.StateTree, bh.Height)
-		if err != nil {
-			log.CoreLogger.Error(err)
-			break
-		}
-	}
+	return nil
 }
 
 // PersistentState when shut down it will be run
@@ -321,18 +292,14 @@ func (chain *FullBlockChain) PersistentState() {
 		return
 	}
 	begin := time.Now()
-	cp := chain.latestCP.Load()
-	if chain.triegc.Empty() || cp == nil {
-		return
-	}
 	fmt.Printf("stop process begin...")
 	triedb := chain.stateCache.TrieDB()
 	var commitHeight uint64 = common.MaxUint64
 	defer func() {
 		if commitHeight == common.MaxUint64 {
-			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
+			Logger.Infof("stop success,no commit,cost %v", time.Since(begin))
 		} else {
-			fmt.Printf("stop success,commit height is %v,cp height is %v,local height is %v,cost %v", commitHeight, cp.(*types.BlockHeader).Height, chain.Height(), time.Since(begin))
+			Logger.Infof("stop success,commit height is %v,local height is %v,cost %v", commitHeight, chain.Height(), time.Since(begin))
 		}
 
 	}()
@@ -347,72 +314,60 @@ func (chain *FullBlockChain) PersistentState() {
 	// only persistent last prune height's next height
 	err := triedb.Commit(bh.Height, bh.StateTree, false)
 	if err != nil {
-		fmt.Printf("trie commit error:%s", err.Error())
+		Logger.Errorf("trie commit error:%s", err.Error())
+		return
+	}
+	err = chain.DeleteSmallDbByHeight(bh.Height)
+	if err != nil {
+		Logger.Errorf("trie commit delete small db error:%s", err.Error())
 		return
 	}
 	commitHeight = bh.Height
-	// record last persistent height to small db for cold start
-	err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
-	if err != nil {
-		fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
-	}
 
 }
 
-// mergeSmallDbDataToBigDB is for cold start
-// Begin is last persistent height,end is top height,between two heights block state data from small db to big db
-func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) error {
-	// get the last persistent height from small db
-	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
-	if top == nil && lastStateHeight == 0{
-		return nil
-	// if big db is deleted,but small db not be deleted,we not support this stage!
-	}else if top == nil && lastStateHeight > 0{
-		info := "db is damaged,suggest delete d_mall and try again"
-		fmt.Println(info)
-		return fmt.Errorf(info)
-	}
-	// check small db has state data,if nil,then return
-	hasStateData := chain.smallStateDb.HasStateData()
-	if !hasStateData {
+// repairStateDatabase try to repairs database since last shutdown
+func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
+	if top == nil {
 		return nil
 	}
-	if lastStateHeight > top.Height{
-		info := "db is damaged,suggest delete d_mall and try again"
-		fmt.Println(info)
-		return fmt.Errorf(info)
-	}
+	chain.latestBlock = top
+	var (
+		lastHeight uint64
+		newTop     = top
+		err        error
+	)
+
 	start := time.Now()
 	defer func() {
-		log.CropLogger.Debugf("merge small state data success,from %v-%v,cost %v \n",lastStateHeight,top.Height, time.Since(start))
+		Logger.Debugf("repair state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
 	}()
-	log.CropLogger.Debugf("begin merge small state data,from %v-%v \n",lastStateHeight,top.Height)
-	triedb := chain.stateCache.TrieDB()
-	repeatKey := make(map[common.Hash]struct{})
-	for i := lastStateHeight; i <= top.Height; i++ {
-		bh := chain.queryBlockHeaderByHeight(i)
-		if bh == nil {
-			continue
-		}
-		// get data by root from small db
-		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
-		if len(data) == 0 {
-			continue
-		}
-		err, caches := triedb.DecodeStoreBlob(data)
-		if err != nil {
-			return err
-		}
-		// commit data to big db
-		err = triedb.CommitStateDataToBigDb(caches, repeatKey)
-		if err != nil {
-			return fmt.Errorf("commit from small db to big db error,err is %v", err)
-		}
+	Logger.Debugf("begin repair state data,from %v-%v \n", lastHeight, top.Height)
+
+	// Commit to big db
+	lastHeight, err = chain.smallStateDb.CommitToBigDB(chain, top.Height)
+	if err != nil {
+		Logger.Errorf("commit to big db error %v", err)
+		return err
 	}
-	// when commit from small db to big db,we store the last persistent to small db
-	err := chain.smallStateDb.StoreStatePersistentHeight(top.Height)
+	// no data to commit
+	if lastHeight == 0 {
+		return nil
+	}
+
+	// delete previous data of last merged height
+	err = chain.DeleteSmallDbByHeight(lastHeight)
 	if err != nil {
 		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
+	}
+
+	// may occur if power off,small db height less than big db height
+	// reset top is needed
+	if lastHeight < top.Height {
+		newTop = chain.queryBlockHeaderByHeight(lastHeight)
+		Logger.Infof("data loss due to last power off and reset top to height %v to fix db", newTop.Height)
+		// resetTop needs latestBlock
+		return chain.resetTop(newTop)
 	}
 	return nil
 }
