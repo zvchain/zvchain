@@ -23,6 +23,8 @@ func initSmallStore(db tasdb.Database) *smallStateStore {
 	}
 }
 
+// iterateData iterates data with given func, and the key parameter doesn't contains common prefix(dt)
+// it's removed by the prefixIter instance
 func (store *smallStateStore) iterateData(iterFunc func(key, value []byte) (bool, error)) error {
 	iter := store.db.NewIteratorWithPrefix(smallDbRootData)
 	defer iter.Release()
@@ -39,7 +41,7 @@ func (store *smallStateStore) iterateData(iterFunc func(key, value []byte) (bool
 func (store *smallStateStore) DeleteHeights(heights []uint64) error {
 	batch := store.db.NewBatch()
 	for _, height := range heights {
-		err := batch.Delete(store.generateDataKey(height))
+		err := batch.Delete(store.generateDataKey(common.Uint64ToByte(height)))
 		if err != nil {
 			return err
 		}
@@ -47,7 +49,7 @@ func (store *smallStateStore) DeleteHeights(heights []uint64) error {
 	return batch.Write()
 }
 
-// DeleteBefore iterates and deletes data from beginning to the given height
+// DeletePreviousOf iterates and deletes data from beginning to the given height
 func (store *smallStateStore) DeletePreviousOf(height uint64) (uint64, error) {
 	batch := store.db.NewBatch()
 	beginHeight := uint64(0)
@@ -59,7 +61,7 @@ func (store *smallStateStore) DeletePreviousOf(height uint64) (uint64, error) {
 		if beginHeight == 0 {
 			beginHeight = delHeight
 		}
-		if err := batch.Delete(key); err != nil {
+		if err := batch.Delete(store.generateDataKey(key)); err != nil {
 			return false, fmt.Errorf("delete error at %v, err %v", delHeight, err)
 		}
 		if batch.ValueSize() >= tasdb.IdealBatchSize {
@@ -81,7 +83,7 @@ func (store *smallStateStore) DeletePreviousOf(height uint64) (uint64, error) {
 
 // store current root data and height  to small db
 func (store *smallStateStore) StoreDataToSmallDb(height uint64, nb []byte) error {
-	err := store.db.Put(store.generateDataKey(height), nb)
+	err := store.db.Put(store.generateDataKey(common.Uint64ToByte(height)), nb)
 	if err != nil {
 		return fmt.Errorf("store state data to small db error %v", err)
 	}
@@ -94,9 +96,9 @@ func (store *smallStateStore) parseHeightOfPrefixIterKey(key []byte) uint64 {
 }
 
 // generateDataKey generate a prefixed key
-func (store *smallStateStore) generateDataKey(height uint64) []byte {
+func (store *smallStateStore) generateDataKey(heightBytes []byte) []byte {
 	bytesBuffer := bytes.NewBuffer(smallDbRootData)
-	bytesBuffer.Write(common.Uint64ToByte(height))
+	bytesBuffer.Write(heightBytes)
 	return bytesBuffer.Bytes()
 }
 
