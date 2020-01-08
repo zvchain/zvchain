@@ -308,6 +308,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	if err != nil {
 		return err
 	}
+	latestBH = chain.latestBlock
 	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")

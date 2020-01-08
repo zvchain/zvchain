@@ -297,9 +297,9 @@ func (chain *FullBlockChain) PersistentState() {
 	var commitHeight uint64 = common.MaxUint64
 	defer func() {
 		if commitHeight == common.MaxUint64 {
-			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
+			Logger.Infof("stop success,no commit,cost %v", time.Since(begin))
 		} else {
-			fmt.Printf("stop success,commit height is %v,local height is %v,cost %v", commitHeight, chain.Height(), time.Since(begin))
+			Logger.Infof("stop success,commit height is %v,local height is %v,cost %v", commitHeight, chain.Height(), time.Since(begin))
 		}
 
 	}()
