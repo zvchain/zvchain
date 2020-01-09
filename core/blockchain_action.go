@@ -368,17 +368,9 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 		return err
 	}
 
+	// no data to commit
 	if lastHeight == 0 {
-		// get latest state not nil block height if small db data is lost
-		lastHeight = chain.getLatestStateHeight(top.Height)
-
-		// no data to commit
-		if lastHeight == top.Height{
-			return nil
-		}
-	}else{
-		// get latest state not nil block height if small db data is lost
-		lastHeight = chain.getLatestStateHeight(lastHeight)
+		return nil
 	}
 	// may occur if power off,small db height less than big db height
 	// reset top is needed
