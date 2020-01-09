@@ -65,7 +65,7 @@ type RpcGzvImpl struct {
 }
 
 func (api *RpcGzvImpl) Namespace() string {
-	return "Gzv"
+	return "Chiron"
 }
 
 func (api *RpcGzvImpl) Version() string {
