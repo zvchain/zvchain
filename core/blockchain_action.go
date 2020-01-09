@@ -328,15 +328,15 @@ func (chain *FullBlockChain) PersistentState() {
 
 // getLatestStateHeight return the latest not lost state block
 func (chain *FullBlockChain) getLatestStateHeight(bh *types.BlockHeader) *types.BlockHeader {
-	for bh.Height > 0 {
+	for bh != nil {
 		_, err := account.NewAccountDB(common.BytesToHash(bh.StateTree.Bytes()), chain.stateCache)
 		if err != nil {
 			bh = chain.queryBlockHeaderByHash(bh.PreHash)
-			continue
+		} else {
+			return bh
 		}
-		return bh
 	}
-	return chain.queryBlockHeaderByHeight(0)
+	return nil
 }
 
 // repairStateDatabase try to repairs database since last shutdown
@@ -356,7 +356,7 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 		Logger.Debugf("repair state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
 		begin := chain.latestBlock
 		end := chain.getLatestStateHeight(chain.latestBlock)
-		if end.Height < begin.Height {
+		if end != nil && end.Height < begin.Height {
 			Logger.Infof("double check state process,begin height is %v,end height is %v", end.Height, begin.Height)
 			err = chain.resetTop(end)
 			if err != nil {
