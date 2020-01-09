@@ -326,6 +326,23 @@ func (chain *FullBlockChain) PersistentState() {
 
 }
 
+func (chain *FullBlockChain) getLatestStateHeight(height uint64) uint64{
+	for height > 0 {
+		bh := chain.queryBlockHeaderByHeight(height)
+		if bh == nil {
+			height--
+			continue
+		}
+		_, err := account.NewAccountDB(common.BytesToHash(bh.StateTree.Bytes()), chain.stateCache)
+		if err != nil{
+			height--
+			continue
+		}
+		return bh.Height
+	}
+	return 0
+}
+
 // repairStateDatabase try to repairs database since last shutdown
 func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 	if top == nil {
@@ -350,24 +367,34 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 		Logger.Errorf("commit to big db error %v", err)
 		return err
 	}
-	// no data to commit
+
 	if lastHeight == 0 {
-		return nil
-	}
+		// get latest state not nil block height if small db data is lost
+		lastHeight = chain.getLatestStateHeight(top.Height)
 
-	// delete previous data of last merged height
-	err = chain.DeleteSmallDbByHeight(lastHeight)
-	if err != nil {
-		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
+		// no data to commit
+		if lastHeight == top.Height{
+			return nil
+		}
+	}else{
+		// get latest state not nil block height if small db data is lost
+		lastHeight = chain.getLatestStateHeight(lastHeight)
 	}
-
 	// may occur if power off,small db height less than big db height
 	// reset top is needed
 	if lastHeight < top.Height {
 		newTop = chain.queryBlockHeaderByHeight(lastHeight)
 		Logger.Infof("data loss due to last power off and reset top to height %v to fix db", newTop.Height)
 		// resetTop needs latestBlock
-		return chain.resetTop(newTop)
+		err = chain.resetTop(newTop)
+		if err != nil {
+			return err
+		}
+	}
+	// delete previous data of last merged height
+	err = chain.DeleteSmallDbByHeight(lastHeight)
+	if err != nil {
+		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
 	}
 	return nil
 }
