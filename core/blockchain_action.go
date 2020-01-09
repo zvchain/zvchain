@@ -326,21 +326,17 @@ func (chain *FullBlockChain) PersistentState() {
 
 }
 
-func (chain *FullBlockChain) getLatestStateHeight(height uint64) uint64{
-	for height > 0 {
-		bh := chain.queryBlockHeaderByHeight(height)
-		if bh == nil {
-			height--
-			continue
-		}
+// getLatestStateHeight return the latest not lost state block
+func (chain *FullBlockChain) getLatestStateHeight(bh *types.BlockHeader) *types.BlockHeader {
+	for bh.Height > 0 {
 		_, err := account.NewAccountDB(common.BytesToHash(bh.StateTree.Bytes()), chain.stateCache)
-		if err != nil{
-			height--
+		if err != nil {
+			bh = chain.queryBlockHeaderByHash(bh.PreHash)
 			continue
 		}
-		return bh.Height
+		return bh
 	}
-	return 0
+	return chain.queryBlockHeaderByHeight(0)
 }
 
 // repairStateDatabase try to repairs database since last shutdown
@@ -358,8 +354,17 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 	start := time.Now()
 	defer func() {
 		Logger.Debugf("repair state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
+		begin := chain.latestBlock
+		end := chain.getLatestStateHeight(chain.latestBlock)
+		if end.Height < begin.Height {
+			Logger.Infof("double check state process,begin height is %v,end height is %v", end.Height, begin.Height)
+			err = chain.resetTop(end)
+			if err != nil {
+				Logger.Errorf("double check state process,begin height is %v,end height is %v,err is %v", err)
+			}
+		}
 	}()
-	Logger.Debugf("begin repair state data,from %v-%v \n", lastHeight, top.Height)
+	Logger.Debugf("begin repair state data height is %v \n", top.Height)
 
 	// Commit to big db
 	lastHeight, err = chain.smallStateDb.CommitToBigDB(chain, top.Height)
