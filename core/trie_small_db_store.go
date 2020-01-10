@@ -119,7 +119,7 @@ func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uin
 	if err != nil {
 		return 0, err
 	}
-	Logger.Debugf("repair state data success,from %v-%v,\n", beginHeight, lastCommit)
+	Logger.Debugf("repair state data success,from %v-%v", beginHeight, lastCommit)
 	return lastCommit, nil
 }
 
