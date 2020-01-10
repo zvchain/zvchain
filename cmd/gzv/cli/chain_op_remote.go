@@ -70,7 +70,7 @@ func (ca *RemoteChainOpImpl) request(method string, params ...interface{}) *RPCR
 	}
 
 	param := RPCReqObj{
-		Method:  "Gzv_" + method,
+		Method:  "Chiron_" + method,
 		Params:  params[:],
 		ID:      1,
 		Jsonrpc: "2.0",
@@ -178,7 +178,7 @@ func (ca *RemoteChainOpImpl) Balance(addr string) *RPCResObjCmd {
 	return ca.request("balance", addr)
 }
 
-func (ca *RemoteChainOpImpl)QueryFundGuardMode(addr string) *RPCResObjCmd{
+func (ca *RemoteChainOpImpl) QueryFundGuardMode(addr string) *RPCResObjCmd {
 	return ca.request("guardmode", addr)
 }
 
