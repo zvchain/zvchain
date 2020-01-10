@@ -89,6 +89,7 @@ func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uin
 		triedb     = chain.stateCache.TrieDB()
 		repeatKey  = make(map[common.Hash]struct{})
 		lastCommit uint64
+		beginHeight uint64
 	)
 	// merge data to big db
 	err := store.iterateData(func(key, value []byte) (b bool, e error) {
@@ -101,7 +102,6 @@ func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uin
 		if !chain.hasHeight(height) {
 			return false, nil
 		}
-		lastCommit = height
 		err, caches := triedb.DecodeStoreBlob(value)
 		if err != nil {
 			return false, err
@@ -110,11 +110,16 @@ func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uin
 		if err != nil {
 			return false, fmt.Errorf("commit from small db to big db error,err is %v", err)
 		}
+		lastCommit = height
+		if beginHeight == 0{
+			beginHeight = height
+		}
 		return true, nil
 	})
 	if err != nil {
 		return 0, err
 	}
+	Logger.Debugf("repair state data success,from %v-%v,\n", beginHeight, lastCommit)
 	return lastCommit, nil
 }
 

@@ -340,10 +340,8 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 
 	start := time.Now()
 	defer func() {
-		Logger.Debugf("repair state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
+		Logger.Debugf("repair state data cost %v \n", time.Since(start))
 	}()
-	Logger.Debugf("begin repair state data height is %v \n", top.Height)
-
 	// Commit to big db
 	lastHeight, err = chain.smallStateDb.CommitToBigDB(chain, top.Height)
 	if err != nil {
