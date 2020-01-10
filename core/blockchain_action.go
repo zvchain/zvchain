@@ -354,6 +354,9 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 	start := time.Now()
 	defer func() {
 		Logger.Debugf("repair state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
+		if err != nil{
+			return
+		}
 		begin := chain.latestBlock
 		end := chain.getLatestStateHeight(chain.latestBlock)
 		if end != nil && end.Height < begin.Height {
