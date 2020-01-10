@@ -340,34 +340,34 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 
 	start := time.Now()
 	defer func() {
-		Logger.Debugf("repair state data success,from %v-%v,cost %v \n", lastHeight, top.Height, time.Since(start))
+		Logger.Debugf("repair state data cost %v \n", time.Since(start))
 	}()
-	Logger.Debugf("begin repair state data,from %v-%v \n", lastHeight, top.Height)
-
 	// Commit to big db
 	lastHeight, err = chain.smallStateDb.CommitToBigDB(chain, top.Height)
 	if err != nil {
 		Logger.Errorf("commit to big db error %v", err)
 		return err
 	}
+
 	// no data to commit
 	if lastHeight == 0 {
 		return nil
 	}
-
-	// delete previous data of last merged height
-	err = chain.DeleteSmallDbByHeight(lastHeight)
-	if err != nil {
-		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
-	}
-
 	// may occur if power off,small db height less than big db height
 	// reset top is needed
 	if lastHeight < top.Height {
 		newTop = chain.queryBlockHeaderByHeight(lastHeight)
 		Logger.Infof("data loss due to last power off and reset top to height %v to fix db", newTop.Height)
 		// resetTop needs latestBlock
-		return chain.resetTop(newTop)
+		err = chain.resetTop(newTop)
+		if err != nil {
+			return err
+		}
+	}
+	// delete previous data of last merged height
+	err = chain.DeleteSmallDbByHeight(lastHeight)
+	if err != nil {
+		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
 	}
 	return nil
 }
