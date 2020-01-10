@@ -360,7 +360,7 @@ func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 			Logger.Infof("double check state process,begin height is %v,end height is %v", end.Height, begin.Height)
 			err = chain.resetTop(end)
 			if err != nil {
-				Logger.Errorf("double check state process,begin height is %v,end height is %v,err is %v", err)
+				Logger.Errorf("double check state process,begin height is %v,end height is %v,err is %v",end.Height, begin.Height, err)
 			}
 		}
 	}()
