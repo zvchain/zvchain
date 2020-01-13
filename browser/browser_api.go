@@ -293,6 +293,12 @@ func (tm *DBMmanagement) excuteAccounts() {
 			//stakelist := make(map[string]map[string]int64)
 			set := &util.Set{}
 			for _, tx := range block.Transactions {
+
+				if tx.Type != types.TransactionTypeTransfer &&
+					tx.Type != types.TransactionTypeContractCreate &&
+					tx.Type != types.TransactionTypeContractCall {
+					continue
+				}
 				if tx.Type == types.TransactionTypeVoteMinerPool {
 					if tx.Target != nil {
 						if _, exists := PoolList[tx.Target.AddrPrefixString()]; exists {
