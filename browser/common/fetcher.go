@@ -72,7 +72,7 @@ func (api *Fetcher) ExplorerBlockDetail(height uint64) (*models.BlockDetail, err
 	block.TransCount = uint64(len(trans))
 	evictedReceipts := make([]*models.Receipt, 0)
 
-	receipts := make([]*models.Receipt, 0)
+	receipts := make([]*models.Receipt, len(trans))
 	for i, tx := range trans {
 		wrapper := chain.GetTransactionPool().GetReceipt(tx.Hash)
 		if wrapper != nil {
