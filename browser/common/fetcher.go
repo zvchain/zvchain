@@ -62,17 +62,17 @@ func (api *Fetcher) ExplorerBlockDetail(height uint64) (*models.BlockDetail, err
 	trans := make([]*models.TempTransaction, 0)
 
 	for _, tx := range b.Transactions {
-		/*if tx.Type != types.TransactionTypeTransfer &&
+		if tx.Type != types.TransactionTypeTransfer &&
 			tx.Type != types.TransactionTypeContractCreate &&
 			tx.Type != types.TransactionTypeContractCall {
 			continue
-		}*/
+		}
 		trans = append(trans, convertTransaction(types.NewTransaction(tx, tx.GenHash())))
 	}
 
 	evictedReceipts := make([]*models.Receipt, 0)
 
-	receipts := make([]*models.Receipt, len(b.Transactions))
+	receipts := make([]*models.Receipt, 0)
 	for i, tx := range trans {
 		wrapper := chain.GetTransactionPool().GetReceipt(tx.Hash)
 		if wrapper != nil {
