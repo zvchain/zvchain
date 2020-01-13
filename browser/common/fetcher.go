@@ -69,7 +69,7 @@ func (api *Fetcher) ExplorerBlockDetail(height uint64) (*models.BlockDetail, err
 		}
 		trans = append(trans, convertTransaction(types.NewTransaction(tx, tx.GenHash())))
 	}
-
+	block.TransCount = uint64(len(trans))
 	evictedReceipts := make([]*models.Receipt, 0)
 
 	receipts := make([]*models.Receipt, 0)
