@@ -62,11 +62,11 @@ func (api *Fetcher) ExplorerBlockDetail(height uint64) (*models.BlockDetail, err
 	trans := make([]*models.TempTransaction, 0)
 
 	for _, tx := range b.Transactions {
-		if tx.Type != types.TransactionTypeTransfer &&
+		/*if tx.Type != types.TransactionTypeTransfer &&
 			tx.Type != types.TransactionTypeContractCreate &&
 			tx.Type != types.TransactionTypeContractCall {
 			continue
-		}
+		}*/
 		trans = append(trans, convertTransaction(types.NewTransaction(tx, tx.GenHash())))
 	}
 
