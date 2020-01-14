@@ -26,7 +26,7 @@ import (
 
 const (
 	groupThreshold  = 0.7
-	groupNumMin     = 4
+	groupNumMin     = 10
 	cpMaxScanEpochs = 10 // max scan epoch when finding the check point
 	cpBlockBuffer   = 20 // min blocks that a cp can occurs
 )
