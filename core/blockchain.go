@@ -163,15 +163,15 @@ func getPruneConfig(pruneMode bool) *PruneConfig {
 	}
 }
 
-func getDefaultBigDbWriteCache(pruneMode bool)int{
-	if pruneMode{
+func getDefaultBigDbWriteCache(pruneMode bool) int {
+	if pruneMode {
 		return 64
 	}
 	return 256
 }
 
-func getDefaultBigDbReadCache(pruneMode bool)int{
-	if pruneMode{
+func getDefaultBigDbReadCache(pruneMode bool) int {
+	if pruneMode {
 		return 64
 	}
 	return 256
@@ -290,7 +290,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
 
-	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, chain.config.pruneMode, stateCacheSize, conf.GetString("state_cache_dir", "state_cache"))
+	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, chain.config.pruneMode, stateCacheSize, conf.GetString("state_cache_dir", ""))
 
 	latestBH := chain.loadCurrentBlock()
 
@@ -304,10 +304,11 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
 	chain.stateProc = sp
 	// merge small db state data to big db
-	err = chain.mergeSmallDbDataToBigDB(latestBH)
+	err = chain.repairStateDatabase(latestBH)
 	if err != nil {
 		return err
 	}
+	latestBH = chain.latestBlock
 	if nil != latestBH {
 		if !chain.versionValidate() {
 			fmt.Println("Illegal data version! Please delete the directory d0 and restart the program!")
@@ -534,10 +535,6 @@ func (chain *FullBlockChain) ResetNear(bh *types.BlockHeader) (restartBh *types.
 	err = chain.resetTop(lastRestartHeader)
 	if err != nil {
 		return nil, fmt.Errorf("reset nil error,err is %v", err)
-	}
-	err = chain.smallStateDb.StoreStatePersistentHeight(lastRestartHeader.Height)
-	if err != nil {
-		return nil, fmt.Errorf("resetNear write persistentHeight to small db error,err is %v", err)
 	}
 	return lastRestartHeader, nil
 }
