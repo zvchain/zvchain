@@ -387,6 +387,8 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	if err = chain.batch.Write(); err != nil {
 		return err
 	}
+	// if add block with a,b,a,last a will not execute transactions,then the state data will be not generated and insert to small db,so this clear this cache
+	chain.verifiedBlocks = initVerifiedBlocksCache()
 	if chain.config.pruneMode {
 		err = chain.smallStateDb.DeleteHeights(removeSDBHeights)
 		// if this error ,not return,because it not the main flow

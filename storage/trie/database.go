@@ -62,7 +62,7 @@ type readMeter struct {
 
 // SmallDbWriter wraps the Get and Has method of a backing store for the current block state's modify datas.
 type SmallDbWriter interface {
-	StoreDataToSmallDb(height uint64,nb []byte) error
+	StoreDataToSmallDb(height uint64, nb []byte) error
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
@@ -353,7 +353,7 @@ func (db *NodeDatabase) InsertStateDataToSmallDb(height uint64, root common.Hash
 	if err != nil {
 		return err
 	}
-
+	log.CropLogger.Debugf("insert state db to small db,state hash is %v,height is %v,size is %v", root.Hex(), height, len(dts))
 	return nil
 }
 
@@ -394,7 +394,7 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	db.nodes[hash] = entry
 	if db.enablePrune {
 		tmp := make([]byte, len(blob))
-		copy(tmp,blob)
+		copy(tmp, blob)
 		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: tmp})
 	}
 	// Update the flush-list endpoints
