@@ -204,7 +204,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		triegc:           prque.NewPrque(),
 		ts:               time2.TSInstance,
 		futureRawBlocks:  common.MustNewLRUCache(100),
-		verifiedBlocks:   initVerifiedBlocksCache(),
+		verifiedBlocks:   common.MustNewLRUCache(10),
 		topRawBlocks:     common.MustNewLRUCache(20),
 		newBlockMessages: common.MustNewLRUCache(100),
 		Account:          minerAccount,
@@ -361,10 +361,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 
 	chain.LogDbStats()
 	return nil
-}
-
-func initVerifiedBlocksCache() *lru.Cache {
-	return common.MustNewLRUCache(10)
 }
 
 func (chain *FullBlockChain) IsPruneMode() bool {
