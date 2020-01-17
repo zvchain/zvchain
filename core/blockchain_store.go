@@ -390,6 +390,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 	// if add block with a,b,a,last a will not execute transactions,then the state data will be not generated and insert to small db,so this remove reset blocks from cache
 	for _, b := range removeBlocks {
 		chain.verifiedBlocks.Remove(b.Hash)
+		GroupManagerImpl.OnBlockRemove(b)
 	}
 	if chain.config.pruneMode {
 		err = chain.smallStateDb.DeleteHeights(removeSDBHeights)
@@ -408,9 +409,6 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		"logType":       "resetTop",
 		"version":       common.GzvVersion,
 	}).Info("resetTop")
-	for _, b := range removeBlocks {
-		GroupManagerImpl.OnBlockRemove(b)
-	}
 	// invalidate latest cp cache
 	chain.latestCP = atomic.Value{}
 
