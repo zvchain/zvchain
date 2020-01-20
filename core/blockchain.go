@@ -99,7 +99,7 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
-	latestCP      *checkPoint // Latest checkpoint *types.BlockHeader
+	latestCP      *checkPointAccess // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
 
@@ -197,6 +197,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		latestBlock:      nil,
 		init:             true,
 		isAdjusting:      false,
+		latestCP:         initCheckPointAccess(),
 		consensusHelper:  helper,
 		ticker:           ticker.NewGlobalTicker("chain"),
 		triegc:           prque.NewPrque(),

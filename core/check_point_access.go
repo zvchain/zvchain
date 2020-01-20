@@ -6,11 +6,15 @@ import (
 	"unsafe"
 )
 
-type checkPoint struct {
+type checkPointAccess struct {
 	blockHeader *types.BlockHeader
 }
 
-func (c *checkPoint) Load() *types.BlockHeader {
+func initCheckPointAccess() *checkPointAccess {
+	return &checkPointAccess{}
+}
+
+func (c *checkPointAccess) Load() *types.BlockHeader {
 	p := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.blockHeader)))
 	if p != nil {
 		return (*types.BlockHeader)(p)
@@ -18,10 +22,10 @@ func (c *checkPoint) Load() *types.BlockHeader {
 	return nil
 }
 
-func (c *checkPoint) Store(bh *types.BlockHeader) {
+func (c *checkPointAccess) Store(bh *types.BlockHeader) {
 	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&c.blockHeader)), unsafe.Pointer(bh))
 }
 
-func (c *checkPoint) Reset() {
+func (c *checkPointAccess) Reset() {
 	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&c.blockHeader)), unsafe.Pointer(nil))
 }

@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-var cp *checkPoint
+var cp *checkPointAccess
 
 func init() {
-	cp = &checkPoint{}
+	cp = &checkPointAccess{}
 }
 
 func TestCheckPointAccess(t *testing.T) {
