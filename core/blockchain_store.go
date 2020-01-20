@@ -116,11 +116,10 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 		triedb.Cap(b.Header.Height, limit-clear)
 	}
 	// Keep the config of TriesInMemory's blocks forward of the check point,can not be pruned
-	cp := chain.latestCP
-	if cp == nil {
+	cpBh := chain.latestCP.Load()
+	if cpBh == nil {
 		return nil
 	}
-	cpBh := (*types.BlockHeader)(cp)
 	items := chain.getPruneHeights(cpBh.Height, TriesInMemory)
 	if len(items) == 0 {
 		return nil
@@ -409,7 +408,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		GroupManagerImpl.OnBlockRemove(b)
 	}
 	// invalidate latest cp cache
-	chain.latestCP = nil
+	chain.latestCP.Reset()
 
 	// Notify reset top message
 	notify.BUS.Publish(notify.NewTopBlock, &newTopMessage{bh: block})

@@ -17,14 +17,11 @@ package core
 
 import (
 	"fmt"
-	"math"
-	"math/big"
-	"sync/atomic"
-	"unsafe"
-
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
+	"math"
+	"math/big"
 )
 
 // Height of chain
@@ -303,12 +300,13 @@ func (chain *FullBlockChain) CheckPointAt(h uint64) *types.BlockHeader {
 }
 
 func (chain *FullBlockChain) LatestCheckPoint() *types.BlockHeader {
-	if chain.latestCP != nil && (*types.BlockHeader)(chain.latestCP).Height < chain.Height() {
-		return (*types.BlockHeader)(chain.latestCP)
+	cpBh := chain.latestCP.Load()
+	if cpBh != nil && cpBh.Height < chain.Height() {
+		return cpBh
 	}
-	cpBH := chain.CheckPointAt(chain.Height())
-	atomic.StorePointer(&chain.latestCP, unsafe.Pointer(cpBH))
-	return cpBH
+	bh := chain.CheckPointAt(chain.Height())
+	chain.latestCP.Store(bh)
+	return bh
 }
 
 // BatchGetBlocksBetween query blocks of the height range [start, end)

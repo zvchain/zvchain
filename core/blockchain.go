@@ -19,12 +19,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/common/prque"
+	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
 	"time"
-	"unsafe"
-
-	"github.com/zvchain/zvchain/storage/trie"
 
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -101,7 +99,7 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
-	latestCP      unsafe.Pointer // Latest checkpoint *types.BlockHeader
+	latestCP      *checkPoint // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
 

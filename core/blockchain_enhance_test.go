@@ -16,30 +16,8 @@
 package core
 
 import (
-	"fmt"
-	"github.com/zvchain/zvchain/middleware/types"
-	"sync/atomic"
 	"testing"
-	"unsafe"
 )
-
-func TestLoadStore(t *testing.T) {
-	bh := genBlockHeader()
-	bh.Height = 22
-
-	var v unsafe.Pointer
-
-	atomic.StorePointer(&v, unsafe.Pointer(bh))
-
-	v2 := atomic.LoadPointer(&v)
-	if v2 == nil {
-		fmt.Println("nil")
-		return
-	}
-
-	bh2 := (*types.BlockHeader)(v2)
-	fmt.Println(bh.Height, bh2.Height)
-}
 
 func TestFullBlockChain_IntegrityVerify(t *testing.T) {
 	//wch := make(chan string)
