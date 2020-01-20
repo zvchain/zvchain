@@ -22,6 +22,7 @@ import (
 	"math"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
@@ -627,7 +628,7 @@ func (chain *FullBlockChain) onBlockAddSuccess(message notify.Message) error {
 	latestCP := chain.CheckPointAt(b.Header.Height)
 	if latestCP != nil {
 		Logger.Debugf("latest cp at %v is %v-%v", b.Header.Height, latestCP.Height, latestCP.Hash)
-		chain.latestCP.Store(latestCP)
+		atomic.StorePointer(&chain.latestCP, unsafe.Pointer(latestCP))
 	}
 
 	if value, _ := chain.futureRawBlocks.Get(b.Header.Hash); value != nil {

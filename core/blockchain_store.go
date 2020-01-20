@@ -116,11 +116,12 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 		triedb.Cap(b.Header.Height, limit-clear)
 	}
 	// Keep the config of TriesInMemory's blocks forward of the check point,can not be pruned
-	cp := chain.latestCP.Load()
+	cp := chain.latestCP
 	if cp == nil {
 		return nil
 	}
-	items := chain.getPruneHeights(cp.(*types.BlockHeader).Height, TriesInMemory)
+	cpBh := (*types.BlockHeader)(cp)
+	items := chain.getPruneHeights(cpBh.Height, TriesInMemory)
 	if len(items) == 0 {
 		return nil
 	}
@@ -132,7 +133,7 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 	}
 	curPruneMaxHeight := uint64(items[0].Priority)
 	// record the highest pruned height,and total prune block's count
-	triedb.StorePruneData(curPruneMaxHeight, b.Header.Height, cp.(*types.BlockHeader).Height, uint64(len(items)))
+	triedb.StorePruneData(curPruneMaxHeight, b.Header.Height, cpBh.Height, uint64(len(items)))
 	persistentCount := chain.config.pruneConfig.persistenceCount
 	// if prune block's count over the config of persistent Count,it will persistent highest height + 1 block to big db
 	if !triedb.CanPersistent(persistentCount) {
@@ -154,7 +155,7 @@ func (chain *FullBlockChain) pruneBlocks(b *types.Block, root common.Hash) error
 	// from last delete small db height to current height's data can be deleted
 	// this method will record current delete height to small db
 	go chain.DeleteSmallDbByHeight(bh.Height)
-	Logger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cp.(*types.BlockHeader).Height)
+	Logger.Debugf("persistent height is %v,current height is %v,cp height is %v", bh.Height, b.Header.Height, cpBh.Height)
 
 	return nil
 }
@@ -408,7 +409,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		GroupManagerImpl.OnBlockRemove(b)
 	}
 	// invalidate latest cp cache
-	chain.latestCP = atomic.Value{}
+	chain.latestCP = nil
 
 	// Notify reset top message
 	notify.BUS.Publish(notify.NewTopBlock, &newTopMessage{bh: block})

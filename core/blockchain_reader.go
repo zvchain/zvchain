@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
@@ -301,12 +303,11 @@ func (chain *FullBlockChain) CheckPointAt(h uint64) *types.BlockHeader {
 }
 
 func (chain *FullBlockChain) LatestCheckPoint() *types.BlockHeader {
-	cp := chain.latestCP.Load()
-	if cp != nil && cp.(*types.BlockHeader).Height < chain.Height() {
-		return cp.(*types.BlockHeader)
+	if chain.latestCP != nil && (*types.BlockHeader)(chain.latestCP).Height < chain.Height() {
+		return (*types.BlockHeader)(chain.latestCP)
 	}
 	cpBH := chain.CheckPointAt(chain.Height())
-	chain.latestCP.Store(cpBH)
+	atomic.StorePointer(&chain.latestCP, unsafe.Pointer(cpBH))
 	return cpBH
 }
 

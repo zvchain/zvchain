@@ -21,8 +21,8 @@ import (
 	"github.com/zvchain/zvchain/common/prque"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/zvchain/zvchain/storage/trie"
 
@@ -101,7 +101,7 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
-	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
+	latestCP      unsafe.Pointer // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
 
