@@ -408,7 +408,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		GroupManagerImpl.OnBlockRemove(b)
 	}
 	// invalidate latest cp cache
-	chain.latestCP = atomic.Value{}
+	chain.latestCP = &atomic.Value{}
 
 	// Notify reset top message
 	notify.BUS.Publish(notify.NewTopBlock, &newTopMessage{bh: block})
