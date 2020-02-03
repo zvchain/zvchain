@@ -19,12 +19,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/common/prque"
+	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
-
-	"github.com/zvchain/zvchain/storage/trie"
 
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -101,7 +99,7 @@ type FullBlockChain struct {
 
 	latestBlock   *types.BlockHeader // Latest block on chain
 	latestStateDB *account.AccountDB
-	latestCP      atomic.Value // Latest checkpoint *types.BlockHeader
+	latestCP      *checkPointAccess // Latest checkpoint *types.BlockHeader
 
 	topRawBlocks *lru.Cache
 
@@ -199,6 +197,7 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		latestBlock:      nil,
 		init:             true,
 		isAdjusting:      false,
+		latestCP:         initCheckPointAccess(),
 		consensusHelper:  helper,
 		ticker:           ticker.NewGlobalTicker("chain"),
 		triegc:           prque.NewPrque(),
