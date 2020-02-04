@@ -48,7 +48,7 @@ type NetworkConfig struct {
 
 const (
 	configMaxBroadcastCount = "max_broadcast_count"
-	maxBroadcastCount       = 256
+	maxBroadcastCount       = 192
 	configSection           = "p2p"
 )
 
