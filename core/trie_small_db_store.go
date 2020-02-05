@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"sync"
 )
@@ -48,6 +49,7 @@ func (store *smallStateStore) DeleteHeights(heights []uint64) error {
 		if err != nil {
 			return err
 		}
+		log.CropLogger.Debugf("delete from small db,height is %v", height)
 	}
 	return batch.Write()
 }
@@ -86,9 +88,9 @@ func (store *smallStateStore) DeletePreviousOf(height uint64) (uint64, error) {
 
 func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uint64) (uint64, error) {
 	var (
-		triedb     = chain.stateCache.TrieDB()
-		repeatKey  = make(map[common.Hash]struct{})
-		lastCommit uint64
+		triedb      = chain.stateCache.TrieDB()
+		repeatKey   = make(map[common.Hash]struct{})
+		lastCommit  uint64
 		beginHeight uint64
 	)
 	// merge data to big db
@@ -111,7 +113,7 @@ func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uin
 			return false, fmt.Errorf("commit from small db to big db error,err is %v", err)
 		}
 		lastCommit = height
-		if beginHeight == 0{
+		if beginHeight == 0 {
 			beginHeight = height
 		}
 		return true, nil
