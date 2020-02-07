@@ -20,12 +20,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/zvchain/zvchain/consensus/base"
 	"github.com/zvchain/zvchain/middleware/ticker"
 	"github.com/zvchain/zvchain/params"
 	"github.com/zvchain/zvchain/storage/tasdb"
 	"io/ioutil"
 	"math"
 	"math/big"
+	"math/rand"
 	"os"
 	"runtime"
 	"strconv"
@@ -248,6 +250,81 @@ func TestBlockChain_AddBlock(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	BlockChainImpl.Close()
+}
+
+func TestPruneModeResetTop(t *testing.T) {
+	err := initContext4TestWithPruneMode(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	BlockChainImpl.config.pruneMode = true
+	defer clearSelf(t)
+	initBalance()
+	nonce := uint64(1)
+	tx1 := genTestTx(500, "100", nonce, (100)*common.ZVC)
+	txpool := BlockChainImpl.GetTransactionPool()
+	_, err = txpool.AddTransaction(tx1)
+
+	err, b1 := generateBlock(1, BlockChainImpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = addBlock(b1, BlockChainImpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	txs := []common.Hash{}
+	txs = append(txs, tx1.Hash)
+	txpool.RemoveFromPool(txs)
+
+	data, _ := BlockChainImpl.smallStateDb.db.Get(BlockChainImpl.smallStateDb.generateDataKey(common.Uint64ToByte(1)))
+	if len(data) == 0 {
+		t.Fatalf("expect data not nil,but got nil")
+	}
+
+	BlockChainImpl.resetTop(BlockChainImpl.queryBlockHeaderByHeight(0))
+
+	data, _ = BlockChainImpl.smallStateDb.db.Get(BlockChainImpl.smallStateDb.generateDataKey(common.Uint64ToByte(1)))
+	if len(data) != 0 {
+		t.Fatalf("expect data nil,but got not nil")
+	}
+
+	err = addBlock(b1, BlockChainImpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ = BlockChainImpl.smallStateDb.db.Get(BlockChainImpl.smallStateDb.generateDataKey(common.Uint64ToByte(1)))
+	if len(data) == 0 {
+		t.Fatalf("expect data not nil,but got nil")
+	}
+
+}
+
+func generateBlock(height uint64, chain *FullBlockChain) (error, *types.Block) {
+	castor := common.Address{}
+	groups := chain.cpChecker.groupReader.GetActivatedGroupsAt(height)
+	pv := make([]byte, base.VRFProveSize)
+	rand.Read(pv)
+	selectGroupIndex := rand.Int31n(int32(len(groups)))
+	b := BlockChainImpl.CastBlock(height, pv, uint64(rand.Int31n(6)), castor.Bytes(), groups[selectGroupIndex].Header().Seed())
+	if b == nil {
+		return fmt.Errorf("addBlock failed %v", height), nil
+	}
+	return nil, b
+}
+
+func addBlock(block *types.Block, chain *FullBlockChain) error {
+	ret := chain.AddBlockOnChain("", block)
+	if ret != types.AddBlockSucc {
+		Logger.Panicf("add block fail: %v %v", block.Header.Height, ret)
+	}
+	return nil
 }
 
 func TestBalanceLackFork(t *testing.T) {
@@ -547,6 +624,27 @@ func clearTicker() {
 		TxSyncer.ticker.RemoveRoutine(txNotifyRoutine)
 		TxSyncer.ticker.RemoveRoutine(txReqRoutine)
 	}
+}
+
+func initContext4TestWithPruneMode(t *testing.T) error {
+	common.InitConf("../tas_config_all.ini")
+	common.GlobalConf.SetBool(configSec, "prune_mode", true)
+	common.GlobalConf.SetString(configSec, "db_blocks", testOutPut+"/"+t.Name())
+	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
+	common.GlobalConf.SetInt(configSec, "meter_db_interval", 0)
+	network.Logger = log.P2PLogger
+	err := middleware.InitMiddleware()
+	if err != nil {
+		return err
+	}
+	BlockChainImpl = nil
+
+	err = InitCore(NewConsensusHelper4Test(groupsig.ID{}), getAccount())
+	clearTicker()
+	sp := newStateProcessor(BlockChainImpl)
+	BlockChainImpl.stateProc = sp
+	GroupManagerImpl.RegisterGroupCreateChecker(&GroupCreateChecker4Test{})
+	return err
 }
 
 func initContext4Test(t *testing.T) error {
