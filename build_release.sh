@@ -40,7 +40,7 @@ if [[ $1x = "gzv"x ]]; then
     echo building gzv ...
     buildtvm
     buildp2p
-
+    go clean -cache $basepath/cmd/gzv &&
     go build -tags release -o ${output_dir}/gzv $basepath/cmd/gzv &&
     echo build gzv successfully...
 

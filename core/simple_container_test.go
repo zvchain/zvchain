@@ -109,7 +109,7 @@ func Test_push(t *testing.T) {
 	_ = container.push(t1)
 	_ = container.push(t2)
 	_ = container.push(t3)
-
+	checkPendingSize(t)
 	rs := make([]*types.Transaction, 3)
 	for i, tx := range container.asSlice(3) {
 		rs[i] = tx
@@ -125,7 +125,7 @@ func Test_push(t *testing.T) {
 	if container.get(t2.Hash) != nil {
 		t.Error("clear replaced tx fail")
 	}
-
+	checkPendingSize(t)
 	container = newSimpleContainer(10, 3, BlockChainImpl)
 
 	_ = container.push(t2)
@@ -147,6 +147,7 @@ func Test_push(t *testing.T) {
 	if container.get(t2.Hash) != nil {
 		t.Error("clear replaced tx fail")
 	}
+	checkPendingSize(t)
 }
 
 func Test_simpleContainer_forEach(t *testing.T) {
@@ -187,7 +188,7 @@ func Test_simpleContainer_forEach(t *testing.T) {
 	fmt.Println(len(executed))
 	printPending()
 	printQueue()
-
+	checkPendingSize(t)
 }
 
 func Test_eachForSync(t *testing.T) {
@@ -204,6 +205,7 @@ func Test_eachForSync(t *testing.T) {
 	for i := 50; i < 70; i++ {
 		_ = container.push(genTx4Test("ab454fdea57373b25b150497e016fcfdc06b55a66518e3756305e46f3dda7fe"+strconv.Itoa(i), uint64(i), types.NewBigInt(20000), gasLimit, &addr1))
 	}
+	checkPendingSize(t)
 	var count = 0
 	container.eachForSync(func(tx *types.Transaction) bool {
 		count++
@@ -212,6 +214,7 @@ func Test_eachForSync(t *testing.T) {
 	if count != maxSyncCountPreSource {
 		t.Fatalf("expect %d, but got %d", maxSyncCountPreSource, count)
 	}
+	checkPendingSize(t)
 }
 
 func TestEvicted(t *testing.T) {
@@ -234,7 +237,7 @@ func TestEvicted(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		execute(t, *txs[i])
 	}
-
+	checkPendingSize(t)
 	var count = len(container.asSlice(1000))
 
 	if count != 50 {
@@ -256,6 +259,17 @@ func TestEvicted(t *testing.T) {
 	count = len(container.asSlice(1000))
 	if count != 1 {
 		t.Errorf("clearRoute timeout error, count expect 0 but got %d", count)
+	}
+	checkPendingSize(t)
+}
+
+func checkPendingSize(t *testing.T) {
+	if container == nil {
+		return
+	}
+	count := len(container.asSlice(1000))
+	if count != container.pending.size {
+		t.Errorf("pending size error. size = %d, count = %d", container.pending.size, count)
 	}
 }
 

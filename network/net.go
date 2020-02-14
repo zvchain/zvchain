@@ -449,14 +449,14 @@ func (nc *NetCore) broadcast(data []byte, code uint32, broadcast bool, msgDigest
 
 }
 
-func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int) {
+func (nc *NetCore) broadcastRandom(data []byte, code uint32, relayCount int32, maxCount int, blacklist []string) {
 	dataType := DataType_DataGlobalRandom
 
 	packet, _, err := nc.encodeDataPacket(data, dataType, code, "", nil, relayCount)
 	if err != nil {
 		return
 	}
-	nc.peerManager.broadcastRandom(packet, code, maxCount)
+	nc.peerManager.broadcastRandom(packet, code, maxCount, blacklist)
 	nc.bufferPool.freeBuffer(packet)
 	return
 }

@@ -11,6 +11,7 @@ var RusPlus *Logrusplus
 var StdLogger = logrus.StandardLogger()
 
 var DefaultLogger = logrus.StandardLogger()
+var CropLogger = logrus.StandardLogger()
 var ConsensusLogger = logrus.StandardLogger()
 var ConsensusStdLogger = logrus.StandardLogger()
 var CoreLogger = logrus.StandardLogger()
@@ -24,6 +25,7 @@ var StatisticsLogger = logrus.StandardLogger()
 var TVMLogger = logrus.StandardLogger()
 var PerformLogger = logrus.StandardLogger()
 var ELKLogger = logrus.StandardLogger()
+var MeterLogger = logrus.StandardLogger()
 
 const (
 	MaxFileSize     = 1024 * 1024 * 20
