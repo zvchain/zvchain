@@ -254,15 +254,16 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err erro
 		return
 	}
 	printToConsole("Validating block headers finish")
-	chain.stateDb.Close()
 
-	err = validateStateDb(helper, trustBl)
+
+	err = validateStateDb(chain, trustBl)
 	if err != nil {
 		Logger.Errorf("VerifyIntegrity failed: %v", err)
 		printToConsole(err.Error())
 		err = errors.New("Illegal database! The import file is untrusted.")
 		return
 	}
+	chain.stateDb.Close()
 	printToConsole("Validating state tree finish")
 	return
 }
@@ -313,44 +314,19 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	return nil
 }
 
-func validateStateDb(helper types.ConsensusHelper, trustBl *types.BlockHeader) error {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader) error {
+	traverseConfig := &account.TraverseConfig{
+		CheckHash:           true,
+		VisitedRoots:        make(map[common.Hash]struct{}),
+	}
 
-	go func() {
-		for range ticker.C {
-			printToConsole("Validating state tree ...")
-		}
-	}()
-
-	var configSec = "chain"
-	conf := common.GlobalConf.GetSectionManager(configSec)
-	dbFile := common.GlobalConf.GetString(configSec, "db_blocks", "d_b")
-	smallDbFile := common.GlobalConf.GetString(configSec, "small_db", "d_small")
-	cacheDir := conf.GetString("state_cache_dir", "state_cache")
-	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
-	genesisGroup := helper.GenerateGenesisInfo()
-
-	sdbExist, err := pathExists(smallDbFile)
+	ok, err := chain.Traverse(trustBl.Height, traverseConfig)
 	if err != nil {
 		return err
 	}
-	if !sdbExist {
-		smallDbFile = ""
+	if !ok {
+		return errors.New("validate failed")
 	}
-
-	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "importing.log", false, 10240)
-	if err != nil {
-		return err
-	}
-	defer tailor.chain.Close()
-
-	err = tailor.Verify(trustBl.Height, 1, true)
-	if err != nil {
-		return err
-	}
-	// sync blocks
-
 	return nil
 }
 
@@ -398,7 +374,7 @@ func zipit(source, target string) error {
 
 	var baseDir string
 
-	filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -441,7 +417,20 @@ func zipit(source, target string) error {
 }
 
 func unzip(archive, target string) error {
+	start := time.Now()
+	defer func() {
+		printToConsole(fmt.Sprintf("uncompressing takes %f seconds" , time.Since(start).Seconds()))
+	}()
+	printToConsole("uncompressing data:" + archive)
+	total, err := os.Stat(archive)
+	if err != nil {
+		return err
+	}
+	// start new bar
+	bar := pb.Full.Start64(total.Size())
+
 	reader, err := zip.OpenReader(archive)
+
 	if err != nil {
 		return err
 	}
@@ -458,6 +447,7 @@ func unzip(archive, target string) error {
 		}
 
 		fileReader, err := file.Open()
+		fileReader = bar.NewProxyReader(fileReader)
 		if err != nil {
 			return err
 		}
@@ -466,13 +456,13 @@ func unzip(archive, target string) error {
 		if err != nil {
 			return err
 		}
-		printToConsole(fmt.Sprintf("uncompressing %v", path))
 		if _, err := io.Copy(targetFile, fileReader); err != nil {
 			return err
 		}
-		targetFile.Close()
+		_ = targetFile.Close()
 		_ = fileReader.Close()
 	}
+	bar.Finish()
 
 	return nil
 }
