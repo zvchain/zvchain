@@ -342,7 +342,7 @@ func (tm *DBMmanagement) excuteAccounts() {
 					}
 					//check update stake
 					if checkStakeTransaction(tx.Type) {
-						if tx.Target != nil {
+						if tx.Target != nil || tx.Type == types.TransactionTypeMinerAbort {
 							set.Add(tx.Target.AddrPrefixString())
 						}
 					}
