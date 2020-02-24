@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -362,7 +364,29 @@ func updateTopBlock(chain *FullBlockChain, trustBl common.Hash) {
 	}
 }
 
+func dirSize(path string) (int64, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	return size, err
+}
+
 func zipit(source, target string) error {
+	printToConsole("compressing data:" + source)
+	total, err := dirSize(source)
+	if err != nil {
+		return err
+	}
+	// start new bar
+	bar := pb.Full.Start64(total)
+
 	zipfile, err := os.Create(target)
 	if err != nil {
 		return err
@@ -395,6 +419,7 @@ func zipit(source, target string) error {
 		}
 
 		writer, err := archive.CreateHeader(header)
+		writer = bar.NewProxyWriter(writer)
 		if err != nil {
 			return err
 		}
@@ -407,12 +432,11 @@ func zipit(source, target string) error {
 		if err != nil {
 			return err
 		}
-		printToConsole(fmt.Sprintf("compressing %v", path))
 		defer file.Close()
 		_, err = io.Copy(writer, file)
 		return err
 	})
-
+	bar.Finish()
 	return err
 }
 
