@@ -77,6 +77,9 @@ func setRewardData(db types.AccountDB, key, value []byte) {
 }
 
 func (rm *rewardManager) blockHasRewardTransaction(blockHashByte []byte) bool {
+	if BlockChainImpl == nil {
+		return false
+	}
 	accountDB, error := BlockChainImpl.LatestAccountDB()
 	if error != nil {
 		log.DefaultLogger.Errorf("get lastdb failed,error = %v", error.Error())
