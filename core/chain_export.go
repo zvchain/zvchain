@@ -16,35 +16,65 @@
 package core
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/tasdb"
 )
 
 func ExportChainData(output string, helper types.ConsensusHelper) (err error) {
+	chain, err := getMvpChain(helper, false)
+	if err != nil {
+		return err
+	}
+	pruneMode := chain.config.pruneMode
+	if !pruneMode {
+		printToConsole("You were run the chain in a none prune mode. It is highly recommended that prune the database before doing the exporting.")
+	}
+
+	// Should merge small db to chain db before exporting
 	var configSec = "chain"
-	conf := common.GlobalConf.GetSectionManager(configSec)
-	dbFile := common.GlobalConf.GetString(configSec, "db_blocks", "d_b")
-	smallDbFile := common.GlobalConf.GetString(configSec, "small_db", "d_small")
-	cacheDir := conf.GetString("state_cache_dir", "state_cache")
-	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
+	sdbDir := common.GlobalConf.GetString(configSec, "small_db", "d_small")
 
-	genesisGroup := helper.GenerateGenesisInfo()
+	if sdbDir != "" {
+		smallStateDs, err := tasdb.NewDataSource(sdbDir, nil)
+		if err != nil {
+			Logger.Errorf("new small state datasource error:%v", err)
+			return err
+		}
+		smallStateDb, err := smallStateDs.NewPrefixDatabase("")
+		if err != nil {
+			Logger.Errorf("new small state db error:%v", err)
+			return err
+		}
+		chain.smallStateDb = initSmallStore(smallStateDb)
+		err = chain.repairStateDatabase(chain.latestBlock)
+		if err != nil {
+			return err
+		}
+	}
 
-	sdbExist, err := pathExists(smallDbFile)
-	if err != nil {
-		return err
-	}
-	if !sdbExist {
-		smallDbFile = ""
-	}
+	err = doExport(chain, output)
 
-	tailor, err := NewOfflineTailor(genesisGroup, dbFile, smallDbFile, stateCacheSize, cacheDir, "", false,10240)
-	if err != nil {
-		return err
-	}
-	err = tailor.Export(output)
 	if err != nil {
 		return err
 	}
 	return
+}
+
+func doExport(chain *FullBlockChain, dist string) error {
+	last := chain.getLatestBlock()
+	tpFile := filepath.Join(chain.config.dbfile, trustHashFile)
+	err := saveTrustHash(last.Hash, tpFile)
+	if err != nil {
+		return err
+	}
+	err = zipit(chain.config.dbfile, dist)
+	if err != nil {
+		return err
+	}
+	printToConsole(fmt.Sprintf("Export success. The output file is: %v. The top hash is: %v", dist, last.Hash.Hex()))
+	return nil
 }
