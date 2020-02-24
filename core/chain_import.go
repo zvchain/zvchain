@@ -218,6 +218,7 @@ func getMvpChain(helper types.ConsensusHelper, readOnly bool) (*FullBlockChain, 
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return nil, err
 	}
+	chain.latestBlock = chain.loadCurrentBlock()
 
 	stateCacheSize := common.GlobalConf.GetInt(configSec, "db_state_cache", 256)
 
