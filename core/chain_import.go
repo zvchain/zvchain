@@ -125,6 +125,8 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	}
 	msg := fmt.Sprintf("sync %v blocks from the network.", TriesInMemory)
 	printWithStep(msg, 4, 4)
+
+	_ = os.Remove(tpFile)
 	return
 }
 
@@ -168,17 +170,6 @@ func confirmTrustHash(trustHash common.Hash) error {
 			return nil
 		}
 	}
-}
-
-func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
 }
 
 func getMvpChain(helper types.ConsensusHelper, readOnly bool) (*FullBlockChain, error) {
@@ -489,6 +480,17 @@ func unzip(archive, target string) error {
 	bar.Finish()
 
 	return nil
+}
+
+func pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 func printToConsole(msg string) string {

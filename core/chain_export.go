@@ -94,5 +94,11 @@ func saveTrustHash(trustHash common.Hash, filename string) error {
 		}
 	}
 	return nil
+}
 
+
+func isFromExportedDb(chain *FullBlockChain) bool{
+	tpFile := filepath.Join(chain.config.dbfile, trustHashFile)
+	existed, _:= pathExists(tpFile)
+	return existed
 }

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zvchain/zvchain/common/prque"
+	"github.com/zvchain/zvchain/storage/trie"
 	"os"
 	"sync"
 	"time"
@@ -259,6 +260,11 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	receiptdb, err := ds.NewPrefixDatabase(chain.config.receipt)
 	if err != nil {
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
+		return err
+	}
+	if isFromExportedDb(chain){
+		err = errors.New("Init block chain error! Error: can't run from the exported database directly")
+		Logger.Error(err)
 		return err
 	}
 
