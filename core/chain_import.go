@@ -123,7 +123,7 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	if err != nil {
 		return err
 	}
-	msg := fmt.Sprintf("sync %v blocks from the network.", TriesInMemory)
+	msg := fmt.Sprintf("try to sync %v blocks from the network.", TriesInMemory)
 	printWithStep(msg, 4, 4)
 
 	_ = os.Remove(tpFile)
