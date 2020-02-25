@@ -18,9 +18,7 @@ package core
 import (
 	"fmt"
 	"io"
-	"math"
 	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -190,7 +188,7 @@ func (t *OfflineTailor) usedNodeStat() (size uint64, count int) {
 	return t.usedSize, len(t.usedNodes)
 }
 
-func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte, isContractCode bool) error{
+func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte, isContractCode bool) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if _, ok := t.usedNodes[hash]; !ok {
@@ -379,21 +377,14 @@ func (t *OfflineTailor) Pruning() {
 	}
 }
 
-func (t *OfflineTailor) Verify(topHeight uint64, verifyBlNumber uint64, checkHash bool) error {
-	if verifyBlNumber == 0 {
-		verifyBlNumber = TriesInMemory
-	}
+func (t *OfflineTailor) Verify() error {
+	const noPruneBlock = TriesInMemory
 	defer t.out.Close()
-	if topHeight == 0 {
-		topHeight = t.chain.Height()
-	}
-	if topHeight == math.MaxUint64 {
-		return fmt.Errorf("failed to find top block")
-	}
+
 	// Find the all heights to be verified
 	verifyBlockHeights := make([]uint64, 0)
 	cnt := uint64(0)
-	for s := topHeight; cnt < verifyBlNumber; s-- {
+	for s := t.chain.Height(); cnt < noPruneBlock; s-- {
 		if t.chain.hasHeight(s) {
 			verifyBlockHeights = append(verifyBlockHeights, s)
 			if s <= t.checkpoint {
@@ -412,7 +403,7 @@ func (t *OfflineTailor) Verify(topHeight uint64, verifyBlNumber uint64, checkHas
 	t.loadAllGroupSeeds(firstHeight)
 
 	traverseConfig := &account.TraverseConfig{
-		CheckHash:           checkHash,
+		CheckHash:           false,
 		VisitedRoots:        make(map[common.Hash]struct{}),
 		SubTreeKeysProvider: t.subTreeConcernedKeys,
 	}
@@ -444,43 +435,4 @@ func (t *OfflineTailor) Verify(topHeight uint64, verifyBlNumber uint64, checkHas
 	}
 	t.info("verify nodes finished, cost %v", time.Since(begin).String())
 	return nil
-}
-
-func (t *OfflineTailor) Export(dist string) error {
-	last := t.chain.getLatestBlock()
-	defer func() {
-		_ = t.chain.blocks.Put([]byte(blockStatusKey), last.Hash.Bytes())
-	}()
-	// delete current block
-	err := t.chain.blocks.Delete([]byte(blockStatusKey))
-	if err != nil {
-		return err
-	}
-
-	tpFile := filepath.Join(t.chain.config.dbfile, trustHashFile)
-	err = saveTrustHash(last.Hash, tpFile)
-	if err != nil {
-		return err
-	}
-	err = zipit(t.chain.config.dbfile, dist)
-	if err != nil {
-		return err
-	}
-	t.info("Export success. The output file is: %v. The top hash is: %v", dist, last.Hash.Hex())
-	return nil
-}
-
-func saveTrustHash(trustHash common.Hash, filename string) error {
-	f, err := os.Create(filename)
-	defer f.Close()
-	if err != nil {
-		return err
-	} else {
-		_, err = f.Write(trustHash.Bytes())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-
 }
