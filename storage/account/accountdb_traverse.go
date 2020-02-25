@@ -24,7 +24,6 @@ import (
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/storage/rlp"
-	"github.com/zvchain/zvchain/storage/sha3"
 	"github.com/zvchain/zvchain/storage/trie"
 )
 
@@ -151,13 +150,6 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 			code, err := adb.db.TrieDB().Node(codeHash)
 			if err != nil {
 				return fmt.Errorf("get code %v err %v", codeHash.Hex(), err)
-			}
-			if config.CheckHash {
-				calHash := sha3.Sum256(code)
-				if calHash != codeHash {
-					fmt.Printf("contract code validation fail %v", codeHash)
-					return fmt.Errorf("contract code validation fail %v", codeHash)
-				}
 			}
 			vs.CodeSize = uint64(len(code))
 			err = config.OnResolve(codeHash, code, true)

@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/zvchain/zvchain/common"
@@ -79,4 +80,19 @@ func doExport(chain *FullBlockChain, dist string) error {
 	}
 	printToConsole(fmt.Sprintf("Export success. The output file is: %v. The top hash is: %v", dist, last.Hash.Hex()))
 	return nil
+}
+
+func saveTrustHash(trustHash common.Hash, filename string) error {
+	f, err := os.Create(filename)
+	defer f.Close()
+	if err != nil {
+		return err
+	} else {
+		_, err = f.Write(trustHash.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
 }
