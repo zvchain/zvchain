@@ -292,6 +292,9 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	if last.Hash != genesisBl.Header.Hash {
 		return fmt.Errorf("validate header fail, genesis block hash error: %v", last.Hash)
 	}
+	if last.Hash != last.GenHash() {
+		return fmt.Errorf("validate header fail, block hash error: %v", last.Hash)
+	}
 
 	var indexHeight uint64 = 1
 	for ; indexHeight <= topHeight; indexHeight++ {
