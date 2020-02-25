@@ -272,6 +272,7 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	printToConsole("Start validating block headers ...")
 	genesisBl, _ := chain.createGenesisBlock()
 
+
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -282,6 +283,9 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	}()
 	trustBh := chain.queryBlockHeaderByHash(trustHash)
 	topHeight := trustBh.Height
+
+	// start new bar
+	bar := pb.Full.Start64(int64(topHeight))
 
 	// check genesis block
 	last := chain.queryBlockHeaderByHeight(0)
@@ -305,12 +309,14 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 			return fmt.Errorf("validate header fail, pre hash error: %v", current.Hash)
 		}
 		last = current
+		bar.Add(1)
 	}
 
 	if last.Hash != trustHash {
 		return fmt.Errorf("validate header fail, last hash error: %v", last.Hash)
 	}
-
+	bar.SetCurrent(int64(topHeight))
+	bar.Finish()
 	return nil
 }
 
@@ -426,8 +432,8 @@ func unzip(archive, target string) error {
 	if err != nil {
 		return err
 	}
-	// start new bar
-	bar := pb.Full.Start64(total.Size())
+	// start new bar. assuming the zip rate was 1.1
+	bar := pb.Full.Start64(total.Size()*11/10)
 
 	reader, err := zip.OpenReader(archive)
 
@@ -447,7 +453,6 @@ func unzip(archive, target string) error {
 		}
 
 		fileReader, err := file.Open()
-		fileReader = bar.NewProxyReader(fileReader)
 		if err != nil {
 			return err
 		}
@@ -456,12 +461,14 @@ func unzip(archive, target string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(targetFile, fileReader); err != nil {
+		warpedTargetFile := bar.NewProxyWriter(targetFile)
+		if _, err := io.Copy(warpedTargetFile, fileReader); err != nil {
 			return err
 		}
 		_ = targetFile.Close()
 		_ = fileReader.Close()
 	}
+	bar.SetCurrent(bar.Total())
 	bar.Finish()
 
 	return nil

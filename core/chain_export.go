@@ -67,8 +67,8 @@ func ExportChainData(output string, helper types.ConsensusHelper) (err error) {
 func doExport(chain *FullBlockChain, dist string) error {
 	last := chain.getLatestBlock()
 	tpFile := filepath.Join(chain.config.dbfile, trustHashFile)
-	// close the chain to stop the leveldb's compaction
-	chain.Close()
+	// close the db to avoid the leveldb's compaction
+	chain.stateDb.Close()
 	err := saveTrustHash(last.Hash, tpFile)
 	if err != nil {
 		return err
