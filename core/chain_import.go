@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zvchain/zvchain/storage/sha3"
+
 	"github.com/cheggaaa/pb/v3"
 
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -55,7 +57,7 @@ func addBlockSuccessForImporting(db types.AccountDB, bh *types.BlockHeader) {
 	}
 	if bh.Height-peekStartHeight > TriesInMemory {
 		printToConsole(fmt.Sprintf("%d blocks added.", TriesInMemory))
-		printToConsole("The importing process end success")
+		printToConsole("The importing process end success, you can start mining now")
 		os.Exit(0)
 	}
 }
@@ -64,8 +66,7 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	begin := time.Now()
 	defer func() {
 		if err == nil {
-			printToConsole(fmt.Sprintf("Import database finish, costs %v.", time.Since(begin).String()))
-			printToConsole(fmt.Sprintf("Will try to sync %v blocks from the network.", TriesInMemory))
+			log.DefaultLogger.Printf("Import database finish, costs %v.", time.Since(begin).String())
 		}
 	}()
 	dbFile := getBlockChainConfig().dbfile
@@ -93,10 +94,12 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 			_ = os.RemoveAll(targetDb)
 		}
 	}()
+	printWithStep("decompress data:", 1, 4)
 	err = unzip(importFile, targetDb)
 	if err != nil {
 		return err
 	}
+
 	tpFile := filepath.Join(targetDb, trustHashFile)
 	trustHash, err := getTrustHash(tpFile)
 	if err != nil {
@@ -112,15 +115,16 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	if err != nil {
 		return err
 	}
-	updateTopBlock(chain, trustHash)
+	//updateTopBlock(chain, trustHash)
 	chain.stateDb.Close()
 
 	// check block headers and state db
-	err = checkTrustDb(helper, trustHash)
+	err = checkTrustDb(helper, trustHash, importFile)
 	if err != nil {
 		return err
 	}
-
+	msg := fmt.Sprintf("sync %v blocks from the network.", TriesInMemory)
+	printWithStep(msg, 4, 4)
 	return
 }
 
@@ -152,10 +156,10 @@ func confirmTrustHash(trustHash common.Hash) error {
 		}
 		return string(b)
 	}
-	printToConsole(fmt.Sprintf("You are importing the chain data from an archive file which may not be trustable. You should manual check below hash is existing in the main ZVChain. (eg. you can check the hash on the https://explorer.zvchain.io)"))
+	printToConsole(fmt.Sprintf("You are importing the chain data from an archive file which may not be trustable. You should manual check below hash if existing in the main ZVChain. (eg. you can check the hash on the https://explorer.zvchain.io)"))
 	printToConsole(trustHash.Hex())
 	for {
-		printToConsole(fmt.Sprintf("Are you sure the above hash is on the main ZVchain? [N/y]"))
+		printToConsole(fmt.Sprintf("Are you sure the above hash is on the main ZVchain? [N/y]:"))
 		cmd := scanLine()
 		if cmd == "" || cmd == "N" || cmd == "n" {
 			printToConsole("You choose 'N'")
@@ -235,7 +239,7 @@ func getMvpChain(helper types.ConsensusHelper, readOnly bool) (*FullBlockChain, 
 	return chain, nil
 }
 
-func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err error) {
+func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash, source string) (err error) {
 	chain, err := getMvpChain(helper, true)
 	if err != nil {
 		return err
@@ -246,17 +250,16 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err erro
 		return
 	}
 	printToConsole(fmt.Sprintf("Your trust point hash is %v and height is %v", trustBl.Hash, trustBl.Height))
-
+	printWithStep("validate block header:", 2, 4)
 	err = validateHeaders(chain, trustHash)
 	if err != nil {
 		printToConsole(err.Error())
 		err = errors.New(printToConsole("Illegal database! The import file is untrusted."))
 		return
 	}
-	printToConsole("Validating block headers finish")
 
-
-	err = validateStateDb(chain, trustBl)
+	printWithStep("validate state tree (the progress bar may not match the progress exactly):", 3, 4)
+	err = validateStateDb(chain, trustBl, source)
 	if err != nil {
 		Logger.Errorf("VerifyIntegrity failed: %v", err)
 		printToConsole(err.Error())
@@ -264,14 +267,11 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash) (err erro
 		return
 	}
 	chain.stateDb.Close()
-	printToConsole("Validating state tree finish")
 	return
 }
 
 func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
-	printToConsole("Start validating block headers ...")
 	genesisBl, _ := chain.createGenesisBlock()
-
 
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -320,13 +320,42 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	return nil
 }
 
-func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader) error {
+func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader, source string) error {
+	total, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	// start new bar. assuming validate state tree's size is half of all database
+	accountSize := total.Size() / 2
+	bar := pb.Full.Start64(accountSize)
+
+	onResolve := func(codeHash common.Hash, code []byte, isContractCode bool) error {
+		// check contract data
+		if isContractCode {
+			calHash := sha3.Sum256(code)
+			if calHash != codeHash {
+				return fmt.Errorf("contract code validation fail %v", codeHash)
+			}
+		}
+		return nil
+	}
 	traverseConfig := &account.TraverseConfig{
-		CheckHash:           true,
-		VisitedRoots:        make(map[common.Hash]struct{}),
+		CheckHash:     true,
+		VisitedRoots:  make(map[common.Hash]struct{}),
+		ResolveNodeCb: onResolve,
+	}
+	//var allDataCount uint64 = 0
+	traverseConfig.VisitAccountCb = func(stat *account.TraverseStat) {
+		//fmt.Printf("verify address %v , balance %v, nonce %v, root %v, dataCount %v, dataSize %v, nodeCount %v, nodeSize %v, codeSize %v, cost %v \n", stat.Addr.AddrPrefixString(),  stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize,
+		//	stat.NodeCount, stat.NodeSize, stat.CodeSize, stat.Cost.String())
+		//allDataCount+=stat.NodeSize
+		//fmt.Println(allDataCount)
+		bar.Add(int(stat.NodeSize))
 	}
 
 	ok, err := chain.Traverse(trustBl.Height, traverseConfig)
+	bar.SetCurrent(accountSize)
+	bar.Finish()
 	if err != nil {
 		return err
 	}
@@ -334,16 +363,6 @@ func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader) error {
 		return errors.New("validate failed")
 	}
 	return nil
-}
-
-func updateTopBlock(chain *FullBlockChain, trustBl common.Hash) {
-	err := chain.blocks.Put([]byte(blockStatusKey), trustBl.Bytes())
-	if err != nil {
-		Logger.Errorf("ResetTop failed: %v", err)
-		printToConsole(err.Error())
-		err = errors.New(printToConsole("Failed to reset top to trust block!"))
-		return
-	}
 }
 
 func dirSize(path string) (int64, error) {
@@ -423,17 +442,12 @@ func zipit(source, target string) error {
 }
 
 func unzip(archive, target string) error {
-	start := time.Now()
-	defer func() {
-		printToConsole(fmt.Sprintf("uncompressing takes %f seconds" , time.Since(start).Seconds()))
-	}()
-	printToConsole("uncompressing data:" + archive)
 	total, err := os.Stat(archive)
 	if err != nil {
 		return err
 	}
 	// start new bar. assuming the zip rate was 1.1
-	bar := pb.Full.Start64(total.Size()*11/10)
+	bar := pb.Full.Start64(total.Size() * 11 / 10)
 
 	reader, err := zip.OpenReader(archive)
 
@@ -475,6 +489,10 @@ func unzip(archive, target string) error {
 }
 
 func printToConsole(msg string) string {
-	fmt.Println(msg)
+	fmt.Println("  " + msg)
 	return msg
+}
+
+func printWithStep(msg string, currentStep int, allSteps int) {
+	fmt.Printf("[step %d/%d] %s \n ", currentStep, allSteps, msg)
 }

@@ -26,7 +26,7 @@ import (
 )
 
 type ExtLeafCallback func(key []byte, value []byte) error
-type ResolveNodeCallback func(hash common.Hash, data []byte)
+type ResolveNodeCallback func(hash common.Hash, data []byte, isContractCode bool) error
 
 type checkErrorFn func() error
 
@@ -124,13 +124,15 @@ func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, r
 			if checkHash {
 				hasher := newHasher(0, 0, nil)
 				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
-					fmt.Printf("hash check failed:  %v", common.Bytes2Hex(n))
 					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
 				}
 			}
 		}
 		if resolve != nil {
-			resolve(hash, data)
+			err = resolve(hash, data, false)
+			if err != nil {
+				return false, err
+			}
 		}
 		if ok, err = t.traverse(resolvedNode, accumulateKey, onleaf, resolve, concurrent, errCheckFn, checkHash); !ok {
 			return
@@ -185,13 +187,12 @@ func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCal
 			if checkHash {
 				hasher := newHasher(0, 0, nil)
 				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
-					fmt.Printf("hash check failed:  %v", common.Bytes2Hex(n))
 					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
 				}
 			}
 		}
 		if resolve != nil {
-			resolve(hash, data)
+			resolve(hash, data, false)
 		}
 		return t.traverseKey(resolvedNode, key, pos, onleaf, resolve, checkHash)
 	default:

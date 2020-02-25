@@ -190,7 +190,7 @@ func (t *OfflineTailor) usedNodeStat() (size uint64, count int) {
 	return t.usedSize, len(t.usedNodes)
 }
 
-func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte) {
+func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte, isContractCode bool) error{
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if _, ok := t.usedNodes[hash]; !ok {
@@ -198,6 +198,7 @@ func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte) {
 		t.usedSize += uint64(len(data))
 		t.incUsedNodes++
 	}
+	return nil
 }
 
 func (t *OfflineTailor) nodeUsed(hash common.Hash) bool {

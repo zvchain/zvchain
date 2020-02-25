@@ -57,10 +57,11 @@ type TraverseConfig struct {
 	lock                sync.RWMutex
 }
 
-func (cfg *TraverseConfig) OnResolve(hash common.Hash, data []byte) {
+func (cfg *TraverseConfig) OnResolve(hash common.Hash, data []byte, isContractCode bool) error {
 	if cfg.ResolveNodeCb != nil {
-		cfg.ResolveNodeCb(hash, data)
+		return cfg.ResolveNodeCb(hash, data, isContractCode)
 	}
+	return nil
 }
 
 func (cfg *TraverseConfig) OnVisitAccount(stat *TraverseStat) {
@@ -111,10 +112,14 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 			return nil
 		}
 
-		resolveCb := func(hash common.Hash, data []byte) {
-			config.OnResolve(hash, data)
+		resolveCb := func(hash common.Hash, data []byte, isContractCode bool) error {
+			err := config.OnResolve(hash, data, isContractCode)
+			if err != nil {
+				return err
+			}
 			atomic.AddUint64(&vs.NodeSize, uint64(len(data)))
 			atomic.AddUint64(&vs.NodeCount, 1)
+			return nil
 		}
 
 		// Traverse the sub tree of the account if needed
@@ -155,7 +160,10 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 				}
 			}
 			vs.CodeSize = uint64(len(code))
-			config.OnResolve(codeHash, code)
+			err = config.OnResolve(codeHash, code, true)
+			if err != nil {
+				return err
+			}
 		}
 		vs.Cost = time.Since(begin)
 		config.OnVisitAccount(vs)
