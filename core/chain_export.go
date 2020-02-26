@@ -104,7 +104,7 @@ func findTrustBlock(chain *FullBlockChain) *types.BlockHeader {
 			return nil
 		}
 	}
-	log.DefaultLogger.Debugln("find export trust block %v, %v", bh.Height, bh.Hash)
+	log.DefaultLogger.Debugf("find export trust block %d, %v", bh.Height, bh.Hash)
 	return bh
 }
 
