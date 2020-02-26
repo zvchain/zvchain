@@ -73,6 +73,10 @@ func (gzv *Gzv) miner(cfg *minerConfig) error {
 	if err != nil {
 		return err
 	}
+	err = gzv.startRPC()
+	if err != nil {
+		return err
+	}
 
 	ok := mediator.StartMiner()
 
@@ -202,9 +206,6 @@ func (gzv *Gzv) Run() {
 
 	importCmd := app.Command("import", "Import blockchain from a file")
 	importDist := importCmd.Flag("file", "the archive file for importing").Short('i').Default("zvchain.data").String()
-	importChainID := importCmd.Flag("chainid", "chain id").Default("1").Uint16()
-	importNatAddr := importCmd.Flag("nat", "nat server address").Default("natproxy.zvchain.io").String()
-	importNatPort := importCmd.Flag("natport", "nat server port").Default("3100").Uint16()
 
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -262,12 +263,6 @@ func (gzv *Gzv) Run() {
 
 		// Start miner
 		err := gzv.miner(cfg)
-		if err != nil {
-			output("initialize fail:", err)
-			log.DefaultLogger.Errorf("initialize fail:%v", err)
-			os.Exit(-1)
-		}
-		err = gzv.startRPC()
 		if err != nil {
 			output("initialize fail:", err)
 			log.DefaultLogger.Errorf("initialize fail:%v", err)
@@ -376,16 +371,12 @@ func (gzv *Gzv) Run() {
 
 		tmpFolder := createTmpFolder("tmp")
 		cfg := &minerConfig{
-			natIP:             *importNatAddr,
-			natPort:           *importNatPort,
-			applyRole:         *apply,
 			keystore:          tmpFolder + "/keystore",
-			enableMonitor:     *enableMonitor,
-			chainID:           *importChainID,
 			password:          *passWd,
 			autoCreateAccount: true,
 			privateKey:        *privKey,
 		}
+
 		peekChain(gzv, cfg, tmpFolder)
 		os.Exit(0)
 	}
@@ -402,7 +393,6 @@ func peekChain(gzv *Gzv, cfg *minerConfig, tmpFolder string) {
 	gzv.simpleInit(tmpFolder + "/import.ini")
 	types.InitMiddleware()
 
-	core.EnableChainPeek()
 	gzv.config = cfg
 	common.GlobalConf.SetBool("chain", "prune_mode", false)
 

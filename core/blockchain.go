@@ -306,9 +306,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	sp.addPostProcessor(chain.cpChecker.updateVotes)
 	sp.addPostProcessor(MinerManagerImpl.GuardNodesCheck)
 	sp.addPostProcessor(GroupManagerImpl.UpdateGroupSkipCounts)
-	if peekForImporting {
-		sp.addPostProcessor(addBlockSuccessForImporting)
-	}
 	chain.stateProc = sp
 	// merge small db state data to big db
 	err = chain.repairStateDatabase(latestBH)

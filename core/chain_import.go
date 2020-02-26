@@ -45,24 +45,6 @@ import (
 var trustHashFile = "tp"
 var trustHash = common.Hash{}
 
-var peekForImporting = false
-var peekStartHeight uint64 = 0
-
-func EnableChainPeek() {
-	peekForImporting = true
-}
-
-func addBlockSuccessForImporting(db types.AccountDB, bh *types.BlockHeader) {
-	if peekStartHeight == 0 {
-		peekStartHeight = bh.Height
-	}
-	if bh.Height-peekStartHeight > TriesInMemory {
-		printToConsole(fmt.Sprintf("%d blocks added.", TriesInMemory))
-		printToConsole("The importing process end success, you can start mining now")
-		os.Exit(0)
-	}
-}
-
 func ImportChainData(importFile string, helper types.ConsensusHelper) (err error) {
 	begin := time.Now()
 	defer func() {
