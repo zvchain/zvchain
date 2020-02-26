@@ -180,7 +180,10 @@ func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCal
 
 		}
 		if resolve != nil {
-			resolve(hash, data, false)
+			err := resolve(hash, data, false)
+			if err != nil {
+				return false, err
+			}
 		}
 		return t.traverseKey(resolvedNode, key, pos, onleaf, resolve)
 	default:
