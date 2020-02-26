@@ -362,6 +362,7 @@ func (gzv *Gzv) Run() {
 
 	case importCmd.FullCommand():
 		log.Init()
+		types.InitMiddleware()
 		helper := mediator.NewConsensusHelper(groupsig.ID{})
 		err := core.ImportChainData(*importDist, helper)
 		if err != nil {
@@ -386,6 +387,7 @@ func (gzv *Gzv) Run() {
 			privateKey:        *privKey,
 		}
 		peekChain(gzv, cfg, tmpFolder)
+		os.Exit(0)
 	}
 	<-quitChan
 }
@@ -393,7 +395,6 @@ func (gzv *Gzv) Run() {
 func peekChain(gzv *Gzv, cfg *minerConfig, tmpFolder string) {
 	defer func() {
 		_ = os.RemoveAll(tmpFolder)
-		output("delete temp folder " + tmpFolder)
 	}()
 
 	// reset global config
@@ -404,11 +405,14 @@ func peekChain(gzv *Gzv, cfg *minerConfig, tmpFolder string) {
 	core.EnableChainPeek()
 	gzv.config = cfg
 	common.GlobalConf.SetBool("chain", "prune_mode", false)
-	// Start miner
-	err := gzv.miner(cfg)
-	if err != nil {
-		output("Import fail, broken database")
-		log.DefaultLogger.Errorf("initialize fail:%v", err)
+
+	if err := gzv.coreInit(); err != nil {
+		output("initialize fail:", err)
+		os.Exit(-1)
+	}
+
+	if err := core.PeekBlocks(); err != nil {
+		output("peek blocks fail:", err)
 		os.Exit(-1)
 	}
 }
@@ -429,11 +433,9 @@ func createTmpFolder(prefix string) string {
 	for i := 1; ; i++ {
 		created := createFolder(prefix + strconv.Itoa(i))
 		if created != "" {
-			output("create temp folder " + created)
 			return created
 		}
 	}
-
 }
 
 // ClearBlock delete local blockchain data

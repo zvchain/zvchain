@@ -43,6 +43,7 @@ import (
 )
 
 var trustHashFile = "tp"
+var trustHash = common.Hash{}
 
 var peekForImporting = false
 var peekStartHeight uint64 = 0
@@ -101,7 +102,7 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	}
 
 	tpFile := filepath.Join(targetDb, trustHashFile)
-	trustHash, err := getTrustHash(tpFile)
+	trustHash, err = getTrustHash(tpFile)
 	if err != nil {
 		return err
 	}
@@ -110,24 +111,68 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 		return err
 	}
 
-	//set top block
-	chain, err := getMvpChain(helper, false)
-	if err != nil {
-		return err
-	}
-	//updateTopBlock(chain, trustHash)
-	chain.stateDb.Close()
-
 	// check block headers and state db
 	err = checkTrustDb(helper, trustHash, importFile)
 	if err != nil {
 		return err
 	}
-	msg := fmt.Sprintf("try to sync %v blocks from the network.", TriesInMemory)
+	msg := fmt.Sprintf("try to replay last %v blocks.", blocksForImportPeek)
 	printWithStep(msg, 4, 4)
 
+	//remove the hash file
 	_ = os.Remove(tpFile)
-	return
+	return nil
+}
+
+func PeekBlocks() error {
+	chain := BlockChainImpl
+	// fetch last 480 blocks into a slice
+	blocks := make([]*types.Block, 0)
+	lastHeader := chain.getLatestBlock()
+	bl := chain.queryBlockByHash(lastHeader.Hash)
+	if bl == nil {
+		return fmt.Errorf("failed to find block by hash %v", lastHeader.Hash)
+	}
+	blocks = append(blocks, bl)
+
+	// start new bar
+	bar := pb.Full.Start64(blocksForImportPeek)
+
+	for cnt := 1; cnt < blocksForImportPeek; cnt++ {
+		if lastHeader.Height == 0 {
+			return errors.New("not enough blocks for verify")
+		}
+		bl := chain.queryBlockByHash(lastHeader.PreHash)
+		if bl == nil {
+			return fmt.Errorf("failed to find block by hash %v", lastHeader.Hash)
+		}
+		blocks = append(blocks, bl)
+		lastHeader = bl.Header
+
+	}
+
+	start := chain.queryBlockByHash(lastHeader.PreHash)
+	if start == nil || start.Header.Hash != trustHash {
+		return fmt.Errorf("trust hash not match in chain block %v", start.Header.Hash)
+	}
+	err := chain.ResetTop(start.Header)
+	if err != nil {
+		return nil
+	}
+
+	for i := len(blocks) - 1; i >= 0; i-- {
+		b := blocks[i]
+		ret, err := chain.addBlockOnChain("", b)
+		if ret != types.AddBlockSucc {
+			return fmt.Errorf("commit block %v %v error:%v", b.Header.Hash, b.Header.Height, err)
+		}
+		//printToConsole(fmt.Sprintf("added block %d",b.Header.Height))
+		bar.Add(1)
+	}
+	bar.Finish()
+
+	printToConsole("The importing process end success, you can start mining now")
+	return nil
 }
 
 // getTrustHash returns the trust block hash from archive file
@@ -180,7 +225,6 @@ func getMvpChain(helper types.ConsensusHelper, readOnly bool) (*FullBlockChain, 
 		topRawBlocks:    common.MustNewLRUCache(20),
 		consensusHelper: helper,
 	}
-
 	Logger = log.CoreLogger
 
 	options := &opt.Options{
