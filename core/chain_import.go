@@ -67,7 +67,7 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 		return fmt.Errorf("importing file: %v not exist", importFile)
 	}
 	if dbExist {
-		return fmt.Errorf("You already have a database folder. please delete the folder %v try again.", dbFile)
+		return fmt.Errorf("You already have a database folder. please delete the folder %v and try again", dbFile)
 	}
 
 	//unzip the archive
@@ -83,8 +83,8 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 		return err
 	}
 
-	tpFile := filepath.Join(targetDb, trustHashFile)
-	trustHash, err = getTrustHash(tpFile)
+	thFile := filepath.Join(targetDb, trustHashFile)
+	trustHash, err = getTrustHash(thFile)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	printWithStep(msg, 4, 4)
 
 	//remove the hash file
-	_ = os.Remove(tpFile)
+	_ = os.Remove(thFile)
 	return nil
 }
 
@@ -130,16 +130,15 @@ func PeekBlocks() error {
 		}
 		blocks = append(blocks, bl)
 		lastHeader = bl.Header
-
 	}
 
 	start := chain.queryBlockByHash(lastHeader.PreHash)
 	if start == nil || start.Header.Hash != trustHash {
-		return fmt.Errorf("trust hash not match in chain block %v", start.Header.Hash)
+		return fmt.Errorf("trust hash not match in chain block")
 	}
 	err := chain.ResetTop(start.Header)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for i := len(blocks) - 1; i >= 0; i-- {
@@ -148,9 +147,9 @@ func PeekBlocks() error {
 		if ret != types.AddBlockSucc {
 			return fmt.Errorf("commit block %v %v error:%v", b.Header.Hash, b.Header.Height, err)
 		}
-		//printToConsole(fmt.Sprintf("added block %d",b.Header.Height))
 		bar.Add(1)
 	}
+	bar.SetCurrent(blocksForImportPeek)
 	bar.Finish()
 
 	printToConsole("The importing process end success, you can start mining now")
@@ -263,7 +262,7 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash, source st
 	}
 	trustBl := chain.queryBlockHeaderByHash(trustHash)
 	if trustBl == nil {
-		err = errors.New(printToConsole("Can't find the trust block hash in database. Please set the right hash and restart the program!"))
+		err = errors.New(printToConsole("Can't find the trust block hash in database."))
 		return
 	}
 	printToConsole(fmt.Sprintf("Your trust point hash is %v and height is %v", trustBl.Hash, trustBl.Height))
@@ -275,7 +274,7 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash, source st
 		return
 	}
 
-	printWithStep("validate state tree (the progress bar may not match the progress exactly):", 3, 4)
+	printWithStep("validate state tree (note: this progress bar may not match the progress exactly):", 3, 4)
 	err = validateStateDb(chain, trustBl, source)
 	if err != nil {
 		Logger.Errorf("VerifyIntegrity failed: %v", err)
@@ -289,15 +288,6 @@ func checkTrustDb(helper types.ConsensusHelper, trustHash common.Hash, source st
 
 func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 	genesisBl, _ := chain.createGenesisBlock()
-
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	go func() {
-		for range ticker.C {
-			printToConsole("validating block headers ...")
-		}
-	}()
 	trustBh := chain.queryBlockHeaderByHash(trustHash)
 	topHeight := trustBh.Height
 
@@ -315,6 +305,7 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 
 	var indexHeight uint64 = 1
 	for ; indexHeight <= topHeight; indexHeight++ {
+		bar.Add(1)
 		current := chain.queryBlockHeaderByHeight(indexHeight)
 		if current == nil {
 			// no block in this height
@@ -329,7 +320,6 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 			return fmt.Errorf("validate header fail, pre hash error: %v", current.Hash)
 		}
 		last = current
-		bar.Add(1)
 	}
 
 	if last.Hash != trustHash {
@@ -345,8 +335,8 @@ func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader, source s
 	if err != nil {
 		return err
 	}
-	// start new bar. assuming validate state tree's size is half of all database
-	accountSize := total.Size() / 2
+	// start new bar. assuming validate state tree's size is 1/3 of all database
+	accountSize := total.Size() / 3
 	bar := pb.Full.Start64(accountSize)
 
 	onResolve := func(codeHash common.Hash, code []byte, isContractCode bool) error {
@@ -364,12 +354,7 @@ func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader, source s
 		VisitedRoots:  make(map[common.Hash]struct{}),
 		ResolveNodeCb: onResolve,
 	}
-	//var allDataCount uint64 = 0
 	traverseConfig.VisitAccountCb = func(stat *account.TraverseStat) {
-		//fmt.Printf("verify address %v , balance %v, nonce %v, root %v, dataCount %v, dataSize %v, nodeCount %v, nodeSize %v, codeSize %v, cost %v \n", stat.Addr.AddrPrefixString(),  stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize,
-		//	stat.NodeCount, stat.NodeSize, stat.CodeSize, stat.Cost.String())
-		//allDataCount+=stat.NodeSize
-		//fmt.Println(allDataCount)
 		bar.Add(int(stat.NodeSize))
 	}
 
