@@ -50,7 +50,6 @@ func (vs *TraverseStat) String() string {
 type TraverseConfig struct {
 	VisitAccountCb      VisitAccountCallback
 	ResolveNodeCb       trie.ResolveNodeCallback
-	CheckHash           bool
 	SubTreeKeysProvider SubTreeKeyProvider       // Provides concerned keys for the specified address, and only traverse the given keys for the address
 	VisitedRoots        map[common.Hash]struct{} // Store visited roots， no more revisit for duplicate roots
 	lock                sync.RWMutex
@@ -131,12 +130,12 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 			keys := config.subTreeKeys(vs.Addr)
 			// Traverse the entire sub tree if no keys specified
 			if len(keys) == 0 {
-				if ok, err := t.Traverse(leafCb, resolveCb, config.CheckHash); !ok {
+				if ok, err := t.Traverse(leafCb, resolveCb); !ok {
 					return err
 				}
 			} else { // Only traverse the specified keys of the sub tree
 				for _, key := range keys {
-					if ok, err := t.TraverseKey(key, leafCb, resolveCb, config.CheckHash); !ok {
+					if ok, err := t.TraverseKey(key, leafCb, resolveCb); !ok {
 						return err
 					}
 				}
@@ -160,5 +159,5 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 		vs.Cost = time.Since(begin)
 		config.OnVisitAccount(vs)
 		return nil
-	}, config.ResolveNodeCb, config.CheckHash)
+	}, config.ResolveNodeCb)
 }

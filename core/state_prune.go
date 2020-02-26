@@ -270,7 +270,6 @@ func (t *OfflineTailor) collectUsedNodes() error {
 
 	traverseConfig := &account.TraverseConfig{
 		ResolveNodeCb:       t.resolveCallback,
-		CheckHash:           false,
 		VisitedRoots:        make(map[common.Hash]struct{}),
 		SubTreeKeysProvider: t.subTreeConcernedKeys,
 	}
@@ -403,7 +402,6 @@ func (t *OfflineTailor) Verify() error {
 	t.loadAllGroupSeeds(firstHeight)
 
 	traverseConfig := &account.TraverseConfig{
-		CheckHash:           false,
 		VisitedRoots:        make(map[common.Hash]struct{}),
 		SubTreeKeysProvider: t.subTreeConcernedKeys,
 	}

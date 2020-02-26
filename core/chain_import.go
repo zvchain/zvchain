@@ -17,8 +17,10 @@ package core
 
 import (
 	"archive/zip"
+	"bytes"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -331,6 +333,19 @@ func validateHeaders(chain *FullBlockChain, trustHash common.Hash) (err error) {
 }
 
 func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader, source string) error {
+	type readableHash interface {
+		hash.Hash
+		Read([]byte) (int, error)
+	}
+
+	var makeHashNode = func(data []byte) []byte {
+		sha := sha3.NewKeccak256().(readableHash)
+		n := make([]byte, sha.Size())
+		sha.Write(data)
+		sha.Read(n)
+		return n
+	}
+
 	total, err := os.Stat(source)
 	if err != nil {
 		return err
@@ -339,6 +354,8 @@ func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader, source s
 	accountSize := total.Size() / 3
 	bar := pb.Full.Start64(accountSize)
 
+	// emptyRoot is the known root hash of an empty trie.
+	emptyRoot := common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 	onResolve := func(codeHash common.Hash, code []byte, isContractCode bool) error {
 		// check contract data
 		if isContractCode {
@@ -346,11 +363,16 @@ func validateStateDb(chain *FullBlockChain, trustBl *types.BlockHeader, source s
 			if calHash != codeHash {
 				return fmt.Errorf("contract code validation fail %v", codeHash)
 			}
+		} else {
+			if codeHash != (common.Hash{}) && codeHash != emptyRoot {
+				if !bytes.Equal(codeHash.Bytes(), makeHashNode(code)) {
+					return errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(code)))
+				}
+			}
 		}
 		return nil
 	}
 	traverseConfig := &account.TraverseConfig{
-		CheckHash:     true,
 		VisitedRoots:  make(map[common.Hash]struct{}),
 		ResolveNodeCb: onResolve,
 	}

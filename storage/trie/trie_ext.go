@@ -17,7 +17,6 @@ package trie
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -35,11 +34,11 @@ type checkErrorFn func() error
 // is to find any errors that might cause trie nodes missing during prune
 //
 // This method is extremely CPU and disk intensive, and time consuming, only use when must.
-func (t *Trie) Traverse(onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
-	return t.traverse(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, true, nil, checkHash)
+func (t *Trie) Traverse(onleaf ExtLeafCallback, resolve ResolveNodeCallback) (bool, error) {
+	return t.traverse(hashNode(t.originalRoot.Bytes()), []byte{}, onleaf, resolve, true, nil)
 }
 
-func (t *Trie) traverseFullNodeConcurrently(fn *fullNode, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (bool, error) {
+func (t *Trie) traverseFullNodeConcurrently(fn *fullNode, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback) (bool, error) {
 	wg := sync.WaitGroup{}
 	errV := atomic.Value{}
 
@@ -55,7 +54,7 @@ func (t *Trie) traverseFullNodeConcurrently(fn *fullNode, accumulateKey []byte, 
 			wg.Add(1)
 			go func(idx byte) {
 				defer wg.Done()
-				if ok, err := t.traverse(fn.Children[idx], append(accumulateKey, idx), onleaf, resolve, false, stopCheckFn, checkHash); !ok {
+				if ok, err := t.traverse(fn.Children[idx], append(accumulateKey, idx), onleaf, resolve, false, stopCheckFn); !ok {
 					errV.Store(err)
 					return
 				}
@@ -70,7 +69,7 @@ func (t *Trie) traverseFullNodeConcurrently(fn *fullNode, accumulateKey []byte, 
 	return false, err.(error)
 }
 
-func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, concurrent bool, errCheckFn checkErrorFn, checkHash bool) (ok bool, err error) {
+func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, concurrent bool, errCheckFn checkErrorFn) (ok bool, err error) {
 	if errCheckFn != nil {
 		if e := errCheckFn(); e != nil {
 			return false, e
@@ -88,20 +87,20 @@ func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, r
 		}
 		return true, nil
 	case *shortNode:
-		ok, err = t.traverse(n.Val, append(accumulateKey, n.Key...), onleaf, resolve, false, errCheckFn, checkHash)
+		ok, err = t.traverse(n.Val, append(accumulateKey, n.Key...), onleaf, resolve, false, errCheckFn)
 		if !ok {
 			return
 		}
 	case *fullNode:
 		if concurrent {
-			ok, err = t.traverseFullNodeConcurrently(n, accumulateKey, onleaf, resolve, checkHash)
+			ok, err = t.traverseFullNodeConcurrently(n, accumulateKey, onleaf, resolve)
 			if !ok {
 				return
 			}
 		} else {
 			for i, child := range n.Children {
 				if child != nil {
-					if ok, err = t.traverse(child, append(accumulateKey, byte(i)), onleaf, resolve, false, errCheckFn, checkHash); !ok {
+					if ok, err = t.traverse(child, append(accumulateKey, byte(i)), onleaf, resolve, false, errCheckFn); !ok {
 						return
 					}
 				}
@@ -121,12 +120,6 @@ func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, r
 			}
 			resolvedNode = r
 			data = bs
-			if checkHash {
-				hasher := newHasher(0, 0, nil)
-				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
-					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
-				}
-			}
 		}
 		if resolve != nil {
 			err = resolve(hash, data, false)
@@ -134,7 +127,7 @@ func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, r
 				return false, err
 			}
 		}
-		if ok, err = t.traverse(resolvedNode, accumulateKey, onleaf, resolve, concurrent, errCheckFn, checkHash); !ok {
+		if ok, err = t.traverse(resolvedNode, accumulateKey, onleaf, resolve, concurrent, errCheckFn); !ok {
 			return
 		}
 	default:
@@ -145,12 +138,12 @@ func (t *Trie) traverse(nd node, accumulateKey []byte, onleaf ExtLeafCallback, r
 
 // TraverseKey traverses the path of the given key in the trie tree,
 // An error is returned when the specified path cannot be found or some node is missing
-func (t *Trie) TraverseKey(key []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (ok bool, err error) {
+func (t *Trie) TraverseKey(key []byte, onleaf ExtLeafCallback, resolve ResolveNodeCallback) (ok bool, err error) {
 	key = keybytesToHex(key)
-	return t.traverseKey(hashNode(t.originalRoot.Bytes()), key, 0, onleaf, resolve, checkHash)
+	return t.traverseKey(hashNode(t.originalRoot.Bytes()), key, 0, onleaf, resolve)
 }
 
-func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCallback, resolve ResolveNodeCallback, checkHash bool) (ok bool, err error) {
+func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCallback, resolve ResolveNodeCallback) (ok bool, err error) {
 	switch n := (origNode).(type) {
 	case nil:
 		return true, nil
@@ -167,9 +160,9 @@ func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCal
 			// key not found in trie
 			return false, fmt.Errorf("key not found %x", key)
 		}
-		return t.traverseKey(n.Val, key, pos+len(n.Key), onleaf, resolve, checkHash)
+		return t.traverseKey(n.Val, key, pos+len(n.Key), onleaf, resolve)
 	case *fullNode:
-		return t.traverseKey(n.Children[key[pos]], key, pos+1, onleaf, resolve, checkHash)
+		return t.traverseKey(n.Children[key[pos]], key, pos+1, onleaf, resolve)
 	case hashNode:
 		hash := common.BytesToHash(n)
 
@@ -184,17 +177,12 @@ func (t *Trie) traverseKey(origNode node, key []byte, pos int, onleaf ExtLeafCal
 			}
 			resolvedNode = r
 			data = bs
-			if checkHash {
-				hasher := newHasher(0, 0, nil)
-				if !bytes.Equal(n, hasher.makeHashNode(bs)) {
-					return false, errors.New(fmt.Sprintf("hash check failed:  %v", common.Bytes2Hex(n)))
-				}
-			}
+
 		}
 		if resolve != nil {
 			resolve(hash, data, false)
 		}
-		return t.traverseKey(resolvedNode, key, pos, onleaf, resolve, checkHash)
+		return t.traverseKey(resolvedNode, key, pos, onleaf, resolve)
 	default:
 		panic(fmt.Sprintf("%T: invalid node: %v", origNode, origNode))
 	}
