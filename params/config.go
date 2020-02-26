@@ -29,11 +29,16 @@ type ChainConfig struct {
 
 	// zip002 implements the gas price calculation when multiplying
 	ZIP002 uint64
+
+	// zip003 solves the problem of weight comparison when two blocks have the same proves
+	ZIP003 uint64
 }
 
 var config = &ChainConfig{
 	ZIP001: 931588, // effect at : 2019-10-30 14:00:00
 	ZIP002: 960388, // effect at : 2019-10-31 14:00:00
+
+	ZIP003: 5000000,
 }
 
 func InitChainConfig(chainId uint16) {
@@ -58,4 +63,8 @@ func (cfg *ChainConfig) IsZIP001(h uint64) bool {
 
 func (cfg *ChainConfig) IsZIP002(h uint64) bool {
 	return isFork(cfg.ZIP002, h)
+}
+
+func (cfg *ChainConfig) IsZIP003(h uint64) bool {
+	return isFork(cfg.ZIP003, h)
 }
