@@ -359,7 +359,7 @@ func (gzv *Gzv) Run() {
 		log.Init()
 		types.InitMiddleware()
 		helper := mediator.NewConsensusHelper(groupsig.ID{})
-		err := core.ImportChainData(*importDist, helper)
+		err := core.ImportChainDataStep1(*importDist, helper)
 		if err != nil {
 			output(err.Error())
 			os.Exit(1)
@@ -401,7 +401,7 @@ func peekChain(gzv *Gzv, cfg *minerConfig, tmpFolder string) {
 		os.Exit(-1)
 	}
 
-	if err := core.PeekBlocks(); err != nil {
+	if err := core.ImportChainDataStep2(); err != nil {
 		output("peek blocks fail:", err)
 		os.Exit(-1)
 	}

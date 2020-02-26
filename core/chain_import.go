@@ -47,7 +47,7 @@ import (
 var trustHashFile = "tp"
 var trustHash = common.Hash{}
 
-func ImportChainData(importFile string, helper types.ConsensusHelper) (err error) {
+func ImportChainDataStep1(importFile string, helper types.ConsensusHelper) (err error) {
 	begin := time.Now()
 	defer func() {
 		if err == nil {
@@ -108,7 +108,7 @@ func ImportChainData(importFile string, helper types.ConsensusHelper) (err error
 	return nil
 }
 
-func PeekBlocks() error {
+func ImportChainDataStep2() error {
 	chain := BlockChainImpl
 	// fetch last 480 blocks into a slice
 	blocks := make([]*types.Block, 0)
@@ -145,7 +145,7 @@ func PeekBlocks() error {
 
 	for i := len(blocks) - 1; i >= 0; i-- {
 		b := blocks[i]
-		ret, err := chain.addBlockOnChain("", b)
+		ret := chain.AddBlockOnChain("", b)
 		if ret != types.AddBlockSucc {
 			return fmt.Errorf("commit block %v %v error:%v", b.Header.Hash, b.Header.Height, err)
 		}
