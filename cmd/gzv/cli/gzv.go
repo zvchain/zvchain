@@ -293,12 +293,6 @@ func (gzv *Gzv) Run() {
 		log.Init()
 		types.InitMiddleware()
 
-		cfg := &minerConfig{
-			keystore:   *keystore,
-			password:   *passWd,
-			privateKey: *privKey,
-		}
-		gzv.config = cfg
 		if *destDir != "" {
 			common.GlobalConf.SetString("chain", "db_blocks", *destDir)
 		}
@@ -365,22 +359,14 @@ func (gzv *Gzv) Run() {
 			os.Exit(1)
 		}
 
-		cfg := &minerConfig{
-			keystore:   *keystore,
-			password:   *passWd,
-			privateKey: *privKey,
-		}
-
-		peekChain(gzv, cfg)
+		peekChain(gzv)
 		os.Exit(0)
 	}
 	<-quitChan
 }
 
-func peekChain(gzv *Gzv, cfg *minerConfig) {
+func peekChain(gzv *Gzv) {
 	types.InitMiddleware()
-
-	gzv.config = cfg
 
 	if err := gzv.coreInit(); err != nil {
 		output("initialize fail:", err)
