@@ -79,7 +79,7 @@ func TestTrie_Traverse(t *testing.T) {
 		t.Fatal("commit error", err)
 	}
 
-	ok, err := trie.Traverse(nil, nil, false)
+	ok, err := trie.Traverse(nil, nil,)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestTrie_Traverse2(t *testing.T) {
 	trie2.Traverse(func(key []byte, value []byte) error {
 		fmt.Println(string(key), string(value))
 		return nil
-	}, nil, false)
+	}, nil)
 
 }
 
@@ -135,7 +135,7 @@ func TestTrie_TraverseKey(t *testing.T) {
 	ok, err := trie2.TraverseKey([]byte("1"), func(key []byte, value []byte) error {
 		fmt.Println(string(key), string(value))
 		return nil
-	}, nil, false)
+	}, nil)
 	if !ok {
 		t.Fatalf("traverse %v", err)
 	}

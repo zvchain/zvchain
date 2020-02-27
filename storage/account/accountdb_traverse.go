@@ -18,12 +18,13 @@ package account
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zvchain/zvchain/common"
-	"github.com/zvchain/zvchain/storage/rlp"
-	"github.com/zvchain/zvchain/storage/trie"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/zvchain/zvchain/common"
+	"github.com/zvchain/zvchain/storage/rlp"
+	"github.com/zvchain/zvchain/storage/trie"
 )
 
 type VisitAccountCallback func(stat *TraverseStat)
@@ -49,16 +50,16 @@ func (vs *TraverseStat) String() string {
 type TraverseConfig struct {
 	VisitAccountCb      VisitAccountCallback
 	ResolveNodeCb       trie.ResolveNodeCallback
-	CheckHash           bool
 	SubTreeKeysProvider SubTreeKeyProvider       // Provides concerned keys for the specified address, and only traverse the given keys for the address
 	VisitedRoots        map[common.Hash]struct{} // Store visited roots， no more revisit for duplicate roots
 	lock                sync.RWMutex
 }
 
-func (cfg *TraverseConfig) OnResolve(hash common.Hash, data []byte) {
+func (cfg *TraverseConfig) OnResolve(hash common.Hash, data []byte, isContractCode bool) error {
 	if cfg.ResolveNodeCb != nil {
-		cfg.ResolveNodeCb(hash, data)
+		return cfg.ResolveNodeCb(hash, data, isContractCode)
 	}
+	return nil
 }
 
 func (cfg *TraverseConfig) OnVisitAccount(stat *TraverseStat) {
@@ -109,10 +110,14 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 			return nil
 		}
 
-		resolveCb := func(hash common.Hash, data []byte) {
-			config.OnResolve(hash, data)
+		resolveCb := func(hash common.Hash, data []byte, isContractCode bool) error {
+			err := config.OnResolve(hash, data, isContractCode)
+			if err != nil {
+				return err
+			}
 			atomic.AddUint64(&vs.NodeSize, uint64(len(data)))
 			atomic.AddUint64(&vs.NodeCount, 1)
+			return nil
 		}
 
 		// Traverse the sub tree of the account if needed
@@ -125,12 +130,12 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 			keys := config.subTreeKeys(vs.Addr)
 			// Traverse the entire sub tree if no keys specified
 			if len(keys) == 0 {
-				if ok, err := t.Traverse(leafCb, resolveCb, config.CheckHash); !ok {
+				if ok, err := t.Traverse(leafCb, resolveCb); !ok {
 					return err
 				}
 			} else { // Only traverse the specified keys of the sub tree
 				for _, key := range keys {
-					if ok, err := t.TraverseKey(key, leafCb, resolveCb, config.CheckHash); !ok {
+					if ok, err := t.TraverseKey(key, leafCb, resolveCb); !ok {
 						return err
 					}
 				}
@@ -146,10 +151,13 @@ func (adb *AccountDB) Traverse(config *TraverseConfig) (bool, error) {
 				return fmt.Errorf("get code %v err %v", codeHash.Hex(), err)
 			}
 			vs.CodeSize = uint64(len(code))
-			config.OnResolve(codeHash, code)
+			err = config.OnResolve(codeHash, code, true)
+			if err != nil {
+				return err
+			}
 		}
 		vs.Cost = time.Since(begin)
 		config.OnVisitAccount(vs)
 		return nil
-	}, config.ResolveNodeCb, config.CheckHash)
+	}, config.ResolveNodeCb)
 }

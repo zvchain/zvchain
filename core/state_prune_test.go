@@ -50,14 +50,14 @@ func traverseGroup(i int, db types.AccountDB, seed common.Hash, cachedb *trie.No
 			atomic.AddInt32(&keyCount, 1)
 			atomic.AddInt32(&valueSize, int32(len(value)))
 			return nil
-		}, nil, false)
+		}, nil)
 	} else {
 		ok, err = trie.TraverseKey(onlyTraverKey, func(key []byte, value []byte) error {
 			//out.Write([]byte(fmt.Sprintf("only key traverse seed %v, key %v, valuesize %v", seed, string(key), len(value))))
 			atomic.AddInt32(&keyCount, 1)
 			atomic.AddInt32(&valueSize, int32(len(value)))
 			return nil
-		}, nil, false)
+		}, nil)
 	}
 	if !ok {
 		return err

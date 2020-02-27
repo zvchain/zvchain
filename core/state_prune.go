@@ -17,6 +17,12 @@ package core
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -26,11 +32,6 @@ import (
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
-	"io"
-	"os"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 type groupSeedReader interface {
@@ -187,7 +188,7 @@ func (t *OfflineTailor) usedNodeStat() (size uint64, count int) {
 	return t.usedSize, len(t.usedNodes)
 }
 
-func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte) {
+func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte, isContractCode bool) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if _, ok := t.usedNodes[hash]; !ok {
@@ -195,6 +196,7 @@ func (t *OfflineTailor) resolveCallback(hash common.Hash, data []byte) {
 		t.usedSize += uint64(len(data))
 		t.incUsedNodes++
 	}
+	return nil
 }
 
 func (t *OfflineTailor) nodeUsed(hash common.Hash) bool {
@@ -268,7 +270,6 @@ func (t *OfflineTailor) collectUsedNodes() error {
 
 	traverseConfig := &account.TraverseConfig{
 		ResolveNodeCb:       t.resolveCallback,
-		CheckHash:           false,
 		VisitedRoots:        make(map[common.Hash]struct{}),
 		SubTreeKeysProvider: t.subTreeConcernedKeys,
 	}
@@ -401,7 +402,6 @@ func (t *OfflineTailor) Verify() error {
 	t.loadAllGroupSeeds(firstHeight)
 
 	traverseConfig := &account.TraverseConfig{
-		CheckHash:           false,
 		VisitedRoots:        make(map[common.Hash]struct{}),
 		SubTreeKeysProvider: t.subTreeConcernedKeys,
 	}
