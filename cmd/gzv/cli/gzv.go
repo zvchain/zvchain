@@ -365,10 +365,6 @@ func (gzv *Gzv) Run() {
 			os.Exit(1)
 		}
 
-		if *natAddr != "" {
-			log.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
-		}
-
 		cfg := &minerConfig{
 			keystore:   *keystore,
 			password:   *passWd,
@@ -445,14 +441,13 @@ func (gzv *Gzv) coreInit() error {
 
 	privateKey, err := common.GenerateKey("")
 	if err != nil {
-		return  err
+		return err
 	}
 	acc, err := recoverAccountByPrivateKey(&privateKey, false)
 	if err != nil {
-		return  err
+		return err
 	}
 	gzv.account = *acc
-
 
 	sk := common.HexToSecKey(gzv.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
