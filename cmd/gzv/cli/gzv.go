@@ -369,32 +369,22 @@ func (gzv *Gzv) Run() {
 			log.DefaultLogger.Infof("NAT server ip:%s", *natAddr)
 		}
 
-		tmpFolder := createTmpFolder("tmp")
 		cfg := &minerConfig{
-			keystore:          tmpFolder + "/keystore",
-			password:          *passWd,
-			autoCreateAccount: true,
-			privateKey:        *privKey,
+			keystore:   *keystore,
+			password:   *passWd,
+			privateKey: *privKey,
 		}
 
-		peekChain(gzv, cfg, tmpFolder)
+		peekChain(gzv, cfg)
 		os.Exit(0)
 	}
 	<-quitChan
 }
 
-func peekChain(gzv *Gzv, cfg *minerConfig, tmpFolder string) {
-	defer func() {
-		_ = os.RemoveAll(tmpFolder)
-	}()
-
-	// reset global config
-	common.GlobalConf = nil
-	gzv.simpleInit(tmpFolder + "/import.ini")
+func peekChain(gzv *Gzv, cfg *minerConfig) {
 	types.InitMiddleware()
 
 	gzv.config = cfg
-	common.GlobalConf.SetBool("chain", "prune_mode", false)
 
 	if err := gzv.coreInit(); err != nil {
 		output("initialize fail:", err)
@@ -404,27 +394,6 @@ func peekChain(gzv *Gzv, cfg *minerConfig, tmpFolder string) {
 	if err := core.ImportChainDataStep2(); err != nil {
 		output("peek blocks fail:", err)
 		os.Exit(-1)
-	}
-}
-
-func createTmpFolder(prefix string) string {
-	createFolder := func(path string) string {
-		_, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			err := os.Mkdir(path, 0755)
-			if err != nil {
-				panic(err)
-			}
-			return path
-		}
-		return ""
-	}
-
-	for i := 1; ; i++ {
-		created := createFolder(prefix + strconv.Itoa(i))
-		if created != "" {
-			return created
-		}
 	}
 }
 
@@ -473,30 +442,17 @@ func (gzv *Gzv) coreInit() error {
 	var err error
 	// Initialization middlewarex
 	middleware.InitMiddleware()
-	cfg := gzv.config
 
-	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
-
-	if cfg.privateKey != "" {
-		kBytes := common.FromHex(cfg.privateKey)
-		sk := new(common.PrivateKey)
-		if !sk.ImportKey(kBytes) {
-			return ErrInternal
-		}
-		acc, err := recoverAccountByPrivateKey(sk, true)
-		if err != nil {
-			return err
-		}
-		gzv.account = *acc
-	} else {
-		err = gzv.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
-		if err != nil {
-			return err
-		}
+	privateKey, err := common.GenerateKey("")
+	if err != nil {
+		return  err
 	}
+	acc, err := recoverAccountByPrivateKey(&privateKey, false)
+	if err != nil {
+		return  err
+	}
+	gzv.account = *acc
 
-	common.GlobalConf.SetString(Section, "miner", gzv.account.Address)
-	output("Your Miner Address:", gzv.account.Address)
 
 	sk := common.HexToSecKey(gzv.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)
