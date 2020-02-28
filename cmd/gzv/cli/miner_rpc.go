@@ -20,6 +20,7 @@ import (
 	"github.com/zvchain/zvchain/consensus/group"
 	"github.com/zvchain/zvchain/core"
 	"github.com/zvchain/zvchain/log"
+	"github.com/zvchain/zvchain/permission"
 	"net"
 
 	"fmt"
@@ -63,6 +64,8 @@ func (gzv *Gzv) initRpcInstances() error {
 	if level >= rpcLevelDev {
 		gzv.addInstance(&RpcDevImpl{rpcBaseImpl: base})
 	}
+	gzv.addInstance(permission.PermissionCtrlAPIInstance())
+
 	return nil
 }
 

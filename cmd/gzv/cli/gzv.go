@@ -24,6 +24,7 @@ import (
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/params"
+	"github.com/zvchain/zvchain/permission"
 	"os"
 	"time"
 
@@ -539,6 +540,12 @@ func (gzv *Gzv) fullInit() error {
 	if cfg.enableMonitor || common.GlobalConf.GetBool(Section, "enable_monitor", false) {
 		monitor.InitLogService(id)
 	}
+	err = permission.Init(gzv.account.Sk, genesisMembers)
+	if err != nil {
+		return err
+	}
+	permission.PermissionCtrlInstance().Start()
+
 	return nil
 }
 

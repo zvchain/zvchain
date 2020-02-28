@@ -10,7 +10,6 @@ require (
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
 	github.com/beevik/ntp v0.2.0
 	github.com/boltdb/bolt v1.3.1
-	github.com/c9s/goprocinfo v0.0.0-20190309065803-0b2ad9ac246b // indirect
 	github.com/codeskyblue/go-sh v0.0.0-20190412065543-76bd3d59ff27
 	github.com/davecgh/go-spew v1.1.1
 	github.com/glacjay/goini v0.0.0-20161120062552-fd3024d87ee2
@@ -27,7 +26,9 @@ require (
 	github.com/pmylund/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/rs/cors v1.6.0
 	github.com/sirupsen/logrus v1.4.2
+	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/goleveldb v1.0.0
+	github.com/tidwall/gjson v1.5.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859

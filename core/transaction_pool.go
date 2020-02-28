@@ -103,6 +103,10 @@ func (pool *txPool) tryAddTransaction(tx *types.Transaction) (ok bool, err error
 		}
 	}()
 
+	if err := pool.checkAccount(tx); err != nil {
+		return false, err
+	}
+
 	if tx.IsReward() {
 		if pool.isRewardExists(tx) {
 			err = fmt.Errorf("reward tx is exists: block=%v", parseRewardBlockHash(tx).Hex())
@@ -367,4 +371,24 @@ func (pool *txPool) ClearRewardTxs() {
 		}
 		return true
 	})
+}
+
+// checks if the account is has the necessary access for the transaction
+func (pool *txPool) checkAccount(tx *types.Transaction) error {
+	//access := types.GetAcctAccess(*tx.Source)
+	//
+	//switch access {
+	//case types.ReadOnly:
+	//	return errors.New("read only account. cannot transact")
+	//
+	//case types.Transact:
+	//	if tx.Type == types.TransactionTypeContractCreate {
+	//		return errors.New("account does not have contract create permissions")
+	//	}
+	//
+	//case types.FullAccess, types.ContractDeploy:
+	//	return nil
+	//
+	//}
+	return nil
 }

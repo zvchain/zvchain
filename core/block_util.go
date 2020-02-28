@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 
 	"github.com/zvchain/zvchain/common"
@@ -95,6 +96,10 @@ func setupGenesisStateDB(stateDB *account.AccountDB, genesisInfo *types.GenesisI
 	stateDB.SetBalance(*teamFoundationAddr, big.NewInt(0).SetUint64(teamFoundationToken))
 	stateDB.SetNonce(types.GetAdminAddr(), 2)
 
+	// permission contract
+
+	SetupPermissionContracts(stateDB, genesisInfo)
+
 	// mining pool and circulates
 	stateDB.SetBalance(types.GetStakePlatformAddr(), big.NewInt(0).SetUint64(stakePlatformToken))
 	stateDB.SetBalance(types.GetCirculatesAddr(), big.NewInt(0).SetUint64(circulatesToken))
@@ -134,4 +139,143 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Addres
 		panic(fmt.Sprintf("deploy FoundationContract error: %s", transactionError.Message))
 	}
 	return contract.ContractAddress
+}
+
+func MakeABIString(function string, args ...interface{}) string {
+	abi := tvm.ABI{}
+	abi.FuncName = function
+	if args == nil {
+		args = make([]interface{}, 0)
+	}
+	abi.Args = args
+	js, _ := json.Marshal(abi)
+	return string(js)
+}
+
+func SetupPermissionContracts(stateDB *account.AccountDB, genesisInfo *types.GenesisInfo) {
+
+	if len(genesisInfo.Group.Members()) == 0 {
+		panic(fmt.Sprintf("deploy permission contract error: genesis group len = 0"))
+	}
+	adminAddr := common.BytesToAddress(genesisInfo.Group.Members()[0].ID())
+	nonce := stateDB.GetNonce(adminAddr)
+	if nonce != 0 {
+		panic(fmt.Sprintf("deploy permission contract error: adminAddr nonce not 0"))
+	}
+	nonce += 1
+
+	UpgradableAddress, UpgradableVC := setupPermissionContract(stateDB, adminAddr, nonce, "PermissionsUpgradable", "./contracts/PermissionsUpgradable.py")
+
+	nonce += 1
+	AccountAddress, _ := setupPermissionContract(stateDB, adminAddr, nonce, "AccountManager", "./contracts/AccountMgr.py")
+
+	nonce += 1
+	NodeAddress, _ := setupPermissionContract(stateDB, adminAddr, nonce, "NodeManager", "./contracts/NodeMgr.py")
+
+	nonce += 1
+	OrgAddress, _ := setupPermissionContract(stateDB, adminAddr, nonce, "OrgManager", "./contracts/OrgMgr.py")
+
+	nonce += 1
+	VoterAddress, _ := setupPermissionContract(stateDB, adminAddr, nonce, "VoteManager", "./contracts/VoteMgr.py")
+
+	nonce += 1
+	InterfaceAddress, InterfaceVC := setupPermissionContract(stateDB, adminAddr, nonce, "PermissionInterface", "./contracts/PermissionsInterface.py")
+
+	nonce += 1
+	ImplAddress, _ := setupPermissionContract(stateDB, adminAddr, nonce, "PermissionsImplementation", "./contracts/PermissionsImplementation.py")
+
+	UpgradableContent := tvm.LoadContract(*UpgradableAddress)
+	initAbi := MakeABIString("init",
+		InterfaceAddress,
+		ImplAddress,
+		UpgradableAddress,
+		AccountAddress,
+		OrgAddress,
+		VoterAddress,
+		NodeAddress)
+	UpgradableVC.VM.SetGas(50000000)
+
+	_, _, transactionError := UpgradableVC.ExecuteAbiEval(&adminAddr, UpgradableContent, initAbi)
+
+	if transactionError != nil {
+		panic(transactionError.Message)
+	}
+
+	nwAdminOrg := types.NETWORK_ADMIN_ORG
+	config, err := types.ParsePermissionConfig("./")
+	if err == nil {
+		nwAdminOrg = config.NwAdminOrg
+	}
+
+	InterfaceContent := tvm.LoadContract(*InterfaceAddress)
+	InterfaceVC.GasLeft = 50000000
+	InterfaceVC.VM.SetGas(50000000)
+
+	_, _, transactionError = InterfaceVC.ExecuteAbiEval(&adminAddr, InterfaceContent, MakeABIString("set_policy", nwAdminOrg))
+	if transactionError != nil {
+		panic(transactionError.Message)
+	}
+
+	_, _, transactionError = InterfaceVC.ExecuteAbiEval(&adminAddr, InterfaceContent, MakeABIString("init"))
+	if transactionError != nil {
+		panic(transactionError.Message)
+	}
+
+	for i, mem := range genesisInfo.Group.Members() {
+		addr := common.BytesToAddress(mem.ID()).AddrPrefixString()
+		fmt.Printf("add_alliance_node : %v\n", addr)
+		blsPk := common.ToHex(genesisInfo.Pks[i])
+		vrfPk := common.ToHex(genesisInfo.VrfPKs[i])
+
+		_, _, transactionError = InterfaceVC.ExecuteAbiEval(&adminAddr, InterfaceContent, MakeABIString("add_alliance_node", addr, 2, vrfPk, blsPk, 0))
+		if transactionError != nil {
+			panic(transactionError.Message)
+		}
+		if addr == adminAddr.AddrPrefixString() {
+			fmt.Printf("add_alliance_account : %v\n", addr)
+			_, _, transactionError = InterfaceVC.ExecuteAbiEval(&adminAddr, InterfaceContent, MakeABIString("add_alliance_account", addr))
+			if transactionError != nil {
+				panic(transactionError.Message)
+			}
+		}
+	}
+	_, _, transactionError = InterfaceVC.ExecuteAbiEval(&adminAddr, InterfaceContent, MakeABIString("update_network_boot_status"))
+	if transactionError != nil {
+		panic(transactionError.Message)
+	}
+}
+
+func setupPermissionContract(stateDB *account.AccountDB, adminAddr common.Address, nonce uint64, name, filePath string) (*common.Address, *tvm.Controller) {
+	code, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("setupPermissionContract read file %v,error=\"%s\"\n", filePath, err)
+		return nil, nil
+	}
+	txRaw := &types.RawTransaction{}
+	addr := adminAddr
+	txRaw.Source = &addr
+	txRaw.Value = &types.BigInt{Int: *big.NewInt(0)}
+	txRaw.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}
+	bh := types.BlockHeader{}
+	bh.Height = 0
+	controller := tvm.NewController(stateDB, nil, &bh, types.NewTransaction(txRaw, txRaw.GenHash()), 0, nil)
+	contract := tvm.Contract{
+		Code:         string(code),
+		ContractName: name,
+	}
+	jsonBytes, err := json.Marshal(contract)
+	if err != nil {
+		panic(fmt.Sprintf("deploy permission contract %s error: %s", name, err.Error()))
+	}
+	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(txRaw.GetSource()[:], common.Uint64ToByte(nonce))))
+	stateDB.CreateAccount(contractAddress)
+	stateDB.SetCode(contractAddress, jsonBytes)
+
+	contract.ContractAddress = &contractAddress
+	controller.VM.SetGas(500000)
+	_, _, transactionError := controller.Deploy(&contract)
+	if transactionError != nil {
+		panic(fmt.Sprintf("deploy permission contract %s error: %s", name, transactionError.Message))
+	}
+	return contract.ContractAddress, controller
 }

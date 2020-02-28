@@ -17,6 +17,7 @@ package network
 
 import (
 	"bytes"
+	"github.com/zvchain/zvchain/middleware/types"
 	"math"
 	"math/rand"
 	"net"
@@ -124,6 +125,17 @@ func (pm *PeerManager) newConnection(id uint64, session uint32, p2pType uint32, 
 	Logger.Infof("new connection, node id:%v  netid :%v session:%v isAccepted:%v ip:%v port:%v ", p.ID.GetHexString(), id, session, isAccepted, ip, port)
 }
 
+func (pm *PeerManager) IsValidNode(id uint64) bool {
+	nodes := types.NodeInfoMap.GetNodeList()
+	for _, node := range nodes {
+		nID := NewNodeID(node.NodeId)
+		if nID != nil && genNetID(*nID) == id {
+			return true
+		}
+	}
+	return false
+}
+
 // onSendWaited  when the send queue is idle
 func (pm *PeerManager) onSendWaited(id uint64, session uint32) {
 	p := pm.peerByNetID(id)
@@ -174,7 +186,10 @@ func (pm *PeerManager) checkPeers() {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 	for _, p := range pm.peers {
-		if !p.isAuthSucceed {
+
+		if !pm.IsValidNode(genNetID(p.ID)) {
+			p.disconnect()
+		} else if !p.isAuthSucceed {
 
 			if !p.remoteVerifyResult && p.sessionID > 0 && p.ID.IsValid() {
 				go netServerInstance.netCore.ping(p.ID, nil)
@@ -271,6 +286,10 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
+	if !pm.IsValidNode(netID) {
+		Logger.Infof("addPeer failed, %v is not valid node", peer.ID.GetHexString())
+		return false
+	}
 	if peer.IP != nil && len(peer.IP.String()) > 0 && !pm.peerIPSet.Add(peer.IP.String()) {
 		Logger.Infof("addPeer failed, peer in same IP exceed limit size !Max size:%v, ip:%v", pm.peerIPSet.Limit, peer.IP.String())
 		return false
