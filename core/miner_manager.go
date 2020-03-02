@@ -114,6 +114,50 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.Blo
 	}
 }
 
+// CheckAddrIsGuardNode return is guard node,contains fund guard address and full stake address check
+func (mm *MinerManager) CheckAddrIsGuardNode(accountDB types.AccountDB, addr common.Address) (bool, error) {
+	// first check this address is in full stake guard node addrs list,if true,then return true
+	isFullStakeGuard := isInFullStakeGuardNode(accountDB, addr)
+	if isFullStakeGuard {
+		return true, nil
+	}
+	// second check this address is in fund addresses list
+	fd, err := getFundGuardNode(accountDB, addr)
+	if err != nil {
+		return false, err
+	}
+	if fd == nil {
+		return false, nil
+	}
+	// if type == normalNodeType,means this fund guard node is invalid,if 6+5 or 6+6 expired will set this value
+	// if type == fullStakeGuardNodeType means this fund guard becomes full stake fund node before invalid
+	// if type == fundGuardNodeType means this fund guard node is init status
+	return fd.isGuardNode(), nil
+}
+
+// GetAllGuardNodeAddrs return all guard node addresses,contains fund guard addresses and full stake addresses
+func (mm *MinerManager) GetAllGuardNodeAddrs(accountDB types.AccountDB) ([]common.Address, error) {
+	addrs := []common.Address{}
+	// first get all full stake addresses,if full stake guard is expired,we will remove from pool
+	fullStakeAddrs := mm.GetAllFullStakeGuardNodes(accountDB)
+	if len(fullStakeAddrs) > 0 {
+		addrs = append(addrs, fullStakeAddrs...)
+	}
+	fundGuardNodeDetail, err := mm.GetAllFundStakeGuardNodes(accountDB)
+	if err != nil {
+		return addrs, err
+	}
+	for _, fdDetail := range fundGuardNodeDetail {
+		// if type == normalNodeType,means this fund guard node is invalid,if 6+5 or 6+6 expired will set this value
+		// if type == fullStakeGuardNodeType means this fund guard becomes full stake fund node before invalid
+		// if type == fundGuardNodeType means this fund guard node is init status
+		if fdDetail.isGuardNode() {
+			addrs = append(addrs, fdDetail.Address)
+		}
+	}
+	return addrs, nil
+}
+
 func (mm *MinerManager) FundGuardExpiredCheck(accountDB types.AccountDB, height uint64) ([]common.Address, error) {
 	allExpiredFundAddresses := []common.Address{}
 	expiredAddresses, err := mm.fundGuardSixAddFiveNodesCheck(accountDB, height)
