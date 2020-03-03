@@ -94,6 +94,8 @@ func getOpByType(base *transitionContext, txType int8) stateTransition {
 		return &changeFundGuardMode{transitionContext: base}
 	case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 		return &groupOperator{transitionContext: base}
+	case types.TransactionTypeBlacklistUpdate:
+		return &blackUpdateTx{transitionContext: base}
 	default:
 		return &unSupported{typ: txType}
 	}

@@ -18,6 +18,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/common"
 	"math/big"
 )
@@ -218,4 +219,27 @@ type CastRewardShare struct {
 
 func (crs *CastRewardShare) TotalForVerifier() uint64 {
 	return crs.FeeForVerifier + crs.ForBlockVerify
+}
+
+type BlackOperator struct {
+	Addrs  []common.Address
+	OpType byte
+	Signs  [][]byte // sign of guard nodes
+}
+
+func EncodeBlackOperator(b *BlackOperator) ([]byte, error) {
+	bs, err := msgpack.Marshal(b)
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
+}
+
+func DecodeBlackOperator(bs []byte) (*BlackOperator, error) {
+	var b BlackOperator
+	err := msgpack.Unmarshal(bs, &b)
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
 }

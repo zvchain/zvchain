@@ -18,6 +18,7 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"github.com/zvchain/zvchain/params"
 	"math/big"
 
 	"github.com/zvchain/zvchain/common"
@@ -106,6 +107,13 @@ func sourceRecover(tx *types.Transaction) error {
 	return nil
 }
 
+func senderValidate(sender common.Address, db types.AccountDB, height uint64) error {
+	if params.GetChainConfig().IsZIP003(height) && BlockChainImpl.governer.isBlack(db, sender) {
+		return fmt.Errorf("sender cannot launch the transaction")
+	}
+	return nil
+}
+
 // stateValidate performs state related validation
 // Nonce validate delay to push to the container
 // All state related validation have to performed again when apply transactions because the state may be have changed
@@ -126,6 +134,9 @@ func stateValidate(accountDB types.AccountDB, tx *types.Transaction, height uint
 	// Check gas price related to height
 	if !validGasPrice(tx.GasPrice.Value(), height) {
 		return nil, fmt.Errorf("gas price below the lower bound")
+	}
+	if tx.Type != types.TransactionTypeMinerAbort {
+		err = senderValidate(*tx.Source, accountDB, height)
 	}
 	return
 }
@@ -298,6 +309,16 @@ func rewardValidate(tx *types.Transaction) error {
 	return nil
 }
 
+func blackUpdateValidate(tx *types.Transaction) error {
+	if len(tx.Data) == 0 {
+		return fmt.Errorf("data is empty")
+	}
+	if *tx.Source != types.GetAdminAddr() {
+		return fmt.Errorf("cannot launch the kind of transaction")
+	}
+	return nil
+}
+
 // getValidator returns the corresponding validator of the given transaction
 func getValidator(tx *types.Transaction, validateState bool) validator {
 	return func() error {
@@ -350,6 +371,8 @@ func getValidator(tx *types.Transaction, validateState bool) validator {
 				err = changeFundGuardModeValidator(tx)
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
+			case types.TransactionTypeBlacklistUpdate:
+				err = blackUpdateValidate(tx)
 			default:
 				err = fmt.Errorf("no such kind of tx")
 			}
