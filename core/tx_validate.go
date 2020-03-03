@@ -310,6 +310,9 @@ func rewardValidate(tx *types.Transaction) error {
 }
 
 func blackUpdateValidate(tx *types.Transaction, validateState bool) error {
+	if !params.GetChainConfig().IsZIP003(BlockChainImpl.Height()) {
+		return fmt.Errorf("unknown transaction type")
+	}
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
