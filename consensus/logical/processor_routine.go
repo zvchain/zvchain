@@ -95,7 +95,11 @@ func (p *Processor) checkSelfCastRoutine() bool {
 	blog.debug("topHeight=%v, topHash=%v, topCurTime=%v, castHeight=%v, expireTime=%v", top.Height, top.Hash, top.CurTime, castHeight, expireTime)
 	worker = newVRFWorker(p.getSelfMinerDO(), top, castHeight, expireTime, p.ts)
 	p.setVrfWorker(worker)
-	p.blockProposal()
+
+	for i := 0; i < 4; i++ {
+		atomic.CompareAndSwapInt32(&worker.status, proposed, prove)
+		p.blockProposal()
+	}
 	return true
 }
 
