@@ -243,3 +243,14 @@ func DecodeBlackOperator(bs []byte) (*BlackOperator, error) {
 	}
 	return &b, nil
 }
+
+func GenBlackOperateSignData(operator common.Address, nonce uint64, opType byte, addrs []common.Address) []byte {
+	buff := new(bytes.Buffer)
+	buff.Write(operator.Bytes())
+	buff.Write(common.Uint64ToByte(nonce))
+	buff.WriteByte(opType)
+	for _, addr := range addrs {
+		buff.Write(addr.Bytes())
+	}
+	return common.Sha256(buff.Bytes())
+}

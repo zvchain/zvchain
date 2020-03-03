@@ -108,7 +108,7 @@ func sourceRecover(tx *types.Transaction) error {
 }
 
 func senderValidate(sender common.Address, db types.AccountDB, height uint64) error {
-	if params.GetChainConfig().IsZIP003(height) && BlockChainImpl.governer.isBlack(db, sender) {
+	if params.GetChainConfig().IsZIP003(height) && governInstance.isBlack(db, sender) {
 		return fmt.Errorf("sender cannot launch the transaction")
 	}
 	return nil
@@ -309,12 +309,22 @@ func rewardValidate(tx *types.Transaction) error {
 	return nil
 }
 
-func blackUpdateValidate(tx *types.Transaction) error {
+func blackUpdateValidate(tx *types.Transaction, validateState bool) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
 	if *tx.Source != types.GetAdminAddr() {
 		return fmt.Errorf("cannot launch the kind of transaction")
+	}
+	if validateState {
+		db, err := BlockChainImpl.LatestAccountDB()
+		if err != nil {
+			return err
+		}
+		_, err = decodeAndVerifyBlackUpdateTx(tx, db)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -372,7 +382,7 @@ func getValidator(tx *types.Transaction, validateState bool) validator {
 			case types.TransactionTypeGroupPiece, types.TransactionTypeGroupMpk, types.TransactionTypeGroupOriginPiece:
 				err = groupValidator(tx)
 			case types.TransactionTypeBlacklistUpdate:
-				err = blackUpdateValidate(tx)
+				err = blackUpdateValidate(tx, validateState)
 			default:
 				err = fmt.Errorf("no such kind of tx")
 			}

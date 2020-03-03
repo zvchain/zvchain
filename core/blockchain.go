@@ -132,8 +132,6 @@ type FullBlockChain struct {
 	types.Account
 
 	cpChecker *cpChecker
-
-	governer governManagerI
 }
 
 func getPruneConfig(pruneMode bool) *PruneConfig {
@@ -290,7 +288,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 	chain.transactionPool = newTransactionPool(chain, receiptdb)
 
 	chain.txBatch = newTxBatchAdder(chain.transactionPool)
-	chain.governer = newGovernManager()
 
 	chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, chain.config.pruneMode, stateCacheSize, conf.GetString("state_cache_dir", ""))
 

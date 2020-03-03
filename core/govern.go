@@ -29,49 +29,41 @@ var (
 )
 
 type governManagerI interface {
+	getAllGuardNodes(db types.AccountDB) ([]common.Address, error)
 	addBlacks(db types.AccountDB, addrs []common.Address) error
 	removeBlacks(db types.AccountDB, addrs []common.Address) error
 	isBlack(db types.AccountDB, address common.Address) bool
 }
 
-func getGovernInstance() governManagerI {
-	return BlockChainImpl.governer
-}
+var governInstance governManagerI = newGovernManager()
 
 type blackUpdateTx struct {
 	*transitionContext
 	blackOp *types.BlackOperator
-	gov     governManagerI
 }
 
-func genSignDataBytes(opType byte, addrs []common.Address) []byte {
-	buff := new(bytes.Buffer)
-	buff.WriteByte(opType)
-	for _, addr := range addrs {
-		buff.Write(addr.Bytes())
-	}
-	return common.Sha256(buff.Bytes())
-}
-
-func (ss *blackUpdateTx) ParseTransaction() error {
-	b, err := types.DecodeBlackOperator(ss.msg.Payload())
+func decodeAndVerifyBlackUpdateTx(msg types.TxMessage, accountDB types.AccountDB) (*types.BlackOperator, error) {
+	b, err := types.DecodeBlackOperator(msg.Payload())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	ss.blackOp = b
+
+	if len(b.Addrs) == 0 {
+		return nil, fmt.Errorf("address list is empty")
+	}
 
 	// get sign data
-	signBytes := genSignDataBytes(ss.blackOp.OpType, ss.blackOp.Addrs)
+	signBytes := types.GenBlackOperateSignData(*msg.Operator(), msg.GetNonce(), b.OpType, b.Addrs)
 
 	// load guard nodes
-	guardNodes, err := MinerManagerImpl.GetAllGuardNodeAddrs(ss.accountDB)
+	guardNodes, err := governInstance.getAllGuardNodes(accountDB)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// signs enough
 	var threshold = len(guardNodes)/2 + 1
-	if len(ss.blackOp.Signs) < threshold {
-		return fmt.Errorf("not enough guard node signs, receive %v, expect %v", len(ss.blackOp.Signs), threshold)
+	if len(b.Signs) < threshold {
+		return nil, fmt.Errorf("not enough guard node signs, receive %v, expect %v", len(b.Signs), threshold)
 	}
 
 	isGuard := func(addr common.Address) bool {
@@ -84,30 +76,38 @@ func (ss *blackUpdateTx) ParseTransaction() error {
 	}
 
 	// check guards and sign
-	for _, sig := range ss.blackOp.Signs {
+	for _, sig := range b.Signs {
 		var sign = common.BytesToSign(sig)
 		if sign == nil {
-			return fmt.Errorf("decode sign fail, sign=%v", sign)
+			return nil, fmt.Errorf("decode sign fail, sign=%v", sign)
 		}
 		pk, err := sign.RecoverPubkey(signBytes)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		src := pk.GetAddress()
 		if !isGuard(src) {
-			return fmt.Errorf("sign %v is not from a guard node", common.ToHex(sig))
+			return nil, fmt.Errorf("sign %v is not from a guard node", common.ToHex(sig))
 		}
 	}
+	return b, nil
+}
 
+func (ss *blackUpdateTx) ParseTransaction() error {
+	b, err := decodeAndVerifyBlackUpdateTx(ss.msg, ss.accountDB)
+	if err != nil {
+		return err
+	}
+	ss.blackOp = b
 	return nil
 }
 
 func (ss *blackUpdateTx) Transition() *result {
 	ret := newResult()
 	if ss.blackOp.OpType == 1 {
-		getGovernInstance().removeBlacks(ss.accountDB, ss.blackOp.Addrs)
+		governInstance.removeBlacks(ss.accountDB, ss.blackOp.Addrs)
 	} else {
-		getGovernInstance().addBlacks(ss.accountDB, ss.blackOp.Addrs)
+		governInstance.addBlacks(ss.accountDB, ss.blackOp.Addrs)
 	}
 	return ret
 }
@@ -143,7 +143,7 @@ func (gm *governManager) isBlack(db types.AccountDB, addr common.Address) bool {
 	gm.lock.Lock()
 	defer gm.lock.Unlock()
 
-	if obj.GetRootHash() != gm.root {
+	if gm.root == common.EmptyHash || obj.GetRootHash() != gm.root {
 		gm.root = obj.GetRootHash()
 		gm.loadBlacks(db)
 		Logger.Infof("load blacklist size %v", len(gm.blacks))
@@ -172,4 +172,8 @@ func (gm *governManager) removeBlacks(db types.AccountDB, addrs []common.Address
 		db.RemoveData(blackStoreAddr, gm.genKey(addr))
 	}
 	return nil
+}
+
+func (gm *governManager) getAllGuardNodes(db types.AccountDB) ([]common.Address, error) {
+	return MinerManagerImpl.GetAllGuardNodeAddrs(db)
 }

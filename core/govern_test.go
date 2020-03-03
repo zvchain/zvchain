@@ -18,30 +18,61 @@ package core
 import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/account"
+	"github.com/zvchain/zvchain/storage/tasdb"
 	"testing"
 )
 
-func signData(key string, data []byte) []byte {
-	kBytes := common.FromHex(key)
-	privateKey := new(common.PrivateKey)
-	if !privateKey.ImportKey(kBytes) {
-		panic("import key fail")
+type governManager4Test struct {
+	*governManager
+	guardKeys []common.PrivateKey
+	adminKey  common.PrivateKey
+}
+
+func generateKey() common.PrivateKey {
+	key, err := common.GenerateKey("")
+	if err != nil {
+		panic(err)
 	}
-	sig, err := privateKey.Sign(data)
+	return key
+}
+
+func newGovenManager4Test(n int) *governManager4Test {
+	guards := make([]common.PrivateKey, 0)
+	for i := 0; i < n; i++ {
+		guards = append(guards, generateKey())
+	}
+	return &governManager4Test{
+		governManager: newGovernManager(),
+		guardKeys:     guards,
+		adminKey:      generateKey(),
+	}
+}
+
+func (gm *governManager4Test) getAllGuardNodes(db types.AccountDB) ([]common.Address, error) {
+	addrs := make([]common.Address, 0)
+	for _, g := range gm.guardKeys {
+		addrs = append(addrs, g.GetPubKey().GetAddress())
+	}
+	return addrs, nil
+}
+
+func signData(key common.PrivateKey, data []byte) []byte {
+	sig, err := key.Sign(data)
 	if err != nil {
 		panic("sign data error")
 	}
 	return sig.Bytes()
 }
 
-func generateBlackUpdateTx(nonce uint64, adminPrivateKey string, guardNodePrivateKeys []string, addrs []common.Address, remove bool) *types.Transaction {
+func (gm *governManager4Test) generateBlackUpdateTx(nonce uint64, addrs []common.Address, remove bool) *types.Transaction {
 	opType := byte(0)
 	if remove {
 		opType = 1
 	}
-	signBytes := genSignDataBytes(opType, addrs)
+	signBytes := types.GenBlackOperateSignData(gm.adminKey.GetPubKey().GetAddress(), nonce, opType, addrs)
 	signs := make([][]byte, 0)
-	for _, guardKey := range guardNodePrivateKeys {
+	for _, guardKey := range gm.guardKeys {
 		signs = append(signs, signData(guardKey, signBytes))
 	}
 
@@ -56,12 +87,7 @@ func generateBlackUpdateTx(nonce uint64, adminPrivateKey string, guardNodePrivat
 		panic("encode error")
 	}
 
-	kBytes := common.FromHex(adminPrivateKey)
-	privateKey := new(common.PrivateKey)
-	if !privateKey.ImportKey(kBytes) {
-		panic("import key fail")
-	}
-	source := privateKey.GetPubKey().GetAddress()
+	source := gm.adminKey.GetPubKey().GetAddress()
 
 	tx := &types.Transaction{
 		RawTransaction: &types.RawTransaction{
@@ -74,14 +100,38 @@ func generateBlackUpdateTx(nonce uint64, adminPrivateKey string, guardNodePrivat
 		},
 	}
 	tx.Hash = tx.GenHash()
-	sign, err := privateKey.Sign(tx.Hash.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	tx.Sign = sign.Bytes()
+	tx.Sign = signData(gm.adminKey, tx.Hash.Bytes())
 	return tx
 }
 
-func TestSendBlackUpdateTx(t *testing.T) {
+func TestAddBlack(t *testing.T) {
+	db, _ := tasdb.NewMemDatabase()
+	defer db.Close()
+	triedb := account.NewDatabase(db, false)
+	state, _ := account.NewAccountDB(common.Hash{}, triedb)
 
+	mm := &MinerManager{}
+
+	blacks := []common.Address{normal1, normal2, normal3}
+
+	gm := newGovenManager4Test(100)
+
+	governInstance = gm
+
+	adminAddr := gm.adminKey.GetPubKey().GetAddress()
+	nonce := state.GetNonce(adminAddr)
+
+	tx := gm.generateBlackUpdateTx(nonce+1, blacks, false)
+
+	ok, err := mm.ExecuteOperation(state, tx, 1)
+	if !ok || err != nil {
+		t.Fatal(err)
+	}
+	t.Log("add success")
+
+	for _, addr := range blacks {
+		if !gm.isBlack(state, addr) {
+			t.Fatalf("should be black %v", addr)
+		}
+	}
 }
