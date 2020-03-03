@@ -18,15 +18,14 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/report"
 	"github.com/zvchain/zvchain/cmd/gzv/cli/update"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware"
 	"github.com/zvchain/zvchain/params"
+	"os"
+	"time"
 
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core"
@@ -77,7 +76,6 @@ func (gzv *Gzv) miner(cfg *minerConfig) error {
 	if err != nil {
 		return err
 	}
-
 	ok := mediator.StartMiner()
 
 	fmt.Println("Syncing block and group info from ZV net.Waiting...")
@@ -201,12 +199,6 @@ func (gzv *Gzv) Run() {
 	cpu := pruneCmd.Flag("cpu", "number of CPU cores used in the pruning process").Default("0").Int()
 	maxOpenFiles := pruneCmd.Flag("maxopenfiles", "max open files for the process").Default("10240").Int()
 
-	exportCmd := app.Command("export", "Export blockchain into file")
-	exportDist := exportCmd.Flag("file", "the output file to save the exported chain data").Short('o').Default("zvchain.data").String()
-
-	importCmd := app.Command("import", "Import blockchain from a file")
-	importDist := importCmd.Flag("file", "the archive file for importing").Short('i').Default("zvchain.data").String()
-
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
 		kingpin.Fatalf("%s, try --help", err)
@@ -293,6 +285,12 @@ func (gzv *Gzv) Run() {
 		log.Init()
 		types.InitMiddleware()
 
+		cfg := &minerConfig{
+			keystore:   *keystore,
+			password:   *passWd,
+			privateKey: *privKey,
+		}
+		gzv.config = cfg
 		if *destDir != "" {
 			common.GlobalConf.SetString("chain", "db_blocks", *destDir)
 		}
@@ -339,44 +337,8 @@ func (gzv *Gzv) Run() {
 			tailor.Pruning()
 		}
 		os.Exit(0)
-
-	case exportCmd.FullCommand():
-		log.Init()
-		helper := mediator.NewConsensusHelper(groupsig.ID{})
-		err := core.ExportChainData(*exportDist, helper)
-		if err != nil {
-			output(err.Error())
-		}
-		os.Exit(0)
-
-	case importCmd.FullCommand():
-		log.Init()
-		types.InitMiddleware()
-		helper := mediator.NewConsensusHelper(groupsig.ID{})
-		err := core.ImportChainDataStep1(*importDist, helper)
-		if err != nil {
-			output(err.Error())
-			os.Exit(1)
-		}
-
-		peekChain(gzv)
-		os.Exit(0)
 	}
 	<-quitChan
-}
-
-func peekChain(gzv *Gzv) {
-	types.InitMiddleware()
-
-	if err := gzv.coreInit(); err != nil {
-		output("initialize fail:", err)
-		os.Exit(-1)
-	}
-
-	if err := core.ImportChainDataStep2(); err != nil {
-		output("peek blocks fail:", err)
-		os.Exit(-1)
-	}
 }
 
 // ClearBlock delete local blockchain data
@@ -424,16 +386,30 @@ func (gzv *Gzv) coreInit() error {
 	var err error
 	// Initialization middlewarex
 	middleware.InitMiddleware()
+	cfg := gzv.config
 
-	privateKey, err := common.GenerateKey("")
-	if err != nil {
-		return err
+	addressConfig := common.GlobalConf.GetString(Section, "miner", "")
+
+	if cfg.privateKey != "" {
+		kBytes := common.FromHex(cfg.privateKey)
+		sk := new(common.PrivateKey)
+		if !sk.ImportKey(kBytes) {
+			return ErrInternal
+		}
+		acc, err := recoverAccountByPrivateKey(sk, true)
+		if err != nil {
+			return err
+		}
+		gzv.account = *acc
+	} else {
+		err = gzv.checkAddress(cfg.keystore, addressConfig, cfg.password, cfg.autoCreateAccount)
+		if err != nil {
+			return err
+		}
 	}
-	acc, err := recoverAccountByPrivateKey(&privateKey, false)
-	if err != nil {
-		return err
-	}
-	gzv.account = *acc
+
+	common.GlobalConf.SetString(Section, "miner", gzv.account.Address)
+	output("Your Miner Address:", gzv.account.Address)
 
 	sk := common.HexToSecKey(gzv.account.Sk)
 	minerInfo, err := model.NewSelfMinerDO(sk)

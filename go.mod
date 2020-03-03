@@ -11,7 +11,6 @@ require (
 	github.com/beevik/ntp v0.2.0
 	github.com/boltdb/bolt v1.3.1
 	github.com/c9s/goprocinfo v0.0.0-20190309065803-0b2ad9ac246b // indirect
-	github.com/cheggaaa/pb/v3 v3.0.4
 	github.com/codeskyblue/go-sh v0.0.0-20190412065543-76bd3d59ff27
 	github.com/davecgh/go-spew v1.1.1
 	github.com/glacjay/goini v0.0.0-20161120062552-fd3024d87ee2
@@ -32,7 +31,7 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
-	golang.org/x/sys v0.0.0-20191128015809-6d18c012aee9
+	golang.org/x/sys v0.0.0-20190523142557-0e01d883c5c5
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/fatih/set.v0 v0.2.1
