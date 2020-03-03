@@ -119,12 +119,11 @@ type governManager struct {
 }
 
 func newGovernManager() *governManager {
-	return &governManager{
-		blacks: make(map[common.Address]struct{}),
-	}
+	return &governManager{}
 }
 
 func (gm *governManager) loadBlacks(db types.AccountDB) {
+	gm.blacks = make(map[common.Address]struct{})
 	iter := db.DataIterator(blackStoreAddr, blackPrefix)
 	for iter.Next() {
 		if !bytes.HasPrefix(iter.Key, blackPrefix) {

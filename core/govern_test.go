@@ -104,7 +104,7 @@ func (gm *governManager4Test) generateBlackUpdateTx(nonce uint64, addrs []common
 	return tx
 }
 
-func TestAddBlack(t *testing.T) {
+func TestBlackUpdate(t *testing.T) {
 	db, _ := tasdb.NewMemDatabase()
 	defer db.Close()
 	triedb := account.NewDatabase(db, false)
@@ -119,6 +119,8 @@ func TestAddBlack(t *testing.T) {
 	governInstance = gm
 
 	adminAddr := gm.adminKey.GetPubKey().GetAddress()
+
+	// add
 	nonce := state.GetNonce(adminAddr)
 
 	tx := gm.generateBlackUpdateTx(nonce+1, blacks, false)
@@ -129,9 +131,36 @@ func TestAddBlack(t *testing.T) {
 	}
 	t.Log("add success")
 
+	root, err := state.Commit(false)
+	triedb.TrieDB().Commit(1, root, false)
+	t.Log("root after add", root.Hex())
+
+	state, _ = account.NewAccountDB(root, triedb)
 	for _, addr := range blacks {
 		if !gm.isBlack(state, addr) {
 			t.Fatalf("should be black %v", addr)
 		}
 	}
+
+	// remove
+	nonce = state.GetNonce(adminAddr)
+
+	tx = gm.generateBlackUpdateTx(nonce+1, blacks, true)
+
+	ok, err = mm.ExecuteOperation(state, tx, 1)
+	if !ok || err != nil {
+		t.Fatal(err)
+	}
+	t.Log("remove success")
+
+	root, err = state.Commit(false)
+	triedb.TrieDB().Commit(1, root, false)
+	t.Log("root after remove ", root.Hex())
+	state, _ = account.NewAccountDB(root, triedb)
+	for _, addr := range blacks {
+		if gm.isBlack(state, addr) {
+			t.Fatalf("should not be black %v", addr)
+		}
+	}
+
 }
