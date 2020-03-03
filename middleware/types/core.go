@@ -356,7 +356,14 @@ func (bw *BlockWeight) Cmp(bw2 *BlockWeight) int {
 			return cmp
 		}
 	}
-	return bw.PV.Cmp(bw2.PV)
+	pvCmp := bw.PV.Cmp(bw2.PV)
+	if pvCmp == 0 && params.GetChainConfig().IsZIP003(bw.Height) && params.GetChainConfig().IsZIP003(bw2.Height) {
+		//Consider a case where a proposer raised two blocks in the same height, Compare hash value when pvs are equal
+		bigH := bw.Hash.Big()
+		bigH2 := bw2.Hash.Big()
+		return bigH.Cmp(bigH2)
+	}
+	return pvCmp
 }
 
 func NewCandidateBlockHeader(bh *BlockHeader) *CandidateBlockHeader {
