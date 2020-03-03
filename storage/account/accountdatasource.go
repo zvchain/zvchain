@@ -83,7 +83,7 @@ type Trie interface {
 	// is to find any errors that might cause trie nodes missing during prune
 	//
 	// This method is extremely CPU and disk intensive, and time consuming, only use when must.
-	Traverse(onleaf trie.ExtLeafCallback, resolve trie.ResolveNodeCallback) (bool, error)
+	Traverse(onleaf trie.ExtLeafCallback, resolve trie.ResolveNodeCallback, checkHash bool) (bool, error)
 }
 
 // NewDatabase creates a backing store for state. The returned database

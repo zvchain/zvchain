@@ -262,11 +262,6 @@ func initBlockChain(helper types.ConsensusHelper, minerAccount types.Account) er
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return err
 	}
-	if isFromExportedDb(chain){
-		err = errors.New("Init block chain error! Error: can't run from the exported database directly")
-		Logger.Error(err)
-		return err
-	}
 
 	var sdbOptions *opt.Options
 	if chain.config.pruneMode {
@@ -400,15 +395,7 @@ func (chain *FullBlockChain) buildCache(size int) {
 
 // insertGenesisBlock creates the genesis block and some necessary information，
 // and commit it
-func (chain *FullBlockChain) insertGenesisBlock(){
-	block, stateDB := chain.createGenesisBlock()
-	ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
-	if !ok {
-		panic("insert genesis block fail, err=" + err.Error())
-	}
-}
-
-func (chain *FullBlockChain) createGenesisBlock() (*types.Block,*account.AccountDB)  {
+func (chain *FullBlockChain) insertGenesisBlock() {
 	stateDB, err := account.NewAccountDB(common.Hash{}, chain.stateCache)
 	if nil != err {
 		panic("Init block chain error:" + err.Error())
@@ -453,7 +440,13 @@ func (chain *FullBlockChain) createGenesisBlock() (*types.Block,*account.Account
 	root := stateDB.IntermediateRoot(true)
 	block.Header.StateTree = common.BytesToHash(root.Bytes())
 	block.Header.Hash = block.Header.GenHash()
-	return block, stateDB
+
+	ok, err := chain.commitBlock(block, &executePostState{state: stateDB})
+	if !ok {
+		panic("insert genesis block fail, err=" + err.Error())
+	}
+
+	Logger.Debugf("GenesisBlock %+v", block.Header)
 }
 
 // Clear clear blockchain all data. Not used now, should remove it latter
