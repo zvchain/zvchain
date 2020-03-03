@@ -16,6 +16,8 @@
 package core
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
@@ -163,4 +165,27 @@ func TestBlackUpdate(t *testing.T) {
 		}
 	}
 
+}
+
+type InputParam struct {
+	RpcUrl        string   `json:"rpc_url"`
+	AdminKey      string   `json:"admin_key"`
+	GuardNodeKeys []string `json:"guard_node_keys"`
+	BlackAddrs    []string `json:"black_addrs"`
+	Remove        bool     `json:"remove"`
+}
+
+func TestGenerateParamJson(t *testing.T) {
+	gm := newGovenManager4Test(10)
+	gk := make([]string, 0)
+	for _, g := range gm.guardKeys {
+		gk = append(gk, common.ToHex(g.ExportKey()))
+	}
+	p := &InputParam{
+		RpcUrl:        "",
+		AdminKey:      common.ToHex(gm.adminKey.ExportKey()),
+		GuardNodeKeys: gk,
+	}
+	bs, _ := json.MarshalIndent(p, "", "\t")
+	fmt.Println(string(bs))
 }

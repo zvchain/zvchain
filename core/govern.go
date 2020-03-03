@@ -62,6 +62,14 @@ func decodeAndVerifyBlackUpdateTx(msg types.TxMessage, accountDB types.AccountDB
 	}
 	// signs enough
 	var threshold = len(guardNodes)/2 + 1
+	existSign := make(map[string]byte)
+	// deduplicates signs
+	for _, sign := range b.Signs {
+		if existSign[string(sign)] == 1 {
+			return nil, fmt.Errorf("duplate sign found")
+		}
+		existSign[string(sign)] = 1
+	}
 	if len(b.Signs) < threshold {
 		return nil, fmt.Errorf("not enough guard node signs, receive %v, expect %v", len(b.Signs), threshold)
 	}
