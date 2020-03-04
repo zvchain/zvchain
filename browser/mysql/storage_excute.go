@@ -942,6 +942,7 @@ func upMinerBlocks(tx *gorm.DB,
 		//blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
 		mapData["min"] = blockVerHeights[0]
 		mapData["max"] = blockVerHeights[len(blockVerHeights)-1]
+		fmt.Println("upblockVerHeights,", blockVerHeights[0], ",", blockVerHeights[len(blockVerHeights)-1])
 		updateVerString, err := json.Marshal(blockVerHeights)
 		if err != nil {
 			return err
@@ -987,6 +988,7 @@ func upMinerBlocks(tx *gorm.DB,
 			}
 
 		}
+		fmt.Println("addblockVerHeights,", MineBlock.Min, ",", MineBlock.Max)
 		return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
 	}
 }
