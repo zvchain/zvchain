@@ -344,6 +344,8 @@ func (tm *DBMmanagement) excuteAccounts() {
 					if checkStakeTransaction(tx.Type) {
 						if tx.Target != nil {
 							set.Add(tx.Target.AddrPrefixString())
+						} else if tx.Type == types.TransactionTypeMinerAbort && tx.Source != nil {
+							set.Add(tx.Source.AddrPrefixString())
 						}
 					}
 					////stake list

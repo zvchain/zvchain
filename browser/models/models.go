@@ -196,6 +196,8 @@ type MinerToBlock struct {
 	BlockIDs  string `json:"block_ids" gorm:"type:TEXT"`
 	BlockCnts int    `json:"block_cnts"`
 	Sequence  uint64 `json:"sequence" gorm:"unique_index:idx_addr_seq"`
+	Max       uint64 `json:"max" gorm:"index:idx_max"`
+	Min       uint64 `json:"min" gorm:"index:idx_min"`
 }
 
 type BlockToMiner struct {

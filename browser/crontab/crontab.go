@@ -131,6 +131,7 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchPoolVotes()
 	go crontab.fetchGroups()
 	go crontab.fetchOldConctactCreate()
+	//go crontab.GetMinerToblocksByPage()
 
 	go crontab.fetchBlockRewards()
 	go crontab.Consume()
@@ -151,6 +152,7 @@ func (crontab *Crontab) loop() {
 			go crontab.fetchGroups()
 			go crontab.UpdateCheckPoint()
 			go crontab.fetchOldTxCountToAccountList()
+			go crontab.GetMinerToblocksByPage()
 
 			//go crontab.fetchOldBlockToMiner()
 
@@ -668,6 +670,15 @@ func getMinerDetail(addr string, height uint64, bizType types.MinerType) *common
 		return mort
 	}
 	return nil
+}
+
+func (crontab *Crontab) GetMinerToblocksByPage() {
+	for h := 0; h < 13000; h++ {
+		minerBlock := crontab.storage.GetMinerToblocksByPage(h)
+		for _, block := range minerBlock {
+			crontab.storage.UpMinerBlockMaxAndMin(block)
+		}
+	}
 }
 
 func (crontab *Crontab) excutePoolVotes() {
