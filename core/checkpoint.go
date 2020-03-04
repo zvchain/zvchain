@@ -19,13 +19,14 @@ import (
 	"bytes"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/storage/trie"
 	"math"
 	"sort"
 )
 
 const (
 	groupThreshold  = 0.7
-	groupNumMin     = 10
+	groupNumMin     = 4
 	cpMaxScanEpochs = 10 // max scan epoch when finding the check point
 	cpBlockBuffer   = 20 // min blocks that a cp can occurs
 )
@@ -43,6 +44,7 @@ type blockQuerier interface {
 	AccountDBAt(height uint64) (types.AccountDB, error)
 	QueryBlockHeaderByHash(hash common.Hash) *types.BlockHeader
 	QueryBlockHeaderFloor(h uint64) *types.BlockHeader
+	BatchGetBlockHeadersBetween(begin, end uint64) []*types.BlockHeader
 }
 
 type cpContext struct {
@@ -209,6 +211,52 @@ func (cp *cpChecker) updateVotes(db types.AccountDB, bh *types.BlockHeader) {
 	Logger.Debugf("cp group votes updated at %v, votes %v", bh.Height, votes)
 }
 
+func (cp *cpChecker) calcCheckpointByDB(db types.AccountDB, ep types.Epoch, threshold int) (cpHeight uint64, found bool) {
+	// Get the group epoch start with the given accountDB
+	gEp := cp.getGroupEpoch(db)
+	// If epoch of the given db not equal to current epoch, means that the whole current epoch was skipped
+	if gEp.Equal(ep) {
+		votes := cp.getGroupVotes(db)
+
+		validVotes := make([]int, 0)
+		for _, v := range votes {
+			if v > 0 {
+				validVotes = append(validVotes, int(v))
+			}
+		}
+		// cp found
+		if len(validVotes) >= threshold {
+			sort.Ints(validVotes)
+			thresholdHeight := uint64(validVotes[len(validVotes)-threshold]) + ep.Start() - 1
+			return thresholdHeight, true
+		}
+	}
+	return 0, false
+}
+
+func (cp *cpChecker) calcCheckpointByBlocks(blocks []*types.BlockHeader, ep types.Epoch, threshold int) (cpHeight uint64, found bool) {
+	if len(blocks) == 0 {
+		return 0, false
+	}
+	votes := make(map[common.Hash]struct{})
+	for visit := len(blocks) - 1; visit >= 0; visit-- {
+		bh := blocks[visit]
+		if types.EpochAt(bh.Height).Equal(ep) {
+			votes[bh.Group] = struct{}{}
+			// Threshold-group height found
+			if len(votes) >= threshold {
+				return bh.Height, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func isMissingNodeError(err error) bool {
+	_, ok := err.(*trie.MissingNodeError)
+	return ok
+}
+
 func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 	if h <= cpBlockBuffer {
 		return 0
@@ -220,33 +268,32 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 		h = cp.querier.QueryBlockHeaderFloor(h).Height
 	}
 
-	for scan := 0; scan < cpMaxScanEpochs; scan++ {
+	calcByAccountDB := true
+
+	for scan := 0; scan < cpMaxScanEpochs; {
 		ep := types.EpochAt(h)
 		ctx := newCpContext(ep, cp.groupReader.GetActivatedGroupsAt(ep.Start()))
 		if ctx.groupsEnough() {
-			// Get the accountDB of end of the epoch
-			db, err := cp.querier.AccountDBAt(h)
-			if err != nil {
-				Logger.Errorf("get account db at %v error:%v", h, err)
-				return 0
-			}
-			// Get the group epoch start with the given accountDB
-			gEp := cp.getGroupEpoch(db)
-			// If epoch of the given db not equal to current epoch, means that the whole current epoch was skipped
-			if gEp.Equal(ep) {
-				votes := cp.getGroupVotes(db)
-
-				validVotes := make([]int, 0)
-				for _, v := range votes {
-					if v > 0 {
-						validVotes = append(validVotes, int(v))
+			if calcByAccountDB {
+				// Get the accountDB of end of the epoch
+				db, err := cp.querier.AccountDBAt(h)
+				if err != nil {
+					Logger.Errorf("get account db at %v error:%v", h, err)
+					// Missing node error may occurs when running at pruning-mode and then
+					// will continue calculating the checkpoint by reading blocks from chain
+					if isMissingNodeError(err) {
+						calcByAccountDB = false
+						continue
 					}
+					return 0
 				}
-				// cp found
-				if len(validVotes) >= ctx.threshold {
-					sort.Ints(validVotes)
-					thresholdHeight := uint64(validVotes[len(validVotes)-ctx.threshold]) + ctx.epoch.Start() - 1
-					return thresholdHeight
+				if h, found := cp.calcCheckpointByDB(db, ctx.epoch, ctx.threshold); found {
+					return h
+				}
+			} else {
+				blocks := cp.querier.BatchGetBlockHeadersBetween(ep.Start(), h+1)
+				if h, found := cp.calcCheckpointByBlocks(blocks, ctx.epoch, ctx.threshold); found {
+					return h
 				}
 			}
 		} else {
@@ -257,6 +304,7 @@ func (cp *cpChecker) checkpointAt(h uint64) uint64 {
 			break
 		}
 		h = ep.Start() - 1
+		scan++
 	}
 	return 0
 }

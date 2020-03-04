@@ -20,9 +20,12 @@ package tasdb
 
 import (
 	"bytes"
-	"github.com/zvchain/zvchain/log"
 	"os"
+	"runtime/debug"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -59,19 +62,13 @@ func getInstance(file string, options *opt.Options) (*LDBDatabase, error) {
 		err           error
 	)
 
-	defaultConfig := &databaseConfig{
-		database: DefaultFile,
-		cache:    128,
-		handler:  1024,
-	}
-
-	if nil == common.GlobalConf {
-		instanceInner, err = NewLDBDatabase(defaultConfig.database, options)
-	} else {
-		instanceInner, err = NewLDBDatabase(file, options)
-	}
+	instanceInner, err = NewLDBDatabase(file, options)
 
 	return instanceInner, err
+}
+
+func (db *PrefixedDatabase) GetDB() *leveldb.DB {
+	return db.db.db
 }
 
 // Close close db connection
@@ -133,6 +130,50 @@ func (db *PrefixedDatabase) CreateLDBBatch() Batch {
 func (db *PrefixedDatabase) addKVToBatch(b Batch, k, v []byte) error {
 	key := generateKey(k, db.prefix)
 	return b.Put(key, v)
+}
+
+var dbStats = &leveldb.DBStats{}
+
+func (db *PrefixedDatabase) LogStats(logger *logrus.Logger) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("error：%v\n", r)
+			s := debug.Stack()
+			logger.Errorf(string(s))
+		}
+	}()
+
+	byte2MB := 1048576
+	lastWrite := dbStats.IOWrite / uint64(byte2MB)
+	lastRead := dbStats.IORead / uint64(byte2MB)
+
+	err := db.db.db.Stats(dbStats)
+	if err != nil {
+		logger.Info("failed to get leveldb stats", err)
+	} else {
+
+		LevelSizes := dbStats.LevelSizes[:0]
+		for _, v := range dbStats.LevelSizes {
+			LevelSizes = append(LevelSizes, v/int64(byte2MB))
+		}
+		LevelRead := dbStats.LevelRead[:0]
+		for _, v := range dbStats.LevelRead {
+			LevelRead = append(LevelRead, v/int64(byte2MB))
+		}
+		LevelWrite := dbStats.LevelWrite[:0]
+		for _, v := range dbStats.LevelWrite {
+			LevelWrite = append(LevelWrite, v/int64(byte2MB))
+		}
+		iOWriteInc := dbStats.IOWrite/uint64(byte2MB) - lastWrite
+		iOReadInc := dbStats.IORead/uint64(byte2MB) - lastRead
+
+		logger.Debugf("leveldb stats: WriteDelayCount:%v,WriteDelayDuration:%v,WritePaused:%v,AliveSnapshots:%v,"+
+			"AliveIterators:%v,IOWrite:%vMB,IORead:%vMB,IOWriteInc:%vMB,IOReadInc:%vMB,BlockCacheSize:%vMB,OpenedTablesCount:%v,LevelSizes:%vMB,"+
+			"LevelTablesCounts:%v,LevelRead:%vMB,LevelWrite:%vMB,LevelDurations:%v", dbStats.WriteDelayCount,
+			dbStats.WriteDelayDuration, dbStats.WritePaused, dbStats.AliveSnapshots, dbStats.AliveIterators, dbStats.IOWrite/uint64(byte2MB),
+			dbStats.IORead/uint64(byte2MB), iOWriteInc, iOReadInc, dbStats.BlockCacheSize/byte2MB,
+			dbStats.OpenedTablesCount, dbStats.LevelSizes, dbStats.LevelTablesCounts, dbStats.LevelRead, dbStats.LevelWrite, dbStats.LevelDurations)
+	}
 }
 
 func (db *PrefixedDatabase) addDeleteToBatch(b Batch, k []byte) error {
@@ -440,7 +481,7 @@ func (db *MemDatabase) Get(key []byte) ([]byte, error) {
 	if entry, ok := db.db[string(key)]; ok {
 		return common.CopyBytes(entry), nil
 	}
-	return nil, errors.New("not found")
+	return nil, errors.ErrNotFound
 }
 
 func (db *MemDatabase) Keys() [][]byte {
