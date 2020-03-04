@@ -19,12 +19,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/zvchain/zvchain/log"
-	time2 "github.com/zvchain/zvchain/middleware/time"
+	"github.com/zvchain/zvchain/tvm"
 	"math"
 	"sync/atomic"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/zvchain/zvchain/log"
+	time2 "github.com/zvchain/zvchain/middleware/time"
 
 	"github.com/zvchain/zvchain/monitor"
 
@@ -43,6 +45,13 @@ type executePostState struct {
 	txs        txSlice
 	ts         *common.TimeStatCtx
 }
+
+type SimpleBlockHeader struct {
+	PreHash common.Hash
+	Height  uint64
+}
+
+var OnBlockSuccessChan = make(chan *SimpleBlockHeader, 10000)
 
 // CastBlock cast a block, current casters synchronization operation in the group
 func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint64, castor []byte, gSeed common.Hash) *types.Block {
@@ -427,6 +436,11 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
+			tvm.SetTokenContractMapToLdb(block.Header.Hash.Hex(), block.Header.Height)
+			OnBlockSuccessChan <- &SimpleBlockHeader{
+				PreHash: block.Header.PreHash,
+				Height:  block.Header.Height,
+			}
 			chain.successOnChainCallBack(block, time.Since(begin))
 		}
 	}()
