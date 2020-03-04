@@ -80,6 +80,8 @@ const (
 	TransactionTypeVoteMinerPool       = 8 // vote to miner pool
 	TransactionTypeChangeFundGuardMode = 9 // in half of year,can choose 6+5 or 6+6
 
+	TransactionTypeBlacklistUpdate = 10
+
 	// Group operation related type
 	TransactionTypeGroupPiece       = SystemTransactionOffset + 1 //group member upload his encrypted share piece
 	TransactionTypeGroupMpk         = SystemTransactionOffset + 2 //group member upload his mpk
