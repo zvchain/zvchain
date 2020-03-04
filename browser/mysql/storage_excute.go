@@ -834,7 +834,7 @@ func (storage *Storage) GetMinerToblocksByPage(page int) []*models.MinerToBlock 
 		return nil
 	}
 	accounts := make([]*models.MinerToBlock, 0, 0)
-	storage.db.Offset(page * LIMIT).Limit(LIMIT).Where("min is null").Find(&accounts)
+	storage.db.Offset(0).Limit(LIMIT).Where("min is null").Find(&accounts)
 	return accounts
 }
 
