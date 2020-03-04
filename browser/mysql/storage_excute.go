@@ -827,6 +827,16 @@ func (storage *Storage) Reward2blocktest() []int {
 	fmt.Println("cost:", time.Since(times))
 	return total
 }
+func (storage *Storage) GetMinerToblocksByPage(page int) []*models.MinerToBlock {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	accounts := make([]*models.MinerToBlock, 0, 0)
+	storage.db.Offset(page * LIMIT).Limit(LIMIT).Where("min is null").Find(&accounts)
+	return accounts
+}
 
 func (storage *Storage) GetExistminerBlock(address string, typeId uint64) ([]*models.MinerToBlock, int) {
 	miners := make([]*models.MinerToBlock, 0)
@@ -901,6 +911,18 @@ func (storage *Storage) Reward2MinerBlock(height uint64) bool {
 	return isSuccess
 
 }
+func (storage *Storage) UpMinerBlockMaxAndMin(block *models.MinerToBlock) error {
+	mapData := make(map[string]interface{})
+	blockVerHeights := make([]uint64, 0)
+	if err := json.Unmarshal([]byte(block.BlockIDs), &blockVerHeights); err != nil {
+		return err
+	}
+	mapData["min"] = blockVerHeights[0]
+	mapData["max"] = blockVerHeights[len(blockVerHeights)-1]
+	return storage.db.Model(&models.MinerToBlock{}).
+		Where("id = ?", block.ID).
+		Updates(mapData).Error
+}
 
 func upMinerBlocks(tx *gorm.DB,
 	addr string,
@@ -918,6 +940,8 @@ func upMinerBlocks(tx *gorm.DB,
 		blockVerHeights = append(blockVerHeights, heights...)
 		//blockVerHeights = append(blockVerHeights, height)
 		//blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
+		mapData["min"] = blockVerHeights[0]
+		mapData["max"] = blockVerHeights[len(blockVerHeights)-1]
 		updateVerString, err := json.Marshal(blockVerHeights)
 		if err != nil {
 			return err
@@ -945,6 +969,9 @@ func upMinerBlocks(tx *gorm.DB,
 		problockList := make([]uint64, 0)
 		if len(heights) > 0 {
 			problockList = append(problockList, heights...)
+			MineBlock.Min = problockList[0]
+			MineBlock.Max = problockList[len(problockList)-1]
+
 			byteProBlocks, err := json.Marshal(problockList)
 			if err != nil {
 				return err
@@ -987,6 +1014,8 @@ func upMinerBlock(tx *gorm.DB, addr string,
 		if err != nil {
 			return err
 		}
+		mapData["min"] = blockVerHeights[0]
+		mapData["max"] = blockVerHeights[len(blockVerHeights)-1]
 		mapData["block_ids"] = updateVerString
 		mapData["block_cnts"] = len(blockVerHeights)
 
@@ -1018,6 +1047,8 @@ func upMinerBlock(tx *gorm.DB, addr string,
 			MineBlock.BlockIDs = proBlockString
 			MineBlock.Sequence = sequence
 			MineBlock.BlockCnts = len(problockList)
+			MineBlock.Min = problockList[0]
+			MineBlock.Max = problockList[len(problockList)-1]
 			MineBlock.Type = typeId
 			erraccount := upAccountConfirmCount(tx, typeId, sequence, uint64(len(problockList)), addr)
 			if erraccount != nil {
