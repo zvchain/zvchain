@@ -483,7 +483,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	defer mm.lock.Unlock()
 	begin := time.Now()
 	defer func() {
-		Logger.Debugf("get all miners cost %v", time.Since(begin).Seconds())
+		Logger.Infof("get all miners cost %v", time.Since(begin).Seconds())
 	}()
 	accountDB, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
