@@ -162,14 +162,14 @@ func newGroup(ID string, members []NodeID) *Group {
 
 	g := &Group{ID: ID, members: members, needConnectNodes: make([]NodeID, 0), resolvingNodes: make(map[NodeID]time.Time)}
 
-	Logger.Infof("[group]new group ID：%v", ID)
+	Logger.Debugf("[group]new group ID：%v", ID)
 	g.genConnectNodes()
 	return g
 }
 
 func (g *Group) rebuildGroup(members []NodeID) {
 
-	Logger.Infof("[group]rebuild group ID：%v", g.ID)
+	Logger.Debugf("[group]rebuild group ID：%v", g.ID)
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
@@ -181,7 +181,7 @@ func (g *Group) rebuildGroup(members []NodeID) {
 
 func (g *Group) onRemove() {
 
-	Logger.Infof("[group]group on remove  group ID：%v", g.ID)
+	Logger.Debugf("[group]group on remove  group ID：%v", g.ID)
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 	memberSize := len(g.needConnectNodes)
@@ -199,7 +199,7 @@ func (g *Group) onRemove() {
 		if p.isGroupEmpty() {
 			node := netCore.kad.find(ID)
 			if node == nil {
-				Logger.Infof("[group]group on remove, member ID: %v", ID)
+				Logger.Debugf("[group]group on remove, member ID: %v", ID)
 				netCore.peerManager.disconnect(ID)
 			}
 		}
@@ -226,11 +226,6 @@ func (g *Group) genConnectNodes() {
 		}
 	}
 
-	Logger.Infof("[group][genConnectNodes] curIndex: %v", g.curIndex)
-	for i := 0; i < len(g.members); i++ {
-		Logger.Debugf("[group][genConnectNodes] members ID: %v", g.members[i].GetHexString())
-	}
-
 	g.rowSize = groupRowSize(groupSize)
 
 	g.rowCount = int(math.Ceil(float64(groupSize) / float64(g.rowSize)))
@@ -241,33 +236,25 @@ func (g *Group) genConnectNodes() {
 
 	for i := 0; i < g.rowSize; i++ {
 		index := g.rowIndex*g.rowSize + i
-		Logger.Debugf("[group][genConnectNodes] row, i : %v ,index:%v", i, index)
 		if index >= groupSize {
 			break
 		}
 		if index != g.curIndex {
 			g.rowNodes = append(g.rowNodes, g.members[index])
 			g.needConnectNodes = append(g.needConnectNodes, g.members[index])
-			Logger.Debugf("[group][genConnectNodes] row member ID: %v", g.members[index].GetHexString())
 		}
 	}
 
 	for i := 0; i < g.rowCount; i++ {
 		index := i*g.rowSize + g.columnIndex
-		Logger.Debugf("[group][genConnectNodes] column, i : %v ,index:%v", i, index)
 		if index >= groupSize {
 			break
 		}
 		if index != g.curIndex {
 			g.columnNodes = append(g.columnNodes, g.members[index])
 			g.needConnectNodes = append(g.needConnectNodes, g.members[index])
-			Logger.Debugf("[group][genConnectNodes] column member ID: %v", g.members[index].GetHexString())
 		}
 	}
-	Logger.Debugf("[group][genConnectNodes] row size: %v, row count:%v,"+
-		" row Index:%v column index:%v rowNodesCount:%v, columnNodesCount:%v",
-		g.rowSize, g.rowCount, g.rowIndex, g.columnIndex, len(g.rowNodes), len(g.columnNodes))
-
 }
 
 // doRefresh Check all nodes need to connect is connecting，if not then connect that node
@@ -340,7 +327,7 @@ func sendNodes(nodes []NodeID, packet *bytes.Buffer, code uint32) {
 }
 
 func (g *Group) sendGroupMessage(msgType DataType, nodes []NodeID, msg *MsgData) {
-	Logger.Infof("[group] sendGroupMessage type:%v,nodes size:%v", msgType, len(nodes))
+	Logger.Debugf("[group] sendGroupMessage type:%v,nodes size:%v", msgType, len(nodes))
 
 	msg.DataType = msgType
 	buffer, _, err := netCore.encodePacket(MessageType_MessageData, msg)
@@ -355,9 +342,9 @@ func (g *Group) sendGroupMessage(msgType DataType, nodes []NodeID, msg *MsgData)
 
 func (g *Group) Broadcast(msg *MsgData) {
 
-	Logger.Infof("[group] Broadcast ID:%v", g.ID)
+	Logger.Debugf("[group] Broadcast ID:%v", g.ID)
 	if msg == nil {
-		Logger.Infof("[group] Broadcast ID:%v ,msg is nil", g.ID)
+		Logger.Debugf("[group] Broadcast ID:%v ,msg is nil", g.ID)
 		return
 	}
 	g.sendGroupMessage(DataType_DataGroupColumn, g.columnNodes, msg)
@@ -398,9 +385,9 @@ func (g *Group) Broadcast(msg *MsgData) {
 }
 
 func (g *Group) onBroadcast(msg *MsgData) {
-	Logger.Infof("[group] onBroadcast ID:type:%v type:%v", g.ID, msg.DataType)
+	Logger.Debugf("[group] onBroadcast ID:type:%v type:%v", g.ID, msg.DataType)
 	if msg == nil {
-		Logger.Infof("[group] onBroadcast ID:%v ,msg is nil", g.ID)
+		Logger.Debugf("[group] onBroadcast ID:%v ,msg is nil", g.ID)
 		return
 	}
 	sendColumn := false
@@ -448,10 +435,10 @@ func IsJoinedThisGroup(members []NodeID) bool {
 func (gm *GroupManager) buildGroup(ID string, members []NodeID) *Group {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
-	Logger.Infof("[group] build group, ID:%v, count:%v", ID, len(members))
+	Logger.Debugf("[group] build group, ID:%v, count:%v", ID, len(members))
 
 	if !IsJoinedThisGroup(members) {
-		Logger.Infof("[group] build group wrong, not joined this group,ID:%v, count:%v", ID, len(members))
+		Logger.Debugf("[group] build group wrong, not joined this group,ID:%v, count:%v", ID, len(members))
 		return nil
 	}
 
@@ -471,10 +458,10 @@ func (gm *GroupManager) removeGroup(ID string) {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 
-	Logger.Infof("[group] remove group, ID:%v.", ID)
+	Logger.Debugf("[group] remove group, ID:%v.", ID)
 	g := gm.groups[ID]
 	if g == nil {
-		Logger.Infof("[group] group not found.")
+		Logger.Errorf("[group] group not found.")
 		return
 	}
 	g.onRemove()
@@ -492,7 +479,7 @@ func (gm *GroupManager) doRefresh() {
 
 func (gm *GroupManager) onBroadcast(ID string, msg *MsgData) {
 
-	Logger.Infof("[group] on group broadcast, ID:%v ,type:%v", ID, msg.DataType)
+	Logger.Debugf("[group] on group broadcast, ID:%v ,type:%v", ID, msg.DataType)
 	if msg == nil {
 		Logger.Errorf("[group] on group broadcast, msg is nil, ID:%v ", ID)
 		return
@@ -520,7 +507,7 @@ func (gm *GroupManager) Broadcast(ID string, msg *MsgData, members []string, cod
 		Logger.Errorf("[group] group broadcast,msg is nil, ID:%v code:%v", ID, code)
 		return
 	}
-	Logger.Infof("[group] group broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
+	Logger.Debugf("[group] group broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
 
 	if ID == FullNodeVirtualGroupID {
 		netCore.proposerManager.Broadcast(msg, code)
@@ -542,7 +529,7 @@ func (gm *GroupManager) Broadcast(ID string, msg *MsgData, members []string, cod
 
 func (gm *GroupManager) BroadcastExternal(ID string, msg *MsgData, members []string, code uint32) {
 
-	Logger.Infof("[group] group external broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
+	Logger.Debugf("[group] group external broadcast, ID:%v code:%v, messageId:%X, BizMessageID:%v", ID, code, msg.MessageID, common.ToHex(msg.BizMessageID))
 	if msg == nil {
 		Logger.Errorf("[group] group external broadcast,msg is nil, ID:%v code:%v", ID, code)
 		return
