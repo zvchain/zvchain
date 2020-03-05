@@ -1,6 +1,7 @@
 package log
 
 import (
+	"github.com/sirupsen/logrus"
 	"os"
 	"sync"
 )
@@ -29,7 +30,7 @@ func Init() {
 	GroupLogger = RusPlus.Logger(logsDir+"group", MaxFileSize, DefaultMaxFiles, Level)
 	MiddlewareLogger = RusPlus.Logger(logsDir+"middleware", MaxFileSize, DefaultMaxFiles, Level)
 	TxSyncLogger = RusPlus.Logger(logsDir+"tx_sync", MaxFileSize, DefaultMaxFiles, Level)
-	P2PLogger = RusPlus.Logger(logsDir+"p2p", MaxFileSize, DefaultMaxFiles, Level)
+	P2PLogger = RusPlus.Logger(logsDir+"p2p", MaxFileSize, DefaultMaxFiles, logrus.WarnLevel)
 	ForkLogger = RusPlus.Logger(logsDir+"fork", MaxFileSize, DefaultMaxFiles, Level)
 	StatisticsLogger = RusPlus.Logger(logsDir+"statistics", MaxFileSize, DefaultMaxFiles, Level)
 	TVMLogger = RusPlus.Logger(logsDir+"tvm", MaxFileSize, DefaultMaxFiles, Level)
