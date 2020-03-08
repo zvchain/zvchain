@@ -21,6 +21,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
+	"github.com/zvchain/zvchain/params"
 	"math/big"
 )
 
@@ -31,6 +32,7 @@ const (
 	oneDayBlocks   = 86400 / onBlockSeconds      // Blocks generated in one day on average
 	twoDayBlocks   = 2 * oneDayBlocks            // Blocks generated in two days on average, used when executes the miner refund
 	stakeBuffer    = 15 * oneDayBlocks
+	ninetyBlocks   = 90 * oneDayBlocks
 )
 
 // mOperation define some functions on miner operation
@@ -342,10 +344,18 @@ func (op *stakeRefundOp) Transition() *result {
 		ret.setError(fmt.Errorf("target has no frozen detail"), types.RSFail)
 		return ret
 	}
+
 	// Check reduce-height
-	if op.height <= frozenDetail.Height+twoDayBlocks {
-		ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnougn)
-		return ret
+	if params.GetChainConfig().IsZIP003(frozenDetail.Height) && op.refundSource != types.GetStakePlatformAddr() {
+		if op.height <= frozenDetail.Height+ninetyBlocks {
+			ret.setError(fmt.Errorf("refund cann't happen util 90days after last reduce"), types.RSMinerRefundHeightNotEnougn)
+			return ret
+		}
+	} else {
+		if op.height <= frozenDetail.Height+twoDayBlocks {
+			ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnougn)
+			return ret
+		}
 	}
 
 	// Remove frozen data
