@@ -102,12 +102,35 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 			"castor":      castor,
 		}).Info("mined block height")
 		ms.showMsg("congratulations, you mined block height %v success!", b.Header.Height)
+		// calculate proposal reward
+		chain := core.BlockChainImpl
+		b := chain.QueryBlockCeil(b.Header.Height)
+		if b != nil {
+			packedReward := uint64(0)
+			rm := chain.GetRewardManager()
+			if b.Transactions != nil {
+				for _, tx := range b.Transactions {
+					if tx.IsReward() {
+						block := chain.QueryBlockByHash(common.BytesToHash(tx.Data))
+						receipt := chain.GetTransactionPool().GetReceipt(tx.GenHash())
+						if receipt != nil && block != nil && receipt.Success() {
+							share := rm.CalculateCastRewardShare(b.Header.Height, 0)
+							packedReward += share.ForRewardTxPacking
+						}
+					}
+				}
+			}
+			share := chain.GetRewardManager().CalculateCastRewardShare(b.Header.Height, b.Header.GasFee)
+			rewards := share.ForBlockProposal + packedReward + share.FeeForProposer
+			ms.showMsg("std_event|0|%d|%d|%d", b.Header.Height, b.Header.CurTime.Unix(), rewards)
+		}
 	}
 	if b.Transactions != nil && len(b.Transactions) > 0 {
 		for _, tx := range b.Transactions {
 			switch tx.Type {
 			case types.TransactionTypeReward:
-				_, ids, blockHash, _, err := ms.bchain.GetRewardManager().ParseRewardTransaction(types.NewTransaction(tx, tx.GenHash()))
+				hash := tx.GenHash()
+				_, ids, blockHash, _, err := ms.bchain.GetRewardManager().ParseRewardTransaction(types.NewTransaction(tx, hash))
 				if err != nil {
 					ms.showMsg("failed to parse reward transaction %s", err)
 					continue
@@ -121,6 +144,10 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 							"version":        common.GzvVersion,
 						}).Info("verifyLog")
 						ms.showMsg("congratulations, you verified block hash %v success, reward %v ZVC", blockHash.Hex(), common.RA2TAS(tx.Value.Uint64()))
+						header := core.BlockChainImpl.QueryBlockHeaderByHash(blockHash)
+						if header != nil {
+							ms.showMsg("std_event|1|%d|%d|%d|%s", header.Height, b.Header.CurTime.Unix(), tx.Value.Uint64(), hash.Hex())
+						}
 						break
 					}
 				}
@@ -148,6 +175,15 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 						role = "verifier"
 					}
 					ms.showMsg("refund miner role %v success at %v", role, b.Header.Height)
+				}
+			case types.TransactionTypeTransfer:
+				hash := tx.GenHash()
+				if ms.txSuccess(hash) {
+					if bytes.Equal(tx.Source.Bytes(), ms.id) {
+						ms.showMsg("std_event|2|%s|%s|%d|%s", tx.Source.AddrPrefixString(), tx.Target.AddrPrefixString(), tx.GetValue(), hash.Hex())
+					} else if bytes.Equal(tx.Target.Bytes(), ms.id) {
+						ms.showMsg("std_event|3|%s|%s|%d|%s", tx.Source.AddrPrefixString(), tx.Target.AddrPrefixString(), tx.GetValue(), hash.Hex())
+					}
 				}
 			}
 		}
