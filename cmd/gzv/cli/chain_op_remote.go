@@ -202,6 +202,10 @@ func (ca *RemoteChainOpImpl) MinerInfo(addr string, detail string) *RPCResObjCmd
 	return ca.request("minerInfo", addr, detail)
 }
 
+func (ca *RemoteChainOpImpl) MinerInfoByHeight(addr string, detail string, height uint64) *RPCResObjCmd {
+	return ca.request("minerInfoByHeight", addr, detail, height)
+}
+
 func (ca *RemoteChainOpImpl) BlockHeight() *RPCResObjCmd {
 	res := ca.request("blockHeight")
 	return res
@@ -436,6 +440,10 @@ func (ca *RemoteChainOpImpl) StakeReduce(target string, mType int, value, gas, g
 
 func (ca *RemoteChainOpImpl) ViewContract(addr string) *RPCResObjCmd {
 	return ca.request("viewAccount", addr)
+}
+
+func (ca *RemoteChainOpImpl) ViewContractByHeight(addr string, height uint64) *RPCResObjCmd {
+	return ca.request("viewAccountByHeight", addr, height)
 }
 
 func (ca *RemoteChainOpImpl) TxReceipt(hash string) *RPCResObjCmd {

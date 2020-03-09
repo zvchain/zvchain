@@ -363,6 +363,20 @@ func (mm *MinerManager) GetLatestMiner(address common.Address, mType types.Miner
 	return miner
 }
 
+func (mm *MinerManager) GetLatestMinerByHeight(address common.Address, mType types.MinerType, height uint64) *types.Miner {
+	accontDB, err := BlockChainImpl.accountDBAt(height)
+	if err != nil {
+		Logger.Errorf("get accontDB failed,error = %v", err.Error())
+		return nil
+	}
+	miner, err := getMiner(accontDB, address, mType)
+	if err != nil {
+		Logger.Errorf("get miner by id error:%v", err)
+		return nil
+	}
+	return miner
+}
+
 func (mm *MinerManager) GetFullMinerPoolStake(height uint64) uint64 {
 	return getFullMinerPoolStake(height)
 }
@@ -633,6 +647,31 @@ func (mm *MinerManager) getStakeDetail(address, source common.Address, status ty
 	return nil
 }
 
+func (mm *MinerManager) getStakeDetailByHeight(address, source common.Address, status types.StakeStatus, mType types.MinerType, height uint64) *types.StakeDetail {
+	db, error := BlockChainImpl.accountDBAt(height)
+	if error != nil {
+		Logger.Errorf("get accountdb failed,error = %v", error.Error())
+		return nil
+	}
+	key := getDetailKey(source, mType, status)
+	detail, err := getDetail(db, address, key)
+	if err != nil {
+		Logger.Error("get detail error:", err)
+	}
+	if detail != nil {
+		return &types.StakeDetail{
+			Source:        source,
+			Target:        address,
+			Value:         detail.Value,
+			UpdateHeight:  detail.Height,
+			Status:        status,
+			MType:         mType,
+			DisMissHeight: detail.DisMissHeight,
+		}
+	}
+	return nil
+}
+
 // GetStakeDetails returns all the stake details of the given address pairs
 func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Address) []*types.StakeDetail {
 	result := make([]*types.StakeDetail, 0)
@@ -650,6 +689,28 @@ func (mm *MinerManager) GetStakeDetails(address common.Address, source common.Ad
 		result = append(result, detail)
 	}
 	detail = mm.getStakeDetail(address, source, types.StakeFrozen, types.MinerTypeProposal)
+	if detail != nil {
+		result = append(result, detail)
+	}
+	return result
+}
+
+func (mm *MinerManager) GetStakeDetailsByHeight(address common.Address, source common.Address, height uint64) []*types.StakeDetail {
+	result := make([]*types.StakeDetail, 0)
+
+	detail := mm.getStakeDetailByHeight(address, source, types.Staked, types.MinerTypeVerify, height)
+	if detail != nil {
+		result = append(result, detail)
+	}
+	detail = mm.getStakeDetailByHeight(address, source, types.StakeFrozen, types.MinerTypeVerify, height)
+	if detail != nil {
+		result = append(result, detail)
+	}
+	detail = mm.getStakeDetailByHeight(address, source, types.Staked, types.MinerTypeProposal, height)
+	if detail != nil {
+		result = append(result, detail)
+	}
+	detail = mm.getStakeDetailByHeight(address, source, types.StakeFrozen, types.MinerTypeProposal, height)
 	if detail != nil {
 		result = append(result, detail)
 	}

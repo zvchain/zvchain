@@ -117,6 +117,8 @@ type chainOp interface {
 	// MinerInfo query miner info by address
 	MinerInfo(addr string, detail string) *RPCResObjCmd
 
+	MinerInfoByHeight(addr string, detail string, height uint64) *RPCResObjCmd
+
 	BlockHeight() *RPCResObjCmd
 
 	MinerPoolInfo(addr string) *RPCResObjCmd
