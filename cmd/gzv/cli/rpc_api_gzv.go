@@ -383,7 +383,7 @@ func (api *RpcGzvImpl) MinerInfoByHeight(addr string, detail string, height uint
 	}
 	minerDetails.Overview = morts
 	// Get details
-	details := core.MinerManagerImpl.GetStakeDetails(address, common.StringToAddress(detail))
+	details := core.MinerManagerImpl.GetStakeDetailsByHeight(address, common.StringToAddress(detail), height)
 	m := make(map[string][]*StakeDetail)
 	dts := convertDetails(details)
 	m[detail] = dts
