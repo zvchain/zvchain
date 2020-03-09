@@ -202,6 +202,10 @@ func (ca *RemoteChainOpImpl) MinerInfo(addr string, detail string) *RPCResObjCmd
 	return ca.request("minerInfo", addr, detail)
 }
 
+func (ca *RemoteChainOpImpl) MinerInfoByHeight(addr string, detail string, height uint64) *RPCResObjCmd {
+	return ca.request("minerInfoByHeight", addr, detail, height)
+}
+
 func (ca *RemoteChainOpImpl) BlockHeight() *RPCResObjCmd {
 	res := ca.request("blockHeight")
 	return res
