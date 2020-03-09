@@ -481,6 +481,52 @@ func (api *RpcGzvImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 	return account, nil
 }
 
+func (api *RpcGzvImpl) ViewAccountByHeight(hash string, height uint64) (*ExplorerAccount, error) {
+	hash = strings.TrimSpace(hash)
+	if !common.ValidateAddress(hash) {
+		return nil, fmt.Errorf("wrong address format")
+	}
+	accountDb, err := core.BlockChainImpl.AccountDBAt(height)
+	if err != nil {
+		return nil, fmt.Errorf("get status failed")
+	}
+	if accountDb == nil {
+		return nil, nil
+	}
+	address := common.StringToAddress(hash)
+	if !accountDb.Exist(address) {
+		return nil, nil
+	}
+	account := &ExplorerAccount{}
+	account.Balance = accountDb.GetBalance(address)
+	account.Nonce = accountDb.GetNonce(address)
+	account.CodeHash = accountDb.GetCodeHash(address).Hex()
+	account.Code = string(accountDb.GetCode(address)[:])
+
+	account.Type = 0
+	if len(account.Code) > 0 {
+		account.Type = 1
+		account.StateData = make(map[string]interface{})
+
+		contract := tvm.Contract{}
+		err = json.Unmarshal([]byte(account.Code), &contract)
+		if err != nil {
+			return nil, fmt.Errorf("UnMarshall contract fail!" + err.Error())
+		}
+		abi := parseABI(contract.Code)
+		account.ABI = abi
+
+		iter := accountDb.DataIterator(common.StringToAddress(hash), []byte{})
+		for iter.Next() {
+			k := string(iter.Key[:])
+			v := tvm.VmDataConvert(iter.Value[:])
+			account.StateData[k] = v
+
+		}
+	}
+	return account, nil
+}
+
 func (api *RpcGzvImpl) QueryAccountData(addr string, key string, count int) (interface{}, error) {
 	addr = strings.TrimSpace(addr)
 	// input check

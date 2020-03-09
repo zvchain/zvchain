@@ -442,6 +442,10 @@ func (ca *RemoteChainOpImpl) ViewContract(addr string) *RPCResObjCmd {
 	return ca.request("viewAccount", addr)
 }
 
+func (ca *RemoteChainOpImpl) ViewContractByHeight(addr string, height uint64) *RPCResObjCmd {
+	return ca.request("viewAccountByHeight", addr, height)
+}
+
 func (ca *RemoteChainOpImpl) TxReceipt(hash string) *RPCResObjCmd {
 	return ca.request("txReceipt", hash)
 }
