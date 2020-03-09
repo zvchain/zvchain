@@ -351,8 +351,9 @@ func (op *stakeRefundOp) Transition() *result {
 
 	// Check reduce-height
 	if params.GetChainConfig().IsZIP003(frozenDetail.Height) && op.refundSource != types.GetStakePlatformAddr() {
-		if op.height <= frozenDetail.Height+refundDeadlineOneDayForTest {
-			ret.setError(fmt.Errorf("refund cann't happen util 90days after last reduce"), types.RSMinerRefundHeightNotEnougn)
+		dl := uint64(refundDeadlineOneDayForTest)
+		if op.height <= frozenDetail.Height+dl {
+			ret.setError(fmt.Errorf("refund cann't happen util %vdays after last reduce", dl), types.RSMinerRefundHeightNotEnougn)
 			return ret
 		}
 	} else {
