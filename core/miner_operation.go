@@ -30,9 +30,13 @@ const (
 	onBlockSeconds = 3
 	oneHourBlocks  = 86400 / onBlockSeconds / 24 // Blocks generated in one hour on average, used when status transforms from Frozen to Prepare
 	oneDayBlocks   = 86400 / onBlockSeconds      // Blocks generated in one day on average
-	twoDayBlocks   = 2 * oneDayBlocks            // Blocks generated in two days on average, used when executes the miner refund
 	stakeBuffer    = 15 * oneDayBlocks
-	ninetyBlocks   = 90 * oneDayBlocks
+
+	// determined after community votes for the refund deadline
+	refundDeadlineTwoDays       = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
+	refundDeadlineNinetyDays    = 90 * oneDayBlocks
+	refundDeadlineHalfYear      = 180 * oneDayBlocks
+	refundDeadlineOneDayForTest = oneDayBlocks
 )
 
 // mOperation define some functions on miner operation
@@ -347,12 +351,12 @@ func (op *stakeRefundOp) Transition() *result {
 
 	// Check reduce-height
 	if params.GetChainConfig().IsZIP003(frozenDetail.Height) && op.refundSource != types.GetStakePlatformAddr() {
-		if op.height <= frozenDetail.Height+ninetyBlocks {
+		if op.height <= frozenDetail.Height+refundDeadlineOneDayForTest {
 			ret.setError(fmt.Errorf("refund cann't happen util 90days after last reduce"), types.RSMinerRefundHeightNotEnougn)
 			return ret
 		}
 	} else {
-		if op.height <= frozenDetail.Height+twoDayBlocks {
+		if op.height <= frozenDetail.Height+refundDeadlineTwoDays {
 			ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnougn)
 			return ret
 		}
