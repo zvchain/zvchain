@@ -236,6 +236,7 @@ func NewTVMForRetainContext(sender *common.Address, contract *Contract, logs []*
 	C.tvm_set_gas(1000000)
 
 	C.ZIP002 = C._Bool(params.GetChainConfig().IsZIP002(blockHeight))
+	C.ZIP003 = C._Bool(params.GetChainConfig().IsZIP003(blockHeight))
 
 	return tvm
 }

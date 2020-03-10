@@ -21,20 +21,22 @@ import (
 )
 
 func TestCalculateZIP001Height(t *testing.T) {
-	begin := time.Date(2019, 10, 18, 12, 0, 0, 0, time.Local)
-	beginHeight := uint64(583588)
-	effect := time.Date(2019, 10, 30, 14, 0, 0, 0, time.Local)
+	begin := time.Date(2020, 3, 5, 18, 40, 43, 0, time.Local)
+	beginHeight := uint64(4632366)
+	effect := time.Date(2020, 3, 13, 14, 0, 0, 0, time.Local)
 	t.Log(effect.String(), effect.UTC().String())
 
 	seconds := effect.Local().Sub(begin.Local())
 	seconds2 := effect.UTC().Sub(begin.UTC())
-
+	//4857903  2.99
+	//4857151 3
+	//4858660 2.98
 	t.Log(seconds, seconds2)
 	if seconds2 != seconds {
 		t.Fatalf("sub error")
 	}
 
-	blocksDelta := uint64(seconds.Seconds()) / 3
+	blocksDelta := uint64(seconds.Seconds() / 2.98)
 
 	zip001 := beginHeight + blocksDelta
 	t.Log(zip001)

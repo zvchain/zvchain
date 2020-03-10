@@ -64,7 +64,7 @@ const (
 	connectTimeout           = 3 * time.Second
 	peerCheckInterval        = 1 * time.Second
 	groupRefreshInterval     = 5 * time.Second
-	flowMeterInterval        = 1 * time.Minute
+	flowMeterInterval        = 5 * time.Minute
 )
 
 // NetCore p2p network
@@ -215,7 +215,7 @@ func (nc *NetCore) close() {
 func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 
 	if !toID.IsValid() {
-		Logger.Infof("[send ping]node ID : %v  is invalid", toID.GetHexString())
+		Logger.Debugf("[send ping]node ID : %v  is invalid", toID.GetHexString())
 		return
 	}
 	p := nc.peerManager.peerByID(toID)
@@ -241,14 +241,14 @@ func (nc *NetCore) ping(toID NodeID, toAddr *net.UDPAddr) {
 	if p != nil && !p.isAuthSucceed {
 		authContext := p.AuthContext()
 		if authContext == nil {
-			Logger.Infof("[send ping] authContext is nil, ID : %v", toID.GetHexString())
+			Logger.Debugf("[send ping] authContext is nil, ID : %v", toID.GetHexString())
 			return
 		}
 		req.PK = authContext.PK
 		req.CurTime = authContext.CurTime
 		req.Sign = authContext.Sign
 	}
-	Logger.Infof("[send ping] ID : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.IP, nc.ourEndPoint.Port)
+	Logger.Debugf("[send ping] ID : %v  ip:%v port:%v", toID.GetHexString(), nc.ourEndPoint.IP, nc.ourEndPoint.Port)
 
 	packet, _, err := nc.encodePacket(MessageType_MessagePing, req)
 	if err != nil {
@@ -832,7 +832,7 @@ func (nc *NetCore) handleData(req *MsgData, packet []byte, p *Peer) error {
 
 func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 	if atomic.LoadInt32(&nc.unhandledDataMsg) > MaxUnhandledMessageCount {
-		Logger.Info("unhandled message too much , drop this message !")
+		Logger.Debugf("unhandled message too much , drop this message !")
 		return
 	}
 
@@ -841,12 +841,12 @@ func (nc *NetCore) onHandleDataMessage(data *MsgData, fromID NodeID) {
 	if p != nil {
 		p.chainID = chainID
 		if !p.IsCompatible() {
-			Logger.Info("Node chain ID not compatible, drop this message !")
+			Logger.Debugf("Node chain ID not compatible, drop this message !")
 			return
 		}
 
 		if !p.isAuthSucceed {
-			Logger.Info("Peer Authentication is not succeed , drop this message !")
+			Logger.Debugf("Peer Authentication is not succeed , drop this message !")
 			return
 		}
 	}
