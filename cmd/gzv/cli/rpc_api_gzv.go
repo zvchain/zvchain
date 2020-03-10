@@ -392,6 +392,69 @@ func (api *RpcGzvImpl) MinerInfoByHeight(addr string, detail string, height uint
 	return minerDetails, nil
 }
 
+type AllMinerHeightInfo struct {
+	PerpareStake  uint64
+	ActiveStake  uint64
+	FrozenStake  uint64
+	PerpareCount  uint64
+	ActiveCount  uint64
+	FrozenCount  uint64
+	AllStake  uint64
+	AllCount  uint64
+}
+
+func (api *RpcGzvImpl) AllMinerInfoByHeight( height uint64) (*AllMinerHeightInfo, error) {
+	allMiners := core.MinerManagerImpl.GetAllMiners( types.MinerTypeVerify, height)
+	inof := AllMinerHeightInfo{}
+	for _, miner := range allMiners {
+		inof.AllStake = inof.AllStake + miner.Stake
+		inof.AllCount++
+		if miner.IsActive(){
+			inof.ActiveStake = inof.ActiveStake + miner.Stake
+			inof.ActiveCount++
+		}
+		if miner.IsPrepare(){
+			inof.PerpareStake = inof.PerpareStake + miner.Stake
+			inof.PerpareCount++
+		}
+		if miner.IsFrozen(){
+			inof.FrozenStake = inof.FrozenStake + miner.Stake
+			inof.FrozenCount++
+		}
+	}
+	inof.ActiveStake = inof.ActiveStake/1000000000
+	inof.PerpareStake = inof.PerpareStake/1000000000
+	inof.FrozenStake = inof.FrozenStake/1000000000
+	inof.AllStake = inof.AllStake/1000000000
+	return &inof, nil
+}
+
+func (api *RpcGzvImpl) AllMinerInfoByHeightP( height uint64) (*AllMinerHeightInfo, error) {
+	allMiners := core.MinerManagerImpl.GetAllMiners( types.MinerTypeProposal, height)
+	inof := AllMinerHeightInfo{}
+	for _, miner := range allMiners {
+		inof.AllStake = inof.AllStake + miner.Stake
+		inof.AllCount++
+		if miner.IsActive(){
+			inof.ActiveStake = inof.ActiveStake + miner.Stake
+			inof.ActiveCount++
+		}
+		if miner.IsPrepare(){
+			inof.PerpareStake = inof.PerpareStake + miner.Stake
+			inof.PerpareCount++
+		}
+		if miner.IsFrozen(){
+			inof.FrozenStake = inof.FrozenStake + miner.Stake
+			inof.FrozenCount++
+		}
+	}
+	inof.ActiveStake = inof.ActiveStake/1000000000
+	inof.PerpareStake = inof.PerpareStake/1000000000
+	inof.FrozenStake = inof.FrozenStake/1000000000
+	inof.AllStake = inof.AllStake/1000000000
+	return &inof, nil
+}
+
 func (api *RpcGzvImpl) TransDetail(h string) (*Transaction, error) {
 	h = strings.TrimSpace(h)
 	if !validateHash(h) {
