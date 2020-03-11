@@ -146,7 +146,7 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 						ms.showMsg("congratulations, you verified block hash %v success, reward %v ZVC", blockHash.Hex(), common.RA2TAS(tx.Value.Uint64()))
 						header := core.BlockChainImpl.QueryBlockHeaderByHash(blockHash)
 						if header != nil {
-							ms.showMsg("std_event|1|%d|%d|%d|%s", header.Height, b.Header.CurTime.Unix(), tx.Value.Uint64(), hash.Hex())
+							ms.showMsg("std_event|1|%d|%d|%d", header.Height, b.Header.CurTime.Unix(), tx.Value.Uint64())
 						}
 						break
 					}
@@ -180,9 +180,9 @@ func (ms *msgShower) onBlockAddSuccess(message notify.Message) error {
 				hash := tx.GenHash()
 				if ms.txSuccess(hash) {
 					if bytes.Equal(tx.Source.Bytes(), ms.id) {
-						ms.showMsg("std_event|2|%s|%s|%d|%s", tx.Source.AddrPrefixString(), tx.Target.AddrPrefixString(), tx.GetValue(), hash.Hex())
+						ms.showMsg("std_event|2|%s|%s|%d|%d|%d", tx.Source.AddrPrefixString(), tx.Target.AddrPrefixString(), tx.GetValue(), b.Header.CurTime.Unix(), b.Header.Height)
 					} else if bytes.Equal(tx.Target.Bytes(), ms.id) {
-						ms.showMsg("std_event|3|%s|%s|%d|%s", tx.Source.AddrPrefixString(), tx.Target.AddrPrefixString(), tx.GetValue(), hash.Hex())
+						ms.showMsg("std_event|3|%s|%s|%d|%d|%d", tx.Source.AddrPrefixString(), tx.Target.AddrPrefixString(), tx.GetValue(), b.Header.CurTime.Unix(), b.Header.Height)
 					}
 				}
 			}
