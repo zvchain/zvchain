@@ -109,6 +109,17 @@ func (storage *Storage) GetAccountByPage(page uint64) []*models.AccountList {
 	return accounts
 }
 
+func (storage *Storage) GetStakeMappingByPage(page uint64) []*models.StakeMapping {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	accounts := make([]*models.StakeMapping, LIMIT, LIMIT)
+	storage.db.Offset(page * LIMIT).Limit(LIMIT).Where("prps_frz_stake >0 or verf_frz_stake >0").Find(&accounts)
+	return accounts
+}
+
 func (storage *Storage) GetAccountByRoletype(maxid uint, roleType uint64) []*models.AccountList {
 	//fmt.Println("[Storage] add Verification ")
 	if storage.db == nil {
@@ -833,8 +844,8 @@ func (storage *Storage) GetMinerToblocksByPage(page int) []*models.MinerToBlock 
 		fmt.Println("[Storage] storage.db == nil")
 		return nil
 	}
-	accounts := make([]*models.MinerToBlock, LIMIT, LIMIT)
-	storage.db.Offset(page * LIMIT).Limit(LIMIT).Where("id<60").Find(&accounts)
+	accounts := make([]*models.MinerToBlock, 0, 0)
+	storage.db.Offset(0).Limit(LIMIT).Where("min is null").Find(&accounts)
 	return accounts
 }
 
@@ -942,7 +953,6 @@ func upMinerBlocks(tx *gorm.DB,
 		//blockVerHeights = util.InsertUint64SliceCopy(blockVerHeights, []uint64{height}, 0)
 		mapData["min"] = blockVerHeights[0]
 		mapData["max"] = blockVerHeights[len(blockVerHeights)-1]
-		fmt.Println("upblockVerHeights,", blockVerHeights[0], ",", blockVerHeights[len(blockVerHeights)-1])
 		updateVerString, err := json.Marshal(blockVerHeights)
 		if err != nil {
 			return err
@@ -988,7 +998,6 @@ func upMinerBlocks(tx *gorm.DB,
 			}
 
 		}
-		fmt.Println("addblockVerHeights,", MineBlock.Min, ",", MineBlock.Max)
 		return tx.Model(models.MinerToBlock{}).Create(&MineBlock).Error
 	}
 }

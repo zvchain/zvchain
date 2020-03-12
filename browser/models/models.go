@@ -200,6 +200,13 @@ type MinerToBlock struct {
 	Min       uint64 `json:"min" gorm:"index:idx_min"`
 }
 
+type MinerRewardRatio struct {
+	gorm.Model
+	Max   uint64 `json:"max" gorm:"index"`
+	Min   uint64 `json:"max" gorm:"index"`
+	Ratio string `json:"ratio" gorm:"index"`
+}
+
 type BlockToMiner struct {
 	gorm.Model
 	BlockHeight      uint64    `json:"block_height" gorm:"unique_index"`
