@@ -350,7 +350,8 @@ func (op *stakeRefundOp) Transition() *result {
 
 	// Remove frozen data
 	removeDetail(op.accountDB, op.refundTarget, frozenDetailKey)
-
+	balance := op.accountDB.GetBalance(*op.msg.Operator())
+	log.MarketLogger.Info(fmt.Sprintf("refund: blockheight: %d, source:%s, txHash: %s,  refund: %d, balance: %d",op.height,op.msg.Operator(), frozenDetail.Value, balance))
 	// Restore the balance
 	op.accountDB.AddBalance(op.refundSource, new(big.Int).SetUint64(frozenDetail.Value))
 	return ret
