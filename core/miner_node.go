@@ -223,7 +223,7 @@ func (b *BaseMiner) processMinerAbort(op *minerAbortOp, miner *types.Miner) (err
 	}
 
 	Logger.Infof("minerabort success,addr =%s,height=%v,left=%v", op.addr.AddrPrefixString(), op.height, miner.Stake)
-	log.MarketLogger.Info("minerabort success,addr =%s,height=%v,left=%v", op.addr.AddrPrefixString(), op.height, miner.Stake)
+	log.MarketLogger.Infof("minerabort success,addr =%s,height=%v,left=%v", op.addr.AddrPrefixString(), op.height, miner.Stake)
 	return nil, types.RSSuccess
 }
 
