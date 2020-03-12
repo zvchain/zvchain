@@ -1,10 +1,14 @@
 package crontab
 
 import (
+	"fmt"
 	"testing"
+	"time"
 )
 
 func TestDB2(t *testing.T) {
+	time := GetHourMinut1e(GetTodayStartTs(time.Now()))
+	fmt.Println(time)
 
 	//server := NewServer("10.0.0.13", 3306, "root", "root123", false)
 	//for i := 0; i < 100; i++ {
@@ -24,4 +28,9 @@ func TestDB2(t *testing.T) {
 	//	fmt.Println("", bool, sys)
 	//}
 
+}
+
+func GetTodayStartTs(tm time.Time) time.Time {
+	tm1 := time.Date(tm.Year(), tm.Month(), tm.Day(), 0, 0, 0, 0, tm.Location())
+	return tm1
 }

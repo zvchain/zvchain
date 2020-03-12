@@ -20,6 +20,7 @@ package trie
 import (
 	"bytes"
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/log"
 )
@@ -409,18 +410,24 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 
 func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 	hash := common.BytesToHash(n)
-	if node, _ := t.db.node(hash, t.cachegen); node != nil {
+	if node, _, err := t.db.node(hash, t.cachegen); node != nil {
 		return node, nil
+	} else if err == leveldb.ErrNotFound {
+		return nil, &MissingNodeError{NodeHash: hash, Path: prefix}
+	} else {
+		return nil, err
 	}
-	return nil, &MissingNodeError{NodeHash: hash, Path: prefix}
 }
 
 func (t *Trie) resolveHashAndGetRawBytes(n hashNode, prefix []byte) (node, []byte, error) {
 	hash := common.BytesToHash(n)
-	if node, bs := t.db.node(hash, t.cachegen); node != nil {
+	if node, bs, err := t.db.node(hash, t.cachegen); node != nil {
 		return node, bs, nil
+	} else if err == leveldb.ErrNotFound {
+		return nil, nil, &MissingNodeError{NodeHash: hash, Path: prefix}
+	} else {
+		return nil, nil, err
 	}
-	return nil, nil, &MissingNodeError{NodeHash: hash, Path: prefix}
 }
 
 // Root returns the root hash of the trie.

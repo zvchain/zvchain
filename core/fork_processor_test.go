@@ -16,6 +16,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/consensus/base"
@@ -28,6 +29,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -49,8 +51,12 @@ var (
 	chains     = make(map[string]*FullBlockChain)
 	chainPath1 = "d_b"
 	chainPath2 = "d_b2"
+	smallPath1 = "sm_d_b"
+	smallPath2 = "sm_d_b2"
 	id1        = "1"
 	id2        = "2"
+	db_cache1  = "db_cache1"
+	db_cache2  = "db_cache2"
 )
 
 type msgSender4Test struct {
@@ -77,9 +83,12 @@ func (s *msgSender4Test) Send(id string, msg network.Message) error {
 	return nil
 }
 
-func initChain(dataPath string, id string) *FullBlockChain {
+func initChain(dataPath string, smallPath, db_cache, id string) *FullBlockChain {
 	common.InitConf("test1.ini")
+	common.GlobalConf.SetBool(configSec, "prune_mode", false)
 	common.GlobalConf.SetString(configSec, "db_blocks", dataPath)
+	common.GlobalConf.SetString(configSec, "db_cache", db_cache)
+	common.GlobalConf.SetString(configSec, "small_db", smallPath)
 	common.GlobalConf.SetInt(configSec, "db_node_cache", 0)
 	err := initBlockChain(NewConsensusHelper4Test(groupsig.ID{}), nil)
 	clearTicker()
@@ -88,7 +97,7 @@ func initChain(dataPath string, id string) *FullBlockChain {
 		Logger.Panicf("init chain error:%v", err)
 	}
 	chain := BlockChainImpl
-
+	notify.BUS = notify.NewBus()
 	Logger = logrus.StandardLogger()
 	// mock the tvm stateProc
 	tvm := newStateProcessor(chain)
@@ -147,11 +156,18 @@ func forkChain(heightLimit uint64, forkLength uint64, chain *FullBlockChain) {
 
 	buildChain(heightLimit, chain)
 }
+func TestPathFork(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println("Current test filename: " + filename)
+}
 
 func TestBuildChain(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
 	buildChain(400, chain)
@@ -160,8 +176,11 @@ func TestBuildChain(t *testing.T) {
 
 func TestScanBlocks(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	for h := uint64(3990); h <= chain.Height(); h++ {
 		b := chain.QueryBlockHeaderByHeight(h)
 		if b == nil {
@@ -169,9 +188,9 @@ func TestScanBlocks(t *testing.T) {
 		}
 		t.Log(b.Height, b.Hash, b.Group, b.TotalQN)
 	}
-
+	clearSelf(t)
 	t.Log("============================================")
-	chain = initChain(chainPath2, id2)
+	chain = initChain(chainPath2, smallPath2, db_cache2, id2)
 	for h := uint64(3990); h <= chain.Height(); h++ {
 		b := chain.QueryBlockHeaderByHeight(h)
 		if b == nil {
@@ -182,25 +201,29 @@ func TestScanBlocks(t *testing.T) {
 }
 
 func TestForkChain(t *testing.T) {
-	defer clearDatas()
-	chain := initChain(chainPath2, id2)
+	chain := initChain(chainPath2, smallPath2, db_cache2, id2)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	t.Log(chain.Height(), chain.QueryTopBlock().Hash)
 
 	forkChain(chain.Height(), 3, chain)
 }
 
 func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, chain2 *FullBlockChain) {
-	chain1 = initChain(chainPath1, id1)
+	chain1 = initChain(chainPath1, smallPath1, db_cache1, id1)
 	buildChain(chain1Limit, chain1)
 	Logger.Infof("chain1 top:%v %v", chain1.QueryTopBlock().Height, chain1.QueryTopBlock().Hash)
 
 	os.RemoveAll(chainPath2)
+	os.RemoveAll("small_db")
 	err := exec.Command("cp", "-rf", chainPath1, chainPath2).Run()
 	if err != nil {
 		Logger.Error(err)
 	}
 
-	chain2 = initChain(chainPath2, id2)
+	chain2 = initChain(chainPath2, smallPath2, db_cache2, id2)
 	forkChain(chain2Limit, forkLength, chain2)
 	Logger.Infof("chain2 top:%v %v", chain2.QueryTopBlock().Height, chain2.QueryTopBlock().Hash)
 	return
@@ -208,13 +231,21 @@ func build2Chains(chain1Limit, chain2Limit uint64, forkLength uint64) (chain1, c
 
 func clearDatas() {
 	os.RemoveAll(chainPath1)
+	os.RemoveAll(db_cache1)
+	os.RemoveAll(db_cache2)
+	os.RemoveAll(smallPath1)
+	os.RemoveAll(smallPath2)
 	os.RemoveAll(chainPath2)
 	os.RemoveAll("logs")
 }
 
 func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
+	clearDatas()
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	buildChain(1000, chain)
 
 	fp := chain.forkProcessor
@@ -243,8 +274,11 @@ func TestForkProcess_OnFindAncestorReq_GoodMessage(t *testing.T) {
 
 func TestForkProcess_OnFindAncestorReq_BadMessage(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	buildChain(1000, chain)
 
 	randBytes := make([]byte, rand.Int31n(100))
@@ -260,9 +294,11 @@ func TestForkProcess_OnFindAncestorReq_BadMessage(t *testing.T) {
 
 func TestForkProcess_OnFindAncestorResponse_Found_GoodMessage(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
-
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	ctx := &forkSyncContext{
 		target:       id2,
 		lastReqPiece: &findAncestorPieceReq{},
@@ -292,9 +328,12 @@ func TestForkProcess_OnFindAncestorResponse_Found_GoodMessage(t *testing.T) {
 
 func TestForkProcess_OnFindAncestorResponse_NotFound_GoodMessage(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
+	_ = initChain(chainPath2, smallPath2, db_cache2, id2)
 
 	ctx := &forkSyncContext{
 		target:       id2,
@@ -325,10 +364,12 @@ func TestForkProcess_OnFindAncestorResponse_NotFound_GoodMessage(t *testing.T) {
 
 func TestForkProcess_OnChainSliceReq_GoodMessage(t *testing.T) {
 	clearDatas()
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
-
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2, db_cache2, id2)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	fp := chain.forkProcessor
 
 	req := &chainSliceReq{
@@ -349,10 +390,12 @@ func TestForkProcess_OnChainSliceReq_GoodMessage(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
-	defer clearSelf(t)
-	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
-
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2, db_cache2, id2)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	fp := chain.forkProcessor
 
 	req := &chainSliceReq{
@@ -373,11 +416,12 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Range(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
-	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
-
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2, db_cache2, id2)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	fp := chain.forkProcessor
 
 	randBytes := make([]byte, rand.Int31n(1000))
@@ -391,10 +435,13 @@ func TestForkProcess_OnChainSliceReq_BadMessage_Random(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	buildChain(400, chain)
-	_ = initChain(chainPath2, id2)
+	_ = initChain(chainPath2, smallPath2, db_cache2, id2)
 
 	fp := chain.forkProcessor
 
@@ -431,10 +478,12 @@ func TestForkProcess_OnChainSliceResponse_GoodMessage(t *testing.T) {
 }
 
 func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
-
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2, db_cache2, id2)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	fp := chain.forkProcessor
 
 	ctx := &forkSyncContext{
@@ -464,10 +513,12 @@ func TestForkProcess_OnChainEmptySliceResponse(t *testing.T) {
 }
 
 func TestForkProcess_OnChainSliceResponse_BadMessage(t *testing.T) {
-	defer clearDatas()
-	chain := initChain(chainPath1, id1)
-	_ = initChain(chainPath2, id2)
-
+	chain := initChain(chainPath1, smallPath1, db_cache1, id1)
+	_ = initChain(chainPath2, smallPath2, db_cache2, id2)
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	fp := chain.forkProcessor
 	ctx := &forkSyncContext{
 		target:       id2,
@@ -489,10 +540,11 @@ func TestForkProcess_OnChainSliceResponse_BadMessage(t *testing.T) {
 }
 
 func TestForkProcess_TryProcess_LocalMoreWeight(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(2000, 1990, 15)
-
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	fp1 := chain1.forkProcessor
 	ret := fp1.tryToProcessFork(id2, &types.Block{Header: chain2.QueryTopBlock()})
 	if ret {
@@ -501,10 +553,11 @@ func TestForkProcess_TryProcess_LocalMoreWeight(t *testing.T) {
 }
 
 func TestForkProcess_TryProcess_LocalCPHigher(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 3010, 16)
-
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	top1 := chain1.QueryTopBlock()
 	top2 := chain2.QueryTopBlock()
 	Logger.Infof("before fork process chain1 top %v %v", top1.Hash, top1.Height)
@@ -525,10 +578,11 @@ func TestForkProcess_TryProcess_LocalCPHigher(t *testing.T) {
 }
 
 func TestForkProcess_TryProcess_ShortFork_Accepted(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 3010, 4)
-
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	top1 := chain1.QueryTopBlock()
 	top2 := chain2.QueryTopBlock()
 	Logger.Infof("before fork process chain1 top %v %v", top1.Hash, top1.Height)
@@ -549,10 +603,11 @@ func TestForkProcess_TryProcess_ShortFork_Accepted(t *testing.T) {
 }
 
 func TestForkProcess_TryProcess_ShortFork_MultiRequestChainSlice_Accepted(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 3060, 6)
-
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	top1 := chain1.QueryTopBlock()
 	top2 := chain2.QueryTopBlock()
 	Logger.Infof("before fork process chain1 top %v %v", top1.Hash, top1.Height)
@@ -573,10 +628,11 @@ func TestForkProcess_TryProcess_ShortFork_MultiRequestChainSlice_Accepted(t *tes
 }
 
 func TestForkProcess_TryProcess_PeerLongFork_Accepted(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 4000, 6)
-
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	top1 := chain1.QueryTopBlock()
 	top2 := chain2.QueryTopBlock()
 	Logger.Infof("before fork process chain1 top %v %v", top1.Hash, top1.Height)
@@ -597,10 +653,11 @@ func TestForkProcess_TryProcess_PeerLongFork_Accepted(t *testing.T) {
 }
 
 func TestForkProcess_TryProcess_UnAcceptable(t *testing.T) {
-	defer clearDatas()
-	clearDatas()
 	chain1, chain2 := build2Chains(3000, 4000, 500)
-
+	defer func() {
+		clearSelf(t)
+		clearDatas()
+	}()
 	top1 := chain1.QueryTopBlock()
 	top2 := chain2.QueryTopBlock()
 	Logger.Infof("before fork process chain1 top %v %v", top1.Hash, top1.Height)

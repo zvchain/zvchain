@@ -66,9 +66,10 @@ type subscriptions map[string]*callback  // collection of subscription callbacks
 type Server struct {
 	services serviceRegistry
 
-	run      int32
-	codecsMu sync.Mutex
-	codecs   set.Interface
+	run         int32
+	codecsMu    sync.Mutex
+	codecs      set.Interface
+	isPruneMode bool
 }
 
 type rpcRequest struct {

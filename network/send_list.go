@@ -82,7 +82,7 @@ func (sendList *SendList) send(peer *Peer, packet *bytes.Buffer, code int) {
 
 	if diff > WaitTimeout {
 		sendList.pendingSend = 0
-		Logger.Infof("send list  WaitTimeout ！ net id:%v session:%v ", peer.ID.GetHexString(), peer.sessionID)
+		Logger.Debugf("send list  WaitTimeout ！ net id:%v session:%v ", peer.ID.GetHexString(), peer.sessionID)
 	}
 
 	priority, isExist := priorityTable[uint32(code)]
@@ -91,7 +91,7 @@ func (sendList *SendList) send(peer *Peer, packet *bytes.Buffer, code int) {
 	}
 	sendListItem := sendList.list[priority]
 	if sendListItem.list.Len() > MaxSendListSize {
-		Logger.Infof("send list send is full, drop this message!  net id:%v session:%v code:%v", peer.ID.GetHexString(), peer.sessionID, code)
+		Logger.Debugf("send list send is full, drop this message!  net id:%v session:%v code:%v", peer.ID.GetHexString(), peer.sessionID, code)
 		return
 	}
 	sendListItem.list.PushBack(packet)

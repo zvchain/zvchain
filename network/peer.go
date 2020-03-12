@@ -222,7 +222,7 @@ func (p *Peer) decodePacket() (MessageType, int, *bytes.Buffer, []byte, error) {
 	const MaxMsgLen = 16 * 1024 * 1024
 
 	if msgLen > MaxMsgLen || msgLen <= 0 {
-		Logger.Infof("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
+		Logger.Debugf("[ decodePacket ] session : %v bad packet reset data!", p.sessionID)
 		p.resetData()
 		return MessageType_MessageNone, 0, nil, nil, errBadPacket
 	}

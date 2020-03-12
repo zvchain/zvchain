@@ -143,7 +143,7 @@ func (crontab *Crontab) loop() {
 	go crontab.fetchOldBlockToMiner()
 	//go crontab.fetchConfirmRewardsToMinerBlock()
 	go crontab.fetchOldTxCountToAccountList()
-	go crontab.GetMinerToblocksByPage()
+	//go crontab.GetMinerToblocksByPage()
 
 	for {
 		select {

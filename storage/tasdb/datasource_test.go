@@ -201,3 +201,20 @@ func TestGetAfter(t *testing.T) {
 
 	}
 }
+
+func TestHasKey(t *testing.T) {
+	//ds, err := NewDataSource("/Volumes/darren-sata/d_b20191216_230w", nil)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//ldb, err := ds.NewPrefixDatabase("st")
+	//defer ldb.Close()
+	//if err != nil {
+	//	t.Fatalf("error to create ldb : %s\n", "testldb")
+	//}
+	//t.Log(ldb.Has(common.HexToHash("0x9ed730111d26923008cdc8a7d8f12f7439f52f516d277f9b17c863f8126699d1").Bytes()))
+	//t.Log(ldb.Has(common.HexToHash("0x9ed730111d26923008cdc8a7d8f12f7439f52f516d277f9b17c863f8126699d1").Bytes()))
+	//t.Log(ldb.Has(common.HexToHash("0x013b2373ef072cb250455588031e570b14885400ec36633ca2dd519e6bbeb699").Bytes()))
+	//t.Log(ldb.Has(common.HexToHash("0x816b7fee005d265c05c04d54bc094d123550ee6a1a43c33eab065f215ea240f3").Bytes()))
+	//t.Log(ldb.Has(common.HexToHash("0xa5446b231e6a525612c72ceeaca06d9e03eff75e91070e5a174a2eac79008a10").Bytes()))
+}

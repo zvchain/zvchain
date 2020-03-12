@@ -198,7 +198,7 @@ func (pm *PeerManager) broadcast(packet *bytes.Buffer, code uint32) {
 	}
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
-	Logger.Infof("broadcast total peer size:%v code:%v", len(pm.peers), code)
+	Logger.Debugf("broadcast total peer size:%v code:%v", len(pm.peers), code)
 
 	for _, p := range pm.peers {
 		if p.sessionID > 0 && p.IsCompatible() {
@@ -210,7 +210,7 @@ func (pm *PeerManager) broadcast(packet *bytes.Buffer, code uint32) {
 func (pm *PeerManager) broadcastRandom(packet *bytes.Buffer, code uint32, maxCount int, blacklist []string) {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
-	Logger.Infof("broadcast random total peer size:%v, code:%v, max count:%v,blacklist size:%v", len(pm.peers), code, maxCount, len(blacklist))
+	Logger.Debugf("broadcast random total peer size:%v, code:%v, max count:%v,blacklist size:%v", len(pm.peers), code, maxCount, len(blacklist))
 
 	blacklistNodes := make(map[string]bool)
 
@@ -272,7 +272,7 @@ func (pm *PeerManager) addPeer(netID uint64, peer *Peer) bool {
 	defer pm.mutex.Unlock()
 
 	if peer.IP != nil && len(peer.IP.String()) > 0 && !pm.peerIPSet.Add(peer.IP.String()) {
-		Logger.Infof("addPeer failed, peer in same IP exceed limit size !Max size:%v, ip:%v", pm.peerIPSet.Limit, peer.IP.String())
+		Logger.Debugf("addPeer failed, peer in same IP exceed limit size !Max size:%v, ip:%v", pm.peerIPSet.Limit, peer.IP.String())
 		return false
 	}
 	pm.peers[netID] = peer

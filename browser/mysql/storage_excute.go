@@ -108,6 +108,16 @@ func (storage *Storage) GetAccountByPage(page uint64) []*models.AccountList {
 	storage.db.Offset(page * LIMIT).Limit(LIMIT).Find(&accounts)
 	return accounts
 }
+func (storage *Storage) GetStakeMappingByPage(page uint64) []*models.StakeMapping {
+	//fmt.Println("[Storage] add Verification ")
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	accounts := make([]*models.StakeMapping, 0, 0)
+	storage.db.Offset(0).Limit(100).Where("prps_frz_stake >0 ").Find(&accounts)
+	return accounts
+}
 
 func (storage *Storage) GetAccountByRoletype(maxid uint, roleType uint64) []*models.AccountList {
 	//fmt.Println("[Storage] add Verification ")

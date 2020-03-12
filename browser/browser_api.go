@@ -73,6 +73,7 @@ func (tm *DBMmanagement) loop() {
 	go tm.fetchGroup()
 	go tm.fetchStakeMapping()
 	go tm.fetchBenefitAddress()
+	go tm.excuteAccountStakeToOther()
 	for {
 		select {
 		case <-check.C:
@@ -171,6 +172,31 @@ func (tm *DBMmanagement) excuteAccountProposalAndVerifyCount() {
 	}
 }
 
+func (tm *DBMmanagement) excuteAccountStakeToOther() {
+	for page := 1; page < 3; page++ {
+		accounts := tm.storage.GetStakeMappingByPage(uint64(page))
+		stakelist := make(map[string]map[string]*models.StakeMapping)
+		for _, acc := range accounts {
+			source := acc.Source
+			target := acc.Target
+			stakeMapping := &models.StakeMapping{}
+			stakeDetails := tm.mm.GetStakeDetails(common.StringToAddress(target),
+				common.StringToAddress(source))
+			if len(stakeDetails) < 1 {
+				stakeMapping.Target = target
+				stakeMapping.Source = source
+				if _, exists := stakelist[source]; !exists {
+					stakelist[source] = make(map[string]*models.StakeMapping)
+				}
+				stakelist[source][target] = stakeMapping
+			}
+		}
+		if stakelist != nil {
+			tm.CreateOrUpdateStakeMapping(stakelist)
+		}
+	}
+}
+
 func (tm *DBMmanagement) executeStakeMapping() {
 	topHeight := core.BlockChainImpl.Height()
 	checkpoint := core.BlockChainImpl.LatestCheckPoint()
@@ -185,7 +211,9 @@ func (tm *DBMmanagement) executeStakeMapping() {
 	if block != nil {
 		stakelist := make(map[string]map[string]*models.StakeMapping)
 		for _, tx := range block.Transactions {
-			if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeRefund {
+			if tx.Type == types.TransactionTypeStakeAdd ||
+				tx.Type == types.TransactionTypeStakeRefund ||
+				tx.Type == types.TransactionTypeStakeReduce {
 
 				stakeMapping := &models.StakeMapping{}
 				stakeDetails := tm.mm.GetStakeDetails(*tx.Target, *tx.Source)
@@ -214,8 +242,14 @@ func (tm *DBMmanagement) executeStakeMapping() {
 					}
 					stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()] = stakeMapping
 
+				} else {
+					if tx.Type == types.TransactionTypeStakeRefund {
+						if _, exists := stakelist[tx.Source.AddrPrefixString()]; !exists {
+							stakelist[tx.Source.AddrPrefixString()] = make(map[string]*models.StakeMapping)
+						}
+						stakelist[tx.Source.AddrPrefixString()][tx.Target.AddrPrefixString()] = stakeMapping
+					}
 				}
-
 			}
 		}
 		if stakelist != nil {
@@ -265,10 +299,8 @@ func (tm *DBMmanagement) UpdateAccountList(src string) {
 	}
 	var stake Stake
 	tm.storage.GetDB().Model(&models.StakeMapping{}).Select("sum(prps_act_stake + prps_frz_stake + verf_act_stake + verf_frz_stake) as stake_to_other").Where("source = ? and target <> ?", src, src).Scan(&stake)
-	//tm.storage.GetDB().Model(&models.StakeMapping{}).Select("sum(prps_act_stake + prps_frz_stake + verf_act_stake + verf_frz_stake) as stake_from_other").Where("target = ? and source <>", trgt,trgt).Scan(&stake)
 
 	tm.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", src).Update("stake_to_other", stake.StakeToOther)
-	//tm.storage.GetDB().Model(&models.AccountList{}).Where("address = ?", trgt).Update("stake_from_other", stake.StakeFromOther)
 
 }
 

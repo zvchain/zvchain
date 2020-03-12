@@ -116,6 +116,12 @@ func (routine *createRoutine) onBlockAddSuccess(message notify.Message) error {
 	return routine.onNewTopBlock(bh)
 }
 
+func (routine *createRoutine) Close() {
+	if routine.store != nil {
+		routine.store.db.Close()
+	}
+}
+
 func (routine *createRoutine) onNewTopBlock(bh *types.BlockHeader) error {
 	routine.store.blockAddCh <- bh.Height
 

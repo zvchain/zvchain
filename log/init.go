@@ -21,6 +21,7 @@ func Init() {
 	}
 
 	DefaultLogger = RusPlus.Logger(logsDir+"default", MaxFileSize, DefaultMaxFiles, Level)
+	CropLogger = RusPlus.Logger(logsDir+"crop", MaxFileSize, DefaultMaxFiles, Level)
 	ConsensusLogger = RusPlus.Logger(logsDir+"consensus", MaxFileSize, DefaultMaxFiles, Level)
 	ConsensusStdLogger = RusPlus.Logger(logsDir+"consensus_std", MaxFileSize, DefaultMaxFiles, Level)
 	CoreLogger = RusPlus.Logger(logsDir+"core", MaxFileSize, CoreMaxFiles, Level)
