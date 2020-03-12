@@ -211,7 +211,9 @@ func (tm *DBMmanagement) executeStakeMapping() {
 	if block != nil {
 		stakelist := make(map[string]map[string]*models.StakeMapping)
 		for _, tx := range block.Transactions {
-			if tx.Type == types.TransactionTypeStakeAdd || tx.Type == types.TransactionTypeStakeRefund {
+			if tx.Type == types.TransactionTypeStakeAdd ||
+				tx.Type == types.TransactionTypeStakeReduce ||
+				tx.Type == types.TransactionTypeStakeRefund {
 
 				stakeMapping := &models.StakeMapping{}
 				stakeDetails := tm.mm.GetStakeDetails(*tx.Target, *tx.Source)
