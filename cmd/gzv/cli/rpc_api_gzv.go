@@ -323,6 +323,75 @@ func (api *RpcGzvImpl) MinerInfo(addr string, detail string) (*MinerStakeDetails
 	return minerDetails, nil
 }
 
+func (api *RpcGzvImpl) MinerInfoByHeight(addr string, detail string, height uint64) (*MinerStakeDetails, error) {
+	addr = strings.TrimSpace(addr)
+	if !common.ValidateAddress(addr) {
+		return nil, fmt.Errorf("wrong account address format")
+	}
+	detail = strings.TrimSpace(detail)
+	if detail == "" {
+		detail = addr
+	} else {
+		if !common.ValidateAddress(strings.TrimSpace(detail)) {
+			return nil, fmt.Errorf("wrong account address format")
+		}
+	}
+
+	mTypeString := func(mt types.MinerType) string {
+		if types.IsVerifyRole(mt) {
+			return "verifier"
+		} else if types.IsProposalRole(mt) {
+			return "proposal"
+		}
+		return "unknown"
+	}
+	statusString := func(st types.StakeStatus) string {
+		if st == types.Staked {
+			return "normal"
+		} else if st == types.StakeFrozen {
+			return "frozen"
+		} else if st == types.StakePunishment {
+			return "punish"
+		}
+		return "unknown"
+	}
+	convertDetails := func(dts []*types.StakeDetail) []*StakeDetail {
+		details := make([]*StakeDetail, 0)
+		for _, d := range dts {
+			dt := &StakeDetail{
+				Value:           uint64(common.RA2TAS(d.Value)),
+				UpdateHeight:    d.UpdateHeight,
+				MType:           mTypeString(d.MType),
+				Status:          statusString(d.Status),
+				CanReduceHeight: d.DisMissHeight,
+			}
+			details = append(details, dt)
+		}
+		return details
+	}
+
+	minerDetails := &MinerStakeDetails{}
+	morts := make([]*MortGage, 0)
+	address := common.StringToAddress(addr)
+	proposalInfo := core.MinerManagerImpl.GetLatestMinerByHeight(address, types.MinerTypeProposal, height)
+	if proposalInfo != nil {
+		morts = append(morts, NewMortGageFromMiner(proposalInfo))
+	}
+	verifierInfo := core.MinerManagerImpl.GetLatestMinerByHeight(address, types.MinerTypeVerify, height)
+	if verifierInfo != nil {
+		morts = append(morts, NewMortGageFromMiner(verifierInfo))
+	}
+	minerDetails.Overview = morts
+	// Get details
+	details := core.MinerManagerImpl.GetStakeDetailsByHeight(address, common.StringToAddress(detail), height)
+	m := make(map[string][]*StakeDetail)
+	dts := convertDetails(details)
+	m[detail] = dts
+	minerDetails.Details = m
+
+	return minerDetails, nil
+}
+
 func (api *RpcGzvImpl) TransDetail(h string) (*Transaction, error) {
 	h = strings.TrimSpace(h)
 	if !validateHash(h) {
@@ -388,6 +457,52 @@ func (api *RpcGzvImpl) ViewAccount(hash string) (*ExplorerAccount, error) {
 	account.CodeHash = accountDb.GetCodeHash(address).Hex()
 	account.Code = string(accountDb.GetCode(address)[:])
 	fmt.Println("accountCode:", account.Code)
+	account.Type = 0
+	if len(account.Code) > 0 {
+		account.Type = 1
+		account.StateData = make(map[string]interface{})
+
+		contract := tvm.Contract{}
+		err = json.Unmarshal([]byte(account.Code), &contract)
+		if err != nil {
+			return nil, fmt.Errorf("UnMarshall contract fail!" + err.Error())
+		}
+		abi := parseABI(contract.Code)
+		account.ABI = abi
+
+		iter := accountDb.DataIterator(common.StringToAddress(hash), []byte{})
+		for iter.Next() {
+			k := string(iter.Key[:])
+			v := tvm.VmDataConvert(iter.Value[:])
+			account.StateData[k] = v
+
+		}
+	}
+	return account, nil
+}
+
+func (api *RpcGzvImpl) ViewAccountByHeight(hash string, height uint64) (*ExplorerAccount, error) {
+	hash = strings.TrimSpace(hash)
+	if !common.ValidateAddress(hash) {
+		return nil, fmt.Errorf("wrong address format")
+	}
+	accountDb, err := core.BlockChainImpl.AccountDBAt(height)
+	if err != nil {
+		return nil, fmt.Errorf("get status failed")
+	}
+	if accountDb == nil {
+		return nil, nil
+	}
+	address := common.StringToAddress(hash)
+	if !accountDb.Exist(address) {
+		return nil, nil
+	}
+	account := &ExplorerAccount{}
+	account.Balance = accountDb.GetBalance(address)
+	account.Nonce = accountDb.GetNonce(address)
+	account.CodeHash = accountDb.GetCodeHash(address).Hex()
+	account.Code = string(accountDb.GetCode(address)[:])
+
 	account.Type = 0
 	if len(account.Code) > 0 {
 		account.Type = 1

@@ -61,6 +61,14 @@ func (api *RpcExplorerImpl) ExplorerAccount(hash string) (*ExplorerAccount, erro
 	return impl.ViewAccount(hash)
 }
 
+func (api *RpcExplorerImpl) ExplorerAccountByHeight(hash string, height uint64) (*ExplorerAccount, error) {
+	if !common.ValidateAddress(strings.TrimSpace(hash)) {
+		return nil, fmt.Errorf("wrong param format")
+	}
+	impl := &RpcGzvImpl{}
+	return impl.ViewAccountByHeight(hash, height)
+}
+
 // ExplorerBlockDetail is used in the blockchain browser to query block details
 func (api *RpcExplorerImpl) ExplorerBlockDetail(height uint64) (*ExplorerBlockDetail, error) {
 	chain := core.BlockChainImpl
