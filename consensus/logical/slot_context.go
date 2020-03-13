@@ -199,6 +199,7 @@ func (sc *SlotContext) AcceptRewardPiece(sd *model.SignData) (accept, recover bo
 		if sc.rewardTrans.Sign == nil {
 			signBytes := sc.rewardGSignGen.GetGroupSign().Serialize()
 			sc.rewardTrans.Sign = signBytes
+			consensusLogger.Infof("rewardTrans.Sign set: txHash=%v, sign: %v, tx=%v", sc.rewardTrans.Hash.Hex(), signBytes, sc.rewardTrans)
 		}
 	}
 	return
