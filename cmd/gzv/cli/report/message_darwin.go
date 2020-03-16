@@ -37,3 +37,7 @@ func cmd(cmd string) (string, error) {
 	}
 	return string(out), nil
 }
+
+func HasProcessID(processId uint) bool {
+	return true
+}

@@ -41,3 +41,17 @@ func OSInfo() (arch, os, version string) {
 	data = strings.TrimSpace(data)
 	return runtime.GOARCH, runtime.GOOS, data
 }
+
+func HasProcessID(processId uint) bool {
+	buf := bytes.Buffer{}
+	cmd := exec.Command("wmic", "process", "get", "processid")
+	cmd.Stdout = &buf
+	cmd.Run()
+	cmd2 := exec.Command("findstr", fmt.Sprintf("%d", processId))
+	cmd2.Stdin = &buf
+	data, _ := cmd2.CombinedOutput()
+	if len(data) == 0 {
+		return false
+	}
+	return true
+}

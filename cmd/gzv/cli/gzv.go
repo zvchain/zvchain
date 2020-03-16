@@ -139,6 +139,7 @@ func (gzv *Gzv) Run() {
 	keystore := app.Flag("keystore", "the keystore path, default is current path").Default("keystore").Short('k').String()
 	privKey := app.Flag("privatekey", "privatekey used for miner process").Default("").String()
 	passWd := app.Flag("password", "password used for keystore info decryption, ignored if privatekey is set").Default(common.DefaultPassword).String()
+	ppid := app.Flag("ppid", "ppid").Default("0").Uint()
 
 	// Console
 	consoleCmd := app.Command("console", "start gzv console")
@@ -212,7 +213,7 @@ func (gzv *Gzv) Run() {
 		runtime.SetMutexProfileFraction(1)
 		runtime.MemProfileRate = 1024
 	}()
-
+	go PPidCheck(*ppid, quitChan)
 	switch command {
 	case versionCmd.FullCommand():
 		fmt.Println("gzv Version:", common.GzvVersion)
@@ -587,4 +588,15 @@ func (gzv *Gzv) autoApplyMiner(mType types.MinerType) {
 	api := &RpcDevImpl{}
 	ret, err := api.TxUnSafe(gzv.account.Sk, gzv.account.Address, uint64(common.RA2TAS(core.MinMinerStake)), 20000, 500, nonce, types.TransactionTypeStakeAdd, data)
 	log.DefaultLogger.Debug("apply result", ret, err)
+}
+
+func PPidCheck(ppid uint, quit chan bool) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		if !report.HasProcessID(ppid) {
+			quit <- true
+			break
+		}
+	}
 }
