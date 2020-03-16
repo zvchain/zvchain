@@ -213,7 +213,6 @@ func (gzv *Gzv) Run() {
 		runtime.SetMutexProfileFraction(1)
 		runtime.MemProfileRate = 1024
 	}()
-	go PPidCheck(*ppid, quitChan)
 	switch command {
 	case versionCmd.FullCommand():
 		fmt.Println("gzv Version:", common.GzvVersion)
@@ -267,6 +266,10 @@ func (gzv *Gzv) Run() {
 
 		if !*disableNotice {
 			go update.InitVersionChecker()
+		}
+
+		if *ppid != 0 {
+			go PPidCheck(*ppid, quitChan)
 		}
 
 		log.ELKLogger.WithFields(logrus.Fields{
