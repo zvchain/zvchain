@@ -23,7 +23,7 @@ void* p2p_api(const char* api)
     static HMODULE p2p_core = 0;
     if (p2p_core == 0)
     {
-        p2p_core = LoadLibrary("p2p_core.dll");
+        p2p_core = LoadLibrary("../p2p_core.dll");
         if (p2p_core == 0){
         	printf("p2p_core load lib failed !\n");
         }
