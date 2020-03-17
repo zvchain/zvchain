@@ -1,6 +1,8 @@
 package report
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/axgle/mahonia"
 	"math/big"
 	"os/exec"
