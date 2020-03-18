@@ -89,7 +89,7 @@ func (gs *GroupSignGenerator) generate() bool {
 		return false
 	}
 	gs.gSign = *sig
-	log.ConsensusLogger.Infof("generate witnesses size:%d, threshold: %d, gSign: %v", len(gs.witnesses), gs.threshold,sig.Serialize())
+	log.ConsensusLogger.Infof("generate witnesses size:%d, threshold: %d", len(gs.witnesses), gs.threshold)
 	return true
 }
 
