@@ -16,6 +16,7 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/common/prque"
@@ -409,6 +410,7 @@ func (chain *FullBlockChain) resetTop(block *types.BlockHeader) error {
 		"logType":       "resetTop",
 		"version":       common.GzvVersion,
 	}).Info("resetTop")
+	showRemovedBlock(removeBlocks)
 	// invalidate latest cp cache
 	chain.latestCP.Reset()
 
@@ -774,4 +776,13 @@ func (chain *FullBlockChain) batchGetBlockHeadersBetween(begin, end uint64) []*t
 		}
 	}
 	return blocks
+}
+
+func showRemovedBlock(bhs []*types.BlockHeader) {
+	s := make([]uint64, 0)
+	for _, bh := range bhs {
+		s = append(s, bh.Height)
+	}
+	line, _ := json.Marshal(s)
+	fmt.Println("std_event|4|%s", string(line))
 }
