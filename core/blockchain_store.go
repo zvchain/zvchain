@@ -784,5 +784,5 @@ func showRemovedBlock(bhs []*types.BlockHeader) {
 		s = append(s, bh.Height)
 	}
 	line, _ := json.Marshal(s)
-	fmt.Println("std_event|4|%s", string(line))
+	fmt.Printf("std_event|4|%s\n", string(line))
 }
