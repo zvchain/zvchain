@@ -34,3 +34,10 @@ type minerConfig struct {
 	cors              string
 	privateKey        string
 }
+
+type BrowserConfig struct {
+	DbAddr     string
+	DbName     string
+	DbPassword string
+	DbUser     string
+}

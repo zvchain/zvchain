@@ -22,7 +22,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	time2 "github.com/zvchain/zvchain/middleware/time"
-	"github.com/zvchain/zvchain/tvm"
 	"math"
 	"sync/atomic"
 	"time"
@@ -435,7 +434,6 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	defer func() {
 		if ret == types.AddBlockSucc {
 			chain.addTopBlock(block)
-			tvm.SetTokenContractMapToLdb(block.Header.Hash.Hex(), block.Header.Height)
 			OnBlockSuccessChan <- &SimpleBlockHeader{
 				PreHash: block.Header.PreHash,
 				Height:  block.Header.Height,

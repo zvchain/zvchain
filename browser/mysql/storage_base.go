@@ -57,7 +57,7 @@ type SlaveStorage struct {
 	topGroupHigh uint64
 }
 
-func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *Storage {
+func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool, dbName string) *Storage {
 	if DBStorage != nil {
 		return DBStorage
 	}
@@ -67,7 +67,7 @@ func NewStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, res
 		dbUser:     dbUser,
 		dbPassword: dbPassword,
 	}
-	DBStorage.Init(reset, resetcrontab)
+	DBStorage.Init(reset, resetcrontab, dbName)
 	return DBStorage
 }
 func NewSlaveStorage(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) *SlaveStorage {
@@ -102,16 +102,17 @@ func (storage *SlaveStorage) SLAVEInit(reset bool, resetcrontab bool) {
 	}
 	storage.db = db
 }
-func (storage *Storage) Init(reset bool, resetcrontab bool) {
+func (storage *Storage) Init(reset bool, resetcrontab bool, dbName string) {
 	if storage.db != nil {
 		return
 	}
 	//args := fmt.Sprintf("root:Jobs1955!@tcp(119.23.205.254:3306)/tas?charset=utf8&parseTime=True&loc=Local")
-	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/gzv?charset=utf8&parseTime=True&loc=Local",
+	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local",
 		storage.dbUser,
 		storage.dbPassword,
 		storage.dbAddr,
-		storage.dbPort)
+		storage.dbPort,
+		dbName)
 	fmt.Println("[Storage] db args:", args)
 	db, err := gorm.Open("mysql", args)
 	if err != nil {
@@ -119,84 +120,22 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 		return
 	}
 	storage.db = db
-	if reset {
-		db.DropTable(&models.Block{})
-		db.DropTable(&models.Transaction{})
-		db.DropTable(&models.Receipt{})
-		db.DropTable(&models.Reward{})
-	}
-
-	if resetcrontab {
-		db.DropTable(&models.AccountList{})
-		db.DropTable(&models.Sys{})
-		db.DropTable(&models.PoolStake{})
-		db.DropTable(&models.Group{})
-		db.DropTable(&models.ContractTransaction{})
-
-	}
-	if !db.HasTable(&models.AccountList{}) {
-		db.CreateTable(&models.AccountList{})
-	}
-	if !db.HasTable(&models.ContractTransaction{}) {
-		db.CreateTable(&models.ContractTransaction{})
-	}
-	if !db.HasTable(&models.ContractCallTransaction{}) {
-		db.CreateTable(&models.ContractCallTransaction{})
-	}
-	if !db.HasTable(&models.Sys{}) {
-		db.CreateTable(&models.Sys{})
-	}
-	if !db.HasTable(&models.PoolStake{}) {
-		db.CreateTable(&models.PoolStake{})
-	}
-	if !db.HasTable(&models.Group{}) {
-		db.CreateTable(&models.Group{})
-	}
 	if !db.HasTable(&models.Block{}) {
 		db.CreateTable(&models.Block{})
 	}
 	if !db.HasTable(&models.Transaction{}) {
 		db.CreateTable(&models.Transaction{})
 	}
-	if !db.HasTable(&models.Receipt{}) {
-		db.CreateTable(&models.Receipt{})
-	}
-	if !db.HasTable(&models.Reward{}) {
-		db.CreateTable(&models.Reward{})
-	}
-	if !db.HasTable(&models.RecentMineBlock{}) {
-		db.CreateTable(&models.RecentMineBlock{})
-	}
-	if !db.HasTable(&models.Log{}) {
-		db.CreateTable(&models.Log{})
-	}
-	if !db.HasTable(&models.StakeMapping{}) {
-		db.CreateTable(&models.StakeMapping{})
+	if !db.HasTable(&models.Sys{}) {
+		db.CreateTable(&models.Sys{})
 	}
 	if !db.HasTable(&models.Config{}) {
 		db.CreateTable(&models.Config{})
 	}
-	if !db.HasTable(&models.TokenContract{}) {
-		db.CreateTable(&models.TokenContract{})
-	}
-	if !db.HasTable(&models.TokenContractUser{}) {
-		db.CreateTable(&models.TokenContractUser{})
-	}
-	if !db.HasTable(&models.TokenContractTransaction{}) {
-		db.CreateTable(&models.TokenContractTransaction{})
-	}
-	if !db.HasTable(&models.TempDeployToken{}) {
-		db.CreateTable(&models.TempDeployToken{})
-	}
 	if !db.HasTable(&models.BlockToMiner{}) {
 		db.CreateTable(&models.BlockToMiner{})
 	}
-	if !db.HasTable(&models.MinerToBlock{}) {
-		db.CreateTable(&models.MinerToBlock{})
-	}
-	if !db.HasTable(&models.MinerList{}) {
-		db.CreateTable(&models.MinerList{})
-	}
+
 }
 
 func (storage *Storage) GetDB() *gorm.DB {

@@ -58,6 +58,7 @@ type Gzv struct {
 	inited       bool
 	account      Account
 	config       *minerConfig
+	BroConfig    chan *BrowserConfig
 	rpcInstances []rpcApi
 	InitCha      chan bool
 }
@@ -146,6 +147,12 @@ func (gzv *Gzv) Run() {
 	remoteUrl := consoleCmd.Flag("url", "the node url to connect").Short('u').String()
 	rpcPort := consoleCmd.Flag("rpcport", "gzv console will listen at the port for wallet service").Default("0").Int()
 	rpcHost := consoleCmd.Flag("rpchost", "gzv console will listen at the host for wallet service").Default("127.0.0.1").String()
+
+	//
+	dbHost := consoleCmd.Flag("dbhost", "browser observer node dbhost").Default("localhost").String()
+	dbName := consoleCmd.Flag("dbname", "browser observer node dbname").Default("root").String()
+	dbPassword := consoleCmd.Flag("dbpassword", "browser observer node dbpassword").Default("password").String()
+	dbUser := consoleCmd.Flag("dbuser", "browser observer node dbuser").Default("dbname").String()
 
 	// Version
 	versionCmd := app.Command("version", "show gzv version")
@@ -252,7 +259,12 @@ func (gzv *Gzv) Run() {
 			privateKey:        *privKey,
 		}
 		gzv.config = cfg
-
+		broconfig := &BrowserConfig{
+			DbAddr:     *dbHost,
+			DbUser:     *dbUser,
+			DbPassword: *dbPassword,
+			DbName:     *dbName,
+		}
 		// Start miner
 		err := gzv.miner(cfg)
 		if err != nil {
@@ -274,6 +286,8 @@ func (gzv *Gzv) Run() {
 			"version": common.GzvVersion,
 		}).Info("versionLog")
 		gzv.InitCha <- true
+		gzv.BroConfig <- broconfig
+
 	case clearCmd.FullCommand():
 		err := ClearBlock()
 		if err != nil {

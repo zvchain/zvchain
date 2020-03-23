@@ -127,12 +127,6 @@ func TestGetGroups(t *testing.T) {
 	}
 	fmt.Println("browserdbmmanagement flags:", dbAddr, dbPort, dbUser, dbPassword, reset)
 
-	tm := NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
-
-	if !tm.GetGroups() {
-		t.Fatal("获取失败")
-	}
-
 }
 
 //func (tm *DBMmanagement) GetGroups( ) bool {
