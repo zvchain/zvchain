@@ -1114,7 +1114,6 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	timeBegin := time.Now()
 	var maxIndex uint64 = 0
 	blocks := make([]*models.Block, 1)
 	storage.db.Limit(1).Order("cur_index desc").Find(&blocks)
@@ -1130,7 +1129,6 @@ func (storage *Storage) AddBlock(block *models.Block) bool {
 		storage.db.Create(&block)
 	}
 	storage.AddCurCountconfig(block.CurTime, Blockcurblockheight)
-	fmt.Println("[Storage]  AddBlock cost: ", time.Since(timeBegin))
 	return true
 }
 
@@ -1140,7 +1138,6 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 		fmt.Println("[Storage] storage.db == nil")
 		return false
 	}
-	timeBegin := time.Now()
 	//tx := storage.db.Begin()
 	var maxIndex uint64 = 0
 	txs := make([]*models.Transaction, 1)
