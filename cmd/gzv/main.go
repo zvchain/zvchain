@@ -58,7 +58,7 @@ func NewBrowserDBInit(config *cli.BrowserConfig) {
 	flag.StringVar(&slavedbUser, "slavedbUser", "root", "database user")
 	flag.StringVar(&slavePassword, "slavePassword", config.DbPassword, "database password")
 	flag.StringVar(&dbPassword, "browerdbpw", config.DbPassword, "database password")
-	flag.StringVar(&dbName, "browerdbpw", config.DbName, "database password")
+	flag.StringVar(&dbName, "browerdbname", config.DbName, "database password")
 	/*
 		// for local test
 		flag.StringVar(&browerdbaddr, "browerdbaddr", "10.0.0.13", "database address")
