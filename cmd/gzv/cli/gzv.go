@@ -577,6 +577,7 @@ func ShowPubKeyInfo(info model.SelfMinerDO, id string) {
 func NewGzv() *Gzv {
 	globalGzv = new(Gzv)
 	globalGzv.InitCha = make(chan bool)
+	globalGzv.BroConfig = make(chan *BrowserConfig)
 	return globalGzv
 }
 
