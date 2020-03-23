@@ -264,6 +264,7 @@ func (gzv *Gzv) Run() {
 			DbUser:     *dbUser,
 			DbPassword: *dbPassword,
 			DbName:     *dbName,
+			Rpcport:    *rpcPort,
 		}
 		// Start miner
 		err := gzv.miner(cfg)

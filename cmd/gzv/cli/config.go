@@ -39,5 +39,6 @@ type BrowserConfig struct {
 	DbAddr     string
 	DbName     string
 	DbPassword string
+	Rpcport    int
 	DbUser     string
 }

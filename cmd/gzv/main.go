@@ -53,7 +53,7 @@ func NewBrowserDBInit(config *cli.BrowserConfig) {
 	flag.StringVar(&browerslavedbaddr, "browerslavedbaddr", config.DbAddr, "database address")
 	flag.StringVar(&rpcAddr, "rpcaddr", "localhost", "RPC address")
 	flag.IntVar(&dbPort, "dbport", 3306, "database port")
-	flag.IntVar(&rpcPort, "rpcport", 9101, "RPC port")
+	flag.IntVar(&rpcPort, "rpcport", config.Rpcport, "RPC port")
 	flag.StringVar(&dbUser, "dbuser", config.DbUser, "database user")
 	flag.StringVar(&slavedbUser, "slavedbUser", "root", "database user")
 	flag.StringVar(&slavePassword, "slavePassword", config.DbPassword, "database password")
