@@ -1514,7 +1514,7 @@ func (storage *Storage) RewardTopBlockHeight() (uint64, uint64) {
 	storage.db.Limit(1).Order("block_height desc").Find(&rewards)
 	if len(rewards) > 0 {
 
-		return rewards[0].BlockHeight, rewards[0].RewardHeight
+		return rewards[0].RewardHeight, rewards[0].BlockHeight
 	}
 	return 0, 0
 }
@@ -1551,17 +1551,9 @@ func (storage *Storage) DeleteForkblock(preHeight uint64, localHeight uint64, cu
 	}()
 	blockSql := fmt.Sprintf("DELETE  FROM blocks WHERE height > %d", preHeight)
 	transactionSql := fmt.Sprintf("DELETE  FROM transactions WHERE block_height > %d", preHeight)
-	receiptSql := fmt.Sprintf("DELETE  FROM receipts WHERE block_height > %d", preHeight)
-	logSql := fmt.Sprintf("DELETE  FROM logs WHERE block_number > %d", preHeight)
-	contractTransSql := fmt.Sprintf("DELETE  FROM contract_transactions WHERE block_height > %d", preHeight)
-	tokenTransSql := fmt.Sprintf("DELETE  FROM token_contract_transactions WHERE block_height > %d", preHeight)
 
 	blockCount := storage.db.Exec(blockSql)
 	transactionCount := storage.db.Exec(transactionSql)
-	storage.db.Exec(receiptSql)
-	storage.db.Exec(logSql)
-	go storage.db.Exec(contractTransSql)
-	go storage.db.Exec(tokenTransSql)
 
 	if GetTodayStartTs(curTime).Equal(GetTodayStartTs(time.Now())) {
 		storage.UpdateSysConfigValue(Blockcurblockheight, blockCount.RowsAffected, false)
