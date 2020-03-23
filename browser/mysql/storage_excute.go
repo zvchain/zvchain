@@ -1514,8 +1514,8 @@ func (storage *Storage) RewardTopBlockHeight() (uint64, uint64) {
 	if storage.db == nil {
 		return 0, 0
 	}
-	rewards := make([]models.Reward, 0, 0)
-	storage.db.Limit(1).Order("reward_height desc").Find(&rewards)
+	rewards := make([]models.BlockToMiner, 0, 0)
+	storage.db.Limit(1).Order("block_height desc").Find(&rewards)
 	if len(rewards) > 0 {
 
 		return rewards[0].BlockHeight, rewards[0].RewardHeight
@@ -1584,8 +1584,6 @@ func (storage *Storage) DeleteForkReward(preHeight uint64, localHeight uint64) (
 		}
 	}()
 
-	verifySql := fmt.Sprintf("DELETE FROM rewards WHERE reward_height > %d ", preHeight)
-	storage.db.Exec(verifySql)
 	browserlog.BrowserLog.Info("[DeleteForkReward] rewards preHeight:", preHeight, "localHeight", localHeight)
 
 	tx := storage.db.Begin()
