@@ -266,7 +266,7 @@ func (gzv *Gzv) Run() {
 			DbName:     *dbName,
 			Rpcport:    *rpcPort,
 		}
-		fmt.Println("dbhost:", dbHost)
+		fmt.Println("dbhost:", *dbHost)
 		// Start miner
 		err := gzv.miner(cfg)
 		if err != nil {
