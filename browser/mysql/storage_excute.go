@@ -1166,7 +1166,6 @@ func (storage *Storage) AddTransactions(trans []*models.Transaction) bool {
 	//storage.statistics.TransCountToday += uint64(len(trans))
 	//storage.statistics.TotalTransCount += uint64(len(trans))
 	//tx.Commit()
-	fmt.Println("[Storage]  AddTransactions cost: ", time.Since(timeBegin))
 
 	return true
 }
