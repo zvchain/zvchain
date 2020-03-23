@@ -149,10 +149,6 @@ func (gzv *Gzv) Run() {
 	rpcHost := consoleCmd.Flag("rpchost", "gzv console will listen at the host for wallet service").Default("127.0.0.1").String()
 
 	//
-	dbHost := consoleCmd.Flag("dbhost", "browser observer node dbhost").Default("localhost").String()
-	dbName := consoleCmd.Flag("dbname", "browser observer node dbname").Default("root").String()
-	dbPassword := consoleCmd.Flag("dbpassword", "browser observer node dbpassword").Default("password").String()
-	dbUser := consoleCmd.Flag("dbuser", "browser observer node dbuser").Default("dbname").String()
 
 	// Version
 	versionCmd := app.Command("version", "show gzv version")
@@ -164,6 +160,10 @@ func (gzv *Gzv) Run() {
 	rpc := mineCmd.Flag("rpc", "start rpc server and specify the rpc service level").Default(strconv.FormatInt(int64(rpcLevelMiner), 10)).Int()
 	serviceHost := mineCmd.Flag("host", "miner report or rpc service host").Short('o').Default("127.0.0.1").IP()
 	servicePort := mineCmd.Flag("port", "miner report or rpc service port").Short('p').Default("8101").Uint16()
+	dbHost := mineCmd.Flag("dbhost", "browser observer node dbhost").Default("localhost").String()
+	dbName := mineCmd.Flag("dbname", "browser observer node dbname").Default("root").String()
+	dbPassword := mineCmd.Flag("dbpassword", "browser observer node dbpassword").Default("password").String()
+	dbUser := mineCmd.Flag("dbuser", "browser observer node dbuser").Default("dbname").String()
 
 	enableMonitor := mineCmd.Flag("monitor", "enable monitor").Default("false").Bool()
 	disableReport := mineCmd.Flag("disablereport", "disable report.").Default("false").Bool()
@@ -266,6 +266,7 @@ func (gzv *Gzv) Run() {
 			DbName:     *dbName,
 			Rpcport:    *rpcPort,
 		}
+		fmt.Println("dbhost:", dbHost)
 		// Start miner
 		err := gzv.miner(cfg)
 		if err != nil {
