@@ -307,6 +307,7 @@ func (crontab *Crontab) OnBlockAddSuccess(simpleBlockHeader *core.SimpleBlockHea
 		LocalHeight: simpleBlockHeader.Height,
 	}
 	crontab.Produce(data)
+	crontab.ProduceReward(data)
 	//go crontab.UpdateProtectNodeStatus()
 
 	return nil
