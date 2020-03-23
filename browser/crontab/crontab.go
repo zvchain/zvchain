@@ -248,7 +248,6 @@ func (crontab *Crontab) fetchReward(localHeight uint64) {
 }
 
 func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
-	fmt.Println("[server]  consumeReward height:", localHeight)
 	var maxHeight uint64
 	_, maxHeight = server.storage.RewardTopBlockHeight()
 	chain := core.BlockChainImpl

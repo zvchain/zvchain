@@ -262,7 +262,6 @@ func (storage *Storage) AddBlockToMiner(blockToMinersPrpses, blockToMinersVerfs 
 
 	if createSuccess && updateSucceess {
 		tx.Commit()
-		fmt.Println("[Storage]  AddBlockToMiner Success. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
 	} else {
 		tx.Rollback()
 		fmt.Println("[Storage]  AddBlockToMiner Fail. cost: ", time.Since(timeBegin), "，len :", len(blockToMinersPrpses)+len(blockToMinersVerfs))
