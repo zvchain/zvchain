@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/vmihailenco/msgpack"
 	"github.com/zvchain/zvchain/browser/ldb"
+	"github.com/zvchain/zvchain/browser/util"
 	"github.com/zvchain/zvchain/common"
 	"io"
 	"sync"
@@ -46,6 +47,7 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 	if obj, ok := MapTokenContractData.Load(blockHash); ok {
 		objToken := obj.([]*TokenContractTransfer)
 		objToken = append(objToken, contract)
+		fmt.Println("MapTokenContractData,exist:", "height:", util.ObjectTojson(objToken))
 		MapTokenContractData.Store(blockHash, objToken)
 	} else {
 		MapTokenContractData.Store(blockHash, contracts)
@@ -55,10 +57,11 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 }
 
 func SetTokenContractMapToLdb(blockHash string, height uint64) {
-	fmt.Println("SetTokenContractMapToLdb,entr:", blockHash, ",height:", height)
 	if obj, ok := (MapTokenContractData).Load(blockHash); ok {
-		fmt.Println("SetTokenContractMapToLdb,exist:", blockHash, ",height:", height)
+		fmt.Println("SetTokenContractMapToLdb,exist:", "height:", height, util.ObjectTojson(obj))
 		objToken := obj.([]*TokenContractTransfer)
+		fmt.Println("addLdbData,exist:", util.ObjectTojson(objToken))
+
 		addLdbData(blockHash, objToken)
 	}
 }
