@@ -7,6 +7,7 @@ import (
 	"github.com/zvchain/zvchain/browser/ldb"
 	"github.com/zvchain/zvchain/common"
 	"io"
+	"math/big"
 	"sync"
 )
 
@@ -18,7 +19,7 @@ var MapTokenContractData = new(sync.Map)
 type TokenContractTransfer struct {
 	ContractAddr string
 	Addr         string
-	Value        interface{}
+	Value        string
 	TxHash       string
 	BlockHash    string
 }
@@ -35,7 +36,7 @@ func ProduceTokenContractTransfer(txhash string, blockHash string, contracttoken
 	contract := &TokenContractTransfer{
 		ContractAddr: contracttoken,
 		Addr:         string(addr),
-		Value:        VmDataConvert(value),
+		Value:        Valuetransfer(VmDataConvert(value)),
 		BlockHash:    blockHash,
 		TxHash:       txhash,
 	}
@@ -143,4 +144,17 @@ func ProduceContractTransfer(txHash string,
 	}
 	ContractTransferData <- contract
 	fmt.Println("ProduceContractTransfer,addr:", addr, ",contractcode:", contractCode)
+}
+
+func Valuetransfer(valuedata interface{}) string {
+	if valuedata == nil {
+		return ""
+	}
+	var valuestring string
+	if value, ok := valuedata.(int64); ok {
+		valuestring = big.NewInt(value).String()
+	} else if value, ok := valuedata.(*big.Int); ok {
+		valuestring = value.String()
+	}
+	return valuestring
 }
