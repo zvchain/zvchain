@@ -17,7 +17,6 @@ import (
 	"github.com/zvchain/zvchain/core/group"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/tvm"
-	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -1071,6 +1070,7 @@ func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash stri
 		return
 	}
 	for _, data := range datas {
+		fmt.Println("NewConsumeTokenContractTransfer", util.ObjectTojson(data))
 		if !crontab.storage.IsDbTokenContract(data.ContractAddr) {
 			continue
 		}
@@ -1078,17 +1078,12 @@ func (crontab *Crontab) NewConsumeTokenContractTransfer(height uint64, hash stri
 		chain := core.BlockChainImpl
 		wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 		if wrapper != nil {
-			if wrapper.Status == 0 && data.Value != nil {
-				var valuestring string
-				if value, ok := data.Value.(int64); ok {
-					valuestring = big.NewInt(value).String()
-				} else if value, ok := data.Value.(*big.Int); ok {
-					valuestring = value.String()
-				}
+			if wrapper.Status == 0 && data.Value != "" {
+
 				addr := strings.TrimPrefix(data.Addr, "balanceOf@")
 				crontab.storage.UpdateTokenUser(data.ContractAddr,
 					addr,
-					valuestring)
+					data.Value)
 			}
 
 		}
@@ -1121,13 +1116,8 @@ func (crontab *Crontab) ConsumeTokenContractTransfer(height uint64, hash string)
 			chain := core.BlockChainImpl
 			wrapper := chain.GetTransactionPool().GetReceipt(common.HexToHash(data.TxHash))
 			if wrapper != nil {
-				if wrapper.Status == 0 && data.Value != nil {
-					var valuestring string
-					if value, ok := data.Value.(int64); ok {
-						valuestring = big.NewInt(value).String()
-					} else if value, ok := data.Value.(*big.Int); ok {
-						valuestring = value.String()
-					}
+				if wrapper.Status == 0 && data.Value != "" {
+					valuestring := data.Value
 					addr := strings.TrimPrefix(string(data.Addr), "balanceOf@")
 					crontab.storage.UpdateTokenUser(data.ContractAddr,
 						addr,
