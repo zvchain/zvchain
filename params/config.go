@@ -32,6 +32,9 @@ type ChainConfig struct {
 
 	// zip003 solves the problem of weight comparison when two blocks have the same proves
 	ZIP003 uint64
+
+	// zip004 adjusting economic model
+	ZIP004 uint64
 }
 
 var config = &ChainConfig{
@@ -39,6 +42,7 @@ var config = &ChainConfig{
 	ZIP002: 960388, // effect at : 2019-10-31 14:00:00
 
 	ZIP003: 4945537, // effect at : 2020-3-16 14:00:00
+	ZIP004: 100,
 }
 
 func InitChainConfig(chainId uint16) {
@@ -67,4 +71,11 @@ func (cfg *ChainConfig) IsZIP002(h uint64) bool {
 
 func (cfg *ChainConfig) IsZIP003(h uint64) bool {
 	return isFork(cfg.ZIP003, h)
+}
+
+func (cfg *ChainConfig) IsZIP004Checkpoint(preHeight, height uint64) bool {
+	if preHeight < cfg.ZIP004 && height >= cfg.ZIP004 {
+		return true
+	}
+	return false
 }
