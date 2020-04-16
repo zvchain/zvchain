@@ -1,9 +1,15 @@
 package browser
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/jinzhu/gorm"
+	"github.com/zvchain/zvchain/browser/crontab"
+	"github.com/zvchain/zvchain/browser/models"
+	"os"
 	"testing"
+	"time"
 
 	_ "github.com/zvchain/zvchain/browser/mysql"
 	//"testing"
@@ -127,11 +133,218 @@ func TestGetGroups(t *testing.T) {
 	}
 	fmt.Println("browserdbmmanagement flags:", dbAddr, dbPort, dbUser, dbPassword, reset)
 
-	tm := NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset)
+	tm := NewDBMmanagement(dbAddr, dbPort, dbUser, dbPassword, reset, false)
 
 	if !tm.GetGroups() {
 		t.Fatal("获取失败")
 	}
+
+}
+
+func TestSetVoteInfos(t *testing.T) {
+	db := initDatabase()
+
+	options := []string{
+		"dowork",
+		"listen mUsic",
+		"go hiking",
+	}
+	optionsStr, _ := json.Marshal(options)
+
+	voteInfo1 := models.VoteDetails{
+		0: &models.VoteStat{
+			Count: 2,
+			Voter: []string{"0xfasfgsaf", "oxalksgha"},
+		},
+		1: &models.VoteStat{
+			Count: 5,
+			Voter: []string{"0xfasfgsaf", "oxalksgha", "0xgalkhnga", "gals;ihgfls;ak", "gouajh"},
+		},
+	}
+	voteInfo1Str, _ := json.Marshal(voteInfo1)
+
+	err := db.Create(&models.Vote{
+		Model: gorm.Model{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		VoteId:         1,
+		Title:          "A test Title",
+		Options:        string(optionsStr),
+		Intro:          "A test Intro",
+		Promoter:       "zv123456",
+		ContractAddr:   "zvabcdef",
+		StartTime:      time.Now(),
+		EndTime:        time.Now().Add(time.Hour * 24),
+		OptionsCount:   uint8(len(options)),
+		Status:         0,
+		OptionsDetails: string(voteInfo1Str),
+	}).Error
+
+	err = db.Create(&models.Vote{
+		Model: gorm.Model{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		VoteId:         2,
+		Title:          "A test Title",
+		Options:        string(optionsStr),
+		Intro:          "A test Intro",
+		Promoter:       "zv123456",
+		ContractAddr:   "zvabcdef",
+		StartTime:      time.Now(),
+		EndTime:        time.Now().Add(time.Hour * 24),
+		OptionsCount:   uint8(len(options)),
+		Status:         0,
+		OptionsDetails: string(voteInfo1Str),
+	}).Error
+
+	err = db.Create(&models.Vote{
+		Model: gorm.Model{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		VoteId:         3,
+		Title:          "A test Title",
+		Options:        string(optionsStr),
+		Intro:          "A test Intro",
+		Promoter:       "zv123456",
+		ContractAddr:   "zvabcdef",
+		StartTime:      time.Now(),
+		EndTime:        time.Now().Add(time.Hour * 24),
+		OptionsCount:   uint8(len(options)),
+		Status:         0,
+		OptionsDetails: string(voteInfo1Str),
+	}).Error
+
+	err = db.Create(&models.Vote{
+		Model: gorm.Model{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		VoteId:         4,
+		Title:          "A test Title",
+		Options:        string(optionsStr),
+		Intro:          "A test Intro",
+		Promoter:       "zv123456",
+		ContractAddr:   "zvabcdef",
+		StartTime:      time.Now(),
+		EndTime:        time.Now().Add(time.Hour * 24),
+		OptionsCount:   uint8(len(options)),
+		Status:         0,
+		OptionsDetails: string(voteInfo1Str),
+	}).Error
+
+	err = db.Create(&models.Vote{
+		Model: gorm.Model{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		VoteId:         5,
+		Title:          "A test Title",
+		Options:        string(optionsStr),
+		Intro:          "A test Intro",
+		Promoter:       "zv123456",
+		ContractAddr:   "zvabcdef",
+		StartTime:      time.Now(),
+		EndTime:        time.Now().Add(time.Hour * 24),
+		OptionsCount:   uint8(len(options)),
+		Status:         0,
+		OptionsDetails: string(voteInfo1Str),
+	}).Error
+
+	err = db.Create(&models.Vote{
+		Model: gorm.Model{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		VoteId:         6,
+		Title:          "A test Title",
+		Options:        string(optionsStr),
+		Intro:          "A test Intro",
+		Promoter:       "zv123456",
+		ContractAddr:   "zvabcdef",
+		StartTime:      time.Now(),
+		EndTime:        time.Now().Add(time.Hour * 24),
+		OptionsCount:   uint8(len(options)),
+		Status:         0,
+		OptionsDetails: string(voteInfo1Str),
+	}).Error
+
+	fmt.Println(err)
+
+}
+
+func initDatabase() *gorm.DB {
+	args := fmt.Sprintf("%s:%s@tcp(%s:%d)/gzv?charset=utf8&parseTime=True&loc=Local",
+		"root",
+		"dan",
+		"127.0.0.1",
+		3306)
+	fmt.Println("[Storage] db args:", args)
+	db, err := gorm.Open("mysql", args)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+	return db
+}
+
+////test
+//func SetDB(dbAddr string, dbPort int, dbUser string, dbPassword string, reset bool, resetcrontab bool) {
+//	server := &Crontab{
+//		initdata:       make(chan *models.ForkNotify, 10000),
+//		initRewarddata: make(chan *models.ForkNotify, 10000),
+//	}
+//	server.storage = mysql.NewStorage(dbAddr, dbPort, dbUser, dbPassword, reset, resetcrontab)
+//	GlobalCrontab = server
+//
+//}
+
+func Test_UpdateVoteStatus(t *testing.T) {
+	//crontab.SetDB("127.0.0.1" ,3306,"root","dan",false,false)
+	//TestSetVoteInfos(t)
+	db := initDatabase()
+	time.Sleep(time.Second * 3)
+	//crontab.UpdateVoteStatus(123456,time.Second*20)
+	list := make([]crontab.VoteTimer, 0)
+	voter1 := crontab.VoteTimer{
+		VoteStage: 0,
+		StartTime: time.Now().Add(time.Second * 10),
+		EndTime:   time.Now().Add(time.Second * 20),
+	}
+
+	voter2 := crontab.VoteTimer{
+		VoteStage: 0,
+		StartTime: time.Now().Add(time.Second * 15),
+		EndTime:   time.Now().Add(time.Second * 25),
+	}
+	voter3 := crontab.VoteTimer{
+		VoteStage: 1,
+		StartTime: time.Now().Add(-time.Second * 100),
+		EndTime:   time.Now().Add(time.Second * 30),
+	}
+	voter4 := crontab.VoteTimer{
+		VoteStage: 1,
+		StartTime: time.Now().Add(-time.Second * 100),
+		EndTime:   time.Now().Add(time.Second * 35),
+	}
+	voter5 := crontab.VoteTimer{
+		VoteStage: 2,
+		StartTime: time.Now().Add(-time.Second * 100),
+		EndTime:   time.Now().Add(-time.Second * 35),
+	}
+	voter6 := crontab.VoteTimer{
+		VoteStage: 2,
+		StartTime: time.Now().Add(-time.Second * 100),
+		EndTime:   time.Now().Add(-time.Second * 35),
+	}
+	list = append(list, voter1, voter2, voter3, voter4, voter5, voter6)
+	for k, v := range list {
+		crontab.HandleVoteTimer(uint64(k+1), &v)
+	}
+
+	select {}
 
 }
 

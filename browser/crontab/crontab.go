@@ -46,6 +46,8 @@ const (
 	VerifyStakeType   = 1
 )
 
+var GlobalCrontab *Crontab
+
 type Crontab struct {
 	storage      *mysql.Storage
 	slaveStorage *mysql.SlaveStorage
@@ -108,6 +110,7 @@ func NewServer(dbAddr string, dbPort int, dbUser string,
 	}
 	go server.HandleOnBlockSuccess()
 	go server.loop()
+	GlobalCrontab = server
 	return server
 }
 
@@ -143,6 +146,7 @@ func (crontab *Crontab) loop() {
 	//go crontab.fetchConfirmRewardsToMinerBlock()
 	go crontab.fetchOldTxCountToAccountList()
 	//go crontab.GetMinerToblocksByPage()
+	go ResetVoteTimer()
 
 	for {
 		select {
@@ -811,6 +815,9 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 				if tran.Type == types.TransactionTypeContractCreate {
 					tran.ContractAddress = blockDetail.Receipts[i].ContractAddress
 					go server.HandleTempTokenTable(tran.Hash, tran.ContractAddress, tran.Source, blockDetail.Receipts[i].Status)
+					if blockDetail.Receipts[i] != nil && blockDetail.Receipts[i].Status == 0 {
+						go server.HandleVoteContractDeploy(tran.ContractAddress, tran.Source, blockDetail.Block.CurTime)
+					}
 				}
 				if tran.Type == types.TransactionTypeContractCall {
 					transContract = append(transContract, tran)
@@ -838,6 +845,247 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 		server.NewConsumeTokenContractTransfer(blockDetail.Block.Height, blockDetail.Block.Hash)
 	}
 	//server.isFetchingBlocks = false
+}
+
+func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, blockTime time.Time) {
+	if !isVoteContract(contractAddr) {
+		return
+	}
+
+	if !crontab.isFromMinerPool(promoter) {
+		return
+	}
+
+	vote := parseContractKey(contractAddr)
+	if vote == nil {
+		return
+	}
+	voteId := vote.VoteId
+	voteItems := make([]models.Vote, 0)
+	crontab.storage.GetDB().Where("vote_id = ?", voteId).Find(&voteItems)
+
+	// make sure the contract has exist in the vote contract
+	if len(voteItems) == 0 {
+		return
+	}
+
+	// make sure never set the contract address ever
+	if len(voteItems[0].ContractAddr) > 0 {
+		return
+	}
+
+	// check vote status
+	if blockTime.Before(voteItems[0].StartTime) {
+		vote.Status = models.VoteStatusNotBegin
+	} else if (blockTime.After(voteItems[0].StartTime) ||
+		blockTime.Equal(voteItems[0].StartTime)) &&
+		blockTime.Before(voteItems[0].EndTime) {
+		vote.Status = models.VoteStatusInProcess
+	} else if blockTime.Equal(voteItems[0].EndTime) ||
+		blockTime.After(voteItems[0].EndTime) {
+		vote.Status = models.VoteStatusEnded
+	}
+
+	vote.Promoter = promoter
+	vote.ContractAddr = contractAddr
+	vote.Valid = true
+	crontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Updates(*vote)
+
+	voteTimer := NewVoteTimer()
+	voteTimer.SetVoteStage(vote.Status).
+		SetStartTime(vote.StartTime).
+		SetEndTime(vote.EndTime)
+
+	HandleVoteTimer(vote.VoteId, voteTimer)
+
+}
+
+func parseContractKey(contractAddr string) *models.Vote {
+	vote := new(models.Vote)
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("parseContractKey err: ", err)
+		return nil
+	}
+	iter := db.DataIterator(common.StringToAddress(contractAddr), []byte{})
+	for iter.Next() {
+		k := string(iter.Key[:])
+		v := tvm.VmDataConvert(iter.Value[:])
+		switch k {
+		case "vote_id":
+			if v, ok := v.(int64); ok {
+				vote.VoteId = uint64(v)
+			}
+		case "start_time":
+			if v, ok := v.(int64); ok {
+				vote.StartTime = time.Unix(v, 0)
+			}
+		case "end_time":
+			if v, ok := v.(int64); ok {
+				vote.EndTime = time.Unix(v, 0)
+			}
+		}
+	}
+	return vote
+}
+
+func CountVotes(voteId uint64) {
+
+	votes := make([]models.Vote, 0)
+	err := GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Find(&votes).Error
+	if err != nil || len(votes) == 0 {
+		browserlog.BrowserLog.Error("CountVotes err: ", err)
+		return
+	}
+
+	contractAddr := votes[0].ContractAddr
+
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("CountVotes err: ", err)
+		return
+	}
+
+	voteDetails := make(models.VoteDetails)
+	voteStats := make(map[uint64][]string)
+
+	iter := db.DataIterator(common.StringToAddress(contractAddr), []byte{})
+	if iter == nil {
+		browserlog.BrowserLog.Error("CountVotes err: ", "iter is nil")
+		return
+	}
+	for iter.Next() {
+		k := string(iter.Key[:])
+		v := tvm.VmDataConvert(iter.Value[:])
+		if strings.HasPrefix(k, "data@") {
+			addr := strings.TrimLeft(k, "data@")
+
+			if types.IsInExtractGuardNodes(common.StringToAddress(addr)) {
+				option := uint64(v.(int64))
+
+				// 用户所选的选项不能比数据库的多
+				if int(votes[0].OptionsCount) <= int(option) {
+					continue
+				}
+
+				if _, exists := voteStats[option]; !exists {
+					voteStats[option] = []string{addr}
+				} else {
+					voteStats[option] = append(voteStats[option], addr)
+				}
+			}
+		}
+	}
+
+	if len(voteStats) > 0 {
+		for k, v := range voteStats {
+			voteStat := &models.VoteStat{
+				Count: len(v),
+				Voter: v,
+			}
+			voteDetails[k] = voteStat
+		}
+		v, err := json.Marshal(voteDetails)
+		if err != nil {
+			browserlog.BrowserLog.Error("hasEssentialKey err: ", err)
+			return
+		}
+		err1 := GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("options_details", string(v)).Error
+		fmt.Println(err1)
+	}
+}
+
+func isVoteContract(contractAddr string) bool {
+	return hasEssentialKey(contractAddr) && hasChooseFunc(contractAddr) && namedVote(contractAddr)
+}
+
+func (crontab *Crontab) isFromMinerPool(promoter string) bool {
+
+	minerPoolList := make([]models.AccountList, 0)
+	crontab.storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", 2).Find(&minerPoolList)
+	for _, v := range minerPoolList {
+		if v.Address == promoter {
+			return true
+		}
+	}
+	return false
+}
+
+func hasEssentialKey(addr string) bool {
+
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("hasEssentialKey err: ", err)
+		return false
+	}
+	symbol1 := db.GetData(common.StringToAddress(addr), []byte("data"))
+	symbol2 := db.GetData(common.StringToAddress(addr), []byte("start_time"))
+	symbol3 := db.GetData(common.StringToAddress(addr), []byte("end_time"))
+	symbol4 := db.GetData(common.StringToAddress(addr), []byte("vote_id"))
+
+	if (len(symbol1) > 0) &&
+		(len(symbol2) > 0) &&
+		(len(symbol3) > 0) &&
+		(len(symbol4) > 0) {
+		return true
+	}
+	return false
+}
+
+func hasChooseFunc(addr string) bool {
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("hasChooseFunc err: ", err)
+		return false
+	}
+	code := db.GetCode(common.StringToAddress(addr))
+	contract := tvm.Contract{}
+	err = json.Unmarshal(code, &contract)
+	if err != nil {
+		browserlog.BrowserLog.Error("hasChooseFunc err: ", err)
+		return false
+	}
+	stringSlice := strings.Split(contract.Code, "\n")
+	for k, targetString := range stringSlice {
+		targetString = strings.TrimSpace(targetString)
+		if strings.HasPrefix(targetString, "@register.public") {
+			if len(stringSlice) > k+1 {
+				if strings.Index(stringSlice[k+1], " choose(") != -1 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// 查看合约class命名是否规范
+func namedVote(addr string) bool {
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("namedVote err: ", err)
+		return false
+	}
+	code := db.GetCode(common.StringToAddress(addr))
+	contract := tvm.Contract{}
+	err = json.Unmarshal(code, &contract)
+	if err != nil {
+		browserlog.BrowserLog.Error("namedVote err: ", err)
+		return false
+	}
+	stringSlice := strings.Split(contract.Code, "\n")
+	for _, targetString := range stringSlice {
+		targetString = strings.TrimSpace(targetString)
+		if strings.HasPrefix(targetString, "class") && strings.Index(targetString, " Vote(") != -1 {
+			return true
+		}
+	}
+	return false
 }
 
 func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, status uint) {

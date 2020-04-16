@@ -21,6 +21,12 @@ import (
 	"time"
 )
 
+const (
+	VoteStatusNotBegin = iota
+	VoteStatusInProcess
+	VoteStatusEnded
+)
+
 type PoolStake struct {
 	gorm.Model
 	Address string `json:"address" gorm:"index"`
@@ -315,6 +321,29 @@ type BlockHeights []uint64
 type BlockConfirmMiner struct {
 	ProHeight uint64
 	VerHight  uint64
+}
+
+type Vote struct {
+	gorm.Model
+	VoteId         uint64    `json:"vote_id" gorm:"unique"`
+	Title          string    `json:"title" gorm:"index"`       // 投票标题
+	Options        string    `json:"options" gorm:"type:TEXT"` // 选项列表 json string
+	Intro          string    `json:"intro" gorm:"type:TEXT"`
+	Promoter       string    `json:"promoter" gorm:"index"` // 发起人
+	ContractAddr   string    `json:"contract_addr" gorm:"index"`
+	StartTime      time.Time `json:"start_time" gorm:"index"`
+	EndTime        time.Time `json:"end_time" gorm:"index"`
+	OptionsCount   uint8     `json:"options_count"`
+	Status         uint8     `json:"status" gorm:"index"` // 当前投票状态:0未开始，1进行中，2已结束
+	OptionsDetails string    `json:"options_details" gorm:"type:TEXT"`
+	Valid          bool      `json:"valid" gorm:"index"`
+}
+
+type VoteDetails map[uint64]*VoteStat
+
+type VoteStat struct {
+	Count int      `json:"count"`
+	Voter []string `json:"voter"`
 }
 
 func (e BlockHeights) Len() int           { return len(e) }
