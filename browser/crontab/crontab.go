@@ -852,7 +852,7 @@ func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, 
 		return
 	}
 
-	if !crontab.isFromMinerPool(promoter) {
+	if !isMinerPool(promoter) {
 		return
 	}
 
@@ -900,6 +900,43 @@ func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, 
 
 }
 
+func isGuardNode(address string) bool {
+	proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(address), types.MinerTypeProposal)
+	verifierInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(address), types.MinerTypeVerify)
+
+	identify1 := false
+	identify2 := false
+
+	if proposalInfo != nil {
+		identify1 = proposalInfo.IsGuard()
+	}
+
+	if verifierInfo != nil {
+		identify2 = verifierInfo.IsGuard()
+	}
+
+	return identify1 || identify2
+}
+
+func isMinerPool(address string) bool {
+	proposalInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(address), types.MinerTypeProposal)
+	verifierInfo := core.MinerManagerImpl.GetLatestMiner(common.StringToAddress(address), types.MinerTypeVerify)
+
+	identify1 := false
+	identify2 := false
+
+	if proposalInfo != nil {
+		identify1 = proposalInfo.IsMinerPool()
+	}
+
+	if verifierInfo != nil {
+		identify2 = verifierInfo.IsMinerPool()
+	}
+
+	return identify1 || identify2
+
+}
+
 func parseContractKey(contractAddr string) *models.Vote {
 	vote := new(models.Vote)
 	chain := core.BlockChainImpl
@@ -930,6 +967,7 @@ func parseContractKey(contractAddr string) *models.Vote {
 	return vote
 }
 
+// 统计票数
 func CountVotes(voteId uint64) {
 
 	votes := make([]models.Vote, 0)
@@ -962,7 +1000,7 @@ func CountVotes(voteId uint64) {
 		if strings.HasPrefix(k, "data@") {
 			addr := strings.TrimLeft(k, "data@")
 
-			if types.IsInExtractGuardNodes(common.StringToAddress(addr)) {
+			if isGuardNode(addr) {
 				option := uint64(v.(int64))
 
 				// 用户所选的选项不能比数据库的多
@@ -980,20 +1018,31 @@ func CountVotes(voteId uint64) {
 	}
 
 	if len(voteStats) > 0 {
+
+		maxCount := 0
+
 		for k, v := range voteStats {
 			voteStat := &models.VoteStat{
 				Count: len(v),
 				Voter: v,
 			}
 			voteDetails[k] = voteStat
+			if len(v) > maxCount {
+				maxCount = len(v)
+			}
 		}
 		v, err := json.Marshal(voteDetails)
 		if err != nil {
 			browserlog.BrowserLog.Error("hasEssentialKey err: ", err)
 			return
 		}
-		err1 := GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("options_details", string(v)).Error
-		fmt.Println(err1)
+		GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("options_details", string(v))
+
+		var totalGuardCount int64
+		GlobalCrontab.storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerGuard).Count(&totalGuardCount)
+		if int64(maxCount) > totalGuardCount/2 {
+			GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("passed", true)
+		}
 	}
 }
 
