@@ -19,6 +19,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	browserlog "github.com/zvchain/zvchain/browser/log"
 	"github.com/zvchain/zvchain/browser/models"
 	"time"
 )
@@ -118,6 +119,10 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 		fmt.Println("[Storage] gorm.Open err:", err)
 		return
 	}
+	// orm logger
+	db.LogMode(true)
+	db.SetLogger(browserlog.OrmLog)
+
 	storage.db = db
 	if reset {
 		db.DropTable(&models.Block{})
@@ -196,6 +201,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	}
 	if !db.HasTable(&models.MinerList{}) {
 		db.CreateTable(&models.MinerList{})
+	}
+	if !db.HasTable(&models.Vote{}) {
+		db.CreateTable(&models.Vote{})
 	}
 }
 

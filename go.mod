@@ -3,6 +3,7 @@ module github.com/zvchain/zvchain
 go 1.12
 
 require (
+	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/Workiva/go-datastructures v1.0.50
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
 	github.com/beevik/ntp v0.2.0
@@ -24,7 +25,6 @@ require (
 	github.com/pmylund/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/rs/cors v1.6.0
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tidwall/gjson v1.3.4
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
