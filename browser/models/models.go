@@ -344,6 +344,7 @@ type Vote struct {
 	Status         uint8     `json:"status" gorm:"index"` // 当前投票状态:0未开始，1进行中，2已结束
 	OptionsDetails string    `json:"options_details" gorm:"type:TEXT"`
 	Valid          bool      `json:"valid" gorm:"index"`
+	Passed         bool      `json:"passed" gorm:"index"`
 }
 
 type VoteDetails map[uint64]*VoteStat
