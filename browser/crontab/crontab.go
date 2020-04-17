@@ -999,12 +999,12 @@ func CountVotes(voteId uint64) {
 			addr := strings.TrimLeft(k, "data@")
 
 			if isGuardNode(addr) {
-				option := uint64(v.(int64))
 
-				// 用户所选的选项不能比数据库的多
-				if int(votes[0].OptionsCount) <= int(option) {
+				// 用户所选的选项不能比数据库的多或者选项值不能小于0
+				if int64(votes[0].OptionsCount) <= v.(int64) || v.(int64) < 0 {
 					continue
 				}
+				option := uint64(v.(int64))
 
 				if _, exists := voteStats[option]; !exists {
 					voteStats[option] = []string{addr}
@@ -1014,6 +1014,11 @@ func CountVotes(voteId uint64) {
 			}
 		}
 	}
+
+	// 更新守护节点数量
+	var totalGuardCount int64
+	GlobalCrontab.storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerGuard).Count(&totalGuardCount)
+	GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("guard_count", totalGuardCount)
 
 	if len(voteStats) > 0 {
 
@@ -1036,8 +1041,6 @@ func CountVotes(voteId uint64) {
 		}
 		GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("options_details", string(v))
 
-		var totalGuardCount int64
-		GlobalCrontab.storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerGuard).Count(&totalGuardCount)
 		if int64(maxCount) > totalGuardCount/2 {
 			GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("passed", true)
 		}

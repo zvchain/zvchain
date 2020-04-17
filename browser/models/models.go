@@ -340,11 +340,14 @@ type Vote struct {
 	ContractAddr   string    `json:"contract_addr" gorm:"index"`
 	StartTime      time.Time `json:"start_time" gorm:"index"`
 	EndTime        time.Time `json:"end_time" gorm:"index"`
+	StartTimeTS    int64     `json:"start_time_ts" gorm:"-"`
+	EndTimeTS      int64     `json:"end_time_ts" gorm:"-"`
 	OptionsCount   uint8     `json:"options_count"`
 	Status         uint8     `json:"status" gorm:"index"` // 当前投票状态:0未开始，1进行中，2已结束
 	OptionsDetails string    `json:"options_details" gorm:"type:TEXT"`
 	Valid          bool      `json:"valid" gorm:"index"`
 	Passed         bool      `json:"passed" gorm:"index"`
+	GuardCount     uint64    `json:"guard_count"`
 }
 
 type VoteDetails map[uint64]*VoteStat
