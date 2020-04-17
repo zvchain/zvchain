@@ -1003,15 +1003,18 @@ func CountVotes(voteId uint64) {
 			if isGuardNode(addr) {
 
 				// 用户所选的选项不能比数据库的多或者选项值不能小于0
-				if int64(votes[0].OptionsCount) <= v.(int64) || v.(int64) < 0 {
+				option, ok := v.(int64)
+				if !ok {
+					return
+				}
+				if int64(votes[0].OptionsCount) <= option || option < 0 {
 					continue
 				}
-				option := uint64(v.(int64))
 
-				if _, exists := voteStats[option]; !exists {
-					voteStats[option] = []string{addr}
+				if _, exists := voteStats[uint64(option)]; !exists {
+					voteStats[uint64(option)] = []string{addr}
 				} else {
-					voteStats[option] = append(voteStats[option], addr)
+					voteStats[uint64(option)] = append(voteStats[uint64(option)], addr)
 				}
 			}
 		}
