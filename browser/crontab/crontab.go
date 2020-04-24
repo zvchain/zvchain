@@ -32,6 +32,8 @@ const (
 
 	turnoverKey = "turnover"
 	cpKey       = "checkpoint"
+
+	GuardAndPoolContract = "zv7c98d4230d1330c23e4df22072b778dfeb3246977e54b72030380ff4aaa3d3cb"
 )
 
 var (
@@ -46,7 +48,11 @@ const (
 	VerifyStakeType   = 1
 )
 
-var GlobalCrontab *Crontab
+var (
+	GlobalCrontab *Crontab
+	GuardNodeList []string
+	PoolNodeMap   = make(map[string]struct{})
+)
 
 type Crontab struct {
 	storage      *mysql.Storage
@@ -852,7 +858,7 @@ func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, 
 		return
 	}
 
-	if !isMinerPool(promoter) {
+	if !validPoolFromContract(promoter) {
 		return
 	}
 
@@ -897,6 +903,119 @@ func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, 
 		SetEndTime(vote.EndTime)
 
 	HandleVoteTimer(vote.VoteId, voteTimer)
+
+}
+
+func validPoolFromContract(promoter string) bool {
+
+	updatePoolMap := func() {
+		chain := core.BlockChainImpl
+		db, err := chain.LatestAccountDB()
+		if err != nil {
+			browserlog.BrowserLog.Error("validPoolFromContract err: ", err)
+			return
+		}
+
+		iter := db.DataIterator(common.StringToAddress(GuardAndPoolContract), []byte{})
+		if iter == nil {
+			browserlog.BrowserLog.Error("validPoolFromContract err: ", "iter is nil")
+			return
+		}
+
+		for iter.Next() {
+			k := string(iter.Key[:])
+			if strings.HasPrefix(k, "pool_lists@") {
+				addr := strings.TrimLeft(k, "pool_lists@")
+				PoolNodeMap[addr] = struct{}{}
+			}
+		}
+	}
+
+	if len(PoolNodeMap) > 0 {
+		_, ok := PoolNodeMap[promoter]
+		if ok {
+			return true
+		}
+	}
+
+	updatePoolMap()
+	_, ok := PoolNodeMap[promoter]
+	return ok
+}
+
+func filterVotes(allVotes map[string]int64) (models.VoteDetails, int, bool) {
+
+	validVotes := make(map[int64][]models.Voter)
+	totalGuards := make(map[string]int64)
+
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("filterVotes err: ", err)
+		return nil, 0, false
+	}
+
+	iter := db.DataIterator(common.StringToAddress(GuardAndPoolContract), []byte{})
+	if iter == nil {
+		browserlog.BrowserLog.Error("filterVotes err: ", "iter is nil")
+		return nil, 0, false
+	}
+
+	var totalGuardsWeight int64
+	for iter.Next() {
+		k := string(iter.Key[:])
+		v := tvm.VmDataConvert(iter.Value[:])
+		if strings.HasPrefix(k, "guard_lists@") {
+			addr := strings.TrimLeft(k, "guard_lists@")
+			weight, ok := v.(int64)
+			if !ok {
+				continue
+			}
+			totalGuards[addr] = weight
+			totalGuardsWeight += weight
+		}
+	}
+
+	for addr, option := range allVotes {
+		if weight, ok := totalGuards[addr]; ok {
+			if _, exists := validVotes[option]; !exists {
+				validVotes[option] = []models.Voter{{
+					Addr:   addr,
+					Weight: weight,
+				}}
+			} else {
+				validVotes[option] = append(validVotes[option], models.Voter{
+					Addr:   addr,
+					Weight: weight,
+				})
+			}
+		}
+	}
+
+	voteDetails := make(models.VoteDetails)
+
+	maxWeight := 0
+	for k, voters := range validVotes {
+		var totalWeight int64
+		var voteStat = new(models.VoteStat)
+		for _, voter := range voters {
+			totalWeight += voter.Weight
+		}
+		voteStat.Count = len(voters)
+		voteStat.TotalWeight = int(totalWeight)
+		voteStat.Voter = voters
+
+		if voteStat.TotalWeight > maxWeight {
+			maxWeight = voteStat.TotalWeight
+		}
+		voteDetails[uint64(k)] = voteStat
+	}
+
+	if maxWeight > int(totalGuardsWeight)/2 {
+		return voteDetails, len(totalGuards), true
+	}
+
+	return voteDetails, len(totalGuards), false
 
 }
 
@@ -986,69 +1105,44 @@ func CountVotes(voteId uint64) {
 		return
 	}
 
-	voteDetails := make(models.VoteDetails)
-	voteStats := make(map[uint64][]string)
+	allVotes := make(map[string]int64)
 
 	iter := db.DataIterator(common.StringToAddress(contractAddr), []byte{})
 	if iter == nil {
 		browserlog.BrowserLog.Error("CountVotes err: ", "iter is nil")
 		return
 	}
+
 	for iter.Next() {
 		k := string(iter.Key[:])
 		v := tvm.VmDataConvert(iter.Value[:])
 		if strings.HasPrefix(k, "data@") {
 			addr := strings.TrimLeft(k, "data@")
-
-			if isGuardNode(addr) {
-
-				// 用户所选的选项不能比数据库的多或者选项值不能小于0
-				option, ok := v.(int64)
-				if !ok {
-					return
-				}
-				if int64(votes[0].OptionsCount) <= option || option < 0 {
-					continue
-				}
-
-				if _, exists := voteStats[uint64(option)]; !exists {
-					voteStats[uint64(option)] = []string{addr}
-				} else {
-					voteStats[uint64(option)] = append(voteStats[uint64(option)], addr)
-				}
+			// 用户所选的选项不能比数据库的多或者选项值不能小于0
+			option, ok := v.(int64)
+			if !ok {
+				return
 			}
+			if int64(votes[0].OptionsCount) <= option || option < 0 {
+				continue
+			}
+			allVotes[addr] = option
 		}
 	}
 
-	// 更新守护节点数量
-	var totalGuardCount int64
-	GlobalCrontab.storage.GetDB().Model(&models.AccountList{}).Where("role_type = ?", types.MinerGuard).Count(&totalGuardCount)
-	GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("guard_count", totalGuardCount)
-
-	if len(voteStats) > 0 {
-
-		maxCount := 0
-
-		for k, v := range voteStats {
-			voteStat := &models.VoteStat{
-				Count: len(v),
-				Voter: v,
-			}
-			voteDetails[k] = voteStat
-			if len(v) > maxCount {
-				maxCount = len(v)
-			}
-		}
-		v, err := json.Marshal(voteDetails)
+	validVotesDetails, guardCounts, passed := filterVotes(allVotes)
+	if validVotesDetails != nil {
+		v, err := json.Marshal(validVotesDetails)
 		if err != nil {
 			browserlog.BrowserLog.Error("hasEssentialKey err: ", err)
 			return
 		}
-		GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("options_details", string(v))
-
-		if int64(maxCount) > totalGuardCount/2 {
-			GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Update("passed", true)
-		}
+		GlobalCrontab.storage.GetDB().Model(&models.Vote{}).Where("vote_id = ?", voteId).Updates(map[string]interface{}{
+			"options_details": string(v),
+			"guard_count":     guardCounts,
+			"passed":          passed,
+			"status":          models.VoteStatusEnded,
+		})
 	}
 }
 

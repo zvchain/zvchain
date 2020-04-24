@@ -51,14 +51,8 @@ func UpdateVoteStatus(key uint64, d time.Duration, end bool) {
 	voterLock.Lock()
 	defer voterLock.Unlock()
 
-	var sql string
-	if end {
-		sql = fmt.Sprintf("update votes set status = %d  where vote_id = %d", models.VoteStatusEnded, key)
-	} else {
-		sql = fmt.Sprintf("update votes set status = %d  where vote_id = %d", models.VoteStatusInProcess, key)
-	}
-
 	updateVoteStatus := func() {
+		sql := fmt.Sprintf("update votes set status = %d  where vote_id = %d", models.VoteStatusInProcess, key)
 		db := GlobalCrontab
 		if db.storage != nil {
 			err := db.storage.GetDB().Model(&models.Vote{}).Exec(sql).Error
@@ -67,13 +61,16 @@ func UpdateVoteStatus(key uint64, d time.Duration, end bool) {
 				return
 			}
 		}
-
-		// count the votes
-		if end {
-			CountVotes(key)
-		}
 		VoteTimerSet.Delete(key)
 	}
+
+	if end {
+		updateVoteStatus = func() {
+			CountVotes(key)
+			VoteTimerSet.Delete(key)
+		}
+	}
+
 	time.AfterFunc(d, updateVoteStatus)
 }
 

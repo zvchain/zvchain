@@ -345,9 +345,15 @@ type Vote struct {
 
 type VoteDetails map[uint64]*VoteStat
 
+type Voter struct {
+	Addr   string `json:"addr"`
+	Weight int64  `json:"weight"`
+}
+
 type VoteStat struct {
-	Count int      `json:"count"`
-	Voter []string `json:"voter"`
+	Count       int     `json:"count"`
+	TotalWeight int     `json:"total_weight"`
+	Voter       []Voter `json:"voter"`
 }
 
 func (e BlockHeights) Len() int           { return len(e) }
