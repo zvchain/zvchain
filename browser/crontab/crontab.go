@@ -943,7 +943,7 @@ func validPoolFromContract(promoter string) bool {
 	return ok
 }
 
-func filterVotes(allVotes map[string]int64) (models.VoteDetails, int, bool) {
+func filterVotes(allVotes map[string]int64) (models.VoteDetails, int, int, bool) {
 
 	validVotes := make(map[int64][]models.Voter)
 	totalGuards := make(map[string]int64)
@@ -952,13 +952,13 @@ func filterVotes(allVotes map[string]int64) (models.VoteDetails, int, bool) {
 	db, err := chain.LatestAccountDB()
 	if err != nil {
 		browserlog.BrowserLog.Error("filterVotes err: ", err)
-		return nil, 0, false
+		return nil, 0, 0, false
 	}
 
 	iter := db.DataIterator(common.StringToAddress(GuardAndPoolContract), []byte{})
 	if iter == nil {
 		browserlog.BrowserLog.Error("filterVotes err: ", "iter is nil")
-		return nil, 0, false
+		return nil, 0, 0, false
 	}
 
 	var totalGuardsWeight int64
@@ -1012,10 +1012,10 @@ func filterVotes(allVotes map[string]int64) (models.VoteDetails, int, bool) {
 	}
 
 	if maxWeight > int(totalGuardsWeight)/2 {
-		return voteDetails, len(totalGuards), true
+		return voteDetails, len(totalGuards), int(totalGuardsWeight), true
 	}
 
-	return voteDetails, len(totalGuards), false
+	return voteDetails, len(totalGuards), int(totalGuardsWeight), false
 
 }
 
@@ -1130,7 +1130,7 @@ func CountVotes(voteId uint64) {
 		}
 	}
 
-	validVotesDetails, guardCounts, passed := filterVotes(allVotes)
+	validVotesDetails, guardCounts, totalGuardsWeight, passed := filterVotes(allVotes)
 	if validVotesDetails != nil {
 		v, err := json.Marshal(validVotesDetails)
 		if err != nil {
@@ -1142,6 +1142,7 @@ func CountVotes(voteId uint64) {
 			"guard_count":     guardCounts,
 			"passed":          passed,
 			"status":          models.VoteStatusEnded,
+			"total_weight":    totalGuardsWeight,
 		})
 	}
 }

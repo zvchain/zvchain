@@ -341,6 +341,7 @@ type Vote struct {
 	Valid          bool      `json:"valid" gorm:"index"`
 	Passed         bool      `json:"passed" gorm:"index"`
 	GuardCount     uint64    `json:"guard_count"`
+	TotalWeight    uint64    `json:"total_weight"`
 }
 
 type VoteDetails map[uint64]*VoteStat
