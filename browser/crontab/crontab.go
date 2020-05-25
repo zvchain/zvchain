@@ -33,7 +33,7 @@ const (
 	turnoverKey = "turnover"
 	cpKey       = "checkpoint"
 
-	GuardAndPoolContract = "zv7c98d4230d1330c23e4df22072b778dfeb3246977e54b72030380ff4aaa3d3cb"
+	GuardAndPoolContract = "zvc8af38019af67f54444c627bf54425129d7b6d9f543167470465ea93a90c8ed3"
 )
 
 var (
@@ -50,7 +50,6 @@ const (
 
 var (
 	GlobalCrontab *Crontab
-	GuardNodeList []string
 	PoolNodeMap   = make(map[string]struct{})
 )
 
@@ -799,6 +798,7 @@ func (server *Crontab) consumeReward(localHeight uint64, pre uint64) {
 	//server.isFetchingBlocks = false
 
 }
+
 func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 
 	fmt.Println("[server]  consumeBlock process height:", localHeight)
@@ -906,31 +906,33 @@ func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, 
 
 }
 
-func validPoolFromContract(promoter string) bool {
-
-	updatePoolMap := func() {
-		chain := core.BlockChainImpl
-		db, err := chain.LatestAccountDB()
-		if err != nil {
-			browserlog.BrowserLog.Error("validPoolFromContract err: ", err)
-			return
-		}
-
-		iter := db.DataIterator(common.StringToAddress(GuardAndPoolContract), []byte{})
-		if iter == nil {
-			browserlog.BrowserLog.Error("validPoolFromContract err: ", "iter is nil")
-			return
-		}
-
-		for iter.Next() {
-			k := string(iter.Key[:])
-			if strings.HasPrefix(k, "pool_lists@") {
-				addr := strings.TrimLeft(k, "pool_lists@")
-				PoolNodeMap[addr] = struct{}{}
-			}
-		}
+func updatePoolMap()  {
+	PoolNodeMap  = make(map[string]struct{})
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("validPoolFromContract err: ", err)
+		return
 	}
 
+	iter := db.DataIterator(common.StringToAddress(GuardAndPoolContract), []byte{})
+	if iter == nil {
+		browserlog.BrowserLog.Error("validPoolFromContract err: ", "iter is nil")
+		return
+	}
+
+	for iter.Next() {
+		k := string(iter.Key[:])
+		if strings.HasPrefix(k, "pool_lists@") {
+			addr := strings.TrimLeft(k, "pool_lists@")
+			PoolNodeMap[addr] = struct{}{}
+		}
+	}
+}
+
+func validPoolFromContract(promoter string) bool {
+
+	updatePoolMap()
 	if len(PoolNodeMap) > 0 {
 		_, ok := PoolNodeMap[promoter]
 		if ok {
@@ -938,9 +940,7 @@ func validPoolFromContract(promoter string) bool {
 		}
 	}
 
-	updatePoolMap()
-	_, ok := PoolNodeMap[promoter]
-	return ok
+	return false
 }
 
 func filterVotes(allVotes map[string]int64) (models.VoteDetails, int, int, bool) {
