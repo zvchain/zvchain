@@ -33,7 +33,7 @@ const (
 	turnoverKey = "turnover"
 	cpKey       = "checkpoint"
 
-	GuardAndPoolContract = "zvc8af38019af67f54444c627bf54425129d7b6d9f543167470465ea93a90c8ed3"
+	GuardAndPoolContract = "zv6082d5468cd02e55f438401e204c0682ad8f77ee998db7c98ea476801f10225d"
 )
 
 var (
@@ -906,8 +906,8 @@ func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, 
 
 }
 
-func updatePoolMap()  {
-	PoolNodeMap  = make(map[string]struct{})
+func updatePoolMap() {
+	PoolNodeMap = make(map[string]struct{})
 	chain := core.BlockChainImpl
 	db, err := chain.LatestAccountDB()
 	if err != nil {
