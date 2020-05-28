@@ -61,16 +61,13 @@ func newProposerManager() *ProposerManager {
 }
 
 func (pm *ProposerManager) Build(proposers []*Proposer) {
-	Logger.Infof("[proposer manager] Build size:%v proposers:%v", len(proposers), proposers)
+	Logger.Debugf("[proposer manager] Build size:%v proposers:%v", len(proposers), proposers)
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	pm.proposers = proposers
 	sort.Sort(pm)
 
-	for i := 0; i < len(pm.proposers); i++ {
-		Logger.Infof("[proposer manager] Build members ID: %v stake:%v", pm.proposers[i].ID.GetHexString(), pm.proposers[i].Stake)
-	}
 	totalStake := uint64(0)
 	for i := 0; i < len(pm.proposers); i++ {
 		totalStake += pm.proposers[i].Stake
@@ -104,10 +101,8 @@ func (pm *ProposerManager) Build(proposers []*Proposer) {
 }
 
 func (pm *ProposerManager) AddProposers(proposers []*Proposer) {
-	Logger.Infof("[proposer manager] AddProposers size:%v", len(proposers))
-	for i := 0; i < len(proposers); i++ {
-		Logger.Infof("[proposer manager] AddProposers members ID: %v stake:%v", proposers[i].ID.GetHexString(), proposers[i].Stake)
-	}
+	Logger.Debugf("[proposer manager] AddProposers size:%v", len(proposers))
+
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	normalProposers := make([]*Proposer, 0)
@@ -130,7 +125,7 @@ func (pm *ProposerManager) Broadcast(msg *MsgData, code uint32) {
 		Logger.Errorf("[proposer manager] broadcast,msg is nil,code:%v", code)
 		return
 	}
-	Logger.Infof("[proposer manager] broadcast, code:%v", code)
+	Logger.Debugf("[proposer manager] broadcast, code:%v", code)
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 

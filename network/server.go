@@ -62,7 +62,7 @@ func (s *Server) SpreadAmongGroup(groupID string, msg Message) error {
 		return err
 	}
 
-	Logger.Infof("SpreadAmongGroup :%s,code:%d,msg size:%d", groupID, msg.Code, len(msg.Body)+4)
+	Logger.Debugf("SpreadAmongGroup :%s,code:%d,msg size:%d", groupID, msg.Code, len(msg.Body)+4)
 	s.netCore.groupBroadcast(groupID, bytes, msg.Code, true, -1)
 
 	return nil
@@ -75,7 +75,7 @@ func (s *Server) SpreadToGroup(groupID string, groupMembers []string, msg Messag
 		return err
 	}
 
-	Logger.Infof("SpreadToGroup :%s,code:%d,groupMembers:%v msg size:%d", groupID, msg.Code, len(groupMembers), len(msg.Body)+4)
+	Logger.Debugf("SpreadToGroup :%s,code:%d,groupMembers:%v msg size:%d", groupID, msg.Code, len(groupMembers), len(msg.Body)+4)
 	s.netCore.groupBroadcastWithMembers(groupID, bytes, msg.Code, digest, groupMembers, -1)
 
 	return nil

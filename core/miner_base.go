@@ -117,6 +117,13 @@ func (f *fundGuardNode) isFundGuard() bool {
 	return f.Type == fundGuardNodeType
 }
 
+// if type == normalNodeType,means this fund guard node is invalid,if 6+5 or 6+6 expired will set this value
+// if type == fullStakeGuardNodeType means this fund guard becomes full stake fund node before invalid
+// if type == fundGuardNodeType means this fund guard node is init status
+func (f *fundGuardNode) isGuardNode() bool {
+	return f.Type != normalNodeType
+}
+
 func (f *fundGuardNode) isNormal() bool {
 	return f.Type == normalNodeType
 }
@@ -234,7 +241,7 @@ func getFundGuardKey(prefix []byte, address common.Address) []byte {
 	return buf.Bytes()
 }
 
-func getMinerFromStateObject(db account.AccountDatabase, stateObject account.AccAccesser,mType types.MinerType) (*types.Miner, error) {
+func getMinerFromStateObject(db account.AccountDatabase, stateObject account.AccAccesser, mType types.MinerType) (*types.Miner, error) {
 	data := stateObject.GetData(db, getMinerKey(mType))
 	if data != nil && len(data) > 0 {
 		var miner types.Miner
