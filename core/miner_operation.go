@@ -352,7 +352,7 @@ func (op *stakeRefundOp) Transition() *result {
 	dl := uint64(refundDeadlineTwoDays)
 
 	switch {
-	case params.GetChainConfig().IsZIP004(frozenDetail.Height):
+	case params.GetChainConfig().IsZIP004(op.height):
 		// TODO
 		dl = refundDeadlineNinetyDays //
 	case params.GetChainConfig().IsZIP003(frozenDetail.Height) && op.refundSource != types.GetStakePlatformAddr():
