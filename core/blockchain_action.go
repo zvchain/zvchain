@@ -70,7 +70,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	begin := time.Now()
 
 	defer func() {
-		Logger.Debugf("cast block, height=%v, hash=%v, cost %v", block.Header.Height, block.Header.Hash.Hex(), time.Since(begin).String())
+		Logger.Infof("cast block, height=%v, hash=%v, cost %v", block.Header.Height, block.Header.Hash.Hex(), time.Since(begin).String())
 	}()
 
 	block.Header = &types.BlockHeader{
@@ -383,7 +383,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 			log.CoreLogger.Debugf("addBlockOnchain expired,height is %v,cost time %v", block.Header.Height, cost)
 		}
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
+		Logger.Infof("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
 	}()
 
 	if block == nil {
@@ -471,7 +471,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	} else { // there is a fork
 		newTop := chain.queryBlockHeaderByHash(bh.PreHash)
 		old := chain.latestBlock
-		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
+		Logger.Infof("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
 		if e := chain.resetTop(newTop); e != nil {
 			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash, newTop.Hash, newTop.Height)
 			ret = types.AddBlockFailed

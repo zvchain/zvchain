@@ -75,17 +75,13 @@ func (pb *ProposerBucket) GroupNameByIndex(index int) string {
 }
 
 func (pb *ProposerBucket) Build(proposers []*Proposer) {
-	Logger.Infof("[proposer bucket] Build size:%v proposers:%v", len(proposers), proposers)
+	Logger.Debugf("[proposer bucket] Build size:%v proposers:%v", len(proposers), proposers)
 
 	pb.mutex.Lock()
 	defer pb.mutex.Unlock()
 	groupCountOld := pb.groupCount
 	pb.proposers = proposers
 	sort.Sort(pb)
-
-	for i := 0; i < len(pb.proposers); i++ {
-		Logger.Infof("[proposer bucket] Build members ID: %v stake:%v", pb.proposers[i].ID.GetHexString(), pb.proposers[i].Stake)
-	}
 
 	pb.groupCount = int(math.Ceil(float64(len(proposers)) / float64(pb.groupSize)))
 	if groupCountOld > pb.groupCount {
@@ -167,7 +163,7 @@ func (pb *ProposerBucket) Broadcast(msg *MsgData, code uint32) {
 		Logger.Errorf("[proposer bucket] group broadcast,msg is nil,code:%v", code)
 		return
 	}
-	Logger.Infof("[proposer bucket] group broadcast, code:%v", code)
+	Logger.Debugf("[proposer bucket] group broadcast, code:%v", code)
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 

@@ -31,7 +31,7 @@ const (
 	MaxFileSize     = 1024 * 1024 * 200
 	DefaultMaxFiles = 2
 	CoreMaxFiles    = 12 //core log should keep 12 files to ensure 3 day's logs
-	Level           = logrus.DebugLevel
+	Level           = logrus.InfoLevel
 )
 
 func InitElk(logsDir string) {
