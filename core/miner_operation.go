@@ -349,18 +349,18 @@ func (op *stakeRefundOp) Transition() *result {
 		return ret
 	}
 
-	// Check reduce-height
-	if params.GetChainConfig().IsZIP003(frozenDetail.Height) && op.refundSource != types.GetStakePlatformAddr() {
-		dl := uint64(refundDeadlineNinetyDays)
-		if op.height <= frozenDetail.Height+dl {
-			ret.setError(fmt.Errorf("refund cann't happen util %vdays after last reduce", dl/oneDayBlocks), types.RSMinerRefundHeightNotEnougn)
-			return ret
-		}
-	} else {
-		if op.height <= frozenDetail.Height+refundDeadlineTwoDays {
-			ret.setError(fmt.Errorf("refund cann't happen util 2days after last reduce"), types.RSMinerRefundHeightNotEnougn)
-			return ret
-		}
+	dl := uint64(refundDeadlineTwoDays)
+
+	switch {
+	case params.GetChainConfig().IsZIP004(op.height):
+		//dl = refundDeadlineTwoDays
+	case params.GetChainConfig().IsZIP003(frozenDetail.Height) && op.refundSource != types.GetStakePlatformAddr():
+		dl = uint64(refundDeadlineNinetyDays)
+	default:
+	}
+	if op.height <= frozenDetail.Height+dl {
+		ret.setError(fmt.Errorf("refund cann't happen util %vdays after last reduce", dl/oneDayBlocks), types.RSMinerRefundHeightNotEnougn)
+		return ret
 	}
 
 	// Remove frozen data
