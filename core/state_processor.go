@@ -518,7 +518,7 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
-	if params.GetChainConfig().IsZIP004Checkpoint(preHeader.Height, bh.Height) {
+	if params.GetChainConfig().IsZIP005Checkpoint(preHeader.Height, bh.Height) {
 		accountDB.SubBalance(types.GetBusinessFoundationAddr(), big.NewInt(138750000000000000))
 		accountDB.SubBalance(types.GetTeamFoundationAddr(), big.NewInt(416250000000000000))
 		accountDB.SetData(types.GetBusinessFoundationAddr(), []byte("total_token"), []byte{'i', 1, 139, 61, 73, 27, 67, 32, 0})
