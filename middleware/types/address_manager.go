@@ -355,7 +355,7 @@ var extractGuardNodesTest = []common.Address{
 }
 
 func IsInExtractGuardNodes(addr common.Address) bool {
-	addresses := GetGuardAddress()
+	addresses := GuardAddress()
 	for _, addrStr := range addresses {
 		if addrStr == addr {
 			return true
@@ -364,49 +364,49 @@ func IsInExtractGuardNodes(addr common.Address) bool {
 	return false
 }
 
-func GetDaemonNodeAddress() common.Address {
+func DaemonNodeAddress() common.Address {
 	if IsNormalChain() {
 		return daemonNodeAddressNormal
 	}
 	return daemonNodeAddressTest
 }
 
-func GetUserNodeAddress() common.Address {
+func UserNodeAddress() common.Address {
 	if IsNormalChain() {
 		return userNodeAddressNormal
 	}
 	return userNodeAddressTest
 }
 
-func GetCirculatesAddr() common.Address {
+func CirculatesAddr() common.Address {
 	if IsNormalChain() {
 		return circulatesAddrNormal
 	}
 	return circulatesAddrTest
 }
 
-func GetStakePlatformAddr() common.Address {
+func StakePlatformAddr() common.Address {
 	if IsNormalChain() {
 		return stakePlatformAddrNormal
 	}
 	return stakePlatformAddrTest
 }
 
-func GetAdminAddr() common.Address {
+func AdminAddr() common.Address {
 	if IsNormalChain() {
 		return adminAddrNormal
 	}
 	return adminAddrTest
 }
 
-func GetGenesisDefaultGroupInfo() string {
+func GenesisDefaultGroupInfo() string {
 	if IsNormalChain() {
 		return genesisDefaultGroupInfoNoraml
 	}
 	return genesisDefaultGroupInfoTest
 }
 
-func GetGuardAddress() []common.Address {
+func GuardAddress() []common.Address {
 	if IsNormalChain() {
 		return extractGuardNodesNormal
 	}

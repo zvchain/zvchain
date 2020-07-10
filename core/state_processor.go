@@ -508,11 +508,11 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(types.GetDaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(DaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(types.GetUserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(UserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))

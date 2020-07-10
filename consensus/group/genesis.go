@@ -83,7 +83,7 @@ func GenerateGenesis() *types.GenesisInfo {
 }
 
 func genGenesisStaticGroupInfo(f string) *genesisGroupMarshal {
-	sgiData := []byte(types.GetGenesisDefaultGroupInfo())
+	sgiData := []byte(types.GenesisDefaultGroupInfo())
 	if strings.TrimSpace(f) != "" {
 		data, err := ioutil.ReadFile(f)
 		if err != nil {

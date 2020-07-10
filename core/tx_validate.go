@@ -316,7 +316,7 @@ func blackUpdateValidate(tx *types.Transaction, validateState bool) error {
 	if len(tx.Data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
-	if *tx.Source != types.GetAdminAddr() {
+	if *tx.Source != AdminAddr() {
 		return fmt.Errorf("cannot launch the kind of transaction")
 	}
 	if validateState {
