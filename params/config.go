@@ -46,7 +46,7 @@ var config = &ChainConfig{
 
 	ZIP003: 4945537, // effect at : 2020-3-16 14:00:00
 	ZIP004: 7583800, // effect at : 2020-06-15 14:00:00
-	ZIP005: 100,
+	ZIP005: 10000000,
 }
 
 func InitChainConfig(chainId uint16) {
