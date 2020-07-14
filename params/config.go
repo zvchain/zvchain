@@ -41,11 +41,11 @@ type ChainConfig struct {
 }
 
 var config = &ChainConfig{
-	ZIP001: 931588, // effect at : 2019-10-30 14:00:00
-	ZIP002: 960388, // effect at : 2019-10-31 14:00:00
+	ZIP001: 100, // effect at : 2019-10-30 14:00:00
+	ZIP002: 120, // effect at : 2019-10-31 14:00:00
 
-	ZIP003: 4945537, // effect at : 2020-3-16 14:00:00
-	ZIP004: 7583800, // effect at : 2020-06-15 14:00:00
+	ZIP003: 130, // effect at : 2020-3-16 14:00:00
+	ZIP004: 140, // effect at : 2020-06-15 14:00:00
 	ZIP005: 100,
 }
 
