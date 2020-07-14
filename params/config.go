@@ -46,7 +46,7 @@ var config = &ChainConfig{
 
 	ZIP003: 4945537, // effect at : 2020-3-16 14:00:00
 	ZIP004: 7583800, // effect at : 2020-06-15 14:00:00
-	ZIP005: 200,     // effect at :
+	ZIP005: 20,      // effect at :
 }
 
 func InitChainConfig(chainId uint16) {
@@ -64,7 +64,9 @@ func (cfg *ChainConfig) IsMainNet() bool {
 func isFork(s, head uint64) bool {
 	return s <= head
 }
-
+func isEqual(s, head uint64) bool {
+	return s == head
+}
 func (cfg *ChainConfig) IsZIP001(h uint64) bool {
 	return isFork(cfg.ZIP001, h)
 }
@@ -83,4 +85,8 @@ func (cfg *ChainConfig) IsZIP004(h uint64) bool {
 
 func (cfg *ChainConfig) IsZIP005(h uint64) bool {
 	return isFork(cfg.ZIP005, h)
+}
+
+func (cfg *ChainConfig) EqualZIP005(h uint64) bool {
+	return isEqual(cfg.ZIP005, h)
 }
