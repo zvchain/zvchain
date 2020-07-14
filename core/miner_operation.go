@@ -33,8 +33,8 @@ const (
 	stakeBuffer    = 15 * oneDayBlocks
 
 	// determined after community votes for the refund deadline
-	refundDeadlineTwoDays       = 50 // Blocks generated in two days on average, used when executes the miner refund
-	refundDeadlineNinetyDays    = 100
+	refundDeadlineTwoDays       = 2 * oneDayBlocks // Blocks generated in two days on average, used when executes the miner refund
+	refundDeadlineNinetyDays    = 90 * oneDayBlocks
 	refundDeadlineHalfYear      = 180 * oneDayBlocks
 	refundDeadlineOneDayForTest = oneDayBlocks
 )
@@ -359,8 +359,7 @@ func (op *stakeRefundOp) Transition() *result {
 	default:
 	}
 	if op.height <= frozenDetail.Height+dl {
-		//ret.setError(fmt.Errorf("refund cann't happen util %vdays after last reduce", dl/oneDayBlocks), types.RSMinerRefundHeightNotEnougn)
-		ret.setError(fmt.Errorf("refund cann't happen util %v blocks after last reduce", dl), types.RSMinerRefundHeightNotEnougn)
+		ret.setError(fmt.Errorf("refund cann't happen util %vdays after last reduce", dl/oneDayBlocks), types.RSMinerRefundHeightNotEnougn)
 		return ret
 	}
 

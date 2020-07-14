@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/params"
 	"math/big"
 	"time"
 
@@ -433,7 +434,7 @@ func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *
 }
 
 // process executes all types transactions and returns the receipts
-func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
+func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, preHeader *types.BlockHeader) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
 	beginTime := time.Now()
 	receipts := make([]*types.Receipt, 0)
 	transactions := make(txSlice, 0)
@@ -516,6 +517,13 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
+
+	if params.GetChainConfig().IsZIP005Checkpoint(preHeader.Height, bh.Height) {
+		accountDB.SubBalance(types.GetBusinessFoundationAddr(), big.NewInt(138750000000000000))
+		accountDB.SubBalance(types.GetTeamFoundationAddr(), big.NewInt(416250000000000000))
+		accountDB.SetData(types.GetBusinessFoundationAddr(), []byte("total_token"), []byte{'i', 1, 139, 61, 73, 27, 67, 32, 0})
+		accountDB.SetData(types.GetTeamFoundationAddr(), []byte("total_token"), []byte{'i', 4, 161, 183, 219, 81, 201, 96, 0})
+	}
 
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)

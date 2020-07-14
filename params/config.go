@@ -35,14 +35,18 @@ type ChainConfig struct {
 
 	// zip004 change refund time
 	ZIP004 uint64
+
+	// zip005 adjusting economic model
+	ZIP005 uint64
 }
 
 var config = &ChainConfig{
-	ZIP001: 100, // effect at : 2019-10-30 14:00:00
-	ZIP002: 120, // effect at : 2019-10-31 14:00:00
+	ZIP001: 931588, // effect at : 2019-10-30 14:00:00
+	ZIP002: 960388, // effect at : 2019-10-31 14:00:00
 
-	ZIP003: 500,
-	ZIP004: 1000,
+	ZIP003: 4945537, // effect at : 2020-3-16 14:00:00
+	ZIP004: 7583800, // effect at : 2020-06-15 14:00:00
+	ZIP005: 100,
 }
 
 func InitChainConfig(chainId uint16) {
@@ -75,4 +79,11 @@ func (cfg *ChainConfig) IsZIP003(h uint64) bool {
 
 func (cfg *ChainConfig) IsZIP004(h uint64) bool {
 	return isFork(cfg.ZIP004, h)
+}
+
+func (cfg *ChainConfig) IsZIP005Checkpoint(preHeight, height uint64) bool {
+	if preHeight < cfg.ZIP005 && height >= cfg.ZIP005 {
+		return true
+	}
+	return false
 }
