@@ -354,16 +354,6 @@ var extractGuardNodesTest = []common.Address{
 	common.StringToAddress("zv143640e89da6764ae5168d9c57769b9f960b9f3f6db207f25bd43c2f1deed2ee"),
 }
 
-func IsInExtractGuardNodes(addr common.Address) bool {
-	addresses := GuardAddress()
-	for _, addrStr := range addresses {
-		if addrStr == addr {
-			return true
-		}
-	}
-	return false
-}
-
 func DaemonNodeAddress() common.Address {
 	if IsNormalChain() {
 		return daemonNodeAddressNormal

@@ -511,14 +511,12 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	if deamonNodeRewards != 0 {
 		accountDB.AddBalance(DaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
-
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
 		accountDB.AddBalance(UserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
 	}
-
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
-	//createcontrat
+	//zip5 create addressManager contract
 	autoCreateContract(accountDB, bh)
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)

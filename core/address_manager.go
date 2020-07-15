@@ -86,6 +86,16 @@ func GuardAddress() []common.Address {
 	return types.GuardAddress()
 }
 
+func IsInExtractGuardNodes(addr common.Address) bool {
+	addresses := GuardAddress()
+	for _, addrStr := range addresses {
+		if addrStr == addr {
+			return true
+		}
+	}
+	return false
+}
+
 type AddressManager struct {
 	mu sync.Mutex
 }
