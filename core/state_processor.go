@@ -509,11 +509,11 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(types.GetDaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(DaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(types.GetUserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(UserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
@@ -524,6 +524,8 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 		accountDB.SetData(types.GetBusinessFoundationAddr(), []byte("total_token"), []byte{'i', 1, 139, 61, 73, 27, 67, 32, 0})
 		accountDB.SetData(types.GetTeamFoundationAddr(), []byte("total_token"), []byte{'i', 4, 161, 183, 219, 81, 201, 96, 0})
 	}
+	//zip6 create addressManager contract
+	autoCreateContract(accountDB, preHeader, bh)
 
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)
@@ -532,6 +534,12 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
+}
+
+func autoCreateContract(accountDB *account.AccountDB, pre *types.BlockHeader, bh *types.BlockHeader) {
+	if params.GetChainConfig().IsZIP006Checkpoint(pre.Height, bh.Height) {
+		addressManager.CheckAndUpdate(accountDB)
+	}
 }
 
 func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bool {

@@ -18,11 +18,11 @@ const AddressSource = "0x0001"
 
 func isUseContract() bool {
 	chain := BlockChainImpl
-	isZip5 := false
+	isZip6 := false
 	if chain != nil {
-		isZip5 = params.GetChainConfig().IsZIP005(chain.QueryTopBlock().Height)
+		isZip6 = params.GetChainConfig().IsZIP006(chain.QueryTopBlock().Height)
 	}
-	return isZip5
+	return isZip6
 }
 
 func DaemonNodeAddress() common.Address {
@@ -102,12 +102,11 @@ type AddressManager struct {
 
 var addressManager AddressManager
 
-func (am *AddressManager) CheckAndUpdate(accountdb *account.AccountDB, bh *types.BlockHeader) {
+func (am *AddressManager) CheckAndUpdate(accountdb *account.AccountDB) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
-	if params.GetChainConfig().EqualZIP005(bh.Height) {
-		am.deployAddressManagerContract(accountdb)
-	}
+	am.deployAddressManagerContract(accountdb)
+
 }
 
 func (am *AddressManager) deployAddressManagerContract(stateDB *account.AccountDB) {
@@ -204,21 +203,16 @@ func loadNormalAddress(key string) *common.Address {
 				if addr, ok := v.(string); ok {
 					circulatesAddr := common.StringToAddress(addr)
 					resultAddr = &circulatesAddr
-
-					//am.circulatesAddr = &circulatesAddr
 				}
 			case "userNodeAddr":
 				if addr, ok := v.(string); ok {
 					userNodeAddr := common.StringToAddress(addr)
 					resultAddr = &userNodeAddr
-
-					//am.userNodeAddr = &userNodeAddr
 				}
 			case "daemonNodeAddr":
 				if addr, ok := v.(string); ok {
 					daemonNodeAddr := common.StringToAddress(addr)
 					resultAddr = &daemonNodeAddr
-					//am.daemonNodeAddr = &daemonNodeAddr
 				}
 			}
 			if key == k {
