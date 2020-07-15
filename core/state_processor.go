@@ -525,7 +525,9 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 		accountDB.SetData(types.GetTeamFoundationAddr(), []byte("total_token"), []byte{'i', 4, 161, 183, 219, 81, 201, 96, 0})
 	}
 	//zip6 create addressManager contract
-	autoCreateContract(accountDB, preHeader, bh)
+	if params.GetChainConfig().IsZIP006Checkpoint(preHeader.Height, bh.Height) {
+		addressManager.DeployAddressManagerContract(accountDB)
+	}
 
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)
@@ -534,12 +536,6 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
-}
-
-func autoCreateContract(accountDB *account.AccountDB, pre *types.BlockHeader, bh *types.BlockHeader) {
-	if params.GetChainConfig().IsZIP006Checkpoint(pre.Height, bh.Height) {
-		addressManager.CheckAndUpdate(accountDB)
-	}
 }
 
 func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bool {

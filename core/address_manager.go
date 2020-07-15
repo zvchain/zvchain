@@ -102,14 +102,9 @@ type AddressManager struct {
 
 var addressManager AddressManager
 
-func (am *AddressManager) CheckAndUpdate(accountdb *account.AccountDB) {
+func (am *AddressManager) DeployAddressManagerContract(stateDB *account.AccountDB) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
-	am.deployAddressManagerContract(accountdb)
-
-}
-
-func (am *AddressManager) deployAddressManagerContract(stateDB *account.AccountDB) {
 	contractCode := addressManagerContract
 	contractName := "AddressManager"
 	if !types.IsNormalChain() {
