@@ -29,6 +29,7 @@ func DaemonNodeAddress() common.Address {
 	if isUseContract() {
 		daemonNodeAddr := loadNormalAddress("daemonNodeAddr")
 		if daemonNodeAddr != nil {
+			fmt.Println("daemonNodeAddr,", daemonNodeAddr.AddrPrefixString())
 			return *daemonNodeAddr
 		}
 	}
@@ -39,6 +40,7 @@ func UserNodeAddress() common.Address {
 	if isUseContract() {
 		userNodeAddr := loadNormalAddress("userNodeAddr")
 		if userNodeAddr != nil {
+			fmt.Println("userNodeAddr,", userNodeAddr.AddrPrefixString())
 			return *userNodeAddr
 		}
 	}
@@ -49,6 +51,7 @@ func CirculatesAddr() common.Address {
 	if isUseContract() {
 		circulatesAddr := loadNormalAddress("circulatesAddr")
 		if circulatesAddr != nil {
+			fmt.Println("circulatesAddr,", circulatesAddr.AddrPrefixString())
 			return *circulatesAddr
 		}
 	}
@@ -59,6 +62,7 @@ func StakePlatformAddr() common.Address {
 	if isUseContract() {
 		stakePlatformAddr := loadNormalAddress("stakePlatformAddr")
 		if stakePlatformAddr != nil {
+			fmt.Println("stakePlatformAddr,", stakePlatformAddr.AddrPrefixString())
 			return *stakePlatformAddr
 		}
 	}
@@ -70,6 +74,7 @@ func AdminAddr() common.Address {
 
 		adminAddr := loadNormalAddress("adminAddr")
 		if adminAddr != nil {
+			fmt.Println("adminAddr,", adminAddr.AddrPrefixString())
 			return *adminAddr
 		}
 	}
