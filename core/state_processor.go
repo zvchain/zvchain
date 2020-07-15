@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/params"
 	"math/big"
 	"time"
 
@@ -510,13 +511,15 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	if deamonNodeRewards != 0 {
 		accountDB.AddBalance(DaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
+
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
 		accountDB.AddBalance(UserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
-
+	//createcontrat
+	autoCreateContract(accountDB, bh)
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)
 	}
@@ -524,6 +527,13 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	state = accountDB.IntermediateRoot(true)
 	//Logger.Debugf("castor reward at %v, %v %v %v %v", bh.Height, castorTotalRewards, gasFee, rm.daemonNodesRewards(bh.Height), rm.userNodesRewards(bh.Height))
 	return state, evictedTxs, transactions, receipts, gasFee, nil
+}
+
+func autoCreateContract(accountDB *account.AccountDB, bh *types.BlockHeader) {
+	isZip5 := params.GetChainConfig().IsZIP005(bh.Height)
+	if isZip5 {
+		addressManager.CheckAndUpdate(accountDB, bh)
+	}
 }
 
 func validateNonce(accountDB types.AccountDB, transaction *types.Transaction) bool {

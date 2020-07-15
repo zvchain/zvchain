@@ -6,6 +6,7 @@ import (
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/params"
+	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
 	"strings"
@@ -20,9 +21,6 @@ func isUseContract() bool {
 	isZip5 := false
 	if chain != nil {
 		isZip5 = params.GetChainConfig().IsZIP005(chain.QueryTopBlock().Height)
-		if isZip5 {
-			addressManager.CheckAndUpdate()
-		}
 	}
 	return isZip5
 }
@@ -102,31 +100,24 @@ type AddressManager struct {
 
 var addressManager AddressManager
 
-func (am *AddressManager) CheckAndUpdate() {
+func (am *AddressManager) CheckAndUpdate(accountdb *account.AccountDB, bh *types.BlockHeader) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 	if am.deployContract {
 		return
 	}
-	chain := BlockChainImpl
 	am.deployContract = true
-	if params.GetChainConfig().EqualZIP005(chain.QueryTopBlock().Height) {
-		am.deployAddressManagerContract()
+	if params.GetChainConfig().EqualZIP005(bh.Height) {
+		am.deployAddressManagerContract(accountdb)
 	}
 }
 
-func (am *AddressManager) deployAddressManagerContract() {
-	codeStr := addressManagerContract
+func (am *AddressManager) deployAddressManagerContract(stateDB *account.AccountDB) {
+	contractCode := addressManagerContract
 	contractName := "AddressManager"
 	if !types.IsNormalChain() {
-		codeStr = addressManagerContractTest
+		contractCode = addressManagerContractTest
 	}
-	am.autoCreateContract(contractName, codeStr)
-}
-
-func (am *AddressManager) autoCreateContract(contractName string, contractCode string) *common.Address {
-	chain := BlockChainImpl
-	stateDB, _ := chain.LatestAccountDB()
 	txRaw := &types.RawTransaction{}
 	adminAddr := common.StringToAddress(AddressSource)
 	txRaw.Source = &adminAddr
@@ -155,7 +146,6 @@ func (am *AddressManager) autoCreateContract(contractName string, contractCode s
 		panic(fmt.Sprintf("deploy Addressmanagercontract error: %s", transactionError.Message))
 	}
 	//am.ContractAddr = &contractAddress
-	return contract.ContractAddress
 }
 
 func loadGuardAddress() []common.Address {
