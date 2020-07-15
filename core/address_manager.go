@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-const AddressContract = "zv0000000000000000000000000000000000000000000000000000000000000001"
+const AddressContract = "zv0000000000000000000000000000000000000000000000000000000000000006"
 const AddressSource = "0x0001"
 
 func isUseContract() bool {
@@ -29,7 +29,6 @@ func DaemonNodeAddress() common.Address {
 	if isUseContract() {
 		daemonNodeAddr := loadNormalAddress("daemonNodeAddr")
 		if daemonNodeAddr != nil {
-			fmt.Println("daemonNodeAddr,", daemonNodeAddr)
 			return *daemonNodeAddr
 		}
 	}
@@ -40,7 +39,6 @@ func UserNodeAddress() common.Address {
 	if isUseContract() {
 		userNodeAddr := loadNormalAddress("userNodeAddr")
 		if userNodeAddr != nil {
-			fmt.Println("userNodeAddr,", userNodeAddr)
 			return *userNodeAddr
 		}
 	}
@@ -51,7 +49,6 @@ func CirculatesAddr() common.Address {
 	if isUseContract() {
 		circulatesAddr := loadNormalAddress("circulatesAddr")
 		if circulatesAddr != nil {
-			fmt.Println("circulatesAddr,", circulatesAddr)
 			return *circulatesAddr
 		}
 	}
@@ -62,7 +59,6 @@ func StakePlatformAddr() common.Address {
 	if isUseContract() {
 		stakePlatformAddr := loadNormalAddress("stakePlatformAddr")
 		if stakePlatformAddr != nil {
-			fmt.Println("stakePlatformAddr,", stakePlatformAddr)
 			return *stakePlatformAddr
 		}
 	}
@@ -74,7 +70,6 @@ func AdminAddr() common.Address {
 
 		adminAddr := loadNormalAddress("adminAddr")
 		if adminAddr != nil {
-			fmt.Println("AdminAddr,", adminAddr)
 			return *adminAddr
 		}
 	}
@@ -85,17 +80,14 @@ func GuardAddress() []common.Address {
 	if isUseContract() {
 		guardAddress := loadGuardAddress()
 		if guardAddress != nil && len(guardAddress) > 0 {
-			fmt.Println("GuardNodes[0],", guardAddress[0])
 			return guardAddress
-
 		}
 	}
 	return types.GuardAddress()
 }
 
 type AddressManager struct {
-	deployContract bool
-	mu             sync.Mutex
+	mu sync.Mutex
 }
 
 var addressManager AddressManager
@@ -103,10 +95,6 @@ var addressManager AddressManager
 func (am *AddressManager) CheckAndUpdate(accountdb *account.AccountDB, bh *types.BlockHeader) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
-	if am.deployContract {
-		return
-	}
-	am.deployContract = true
 	if params.GetChainConfig().EqualZIP005(bh.Height) {
 		am.deployAddressManagerContract(accountdb)
 	}
@@ -133,19 +121,15 @@ func (am *AddressManager) deployAddressManagerContract(stateDB *account.AccountD
 		panic(fmt.Sprintf("jsonMarshal Addressmanagercontract error: %s", err.Error()))
 	}
 	contractAddress := common.StringToAddress(AddressContract)
-	fmt.Println("get_create_adminAddraddress,", contractAddress.AddrPrefixString())
 	stateDB.CreateAccount(contractAddress)
 	stateDB.SetCode(contractAddress, jsonBytes)
 
 	contract.ContractAddress = &contractAddress
 	controller.VM.SetGas(500000)
-	result, _, transactionError := controller.Deploy(&contract)
-	re, _ := json.Marshal(&result)
-	fmt.Println("controller.Deploy,", string(re))
+	_, _, transactionError := controller.Deploy(&contract)
 	if transactionError != nil {
 		panic(fmt.Sprintf("deploy Addressmanagercontract error: %s", transactionError.Message))
 	}
-	//am.ContractAddr = &contractAddress
 }
 
 func loadGuardAddress() []common.Address {
@@ -166,8 +150,8 @@ func loadGuardAddress() []common.Address {
 
 	for iter.Next() {
 		k := string(iter.Key[:])
-		if strings.HasPrefix(k, "pool_lists@") {
-			addr := strings.TrimLeft(k, "pool_lists@")
+		if strings.HasPrefix(k, "guard_lists@") {
+			addr := strings.TrimLeft(k, "guard_lists@")
 			guardNodes = append(guardNodes, common.StringToAddress(addr))
 		}
 	}
@@ -189,7 +173,7 @@ func loadNormalAddress(key string) *common.Address {
 	}
 	for iter.Next() {
 		k := string(iter.Key[:])
-		if !strings.HasPrefix(k, "pool_lists@") {
+		if !strings.HasPrefix(k, "guard_lists@") {
 			v := tvm.VmDataConvert(iter.Value[:])
 			resultAddr := &common.Address{}
 			switch k {
