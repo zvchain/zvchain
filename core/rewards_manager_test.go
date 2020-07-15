@@ -26,10 +26,20 @@ func TestRewardManager_CalculateGasFeeCastorRewards(t *testing.T) {
 	}
 }
 
+var blockReward = []uint64{62224000000, 15556000000, 15556000000, 7778000000, 7778000000, 7778000000, 3889000000, 3889000000, 3889000000, 1944500000, 1944500000, 1944500000}
+
+func BlockRewardForTest(height uint64) uint64 {
+	i := height / 10000000
+	if i >= 12 {
+		return 0
+	}
+	return blockReward[i]
+}
+
 func TestRewardManager_Rewards(t *testing.T) {
 	rm := NewRewardManager()
-	for i := uint64(0); i < 120000000; i++ {
-		blockRewards := rm.blockRewards(i)
+	for i := uint64(0); i < 120000000; i += 1000000 {
+		blockRewards := BlockRewardForTest(i)
 		userNodeRewards := rm.userNodesRewards(i)
 		correctUserNodeRewards := blockRewards * userNodeWeight / totalNodeWeight
 		if userNodeRewards != correctUserNodeRewards {

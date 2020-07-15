@@ -206,7 +206,12 @@ func (rm *rewardManager) blockRewards(height uint64) uint64 {
 	if height > noRewardsHeight {
 		return 0
 	}
-	return initialRewards >> (height / halveRewardsPeriod)
+	var speedUp uint64
+	period := height / adjustWeightPeriod
+	if period >= 1 {
+		speedUp = 2
+	}
+	return initialRewards >> (height/halveRewardsPeriod + speedUp)
 }
 
 func (rm *rewardManager) userNodesRewards(height uint64) uint64 {
