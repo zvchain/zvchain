@@ -39,7 +39,7 @@ type ChainConfig struct {
 	// zip005 adjusting economic model
 	ZIP005 uint64
 
-	// zip006 adjusting addressmanager contract
+	// zip006 add addressmanager contract
 	ZIP006 uint64
 }
 

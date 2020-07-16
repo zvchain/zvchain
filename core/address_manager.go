@@ -90,6 +90,28 @@ func GuardAddress() []common.Address {
 	}
 	return types.GuardAddress()
 }
+func BusinessFoundationAddr() common.Address {
+	if isUseContract() {
+
+		businessFoundationAddr := loadNormalAddress("businessFoundationAddr")
+		if businessFoundationAddr != nil {
+			fmt.Println("BusinessFoundationAddr,", businessFoundationAddr.AddrPrefixString())
+			return *businessFoundationAddr
+		}
+	}
+	return types.BusinessFoundationAddr()
+}
+
+func TeamFoundationAddr() common.Address {
+	if isUseContract() {
+		teamFoundationAddr := loadNormalAddress("teamFoundationAddr")
+		if teamFoundationAddr != nil {
+			fmt.Println("teamFoundationAddr,", teamFoundationAddr.AddrPrefixString())
+			return *teamFoundationAddr
+		}
+	}
+	return types.TeamFoundationAddr()
+}
 
 func IsInExtractGuardNodes(addr common.Address) bool {
 	addresses := GuardAddress()
@@ -213,6 +235,16 @@ func loadNormalAddress(key string) *common.Address {
 				if addr, ok := v.(string); ok {
 					daemonNodeAddr := common.StringToAddress(addr)
 					resultAddr = &daemonNodeAddr
+				}
+			case "businessFoundationAddr":
+				if addr, ok := v.(string); ok {
+					businessFoundationAddr := common.StringToAddress(addr)
+					resultAddr = &businessFoundationAddr
+				}
+			case "teamFoundationAddr":
+				if addr, ok := v.(string); ok {
+					teamFoundationAddr := common.StringToAddress(addr)
+					resultAddr = &teamFoundationAddr
 				}
 			}
 			if key == k {

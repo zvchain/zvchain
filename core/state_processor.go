@@ -519,10 +519,10 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
 
 	if params.GetChainConfig().IsZIP005Checkpoint(preHeader.Height, bh.Height) {
-		accountDB.SubBalance(types.GetBusinessFoundationAddr(), big.NewInt(138750000000000000))
-		accountDB.SubBalance(types.GetTeamFoundationAddr(), big.NewInt(416250000000000000))
-		accountDB.SetData(types.GetBusinessFoundationAddr(), []byte("total_token"), []byte{'i', 1, 139, 61, 73, 27, 67, 32, 0})
-		accountDB.SetData(types.GetTeamFoundationAddr(), []byte("total_token"), []byte{'i', 4, 161, 183, 219, 81, 201, 96, 0})
+		accountDB.SubBalance(BusinessFoundationAddr(), big.NewInt(138750000000000000))
+		accountDB.SubBalance(TeamFoundationAddr(), big.NewInt(416250000000000000))
+		accountDB.SetData(BusinessFoundationAddr(), []byte("total_token"), []byte{'i', 1, 139, 61, 73, 27, 67, 32, 0})
+		accountDB.SetData(TeamFoundationAddr(), []byte("total_token"), []byte{'i', 4, 161, 183, 219, 81, 201, 96, 0})
 	}
 	//zip6 create addressManager contract
 	if params.GetChainConfig().IsZIP006Checkpoint(preHeader.Height, bh.Height) {

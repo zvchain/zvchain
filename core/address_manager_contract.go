@@ -27,6 +27,9 @@ class AddressManager(object):
         self.circulatesAddr = "zv1d676136438ef8badbc59c89bae08ea3cdfccbbe8f4b22ac8d47361d6a3d510d"
         self.userNodeAddr = "zv9f03cdec76c6617a151c65d393e9f6149cec59f10df00bb8918be4873b314cf4"
         self.daemonNodeAddr = "zvb5344ed02ff6e01239c13e9e4a27b3c5caf28c1d9d2f1fa15b809607a33cb12d"
+		self.businessFoundationAddr = "zvd675bea39b6f329919fc73c729292c7d8a3d305fb628e47f95986ec725c43824"
+        self.teamFoundationAddr = "zvc2a3709ec6f183132faf8bacbc34cdb340eb0a45a69e9d4c26290e93829de64b"
+		
 
         gl = ["zva5f6e5e74b5d32a64231bfbc985b8793eef1ac7fa5879facdd17b3f3543116db",
         "zv46121ddfbe4bd40ee8433330b28e85677b2f9e911f5b265340abefc51c6e451e",
@@ -215,6 +218,18 @@ class AddressManager(object):
         if msg.sender != self.circulatesAddr :
             raise Exception('msg sender is not circulates addr!')
         self.circulatesAddr = _addr
+
+	@register.public(str)
+    def set_business_foundation_addr(self, _addr):
+        if msg.sender != self.businessFoundationAddr :
+            raise Exception('msg sender is not business foundation addr!')
+        self.businessFoundationAddr = _addr
+
+	@register.public(str)
+    def set_team_foundation_addr(self, _addr):
+        if msg.sender != self.teamFoundationAddr :
+            raise Exception('msg sender is not team foundation addr!')
+        self.teamFoundationAddr = _addr
         
     @register.public(str)
     def set_user_node_addr(self, _addr):
@@ -241,6 +256,9 @@ class AddressManager(object):
         self.circulatesAddr = "zvebb50bcade66df3fcb8df1eeeebad6c76332f2aee43c9c11b5cd30187b45f6d3"
         self.userNodeAddr = "zve30c75b3fd8888f410ac38ec0a07d82dcc613053513855fb4dd6d75bc69e8139"
         self.daemonNodeAddr = "zvae1889182874d8dad3c3e033cde3229a3320755692e37cbe1caab687bf6a1122"
+	    self.businessFoundationAddr = "zv2535dbd81110f983559bf1895df82726185e95bc00f991bdc27541380f74ca92"
+        self.teamFoundationAddr = "zv3e6918c1808123b3eecaa3709f8e1d1c85a23348a67aa5960cdc8408fff7c788"
+
 
         gl = ["zva5f6e5e74b5d32a64231bfbc985b8793eef1ac7fa5879facdd17b3f3543116db",
         "zv46121ddfbe4bd40ee8433330b28e85677b2f9e911f5b265340abefc51c6e451e",
@@ -423,6 +441,18 @@ class AddressManager(object):
         if msg.sender != self.stakePlatformAddr :
             raise Exception('msg sender is not stake platform addr!')
         self.stakePlatformAddr = _addr
+
+	@register.public(str)
+    def set_business_foundation_addr(self, _addr):
+        if msg.sender != self.businessFoundationAddr :
+            raise Exception('msg sender is not business foundation addr!')
+        self.businessFoundationAddr = _addr
+
+	@register.public(str)
+    def set_team_foundation_addr(self, _addr):
+        if msg.sender != self.teamFoundationAddr :
+            raise Exception('msg sender is not team foundation addr!')
+        self.teamFoundationAddr = _addr
     
     @register.public(str)
     def set_circulates_addr(self, _addr):

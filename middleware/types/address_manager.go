@@ -411,14 +411,14 @@ func IsNormalChain() bool {
 	return params.GetChainConfig().IsMainNet()
 }
 
-func GetBusinessFoundationAddr() common.Address {
+func BusinessFoundationAddr() common.Address {
 	if IsNormalChain() {
 		return businessFoundationAddr
 	}
 	return businessFoundationAddrTest
 }
 
-func GetTeamFoundationAddr() common.Address {
+func TeamFoundationAddr() common.Address {
 	if IsNormalChain() {
 		return teamFoundationAddr
 	}
