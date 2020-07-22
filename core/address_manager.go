@@ -82,12 +82,6 @@ func AdminAddr() common.Address {
 }
 
 func GuardAddress() []common.Address {
-	if isUseContract() {
-		guardAddress := loadGuardAddress()
-		if guardAddress != nil && len(guardAddress) > 0 {
-			return guardAddress
-		}
-	}
 	return types.GuardAddress()
 }
 
