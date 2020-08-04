@@ -14,7 +14,7 @@ import (
 )
 
 const AddressContract = "zv0000000000000000000000000000000000000000000000000000000000000006"
-const AddressSource = "0x0001"
+const AddressSource = "zv0007"
 
 func isUseContract() bool {
 	chain := BlockChainImpl
