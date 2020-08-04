@@ -164,7 +164,7 @@ func loadNormalAddress(key string) *common.Address {
 		return nil
 	}
 	contractAddress := common.StringToAddress(AddressContract)
-	iter := db.DataIterator(contractAddress, []byte{})
+	iter := db.DataIterator(contractAddress, []byte(key))
 	if iter == nil {
 		fmt.Errorf("address manager loadAllAddress err,iter is nil ")
 		return nil
