@@ -171,43 +171,14 @@ func loadNormalAddress(key string) *common.Address {
 	}
 	for iter.Next() {
 		k := string(iter.Key[:])
-		//if !strings.HasPrefix(k, "guard_lists@") {
 		v := tvm.VmDataConvert(iter.Value[:])
-		resultAddr := &common.Address{}
-		switch k {
-		case "adminAddr":
-			if addr, ok := v.(string); ok {
-				adminAddr := common.StringToAddress(addr)
-				resultAddr = &adminAddr
-			}
-
-		case "stakePlatformAddr":
-			if addr, ok := v.(string); ok {
-				stakePlatformAddr := common.StringToAddress(addr)
-				//am.stakePlatformAddr = &stakePlatformAddr
-				resultAddr = &stakePlatformAddr
-
-			}
-		case "circulatesAddr":
-			if addr, ok := v.(string); ok {
-				circulatesAddr := common.StringToAddress(addr)
-				resultAddr = &circulatesAddr
-			}
-		case "userNodeAddr":
-			if addr, ok := v.(string); ok {
-				userNodeAddr := common.StringToAddress(addr)
-				resultAddr = &userNodeAddr
-			}
-		case "daemonNodeAddr":
-			if addr, ok := v.(string); ok {
-				daemonNodeAddr := common.StringToAddress(addr)
-				resultAddr = &daemonNodeAddr
-			}
-		}
 		if key == k {
-			return resultAddr
+			if addr, ok := v.(string); ok {
+				resultAddr := common.StringToAddress(addr)
+				return &resultAddr
+
+			}
 		}
-		//}
 	}
 	return nil
 }
