@@ -21,8 +21,6 @@ def checkAddr(addr):
         raise Exception('address length is wrong !')
     if not addr.startswith('zv'):
         raise Exception('address prefix is wrong!')
-    if not addr.isalnum():
-        raise Exception('address is not valid')
 
 class AddressManager(object):
     """docstring fos AddressManager"""
