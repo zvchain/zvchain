@@ -20,8 +20,9 @@ const AddressSource = "zv0007"
 func isUseContract() bool {
 	chain := BlockChainImpl
 	isZip6 := false
-	if chain != nil {
-		isZip6 = params.GetChainConfig().IsZIP006(chain.QueryTopBlock().Height)
+	topBlock := chain.QueryTopBlock()
+	if chain != nil && topBlock != nil {
+		isZip6 = params.GetChainConfig().IsZIP006(topBlock.Height)
 	}
 	return isZip6
 }
