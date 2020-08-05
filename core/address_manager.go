@@ -10,10 +10,11 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
 	"strings"
-	"sync"
 )
 
 const AddressContract = "zv0000000000000000000000000000000000000000000000000000000000000006"
+
+//address manager contract creator
 const AddressSource = "zv0007"
 
 func isUseContract() bool {
@@ -91,14 +92,11 @@ func IsInExtractGuardNodes(addr common.Address) bool {
 }
 
 type AddressManager struct {
-	mu sync.Mutex
 }
 
 var addressManager AddressManager
 
 func (am *AddressManager) DeployAddressManagerContract(stateDB *account.AccountDB) {
-	am.mu.Lock()
-	defer am.mu.Unlock()
 	contractCode := addressManagerContract
 	contractName := "AddressManager"
 	if !types.IsNormalChain() {
