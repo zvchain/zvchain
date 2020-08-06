@@ -10,17 +10,21 @@ import (
 	"github.com/zvchain/zvchain/tvm"
 	"math/big"
 	"strings"
-	"sync"
 )
 
 const AddressContract = "zv0000000000000000000000000000000000000000000000000000000000000006"
-const AddressSource = "0x0001"
+
+//address manager contract creator
+const AddressSource = "zv0007"
 
 func isUseContract() bool {
 	chain := BlockChainImpl
 	isZip6 := false
 	if chain != nil {
-		isZip6 = params.GetChainConfig().IsZIP006(chain.QueryTopBlock().Height)
+		topBlock := chain.QueryTopBlock()
+		if topBlock != nil {
+			isZip6 = params.GetChainConfig().IsZIP006(topBlock.Height)
+		}
 	}
 	return isZip6
 }
@@ -29,7 +33,6 @@ func DaemonNodeAddress() common.Address {
 	if isUseContract() {
 		daemonNodeAddr := loadNormalAddress("daemonNodeAddr")
 		if daemonNodeAddr != nil {
-			fmt.Println("daemonNodeAddr,", daemonNodeAddr.AddrPrefixString())
 			return *daemonNodeAddr
 		}
 	}
@@ -40,7 +43,6 @@ func UserNodeAddress() common.Address {
 	if isUseContract() {
 		userNodeAddr := loadNormalAddress("userNodeAddr")
 		if userNodeAddr != nil {
-			fmt.Println("userNodeAddr,", userNodeAddr.AddrPrefixString())
 			return *userNodeAddr
 		}
 	}
@@ -51,7 +53,6 @@ func CirculatesAddr() common.Address {
 	if isUseContract() {
 		circulatesAddr := loadNormalAddress("circulatesAddr")
 		if circulatesAddr != nil {
-			fmt.Println("circulatesAddr,", circulatesAddr.AddrPrefixString())
 			return *circulatesAddr
 		}
 	}
@@ -62,7 +63,6 @@ func StakePlatformAddr() common.Address {
 	if isUseContract() {
 		stakePlatformAddr := loadNormalAddress("stakePlatformAddr")
 		if stakePlatformAddr != nil {
-			fmt.Println("stakePlatformAddr,", stakePlatformAddr.AddrPrefixString())
 			return *stakePlatformAddr
 		}
 	}
@@ -74,7 +74,6 @@ func AdminAddr() common.Address {
 
 		adminAddr := loadNormalAddress("adminAddr")
 		if adminAddr != nil {
-			fmt.Println("adminAddr,", adminAddr.AddrPrefixString())
 			return *adminAddr
 		}
 	}
@@ -96,14 +95,11 @@ func IsInExtractGuardNodes(addr common.Address) bool {
 }
 
 type AddressManager struct {
-	mu sync.Mutex
 }
 
 var addressManager AddressManager
 
 func (am *AddressManager) DeployAddressManagerContract(stateDB *account.AccountDB) {
-	am.mu.Lock()
-	defer am.mu.Unlock()
 	contractCode := addressManagerContract
 	contractName := "AddressManager"
 	if !types.IsNormalChain() {
@@ -169,48 +165,19 @@ func loadNormalAddress(key string) *common.Address {
 		return nil
 	}
 	contractAddress := common.StringToAddress(AddressContract)
-	iter := db.DataIterator(contractAddress, []byte{})
+	iter := db.DataIterator(contractAddress, []byte(key))
 	if iter == nil {
 		fmt.Errorf("address manager loadAllAddress err,iter is nil ")
 		return nil
 	}
 	for iter.Next() {
 		k := string(iter.Key[:])
-		if !strings.HasPrefix(k, "guard_lists@") {
-			v := tvm.VmDataConvert(iter.Value[:])
-			resultAddr := &common.Address{}
-			switch k {
-			case "adminAddr":
-				if addr, ok := v.(string); ok {
-					adminAddr := common.StringToAddress(addr)
-					resultAddr = &adminAddr
-				}
+		v := tvm.VmDataConvert(iter.Value[:])
+		if key == k {
+			if addr, ok := v.(string); ok {
+				resultAddr := common.StringToAddress(addr)
+				return &resultAddr
 
-			case "stakePlatformAddr":
-				if addr, ok := v.(string); ok {
-					stakePlatformAddr := common.StringToAddress(addr)
-					//am.stakePlatformAddr = &stakePlatformAddr
-					resultAddr = &stakePlatformAddr
-
-				}
-			case "circulatesAddr":
-				if addr, ok := v.(string); ok {
-					circulatesAddr := common.StringToAddress(addr)
-					resultAddr = &circulatesAddr
-				}
-			case "userNodeAddr":
-				if addr, ok := v.(string); ok {
-					userNodeAddr := common.StringToAddress(addr)
-					resultAddr = &userNodeAddr
-				}
-			case "daemonNodeAddr":
-				if addr, ok := v.(string); ok {
-					daemonNodeAddr := common.StringToAddress(addr)
-					resultAddr = &daemonNodeAddr
-				}
-			}
-			if key == k {
-				return resultAddr
 			}
 		}
 	}
