@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/zvchain/zvchain/params"
 	"math/big"
 	"time"
 
@@ -433,7 +434,7 @@ func applyStateTransition(accountDB types.AccountDB, tx *types.Transaction, bh *
 }
 
 // process executes all types transactions and returns the receipts
-func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, ts *common.TimeStatCtx) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
+func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.BlockHeader, txs []*types.Transaction, pack bool, preHeader *types.BlockHeader) (state common.Hash, evits []common.Hash, executed txSlice, recps []*types.Receipt, gasFee uint64, err error) {
 	beginTime := time.Now()
 	receipts := make([]*types.Receipt, 0)
 	transactions := make(txSlice, 0)
@@ -508,14 +509,25 @@ func (executor *stateProcessor) process(accountDB *account.AccountDB, bh *types.
 	castorTotalRewards += rm.calculateCastorRewards(bh.Height)
 	deamonNodeRewards := rm.daemonNodesRewards(bh.Height)
 	if deamonNodeRewards != 0 {
-		accountDB.AddBalance(types.GetDaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
+		accountDB.AddBalance(DaemonNodeAddress(), big.NewInt(0).SetUint64(deamonNodeRewards))
 	}
 	userNodesRewards := rm.userNodesRewards(bh.Height)
 	if userNodesRewards != 0 {
-		accountDB.AddBalance(types.GetUserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
+		accountDB.AddBalance(UserNodeAddress(), big.NewInt(0).SetUint64(userNodesRewards))
 	}
 
 	accountDB.AddBalance(castor, big.NewInt(0).SetUint64(castorTotalRewards))
+
+	if params.GetChainConfig().IsZIP005Checkpoint(preHeader.Height, bh.Height) {
+		accountDB.SubBalance(types.BusinessFoundationAddr(), big.NewInt(138750000000000000))
+		accountDB.SubBalance(types.TeamFoundationAddr(), big.NewInt(416250000000000000))
+		accountDB.SetData(types.BusinessFoundationAddr(), []byte("total_token"), []byte{'i', 1, 139, 61, 73, 27, 67, 32, 0})
+		accountDB.SetData(types.TeamFoundationAddr(), []byte("total_token"), []byte{'i', 4, 161, 183, 219, 81, 201, 96, 0})
+	}
+	//zip6 create addressManager contract
+	if params.GetChainConfig().IsZIP006Checkpoint(preHeader.Height, bh.Height) {
+		addressManager.DeployAddressManagerContract(accountDB)
+	}
 
 	for _, proc := range executor.procs {
 		proc(accountDB, bh)

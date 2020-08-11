@@ -512,6 +512,11 @@ func (api *RpcGzvImpl) GroupCheck(addr string) (*GroupCheckInfo, error) {
 }
 
 func (api *RpcGzvImpl) CheckPointAt(h uint64) (*types.BlockHeader, error) {
+	const limit = 100
+	top := api.br.Height()
+	if top > limit && h < (top-limit) {
+		return nil, fmt.Errorf("cannot get checkpoint of heights 100 height lower than top")
+	}
 	cp := api.br.CheckPointAt(h)
 	return cp, nil
 }
