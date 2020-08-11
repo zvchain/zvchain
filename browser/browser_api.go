@@ -137,7 +137,7 @@ func (tm *DBMmanagement) fetchGenesisAndGuardianAccounts() {
 	}
 
 	// guardian accounts
-	for _, guardNode := range types.GetGuardAddress() {
+	for _, guardNode := range types.GuardAddress() {
 		accounts = append(accounts, guardNode.AddrPrefixString())
 	}
 
