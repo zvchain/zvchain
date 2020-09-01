@@ -1004,7 +1004,6 @@ func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Ti
 		if rate > 0 {
 			dai.Liquidation = rate
 		}
-		j, _ := json.Marshal(dai)
 		server.storage.AddMakerdao(dai)
 	}
 	//lock
