@@ -587,6 +587,18 @@ func (storage *Storage) TopBlockHeight() (uint64, bool) {
 	}
 	return 0, false
 }
+func (storage *Storage) GetMakerdaoOrderaddress(key string) (string, bool) {
+	if storage.db == nil {
+		return "", false
+	}
+	sys := make([]models.Config, 0, 1)
+	storage.db.Limit(1).Where("variable = ?", key).Find(&sys)
+	if len(sys) > 0 {
+		//storage.topBlockHigh = sys[0].Value
+		return sys[0].Value, true
+	}
+	return "", false
+}
 
 func (storage *Storage) SuppAccountMaxBlockTop() (uint64, error) {
 	if storage.db != nil {
@@ -814,6 +826,74 @@ func (storage *Storage) AddContractCallTransaction(contract *models.ContractCall
 	}
 	storage.db.Create(&contract)
 	return true
+}
+func (storage *Storage) AddMakerdao(dai *models.DaiPriceContract) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	data := make([]*models.DaiPriceContract, 0, 0)
+	storage.db.Limit(1).Where("tx_hash = ?", dai.TxHash).Find(&data)
+	if len(data) > 0 {
+		mapData := make(map[string]interface{})
+		mapData["address"] = dai.Address
+		mapData["order_id"] = dai.OrderId
+		mapData["price"] = dai.Price
+		mapData["item_name"] = dai.ItemName
+		mapData["num"] = dai.Num
+		mapData["coin"] = dai.Coin
+		mapData["cur_time"] = dai.CurTime
+		mapData["status"] = dai.Status
+		if dai.Liquidation > 0 {
+			mapData["liquidation"] = dai.Liquidation
+		}
+		storage.UpmakerdaoByhash(dai.TxHash, mapData)
+	} else {
+		storage.db.Create(&dai)
+	}
+	return true
+}
+func (storage *Storage) AddMakerdaoPhoneByhash(dai *models.DaiPriceContract) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	data := make([]*models.DaiPriceContract, 0, 0)
+	storage.db.Limit(1).Where("tx_hash = ?", dai.TxHash).Find(&data)
+	if len(data) > 0 {
+		mapData := make(map[string]interface{})
+		mapData["phone"] = dai.Phone
+
+		storage.UpmakerdaoByhash(dai.TxHash, mapData)
+	} else {
+		storage.db.Create(&dai)
+	}
+	return true
+}
+
+func (storage *Storage) GetDaiPriceContract(item string) []*models.DaiPriceContract {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	data := make([]*models.DaiPriceContract, 0, 0)
+	storage.db.Limit(20).Where("item_name = ? and status in (1,2)", item).Find(&data)
+
+	return data
+}
+
+func (storage *Storage) Upmakerdao(order uint64, mapData map[string]interface{}) error {
+
+	return storage.db.Model(&models.DaiPriceContract{}).
+		Where("order_id = ?", order).
+		Updates(mapData).Error
+}
+
+func (storage *Storage) UpmakerdaoByhash(hash string, mapData map[string]interface{}) error {
+
+	return storage.db.Model(&models.DaiPriceContract{}).
+		Where("tx_hash = ?", hash).
+		Updates(mapData).Error
 }
 
 func (storage *Storage) Reward2blocktest() []int {

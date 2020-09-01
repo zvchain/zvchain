@@ -122,6 +122,23 @@ type TokenContract struct {
 	TransferTimes uint64 `json:"transfer_times"`
 }
 
+type DaiPriceContract struct {
+	gorm.Model
+	TxHash           string    `json:"tx_hash" gorm:"unique_index"`
+	Price            uint64    `json:"price"`
+	LiquidationPrice uint64    `json:"liquidation_price"`
+	Address          string    `json:"address" gorm:"index"`
+	OrderId          uint64    `json:"order_id" gorm:"index"`
+	ItemName         string    `json:"item_name"`
+	Num              uint64    `json:"num"`
+	Coin             uint64    `json:"coin"`
+	Liquidation      uint64    `json:"liquidation"`
+	RealLiquidation  uint64    `json:"real_liquidation"`
+	CurTime          time.Time `json:"cur_time" gorm:"index"`
+	Status           uint64    `json:"status"`
+	Phone            string    `json:"phone"`
+}
+
 type TokenContractTransaction struct {
 	gorm.Model
 	ContractAddr string    `json:"contract_addr" gorm:"index"`

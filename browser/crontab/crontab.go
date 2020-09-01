@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 	"github.com/zvchain/zvchain/browser"
 	common2 "github.com/zvchain/zvchain/browser/common"
 	browserlog "github.com/zvchain/zvchain/browser/log"
@@ -34,6 +35,8 @@ const (
 	cpKey       = "checkpoint"
 
 	GuardAndPoolContract = "zv6082d5468cd02e55f438401e204c0682ad8f77ee998db7c98ea476801f10225d"
+	makerdaoOrder        = "makerdao.order_contract"
+	makerdaoprice        = "makerdao.price_contract"
 )
 
 var (
@@ -65,15 +68,17 @@ type Crontab struct {
 	curTrancount                  uint64
 	ConfirmRewardHeight           uint64
 
-	page              uint64
-	maxid             uint
-	accountPrimaryId  uint64
-	isFetchingReward  int32
-	isFetchingConsume int32
-	isFetchingGroups  bool
-	groupHeight       uint64
-	isInited          bool
-	isInitedReward    bool
+	page                  uint64
+	maxid                 uint
+	accountPrimaryId      uint64
+	isFetchingReward      int32
+	isFetchingConsume     int32
+	isFetchingGroups      bool
+	groupHeight           uint64
+	isInited              bool
+	isInitedReward        bool
+	makerdaoOrderContratc string
+	makerdaoPriceContratc string
 
 	isFetchingPoolvotes               int32
 	isFetchingBlockToMiner            int32
@@ -101,6 +106,14 @@ func NewServer(dbAddr string, dbPort int, dbUser string,
 	server.addGenisisblockAndReward()
 	server.storage.InitCurConfig()
 	_, server.rewardStorageDataHeight = server.storage.RewardTopBlockHeight()
+	addr, _ := server.storage.GetMakerdaoOrderaddress(makerdaoOrder)
+	if addr != "" {
+		server.makerdaoOrderContratc = addr
+	}
+	addrprice, _ := server.storage.GetMakerdaoOrderaddress(makerdaoprice)
+	if addrprice != "" {
+		server.makerdaoPriceContratc = addrprice
+	}
 	go server.ConsumeContractTransfer()
 	//notify.BUS.Subscribe(notify.BlockAddSucc, server.OnBlockAddSuccess)
 
@@ -836,6 +849,31 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 							}
 						}
 					}
+					addr := server.makerdaoOrderContratc
+					if addr == "" {
+						addr, _ = server.storage.GetMakerdaoOrderaddress(makerdaoOrder)
+						if addr != "" {
+							server.makerdaoOrderContratc = addr
+						}
+					}
+					priceaddr := server.makerdaoPriceContratc
+					if priceaddr == "" {
+						priceaddr, _ = server.storage.GetMakerdaoOrderaddress(makerdaoprice)
+						if priceaddr != "" {
+							server.makerdaoPriceContratc = priceaddr
+						}
+					}
+					if tran.Target != "" && tran.Target == addr && blockDetail.Receipts[i].Status == 0 {
+						for _, log := range blockDetail.Receipts[i].Logs {
+							server.Handlemakerdao(addr, log, blockDetail.CurTime, tran.Hash)
+						}
+					}
+					if tran.Target != "" && tran.Target == priceaddr && addr != "" && blockDetail.Receipts[i].Status == 0 {
+						for _, log := range blockDetail.Receipts[i].Logs {
+							server.Handlemakerdaobite(addr, log, blockDetail.CurTime, tran.Hash)
+						}
+
+					}
 				}
 				trans = append(trans, tran)
 			}
@@ -853,6 +891,156 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	//server.isFetchingBlocks = false
 }
 
+func loadliqitationrate(item string, contract string) uint64 {
+	if item == "" || contract == "" {
+		return 0
+	}
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		fmt.Errorf("loadliqitationrate err:%v ", err)
+		return 0
+	}
+	contractAddress := common.StringToAddress(contract)
+	key := "liquidation@" + item
+	iter := db.DataIterator(contractAddress, []byte(key))
+	if iter == nil {
+		fmt.Errorf("loadliqitationrate err,iter is nil ")
+		return 0
+	}
+	for iter.Next() {
+		k := string(iter.Key[:])
+		v := tvm.VmDataConvert(iter.Value[:])
+		if key == k {
+			if num, ok := v.(int64); ok {
+				return uint64(num)
+
+			}
+		}
+	}
+	return 0
+}
+func loadbiteorder(item string, set map[uint64]struct{}, contract string) map[uint64]struct{} {
+
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		fmt.Errorf("loadbiteorder err:%v ", err)
+		return nil
+	}
+	contractAddress := common.StringToAddress(contract)
+	key := "orderstatus@"
+	iter := db.DataIterator(contractAddress, []byte(key))
+	if iter == nil {
+		fmt.Errorf("loadbiteorder err,iter is nil ")
+		return nil
+	}
+	bite := make(map[uint64]struct{})
+	for iter.Next() {
+		k := string(iter.Key[:])
+		v := tvm.VmDataConvert(iter.Value[:])
+
+		order := strings.Replace(k, "orderstatus@", "", -1)
+		orderno, _ := strconv.Atoi(order)
+		if _, ok := set[uint64(orderno)]; ok {
+			if status, ok := v.(int64); ok && status == 4 {
+				bite[uint64(orderno)] = struct{}{}
+
+			}
+		}
+
+	}
+	return bite
+}
+func (server *Crontab) Handlemakerdaobite(addr string, log *models.Log, time time.Time, hash string) {
+	//bite
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("bite"))) {
+		itemname := gjson.Get(log.Data, "args.0").String()
+		avergeprice := gjson.Get(log.Data, "args.1").Uint()
+		rate := gjson.Get(log.Data, "args.2").Uint()
+		status := gjson.Get(log.Data, "args.3").Uint()
+
+		mapData := make(map[string]interface{})
+		mapData["status"] = status
+		mapData["liquidation_price"] = avergeprice
+		mapData["real_liquidation"] = rate
+
+		orders := server.storage.GetDaiPriceContract(itemname)
+		// 初始化map
+		set := make(map[uint64]struct{})
+		// 上面2部可替换为set := make(map[string]struct{})
+		for _, value := range orders {
+			set[value.OrderId] = struct{}{}
+		}
+		if len(set) > 0 {
+			biteorders := loadbiteorder(itemname, set, addr)
+			for k, _ := range biteorders {
+				server.storage.Upmakerdao(k, mapData)
+			}
+		}
+	}
+}
+
+func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Time, hash string) {
+	//applylock
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("applylock"))) {
+		addr := gjson.Get(log.Data, "args.0").String()
+		price := gjson.Get(log.Data, "args.1").Uint()
+		order := gjson.Get(log.Data, "args.2").Uint()
+		itemname := gjson.Get(log.Data, "args.3").String()
+		num := gjson.Get(log.Data, "args.4").Uint()
+		coin := gjson.Get(log.Data, "args.5").Uint()
+		rate := loadliqitationrate(itemname, server.makerdaoPriceContratc)
+		dai := &models.DaiPriceContract{OrderId: order,
+			Address:  addr,
+			Price:    price,
+			ItemName: itemname,
+			Num:      num,
+			Coin:     coin,
+			Status:   0,
+			CurTime:  time,
+			TxHash:   hash,
+		}
+		if rate > 0 {
+			dai.Liquidation = rate
+		}
+		j, _ := json.Marshal(dai)
+		server.storage.AddMakerdao(dai)
+	}
+	//lock
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("lock"))) {
+		order := gjson.Get(log.Data, "args.0").Uint()
+		status := gjson.Get(log.Data, "args.1").Uint()
+		mapData := make(map[string]interface{})
+		mapData["status"] = status
+		server.storage.Upmakerdao(order, mapData)
+	}
+	//applywipe
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("applywipe"))) {
+		order := gjson.Get(log.Data, "args.0").Uint()
+		status := gjson.Get(log.Data, "args.1").Uint()
+		mapData := make(map[string]interface{})
+		mapData["status"] = status
+		server.storage.Upmakerdao(order, mapData)
+	}
+	//wipe
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("wipe"))) {
+		order := gjson.Get(log.Data, "args.0").Uint()
+		status := gjson.Get(log.Data, "args.1").Uint()
+		mapData := make(map[string]interface{})
+		mapData["status"] = status
+		server.storage.Upmakerdao(order, mapData)
+	}
+	//refuselock
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("refuselock"))) {
+		order := gjson.Get(log.Data, "args.0").Uint()
+		status := gjson.Get(log.Data, "args.1").Uint()
+		mapData := make(map[string]interface{})
+		mapData["status"] = status
+		server.storage.Upmakerdao(order, mapData)
+	}
+
+}
 func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, blockTime time.Time) {
 	if !isVoteContract(contractAddr) {
 		return
@@ -1239,7 +1427,6 @@ func namedVote(addr string) bool {
 }
 
 func (crontab *Crontab) HandleTempTokenTable(txHash, tokenAddr, source string, status uint) {
-	fmt.Printf("[in HandleTempTokenTable] txHash:%v, tokenAddr:%v, source:%v, status:%v\n", txHash, tokenAddr, source, status)
 	tempDeployHashes := make([]*models.TempDeployToken, 0)
 	crontab.storage.GetDB().Model(&models.TempDeployToken{}).Where("tx_hash = ?", txHash).Find(&tempDeployHashes)
 	if len(tempDeployHashes) > 0 {

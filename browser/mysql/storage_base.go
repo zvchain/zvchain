@@ -142,6 +142,9 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if !db.HasTable(&models.AccountList{}) {
 		db.CreateTable(&models.AccountList{})
 	}
+	if !db.HasTable(&models.DaiPriceContract{}) {
+		db.CreateTable(&models.DaiPriceContract{})
+	}
 	if !db.HasTable(&models.ContractTransaction{}) {
 		db.CreateTable(&models.ContractTransaction{})
 	}
