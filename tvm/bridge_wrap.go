@@ -131,9 +131,8 @@ func CallContract(contractAddr string, funcName string, params string) *ExecuteR
 	// prepare vm environment
 	remainGas := controller.VM.Gas()
 	var blockHeight uint64 = 0
-	if controller.BlockHeader != nil {
-		blockHeight = controller.BlockHeader.Height
-	}
+	blockHeight = controller.BlockHeader.Height
+
 	oneVM := NewTVMForRetainContext(controller.VM.ContractAddress, contract, controller.VM.Logs, blockHeight)
 	oneVM.SetGas(remainGas)
 	finished := controller.StoreVMContext(oneVM)

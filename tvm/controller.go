@@ -29,7 +29,7 @@ var bridgeInited = false
 
 // Controller VM Controller
 type Controller struct {
-	BlockHeader *types.BlockHeader
+	BlockHeader types.BlockHeader
 	Transaction types.TxMessage
 	AccountDB   types.AccountDB
 	Reader      types.ChainReader
@@ -47,7 +47,7 @@ type MinerManager interface {
 // NewController New a TVM controller
 func NewController(accountDB types.AccountDB,
 	chainReader types.ChainReader,
-	header *types.BlockHeader,
+	header types.BlockHeader,
 	transaction types.TxMessage,
 	gasUsed uint64,
 	manager MinerManager) *Controller {
@@ -85,9 +85,7 @@ func transactionErrorWith(result *ExecuteResult) *types.TransactionError {
 // Deploy Deploy a contract instance
 func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log, *types.TransactionError) {
 	var blockHeight uint64 = 0
-	if con.BlockHeader != nil {
-		blockHeight = con.BlockHeader.Height
-	}
+	blockHeight = con.BlockHeader.Height
 	con.VM = NewTVM(con.Transaction.Operator(), contract, blockHeight)
 	defer func() {
 		con.VM.DelTVM()
@@ -108,9 +106,8 @@ func (con *Controller) Deploy(contract *Contract) (*ExecuteResult, []*types.Log,
 // ExecuteAbiEval Execute the contract with abi and returns result
 func (con *Controller) ExecuteAbiEval(sender *common.Address, contract *Contract, abiJSON string) (*ExecuteResult, []*types.Log, *types.TransactionError) {
 	var blockHeight uint64 = 0
-	if con.BlockHeader != nil {
-		blockHeight = con.BlockHeader.Height
-	}
+	blockHeight = con.BlockHeader.Height
+
 	con.VM = NewTVM(sender, contract, blockHeight)
 	con.VM.SetGas(int(con.GasLeft))
 	defer func() {
@@ -155,13 +152,13 @@ func BytesToBigInt(bs []byte) *big.Int {
 	if len(bs) < 1 {
 		return nil
 	}
-	if bs[0] & 0x80 != 0 {
+	if bs[0]&0x80 != 0 {
 		isNeg = true
 		tmp := big.NewInt(0)
 		tmp.SetBytes(bs)
 		tmp.Sub(tmp, big.NewInt(1))
 		data = tmp.Bytes()
-		for i:=0; i<len(data);i++ {
+		for i := 0; i < len(data); i++ {
 			data[i] = ^data[i]
 		}
 	} else {
@@ -210,7 +207,7 @@ func VmDataConvert(value []byte) interface{} {
 		return []interface{}{}
 	} else if value[0] == 'b' {
 		if len(value) == 2 {
-			if value[1] != '0'{
+			if value[1] != '0' {
 				return true
 			} else {
 				return false
@@ -218,7 +215,7 @@ func VmDataConvert(value []byte) interface{} {
 		} else {
 			return nil
 		}
-	} else if value[0] == 'n'{
+	} else if value[0] == 'n' {
 		return nil
 	} else if value[0] == 'y' {
 		return value[1:]

@@ -154,7 +154,7 @@ func (t *TvmCli) Deploy(contractName string, contractCode string) (string, error
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 	transaction := Transaction{}
-	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, transaction, 0, nil)
+	controller := tvm.NewController(state, FakeChainReader{}, types.BlockHeader{}, transaction, 0, nil)
 
 	nonce := state.GetNonce(*transaction.Operator())
 	contractAddress := common.BytesToAddress(common.Sha256(common.BytesCombine(transaction.Operator()[:], common.Uint64ToByte(nonce))))
@@ -196,7 +196,7 @@ func (t *TvmCli) Call(contractAddress string, abiJSON string) {
 	stateHash := t.settings.GetString("root", "StateHash", "")
 	state, _ := account.NewAccountDB(common.HexToHash(stateHash), t.database)
 
-	controller := tvm.NewController(state, FakeChainReader{}, &types.BlockHeader{}, Transaction{}, 0, nil)
+	controller := tvm.NewController(state, FakeChainReader{}, types.BlockHeader{}, Transaction{}, 0, nil)
 
 	//abi := tvm.ABI{}
 	//abiJsonError := json.Unmarshal([]byte(abiJSON), &abi)

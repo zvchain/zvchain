@@ -114,7 +114,7 @@ func setupFoundationContract(stateDB *account.AccountDB, adminAddr common.Addres
 	txRaw.Source = &addr
 	txRaw.Value = &types.BigInt{Int: *big.NewInt(0)}
 	txRaw.GasLimit = &types.BigInt{Int: *big.NewInt(300000)}
-	controller := tvm.NewController(stateDB, nil, nil, types.NewTransaction(txRaw, txRaw.GenHash()), 0, nil)
+	controller := tvm.NewController(stateDB, nil, types.BlockHeader{}, types.NewTransaction(txRaw, txRaw.GenHash()), 0, nil)
 	contract := tvm.Contract{
 		Code:         code,
 		ContractName: "Foundation",

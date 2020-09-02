@@ -41,8 +41,8 @@ git submodule sync
 git submodule update --init
 if [[ $1x = "gzv"x ]]; then
     echo building gzv ...
-    buildtvm
-    buildp2p
+    #buildtvm
+    #buildp2p
 
     go clean -cache $basepath/cmd/gzv &&
     go build -o ${output_dir}/gzv $basepath/cmd/gzv &&
