@@ -20,6 +20,7 @@ package tvm
 */
 import "C"
 import (
+	log2 "github.com/zvchain/zvchain/log"
 	"math/big"
 	"unsafe"
 
@@ -97,6 +98,7 @@ func Number() C.ulonglong {
 
 //export Timestamp
 func Timestamp() C.ulonglong {
+	log2.CoreLogger.Infof("controller.BlockHeader.CurTime.UnixMilli() :%d, blockhash: %s, ", uint64(controller.BlockHeader.CurTime.UnixMilli()), controller.BlockHeader.Hash.String())
 	return C.ulonglong(uint64(controller.BlockHeader.CurTime.UnixMilli()))
 }
 
@@ -128,7 +130,7 @@ func EventCall(eventName *C.char, data *C.char, dataLen C.int) {
 	log.BlockNumber = controller.BlockHeader.Height
 	//block is running ,no blockhash this time
 	// log.BlockHash = controller.BlockHeader.Hash
-
+	log2.CoreLogger.Infof("blockhash: %s, log.Data :%s", controller.BlockHeader.Hash.String(), string(log.Data))
 	controller.VM.Logs = append(controller.VM.Logs, &log)
 }
 
