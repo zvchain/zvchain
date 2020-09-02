@@ -196,6 +196,8 @@ func (gzv *Gzv) Run() {
 	outFile := pruneCmd.Flag("out", "file for output the pruning process, default is stdout").Default("").String()
 	cacheDir := pruneCmd.Flag("cachedir", "directory for loading cache data, ignored if onlyverify is specified").Default("").String()
 	verifiy := pruneCmd.Flag("onlyverify", "whether to only verify the integrity of the specified database, specially pruned-database").Default("false").Bool()
+	cpu := pruneCmd.Flag("cpu", "number of CPU cores used in the pruning process").Default("0").Int()
+	maxOpenFiles := pruneCmd.Flag("maxopenfiles", "max open files for the process").Default("10240").Int()
 
 	command, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -203,6 +205,13 @@ func (gzv *Gzv) Run() {
 	}
 
 	gzv.simpleInit(*configFile)
+
+	go func() {
+		http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
+		runtime.SetBlockProfileRate(1)
+		runtime.SetMutexProfileFraction(1)
+		runtime.MemProfileRate = 1024
+	}()
 
 	switch command {
 	case versionCmd.FullCommand():
@@ -216,12 +225,6 @@ func (gzv *Gzv) Run() {
 	case mineCmd.FullCommand():
 		log.Init()
 		common.InstanceIndex = *instanceIndex
-		go func() {
-			http.ListenAndServe(fmt.Sprintf(":%d", *pprofPort), nil)
-			runtime.SetBlockProfileRate(1)
-			runtime.SetMutexProfileFraction(1)
-			runtime.MemProfileRate = 1024
-		}()
 
 		types.InitMiddleware()
 
@@ -311,10 +314,17 @@ func (gzv *Gzv) Run() {
 		output("replay finished")
 
 	case pruneCmd.FullCommand():
+		cores := runtime.NumCPU()
+		use := cores
+		if *cpu > 0 {
+			runtime.GOMAXPROCS(*cpu)
+			use = *cpu
+		}
+		output("available cores", cores, "use cores", use)
 		log.Init()
 		helper := mediator.NewConsensusHelper(groupsig.ID{})
 		genesisGroup := helper.GenerateGenesisInfo()
-		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *srcSmallDB, *memSize, *cacheDir, *outFile, *verifiy)
+		tailor, err := core.NewOfflineTailor(genesisGroup, *srcDB, *srcSmallDB, *memSize, *cacheDir, *outFile, *verifiy, *maxOpenFiles)
 		if err != nil {
 			output("start fail", err)
 		}
@@ -508,8 +518,8 @@ func (gzv *Gzv) fullInit() error {
 			return fmt.Errorf("block not exists of the hash %v", cfg.resetHash)
 		}
 		var resetBh *types.BlockHeader
-		resetBh,err = core.BlockChainImpl.ResetNear(bh)
-		if err != nil{
+		resetBh, err = core.BlockChainImpl.ResetNear(bh)
+		if err != nil {
 			return err
 		}
 		output(fmt.Sprintf("reset local top to block:%v-%v", resetBh.Height, resetBh.Hash.Hex()))
@@ -532,9 +542,9 @@ func (gzv *Gzv) fullInit() error {
 	return nil
 }
 
-func ShowVersionInfo(){
-	output("your version is",common.GzvVersion)
-	output("prune mode",core.BlockChainImpl.IsPruneMode())
+func ShowVersionInfo() {
+	output("your version is", common.GzvVersion)
+	output("prune mode", core.BlockChainImpl.IsPruneMode())
 }
 
 func ShowPubKeyInfo(info model.SelfMinerDO, id string) {

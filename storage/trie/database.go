@@ -17,7 +17,6 @@
 package trie
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/VictoriaMetrics/fastcache"
@@ -26,7 +25,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -59,13 +57,12 @@ type readMeter struct {
 	miss      uint64
 	missSize  uint64
 	hitSize   uint64
-	lastOut   time.Time
 	start     time.Time
 }
 
 // SmallDbWriter wraps the Get and Has method of a backing store for the current block state's modify datas.
 type SmallDbWriter interface {
-	StoreDataToSmallDb(height uint64, root common.Hash, nb []byte) error
+	StoreDataToSmallDb(height uint64, nb []byte) error
 }
 
 // NodeDatabase is an intermediate write layer between the trie data structures and
@@ -308,7 +305,7 @@ func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, pruneEna
 		cache = fastcache.New(cacheSize * 1024 * 1024)
 	}
 
-	return &NodeDatabase{
+	db := &NodeDatabase{
 		diskdb:      diskdb,
 		nodes:       map[common.Hash]*cachedNode{{}: {}},
 		preimages:   make(map[common.Hash][]byte),
@@ -317,6 +314,17 @@ func NewDatabase(diskdb tasdb.Database, cacheSize int, cacheDir string, pruneEna
 		cacheDir:    cacheDir,
 		meter:       &readMeter{start: time.Now()},
 	}
+
+	if db.cache != nil {
+		go func() {
+			ticker := time.NewTicker(time.Second * 3)
+			for range ticker.C {
+				db.meterPrint()
+			}
+		}()
+	}
+
+	return db
 }
 
 // DiskDB retrieves the persistent storage backing the trie database.
@@ -341,11 +349,11 @@ func (db *NodeDatabase) InsertStateDataToSmallDb(height uint64, root common.Hash
 		return fmt.Errorf("encode error，error is %v", err)
 	}
 	// store root data and height to small db
-	err = smallDbWriter.StoreDataToSmallDb(height, root, dts)
+	err = smallDbWriter.StoreDataToSmallDb(height, dts)
 	if err != nil {
 		return err
 	}
-
+	log.CropLogger.Debugf("insert state db to small db,state hash is %v,height is %v,size is %v", root.Hex(), height, len(dts))
 	return nil
 }
 
@@ -385,7 +393,9 @@ func (db *NodeDatabase) insert(hash common.Hash, blob []byte, node node) {
 	}
 	db.nodes[hash] = entry
 	if db.enablePrune {
-		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: entry.rlp()})
+		tmp := make([]byte, len(blob))
+		copy(tmp, blob)
+		db.commitFullNodes = append(db.commitFullNodes, &storeBlob{Key: hash, Raw: tmp})
 	}
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
@@ -409,25 +419,9 @@ func (db *NodeDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 }
 
 func (db *NodeDatabase) tryGetFromCache(hash common.Hash) []byte {
-	// reset the meter if read count > 2000000, for more accuracy statistic about recent db read
-	if time.Since(db.meter.start).Minutes() > 1 {
-		db.meter = &readMeter{start: time.Now()}
-	}
 	atomic.AddUint64(&db.meter.readCount, 1)
 	if db.cache != nil {
 		meter := db.meter
-		if time.Since(meter.lastOut).Seconds() > 2 {
-			meter.lastOut = time.Now()
-			stat := &fastcache.Stats{}
-			db.cache.UpdateStats(stat)
-			log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
-				meter.readCount, stat.BytesSize/1024/1024.0, meter.cacheHit, float64(meter.cacheHit)/float64(meter.readCount), meter.nodeHit, float64(meter.nodeHit)/float64(meter.readCount), meter.hitSize/1024.0/1024.0,
-				float64(meter.miss)/float64(meter.readCount), meter.missSize/1024.0/1024.0)
-
-			s, _ := json.Marshal(stat)
-			str := strings.ReplaceAll(string(s), "\"", "")
-			log.CoreLogger.Infof("fastcache meter %v", str)
-		}
 		if enc := db.cache.Get(nil, hash[:]); enc != nil {
 			atomic.AddUint64(&meter.cacheHit, 1)
 			atomic.AddUint64(&meter.hitSize, uint64(len(enc)))
@@ -445,13 +439,27 @@ func (db *NodeDatabase) addToCache(hash common.Hash, data []byte) {
 	}
 }
 
+func (db *NodeDatabase) meterPrint() {
+	meter := db.meter
+	stat := &fastcache.Stats{}
+	db.cache.UpdateStats(stat)
+	log.CoreLogger.Infof("fastcache total %v, cacheSize %vMB, entrys %v, cacheHit %v, cacheHitRate %v, nodeHit %v, nodeHitRate %v, hitSize %vMB, missRate %v, missSize %vMB",
+		meter.readCount, stat.BytesSize/1024/1024.0, stat.EntriesCount, meter.cacheHit, float64(meter.cacheHit)/float64(meter.readCount), meter.nodeHit, float64(meter.nodeHit)/float64(meter.readCount), meter.hitSize/1024.0/1024.0,
+		float64(meter.miss)/float64(meter.readCount), meter.missSize/1024.0/1024.0)
+
+	// reset the meter if read count > 2000000, for more accuracy statistic about recent db read
+	if time.Since(db.meter.start).Minutes() > 1 {
+		db.meter = &readMeter{start: time.Now()}
+	}
+}
+
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
-func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
+func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte, error) {
 	// Retrieve the node from the clean cache if available
 	bs := db.tryGetFromCache(hash)
 	if bs != nil {
-		return mustDecodeNode(hash[:], bs, cachegen), bs
+		return mustDecodeNode(hash[:], bs, cachegen), bs, nil
 	}
 	// Retrieve the node from cache if available
 	db.lock.RLock()
@@ -460,16 +468,16 @@ func (db *NodeDatabase) node(hash common.Hash, cachegen uint16) (node, []byte) {
 
 	if node != nil {
 		atomic.AddUint64(&db.meter.nodeHit, 1)
-		return node.obj(hash, cachegen), nil
+		return node.obj(hash, cachegen), nil, nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
 		log.CoreLogger.Errorf("get from disk error, key %v, err %v", hash.Hex(), err)
-		return nil, nil
+		return nil, nil, err
 	}
 	db.addToCache(hash, enc)
-	return mustDecodeNode(hash[:], enc, cachegen), enc
+	return mustDecodeNode(hash[:], enc, cachegen), enc, nil
 }
 
 // Node retrieves an encoded cached trie node from memory. If it cannot be found
@@ -571,6 +579,7 @@ func (db *NodeDatabase) reference(child common.Hash, parent common.Hash) {
 		db.childrenSize += common.HashLength + 2 // uint16 counter
 	}
 }
+
 // CommitStateDataToBigDb is for cold start
 // Commit the state data to big db
 func (db *NodeDatabase) CommitStateDataToBigDb(blobs []*storeBlob, repeatKey map[common.Hash]struct{}) error {
@@ -606,6 +615,7 @@ func (db *NodeDatabase) DecodeStoreBlob(data []byte) (err error, blobs []*storeB
 func (db *NodeDatabase) LastPruneHeight() uint64 {
 	return db.lastPruneHeight
 }
+
 // CanPersistent check can persistent if prune block count more than persistentCount
 func (db *NodeDatabase) CanPersistent(persistentCount int) bool {
 	return db.lastPruneCount >= uint64(persistentCount)
@@ -614,7 +624,7 @@ func (db *NodeDatabase) CanPersistent(persistentCount int) bool {
 func (db *NodeDatabase) StorePruneData(height, currentHeight, cpHeight, pruneCount uint64) {
 	db.lastPruneHeight = height
 	db.lastPruneCount += pruneCount
-	log.CropLogger.Debugf("store prune height is %v,curHeight is %v,cphHeight is %v,cur prune count is %v,total prune count is %v", height, currentHeight, cpHeight, pruneCount,db.lastPruneCount)
+	log.CropLogger.Debugf("store prune height is %v,curHeight is %v,cphHeight is %v,cur prune count is %v,total prune count is %v", height, currentHeight, cpHeight, pruneCount, db.lastPruneCount)
 }
 
 func (db *NodeDatabase) ResetPruneCount() {
@@ -930,7 +940,7 @@ func (db *NodeDatabase) Size() (common.StorageSize, common.StorageSize) {
 	return db.nodesSize + db.childrenSize + metadataSize - metarootRefs, db.preimagesSize
 }
 
-// verifyIntegrity is a debug method to iterate over the entire trie stored in
+// traverse is a debug method to iterate over the entire trie stored in
 // memory and check whether every node is reachable from the meta root. The goal
 // is to find any errors that might cause memory leaks and or trie nodes to go
 // missing.

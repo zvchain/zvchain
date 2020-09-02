@@ -19,13 +19,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math"
-	"sync/atomic"
-	"time"
-
 	"github.com/sirupsen/logrus"
 	"github.com/zvchain/zvchain/log"
 	time2 "github.com/zvchain/zvchain/middleware/time"
+	"math"
+	"sync/atomic"
+	"time"
 
 	"github.com/zvchain/zvchain/monitor"
 
@@ -71,7 +70,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	begin := time.Now()
 
 	defer func() {
-		Logger.Debugf("cast block, height=%v, hash=%v, cost %v", block.Header.Height, block.Header.Hash.Hex(), time.Since(begin).String())
+		Logger.Infof("cast block, height=%v, hash=%v, cost %v", block.Header.Height, block.Header.Hash.Hex(), time.Since(begin).String())
 	}()
 
 	block.Header = &types.BlockHeader{
@@ -113,7 +112,7 @@ func (chain *FullBlockChain) CastBlock(height uint64, proveValue []byte, qn uint
 	exeTraceLog.SetParent("CastBlock")
 	defer exeTraceLog.Log("pack=true")
 	block.Header.CurTime = chain.ts.Now()
-	stateRoot, evictHashs, txSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, txs, true, nil)
+	stateRoot, evictHashs, txSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, txs, true, latestBlock)
 	exeTraceLog.SetEnd()
 
 	block.Transactions = txSlice.txsToRaw()
@@ -263,52 +262,20 @@ func (chain *FullBlockChain) validateBlock(source string, b *types.Block) (bool,
 	return true, nil
 }
 
-// DeleteSmallDbDataByRoots will delete root list if we reset tops
-func (chain *FullBlockChain) DeleteSmallDbDataByRoots(roots []common.Hash) {
-	if len(roots) == 0 {
-		return
-	}
-	begin := time.Now()
-	defer func() {
-		log.CropLogger.Debugf("resetTop delete small db size is %v,cost %v", len(roots), time.Since(begin))
-	}()
-	for _, root := range roots {
-		err := chain.smallStateDb.DeleteSmallDbDataByRootWithoutStoreHeight(root)
-		if err != nil {
-			log.CoreLogger.Errorf("DeleteSmallDbDataByRoots error,err is %v", err)
-			break
-		}
-	}
-}
-
 // from last delete small db height to current height's data can be deleted
-// this method will record current delete height to small db
-func (chain *FullBlockChain) DeleteSmallDbByHeight(persistenceHeight uint64) {
+func (chain *FullBlockChain) DeleteSmallDbByHeight(heightLimit uint64) error {
 	chain.smallStateDb.mu.Lock()
 	defer chain.smallStateDb.mu.Unlock()
-	// from small db get last delete height
-	lastDeleteHeight := chain.smallStateDb.GetLastDeleteHeight()
-	beginHeight := lastDeleteHeight
-	endHeight := persistenceHeight
-	if endHeight <= beginHeight {
-		return
+	Logger.Debugf("begin delete small db,height limit is %v", heightLimit)
+	now := time.Now()
+
+	if beginHeight, err := chain.smallStateDb.DeletePreviousOf(heightLimit); err != nil {
+		Logger.Errorf("delete previous of %v error %v", heightLimit, err)
+		return err
+	} else {
+		Logger.Debugf("delete small db success,height is %v-%v,cost=%v", beginHeight, heightLimit, time.Since(now))
 	}
-	begin := time.Now()
-	defer func() {
-		log.CropLogger.Debugf("delete small db success,height is %v-%v,cost=%v", beginHeight, endHeight, time.Since(begin))
-	}()
-	log.CropLogger.Debugf("begin delete small db,height is %v-%v", beginHeight, endHeight)
-	for i := beginHeight; i < endHeight; i++ {
-		bh := chain.queryBlockHeaderByHeight(i)
-		if bh == nil {
-			continue
-		}
-		err := chain.smallStateDb.DeleteSmallDbDataByRoot(bh.StateTree, bh.Height)
-		if err != nil {
-			log.CoreLogger.Error(err)
-			break
-		}
-	}
+	return nil
 }
 
 // PersistentState when shut down it will be run
@@ -320,22 +287,18 @@ func (chain *FullBlockChain) PersistentState() {
 	chain.rwLock.Lock()
 	defer chain.rwLock.Unlock()
 	// prevent duplicate runs
-	if !atomic.CompareAndSwapInt32(&chain.running, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&chain.shutdowning, 0, 1) {
 		return
 	}
 	begin := time.Now()
-	cp := chain.latestCP.Load()
-	if chain.triegc.Empty() || cp == nil {
-		return
-	}
 	fmt.Printf("stop process begin...")
 	triedb := chain.stateCache.TrieDB()
 	var commitHeight uint64 = common.MaxUint64
 	defer func() {
 		if commitHeight == common.MaxUint64 {
-			fmt.Printf("stop success,no commit,cost %v", time.Since(begin))
+			Logger.Infof("stop success,no commit,cost %v", time.Since(begin))
 		} else {
-			fmt.Printf("stop success,commit height is %v,cp height is %v,local height is %v,cost %v", commitHeight, cp.(*types.BlockHeader).Height, chain.Height(), time.Since(begin))
+			Logger.Infof("stop success,commit height is %v,local height is %v,cost %v", commitHeight, chain.Height(), time.Since(begin))
 		}
 
 	}()
@@ -350,70 +313,58 @@ func (chain *FullBlockChain) PersistentState() {
 	// only persistent last prune height's next height
 	err := triedb.Commit(bh.Height, bh.StateTree, false)
 	if err != nil {
-		fmt.Printf("trie commit error:%s", err.Error())
+		Logger.Errorf("trie commit error:%s", err.Error())
+		return
+	}
+	err = chain.DeleteSmallDbByHeight(bh.Height)
+	if err != nil {
+		Logger.Errorf("trie commit delete small db error:%s", err.Error())
 		return
 	}
 	commitHeight = bh.Height
-	// record last persistent height to small db for cold start
-	err = chain.smallStateDb.StoreStatePersistentHeight(bh.Height)
-	if err != nil {
-		fmt.Printf("stopping StoreTriePureHeight error:%s", err.Error())
-	}
 
 }
 
-// mergeSmallDbDataToBigDB is for cold start
-// Begin is last persistent height,end is top height,between two heights block state data from small db to big db
-func (chain *FullBlockChain) mergeSmallDbDataToBigDB(top *types.BlockHeader) error {
+// repairStateDatabase try to repairs database since last shutdown
+func (chain *FullBlockChain) repairStateDatabase(top *types.BlockHeader) error {
 	if top == nil {
 		return nil
 	}
-	// check small db has state data,if nil,then return
-	hasStateData := chain.smallStateDb.HasStateData()
-	if !hasStateData {
-		return nil
-	}
-	var beginHeight uint64 = common.MaxUint64
-	// get the last persistent height from small db
-	lastStateHeight := chain.smallStateDb.GetStatePersistentHeight()
-	if lastStateHeight < top.Height {
-		beginHeight = lastStateHeight
-		// if big db is be deleted,but small db not be deleted,we will compensate it
-	} else if lastStateHeight > top.Height {
-		beginHeight = 1
-	}
-	if beginHeight == common.MaxUint64 {
-		return nil
-	}
+	chain.latestBlock = top
+	var (
+		lastHeight uint64
+		newTop     = top
+		err        error
+	)
+
 	start := time.Now()
 	defer func() {
-		log.CropLogger.Debugf("fix small state data success,top is %v,from %v-%v,cost %v \n", top.Height, beginHeight, top.Height, time.Since(start))
+		Logger.Debugf("repair state data cost %v \n", time.Since(start))
 	}()
-	log.CropLogger.Debugf("begin fix small state data,top is %v,from %v-%v \n", top.Height, beginHeight, top.Height)
-	triedb := chain.stateCache.TrieDB()
-	repeatKey := make(map[common.Hash]struct{})
-	for i := beginHeight; i <= top.Height; i++ {
-		bh := chain.queryBlockHeaderByHeight(i)
-		if bh == nil {
-			continue
-		}
-		// get data by root from small db
-		data := chain.smallStateDb.GetSmallDbDataByRoot(bh.StateTree)
-		if len(data) == 0 {
-			continue
-		}
-		err, caches := triedb.DecodeStoreBlob(data)
+	// Commit to big db
+	lastHeight, err = chain.smallStateDb.CommitToBigDB(chain, top.Height)
+	if err != nil {
+		Logger.Errorf("commit to big db error %v", err)
+		return err
+	}
+
+	// no data to commit
+	if lastHeight == 0 {
+		return nil
+	}
+	// may occur if power off,small db height less than big db height
+	// reset top is needed
+	if lastHeight < top.Height {
+		newTop = chain.queryBlockHeaderByHeight(lastHeight)
+		Logger.Infof("data loss due to last power off and reset top to height %v to fix db", newTop.Height)
+		// resetTop needs latestBlock
+		err = chain.resetTop(newTop)
 		if err != nil {
 			return err
 		}
-		// commit data to big db
-		err = triedb.CommitStateDataToBigDb(caches, repeatKey)
-		if err != nil {
-			return fmt.Errorf("commit from small db to big db error,err is %v", err)
-		}
 	}
-	// when commit from small db to big db,we store the last persistent to small db
-	err := chain.smallStateDb.StoreStatePersistentHeight(top.Height)
+	// delete previous data of last merged height
+	err = chain.DeleteSmallDbByHeight(lastHeight)
 	if err != nil {
 		return fmt.Errorf("write persistentHeight to small db error,err is %v", err)
 	}
@@ -432,7 +383,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 			log.CoreLogger.Debugf("addBlockOnchain expired,height is %v,cost time %v", block.Header.Height, cost)
 		}
 		traceLog.Log("ret=%v, err=%v", ret, err)
-		Logger.Debugf("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
+		Logger.Infof("addBlockOnchain hash=%v, height=%v, txs=%v, err=%v, cost=%v", block.Header.Hash, block.Header.Height, len(block.Transactions), err, time.Since(begin).String())
 	}()
 
 	if block == nil {
@@ -520,7 +471,7 @@ func (chain *FullBlockChain) addBlockOnChain(source string, block *types.Block) 
 	} else { // there is a fork
 		newTop := chain.queryBlockHeaderByHash(bh.PreHash)
 		old := chain.latestBlock
-		Logger.Debugf("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
+		Logger.Infof("simple fork reset top: old %v %v %v %v, coming %v %v %v %v", old.Hash, old.Height, old.PreHash, old.TotalQN, bh.Hash, bh.Height, bh.PreHash, bh.TotalQN)
 		if e := chain.resetTop(newTop); e != nil {
 			Logger.Warnf("reset top err, currTop %v, setTop %v, setHeight %v", topBlock.Hash, newTop.Hash, newTop.Height)
 			ret = types.AddBlockFailed
@@ -634,7 +585,7 @@ func (chain *FullBlockChain) executeTransaction(block *types.Block, slice txSlic
 		return false, nil
 	}
 
-	stateTree, evictTxs, executedSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, slice, false, nil)
+	stateTree, evictTxs, executedSlice, receipts, gasFee, err := chain.stateProc.process(state, block.Header, slice, false, preBlock)
 	txTree := executedSlice.calcTxTree()
 	if txTree != block.Header.TxTree {
 		Logger.Errorf("Fail to verify txTree, hash1:%s hash2:%s", txTree, block.Header.TxTree)

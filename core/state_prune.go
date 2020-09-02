@@ -22,6 +22,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/zvchain/zvchain/common"
 	"github.com/zvchain/zvchain/core/group"
+	"github.com/zvchain/zvchain/log"
 	"github.com/zvchain/zvchain/middleware/types"
 	"github.com/zvchain/zvchain/storage/account"
 	"github.com/zvchain/zvchain/storage/tasdb"
@@ -32,6 +33,11 @@ import (
 	"time"
 )
 
+type groupSeedReader interface {
+	GetAllGroupSeedsByHeight(h uint64) ([]common.Hash, error)
+	GroupKey() []byte
+}
+
 type OfflineTailor struct {
 	dataSource string
 	memSize    int
@@ -40,19 +46,24 @@ type OfflineTailor struct {
 
 	start        time.Time
 	chain        *FullBlockChain
+	groupReader  groupSeedReader
 	out          io.WriteCloser
 	checkpoint   uint64
 	usedNodes    map[common.Hash]struct{}
+	groupSeeds   map[common.Address]struct{}
+	groupKeys    [][]byte
 	incUsedNodes uint64
 	usedSize     uint64
 
 	accumulatePrunedNodes uint64
 	accumulatePrunedSize  uint64
+	skipRoot              uint64
 
 	lock sync.RWMutex
 }
 
-func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir string, mem int, cacheDir string, out string, onlyVerify bool) (*OfflineTailor, error) {
+func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir string, mem int, cacheDir string, out string, onlyVerify bool, maxOpenFiles int) (*OfflineTailor, error) {
+	Logger = log.CoreLogger
 	config := &BlockChainConfig{
 		dbfile:      dbDir,
 		block:       "bh",
@@ -72,7 +83,7 @@ func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir stri
 
 	options := &opt.Options{
 		Filter:                 filter.NewBloomFilter(10),
-		OpenFilesCacheCapacity: 40000,
+		OpenFilesCacheCapacity: maxOpenFiles,
 	}
 	if onlyVerify {
 		options.ReadOnly = true
@@ -100,34 +111,35 @@ func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir stri
 		Logger.Errorf("Init block chain error! Error:%s", err.Error())
 		return nil, err
 	}
-	if onlyVerify {
-		// Won't load cache data from file in only verify mode，
-		// Just in case the problem that the node was erased is covered up
-		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, "")
-	} else {
-		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, cacheDir)
-	}
 
 	chain.latestBlock = chain.loadCurrentBlock()
 	if chain.latestBlock == nil {
 		return nil, fmt.Errorf("get latest block nil")
 	}
 
-	if sdbDir != "" {
-		smallStateDs, err := tasdb.NewDataSource(sdbDir, nil)
-		if err != nil {
-			Logger.Errorf("new small state datasource error:%v", err)
-			return nil, err
-		}
-		smallStateDb, err := smallStateDs.NewPrefixDatabase("")
-		if err != nil {
-			Logger.Errorf("new small state db error:%v", err)
-			return nil, err
-		}
-		chain.smallStateDb = initSmallStore(smallStateDb)
-		err = chain.mergeSmallDbDataToBigDB(chain.latestBlock)
-		if err != nil {
-			return nil, err
+	if onlyVerify {
+		// Won't load cache data from file in only verify mode，
+		// Just in case the problem that the node was erased is covered up
+		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, "")
+	} else {
+		chain.stateCache = account.NewDatabaseWithCache(chain.stateDb, false, mem, cacheDir)
+		// Should merge small db to chain db before pruning
+		if sdbDir != "" {
+			smallStateDs, err := tasdb.NewDataSource(sdbDir, nil)
+			if err != nil {
+				Logger.Errorf("new small state datasource error:%v", err)
+				return nil, err
+			}
+			smallStateDb, err := smallStateDs.NewPrefixDatabase("")
+			if err != nil {
+				Logger.Errorf("new small state db error:%v", err)
+				return nil, err
+			}
+			chain.smallStateDb = initSmallStore(smallStateDb)
+			err = chain.repairStateDatabase(chain.latestBlock)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -138,14 +150,18 @@ func NewOfflineTailor(genesisGroup *types.GenesisInfo, dbDir string, sdbDir stri
 	cp := cpChecker.checkpointAt(chain.Height())
 
 	tailor := &OfflineTailor{
-		dataSource: dbDir,
-		memSize:    mem,
-		chain:      chain,
-		outFile:    out,
-		usedNodes:  make(map[common.Hash]struct{}),
-		checkpoint: cp,
-		onlyVerify: onlyVerify,
+		dataSource:  dbDir,
+		memSize:     mem,
+		chain:       chain,
+		outFile:     out,
+		usedNodes:   make(map[common.Hash]struct{}),
+		groupSeeds:  make(map[common.Address]struct{}),
+		checkpoint:  cp,
+		onlyVerify:  onlyVerify,
+		groupReader: groupManager,
+		groupKeys:   [][]byte{groupManager.GroupKey()},
 	}
+
 	if out == "" {
 		tailor.out = os.Stdout
 	} else {
@@ -190,6 +206,38 @@ func (t *OfflineTailor) nodeUsed(hash common.Hash) bool {
 	return true
 }
 
+func (t *OfflineTailor) loadAllGroupSeeds(h uint64) error {
+	begin := time.Now()
+	t.info("start load group seeds, height %v", h)
+
+	seeds, err := t.groupReader.GetAllGroupSeedsByHeight(h)
+	if err != nil {
+		return err
+	} else {
+		if len(seeds) <= 1 {
+			return nil
+		}
+		// Ignore top group which may be created at the epoch of the given height
+		if len(seeds) > 0 {
+			seeds = seeds[1:]
+		}
+		for _, s := range seeds {
+			t.groupSeeds[common.HashToAddress(s)] = struct{}{}
+		}
+	}
+	t.info("load group seeds finished, height %v, size %v, cost %v", h, len(t.groupSeeds), time.Since(begin))
+	return nil
+}
+
+func (t *OfflineTailor) subTreeConcernedKeys(address common.Address) [][]byte {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	if _, ok := t.groupSeeds[address]; ok {
+		return t.groupKeys
+	}
+	return nil
+}
+
 func (t *OfflineTailor) collectUsedNodes() error {
 	const noPruneBlock = TriesInMemory
 
@@ -214,20 +262,37 @@ func (t *OfflineTailor) collectUsedNodes() error {
 	if uint64(len(collectBlockHeights)) < noPruneBlock {
 		return fmt.Errorf("real heights less than %v, won't prune", noPruneBlock)
 	}
-	t.info("all blocks need to collect using nodes: %v(%v-%v)", len(collectBlockHeights), collectBlockHeights[len(collectBlockHeights)-1], collectBlockHeights[0])
+
+	firstHeight := collectBlockHeights[len(collectBlockHeights)-1]
+	t.loadAllGroupSeeds(firstHeight)
+
+	traverseConfig := &account.TraverseConfig{
+		ResolveNodeCb:       t.resolveCallback,
+		CheckHash:           false,
+		VisitedRoots:        make(map[common.Hash]struct{}),
+		SubTreeKeysProvider: t.subTreeConcernedKeys,
+	}
+
+	t.info("all blocks need to collect using nodes: %v(%v-%v)", len(collectBlockHeights), firstHeight, collectBlockHeights[0])
 	begin := time.Now()
+	firstCost := time.Duration(0)
 	for i := len(collectBlockHeights) - 1; i >= 0; i-- {
 		h := collectBlockHeights[i]
 		t.info("start collect block %v", h)
 		b := time.Now()
 		t.incUsedNodes = 0
-		if _, err := t.chain.IntegrityVerify(h, nil, t.resolveCallback, false); err != nil {
+		if _, err := t.chain.Traverse(h, traverseConfig); err != nil {
 			t.info("verify block %v fail, err %v", h, err)
 			return err
 		}
 		s, c := t.usedNodeStat()
 		cost := time.Since(b)
-		remain := cost * time.Duration(i)
+		var remain time.Duration
+		if i == len(collectBlockHeights)-1 {
+			firstCost = cost
+		} else {
+			remain = (time.Since(begin) - firstCost) / time.Duration(len(collectBlockHeights)-i-1) * time.Duration(i)
+		}
 		t.info("collect %v finish, totalNodes %v, incNodes %v, totalSize %vMB, cost %v, remain %v", h, c, t.incUsedNodes, float64(s)/1024/1024, cost.String(), remain.String())
 	}
 	s, c := t.usedNodeStat()
@@ -328,23 +393,43 @@ func (t *OfflineTailor) Verify() error {
 			break
 		}
 	}
+	if len(verifyBlockHeights) == 0 {
+		return fmt.Errorf("no blocks for verify")
+	}
 
-	t.info("all blocks need to verify: %v(%v-%v)", len(verifyBlockHeights), verifyBlockHeights[len(verifyBlockHeights)-1], verifyBlockHeights[0])
+	firstHeight := verifyBlockHeights[len(verifyBlockHeights)-1]
+	t.loadAllGroupSeeds(firstHeight)
+
+	traverseConfig := &account.TraverseConfig{
+		CheckHash:           false,
+		VisitedRoots:        make(map[common.Hash]struct{}),
+		SubTreeKeysProvider: t.subTreeConcernedKeys,
+	}
+
+	t.info("all blocks need to verify: %v(%v-%v)", len(verifyBlockHeights), firstHeight, verifyBlockHeights[0])
 	begin := time.Now()
+	var firstCost time.Duration
 	for i := len(verifyBlockHeights) - 1; i >= 0; i-- {
 		h := verifyBlockHeights[i]
 		t.info("start verify block %v", h)
+
+		traverseConfig.VisitAccountCb = func(stat *account.TraverseStat) {
+			t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, nodeCount %v, nodeSize %v, codeSize %v, cost %v", stat.Addr.AddrPrefixString(), h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize,
+				stat.NodeCount, stat.NodeSize, stat.CodeSize, stat.Cost.String())
+		}
+
 		b := time.Now()
-		if _, err := t.chain.IntegrityVerify(h, func(stat *account.VerifyStat) {
-			if i == len(verifyBlockHeights)-1 {
-				t.info("verify address %v at %v, balance %v, nonce %v, root %v, dataCount %v, dataSize %v, nodeCount %v, nodeSize %v, codeSize %v, cost %v", stat.Addr, h, stat.Account.Balance, stat.Account.Nonce, stat.Account.Root.Hex(), stat.DataCount, stat.DataSize,
-					stat.NodeCount, stat.NodeSize, stat.CodeSize, stat.Cost.String())
-			}
-		}, nil, false); err != nil {
+		if _, err := t.chain.Traverse(h, traverseConfig); err != nil {
 			t.info("verify block %v fail, err %v", h, err)
 			return err
 		}
-		t.info("verify %v finish, cost %v, remain %v", h, time.Since(b).String(), (time.Since(b) * time.Duration(i)).String())
+		var remain time.Duration
+		if i == len(verifyBlockHeights)-1 {
+			firstCost = time.Since(b)
+		} else {
+			remain = (time.Since(begin) - firstCost) / time.Duration(len(verifyBlockHeights)-i-1) * time.Duration(i)
+		}
+		t.info("verify %v finish, cost %v, remain %v", h, time.Since(b).String(), remain.String())
 	}
 	t.info("verify nodes finished, cost %v", time.Since(begin).String())
 	return nil

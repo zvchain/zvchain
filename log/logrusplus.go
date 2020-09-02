@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -160,7 +161,9 @@ func (lrs *Logrusplus) Logger(fileName string, maxSize int64, maxFiles int, leve
 		logger = _logger
 	} else {
 		logger = logrus.New()
-		logger.SetFormatter(&logrus.JSONFormatter{})
+		formatter := new(logrus.JSONFormatter)
+		formatter.TimestampFormat = time.RFC3339Nano
+		logger.Formatter = formatter
 
 		fileWriter := newLogFileWriter(fileName, maxSize, maxFiles)
 		if fileWriter != nil {

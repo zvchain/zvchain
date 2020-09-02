@@ -114,6 +114,29 @@ func (mm *MinerManager) GuardNodesCheck(accountDB types.AccountDB, bh *types.Blo
 	}
 }
 
+// GetAllGuardNodeAddrs return all guard node addresses,contains fund guard addresses and full stake addresses
+func (mm *MinerManager) GetAllGuardNodeAddrs(accountDB types.AccountDB) ([]common.Address, error) {
+	addrs := []common.Address{}
+	// first get all full stake addresses,if full stake guard is expired,we will remove from pool
+	fullStakeAddrs := mm.GetAllFullStakeGuardNodes(accountDB)
+	if len(fullStakeAddrs) > 0 {
+		addrs = append(addrs, fullStakeAddrs...)
+	}
+	fundGuardNodeDetail, err := mm.GetAllFundStakeGuardNodes(accountDB)
+	if err != nil {
+		return addrs, err
+	}
+	for _, fdDetail := range fundGuardNodeDetail {
+		// if type == normalNodeType,means this fund guard node is invalid,if 6+5 or 6+6 expired will set this value
+		// if type == fullStakeGuardNodeType means this fund guard becomes full stake fund node before invalid
+		// if type == fundGuardNodeType means this fund guard node is init status
+		if fdDetail.isGuardNode() {
+			addrs = append(addrs, fdDetail.Address)
+		}
+	}
+	return addrs, nil
+}
+
 func (mm *MinerManager) FundGuardExpiredCheck(accountDB types.AccountDB, height uint64) ([]common.Address, error) {
 	allExpiredFundAddresses := []common.Address{}
 	expiredAddresses, err := mm.fundGuardSixAddFiveNodesCheck(accountDB, height)
@@ -483,7 +506,7 @@ func (mm *MinerManager) GetAllMiners(mType types.MinerType, height uint64) []*ty
 	defer mm.lock.Unlock()
 	begin := time.Now()
 	defer func() {
-		Logger.Debugf("get all miners cost %v", time.Since(begin).Seconds())
+		Logger.Infof("get all miners cost %v", time.Since(begin).Seconds())
 	}()
 	accountDB, err := BlockChainImpl.AccountDBAt(height)
 	if err != nil {
@@ -737,7 +760,7 @@ func (mm *MinerManager) addGenesesMiners(miners []*types.Miner, accountDB types.
 }
 
 func (mm *MinerManager) genFundGuardNodes(accountDB types.AccountDB) {
-	for _, addr := range types.GetGuardAddress() {
+	for _, addr := range GuardAddress() {
 		miner := &types.Miner{ID: addr.Bytes(), Type: types.MinerTypeProposal, Identity: types.MinerGuard, Status: types.MinerStatusPrepare, ApplyHeight: 0, Stake: 0}
 		bs, err := msgpack.Marshal(miner)
 		if err != nil {

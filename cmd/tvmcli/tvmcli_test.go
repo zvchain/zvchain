@@ -81,22 +81,22 @@ func TestTvmCli_QueryData(t *testing.T) {
 	}
 	result = tvmCli.QueryData(erc20Contract, "bigint", 0)
 	value, _ = json.Marshal(result["bigint"])
-	if string(value) != "100000000000000000000000000000001"{
+	if string(value) != "100000000000000000000000000000001" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bigint2", 0)
 	value, _ = json.Marshal(result["bigint2"])
-	if string(value) != "-100000000000000000000000000000001"{
+	if string(value) != "-100000000000000000000000000000001" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "str", 0)
 	value, _ = json.Marshal(result["str"])
-	if string(value) != "\"\""{
+	if string(value) != "\"\"" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bool", 0)
 	value, _ = json.Marshal(result["bool"])
-	if string(value) != "false"{
+	if string(value) != "false" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "none", 0)
@@ -106,7 +106,7 @@ func TestTvmCli_QueryData(t *testing.T) {
 	}
 	result = tvmCli.QueryData(erc20Contract, "zdict", 0)
 	value, _ = json.Marshal(result["zdict"])
-	if string(value) != "{}"{
+	if string(value) != "{}" {
 		t.FailNow()
 	}
 	result = tvmCli.QueryData(erc20Contract, "bytes", 0)
@@ -206,7 +206,7 @@ func TestTvmCli_Call_Transfer(t *testing.T) {
 	//addr := "123"
 	state.SetBalance(common.StringToAddress(contract), big.NewInt(100))
 	hash, _ := state.Commit(false)
-	tvmCli.database.TrieDB().Commit(0,hash, false)
+	tvmCli.database.TrieDB().Commit(0, hash, false)
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
 
 	abiJson := fmt.Sprintf(`{
@@ -271,7 +271,7 @@ func TestTvmCli_Set_Data_Error(t *testing.T) {
 	state := getState(tvmCli)
 	key := "123"
 	hash, _ := state.Commit(false)
-	tvmCli.database.TrieDB().Commit(0,hash, false)
+	tvmCli.database.TrieDB().Commit(0, hash, false)
 	tvmCli.settings.SetString("root", "StateHash", hash.Hex())
 
 	abiJson := fmt.Sprintf(`{
