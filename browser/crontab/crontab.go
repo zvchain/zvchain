@@ -865,12 +865,12 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 					}
 					if tran.Target != "" && tran.Target == addr && blockDetail.Receipts[i].Status == 0 {
 						for _, log := range blockDetail.Receipts[i].Logs {
-							server.Handlemakerdao(addr, log, blockDetail.CurTime, tran.Hash)
+							server.Handlemakerdao(addr, log, blockDetail.CurTime, tran.Hash, common.HexToHash(blockDetail.Hash))
 						}
 					}
 					if tran.Target != "" && tran.Target == priceaddr && addr != "" && blockDetail.Receipts[i].Status == 0 {
 						for _, log := range blockDetail.Receipts[i].Logs {
-							server.Handlemakerdaobite(addr, log, blockDetail.CurTime, tran.Hash)
+							server.Handlemakerdaobite(addr, log, blockDetail.CurTime, tran.Hash, common.HexToHash(blockDetail.Hash))
 						}
 
 					}
@@ -891,12 +891,14 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 	//server.isFetchingBlocks = false
 }
 
-func loadliqitationrate(item string, contract string) uint64 {
+func loadliqitationrate(item string, contract string, blockhash common.Hash) uint64 {
 	if item == "" || contract == "" {
 		return 0
 	}
 	chain := core.BlockChainImpl
-	db, err := chain.LatestAccountDB()
+	//db, err := chain.LatestAccountDB()
+	db, err := chain.GetAccountDBByHash(blockhash)
+
 	if err != nil {
 		fmt.Errorf("loadliqitationrate err:%v ", err)
 		return 0
@@ -920,10 +922,10 @@ func loadliqitationrate(item string, contract string) uint64 {
 	}
 	return 0
 }
-func loadbiteorder(item string, set map[uint64]struct{}, contract string) map[uint64]struct{} {
+func loadbiteorder(set map[uint64]struct{}, contract string, blockhash common.Hash) map[uint64]struct{} {
 
 	chain := core.BlockChainImpl
-	db, err := chain.LatestAccountDB()
+	db, err := chain.GetAccountDBByHash(blockhash)
 	if err != nil {
 		fmt.Errorf("loadbiteorder err:%v ", err)
 		return nil
@@ -952,7 +954,7 @@ func loadbiteorder(item string, set map[uint64]struct{}, contract string) map[ui
 	}
 	return bite
 }
-func (server *Crontab) Handlemakerdaobite(addr string, log *models.Log, time time.Time, hash string) {
+func (server *Crontab) Handlemakerdaobite(addr string, log *models.Log, time time.Time, hash string, blockhash common.Hash) {
 	//bite
 	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("bite"))) {
 		itemname := gjson.Get(log.Data, "args.0").String()
@@ -973,7 +975,7 @@ func (server *Crontab) Handlemakerdaobite(addr string, log *models.Log, time tim
 			set[value.OrderId] = struct{}{}
 		}
 		if len(set) > 0 {
-			biteorders := loadbiteorder(itemname, set, addr)
+			biteorders := loadbiteorder(set, addr, blockhash)
 			for k, _ := range biteorders {
 				server.storage.Upmakerdao(k, mapData)
 			}
@@ -981,7 +983,7 @@ func (server *Crontab) Handlemakerdaobite(addr string, log *models.Log, time tim
 	}
 }
 
-func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Time, hash string) {
+func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Time, hash string, blockhash common.Hash) {
 	//applylock
 	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("applylock"))) {
 		addr := gjson.Get(log.Data, "args.0").String()
@@ -990,7 +992,7 @@ func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Ti
 		itemname := gjson.Get(log.Data, "args.3").String()
 		num := gjson.Get(log.Data, "args.4").Uint()
 		coin := gjson.Get(log.Data, "args.5").Uint()
-		rate := loadliqitationrate(itemname, server.makerdaoPriceContratc)
+		rate := loadliqitationrate(itemname, server.makerdaoPriceContratc, blockhash)
 		dai := &models.DaiPriceContract{OrderId: order,
 			Address:  addr,
 			Price:    price,
