@@ -131,12 +131,40 @@ type DaiPriceContract struct {
 	OrderId          uint64    `json:"order_id" gorm:"index"`
 	ItemName         string    `json:"item_name"`
 	Num              uint64    `json:"num"`
-	Coin             uint64    `json:"coin"`
+	Coin             string    `json:"coin"`
 	Liquidation      uint64    `json:"liquidation"`
 	RealLiquidation  uint64    `json:"real_liquidation"`
 	CurTime          time.Time `json:"cur_time" gorm:"index"`
 	Status           uint64    `json:"status"`
 	Phone            string    `json:"phone"`
+}
+type PizzaswapContract struct {
+	gorm.Model
+	Pair        string `json:"pair" gorm:"unique_index"`
+	Token0      string `json:"token0"`
+	Token1      string `json:"token1"`
+	Token0name  string `json:"token0name" `
+	Token1name  string `json:"token1name" `
+	Decimal0    uint64 `json:"decimal0"`
+	Decimal1    uint64 `json:"decimal1"`
+	Decimalpair uint64 `json:"decimalpair"`
+
+	Creator string `json:"creator" `
+	Status  uint64 `json:"status" `
+}
+
+type PizzaswapPool struct {
+	gorm.Model
+	Pair         string `json:"pair" gorm:"unique_index"`
+	Token0       string `json:"token0"`
+	Token1       string `json:"token1"`
+	Token0name   string `json:"token0name" `
+	Token1name   string `json:"token1name" `
+	Decimalpair  uint64 `json:"decimalpair"`
+	DecimalPizza uint64 `json:"decimalPizza"`
+
+	PoolId  uint64 `json:"poolid"`
+	Creator string `json:"creator" `
 }
 
 type TokenContractTransaction struct {

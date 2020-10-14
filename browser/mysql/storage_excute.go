@@ -853,6 +853,51 @@ func (storage *Storage) AddMakerdao(dai *models.DaiPriceContract) bool {
 	}
 	return true
 }
+
+func (storage *Storage) AddPizzapool(pool *models.PizzaswapPool) bool {
+	data := make([]*models.PizzaswapContract, 0, 0)
+	storage.db.Limit(1).Where("pair = ?", pool.Pair).Find(&data)
+	if len(data) > 0 {
+		if storage.db == nil {
+			fmt.Println("[Storage] storage.db == nil")
+			return false
+		}
+		pool.Token0 = data[0].Token0
+		pool.Token1 = data[0].Token1
+		pool.Token0name = data[0].Token0name
+		pool.Token1name = data[0].Token1name
+		pool.Decimalpair = data[0].Decimalpair
+		pool.DecimalPizza = 9
+		storage.db.Create(&pool)
+	}
+	return true
+}
+func (storage *Storage) AddPizzaswap(dai *models.PizzaswapContract) bool {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return false
+	}
+	data := make([]*models.PizzaswapContract, 0, 0)
+	storage.db.Limit(1).Where("pair = ?", dai.Pair).Find(&data)
+	if len(data) > 0 {
+		mapData := make(map[string]interface{})
+		mapData["token0name"] = dai.Token0name
+		mapData["token0"] = dai.Token0
+		mapData["token1"] = dai.Token1
+
+		mapData["token1name"] = dai.Token1name
+		mapData["decimal0"] = dai.Decimal0
+		mapData["decimal1"] = dai.Decimal1
+		mapData["decimalpair"] = dai.Decimalpair
+
+		mapData["status"] = dai.Status
+
+		storage.Uppizzabypair(dai.Pair, mapData)
+	} else {
+		storage.db.Create(&dai)
+	}
+	return true
+}
 func (storage *Storage) AddMakerdaoPhoneByhash(dai *models.DaiPriceContract) bool {
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
@@ -870,7 +915,16 @@ func (storage *Storage) AddMakerdaoPhoneByhash(dai *models.DaiPriceContract) boo
 	}
 	return true
 }
+func (storage *Storage) GetPizzaswapContract(pair string) []*models.PizzaswapContract {
+	if storage.db == nil {
+		fmt.Println("[Storage] storage.db == nil")
+		return nil
+	}
+	data := make([]*models.PizzaswapContract, 0, 0)
+	storage.db.Limit(20).Where("pair = ? ", pair).Find(&data)
 
+	return data
+}
 func (storage *Storage) GetDaiPriceContract(item string) []*models.DaiPriceContract {
 	if storage.db == nil {
 		fmt.Println("[Storage] storage.db == nil")
@@ -893,6 +947,13 @@ func (storage *Storage) UpmakerdaoByhash(hash string, mapData map[string]interfa
 
 	return storage.db.Model(&models.DaiPriceContract{}).
 		Where("tx_hash = ?", hash).
+		Updates(mapData).Error
+}
+
+func (storage *Storage) Uppizzabypair(pair string, mapData map[string]interface{}) error {
+
+	return storage.db.Model(&models.PizzaswapContract{}).
+		Where("pair = ?", pair).
 		Updates(mapData).Error
 }
 

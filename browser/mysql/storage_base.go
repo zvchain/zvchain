@@ -145,6 +145,12 @@ func (storage *Storage) Init(reset bool, resetcrontab bool) {
 	if !db.HasTable(&models.DaiPriceContract{}) {
 		db.CreateTable(&models.DaiPriceContract{})
 	}
+	if !db.HasTable(&models.PizzaswapContract{}) {
+		db.CreateTable(&models.PizzaswapContract{})
+	}
+	if !db.HasTable(&models.PizzaswapPool{}) {
+		db.CreateTable(&models.PizzaswapPool{})
+	}
 	if !db.HasTable(&models.ContractTransaction{}) {
 		db.CreateTable(&models.ContractTransaction{})
 	}

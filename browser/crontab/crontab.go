@@ -836,6 +836,7 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 					go server.HandleTempTokenTable(tran.Hash, tran.ContractAddress, tran.Source, blockDetail.Receipts[i].Status)
 					if blockDetail.Receipts[i] != nil && blockDetail.Receipts[i].Status == 0 {
 						go server.HandleVoteContractDeploy(tran.ContractAddress, tran.Source, blockDetail.Block.CurTime)
+						go server.HandlePizzaswapContractDeploy(tran.ContractAddress, tran.Source, blockDetail.Block.CurTime)
 					}
 				}
 				if tran.Type == types.TransactionTypeContractCall {
@@ -846,6 +847,16 @@ func (server *Crontab) consumeBlock(localHeight uint64, pre uint64) {
 						for _, log := range blockDetail.Receipts[i].Logs {
 							if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("transfer"))) {
 								server.storage.AddTokenContract(tran, log)
+							}
+							if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("pair"))) {
+								pizzas := server.storage.GetPizzaswapContract(tran.Target)
+								if len(pizzas) > 0 {
+									server.HandlePizzacreate(tran.Target, log, blockDetail.CurTime, tran.Hash, common.HexToHash(blockDetail.Hash))
+								}
+							}
+							if blockDetail.Receipts[i].Status == 0 && common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("pizzaswappool"))) {
+								server.Handlepool(tran.Target, log, blockDetail.CurTime, tran.Hash, common.HexToHash(blockDetail.Hash))
+
 							}
 						}
 					}
@@ -922,6 +933,50 @@ func loadliqitationrate(item string, contract string, blockhash common.Hash) uin
 	}
 	return 0
 }
+func loadpizzaswaptokeninfo(contract string, blockhash common.Hash) (string, uint64) {
+
+	chain := core.BlockChainImpl
+	db, err := chain.GetAccountDBByHash(blockhash)
+	if err != nil {
+		fmt.Errorf("loadbiteorder err:%v ", err)
+		return "", 0
+	}
+	namereturn := ""
+	decimalreturn := 0
+	contractAddress := common.StringToAddress(contract)
+	key := "name"
+	iter := db.DataIterator(contractAddress, []byte(key))
+	if iter == nil {
+		fmt.Errorf("loadbiteorder err,iter is nil ")
+		return "", 0
+	}
+	for iter.Next() {
+		k := string(iter.Key[:])
+		if key == k {
+			v := tvm.VmDataConvert(iter.Value[:])
+			if name, ok := v.(string); ok {
+				namereturn = name
+			}
+		}
+	}
+	key2 := "decimal"
+	iter2 := db.DataIterator(contractAddress, []byte(key2))
+	if iter2 == nil {
+		fmt.Errorf("loadbiteorder err,iter is nil ")
+		return "", 0
+	}
+	for iter2.Next() {
+		k := string(iter2.Key[:])
+		if key2 == k {
+			v := tvm.VmDataConvert(iter2.Value[:])
+			if decimal, ok := v.(int64); ok {
+				decimalreturn = int(decimal)
+			}
+		}
+
+	}
+	return namereturn, uint64(decimalreturn)
+}
 func loadbiteorder(set map[uint64]struct{}, contract string, blockhash common.Hash) map[uint64]struct{} {
 
 	chain := core.BlockChainImpl
@@ -982,7 +1037,43 @@ func (server *Crontab) Handlemakerdaobite(addr string, log *models.Log, time tim
 		}
 	}
 }
+func (server *Crontab) HandlePizzacreate(addr string, log *models.Log, time time.Time, hash string, blockhash common.Hash) {
+	//bite
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("pair"))) {
+		tokena := gjson.Get(log.Data, "args.0").String()
+		tokenb := gjson.Get(log.Data, "args.1").String()
+		decimal := gjson.Get(log.Data, "args.2").Int()
+		name0, decimal0 := loadpizzaswaptokeninfo(tokena, blockhash)
+		name1, decimal1 := loadpizzaswaptokeninfo(tokenb, blockhash)
+		pizza := &models.PizzaswapContract{
+			Token0name:  name0,
+			Token0:      tokena,
+			Token1:      tokenb,
+			Token1name:  name1,
+			Decimal0:    decimal0,
+			Decimal1:    decimal1,
+			Status:      1,
+			Pair:        addr,
+			Decimalpair: uint64(decimal),
+		}
 
+		server.storage.AddPizzaswap(pizza)
+	}
+}
+
+func (server *Crontab) Handlepool(addr string, log *models.Log, time time.Time, hash string, blockhash common.Hash) {
+	//bite
+	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("pizzaswappool"))) {
+		poolid := gjson.Get(log.Data, "args.0").Int()
+		pair := gjson.Get(log.Data, "args.1").String()
+		pizza := &models.PizzaswapPool{
+
+			PoolId: uint64(poolid),
+			Pair:   pair,
+		}
+		server.storage.AddPizzapool(pizza)
+	}
+}
 func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Time, hash string, blockhash common.Hash) {
 	//applylock
 	if common.HexToHash(log.Topic) == common.BytesToHash(common.Sha256([]byte("applylock"))) {
@@ -991,7 +1082,7 @@ func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Ti
 		order := gjson.Get(log.Data, "args.2").Uint()
 		itemname := gjson.Get(log.Data, "args.3").String()
 		num := gjson.Get(log.Data, "args.4").Uint()
-		coin := gjson.Get(log.Data, "args.5").Uint()
+		coin := gjson.Get(log.Data, "args.5").String()
 		rate := loadliqitationrate(itemname, server.makerdaoPriceContratc, blockhash)
 		dai := &models.DaiPriceContract{OrderId: order,
 			Address:  addr,
@@ -1040,6 +1131,19 @@ func (server *Crontab) Handlemakerdao(addr string, log *models.Log, time time.Ti
 		mapData["status"] = status
 		server.storage.Upmakerdao(order, mapData)
 	}
+
+}
+
+func (crontab *Crontab) HandlePizzaswapContractDeploy(contractAddr, promoter string, blockTime time.Time) {
+	if !isswapContract(contractAddr) {
+		return
+	}
+	swap := &models.PizzaswapContract{
+		Creator: promoter,
+		Pair:    contractAddr,
+		Status:  0,
+	}
+	crontab.storage.AddPizzaswap(swap)
 
 }
 func (crontab *Crontab) HandleVoteContractDeploy(contractAddr, promoter string, blockTime time.Time) {
@@ -1339,7 +1443,9 @@ func CountVotes(voteId uint64) {
 func isVoteContract(contractAddr string) bool {
 	return hasEssentialKey(contractAddr) && hasChooseFunc(contractAddr) && namedVote(contractAddr)
 }
-
+func isswapContract(contractAddr string) bool {
+	return hasUniswapKey(contractAddr) && hasCreatepairFunc(contractAddr)
+}
 func (crontab *Crontab) isFromMinerPool(promoter string) bool {
 
 	minerPoolList := make([]models.AccountList, 0)
@@ -1352,6 +1458,27 @@ func (crontab *Crontab) isFromMinerPool(promoter string) bool {
 	return false
 }
 
+func hasUniswapKey(addr string) bool {
+
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("hasEssentialKey err: ", err)
+		return false
+	}
+	symbol1 := db.GetData(common.StringToAddress(addr), []byte("masterchief"))
+	symbol2 := db.GetData(common.StringToAddress(addr), []byte("factory"))
+	symbol3 := db.GetData(common.StringToAddress(addr), []byte("router"))
+	symbol4 := db.GetData(common.StringToAddress(addr), []byte("feetoaddr"))
+
+	if (len(symbol1) > 0) &&
+		(len(symbol2) > 0) &&
+		(len(symbol3) > 0) &&
+		(len(symbol4) > 0) {
+		return true
+	}
+	return false
+}
 func hasEssentialKey(addr string) bool {
 
 	chain := core.BlockChainImpl
@@ -1374,6 +1501,33 @@ func hasEssentialKey(addr string) bool {
 	return false
 }
 
+func hasCreatepairFunc(addr string) bool {
+	chain := core.BlockChainImpl
+	db, err := chain.LatestAccountDB()
+	if err != nil {
+		browserlog.BrowserLog.Error("hasCreatepairFunc err: ", err)
+		return false
+	}
+	code := db.GetCode(common.StringToAddress(addr))
+	contract := tvm.Contract{}
+	err = json.Unmarshal(code, &contract)
+	if err != nil {
+		browserlog.BrowserLog.Error("hasCreatepairFunc err: ", err)
+		return false
+	}
+	stringSlice := strings.Split(contract.Code, "\n")
+	for k, targetString := range stringSlice {
+		targetString = strings.TrimSpace(targetString)
+		if strings.HasPrefix(targetString, "@register.public") {
+			if len(stringSlice) > k+1 {
+				if strings.Index(stringSlice[k+1], " create_pair(") != -1 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
 func hasChooseFunc(addr string) bool {
 	chain := core.BlockChainImpl
 	db, err := chain.LatestAccountDB()
