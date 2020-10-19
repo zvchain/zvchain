@@ -93,6 +93,7 @@ func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uin
 		lastCommit  uint64
 		beginHeight uint64
 	)
+
 	// merge data to big db
 	err := store.iterateData(func(key, value []byte) (b bool, e error) {
 		height := store.parseHeightOfPrefixIterKey(key)
@@ -100,6 +101,12 @@ func (store *smallStateStore) CommitToBigDB(chain *FullBlockChain, topHeight uin
 		if height > topHeight {
 			return false, nil
 		}
+		persistenceCt := common.GlobalConf.GetInt(prune, "persistence_count", defaultPersistenceCount)
+		if height+ uint64(persistenceCt) < topHeight{
+			Logger.Infof("skip too early block %d\n", height)
+			return true, nil
+		}
+
 		// miss corresponding block, reset top is needed
 		if !chain.hasHeight(height) {
 			return false, nil

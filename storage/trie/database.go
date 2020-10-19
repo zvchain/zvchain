@@ -587,6 +587,7 @@ func (db *NodeDatabase) CommitStateDataToBigDb(blobs []*storeBlob, repeatKey map
 		return nil
 	}
 	batch := db.diskdb.NewBatch()
+	defer batch.Reset();
 	for _, vl := range blobs {
 		// if the key has committed,then return
 		_, ok := repeatKey[vl.Key]
